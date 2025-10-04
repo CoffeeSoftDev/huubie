@@ -1918,13 +1918,13 @@ class Components extends Complements {
         // ===== THEME: Huubie Dark =====
         const isDark = String(opts.theme).toLowerCase() === "dark";
         const colors = {
-            navbar: isDark ? "bg-[#1F2A37] text-white" : "bg-[#0A2B4B] text-white", // Huubie dark / Light azul prof.
-            dropdownBg: isDark ? "bg-[#1F2A37] text-white" : "bg-white text-gray-800",
-            hoverText: isDark ? "hover:text-blue-300" : "hover:text-blue-200",
-            userHover: isDark ? "" : "hover:bg-blue-100",
-            userBg: isDark ? "bg-[#1F2A37]" : "bg-white",
-            border: isDark ? "border border-gray-700" : "border border-gray-200",
-            chipBg: isDark ? "bg-gray-700" : "bg-gray-100"
+            navbar: isDark ? "bg-[#0F172A] text-white" : "bg-[#0A2B4B] text-white", // Huubie dark slate-900 / Light azul prof.
+            dropdownBg: isDark ? "bg-[#1E293B] text-white" : "bg-white text-gray-800",
+            hoverText: isDark ? "hover:text-blue-400" : "hover:text-blue-200",
+            userHover: isDark ? "hover:bg-slate-700" : "hover:bg-blue-100",
+            userBg: isDark ? "bg-[#1E293B]" : "bg-white",
+            border: isDark ? "border border-slate-600" : "border border-gray-200",
+            chipBg: isDark ? "bg-slate-700" : "bg-gray-100"
         };
 
         // NAVBAR
@@ -2602,10 +2602,24 @@ class Templates extends Components {
     primaryLayout(options) {
         const name = options.id ? options.id : 'primaryLayout';
 
+        // 🎯 Presets de altura para diferentes layouts
+        const heightPresets = {
+            'full': 'min-h-screen',
+            'viewport': 'h-[calc(100vh-120px)]',
+            'compact': 'h-[calc(100vh-200px)]',
+            'auto': 'h-auto'
+        };
+
+        // Determinar la altura basada en el preset o usar la clase personalizada
+        const heightClass = options.heightPreset 
+            ? heightPresets[options.heightPreset] || heightPresets['viewport']
+            : (options.class?.includes('h-') ? '' : heightPresets['viewport']);
+
         let defaults = {
             id: name,
             parent: this._div_modulo,
-            class: "d-flex mx-2 my-2 h-100",
+            class: `d-flex mx-2 my-2 ${heightClass}`,
+            heightPreset: 'viewport', // Default preset
             card: {
                 name: "singleLayout",
                 class: "flex flex-col col-12",
@@ -2617,6 +2631,12 @@ class Templates extends Components {
 
         // Mezclar opciones con valores predeterminados
         const opts = this.ObjectMerge(defaults, options);
+
+        // 🔧 Aplicar preset de altura si no se especifica clase personalizada
+        if (opts.heightPreset && !opts.class.includes('h-')) {
+            const presetHeight = heightPresets[opts.heightPreset] || heightPresets['viewport'];
+            opts.class = opts.class.replace(/h-\S+/g, '').trim() + ` ${presetHeight}`;
+        }
 
 
         this.createPlantilla({

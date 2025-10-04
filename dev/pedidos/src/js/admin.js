@@ -47,7 +47,7 @@ class App extends Templates {
         this.primaryLayout({
             parent: `root`,
             id: this.PROJECT_NAME,
-            class: 'flex mx-2 my-2 h-100 mt-5 p-2',
+            class: 'flex mx-2 my-2 min-h-screen mt-5 p-2',
             card: {
                 filterBar: { class: 'w-full my-3', id: 'filterBar' + this.PROJECT_NAME },
                 container: { class: 'w-full my-3 h-full bg-[#1F2A37] rounded-lg p-3', id: 'container' + this.PROJECT_NAME }

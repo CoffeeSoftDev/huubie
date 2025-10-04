@@ -76,12 +76,12 @@
 
 </head>
 
-<body class="bg-[#111928] text-white h-screen " data-bs-theme="dark">
+<body class="bg-[#111928] text-white " data-bs-theme="dark">
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
     <div id="mainContainer"
-        class="w-full h-full flex flex-col text-white ">
-        <div style="background-color:#111827;" class=" min-h-3" id="root"></div>
+        class="w-full flex flex-col text-white mt-16">
+        <div style="background-color:#111827;" class=" " id="root"></div>
     </div>
 
 

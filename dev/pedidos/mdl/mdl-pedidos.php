@@ -337,13 +337,27 @@ class MPedidos extends CRUD {
                 order_products.description,
                 order_package.dedication,
                 order_products.image,
-                customer_id
+                order_package.customer_id,
+                order_customer.name as data_customer
             FROM
                 {$this->bd}order_package
             INNER JOIN {$this->bd}order_products ON order_package.product_id = order_products.id
+            LEFT JOIN {$this->bd}order_customer ON order_package.customer_id = order_customer.id
             WHERE pedidos_id = ?
         ";
-        return $this->_Read($sql,$array);
+        
+        $products = $this->_Read($sql, $array);
+        
+        // Para cada producto, obtener sus imágenes si es personalizado
+        foreach ($products as &$product) {
+            if ($product['customer_id']) {
+                $product['images'] = $this->getOrderImages([$product['id']]);
+            } else {
+                $product['images'] = [];
+            }
+        }
+        
+        return $products;
     }
 
     public function getOrderPackageByID($array) {
@@ -528,6 +542,8 @@ class MPedidos extends CRUD {
                 op.quantity,
                 op.order_details,
                 op.dedication,
+                op.customer_id,
+                oc.name as data_customer,
                 prod.name as product_name,
                 prod.price as unit_price,
                 prod.description,
@@ -538,12 +554,25 @@ class MPedidos extends CRUD {
                 {$this->bd}order_package op
             INNER JOIN {$this->bd}order_products prod ON op.product_id = prod.id
             LEFT JOIN {$this->bd}order_category cat ON prod.category_id = cat.id
+            LEFT JOIN {$this->bd}order_customer oc ON op.customer_id = oc.id
             WHERE
                 op.pedidos_id = ?
             ORDER BY
                 op.id ASC
         ";
-        return $this->_Read($query, $array);
+        
+        $products = $this->_Read($query, $array);
+        
+        // Para cada producto, obtener sus imágenes si es personalizado
+        foreach ($products as &$product) {
+            if ($product['customer_id']) {
+                $product['images'] = $this->getOrderImages([$product['id']]);
+            } else {
+                $product['images'] = [];
+            }
+        }
+        
+        return $products;
     }
 
 

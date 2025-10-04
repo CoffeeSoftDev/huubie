@@ -365,11 +365,21 @@ class ctrl extends MPedidos{
         foreach ($ls as $key) {
 
             $__row[] = [
-                'id'    => $key['id'],
-                'name'  => $key['name'],
-                'price' => $key['price'],
-                'desc'  => $key['description'],
-                'opc'   => 0
+                'id'           => $key['id'],
+                'name'         => $key['name'],
+                'price'        => $key['price'],
+                'quantity'     => $key['quantity'],
+                'description'  => $key['description'],
+                'dedication'   => $key['dedication'],
+                'order_details'=> $key['order_details'],
+                'customer_id'  => $key['customer_id'],
+                'data_customer'=> $key['data_customer'],
+                'image'        => $key['image'],
+                'images'       => $key['images'] ?? [],
+                'product_name' => $key['name'],
+                'unit_price'   => $key['price'],
+                'total_price'  => $key['price'] * $key['quantity'],
+                'opc'          => 0
             ];
         }
 

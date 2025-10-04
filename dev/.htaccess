@@ -22,6 +22,7 @@ RewriteRule ^configuracion/$ menus/configuracion.php [L]
 
 #Módulo de pedidos
 RewriteRule ^admin-pedidos/$ pedidos/admin.php [L]
+RewriteRule ^playground/$ pedidos/playground.php [L]
 
 
 #Módulo de ventas

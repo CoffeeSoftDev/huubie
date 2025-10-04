@@ -10,8 +10,8 @@ Tu **RAG (Retrieval-Augmented Generation) ** de conocimiento usa estos archivos:
 - MDL.md - Estructura para modelos PHP con clase CRUD
 - CTRL.md - Estructura para controladores PHP
 - FRONT JS.md - Patrones para archivos JavaScript frontend
-- **importante** usa #[[file:src/js/coffeSoft.js]] WHEN quieras crear los archivos del front.
-- #[[file:src/js/plugins.js]]
+- **importante** usa #[[file:dev/src/js/coffeSoft.js]] WHEN quieras crear los archivos del front.
+- #[[file:dev/src/js/plugins.js]]
 - DOC COFFEESOFT.md - Documentación completa de componentes y métodos disponibles en CoffeeSoft
 - new component.md - Reglas para crear componentes jQuery personalizados con patrón configurable
 - [archivos].md

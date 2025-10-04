@@ -1,7 +1,20 @@
-let url = 'https://huubie.com.mx/dev/pedidos/ctrl/ctrl-admin.php';
-let api = "pedidos/ctrl/ctrl-pedidos.php";
+let url = '../ctrl/ctrl-admin.php';
+let api = 'pedidos/ctrl/ctrl-pedidos.php';
 
 $(async () => {
+
+    // Prueba de conexión al backend
+    console.log('🔄 Probando conexión al backend...');
+
+    try {
+        const testResponse = await useFetch({
+            url: url,
+            data: { opc: "init" }
+        });
+        console.log('✅ Conexión exitosa:', testResponse);
+    } catch (error) {
+        console.error('❌ Error de conexión:', error);
+    }
 
     // instancias.
     app = new App(api, 'root');
@@ -29,9 +42,8 @@ class App extends Templates {
         this.layout();
 
         // interface.
-        this.orderDetailsModal(25);
-
-
+        // this.orderDetailsModal(25);
+        this.showOrderDetails(32)
     }
 
     layout() {
@@ -48,7 +60,7 @@ class App extends Templates {
     async showOrderDetails(orderId) {
 
         const response = await useFetch({
-            url: this._link,
+            url: api,
             data: { opc: 'getOrderDetails', id: orderId }
         });
 
@@ -103,11 +115,12 @@ class App extends Templates {
                 {
                     id: "details",
                     tab: "Detalles del pedido",
-                    active: true,
+
                 },
                 {
                     id: "order",
                     tab: "Pedido",
+                    active: true,
                 }
             ]
         });
@@ -226,19 +239,14 @@ class App extends Templates {
     }
 
     renderOrderTab(data) {
+        console.log(data)
         const orderData = data.order || {};
         const products = data.products || [];
         const payments = data.payments || [];
 
         const orderHtml = `
             <div class="space-y-4">
-                <!-- Tipo de pedido -->
-                <div class="bg-[#1F2A37] rounded-lg p-3">
-                    <h3 class="text-white font-semibold mb-3">Tipo de Pedido</h3>
-                    <div>
-                        ${this.determineOrderType(orderData)}
-                    </div>
-                </div>
+               
                 
                 <!-- Detalles de productos -->
                 <div class="bg-[#1F2A37] rounded-lg p-3">
@@ -251,12 +259,12 @@ class App extends Templates {
                
             </div>
         `;
-     
+
         $('#container-order').html(orderHtml);
 
         this.orderProductList({
             parent: "container-products",
-           
+
         });
     }
 
@@ -289,27 +297,7 @@ class App extends Templates {
     orderProductList(options) {
         const defaults = {
             parent: "container-products",
-            json: [
-
-                {
-                    product_name: "Pastel de Chocolate",
-                    description: "Bizcocho esponjoso con ganache",
-                    order_details: "Sin nuez",
-                    dedication: "¡Feliz cumpleaños, Rosi! 🎂",
-                    quantity: 2,
-                    unit_price: 180,
-                    total_price: 360,
-                    image: "https://via.placeholder.com/64x64.png?text=🍫"
-                },
-                {
-                    product_name: "Pay de Limón",
-                    description: "Corteza crujiente y relleno cremoso",
-                    quantity: 1,
-                    unit_price: 95,
-                    total_price: 95,
-                    image: ""
-                }
-            ]
+            json: []
         };
 
         const opts = Object.assign({}, defaults, options);
@@ -319,35 +307,185 @@ class App extends Templates {
 
         if (!products || products.length === 0) {
             html = `
-      <div class="text-center py-4 text-gray-400">
-        <i class="icon-box text-2xl mb-1"></i>
-        <p class="text-sm">No hay productos en este pedido</p>
-      </div>`;
+            <div class="text-center py-6 text-gray-400">
+                <i class="icon-box text-3xl mb-2"></i>
+                <p class="text-sm">No hay productos en este pedido</p>
+            </div>`;
         } else {
-            html = products.map(product => `
-      <div class="flex items-center justify-between p-2 bg-[#283341] rounded border border-gray-600 mb-2">
-        <div class="flex items-center gap-2">
-          ${product.image
-                    ? `<img src="${product.image}" alt="${product.product_name}" class="w-8 h-8 rounded object-cover">`
-                    : `<div class="w-8 h-8 bg-gray-600 rounded flex items-center justify-center"><i class="icon-box text-gray-400 text-xs"></i></div>`}
-          <div>
-            <p class="text-white font-semibold text-sm">${product.product_name}</p>
-            <p class="text-gray-400 text-xs">${product.description || ""}</p>
-            ${product.order_details ? `<p class="text-gray-500 text-xs">${product.order_details}</p>` : ""}
-            ${product.dedication ? `<p class="text-yellow-400 text-xs"><i class="icon-heart"></i> ${product.dedication}</p>` : ""}
-          </div>
-        </div>
-        <div class="text-right">
-          <p class="text-white text-sm">Cant: ${product.quantity}</p>
-          <p class="text-gray-400 text-xs">$${parseFloat(product.unit_price).toFixed(2)} c/u</p>
-          <p class="text-green-400 font-bold text-sm">$${parseFloat(product.total_price).toFixed(2)}</p>
-        </div>
-      </div>
-    `).join('');
+            html = products.map(product => {
+                // Determinar si es producto personalizado basado en customer_id
+                const isCustom = product.customer_id && product.customer_id !== null;
+
+                return `
+                <div class="${isCustom ? 'bg-purple-900/40 border-purple-500' : 'bg-[#283341] border-gray-600'} rounded-lg border p-4 mb-3">
+                    <div class="flex items-start gap-3">
+                        <!-- Imagen del producto -->
+                        <div class="flex-shrink-0">
+                            ${product.image && product.image.trim() !== ""
+                        ? `<img src="https://huubie.com.mx/${product.image}" alt="${product.product_name}" class="w-16 h-16 rounded-lg object-cover">`
+                        : `<div class="w-16 h-16 bg-gray-600 rounded-lg flex items-center justify-center">
+                                     <i class="icon-birthday text-gray-400 text-xl"></i>
+                                   </div>`
+                    }
+                        </div>
+                        
+                        <!-- Información del producto -->
+                        <div class="flex-1">
+                            <div class="flex items-start justify-between mb-2">
+                                <div>
+                                    <h4 class="text-white font-semibold text-base">${product.product_name || product.name}</h4>
+                                    ${product.description ? `<p class="text-gray-400 text-sm mt-1">${product.description}</p>` : ""}
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-white font-semibold">Cant: ${product.quantity}</p>
+                                    <p class="text-gray-400 text-sm">$${parseFloat(product.unit_price || product.price).toFixed(2)} c/u</p>
+                                    <p class="text-green-400 font-bold text-lg">$${parseFloat(product.total_price || (product.price * product.quantity)).toFixed(2)}</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Indicador de producto personalizado -->
+                            ${isCustom ? `
+                            <div class="bg-purple-900/30 border border-purple-500 rounded-lg p-3 mt-3">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <i class="icon-magic text-purple-400 text-lg"></i>
+                                    <span class="text-purple-400 font-semibold text-base">🎨 Producto Personalizado</span>
+                                </div>
+                                
+                                ${product.data_customer ? `
+                                <div class="bg-purple-800/30 border border-purple-400/40 rounded-md p-2 mb-3">
+                                    <div class="flex items-start gap-2">
+                                        <i class="icon-user text-purple-300 text-sm mt-1"></i>
+                                        <div class="flex-1">
+                                            <p class="text-purple-300 text-sm font-medium mb-1">👤 Tipo de personalización:</p>
+                                            <p class="text-gray-200 text-sm font-semibold">${product.data_customer}</p>
+                                        </div>
+                                    </div>
+                                </div>` : ""}
+                                
+                                <!-- Detalles de personalización -->
+                                <div class="space-y-3">
+                                    ${product.dedication ? `
+                                    <div class="bg-yellow-900/20 border border-yellow-600/30 rounded-md p-2">
+                                        <div class="flex items-start gap-2">
+                                            <i class="icon-heart text-yellow-400 text-sm mt-1"></i>
+                                            <div class="flex-1">
+                                                <p class="text-yellow-400 text-sm font-medium mb-1">💝 Dedicatoria:</p>
+                                                <p class="text-gray-200 text-sm italic">"${product.dedication}"</p>
+                                            </div>
+                                        </div>
+                                    </div>` : ""}
+                                    
+                                    ${product.order_details ? `
+                                    <div class="bg-blue-900/20 border border-blue-600/30 rounded-md p-2">
+                                        <div class="flex items-start gap-2">
+                                            <i class="icon-doc-text text-blue-400 text-sm mt-1"></i>
+                                            <div class="flex-1">
+                                                <p class="text-blue-400 text-sm font-medium mb-1">📝 Detalles especiales:</p>
+                                                <p class="text-gray-200 text-sm">${product.order_details}</p>
+                                            </div>
+                                        </div>
+                                    </div>` : ""}
+                                    
+                                    ${product.images && product.images.length > 0 ? `
+                                    <div class="bg-green-900/20 border border-green-600/30 rounded-md p-2">
+                                        <div class="flex items-start gap-2">
+                                            <i class="icon-camera text-green-400 text-sm mt-1"></i>
+                                            <div class="flex-1">
+                                                <p class="text-green-400 text-sm font-medium mb-1">📷 Imágenes de referencia:</p>
+                                                <p class="text-gray-200 text-sm">${product.images.length} imagen${product.images.length > 1 ? 's' : ''} adjunta${product.images.length > 1 ? 's' : ''}</p>
+                                                <div class="flex gap-1 mt-2 flex-wrap">
+                                                    ${product.images.slice(0, 3).map(img => `
+                                                        <div class="w-8 h-8 bg-gray-700 rounded border border-green-500/30 flex items-center justify-center">
+                                                            <i class="icon-picture text-green-400 text-xs"></i>
+                                                        </div>
+                                                    `).join('')}
+                                                    ${product.images.length > 3 ? `<div class="w-8 h-8 bg-gray-700 rounded border border-green-500/30 flex items-center justify-center"><span class="text-green-400 text-xs">+${product.images.length - 3}</span></div>` : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>` : ""}
+                                    
+                                    ${!product.dedication && !product.order_details && (!product.images || product.images.length === 0) ? `
+                                    <div class="bg-gray-800/50 border border-gray-600/30 rounded-md p-2">
+                                        <div class="flex items-center gap-2">
+                                            <i class="icon-info text-gray-400 text-sm"></i>
+                                            <p class="text-gray-400 text-sm">Producto personalizado sin detalles adicionales</p>
+                                        </div>
+                                    </div>` : ""}
+                                </div>
+                            </div>` : ""}
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
         }
 
         $(`#${opts.parent}`).html(html);
     }
+
+    // orderProductList(options) {
+    //     const defaults = {
+    //         parent: "container-products",
+    //         json: [
+
+    //             {
+    //                 product_name: "Pastel de Chocolate",
+    //                 description: "Bizcocho esponjoso con ganache",
+    //                 order_details: "Sin nuez",
+    //                 dedication: "¡Feliz cumpleaños, Rosi! 🎂",
+    //                 quantity: 2,
+    //                 unit_price: 180,
+    //                 total_price: 360,
+    //                 image: "https://via.placeholder.com/64x64.png?text=🍫"
+    //             },
+    //             {
+    //                 product_name: "Pay de Limón",
+    //                 description: "Corteza crujiente y relleno cremoso",
+    //                 quantity: 1,
+    //                 unit_price: 95,
+    //                 total_price: 95,
+    //                 image: ""
+    //             }
+    //         ]
+    //     };
+
+    //     const opts = Object.assign({}, defaults, options);
+    //     const products = opts.json;
+
+    //     let html = "";
+
+    //     if (!products || products.length === 0) {
+    //         html = `
+    //   <div class="text-center py-4 text-gray-400">
+    //     <i class="icon-box text-2xl mb-1"></i>
+    //     <p class="text-sm">No hay productos en este pedido</p>
+    //   </div>`;
+    //     } else {
+    //         html = products.map(product => `
+    //   <div class="flex items-center justify-between p-2 bg-[#283341] rounded border border-gray-600 mb-2">
+    //     <div class="flex items-center gap-2">
+    //       ${product.image
+    //                 ? `<img src="${product.image}" alt="${product.product_name}" class="w-8 h-8 rounded object-cover">`
+    //                 : `<div class="w-8 h-8 bg-gray-600 rounded flex items-center justify-center"><i class="icon-box text-gray-400 text-xs"></i></div>`}
+    //       <div>
+    //         <p class="text-white font-semibold text-sm">${product.product_name}</p>
+    //         <p class="text-gray-400 text-xs">${product.description || ""}</p>
+    //         ${product.order_details ? `<p class="text-gray-500 text-xs">${product.order_details}</p>` : ""}
+    //         ${product.dedication ? `<p class="text-yellow-400 text-xs"><i class="icon-heart"></i> ${product.dedication}</p>` : ""}
+    //       </div>
+    //     </div>
+    //     <div class="text-right">
+    //       <p class="text-white text-sm">Cant: ${product.quantity}</p>
+    //       <p class="text-gray-400 text-xs">$${parseFloat(product.unit_price).toFixed(2)} c/u</p>
+    //       <p class="text-green-400 font-bold text-sm">$${parseFloat(product.total_price).toFixed(2)}</p>
+    //     </div>
+    //   </div>
+    // `).join('');
+    //     }
+
+    //     $(`#${opts.parent}`).html(html);
+    // }
 
 
 

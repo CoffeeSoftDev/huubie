@@ -1,10 +1,19 @@
 <?php
 session_start();
-if (empty($_POST['opc'])) exit(0);
+
+// Manejar preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    header("Access-Control-Allow-Origin: *");
+    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+    exit(0);
+}
 
 header("Access-Control-Allow-Origin: *"); // Permite solicitudes de cualquier origen
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); // Métodos permitidos
-header("Access-Control-Allow-Headers: Content-Type"); // Encabezados permitidos
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With"); // Encabezados permitidos
+
+if (empty($_POST['opc'])) exit(0);
 
 require_once '../mdl/mdl-pedidos.php';
 

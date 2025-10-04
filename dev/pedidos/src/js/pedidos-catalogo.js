@@ -10,10 +10,10 @@ class Pos extends Templates {
             parent: "container-package",
             id: "posLayout",
             theme: "dark", // 'light' | 'dark'
-            class: "flex flex-col md:flex-row text-sm h-screen text-white",
+            class: "flex flex-col md:flex-row text-sm text-white h-full",
             onChange: (item) => { },
-            onBuildCake: () => { 
-                custom.render(); 
+            onBuildCake: () => {
+                custom.render();
                 // armarPastel();
             }
         }, options);
@@ -21,13 +21,13 @@ class Pos extends Templates {
         const isDark = opts.theme === "dark";
 
         const colors = {
-            containerBg: isDark ? ""               : "bg-white",
-            textColor  : isDark ? "text-white"     : "text-gray-600",
-            leftPaneBg : isDark ? "bg-[#1F2A37]"   : "bg-gray-100",
-            inputBg    : isDark ? "bg-[#111827]"   : "bg-white",
-            borderColor: isDark ? "border-gray-700": "border-gray-300",
-            cardGridBg : isDark ? ""               : "bg-white",
-            tabBg      : isDark ? ""               : "bg-gray-100"
+            containerBg: isDark ? "" : "bg-white",
+            textColor: isDark ? "text-white" : "text-gray-600",
+            leftPaneBg: isDark ? "bg-[#1F2A37]" : "bg-gray-100",
+            inputBg: isDark ? "bg-[#111827]" : "bg-white",
+            borderColor: isDark ? "border-gray-700" : "border-gray-300",
+            cardGridBg: isDark ? "" : "bg-white",
+            tabBg: isDark ? "" : "bg-gray-100"
         };
 
         // 📦 Container principal
@@ -305,21 +305,32 @@ class Pos extends Templates {
                     $("<span>", { id: "total", text: "$0.00" })
                 )
             ),
-            $("<div>", { class: "grid grid-cols-2 gap-2 mt-4" }).append(
+            $("<div>", { class: "grid grid-cols-3 gap-2 mt-4" }).append(
                 $("<button>", {
                     class: "border border-gray-600 text-white rounded px-3 py-2 text-sm",
                     html: "🖨 Imprimir"
                 }),
+
                 $("<button>", {
                     id: 'finishOrder',
                     class: "bg-blue-700 text-white rounded px-3 py-2 text-sm hover:bg-blue-800",
                     html: "Terminar"
-                })
+                }),
+
+                $("<button>", {
+                    id: "exitOrder",
+                    class: "border border-red-600 text-red-400 rounded px-3 py-2 text-sm hover:bg-red-700 hover:text-white",
+                    html: "Salir!!!"
+                }),
             )
         );
 
         $(document).off("click", "#printOrder").on("click", "#printOrder", () => {
             if (typeof opts.onPrint === "function") opts.onPrint(opts.data);
+        });
+
+        $(document).off("click", "#exitOrder").on("click", "#exitOrder", () => {
+            app.render();
         });
 
         $(document).off("click", "#finishOrder").on("click", "#finishOrder", () => {
@@ -343,17 +354,18 @@ class Pos extends Templates {
             onRemove: (id) => { },
             onCleared: () => { },
             onPrint: () => { },
+            onExit: () => { },
             onFinish: () => { }
         };
 
         const opts = Object.assign({}, defaults, options);
 
-        const isDark = opts.theme === "dark";
-        const textColor = isDark ? "text-white" : "text-gray-800";
-        const subColor = isDark ? "text-blue-300" : "text-blue-600";
+        const isDark      = opts.theme === "dark";
+        const textColor   = isDark ? "text-white" : "text-gray-800";
+        const subColor    = isDark ? "text-blue-300" : "text-blue-600";
         const borderColor = isDark ? "border-gray-700" : "border-gray-300";
-        const bgCard = isDark ? "bg-[#1E293B]" : "bg-white";
-        const mutedColor = isDark ? "text-gray-300" : "text-gray-600";
+        const bgCard      = isDark ? "bg-[#1E293B]" : "bg-white";
+        const mutedColor  = isDark ? "text-gray-300" : "text-gray-600";
 
         const container = $(`#${opts.parent}`).empty();
 
@@ -391,7 +403,7 @@ class Pos extends Templates {
                     $("<span>", { id: "total", text: "$0.00" })
                 )
             ),
-            $("<div>", { class: "grid grid-cols-2 gap-2 mt-4" }).append(
+            $("<div>", { class: "grid grid-cols-3 gap-2 mt-4" }).append(
                 $("<button>", {
                     id: "printOrder",
                     class: "border border-gray-600 text-white rounded px-3 py-2 text-sm",
@@ -401,7 +413,13 @@ class Pos extends Templates {
                     id: "finishOrder",
                     class: "bg-blue-700 text-white rounded px-3 py-2 text-sm hover:bg-blue-800",
                     html: "Terminar"
-                })
+                }),
+                $("<button>", {
+                    id: "exitOrder",
+                    class: "border border-red-600 text-red-400 rounded px-3 py-2 text-sm hover:bg-red-700 hover:text-white",
+                    html: "Salir"
+                }),
+
             )
         );
 
@@ -491,6 +509,10 @@ class Pos extends Templates {
 
         $(document).off("click", "#printOrder").on("click", "#printOrder", () => {
             if (typeof opts.onPrint === "function") opts.onPrint(opts.data);
+        });
+
+        $(document).off("click", "#exitOrder").on("click", "#exitOrder", () => {
+            if (typeof opts.onExit === "function") opts.onExit();
         });
 
         $(document).off("click", "#finishOrder").on("click", "#finishOrder", () => {
@@ -647,6 +669,7 @@ class Pos extends Templates {
             onRemove: (id) => { },
             onCleared: () => { },
             onPrint: () => { },
+            onExit: () => { },
             onFinish: () => { },
             onBuildCake: () => { armarPastel(); }
         };
@@ -667,27 +690,16 @@ class Pos extends Templates {
         const header = $("<div>", {
             class: "p-4 border-b border-gray-700 flex justify-between items-center"
         }).append(
-            $("<div>", {
-                class: "flex flex-col"
-            }).append(
-              
-                $("<h2>", {
-                    class: "text-lg font-semibold text-white",
-                    text: opts.title
-                }),
-                $("<h3>", {
-                    class: "text-sm text-gray-400",
-                    text: opts.customerName || "Cliente no definido"
-                }),
+            $("<div>", { class: "flex flex-col" }).append(
+                $("<h2>", { class: "text-lg font-semibold text-white", text: opts.title }),
+                $("<h3>", { class: "text-sm text-gray-400", text: opts.customerName || "Cliente no definido" })
             ),
             $("<button>", {
                 id: "clearOrder",
                 class: "text-red-400 border border-[#C53030] px-2 py-1 rounded hover:bg-red-700",
-                html: "🗑 Limpiar",
-                click: opts.onClear
+                html: "🗑 Limpiar"
             })
         );
-
 
         const orderItems = $("<div>", {
             id: "orderItems",
@@ -705,7 +717,7 @@ class Pos extends Templates {
                     $("<span>", { id: "total", text: "$0.00" })
                 )
             ),
-            $("<div>", { class: "grid grid-cols-2 gap-2 mt-4" }).append(
+            $("<div>", { class: "grid grid-cols-3 gap-2 mt-4" }).append(
                 $("<button>", {
                     id: "printOrder",
                     class: "border border-gray-600 text-white rounded px-3 py-2 text-sm",
@@ -715,6 +727,11 @@ class Pos extends Templates {
                     id: "finishOrder",
                     class: "bg-blue-700 text-white rounded px-3 py-2 text-sm hover:bg-blue-800",
                     html: "Terminar"
+                }),
+                $("<button>", {
+                    id: "exitOrder",
+                    class: "border bg-red-700 text-white rounded px-3 py-2 text-sm hover:bg-red-800 hover:text-white",
+                    html: "Salir"
                 })
             )
         );
@@ -725,13 +742,11 @@ class Pos extends Templates {
         let totalAcc = 0;
 
         if (data.length === 0) {
-          
-
             const empty = $("<div>", {
                 class: "w-full h-full flex items-center justify-center"
             }).append(
                 $("<div>", { class: "text-center" }).append(
-                $(`<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto mb-3" width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="${isDark ? '#9CA3AF' : '#6B7280'}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    $(`<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto mb-3" width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="${isDark ? '#9CA3AF' : '#6B7280'}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="9" cy="21" r="1"></circle>
                     <circle cx="20" cy="21" r="1"></circle>
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L21 6H6"></path>
@@ -759,7 +774,7 @@ class Pos extends Templates {
                 item.images && item.images.length > 0
                     ? $("<p>", {
                         class: `text-green-400 text-xs`,
-                        text: `📷 Pedido con ${item.image.length} foto${item.image.length > 1 ? 's' : ''} adjunta${item.image.length > 1 ? 's' : ''}`
+                        text: `📷 Pedido con ${item.images.length} foto${item.images.length > 1 ? 's' : ''} adjunta${item.images.length > 1 ? 's' : ''}`
                     })
                     : null
             );
@@ -791,21 +806,17 @@ class Pos extends Templates {
                         this.orderPanelComponent(opts);
                     }
                 }),
-
                 $("<button>", {
                     class: "text-blue-400 hover:text-blue-600",
                     html: `<i class="icon-pencil"></i>`,
-                    // title: item.customer_id ? "Editar pedido personalizado" : "Editar producto",
                     click: () => {
                         if (item.customer_id && typeof opts.onBuildCake === "function") {
-                            console.log()
                             opts.onBuildCake(item.id);
                         } else {
                             opts.onEdit(item.id);
                         }
                     }
                 }),
-
                 $("<button>", {
                     class: "text-gray-400 hover:text-red-400",
                     html: `<i class="icon-trash"></i>`,
@@ -831,22 +842,20 @@ class Pos extends Templates {
             orderItems.append(card);
         });
 
-
         if (opts.totalSelector) $(opts.totalSelector).text(formatPrice(totalAcc));
 
-        $(document).off("click", "#clearOrder").on("click", "#clearOrder", () => {
-
-            
-            // opts.data = [];
-            // this.orderPanelComponent(opts);
-            // if (typeof opts.onCleared === "function") opts.onCleared();
+        // 🔁 Delegación segura para botones
+        const $orderPanel = $(`#${opts.parent}`);
+        $orderPanel.off("click", "#clearOrder").on("click", "#clearOrder", () => {
+            if (typeof opts.onClear === "function") opts.onClear();
         });
-
-        $(document).off("click", "#printOrder").on("click", "#printOrder", () => {
+        $orderPanel.off("click", "#printOrder").on("click", "#printOrder", () => {
             if (typeof opts.onPrint === "function") opts.onPrint(opts.data);
         });
-
-        $(document).off("click", "#finishOrder").on("click", "#finishOrder", () => {
+        $orderPanel.off("click", "#exitOrder").on("click", "#exitOrder", () => {
+            if (typeof opts.onExit === "function") opts.onExit();
+        });
+        $orderPanel.off("click", "#finishOrder").on("click", "#finishOrder", () => {
             if (typeof opts.onFinish === "function") opts.onFinish(opts.data);
         });
     }
@@ -887,7 +896,7 @@ class CatalogProduct extends Pos {
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = "CatalogProduct";
-        this.name_client  = '';
+        this.name_client = '';
     }
 
     init() {
@@ -906,6 +915,7 @@ class CatalogProduct extends Pos {
             parent: "root",
             id: this.PROJECT_NAME,
             class: "flex mx-2 my-2 p-2",
+            heightPreset: 'viewport', // Usa el preset estándar
             card: {
                 filterBar: {
                     id: "filterBar" + this.PROJECT_NAME,
@@ -924,19 +934,19 @@ class CatalogProduct extends Pos {
             id: "tabsPedido",
             theme: "dark",
             type: 'short',
-            content: { class: "" },
+            content: { class: "h-[calc(100vh-200px)] overflow-hidden" },
             json: [
                 {
                     id: "pedido",
                     tab: "Crear orden de pedido",
-                    
-                     active: true,
+
+                    active: true,
 
                 },
                 {
                     id: "package",
                     tab: "Catálogo de productos",
-                   
+
                 }
             ]
         });
@@ -944,12 +954,11 @@ class CatalogProduct extends Pos {
         app.addOrder();
     }
 
-
     // System Pos.
 
     layoutPos() {
 
-     
+
         if (!idFolio) {
             $("#container-package").html(`
              <div class="w-full p-6 bg-[#1F2A37] text-center rounded-lg">
@@ -982,7 +991,7 @@ class CatalogProduct extends Pos {
 
     async initPos() {
 
-        const pos = await useFetch({ url: this._link,data: { opc: "init", id: idFolio } });
+        const pos = await useFetch({ url: this._link, data: { opc: "init", id: idFolio } });
         this.name_client = pos.order.name;
         // tabs product.
 
@@ -1002,11 +1011,9 @@ class CatalogProduct extends Pos {
             }
         });
 
-      
-
         this.orderPanelComponent({
             title: `Orden Actual #P-00${idFolio}`,
-            customerName :this.name_client,
+            customerName: this.name_client,
             parent: "orderPanel",
             data: pos.list,
 
@@ -1025,13 +1032,18 @@ class CatalogProduct extends Pos {
                 this.printOrder(idFolio);
             },
 
+            onExit: () => {
+               
+                app.render();
+            },
+
             onClear: () => {
                 this.confirmClearOrder(idFolio);
             },
         });
     }
 
-    showOrder(list){
+    showOrder(list) {
 
         this.orderPanelComponent({
             title: `Orden Actual #P-00${idFolio}`,
@@ -1053,6 +1065,10 @@ class CatalogProduct extends Pos {
             onPrint: () => {
                 console.log("print");
                 this.printOrder(idFolio);
+            },
+
+            onExit: () => {
+                app.init();
             },
 
             onClear: () => {
@@ -1099,9 +1115,11 @@ class CatalogProduct extends Pos {
             onFinish: (data) => {
                 this.addPayment();
             },
+
             onEdit: (id) => {
                 this.editProduct(id);
             },
+
             onRemove: (id) => {
                 this.removeProduct(id);
             },
@@ -1109,6 +1127,10 @@ class CatalogProduct extends Pos {
             onPrint: () => {
                 console.log("print");
                 this.printOrder(idFolio);
+            },
+
+            onExit: () => {
+                app.render();
             },
 
             onClear: () => {
@@ -1196,7 +1218,7 @@ class CatalogProduct extends Pos {
                     id: "order_details",
                     lbl: "Observaciones",
                     class: "col-12 mb-3",
-                    height:32,
+                    height: 32,
                     disabled: true
                 },
                 {
@@ -1236,7 +1258,7 @@ class CatalogProduct extends Pos {
                     text: "Actualizar Producto",
                     onClick: () => {
 
-                        const form     = document.getElementById('formEditProducto');
+                        const form = document.getElementById('formEditProducto');
                         const formData = new FormData(form);
 
                         formData.append('opc', 'editProduct');
@@ -1286,8 +1308,8 @@ class CatalogProduct extends Pos {
                 const reader = new FileReader();
                 reader.onload = (e) => {
 
-                    const img     = document.createElement("img");
-                          img.src = e.target.result;
+                    const img = document.createElement("img");
+                    img.src = e.target.result;
 
                     img.classList.add("w-28", "h-28", "object-cover", "rounded");
                     previewContainer.appendChild(img);
@@ -1309,9 +1331,9 @@ class CatalogProduct extends Pos {
 
         imageList.forEach(imgData => {
 
-            const img     = document.createElement("img");
-                  img.src = urlBase + imgData.path;
-                  img.alt = imgData.original_name || "Imagen del producto";
+            const img = document.createElement("img");
+            img.src = urlBase + imgData.path;
+            img.alt = imgData.original_name || "Imagen del producto";
 
             img.classList.add("w-32", "h-32", "object-cover", "rounded", "border");
             previewContainer.appendChild(img);
@@ -1353,25 +1375,25 @@ class CatalogProduct extends Pos {
         const defaults = {
             parent: "container", // contenedor donde se insertará
             data: {
-                head    : { data: {} },
-                row     : [],
+                head: { data: {} },
+                row: [],
                 products: []
             }
         };
 
-        const opts        = Object.assign({}, defaults, options);
-        const parent      = opts.parent;
-        const data        = opts.data.head.data || {};
-        const products    = opts.data.products || [];
+        const opts = Object.assign({}, defaults, options);
+        const parent = opts.parent;
+        const data = opts.data.head.data || {};
+        const products = opts.data.products || [];
 
-        const cliente     = data.cliente || "[cliente]";
-        const fecha       = data.pedido || "[fecha]";
-        const hora        = data.horapedido || "[hora]";
+        const cliente = data.cliente || "[cliente]";
+        const fecha = data.pedido || "[fecha]";
+        const hora = data.horapedido || "[hora]";
         const observacion = data.observacion || "[nota]";
-        const costo       = data.total || 0;
-        const anticipo    = data.anticipo || 0;
-        const restante    = costo - anticipo;
-        const container   = $("<div>", { id: "containerTicks", class: "bg-white text-gray-800 rounded-lg mb-4 font-mono p-4" });
+        const costo = data.total || 0;
+        const anticipo = data.anticipo || 0;
+        const restante = costo - anticipo;
+        const container = $("<div>", { id: "containerTicks", class: "bg-white text-gray-800 rounded-lg mb-4 font-mono p-4" });
 
         // Header
         container.append(`
@@ -1612,15 +1634,15 @@ class CatalogProduct extends Pos {
     }
 
 
-     // payment.
+    // payment.
     async addPayment(id) {
 
-        let saldo, saldoOriginal, total, total_paid,saldo_restante;
+        let saldo, saldoOriginal, total, total_paid, saldo_restante;
         const req = await useFetch({ url: this._link, data: { opc: "getPayment", id: idFolio } });
         const response = req.order;
 
         if (req.total_paid) {
-          
+
 
             saldo = formatPrice(response.total_pay);
             saldoOriginal = response.total_pay;
@@ -1629,12 +1651,12 @@ class CatalogProduct extends Pos {
             saldo_restante = total - total_paid;
 
         } else {
-            const totalText     = $('#total').text();
-                  saldo         = totalText;
-                  saldoOriginal = totalText.replace(/[^0-9.-]+/g, "");
-                  total         = parseFloat(saldoOriginal);
-                  total_paid    = 0;
-                  saldo_restante = total - total_paid;
+            const totalText = $('#total').text();
+            saldo = totalText;
+            saldoOriginal = totalText.replace(/[^0-9.-]+/g, "");
+            total = parseFloat(saldoOriginal);
+            total_paid = 0;
+            saldo_restante = total - total_paid;
         }
 
         this.createModalForm({
@@ -1648,7 +1670,7 @@ class CatalogProduct extends Pos {
                 id: "registerPaymentModal",
                 size: "medium"
             },
-            data: { opc: 'addPayment', total: total , saldo: saldo_restante, id: idFolio },
+            data: { opc: 'addPayment', total: total, saldo: saldo_restante, id: idFolio },
             json: [
                 this.cardPay(total, total_paid),
                 {
@@ -1816,6 +1838,8 @@ class CatalogProduct extends Pos {
             if (label) label.textContent = "Dejar abono";
         }
     }
+
+    
 }
 
 
