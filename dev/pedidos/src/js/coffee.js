@@ -42,8 +42,8 @@ class App extends Templates {
         this.layout();
 
         // interface.
-        // this.orderDetailsModal(25);
-        this.showOrderDetails(32)
+        this.orderDetailsModal(25);
+        // this.showOrderDetails(32)
     }
 
     layout() {
