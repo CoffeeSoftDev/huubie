@@ -1,0 +1,45 @@
+Options +FollowSymLinks
+Options -Indexes
+RewriteEngine on
+
+#Página base
+RewriteBase /dev/
+
+# Excluir archivos estáticos de las reglas de reescritura
+RewriteCond %{REQUEST_URI} \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ [NC]
+RewriteRule . - [L]
+
+#Página de inicio login
+RewriteRule ^./$ index.php [L]
+#Página para cerrar sesión
+RewriteRule ^salir/$ logout.php [L]
+
+
+#MENUS
+RewriteRule ^menu/$ menus/menu.php [L]
+RewriteRule ^ventas/$ menus/ventas.php [L]
+RewriteRule ^configuracion/$ menus/configuracion.php [L]
+
+#Módulo de pedidos
+RewriteRule ^admin-pedidos/$ pedidos/admin.php [L]
+
+
+#Módulo de ventas
+RewriteRule ^eventos/$ eventos/index.php [L]
+RewriteRule ^pedidos/$ pedidos/index.php [L]
+RewriteRule ^reservaciones/$ reservaciones/index.php [L]
+RewriteRule ^dashboard/$ dashboard/index.php [L]
+RewriteRule ^calendario/$ eventos/calendario.php [L]
+
+#Configuracion
+RewriteRule ^usuarios/$ admin/index.php [L]
+RewriteRule ^empresas/$ admin/empresas.php [L]
+RewriteRule ^catalogos/$ admin/paquetes.php [L]
+RewriteRule ^perfil/$ admin/perfil.php [L]
+
+
+
+# Manejo de rutas no definidas: Redirigir a acceso-denegado.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /dev/access/404.php [L]

@@ -1,0 +1,433 @@
+[ 2025-10-03 20:28:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        usr_users.key, 
+                        fayxzvov_admin.companies.name_bd as DB, 
+                        photo,
+                        fullname,
+                        fayxzvov_admin.companies.ubication,
+                        fayxzvov_admin.companies.id as company_id,
+                        fayxzvov_admin.companies.logo
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_admin.companies' doesn't exist
+
+
+[ 2025-10-03 20:27:59 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        usr_users.key, 
+                        fayxzvov_admin.companies.name_bd as DB, 
+                        photo,
+                        fullname,
+                        fayxzvov_admin.companies.ubication,
+                        fayxzvov_admin.companies.id as company_id,
+                        fayxzvov_admin.companies.logo
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_admin.companies' doesn't exist
+
+
+[ 2025-10-03 20:27:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        usr_users.key, 
+                        fayxzvov_admin.companies.name_bd as DB, 
+                        photo,
+                        fullname,
+                        fayxzvov_admin.companies.ubication,
+                        fayxzvov_admin.companies.id as company_id,
+                        fayxzvov_admin.companies.logo
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_admin.companies' doesn't exist
+
+
+[ 2025-06-08 20:07:53 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        fayxzvov_admin.users.database AS bd,
+                        usr_users.key, 
+                        photo,
+                        fullname
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'fayxzvov_admin.users.database' in 'SELECT'
+
+
+[ 2025-06-08 20:07:10 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        --fayxzvov_admin.users.database AS db,
+                        usr_users.key, 
+                        photo,
+                        fullname
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'fayxzvov_admin.users.database' in 'SELECT'
+
+
+[ 2025-06-08 20:07:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        --fayxzvov_admin.users.database AS db,
+                        usr_users.key, 
+                        photo,
+                        fullname
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'fayxzvov_admin.users.database' in 'SELECT'
+
+
+[ 2025-06-08 20:06:23 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        --fayxzvov_admin.users.database AS db,
+                        usr_users.key, 
+                        photo,
+                        fullname
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'fayxzvov_admin.users.database' in 'SELECT'
+
+
+[ 2025-06-08 20:06:19 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        --fayxzvov_admin.users.database AS db,
+                        usr_users.key, 
+                        photo,
+                        fullname
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'fayxzvov_admin.users.database' in 'SELECT'
+
+
+[ 2025-06-08 20:06:18 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        --fayxzvov_admin.users.database AS db,
+                        usr_users.key, 
+                        photo,
+                        fullname
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'fayxzvov_admin.users.database' in 'SELECT'
+
+
+[ 2025-06-08 20:06:04 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        fayxzvov_admin.users.database AS db,
+                        usr_users.key, 
+                        photo,
+                        fullname
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'fayxzvov_admin.users.database' in 'SELECT'
+
+
+[ 2025-06-08 19:21:10 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        fayxzvov_admin.users.database AS db,
+                        usr_users.key, 
+                        photo,
+                        fullname
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'fayxzvov_admin.users.database' in 'SELECT'
+
+
+[ 2025-06-08 19:21:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+                    	usr_users.id AS id,
+                    	subsidiaries.id AS sucursal,
+                    	usr_users.`user` AS user,
+                    	usr_users.enabled AS active,
+                    	usr_rols.rols AS rol,
+                    	fayxzvov_admin.companies.social_name AS company,
+                        fayxzvov_admin.users.database AS db,
+                        usr_users.key, 
+                        photo,
+                        fullname
+                    FROM
+                    	usr_users
+                    	INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+                    	INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+                    	INNER JOIN fayxzvov_admin.companies ON subsidiaries.companies_id = fayxzvov_admin.companies.id 
+                    WHERE
+                    	usr_users.enabled = 1
+                        AND BINARY usr_users.user = ?
+                       
+                        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'fayxzvov_admin.users.database' in 'SELECT'
+
+
+[ 2025-05-27 11:48:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:47:34 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:47:31 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:44:34 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:43:38 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:42:29 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:35:28 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:35:19 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:35:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:35:04 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:04:12 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-03-27 21:16:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1044] Access denied for user 'fayxzvov_sl'@'localhost' to database 'fayxzvov_alpha2'
+
+[ 2025-03-27 21:16:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1044] Access denied for user 'fayxzvov_sl'@'localhost' to database 'fayxzvov_alpha2'
+
+[ 2025-03-27 21:16:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1044] Access denied for user 'fayxzvov_sl'@'localhost' to database 'fayxzvov_alpha2'
+
+[ 2025-03-27 21:16:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1044] Access denied for user 'fayxzvov_sl'@'localhost' to database 'fayxzvov_alpha2'
+
+[ 2025-03-27 21:15:56 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1044] Access denied for user 'fayxzvov_sl'@'localhost' to database 'fayxzvov_alpha2'
+
+[ 2025-03-27 21:15:52 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1044] Access denied for user 'fayxzvov_sl'@'localhost' to database 'fayxzvov_alpha2'
+
+[ 2025-03-27 21:15:51 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1044] Access denied for user 'fayxzvov_sl'@'localhost' to database 'fayxzvov_alpha2'
+
+[ 2025-03-27 21:15:45 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1044] Access denied for user 'fayxzvov_sl'@'localhost' to database 'fayxzvov_alpha2'
+
+[ 2025-03-27 21:15:38 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1044] Access denied for user 'fayxzvov_sl'@'localhost' to database 'fayxzvov_alpha2'
+

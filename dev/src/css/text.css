@@ -1,0 +1,22 @@
+.text-primary {
+    color: var(--primary) !important;
+}
+.text-info {
+    color: var(--info) !important;
+}
+.text-danger {
+    color: var(--danger) !important;
+}
+.text-warning {
+    color: var(--warning) !important;
+}
+.text-warning9 {
+    color: var(--warning9) !important;
+}
+
+.text-success {
+    color: var(--success) !important;
+}
+.text-secondary {
+    color: var(--disabled) !important;
+}

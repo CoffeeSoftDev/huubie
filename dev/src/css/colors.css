@@ -1,0 +1,73 @@
+:root {
+    
+    --gray         : #374151;
+    --light        : #CED2D8;
+    --primarydark  : #111928;
+    --secondaryDark: #1F2A37;
+    
+    --primary: rgb(28, 100, 242);
+    --primary9: rgb(61, 36, 116, 0.9);
+    --primary8: rgb(61, 36, 116, 0.8);
+    --primary7: rgb(61, 36, 116, 0.7);
+    --primary6: rgb(61, 36, 116, 0.6);
+    --primary5: rgb(61, 36, 116, 0.5);
+    --primary4: rgb(61, 36, 116, 0.4);
+    --primary3: rgb(61, 36, 116, 0.3);
+    --primary2: rgb(61, 36, 116, 0.2);
+    --primary1: rgb(61, 36, 116, 0.1); 
+    
+    --secondary:rgba(113, 82, 236);
+    --secondary9:rgba(81, 48, 155);
+    --secondary8:rgba(113, 82, 236,0.8);
+    --secondary7:rgba(113, 82, 236,0.7);
+    --secondary6:rgba(113, 82, 236,0.6);
+    --secondary5:rgba(113, 82, 236,0.5);
+    --secondary4:rgba(113, 82, 236,0.4);
+    --secondary3:rgba(113, 82, 236,0.3);
+    --secondary2:rgba(113, 82, 236,0.2);
+    --secondary1:rgba(113, 82, 236,0.1);
+    
+    --info: rgba(118, 169, 250);
+    --info9: rgba(28, 100, 242, 0.9);
+    --info8: rgba(28, 100, 242, 0.8);
+    --info7: rgba(28, 100, 242, 0.7);
+    --info6: rgba(28, 100, 242, 0.6);
+    --info5: rgba(28, 100, 242, 0.5);
+    --info4: rgba(28, 100, 242, 0.4);
+    --info3: rgba(28, 100, 242, 0.3);
+    --info2: rgba(28, 100, 242, 0.2);
+    --info1: rgba(28, 100, 242, 0.1);
+
+    --success: rgb(63, 193, 137);
+    --success9: rgb(63, 193, 137, 0.9);
+    --success8: rgb(63, 193, 137, 0.8);
+    --success7: rgb(63, 193, 137, 0.7);
+    --success6: rgb(63, 193, 137, 0.6);
+    --success5: rgb(63, 193, 137, 0.5);
+    --success4: rgb(63, 193, 137, 0.4);
+    --success3: rgb(63, 193, 137, 0.3);
+    --success2: rgb(63, 193, 137, 0.2);
+    --success1: rgb(63, 193, 137);
+
+    --danger: rgb(234, 2, 52);
+    --danger9: rgb(158, 27, 50, 0.9);
+    --danger8: rgb(158, 27, 50, 0.8);
+    --danger7: rgb(158, 27, 50, 0.7);
+    --danger6: rgb(158, 27, 50, 0.6);
+    --danger5: rgb(158, 27, 50, 0.5);
+    --danger4: rgb(158, 27, 50, 0.4);
+    --danger3: rgb(158, 27, 50, 0.3);
+    --danger2: rgb(158, 27, 50, 0.2);
+    --danger1: rgb(158, 27, 50, 0.1);
+
+    --warning: #E74041;
+    --warning9: rgb(231, 64, 65, 0.9);
+    --warning8: rgb(231, 64, 65, 0.8);
+    --warning7: rgb(231, 64, 65, 0.7);
+    --warning6: rgb(231, 64, 65, 0.6);
+    --warning5: rgb(231, 64, 65, 0.5);
+    --warning4: rgb(231, 64, 65, 0.4);
+    --warning3: rgb(231, 64, 65, 0.3);
+    --warning2: rgb(231, 64, 65, 0.4);
+    --warning1: rgb(231, 64, 65, 0.1);
+}  

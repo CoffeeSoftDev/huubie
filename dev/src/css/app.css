@@ -1,0 +1,80 @@
+header {
+    background-color: #111827;
+  }
+  header > nav > ul > li > ul {
+    background-color: #1f2a37;
+  }
+  header > nav {
+    background-color: #1f2a37;
+  }
+  header > section {
+    background-color: #1f2a37;
+  }
+
+  .modal-custom .modal-content {
+  background-color: #1f2937;
+  color: white;
+  border-radius: 12px;
+}
+  
+  .line{
+      background-color: transparent;
+      border: 1px solid transparent;
+  }
+  
+  /* PersonalizaciÃ³n del tema oscuro */
+  
+  .daterangepicker {
+      background-color: #1c1f26 !important;
+      color: #f8f9fa !important;
+      border: 1px solid #343a40 !important;
+  }
+  
+  /* Colores de los tÃ­tulos */
+  .daterangepicker .calendar-table th,
+  .daterangepicker .ranges li {
+      color: #f8f9fa !important;
+  }
+  
+  /* Fondo de los botones */
+  .daterangepicker .drp-buttons {
+      background-color: #23272b !important;
+  }
+  
+  /* BotÃ³n aplicar */
+  .daterangepicker .applyBtn {
+      background-color: #0d6efd !important;
+      border-color: #0d6efd !important;
+      color: #ffffff !important;
+  }
+  
+  /* BotÃ³n cancelar */
+  .daterangepicker .cancelBtn {
+      background-color: #6c757d !important;
+      border-color: #6c757d !important;
+      color: #ffffff !important;
+  }
+  
+  /* Hover en rangos */
+  .daterangepicker .ranges li:hover {
+      background-color: #495057 !important;
+      color: #ffffff !important;
+  }
+  
+  /* Colores de los dÃ­as seleccionados */
+  .daterangepicker td.active,
+  .daterangepicker td.active:hover {
+      background-color: #0d6efd !important;
+      color: #ffffff !important;
+  }
+  
+  /*  */
+  main > #sidebar {
+      width: 0;
+      max-height: 100%;
+      overflow: hidden;
+      background-color: #1F2937;
+      font-family: "Helvetica";
+      transition: all 0.5s ease;
+      box-shadow: -5px 0 20px rgb(0, 51, 96, 0.5);
+  }

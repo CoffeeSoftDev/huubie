@@ -1,0 +1,123 @@
+main {
+    height: calc(100vh - 50px);
+    display: flex;
+}
+
+main > #main__content {
+    flex: 1;
+    max-height: 100%;
+    padding: 20px;
+    transition: all 0.5s ease;
+    overflow-y: scroll;
+}
+
+main > #main__content > form,
+main > #main__content > div {
+    background-color: var(--aliceblue);
+    margin: 0;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+main > #sidebar {
+    width: 0;
+    max-height: 100%;
+    overflow: hidden;
+    background-color: var(--aliceblue);
+    font-family: "Helvetica";
+    transition: all 0.5s ease;
+    box-shadow: -5px 0 20px rgb(0, 51, 96, 0.5);
+}
+
+main > #sidebar.active {
+    width: 250px;
+}
+
+main > #sidebar ul {
+    list-style: none;
+    overflow: hidden;
+    padding-left: 0;
+}
+
+main > #sidebar > ul {
+    padding: 10px;
+}
+
+main > #sidebar > ul > li > div {
+    padding: 5px 0;
+}
+
+main > #sidebar > ul > li > ul > li > div {
+    padding: 5px 0px 5px 10px;
+}
+
+main > #sidebar li div {
+    display: flex;
+    cursor: pointer;
+}
+
+main > #sidebar li div span {
+    flex: 1;
+    padding-left: 10px;
+}
+
+main > #sidebar li div span i {
+    width: 20px;
+}
+
+main > #sidebar div:hover {
+    background-color: var(--primary);
+    color: var(--aliceblue);
+    border-radius: 5px;
+}
+
+main > #sidebar div.active {
+    background-color: var(--primary5);
+    color: var(--aliceblue);
+    border-radius: 5px;
+}
+
+main > #sidebar a {
+    padding: 5px 0 5px 20px;
+    display: block;
+    width: 100%;
+    color: black;
+}
+
+main > #sidebar a:hover,
+main > #sidebar a.active {
+    color: var(--aliceblue);
+    background-color: var(--primary);
+    border-radius: 5px;
+}
+
+main > #sidebar ul ul {
+    display: none;
+}
+
+main > #sidebar ul ul ul {
+    display: none;
+}
+
+@media (max-width: 900px) and (max-height: 1200px) {
+    main > #sidebar {
+        width: 0;
+    }
+}
+
+@media (max-width: 500px) {
+    main > #main__content.active {
+        flex: 0;
+        display: none;
+    }
+    main > #sidebar.active {
+        flex: 1;
+    }
+    main > #main__content {
+        padding: 0;
+    }
+    main > #main__content > form,
+    main > #main__content > div {
+        padding: 0;
+    }
+}

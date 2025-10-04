@@ -1,0 +1,229 @@
+@import url("https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,400;0,700;1,400&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  font-family: "Raleway", sans-serif;
+  scroll-behavior: smooth;
+
+  --primary-color: #25c2a0;
+  --2units: 0.125rem;
+  --10units: 0.625rem;
+  --20units: 1.25rem;
+  --40units: 2.5rem;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.display-flex {
+  display: flex;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.align-start {
+  align-items: flex-start;
+}
+
+.align-end {
+  align-items: flex-end;
+}
+
+.justify-space-between {
+  justify-content: space-between;
+}
+
+.justify-space-around {
+  justify-content: space-around;
+}
+
+.justify-space-evenly {
+  justify-content: space-evenly;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.wrapper {
+  width: 100%;
+  max-width: 100rem;
+  margin: 0 auto;
+}
+
+.navbar {
+  /* box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1); */
+  padding-right: var(--20units);
+  border-bottom: var(--2units) solid var(--primary-color);
+}
+
+.navbar img {
+  height: 6.25rem;
+  width: 12.5rem;
+  object-fit: contain;
+}
+
+.nav_items {
+  width: 15%;
+}
+
+.nav_items a {
+  position: relative;
+  color: black;
+  text-decoration: none;
+  transition: all 100ms ease-in-out;
+}
+
+.nav_items a:hover {
+  color: var(--primary-color);
+}
+
+.nav_items a:hover::after {
+  content: "•";
+  position: absolute;
+  top: -10px;
+  left: -10px;
+}
+
+.nav_items {
+  display: none;
+}
+
+/* @media screen and (max-width: 1400px) {
+  .nav_items {
+    display: none;
+  }
+} */
+
+.app {
+  width: 75%;
+  padding: var(--20units) 0;
+  margin: 0 auto;
+}
+
+.playground_form {
+  margin-right: var(--40units);
+  padding-right: var(--40units);
+  border-right: var(--2units) solid var(--primary-color);
+}
+
+.playground_form {
+  min-width: 40%;
+}
+
+.toast_title {
+  margin-bottom: var(--20units);
+}
+
+.toast_title input,
+.toast_delay input {
+  box-sizing: border-box;
+  margin-top: var(--10units);
+  padding-left: var(--10units);
+  height: var(--40units);
+  border: var(--2units) solid;
+  border-radius: 0.5rem;
+  transition: border 200ms ease-in-out;
+}
+
+.toast_title input:hover,
+.toast_delay input:hover {
+  border: var(--2units) solid var(--primary-color);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 0;
+  border: var(--2units) solid var(--primary-color);
+}
+
+.toast_message textarea {
+  margin: var(--10units) 0 var(--20units);
+  box-sizing: border-box;
+  padding-top: var(--10units);
+  padding-left: var(--10units);
+  border: var(--2units) solid;
+  border-radius: 0.5rem;
+  transition: border 200ms ease-in-out;
+}
+
+.toast_message textarea:hover {
+  border: var(--2units) solid var(--primary-color);
+}
+
+.playground_form select {
+  height: var(--40units);
+  border: var(--2units) solid;
+  border-radius: 0.5rem;
+  margin-left: var(--10units);
+  padding: 0 var(--10units);
+  transition: border 200ms ease-in-out;
+}
+
+.playground_form select:hover {
+  border: var(--2units) solid var(--primary-color);
+}
+
+.submit_btn {
+  width: 100%;
+  height: var(--40units);
+  cursor: pointer;
+  border: var(--2units) solid var(--primary-color);
+  border-radius: 0.5rem;
+  background: none;
+  transition: all 200ms ease-in-out;
+}
+
+.submit_btn:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.code-block {
+  width: 100%;
+  margin-top: var(--20units);
+  background-color: #2d2d2d;
+  border-radius: 0.5rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  padding: 1.2rem 1.5rem;
+}
+
+.line {
+  color: #c5c8c6;
+  display: block;
+  font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.p-20 {
+  padding-left: var(--20units);
+}
+
+.p-40 {
+  padding-left: var(--40units);
+}
+
+mark {
+  background: var(--primary-color);
+  color: white;
+  padding: var(--2units) var(--10units);
+}

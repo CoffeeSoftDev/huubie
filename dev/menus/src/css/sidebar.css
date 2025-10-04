@@ -1,0 +1,10 @@
+/* Aseguramos que los submenús estén colapsados al inicio */
+.submenu ul {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+}
+
+#sidebar {
+    scrollbar-width: none;
+}

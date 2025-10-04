@@ -1,0 +1,54 @@
+/* Animación de la sonrisa */
+@keyframes drawSmile {
+    from {
+        width: 0;
+        opacity: 0;
+        clip-path: inset(0 100% 0 0);
+    }
+
+    to {
+        width: 140px;
+        opacity: 1;
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+/* Animación del punto */
+@keyframes showDot {
+    from {
+        opacity: 0;
+        transform: scale(0);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.smile {
+    animation: drawSmile 1s ease-in-out forwards;
+    transform: rotate(-0deg);
+}
+
+.dot {
+    animation: showDot 0.5s ease-in-out 1s forwards;
+}
+/* Ajustes para pantallas pequeñas */
+@media (max-width: 415px) {
+    .smile {
+        left: 52% !important;
+        top:60px !important;
+        transform: translateX(-50%);
+    }
+
+    .dot {
+        top: 50px !important;
+        left: 71% !important;
+        transform: translateX(-50%);
+    }
+
+    .text-5xl {
+        font-size: 2rem;
+    }
+}
