@@ -2,12 +2,7 @@
     session_start();
     
     // Manejar preflight OPTIONS request
-    if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-        header("Access-Control-Allow-Origin: *");
-        header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-        exit(0);
-    }
+   
     
     header("Access-Control-Allow-Origin: *");
     header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
@@ -389,6 +384,18 @@
         }
 
         function addClient() {
+            // Validar teléfono
+            if (!empty($_POST['phone'])) {
+                $phone = preg_replace('/\D/', '', $_POST['phone']);
+                if (strlen($phone) !== 10) {
+                    return [
+                        'status'  => 400,
+                        'message' => 'El teléfono debe tener exactamente 10 dígitos.'
+                    ];
+                }
+                $_POST['phone'] = $phone;
+            }
+
             $_POST['date_create']    = date('Y-m-d H:i:s');
             $_POST['active']         = 1;
             $_POST['subsidiaries_id'] = $_SESSION['SUB'];
@@ -415,6 +422,18 @@
         }
 
         function editClient() {
+            // Validar teléfono
+            if (!empty($_POST['phone'])) {
+                $phone = preg_replace('/\D/', '', $_POST['phone']);
+                if (strlen($phone) !== 10) {
+                    return [
+                        'status'  => 400,
+                        'message' => 'El teléfono debe tener exactamente 10 dígitos.'
+                    ];
+                }
+                $_POST['phone'] = $phone;
+            }
+
             $edit = $this->updateClient($this->util->sql($_POST, 1));
 
             return [
@@ -425,11 +444,14 @@
         }
 
         function deleteClient() {
-            $del = $this->deleteClientById([$_POST['id']]);
+            $update = $this->updateClient($this->util->sql([
+                'active' => 0,
+                'id' => $_POST['id']
+            ], 1));
 
             return [
-                'status' => $del ? 200 : 500,
-                'message' => $del ? 'Cliente eliminado correctamente.' : 'Error al eliminar.'
+                'status' => $update ? 200 : 500,
+                'message' => $update ? 'Cliente eliminado correctamente.' : 'Error al eliminar.'
             ];
         }
 
@@ -491,8 +513,9 @@
         function addModifier() {
             $_POST['date_creation'] = date('Y-m-d H:i:s');
             $_POST['active']        = 1;
+            $_POST['cant']          = 1;
 
-             // Verifica si ya existe el modificador
+            // Verifica si ya existe el modificador
             $existe = $this->existsModifier([$_POST['name']]);
 
             if ($existe) {
@@ -509,6 +532,7 @@
             return [
                 'id'      => $idProduct,
                 'status'  => $create ? 200 : 500,
+              
             ];
         }
 
@@ -606,6 +630,33 @@
             return [
                 'status'  => $edit ? 200 : 500,
                 'message' => $edit ? "Se actualizó correctamente." : "Error al editar.",
+            ];
+        }
+
+        function updateProductModifierPrice() {
+            $id = $_POST['id'];
+            $price = $_POST['price'];
+            
+            // Validar que el precio sea válido
+            if (!is_numeric($price) || $price < 0) {
+                return [
+                    'status'  => 400,
+                    'message' => 'El precio debe ser un número válido mayor o igual a 0.'
+                ];
+            }
+            
+            $update = $this->updateProductModifier($this->util->sql([
+                'price' => $price,
+                'id' => $id
+            ], 1));
+
+            return [
+                'status'  => $update ? 200 : 500,
+                'message' => $update ? 'Precio actualizado correctamente.' : 'Error al actualizar el precio.',
+                'data' => [
+                    'id' => $id,
+                    'price' => $price
+                ]
             ];
         }
 

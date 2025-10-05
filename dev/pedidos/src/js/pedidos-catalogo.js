@@ -201,17 +201,15 @@ class Pos extends Templates {
 
         opts.data.forEach(item => {
             const card = $("<div>", {
-                class: `${cardBg} border ${borderColor} rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 card`,
+                class: `${cardBg} border ${borderColor} rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200 card`,
                 click: () => opts.onClick(item)
             });
 
-            // Imagen o ícono
             const imageWrap = $("<div>", {
                 class: "bg-gray-800 h-28 flex items-center justify-center"
             });
 
             if (item.image && item.image.trim() !== "") {
-
                 imageWrap.append(
                     $("<img>", {
                         src: baseUrl + item.image,
@@ -219,7 +217,6 @@ class Pos extends Templates {
                         class: "object-cover h-full w-full"
                     })
                 );
-
             } else {
                 imageWrap.append(
                     $("<i>", {
@@ -243,7 +240,7 @@ class Pos extends Templates {
                         html: `<i class="icon-eye"></i>`,
                         click: (e) => {
                             e.stopPropagation();
-                            opts.onClick(item);
+                            this.showProductDetails(item.id);
                         }
                     })
                 )
@@ -253,6 +250,8 @@ class Pos extends Templates {
             container.append(card);
         });
     }
+
+
 
     createOrderPanel(options) {
         const opts = Object.assign({
@@ -360,12 +359,12 @@ class Pos extends Templates {
 
         const opts = Object.assign({}, defaults, options);
 
-        const isDark      = opts.theme === "dark";
-        const textColor   = isDark ? "text-white" : "text-gray-800";
-        const subColor    = isDark ? "text-blue-300" : "text-blue-600";
+        const isDark = opts.theme === "dark";
+        const textColor = isDark ? "text-white" : "text-gray-800";
+        const subColor = isDark ? "text-blue-300" : "text-blue-600";
         const borderColor = isDark ? "border-gray-700" : "border-gray-300";
-        const bgCard      = isDark ? "bg-[#1E293B]" : "bg-white";
-        const mutedColor  = isDark ? "text-gray-300" : "text-gray-600";
+        const bgCard = isDark ? "bg-[#1E293B]" : "bg-white";
+        const mutedColor = isDark ? "text-gray-300" : "text-gray-600";
 
         const container = $(`#${opts.parent}`).empty();
 
@@ -655,35 +654,35 @@ class Pos extends Templates {
 
     orderPanelComponent(options) {
         const defaults = {
-            parent: "root",
-            id: "orderPanel",
-            title: "Orden Actual",
-            data: [],
-            theme: "dark",
+            parent       : "root",
+            id           : "orderPanel",
+            title        : "Orden Actual",
+            data         : [],
+            theme        : "dark",
             totalSelector: "#total",
-            emptyTitle: "No hay productos en la orden",
-            emptySub: "Selecciona productos del catálogo para continuar.",
-            onClear: () => { },
-            onQuanty: (id, action, newQuantity) => { },
-            onEdit: (id) => { },
-            onRemove: (id) => { },
-            onCleared: () => { },
-            onPrint: () => { },
-            onExit: () => { },
-            onFinish: () => { },
-            onBuildCake: () => { armarPastel(); }
+            emptyTitle   : "No hay productos en la orden",
+            emptySub     : "Selecciona productos del catálogo para continuar.",
+            onClear      : () => { },
+            onQuanty     : (id, action, newQuantity) => { },
+            onEdit       : (id) => { },
+            onRemove     : (id) => { },
+            onCleared    : () => { },
+            onPrint      : () => { },
+            onExit       : () => { },
+            onFinish     : () => { },
+            onBuildCake  : () => { armarPastel(); }
         };
 
         const opts = Object.assign({}, defaults, options);
 
-        const isDark = opts.theme === "dark";
-        const textColor = isDark ? "text-white" : "text-gray-800";
-        const subColor = isDark ? "text-blue-300" : "text-blue-600";
+        const isDark      = opts.theme === "dark";
+        const textColor   = isDark ? "text-white" : "text-gray-800";
+        const subColor    = isDark ? "text-blue-300" : "text-blue-600";
         const borderColor = isDark ? "border-gray-700" : "border-gray-300";
-        const bgCard = isDark ? "bg-[#1E293B]" : "bg-white";
-        const mutedColor = isDark ? "text-gray-300" : "text-gray-600";
-        const emptyTitle = isDark ? "text-gray-300" : "text-gray-700";
-        const emptySub = isDark ? "text-gray-400" : "text-gray-500";
+        const bgCard      = isDark ? "bg-[#1E293B]" : "bg-white";
+        const mutedColor  = isDark ? "text-gray-300" : "text-gray-600";
+        const emptyTitle  = isDark ? "text-gray-300" : "text-gray-700";
+        const emptySub    = isDark ? "text-gray-400" : "text-gray-500";
 
         const container = $(`#${opts.parent}`).empty();
 
@@ -692,7 +691,9 @@ class Pos extends Templates {
         }).append(
             $("<div>", { class: "flex flex-col" }).append(
                 $("<h2>", { class: "text-lg font-semibold text-white", text: opts.title }),
-                $("<h3>", { class: "text-sm text-gray-400", text: opts.customerName || "Cliente no definido" })
+                $("<h3>", { 
+                    class: "text-sm text-gray-400", 
+                    html:'<i class="icon-user-1"></i> '+ opts.customerName || "Cliente no definido" },)
             ),
             $("<button>", {
                 id: "clearOrder",
@@ -787,6 +788,7 @@ class Pos extends Templates {
                     class: "bg-gray-700 text-white rounded px-2",
                     html: "−",
                     click: () => {
+                        console.log('item-card',item)
                         if (item.quantity > 1) {
                             item.quantity--;
                             opts.onQuanty(item.id, 0, item.quantity);
@@ -801,6 +803,9 @@ class Pos extends Templates {
                     html: "+",
                     click: () => {
                         item.quantity++;
+                        console.log('item-card', item)
+
+
                         opts.onQuanty(item.id, 2, item.quantity);
                         opts.data = data;
                         this.orderPanelComponent(opts);
@@ -992,7 +997,7 @@ class CatalogProduct extends Pos {
     async initPos() {
 
         const pos = await useFetch({ url: this._link, data: { opc: "init", id: idFolio } });
-        this.name_client = pos.order.name;
+        this.name_client = pos.order.name ?? '';
         // tabs product.
 
         this.createProductTabs({
@@ -1026,14 +1031,16 @@ class CatalogProduct extends Pos {
             onRemove: (id) => {
                 this.removeProduct(id);
             },
-
+            onQuanty: (id, action, newQuantity) => {
+                this.quantityProduct(id, newQuantity);
+            },
             onPrint: () => {
                 console.log("print");
                 this.printOrder(idFolio);
             },
 
             onExit: () => {
-               
+
                 app.render();
             },
 
@@ -1061,7 +1068,9 @@ class CatalogProduct extends Pos {
             onRemove: (id) => {
                 this.removeProduct(id);
             },
-
+            onQuanty: (id, action, newQuantity) => {
+                this.quantityProduct(id, newQuantity);
+            },
             onPrint: () => {
                 console.log("print");
                 this.printOrder(idFolio);
@@ -1123,7 +1132,9 @@ class CatalogProduct extends Pos {
             onRemove: (id) => {
                 this.removeProduct(id);
             },
-
+            onQuanty: (id, action, newQuantity) => {
+                this.quantityProduct(id, newQuantity);
+            },
             onPrint: () => {
                 console.log("print");
                 this.printOrder(idFolio);
@@ -1839,7 +1850,156 @@ class CatalogProduct extends Pos {
         }
     }
 
-    
+    async quantityProduct(packageId, newQuantity) {
+
+        const response = await useFetch({
+            url: this._link,
+            data: {
+                opc: "quantityProduct",
+                id: packageId,
+                quantity: newQuantity,
+                pedidos_id: idFolio
+            }
+        });
+
+        console.log('quantity',response)
+
+        // Actualizar el panel de órdenes con la nueva lista
+        this.orderPanelComponent({
+            title: `Orden Actual #P-00${idFolio}`,
+            parent: "orderPanel",
+            data: response.list,
+            customerName: this.name_client,
+
+            onFinish: (data) => {
+                this.addPayment();
+            },
+            onEdit: (id) => {
+                this.editProduct(id);
+            },
+            onRemove: (id) => {
+                this.removeProduct(id);
+            },
+            onPrint: () => {
+                this.printOrder(idFolio);
+            },
+            onExit: () => {
+                app.render();
+            },
+            onClear: () => {
+                this.confirmClearOrder(idFolio);
+            },
+        });
+
+
+
+
+
+    }
+
+    showProductDetails(productId, options = {}) {
+        const defaults = {
+            theme: "dark"
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        // Fetch product details from backend
+        useFetch({
+            url: this._link,
+            data: {
+                opc: "getProductDetails",
+                id: productId
+            }
+        }).then(response => {
+            if (response.status === 200) {
+                const product = response.data;
+                const baseUrl = "https://huubie.com.mx/";
+
+                // Create modal with bootbox
+                const modal = bootbox.dialog({
+                    title: `<div class="flex items-center gap-2 text-white text-lg font-semibold">
+                        <i class="icon-info text-blue-400 text-xl"></i>
+                        Detalles del Producto
+                    </div>`,
+                    message: `
+                        <div class="flex flex-col md:flex-row gap-4 bg-[#1F2A37] text-white rounded-lg overflow-hidden">
+                            <!-- Left Pane - Product Image -->
+                            <div class="w-full md:w-1/2 bg-gray-800 flex items-center justify-center min-h-[300px]">
+                                ${product.image && product.image.trim() !== ""
+                            ? `<img src="${baseUrl}${product.image}" alt="${product.name}" class="object-cover w-full h-full rounded-lg">`
+                            : `<div class="flex items-center justify-center w-full h-full">
+                                         <i class="icon-birthday text-6xl text-gray-500"></i>
+                                       </div>`
+                        }
+                            </div>
+                            
+                            <!-- Right Pane - Product Details -->
+                            <div class="w-full md:w-1/2 p-4 flex flex-col justify-between">
+                                <div>
+                                    <h2 class="text-2xl font-bold text-white mb-2">${product.name}</h2>
+                                    
+                                    ${product.category
+                            ? `<span class="inline-block px-3 py-1 text-sm bg-blue-600 text-white rounded-full mb-3">${product.category}</span>`
+                            : ''
+                        }
+                                    
+                                    <div class="mb-4">
+                                        <p class="text-sm text-gray-400 mb-1">Precio</p>
+                                        <p class="text-3xl font-bold text-blue-400">${formatPrice(product.price)}</p>
+                                    </div>
+                                    
+                                    ${product.description
+                            ? `<div class="mb-4">
+                                             <p class="text-sm text-gray-400 mb-2">Descripción</p>
+                                             <p class="text-gray-300 leading-relaxed">${product.description}</p>
+                                           </div>`
+                            : ''
+                        }
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <button id="addToCartFromModal" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200">
+                                        <i class="icon-cart mr-2"></i>
+                                        Agregar al carrito
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    size: 'large',
+                    closeButton: true,
+                    className: 'product-details-modal'
+                });
+
+                // Add event handler for "Add to Cart" button
+                $(document).off('click', '#addToCartFromModal').on('click', '#addToCartFromModal', () => {
+                    this.addProduct(productId);
+                    modal.modal('hide');
+                });
+
+            } else {
+                alert({
+                    icon: "error",
+                    title: "Error",
+                    text: response.message || "No se pudieron cargar los detalles del producto",
+                    btn1: true,
+                    btn1Text: "Ok"
+                });
+            }
+        }).catch(error => {
+            console.error('Error fetching product details:', error);
+            alert({
+                icon: "error",
+                title: "Error",
+                text: "Error de conexión al cargar los detalles del producto",
+                btn1: true,
+                btn1Text: "Ok"
+            });
+        });
+    }
+
+
 }
 
 

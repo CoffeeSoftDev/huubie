@@ -298,6 +298,28 @@ class MPedidos extends CRUD {
         ]);
     }
 
+    function getProductById($id) {
+        $leftjoin = [
+            $this->bd . 'order_category' => 'order_products.category_id = order_category.id'
+        ];
+
+        return $this->_Select([
+            'table' => $this->bd . 'order_products',
+            'values' => "
+                order_products.id,
+                order_products.name,
+                order_products.price,
+                order_products.description,
+                order_products.image,
+                order_category.classification as category,
+                order_products.active
+            ",
+            'leftjoin' => $leftjoin,
+            'where' => 'order_products.id = ? AND order_products.active = 1',
+            'data' => [$id]
+        ])[0] ?? null;
+    }
+
     function deleteProduct($array){
 
         return $this->_Delete([
@@ -329,7 +351,7 @@ class MPedidos extends CRUD {
     public function getOrderById($array) {
         $sql = "
             SELECT
-                order_package.id,
+                order_package.id as id,
                 order_products.`name` as name,
                 order_products.price,
                 order_package.quantity,
@@ -348,14 +370,40 @@ class MPedidos extends CRUD {
         
         $products = $this->_Read($sql, $array);
         
-        // Para cada producto, obtener sus imágenes si es personalizado
-        foreach ($products as &$product) {
-            if ($product['customer_id']) {
-                $product['images'] = $this->getOrderImages([$product['id']]);
-            } else {
-                $product['images'] = [];
-            }
-        }
+        // // Para cada producto, obtener información personalizada si corresponde
+        // foreach ($products as &$product) {
+        //     if ($product['customer_id']) {
+        //         // Obtener datos del producto personalizado
+        //         $customData = $this->getCustomerProducts([$product['customer_id']]);
+        //         if ($customData) {
+        //             // Agregar datos personalizados al producto
+        //             $product = array_merge($product, $customData);
+        //             // Si es personalizado, usar el nombre personalizado
+        //             if ($customData['customer_product_name']) {
+        //                 $product['product_name'] = $customData['customer_product_name'];
+        //             } else if ($customData['data_customer']) {
+        //                 $product['product_name'] = $customData['data_customer'];
+        //             }
+        //             // Usar precio personalizado si existe
+        //             if ($customData['customer_real_price']) {
+        //                 $product['unit_price'] = $customData['customer_real_price'];
+        //                 $product['total_price'] = $product['quantity'] * $customData['customer_real_price'];
+        //             }
+        //             // Usar cantidad personalizada si existe
+        //             if ($customData['custom_quantity']) {
+        //                 $product['quantity'] = $customData['custom_quantity'];
+        //                 $product['total_price'] = $customData['custom_quantity'] * $product['unit_price'];
+        //             }
+        //         }
+        //         // Obtener imágenes
+        //         $product['images'] = $this->getOrderImages([$product['id']]);
+        //         // Marcar como personalizado para el frontend
+        //         $product['is_custom'] = true;
+        //     } else {
+        //         $product['images'] = [];
+        //         $product['is_custom'] = false;
+        //     }
+        // }
         
         return $products;
     }
@@ -563,17 +611,69 @@ class MPedidos extends CRUD {
         
         $products = $this->_Read($query, $array);
         
-        // Para cada producto, obtener sus imágenes si es personalizado
-        foreach ($products as &$product) {
-            if ($product['customer_id']) {
-                $product['images'] = $this->getOrderImages([$product['id']]);
-            } else {
-                $product['images'] = [];
-            }
-        }
+        // // Para cada producto, obtener sus imágenes si es personalizado
+        // foreach ($products as &$product) {
+        //     if ($product['customer_id']) {
+        //         $product['images'] = $this->getOrderImages([$product['id']]);
+        //     } else {
+        //         $product['images'] = [];
+        //     }
+        // }
         
         return $products;
     }
+
+
+
+    function getCustomerProducts($array) {
+        error_log("🔍 Buscando productos personalizados para customer_id: " . json_encode($array));
+        
+        $query = "
+            SELECT
+                ocp.id,
+                ocp.price as custom_price,
+                ocp.quantity as custom_quantity,
+                ocp.details as custom_details,
+                oc.name as customer_product_name,
+                oc.price as customer_base_price,
+                oc.price_real as customer_real_price,
+                oc.portion_qty as customer_portion_qty
+            FROM
+                {$this->bd}order_customer_products ocp
+            INNER JOIN {$this->bd}order_customer oc ON ocp.customer_id = oc.id
+            WHERE
+                ocp.customer_id = ?
+            ORDER BY
+                ocp.id ASC
+        ";
+        
+        error_log("🔍 Query ejecutada: " . $query);
+        $result = $this->_Read($query, $array);
+        error_log("🔍 Resultado de la consulta: " . json_encode($result));
+        
+        return $result ? $result[0] : null;
+    }
+
+    // function getOrderImages($array) {
+    //     $query = "
+    //         SELECT
+    //             path as image_path,
+    //             name as image_name,
+    //             original_name
+    //         FROM
+    //             {$this->bd}order_images
+    //         WHERE
+    //             package_id = ?
+    //         ORDER BY
+    //             id ASC
+    //     ";
+        
+    //     error_log("🖼️ Buscando imágenes para package_id: " . json_encode($array));
+    //     $result = $this->_Read($query, $array);
+    //     error_log("🖼️ Imágenes encontradas: " . json_encode($result));
+        
+    //     return $result;
+    // }
 
 
 

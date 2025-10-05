@@ -1,7 +1,7 @@
 <?php
 require_once '../../conf/_CRUD.php';
 require_once '../../conf/_Utileria.php';
-session_start();
+
 
 class mdl extends CRUD {
     protected $util;
@@ -207,7 +207,7 @@ class mdl extends CRUD {
             'values' => '*',
             'where'  => 'id = ?',
             'data'   => $array
-        ],true);
+        ])[0];
     }
 
     function maxModifier(){

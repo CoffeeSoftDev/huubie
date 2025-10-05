@@ -5,9 +5,9 @@ const api = "../pedidos/ctrl/ctrl-admin.php";
 
 $(async () => {
 
-    const data = await useFetch({ url: api, data: { opc: "init" } });
-    cat = data.category;
-    modifier = data.modifier;
+    const data     = await useFetch({ url: api, data: { opc: "init" } });
+          cat      = data.category;
+          modifier = data.modifier;
 
     app      = new App(api, "root");
     category = new Category(api, "root");
@@ -537,7 +537,6 @@ class App extends Templates {
     }
 
 }
-
 class Category extends Templates {
 
     constructor(link, div_modulo) {
@@ -697,7 +696,6 @@ class Category extends Templates {
     }
 
 }
-
 class Client extends Templates {
 
     constructor(link, div_modulo) {
@@ -765,13 +763,15 @@ class Client extends Templates {
                     opc: "input",
                     id: "email",
                     lbl: "Correo Electrónico",
+                    required: false,
                     class: "col-12 mb-3"
                 },
                 {
                     opc: "input",
                     id: "phone",
                     lbl: "Teléfono",
-                    class: "col-12 mb-3"
+                    class: "col-12 mb-3",
+                    onkeyup: "client.validatePhone(this)"
                 }
             ],
             success: (response) => {
@@ -814,13 +814,15 @@ class Client extends Templates {
                     opc: "input",
                     id: "email",
                     lbl: "Correo Electrónico",
+                    required: false,
                     class: "col-12 mb-3"
                 },
                 {
                     opc: "input",
                     id: "phone",
                     lbl: "Teléfono",
-                    class: "col-12 mb-3"
+                    class: "col-12 mb-3",
+                    onkeyup: "client.validatePhone(this)"
                 }
             ],
             success: (response) => {
@@ -838,7 +840,7 @@ class Client extends Templates {
         this.swalQuestion({
             opts: {
                 title: "¿Desea eliminar este cliente?",
-                text: "Esta acción no se puede deshacer.",
+                text: "Esta acción cambiará el estado del cliente a inactivo.",
                 icon: "warning",
             },
             data: {
@@ -856,6 +858,34 @@ class Client extends Templates {
                 }
             },
         });
+    }
+
+    validatePhone(input) {
+        // Solo permitir números y limitar a 10 dígitos
+        let phone = input.value.replace(/\D/g, '');
+        
+        // Limitar a máximo 10 dígitos
+        if (phone.length > 10) {
+            phone = phone.substring(0, 10);
+        }
+        
+        const phoneContainer = $(input).closest('.form-group');
+        
+        // Remover mensaje anterior si existe
+        phoneContainer.find('.phone-validation').remove();
+        
+        // Mostrar mensajes de validación
+        if (phone.length > 0 && phone.length < 10) {
+            const remaining = 10 - phone.length;
+            const message = $(`<small class="phone-validation text-warning d-block mt-1"><i class="icon-info-circled"></i> Faltan ${remaining} dígito${remaining > 1 ? 's' : ''} (${phone.length}/10)</small>`);
+            phoneContainer.append(message);
+        } else if (phone.length === 10) {
+            const message = $('<small class="phone-validation text-success d-block mt-1"><i class="icon-ok-circled"></i> Teléfono válido ✓</small>');
+            phoneContainer.append(message);
+        }
+        
+        // Asignar el valor limitado al input
+        input.value = phone;
     }
 }
 
@@ -1154,7 +1184,7 @@ class Modifier extends App {
 
         let data = request.data;
 
-        console.log(request)
+      
 
         const modal = bootbox.dialog({
             closeButton: false,
@@ -1174,8 +1204,8 @@ class Modifier extends App {
         this.productListCard({
             parent  : "containerShowProduct",
             title   : 'Nombre ' ,
-            subtitle: data.name,
-            json    : request.ls
+            subtitle: data ? data.name : 'Sin nombre',
+            json    : request.ls || []
         });
     }
 
@@ -1267,8 +1297,12 @@ class Modifier extends App {
 
             success: (response) => {
                 if (response.status == 200) {
-
-                    this.renderProductListComponent(response.data, id)
+                    // Resetear el formulario
+                    $("#formProduct")[0].reset();
+                    $("#formProduct #name").val('');
+                    $("#formProduct #price").val('');
+                    
+                    this.renderProductListComponent(response.data, id);
                 } else if (response.status == 400) {
                     alert({
                         icon: "warning",
@@ -1336,8 +1370,11 @@ class Modifier extends App {
                         min="0"
                         step="0.01"
                         value="${prod.price !== null ? prod.price : '0.00'}"
-                        class="form-control input-sm w-20 h-8 text-sm text-right text-foreground rounded-md bg-[#1F2A37] border border-border px-3 py-1 shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                        class="form-control input-sm w-20 h-8 text-sm text-right text-foreground rounded-md bg-[#1F2A37] border border-border px-3 py-1 shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] price-input"
                         data-index="${idx}"
+                        data-id="${prod.id}"
+                        onblur="mod.updateProductPrice(this, ${idModifier})"
+                        onkeypress="if(event.key === 'Enter') mod.updateProductPrice(this, ${idModifier})"
                     />
                 </div>
 
@@ -1394,6 +1431,75 @@ class Modifier extends App {
 
         // Actualizar valor del input hidden
         document.getElementById("isExtra").value = isChecked ? 1 : 0;
+    }
+
+    async updateProductPrice(input, modifierId) {
+        const productId = $(input).data('id');
+        const newPrice = parseFloat(input.value) || 0;
+        
+        // Validar que el precio sea válido
+        if (newPrice < 0) {
+            input.value = 0;
+            alert({
+                icon: "warning",
+                title: "Precio inválido",
+                text: "El precio no puede ser negativo",
+                timer: 2000
+            });
+            return;
+        }
+
+        // Mostrar indicador de carga
+        $(input).addClass('border-yellow-500').prop('disabled', true);
+        
+        try {
+            const response = await useFetch({
+                url: this._link,
+                data: {
+                    opc: "updateProductModifierPrice",
+                    id: productId,
+                    price: newPrice
+                }
+            });
+
+            if (response.status === 200) {
+                // Éxito - mostrar indicador verde brevemente
+                $(input).removeClass('border-yellow-500').addClass('border-green-500');
+                
+                setTimeout(() => {
+                    $(input).removeClass('border-green-500').prop('disabled', false);
+                }, 500);
+                
+                // Mostrar notificación de éxito
+                // alert({
+                //     icon: "success",
+                //     text: "Precio actualizado correctamente",
+                //     timer: 1500,
+                //     showConfirmButton: false
+                // });
+                
+            } else {
+                throw new Error(response.message || 'Error al actualizar precio');
+            }
+            
+        } catch (error) {
+            // Error - mostrar indicador rojo y restaurar valor anterior
+            $(input).removeClass('border-yellow-500').addClass('border-red-500');
+            
+            setTimeout(() => {
+                $(input).removeClass('border-red-500').prop('disabled', false);
+            }, 2000);
+            
+            alert({
+                icon: "error",
+                title: "Error",
+                text: error.message || "No se pudo actualizar el precio",
+                timer: 3000
+            });
+            
+            // Restaurar el valor anterior (opcional)
+            // input.value = input.defaultValue;
+        }
     }
 
 
@@ -1472,11 +1578,11 @@ class ProductModifier extends Templates {
     add() {
         this.createModalForm({
             id: "formModifierAdd",
-            data: { opc: "addModifier", product_id: 1 },
+            data: { opc: "addProductModifier" },
             bootbox: { title: "Agregar Modificador" },
             json: this.jsonModifier(),
             success: (response) => {
-                alert({ icon: response.status === 200 ? "success" : "error", text: response.message });
+                alert({ icon: response.status === 200 ? "success" : "error", text: response.message ,timer:1500});
                 this.ls();
             }
         });
@@ -1543,6 +1649,8 @@ class ProductModifier extends Templates {
                 lbl: "Modificador",
                 class: "col-12 mb-3",
                 data: modifier,
+                text: "valor",
+                value: "id"
             },
 
         ];
