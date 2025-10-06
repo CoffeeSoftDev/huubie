@@ -372,22 +372,22 @@ class MPedidos extends CRUD {
         
         // // Para cada producto, obtener información personalizada si corresponde
         // foreach ($products as &$product) {
-        //     if ($product['customer_id']) {
+        //     if ($product['custom_id']) {
         //         // Obtener datos del producto personalizado
-        //         $customData = $this->getCustomerProducts([$product['customer_id']]);
+        //         $customData = $this->getcustomProducts([$product['custom_id']]);
         //         if ($customData) {
         //             // Agregar datos personalizados al producto
         //             $product = array_merge($product, $customData);
         //             // Si es personalizado, usar el nombre personalizado
-        //             if ($customData['customer_product_name']) {
-        //                 $product['product_name'] = $customData['customer_product_name'];
-        //             } else if ($customData['data_customer']) {
-        //                 $product['product_name'] = $customData['data_customer'];
+        //             if ($customData['custom_product_name']) {
+        //                 $product['product_name'] = $customData['custom_product_name'];
+        //             } else if ($customData['data_custom']) {
+        //                 $product['product_name'] = $customData['data_custom'];
         //             }
         //             // Usar precio personalizado si existe
-        //             if ($customData['customer_real_price']) {
-        //                 $product['unit_price'] = $customData['customer_real_price'];
-        //                 $product['total_price'] = $product['quantity'] * $customData['customer_real_price'];
+        //             if ($customData['custom_real_price']) {
+        //                 $product['unit_price'] = $customData['custom_real_price'];
+        //                 $product['total_price'] = $product['quantity'] * $customData['custom_real_price'];
         //             }
         //             // Usar cantidad personalizada si existe
         //             if ($customData['custom_quantity']) {
@@ -583,50 +583,35 @@ class MPedidos extends CRUD {
         ]);
     }
 
-    function getOrderProducts($array) {
+      function getOrderProducts($array) {
         $query = "
             SELECT
                 op.id,
                 op.quantity,
                 op.order_details,
                 op.dedication,
-                op.custom_id,
-                oc.name as data_custom,
-                prod.name as product_name,
-                prod.price as unit_price,
+                prod.name,
+                prod.price,
                 prod.description,
                 prod.image,
+                custom_id,
                 (op.quantity * prod.price) as total_price,
                 cat.classification as category
             FROM
                 {$this->bd}order_package op
             INNER JOIN {$this->bd}order_products prod ON op.product_id = prod.id
             LEFT JOIN {$this->bd}order_category cat ON prod.category_id = cat.id
-            LEFT JOIN {$this->bd}order_custom oc ON op.custom_id = oc.id
             WHERE
                 op.pedidos_id = ?
             ORDER BY
                 op.id ASC
         ";
-        
-        $products = $this->_Read($query, $array);
-        
-        // // Para cada producto, obtener sus imágenes si es personalizado
-        // foreach ($products as &$product) {
-        //     if ($product['customer_id']) {
-        //         $product['images'] = $this->getOrderImages([$product['id']]);
-        //     } else {
-        //         $product['images'] = [];
-        //     }
-        // }
-        
-        return $products;
+        return $this->_Read($query, $array);
     }
 
 
 
-    function getCustomerProducts($array) {
-        error_log("🔍 Buscando productos personalizados para customer_id: " . json_encode($array));
+    function getcustomProducts($array) {
         
         $query = "
             SELECT
@@ -634,15 +619,15 @@ class MPedidos extends CRUD {
                 ocp.price as custom_price,
                 ocp.quantity as custom_quantity,
                 ocp.details as custom_details,
-                oc.name as customer_product_name,
-                oc.price as customer_base_price,
-                oc.price_real as customer_real_price,
-                oc.portion_qty as customer_portion_qty
+                oc.name as custom_product_name,
+                oc.price as custom_base_price,
+                oc.price_real as custom_real_price,
+                oc.portion_qty as custom_portion_qty
             FROM
-                {$this->bd}order_customer_products ocp
-            INNER JOIN {$this->bd}order_customer oc ON ocp.customer_id = oc.id
+                {$this->bd}order_custom_products ocp
+            INNER JOIN {$this->bd}order_custom oc ON ocp.custom_id = oc.id
             WHERE
-                ocp.customer_id = ?
+                ocp.custom_id = ?
             ORDER BY
                 ocp.id ASC
         ";

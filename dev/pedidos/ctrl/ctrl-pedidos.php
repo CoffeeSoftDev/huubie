@@ -181,10 +181,11 @@ class Pedidos extends MPedidos{
     }
 
     function getOrderDetails() {
-        $status = 500;
+
+        $status  = 500;
         $message = 'Error al obtener detalles del pedido';
-        $data = null;
-        $SUB = $_SESSION['SUB'] ?? 4;
+        $data    = null;
+        $SUB     = $_SESSION['SUB'] ?? 4;
 
         $orderId = $_POST['id'];
         
@@ -205,29 +206,19 @@ class Pedidos extends MPedidos{
             $saldo       = $total - $discount - $totalPagado;
             
             // Obtener productos del pedido (si existen tablas relacionadas)
-            $products = $this->getOrderProducts([$orderId]) ?? [];
-            
-         
-            
-            // Obtener detalles de productos personalizados
-            foreach ($products as &$product) {
-                if (isset($product['customer_id']) && $product['customer_id'] !== null) {
-                    $customDetails = $this->getCustomerProducts([$product['customer_id']]);
-                    if ($customDetails) {
-                        $product = array_merge($product, $customDetails);
-                    }
-                }
-            }
-            unset($product); // Limpiar referencia
+      
+            $products = $this->getOrderProducts([$orderId]) ;
             
             $data = [
+                
                 'order' => array_merge($orderData, [
-                    'folio' => $folio,
-                    'total_paid' => $totalPagado,
-                    'balance' => $saldo,
-                    'formatted_date_order' => $orderData['date_order'],
-                    'formatted_date_creation' =>$orderData['date_creation']
+                    'folio'                   => $folio,
+                    'total_paid'              => $totalPagado,
+                    'balance'                 => $saldo,
+                    'formatted_date_order'    => $orderData['date_order'],
+                    'formatted_date_creation' => $orderData['date_creation']
                 ]),
+
                 'products' => $products,
                 'summary' => [
                     'total' => $total,
@@ -243,7 +234,7 @@ class Pedidos extends MPedidos{
 
         return [
             'status' => $status,
-            'message' =>  $sucursal,
+            'message' =>  $message ,
             'data' => $data,
             'order'=> $order 
         ];

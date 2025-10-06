@@ -693,7 +693,7 @@ class Pos extends Templates {
                 $("<h2>", { class: "text-lg font-semibold text-white", text: opts.title }),
                 $("<h3>", { 
                     class: "text-sm text-gray-400", 
-                    html:'<i class="icon-user-1"></i> '+ opts.customerName || "Cliente no definido" },)
+                    html:'<i class="icon-user-1"></i> '+ opts.customName || "Cliente no definido" },)
             ),
             $("<button>", {
                 id: "clearOrder",
@@ -1035,7 +1035,6 @@ class CatalogProduct extends Pos {
                 this.quantityProduct(id, newQuantity);
             },
             onPrint: () => {
-                console.log("print");
                 this.printOrder(idFolio);
             },
 
@@ -1869,7 +1868,7 @@ class CatalogProduct extends Pos {
             title: `Orden Actual #P-00${idFolio}`,
             parent: "orderPanel",
             data: response.list,
-            customerName: this.name_client,
+            customName: this.name_client,
 
             onFinish: (data) => {
                 this.addPayment();
