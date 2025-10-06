@@ -64,8 +64,113 @@ The system is built using jQuery with TailwindCSS for styling, following the Cof
 #### 2. Product Grid (`createProductGrid`)
 - **Display**: Card-based product layout
 - **Information**: Product image, name, price
-- **Interaction**: Click to add product to order
+- **Interaction**: Click to add product to order, eye icon for details preview
 - **Fallback**: Default icon for missing images
+- **Actions**: Two interaction modes - direct add to cart and detailed preview
+
+### Product Grid Enhancement Specification
+
+#### Card Structure Modification
+```javascript
+// Enhanced product card with dual action buttons
+const card = $("<div>", {
+  class: `${cardBg} border ${borderColor} rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-200 card`
+});
+
+// Button container for actions
+const actionContainer = $("<div>", {
+  class: "flex gap-1 mt-1"
+}).append(
+  // Eye icon for details
+  $("<button>", {
+    class: `flex-1 ${buttonColor} text-white rounded px-2 py-1 text-xs`,
+    html: `<i class="icon-eye"></i>`,
+    click: (e) => {
+      e.stopPropagation();
+      this.showProductDetails(item.id);
+    }
+  }),
+  // Add to cart button
+  $("<button>", {
+    class: `flex-1 bg-green-600 hover:bg-green-700 text-white rounded px-2 py-1 text-xs`,
+    html: `<i class="icon-plus"></i>`,
+    click: (e) => {
+      e.stopPropagation();
+      opts.onClick(item);
+    }
+  })
+);
+```
+
+#### Button Layout
+- **Two-button system**: Eye icon (details) and Plus icon (add to cart)
+- **Equal width**: Both buttons share available space
+- **Visual distinction**: Different colors for different actions
+- **Icon-based**: Clear visual indicators for each action
+- **Event handling**: Proper event propagation control
+
+#### 2.1. Product Details Modal (`showProductDetails`)
+- **Trigger**: Eye icon click on product cards
+- **Layout**: Dual-pane modal with image on left, details on right
+- **Content Structure**:
+  - Product image (full-size with fallback)
+  - Product name and category badge
+  - Formatted price display
+  - Complete product description
+  - Action buttons (Add to cart, Close)
+- **Responsive Behavior**: Stacks vertically on mobile devices
+- **Integration**: Seamlessly adds products to current order from modal
+
+### Product Details Modal Technical Specification
+
+#### Modal Structure
+```javascript
+showProductDetails(productId, options = {}) {
+  // Modal configuration with bootbox.dialog
+  // Dual-pane layout implementation
+  // Product data fetching and display
+  // Event handling for actions
+}
+```
+
+#### Layout Design
+- **Container**: Full-screen overlay with centered modal
+- **Modal Size**: Large (800px width on desktop, responsive on mobile)
+- **Left Pane**: Product image container (400px width)
+  - Image display with object-cover scaling
+  - Fallback placeholder for missing images
+  - Background color matching theme
+- **Right Pane**: Product information (400px width)
+  - Product title (large, bold typography)
+  - Category badge (colored, rounded)
+  - Price display (prominent, blue accent)
+  - Description text (readable typography)
+  - Action button area
+
+#### Styling Specifications
+- **Theme**: Dark theme consistent with existing interface
+- **Colors**: 
+  - Background: `bg-[#1F2A37]` (modal background)
+  - Text: `text-white` (primary text)
+  - Accent: `text-blue-400` (price and links)
+  - Category badge: Dynamic color based on category
+- **Typography**:
+  - Product name: `text-2xl font-bold`
+  - Category: `text-sm px-3 py-1 rounded-full`
+  - Price: `text-3xl font-bold text-blue-400`
+  - Description: `text-gray-300 leading-relaxed`
+
+#### Interactive Elements
+- **Close Button**: Top-right corner with X icon
+- **Add to Cart Button**: Primary blue button, full width
+- **Click Outside**: Close modal functionality
+- **Keyboard Navigation**: ESC key support
+
+#### Data Integration
+- **API Endpoint**: `getProductDetails` method in controller
+- **Response Format**: Complete product object with description
+- **Image Handling**: Base URL concatenation for image paths
+- **Error Handling**: Graceful fallbacks for missing data
 
 #### 3. Order Panel (`orderPanelComponent`)
 - **Order Display**: List of selected products with quantities
@@ -88,7 +193,15 @@ The system is built using jQuery with TailwindCSS for styling, following the Cof
 - **Balance Calculation**: Real-time remaining balance
 - **Payment Methods**: Efectivo, Tarjeta, Transferencia
 
-#### 3. Receipt/Ticket Modal
+#### 3. Product Details Modal
+- **Purpose**: Display comprehensive product information before adding to order
+- **Layout**: Left side product image, right side product details
+- **Content**: Product name, category badge, price, full description
+- **Actions**: "Agregar al carrito" button and close functionality
+- **Image Handling**: Full-size product image with fallback placeholder
+- **Responsive**: Adapts to different screen sizes while maintaining readability
+
+#### 4. Receipt/Ticket Modal
 - **Format**: Thermal printer compatible layout
 - **Content**: Order details, customer info, payment summary
 - **Branding**: Company logo and information
@@ -234,8 +347,61 @@ The system is built using jQuery with TailwindCSS for styling, following the Cof
 - Efficient DOM manipulation using jQuery
 - Minimal API calls through intelligent caching
 
+### Backend API Enhancement
+
+#### New Endpoint: Product Details
+```php
+function getProductDetails() {
+    $id = $_POST['id'];
+    $status = 404;
+    $message = 'Producto no encontrado';
+    $data = null;
+
+    $product = $this->getProductById($id);
+    
+    if ($product) {
+        $status = 200;
+        $message = 'Producto encontrado';
+        $data = $product;
+    }
+
+    return [
+        'status' => $status,
+        'message' => $message,
+        'data' => $data
+    ];
+}
+```
+
+#### Model Enhancement
+```php
+function getProductById($id) {
+    $leftjoin = [
+        $this->bd . 'pedidos_category' => 'pedidos_products.category_id = pedidos_category.id'
+    ];
+
+    return $this->_Select([
+        'table' => $this->bd . 'pedidos_products',
+        'values' => "
+            pedidos_products.id,
+            pedidos_products.name,
+            pedidos_products.price,
+            pedidos_products.description,
+            pedidos_products.image,
+            pedidos_category.classification as category,
+            pedidos_products.active
+        ",
+        'leftjoin' => $leftjoin,
+        'where' => 'pedidos_products.id = ? AND pedidos_products.active = 1',
+        'data' => [$id]
+    ])[0] ?? null;
+}
+```
+
 ### Security Considerations
 - File upload validation and sanitization
 - Session-based authentication
 - SQL injection prevention through prepared statements
 - XSS protection through proper data escaping
+- Product ID validation for details endpoint
+- Access control for product information

@@ -4,7 +4,7 @@
 ?>
 <!-- Navbar -->
 <nav
-    class="bg-[#2A2456] fixed top-0 left-0 w-full text-white px-4 py-3 h-16 z-50 shadow flex items-center justify-between">
+    class="bg-[#003360] fixed top-0 left-0 w-full text-white px-4 py-3 h-16 z-50 shadow flex items-center justify-between">
     <!-- Logo -->
     <div class="flex items-center space-x-2">
         <img src="/dev/src/img/logo/logo.svg" alt="Logo" class="w-10 h-10" />
@@ -30,7 +30,7 @@
 <div class="relative mt-16 z-50">
     <!-- Menú de perfil -->
     <div id="userMenuDropdown"
-        class="absolute right-0 w-64 bg-[#111928] text-white rounded-2xl shadow-lg opacity-0 scale-95 invisible transition-all duration-500 ease-out">
+        class="absolute right-0 w-64 bg-[#] text-white rounded-2xl shadow-lg opacity-0 scale-95 invisible transition-all duration-500 ease-out">
         <!-- Imagen de perfil -->
         <div class="flex flex-col items-center bg-[#1F2A37] pb-2">
             <img src="<?php echo $imgPerfil; ?>" alt="Usuario"

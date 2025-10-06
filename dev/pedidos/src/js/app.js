@@ -560,22 +560,33 @@ class App extends Templates {
         const data = await useFetch({ url: this._link, data: { opc: 'initHistoryPay', id } });
         const order = data.order;
 
-
-        // Modal.
+        // Modal con información mejorada
         bootbox.dialog({
-            title: `Cliente: ${order.name} `,
+            title: `
+                <div class="flex items-center gap-3">
+                  
+                    <div>
+                        <h2 class="text-lg font-semibold text-white">Gestión de Pagos</h2>
+                        <p class="text-sm text-gray-400">
+                            <i class="icon-doc-text-1"></i> Folio: ${order.folio} | 
+                            <i class="icon-calendar-1"></i> Creado: ${order.formatted_date_order || order.date_order}
+                        </p>
+                    </div>
+                </div>
+            `,
             id: 'modalAdvance',
             closeButton: true,
+
             message: '<div id="containerChat"></div>'
-        }).on('shown.bs.modal', () => $('.modal-body').css('min-height', '530px'));
+        });
 
         this.tabLayout({
             parent: 'containerChat',
             theme: 'dark',
             class: '',
             json: [
-                { id: 'payment', tab: 'Pagos', icon: '', active: true },
-                { id: 'listPayment', tab: 'Lista de pagos', onClick: () => { } }
+                { id: 'payment', tab: 'Registrar Pago', icon: 'icon-plus-circled', active: true },
+                { id: 'listPayment', tab: 'Historial de Pagos', icon: 'icon-list', onClick: () => { } },
             ]
         });
 
@@ -588,6 +599,7 @@ class App extends Templates {
         this.addPayment(order, id);
         this.renderResumenPagos(data.details);
         this.lsPay(id);
+
     }
 
     async addPayment(order, id) {
@@ -597,9 +609,16 @@ class App extends Templates {
 
         const saldoOriginal = order.total_pay;
         const saldoRestante = order.total_pay - order.total_paid;
+        const isPaidInFull = saldoRestante <= 0;
 
-        // Contenedor del formulario
-        $("#container-payment").html(`<form id="form-payment" novalidate></form>`);
+        // Contenedor del formulario centrado y reducido
+        $("#container-payment").html(`
+            <div class="flex justify-center items-start">
+                <div class="w-full">
+                    <form id="form-payment" novalidate></form>
+                </div>
+            </div>
+        `);
 
         this.createForm({
             id: "formRegisterPayment",
@@ -616,11 +635,12 @@ class App extends Templates {
                     id: "Amount",
                     class: "col-12",
                     html: `
-                    <div id="dueAmount" class="p-4 rounded-xl bg-[#1E293B] text-white text-center">
-                        <p class="text-sm opacity-80">Monto restante a pagar</p>
+                    <div id="dueAmount" class="p-4 rounded-xl ${isPaidInFull ? 'bg-green-900/30 border border-green-500' : 'bg-[#1E293B]'} text-white text-center">
+                        <p class="text-sm opacity-80">${isPaidInFull ? 'Pedido pagado completamente' : 'Monto restante a pagar'}</p>
                         <p id="SaldoEvent" class="text-2xl font-bold mt-1">
                             ${formatPrice(saldoRestante)}
                         </p>
+                        ${isPaidInFull ? '<i class="icon-ok-circled text-green-400 text-2xl mt-2"></i>' : ''}
                     </div>`
                 },
                 {
@@ -628,35 +648,39 @@ class App extends Templates {
                     type: "number",
                     id: "advanced_pay",
                     lbl: "Importe",
-                    class: "col-12 mb-3 mt-2",
+                    class: "col-12 mb-3",
                     placeholder: "0.00",
                     required: true,
                     min: 0,
-                    onkeyup: "app.updateTotal()"
+                    onkeyup: "app.updateTotal()",
+                    disabled: isPaidInFull
                 },
                 {
                     opc: "select",
                     id: "method_pay_id",
-                    lbl: "Método de pago del anticipo",
+                    lbl: "Método de pago",
                     class: "col-12 mb-3",
                     data: [
                         { id: "1", valor: "Efectivo" },
                         { id: "2", valor: "Tarjeta" },
                         { id: "3", valor: "Transferencia" }
                     ],
-                    required: true
+                    required: true,
+                    disabled: isPaidInFull
                 },
                 {
                     opc: "textarea",
                     id: "description",
                     lbl: "Observación",
-                    class: "col-12 mb-3"
+                    class: "col-12 mb-3",
+                    disabled: isPaidInFull
                 },
                 {
                     opc: "btn-submit",
                     id: "btnSuccess",
                     class: "col-12",
-                    text: "Aceptar"
+                    text: isPaidInFull ? "Pedido Pagado" : "Registrar Pago",
+                    disabled: isPaidInFull
                 }
             ],
             success: async (response) => {
@@ -677,16 +701,21 @@ class App extends Templates {
                     this.renderResumenPagos(data.details);
 
                     // Recalcular saldo restante sin redibujar
-
                     const order = data.order;
                     const restante2 = order.total_pay - order.total_paid;
                     this.totalPay = order.total_pay;
                     this.totalPaid = order.total_paid;
 
-                    $("#SaldoEvent").text(formatPrice(restante2));
-                    $("#advanced_pay").val("");
-                    $("#description").val("");
-                    app.updateTotal();
+                    // Verificar si se pagó completamente
+                    if (restante2 <= 0) {
+                        // Recargar el formulario para mostrar estado pagado
+                        this.addPayment(order, id);
+                    } else {
+                        $("#SaldoEvent").text(formatPrice(restante2));
+                        $("#advanced_pay").val("");
+                        $("#description").val("");
+                        app.updateTotal();
+                    }
 
                 } else {
                     alert({
@@ -699,6 +728,13 @@ class App extends Templates {
 
             }
         });
+
+        // Aplicar estilos disabled si está pagado
+        if (isPaidInFull) {
+            setTimeout(() => {
+                $("#advanced_pay, #method_pay_id, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            }, 100);
+        }
     }
 
     deletePay(id, idFolio) {
@@ -719,10 +755,28 @@ class App extends Templates {
                     const data = res.initHistoryPay;
 
                     if (res.status === 200) {
-
+                        // Actualizar resumen y lista de pagos
                         this.renderResumenPagos(data.details);
                         this.lsPay(idFolio);
                         this.ls();
+
+                        // Actualizar el formulario con el nuevo saldo
+                        const order = data.order;
+                        const restante = order.total_pay - order.total_paid;
+
+                        // Actualizar totales
+                        this.totalPay = order.total_pay;
+                        this.totalPaid = order.total_paid;
+
+                        // Recargar el formulario para reflejar el nuevo estado
+                        this.addPayment(order, idFolio);
+
+                        // Mostrar mensaje de éxito
+                        alert({
+                            icon: "success",
+                            text: "Pago eliminado correctamente. Saldo actualizado.",
+                            timer: 2000
+                        });
                     } else {
                         alert({ icon: "error", text: res.message });
                     }
@@ -731,10 +785,30 @@ class App extends Templates {
         });
     }
 
-    lsPay(id) {
+    async lsPay(id) {
+        // Obtener los pagos primero para verificar si existen
+        const response = await useFetch({
+            url: this._link,
+            data: { opc: 'listPayment', id: id }
+        });
 
+        // Verificar si hay pagos
+        if (!response.row || response.row.length === 0) {
+            // Mostrar mensaje cuando no hay pagos
+            $("#container-methodPay").html(`
+                <div class="flex flex-col items-center justify-center py-12 text-center">
+                    <div class="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                        <i class="icon-money text-gray-400 text-3xl"></i>
+                    </div>
+                    <p class="text-gray-400 text-lg font-semibold mb-2">Aún no se ha realizado ningún abono</p>
+                    <p class="text-gray-500 text-sm">Los pagos registrados aparecerán aquí</p>
+                </div>
+            `);
+            return;
+        }
+
+        // Si hay pagos, mostrar la tabla
         this.createTable({
-
             parent: "container-methodPay",
             idFilterBar: "filterBarEventos",
             data: { opc: 'listPayment', id: id },
@@ -768,7 +842,7 @@ class App extends Templates {
             minimumFractionDigits: 2
         });
 
-        let originalHTML = `<p class="text-lg font-bold text-blue-900" id="totalEvento">${fmt(totalEvento)}</p>`;
+        let originalHTML = `<p class="text-lg font-bold text-blue-900" id="totalEvento">${formatPrice(totalEvento)}</p>`;
 
         // Si hay descuento, mostrar desglose visual
         if (discount > 0) {
@@ -804,6 +878,103 @@ class App extends Templates {
 
         </div>
     `);
+    }
+
+    renderOrderInfo(order) {
+        const html = `
+            <div class="space-y-4">
+                <!-- Información del Cliente -->
+                <div class="bg-[#1F2A37] rounded-lg p-4">
+                    <h3 class="text-white font-semibold mb-3 flex items-center gap-2">
+                        <i class="icon-user text-blue-400"></i>
+                        Información del Cliente
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="flex items-center gap-3">
+                            <i class="icon-user-1 text-gray-400"></i>
+                            <div>
+                                <p class="text-gray-400 text-xs">Nombre:</p>
+                                <p class="text-white font-semibold">${order.name || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="icon-phone text-gray-400"></i>
+                            <div>
+                                <p class="text-gray-400 text-xs">Teléfono:</p>
+                                <p class="text-white font-semibold">${order.phone || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="icon-mail text-gray-400"></i>
+                            <div>
+                                <p class="text-gray-400 text-xs">Correo:</p>
+                                <p class="text-white font-semibold">${order.email || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="icon-birthday text-gray-400"></i>
+                            <div>
+                                <p class="text-gray-400 text-xs">Cumpleaños:</p>
+                                <p class="text-white font-semibold">${order.date_birthday || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detalles del Pedido -->
+                <div class="bg-[#1F2A37] rounded-lg p-4">
+                    <h3 class="text-white font-semibold mb-3 flex items-center gap-2">
+                        <i class="icon-doc-text text-blue-400"></i>
+                        Detalles del Pedido
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="flex items-center gap-3">
+                            <i class="icon-doc-text-1 text-gray-400"></i>
+                            <div>
+                                <p class="text-gray-400 text-xs">Folio:</p>
+                                <p class="text-white font-semibold">${order.folio || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="icon-calendar text-gray-400"></i>
+                            <div>
+                                <p class="text-gray-400 text-xs">Fecha de Entrega:</p>
+                                <p class="text-white font-semibold">${order.formatted_date_order || order.date_order || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="icon-clock text-gray-400"></i>
+                            <div>
+                                <p class="text-gray-400 text-xs">Hora de Entrega:</p>
+                                <p class="text-white font-semibold">${order.time_order || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="icon-money text-gray-400"></i>
+                            <div>
+                                <p class="text-gray-400 text-xs">Total:</p>
+                                <p class="text-white font-semibold">${formatPrice(order.total_pay)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                ${order.note ? `
+                <div class="bg-[#1F2A37] rounded-lg p-4">
+                    <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+                        <i class="icon-doc-text text-blue-400"></i>
+                        Observaciones
+                    </h3>
+                    <div class="bg-[#28324c] rounded p-3 text-gray-300">
+                        ${order.note}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+
+        $('#order-details-info').html(html);
     }
 
 

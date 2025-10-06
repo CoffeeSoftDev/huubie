@@ -111,10 +111,6 @@ class ctrl extends MPedidos{
             $getProduct = $this -> getOrderPackageByID([$_POST['id']]);
 
 
-            // // if ($getProduct) {
-            // //     $status = 200;
-            // //     $message = 'Datos obtenidos correctamente.';
-            // // }
 
             return [
                 'status'  => $status,
@@ -123,6 +119,27 @@ class ctrl extends MPedidos{
                 'images'  => $this->getOrderImages([$getProduct['id']]),
             ];
 
+    }
+
+    function getProductDetails() {
+        $id = $_POST['id'];
+        $status = 404;
+        $message = 'Producto no encontrado';
+        $data = null;
+
+        $product = $this->getProductById($id);
+        
+        if ($product) {
+            $status = 200;
+            $message = 'Producto encontrado';
+            $data = $product;
+        }
+
+        return [
+            'status' => $status,
+            'message' => $message,
+            'data' => $data
+        ];
     }
 
     function addProduct() {
@@ -215,6 +232,40 @@ class ctrl extends MPedidos{
             'message' => $message,
             'files'   => $image,
             'list'    => $this-> getOrderById([$_POST['idFolio']])
+        ];
+    }
+
+    function quantityProduct() {
+        $status = 500;
+        $message = 'No se pudo actualizar la cantidad del producto';
+
+        $id         = $_POST['id'];
+        $quantity   = intval($_POST['quantity']);
+        $pedidos_id = $_POST['pedidos_id'];
+
+        // Validar que la cantidad sea mayor a 0
+        if ($quantity <= 0) {
+            $status = 400;
+            $message = 'La cantidad debe ser mayor a 0';
+        } else {
+            $values = $this->util->sql([
+                'quantity' => $quantity,
+                'id' => $id
+            ], 1);
+
+            $update = $this->updatePackage($values);
+
+            if ($update) {
+                $status = 200;
+                $message = 'Cantidad actualizada correctamente';
+            }
+        }
+
+        return [
+             $values,
+            'status' => $status,
+            'message' => $message,
+            'list' => $this->getOrderById([$pedidos_id])
         ];
     }
 

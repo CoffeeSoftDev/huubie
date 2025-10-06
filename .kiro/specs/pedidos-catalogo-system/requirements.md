@@ -104,6 +104,20 @@ The Pedidos Catálogo System is a comprehensive Point of Sale (POS) and order ma
 
 ### Requirement 9
 
+**User Story:** As a bakery staff member, I want to view detailed product information in a modal preview, so that I can see complete product details before adding items to an order.
+
+#### Acceptance Criteria
+
+1. WHEN the staff member clicks the eye icon on a product card THEN the system SHALL display a product details modal
+2. WHEN the product details modal opens THEN the system SHALL show the product image, name, category, price, and full description
+3. WHEN the product has an image THEN the system SHALL display the full-size product image in the modal
+4. WHEN the product has no image THEN the system SHALL display a placeholder image or icon
+5. WHEN the modal is displayed THEN the system SHALL include an "Agregar al carrito" button to add the product to the current order
+6. WHEN the staff member clicks "Agregar al carrito" THEN the system SHALL add the product to the order and close the modal
+7. WHEN the staff member clicks outside the modal or the close button THEN the system SHALL close the modal without adding the product
+
+### Requirement 10
+
 **User Story:** As a bakery staff member, I want to have an exit button in the order panel, so that I can quickly return to the orders table when I need to navigate away from the current order interface.
 
 #### Acceptance Criteria

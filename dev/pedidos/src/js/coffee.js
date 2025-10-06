@@ -1,20 +1,9 @@
 let url = '../ctrl/ctrl-admin.php';
-let api = 'pedidos/ctrl/ctrl-pedidos.php';
+let api = 'http://www.coffeehuubie.com/dev/pedidos/ctrl/ctrl-pedidos.php';
 
 $(async () => {
 
-    // Prueba de conexión al backend
-    console.log('🔄 Probando conexión al backend...');
 
-    try {
-        const testResponse = await useFetch({
-            url: url,
-            data: { opc: "init" }
-        });
-        console.log('✅ Conexión exitosa:', testResponse);
-    } catch (error) {
-        console.error('❌ Error de conexión:', error);
-    }
 
     // instancias.
     app = new App(api, 'root');
@@ -42,8 +31,8 @@ class App extends Templates {
         this.layout();
 
         // interface.
-        this.orderDetailsModal(25);
-        // this.showOrderDetails(32)
+        // this.orderDetailsModal(25);
+        this.showOrderDetails(32)
     }
 
     layout() {
@@ -58,32 +47,36 @@ class App extends Templates {
     }
 
     async showOrderDetails(orderId) {
-
         const response = await useFetch({
-            url: api,
+            url: this._link,
             data: { opc: 'getOrderDetails', id: orderId }
         });
 
+        // Debug: Mostrar datos del pedido
+        console.log('📦 RESPUESTA COMPLETA:', response);
 
-        this.orderDetailsModal({
-            orderId: orderId,
-            data: response.data
-        });
+        if (response.data && response.data.products) {
+            console.log('🍰 PRODUCTOS:', response.data.products);
 
-    }
+            // Buscar productos personalizados
+            response.data.products.forEach((product, index) => {
+                console.log(`🍰 Producto ${index + 1}:`, {
+                    nombre: product.product_name,
+                    customer_id: product.customer_id,
+                    es_personalizado: !!product.customer_id,
+                    datos_completos: product
+                });
 
-    orderDetailsModal(options) {
-        const defaults = {
-            orderId: null,
-            data: {
-                order: {},
-                products: [],
-                payments: []
-            }
-        };
-
-        const opts = Object.assign({}, defaults, options);
-        const orderData = opts.data.order || {};
+                if (product.customer_id) {
+                    console.log(`🎨 ¡PRODUCTO PERSONALIZADO ENCONTRADO!`, product);
+                    if (product.images && product.images.length > 0) {
+                        console.log(`🖼️ Imágenes del producto personalizado:`, product.images);
+                    }
+                }
+            });
+        } else {
+            console.log('❌ No se encontraron productos en la respuesta');
+        }
 
 
         const modal = bootbox.dialog({
@@ -103,7 +96,7 @@ class App extends Templates {
             className: 'order-details-modal-dialog'
         });
 
-        // Usar tabLayout de CoffeeSoft
+
         this.tabLayout({
             parent: "orderDetailsContainer",
             id: "orderDetailsTabs",
@@ -125,16 +118,16 @@ class App extends Templates {
             ]
         });
 
-        // Renderizar contenido de la tab "Detalles del pedido"
+
         setTimeout(() => {
-            this.orderDetailsTab();
-            this.renderOrderTab(opts.data);
+            this.renderOrderDetails({ json: response.data.order });
+            this.renderOrder(response.data);
         }, 100);
 
         // Agregar estilos CSS para el modal (tamaño pequeño)
         $("<style>").text(`
             .order-details-modal-dialog .modal-dialog {
-                max-width: 700px !important;
+                max-width: 800px !important;
                 width: 90vw !important;
             }
             .order-details-modal-dialog .modal-header {
@@ -147,7 +140,7 @@ class App extends Templates {
         return modal;
     }
 
-    orderDetailsTab(options) {
+    renderOrderDetails(options) {
         const defaults = {
             parent: "container-details",
             json: {
@@ -206,26 +199,23 @@ class App extends Templates {
             </div>
             </div>
 
-            <div class="bg-[#1F2A37] rounded-lg p-3">
+            <div class="bg-[#283341] rounded-lg p-3">
             <p class="text-gray-400 text-sm mb-2">Observación:</p>
-            <p class="text-gray-300">${d.note}</p>
+            <p class="text-gray-300">${d.note ?? ''}</p>
             </div>
 
-            <div class="bg-[#1F2A37] rounded-lg p-3">
-            <h3 class="text-white font-semibold mb-3">Resumen Financiero</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-[#283341] rounded-lg p-3">
+            <h3 class="text-white font-semibold mb-3">Resumen</h3>
+            <div class="grid grid-cols-3 md:grid-cols-3 gap-3">
                 <div class="text-center">
                 <p class="text-gray-400 text-sm">Total</p>
                 <p class="text-white font-bold">$${parseFloat(d.total_pay).toFixed(2)}</p>
                 </div>
                 <div class="text-center">
                 <p class="text-gray-400 text-sm">Pagado</p>
-                <p class="text-green-400 font-bold">$${formatPrice(d.total_paid)}</p>
+                <p class="text-green-400 font-bold">$${parseFloat(d.total_paid).toFixed(2)}</p>
                 </div>
-                <div class="text-center">
-                <p class="text-gray-400 text-sm">Descuento</p>
-                <p class="text-yellow-400 font-bold">$${parseFloat(d.discount).toFixed(2)}</p>
-                </div>
+               
                 <div class="text-center">
                 <p class="text-gray-400 text-sm">Saldo</p>
                 <p class="text-red-400 font-bold">$${parseFloat(d.balance).toFixed(2)}</p>
@@ -235,28 +225,28 @@ class App extends Templates {
 
         </div>`;
 
+        // <div class="text-center">
+        //     <p class="text-gray-400 text-sm">Descuento</p>
+        //     <p class="text-yellow-400 font-bold">$${parseFloat(d.discount).toFixed(2)}</p>
+        // </div>
+
         $(`#${opts.parent}`).html(html);
     }
 
-    renderOrderTab(data) {
-        console.log(data)
+    renderOrder(data) {
         const orderData = data.order || {};
         const products = data.products || [];
         const payments = data.payments || [];
 
         const orderHtml = `
             <div class="space-y-4">
-               
-                
-                <!-- Detalles de productos -->
-                <div class="bg-[#1F2A37] rounded-lg p-3">
+                <!-- Productos del Pedido -->
+                <div class="">
                     <h3 class="text-white font-semibold mb-3">Productos del Pedido</h3>
-                    <div id="container-products" class="space-y-2 max-h-48 overflow-y-auto">
+                    <div id="container-products" class="space-y-3 max-h-96 overflow-y-auto">
                      
                     </div>
                 </div>
-                
-               
             </div>
         `;
 
@@ -264,34 +254,8 @@ class App extends Templates {
 
         this.orderProductList({
             parent: "container-products",
-
+            json: products
         });
-    }
-
-    determineOrderType(orderData) {
-        const isCustom = orderData?.type_id === 2; // Asumiendo que 2 es personalizado
-
-        if (isCustom) {
-            return `
-                <div class="flex items-center gap-3 p-3 bg-purple-900/30 border border-purple-500 rounded-lg">
-                    <i class="icon-magic text-purple-400 text-xl"></i>
-                    <div>
-                        <p class="text-purple-400 font-semibold">Pedido Personalizado</p>
-                        <p class="text-gray-300 text-sm">Este pedido incluye productos personalizados según especificaciones del cliente</p>
-                    </div>
-                </div>
-            `;
-        } else {
-            return `
-                <div class="flex items-center gap-3 p-3 bg-blue-900/30 border border-blue-500 rounded-lg">
-                    <i class="icon-list text-blue-400 text-xl"></i>
-                    <div>
-                        <p class="text-blue-400 font-semibold">Pedido Normal</p>
-                        <p class="text-gray-300 text-sm">Pedido estándar con productos del catálogo</p>
-                    </div>
-                </div>
-            `;
-        }
     }
 
     orderProductList(options) {
@@ -312,116 +276,203 @@ class App extends Templates {
                 <p class="text-sm">No hay productos en este pedido</p>
             </div>`;
         } else {
-            html = products.map(product => {
+            html = products.map((product, index) => {
                 // Determinar si es producto personalizado basado en customer_id
                 const isCustom = product.customer_id && product.customer_id !== null;
 
+                // Log detallado de cada producto
+                console.log(`🍰 Renderizando producto #${index + 1}:`, {
+                    nombre: product.product_name,
+                    es_personalizado: isCustom,
+                    customer_id: product.customer_id,
+                    datos_completos: product
+                });
+
                 return `
-                <div class="${isCustom ? 'bg-purple-900/40 border-purple-500' : 'bg-[#283341] border-gray-600'} rounded-lg border p-4 mb-3">
-                    <div class="flex items-start gap-3">
+                <div class="bg-[#374151] rounded-lg p-3 mb-3">
+                    <!-- Layout responsive: vertical en móvil, horizontal en desktop -->
+                    <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
                         <!-- Imagen del producto -->
-                        <div class="flex-shrink-0">
-                            ${product.image && product.image.trim() !== ""
-                        ? `<img src="https://huubie.com.mx/${product.image}" alt="${product.product_name}" class="w-16 h-16 rounded-lg object-cover">`
-                        : `<div class="w-16 h-16 bg-gray-600 rounded-lg flex items-center justify-center">
-                                     <i class="icon-birthday text-gray-400 text-xl"></i>
-                                   </div>`
-                    }
+                        <div class="flex-shrink-0 self-center md:self-auto">
+                            ${isCustom ? `
+                                <!-- Producto personalizado: icono púrpura o miniaturas -->
+                                ${product.images && product.images.length > 0 ? `
+                                    <div class="relative">
+                                        <div class="w-16 h-16 md:w-20 md:h-20 bg-purple-600 rounded-xl flex items-center justify-center">
+                                            <i class="icon-birthday text-white text-xl md:text-2xl"></i>
+                                        </div>
+                                        <div class="absolute -bottom-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                            ${product.images.length}
+                                        </div>
+                                    </div>
+                                ` : `
+                                    <div class="w-16 h-16 md:w-20 md:h-20 bg-purple-600 rounded-xl flex items-center justify-center">
+                                        <i class="icon-birthday text-white text-xl md:text-2xl"></i>
+                                    </div>
+                                `}
+                            ` : `
+                                <!-- Producto normal: imagen o icono amarillo -->
+                                ${product.image && product.image.trim() !== "" ? `
+                                    <img src="https://huubie.com.mx/${product.image}" alt="${product.product_name}" class="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover">
+                                ` : `
+                                    <div class="w-16 h-16 md:w-20 md:h-20 bg-yellow-400 rounded-xl flex items-center justify-center">
+                                        <i class="icon-birthday text-gray-800 text-xl md:text-2xl"></i>
+                                    </div>
+                                `}
+                            `}
                         </div>
                         
                         <!-- Información del producto -->
                         <div class="flex-1">
-                            <div class="flex items-start justify-between mb-2">
-                                <div>
-                                    <h4 class="text-white font-semibold text-base">${product.product_name || product.name}</h4>
-                                    ${product.description ? `<p class="text-gray-400 text-sm mt-1">${product.description}</p>` : ""}
+                            <div class="flex flex-col lg:flex-row  lg:items-center lg:justify-between gap-2 lg:gap-4">
+                                <div class="flex-1  md:text-left lg:text-left">
+                                    <h4 class="text-white font-semibold text-sm lg:text-base uppercase mb-1 lg:mb-2">${product.product_name || product.name}</h4>
+                                    ${isCustom ? `
+                                    <div class="inline-flex items-center gap-1 bg-purple-500 text-purple-200 px-2 py-1 lg:px-3 lg:py-1 rounded-full text-xs lg:text-sm font-medium">
+                                        <i class="icon-magic text-xs lg:text-sm"></i>
+                                        <span class="hidden lg:inline">Producto Personalizado</span>
+                                        <span class="lg:hidden">Personalizado</span>
+                                    </div>` : ""}
                                 </div>
-                                <div class="text-right">
-                                    <p class="text-white font-semibold">Cant: ${product.quantity}</p>
-                                    <p class="text-gray-400 text-sm">$${parseFloat(product.unit_price || product.price).toFixed(2)} c/u</p>
-                                    <p class="text-green-400 font-bold text-lg">$${parseFloat(product.total_price || (product.price * product.quantity)).toFixed(2)}</p>
+                                <div class="text-center lg:text-right">
+                                    <p class="text-gray-400 text-xs lg:text-sm mb-1">Cant: ${product.quantity}</p>
+                                    <p class="text-green-400 font-bold text-2xl">$${parseFloat(product.total_price || (product.price * product.quantity)).toFixed(2)}</p>
                                 </div>
                             </div>
-                            
-                            <!-- Indicador de producto personalizado -->
-                            ${isCustom ? `
-                            <div class="bg-purple-900/30 border border-purple-500 rounded-lg p-3 mt-3">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <i class="icon-magic text-purple-400 text-lg"></i>
-                                    <span class="text-purple-400 font-semibold text-base">🎨 Producto Personalizado</span>
-                                </div>
-                                
-                                ${product.data_customer ? `
-                                <div class="bg-purple-800/30 border border-purple-400/40 rounded-md p-2 mb-3">
-                                    <div class="flex items-start gap-2">
-                                        <i class="icon-user text-purple-300 text-sm mt-1"></i>
-                                        <div class="flex-1">
-                                            <p class="text-purple-300 text-sm font-medium mb-1">👤 Tipo de personalización:</p>
-                                            <p class="text-gray-200 text-sm font-semibold">${product.data_customer}</p>
-                                        </div>
-                                    </div>
-                                </div>` : ""}
-                                
-                                <!-- Detalles de personalización -->
-                                <div class="space-y-3">
-                                    ${product.dedication ? `
-                                    <div class="bg-yellow-900/20 border border-yellow-600/30 rounded-md p-2">
-                                        <div class="flex items-start gap-2">
-                                            <i class="icon-heart text-yellow-400 text-sm mt-1"></i>
-                                            <div class="flex-1">
-                                                <p class="text-yellow-400 text-sm font-medium mb-1">💝 Dedicatoria:</p>
-                                                <p class="text-gray-200 text-sm italic">"${product.dedication}"</p>
-                                            </div>
-                                        </div>
-                                    </div>` : ""}
-                                    
-                                    ${product.order_details ? `
-                                    <div class="bg-blue-900/20 border border-blue-600/30 rounded-md p-2">
-                                        <div class="flex items-start gap-2">
-                                            <i class="icon-doc-text text-blue-400 text-sm mt-1"></i>
-                                            <div class="flex-1">
-                                                <p class="text-blue-400 text-sm font-medium mb-1">📝 Detalles especiales:</p>
-                                                <p class="text-gray-200 text-sm">${product.order_details}</p>
-                                            </div>
-                                        </div>
-                                    </div>` : ""}
-                                    
-                                    ${product.images && product.images.length > 0 ? `
-                                    <div class="bg-green-900/20 border border-green-600/30 rounded-md p-2">
-                                        <div class="flex items-start gap-2">
-                                            <i class="icon-camera text-green-400 text-sm mt-1"></i>
-                                            <div class="flex-1">
-                                                <p class="text-green-400 text-sm font-medium mb-1">📷 Imágenes de referencia:</p>
-                                                <p class="text-gray-200 text-sm">${product.images.length} imagen${product.images.length > 1 ? 's' : ''} adjunta${product.images.length > 1 ? 's' : ''}</p>
-                                                <div class="flex gap-1 mt-2 flex-wrap">
-                                                    ${product.images.slice(0, 3).map(img => `
-                                                        <div class="w-8 h-8 bg-gray-700 rounded border border-green-500/30 flex items-center justify-center">
-                                                            <i class="icon-picture text-green-400 text-xs"></i>
-                                                        </div>
-                                                    `).join('')}
-                                                    ${product.images.length > 3 ? `<div class="w-8 h-8 bg-gray-700 rounded border border-green-500/30 flex items-center justify-center"><span class="text-green-400 text-xs">+${product.images.length - 3}</span></div>` : ''}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>` : ""}
-                                    
-                                    ${!product.dedication && !product.order_details && (!product.images || product.images.length === 0) ? `
-                                    <div class="bg-gray-800/50 border border-gray-600/30 rounded-md p-2">
-                                        <div class="flex items-center gap-2">
-                                            <i class="icon-info text-gray-400 text-sm"></i>
-                                            <p class="text-gray-400 text-sm">Producto personalizado sin detalles adicionales</p>
-                                        </div>
-                                    </div>` : ""}
-                                </div>
-                            </div>` : ""}
                         </div>
                     </div>
+                    
+                    <!-- Detalles de personalización (solo si es personalizado) -->
+                    ${isCustom ? `
+                    <div class="mt-3 lg:mt-4 bg-gray-800/50 rounded-lg p-2 lg:p-3">
+                        <div class="space-y-2">
+                            ${product.data_customer || product.customer_product_name ? `
+                            <div class="flex items-center gap-2 text-blue-400">
+                                <i class="icon-user text-xs lg:text-sm"></i>
+                                <p class="text-xs lg:text-sm font-medium">Cliente: ${product.data_customer || product.customer_product_name}</p>
+                            </div>` : ""}
+                            
+                            ${product.customer_portion_qty ? `
+                            <div class="flex items-center gap-2 text-orange-400">
+                                <i class="icon-layers text-xs lg:text-sm"></i>
+                                <p class="text-xs lg:text-sm font-medium">Porciones: ${product.customer_portion_qty}</p>
+                            </div>` : ""}
+                            
+                            ${product.customer_base_price && product.customer_real_price ? `
+                            <div class="flex items-center gap-2 text-purple-400">
+                                <i class="icon-dollar text-xs lg:text-sm"></i>
+                                <p class="text-xs lg:text-sm">Precio base: $${parseFloat(product.customer_base_price).toFixed(2)} → Final: $${parseFloat(product.customer_real_price).toFixed(2)}</p>
+                            </div>` : ""}
+                            
+                            ${product.custom_details ? `
+                            <div class="flex items-start gap-2 text-yellow-400">
+                                <i class="icon-doc-text text-xs lg:text-sm mt-1"></i>
+                                <div>
+                                    <p class="text-xs lg:text-sm font-medium">Detalles personalizados:</p>
+                                    <p class="text-xs lg:text-sm text-gray-300">${product.custom_details}</p>
+                                </div>
+                            </div>` : ""}
+                            
+                            ${product.order_details ? `
+                            <div class="flex items-start gap-2 text-cyan-400">
+                                <i class="icon-list text-xs lg:text-sm mt-1"></i>
+                                <div>
+                                    <p class="text-xs lg:text-sm font-medium">Instrucciones del pedido:</p>
+                                    <p class="text-xs lg:text-sm text-gray-300">${product.order_details}</p>
+                                </div>
+                            </div>` : ""}
+                            
+                            ${product.dedication ? `
+                            <div class="flex items-start gap-2 text-pink-400">
+                                <i class="icon-heart text-xs lg:text-sm mt-1"></i>
+                                <div>
+                                    <p class="text-xs lg:text-sm font-medium">Dedicatoria:</p>
+                                    <p class="text-xs lg:text-sm text-gray-300 italic">"${product.dedication}"</p>
+                                </div>
+                            </div>` : ""}
+                            
+                            ${product.images && product.images.length > 0 ? `
+                            <div class="space-y-2">
+                                <div class="flex items-center gap-2 text-green-400">
+                                    <i class="icon-camera text-xs lg:text-sm"></i>
+                                    <p class="text-xs lg:text-sm">${product.images.length} imagen${product.images.length > 1 ? 'es' : ''} adjunta${product.images.length > 1 ? 's' : ''}</p>
+                                </div>
+                                <!-- Contenedor de miniaturas -->
+                                <div class="bg-gray-900/50 border-2 border-dashed border-gray-600 rounded-lg p-3">
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                                        ${product.images.map((image, imgIndex) => `
+                                            <div class="relative group cursor-pointer" onclick="app.viewImage('${image.image_path || image.path}', '${image.image_name || image.name || image.original_name}')">
+                                                <div class="aspect-square bg-gray-800 rounded-lg overflow-hidden border border-gray-600 hover:border-green-500 transition-colors">
+                                                    <img src="https://huubie.com.mx/${image.image_path || image.path}" 
+                                                         alt="${image.image_name || image.name || image.original_name}" 
+                                                         class="w-full h-full object-cover"
+                                                         onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full flex items-center justify-center text-gray-500\\'>📷<br><span class=\\'text-xs\\'>Error</span></div>'">
+                                                </div>
+                                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                                                    <i class="icon-eye text-white opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                                </div>
+                                                <div class="absolute bottom-1 left-1 right-1">
+                                                    <p class="text-xs text-white bg-black/70 rounded px-1 py-0.5 truncate">
+                                                        ${(image.original_name || image.image_name || image.name || 'Imagen').replace(/\.[^/.]+$/, '')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>` : ""}
+                            
+                            ${!product.data_customer && !product.customer_product_name && !product.custom_details && !product.order_details && !product.dedication && !product.customer_portion_qty && (!product.images || product.images.length === 0) ? `
+                            <div class="flex items-center gap-2 text-gray-400">
+                                <i class="icon-info text-xs lg:text-sm"></i>
+                                <p class="text-xs lg:text-sm">Producto personalizado sin detalles adicionales</p>
+                            </div>` : ""}
+                        </div>
+                    </div>` : ""}
                 </div>
                 `;
             }).join('');
         }
 
         $(`#${opts.parent}`).html(html);
+    }
+
+    viewImage(imagePath, imageName) {
+        const modal = bootbox.dialog({
+            title: `
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
+                        <i class="icon-picture text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-semibold text-white">${imageName || 'Imagen del producto'}</h2>
+                    </div>
+                </div>
+            `,
+            message: `
+                <div class="flex justify-center items-center p-4">
+                    <img src="https://huubie.com.mx/${imagePath}" 
+                         alt="${imageName}" 
+                         class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg">
+                </div>
+            `,
+            size: 'large',
+            closeButton: true,
+            className: 'image-viewer-modal'
+        });
+
+        // Estilos para el modal de imagen
+        $("<style>").text(`
+            .image-viewer-modal .modal-dialog {
+                max-width: 90vw !important;
+            }
+            .image-viewer-modal .modal-body {
+                padding: 0 !important;
+                background: #1a1a1a;
+            }
+        `).appendTo("head");
+
+        return modal;
     }
 
     // orderProductList(options) {
