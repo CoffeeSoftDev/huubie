@@ -337,12 +337,12 @@ class MPedidos extends CRUD {
                 order_products.description,
                 order_package.dedication,
                 order_products.image,
-                order_package.customer_id,
-                order_customer.name as data_customer
+                order_package.custom_id,
+                order_custom.name as data_custom
             FROM
                 {$this->bd}order_package
             INNER JOIN {$this->bd}order_products ON order_package.product_id = order_products.id
-            LEFT JOIN {$this->bd}order_customer ON order_package.customer_id = order_customer.id
+            LEFT JOIN {$this->bd}order_custom ON order_package.custom_id = order_custom.id
             WHERE pedidos_id = ?
         ";
         
@@ -350,7 +350,7 @@ class MPedidos extends CRUD {
         
         // Para cada producto, obtener sus imágenes si es personalizado
         foreach ($products as &$product) {
-            if ($product['customer_id']) {
+            if ($product['custom_id']) {
                 $product['images'] = $this->getOrderImages([$product['id']]);
             } else {
                 $product['images'] = [];
@@ -542,8 +542,8 @@ class MPedidos extends CRUD {
                 op.quantity,
                 op.order_details,
                 op.dedication,
-                op.customer_id,
-                oc.name as data_customer,
+                op.custom_id,
+                oc.name as data_custom,
                 prod.name as product_name,
                 prod.price as unit_price,
                 prod.description,
@@ -554,7 +554,7 @@ class MPedidos extends CRUD {
                 {$this->bd}order_package op
             INNER JOIN {$this->bd}order_products prod ON op.product_id = prod.id
             LEFT JOIN {$this->bd}order_category cat ON prod.category_id = cat.id
-            LEFT JOIN {$this->bd}order_customer oc ON op.customer_id = oc.id
+            LEFT JOIN {$this->bd}order_custom oc ON op.custom_id = oc.id
             WHERE
                 op.pedidos_id = ?
             ORDER BY
@@ -565,7 +565,7 @@ class MPedidos extends CRUD {
         
         // Para cada producto, obtener sus imágenes si es personalizado
         foreach ($products as &$product) {
-            if ($product['customer_id']) {
+            if ($product['custom_id']) {
                 $product['images'] = $this->getOrderImages([$product['id']]);
             } else {
                 $product['images'] = [];

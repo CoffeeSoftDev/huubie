@@ -1094,8 +1094,8 @@ class App extends Templates {
             </div>`;
         } else {
             html = products.map(product => {
-                // Determinar si es producto personalizado basado en customer_id
-                const isCustom = product.customer_id && product.customer_id !== null;
+                // Determinar si es producto personalizado basado en custom_id
+                const isCustom = product.custom_id && product.custom_id !== null;
 
                 return `
                 <div class="${isCustom ? 'bg-purple-900/40 border-purple-500' : 'bg-[#283341] border-gray-600'} rounded-lg border p-4 mb-3">
@@ -1132,13 +1132,13 @@ class App extends Templates {
                                     <span class="text-purple-400 font-semibold text-base">🎨 Producto Personalizado</span>
                                 </div>
                                 
-                                ${product.data_customer ? `
+                                ${product.data_custom ? `
                                 <div class="bg-purple-800/30 border border-purple-400/40 rounded-md p-2 mb-3">
                                     <div class="flex items-start gap-2">
                                         <i class="icon-user text-purple-300 text-sm mt-1"></i>
                                         <div class="flex-1">
                                             <p class="text-purple-300 text-sm font-medium mb-1">👤 Tipo de personalización:</p>
-                                            <p class="text-gray-200 text-sm font-semibold">${product.data_customer}</p>
+                                            <p class="text-gray-200 text-sm font-semibold">${product.data_custom}</p>
                                         </div>
                                     </div>
                                 </div>` : ""}

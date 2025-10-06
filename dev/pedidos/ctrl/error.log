@@ -1,3 +1,33 @@
+[ 2025-10-06 14:11:59 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                op.id,
+                op.quantity,
+                op.order_details,
+                op.dedication,
+                op.custom_id,
+                oc.name as data_custom,
+                prod.name as product_name,
+                prod.price as unit_price,
+                prod.description,
+                prod.image,
+                (op.quantity * prod.price) as total_price,
+                cat.classification as category
+            FROM
+                fayxzvov_coffee.order_package op
+            INNER JOIN fayxzvov_coffee.order_products prod ON op.product_id = prod.id
+            LEFT JOIN fayxzvov_coffee.order_category cat ON prod.category_id = cat.id
+            LEFT JOIN fayxzvov_coffee.order_custom oc ON op.custom_id = oc.id
+            WHERE
+                op.pedidos_id = ?
+            ORDER BY
+                op.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'op.custom_id' in 'field list'
+
+
 [ 2025-09-28 13:42:24 ]
 [ UNIX_USR ] :: fayxzvov
 [ WINDOWS_USR ] :: %USERNAME%

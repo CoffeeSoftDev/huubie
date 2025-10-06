@@ -692,7 +692,7 @@ class Pos extends Templates {
         }).append(
             $("<div>", { class: "flex flex-col" }).append(
                 $("<h2>", { class: "text-lg font-semibold text-white", text: opts.title }),
-                $("<h3>", { class: "text-sm text-gray-400", text: opts.customerName || "Cliente no definido" })
+                $("<h3>", { class: "text-sm text-gray-400", text: opts.customName || "Cliente no definido" })
             ),
             $("<button>", {
                 id: "clearOrder",
@@ -768,7 +768,7 @@ class Pos extends Templates {
             const info = $("<div>", { class: "flex-1 space-y-1" }).append(
                 $("<p>", { class: `${textColor} font-medium text-sm`, text: item.name }),
                 $("<p>", { class: `${subColor} font-semibold text-sm`, text: formatPrice(item.price) }),
-                item.customer_id ? $("<p>", { class: "text-purple-400 text-xs font-semibold", text: "🎂 Pedido personalizado" }) : null,
+                item.custom_id ? $("<p>", { class: "text-purple-400 text-xs font-semibold", text: "🎂 Pedido personalizado" }) : null,
                 item.dedication ? $("<p>", { class: `${mutedColor} text-xs italic`, text: `Dedicatoria: ${item.dedication}` }) : null,
                 item.order_details ? $("<p>", { class: `${mutedColor} text-xs`, text: `Detalles: ${item.order_details}` }) : null,
                 item.images && item.images.length > 0
@@ -810,7 +810,7 @@ class Pos extends Templates {
                     class: "text-blue-400 hover:text-blue-600",
                     html: `<i class="icon-pencil"></i>`,
                     click: () => {
-                        if (item.customer_id && typeof opts.onBuildCake === "function") {
+                        if (item.custom_id && typeof opts.onBuildCake === "function") {
                             opts.onBuildCake(item.id);
                         } else {
                             opts.onEdit(item.id);
@@ -1013,7 +1013,7 @@ class CatalogProduct extends Pos {
 
         this.orderPanelComponent({
             title: `Orden Actual #P-00${idFolio}`,
-            customerName: this.name_client,
+            customName: this.name_client,
             parent: "orderPanel",
             data: pos.list,
 
@@ -1048,7 +1048,7 @@ class CatalogProduct extends Pos {
         this.orderPanelComponent({
             title: `Orden Actual #P-00${idFolio}`,
             parent: "orderPanel",
-            customerName: this.name_client,
+            customName: this.name_client,
             data: list,
 
             onFinish: (data) => {
@@ -1110,7 +1110,7 @@ class CatalogProduct extends Pos {
             title: `Orden Actual #P-00${idFolio}`,
             parent: "orderPanel",
             data: pos.list,
-            customerName: this.name_client,
+            customName: this.name_client,
 
             onFinish: (data) => {
                 this.addPayment();
