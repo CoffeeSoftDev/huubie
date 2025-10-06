@@ -194,7 +194,7 @@ class Pedidos extends MPedidos{
         if ($order) {
             $orderData = $order[0];
             
-        //     // Obtener sucursal para el folio
+            // Obtener sucursal para el folio
             $sucursal = $this->getSucursalByID([$SUB]);
             $folio = formatSucursal($sucursal['name'], $sucursal['sucursal'], $orderData['id']);
             
@@ -366,9 +366,17 @@ class Pedidos extends MPedidos{
     }
 
     function initHistoryPay(){
+          // Obtener sucursal para el folio
+        $SUB      = $_SESSION['SUB'] ?? 4;
+        $sucursal = $this->getSucursalByID([$SUB]);
+      
+
         $ls                  = $this->getOrderID([$_POST['id']]);
         $methods             = $this-> getMethodPayment([$_POST['id']]);
         $ls[0]['total_paid'] = array_sum(array_column($methods, 'pay'));
+
+         $folio    = formatSucursal($sucursal['name'], $sucursal['sucursal'], $ls[0]['folio']);
+        $ls[0]['folio']      = $folio;
 
         $PaymentsDetails     = 0;
 
