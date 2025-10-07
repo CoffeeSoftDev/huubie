@@ -1,23 +1,14 @@
 let url = '../ctrl/ctrl-admin.php';
-let api = 'http://coffeehuubie.com/dev/pedidos/ctrl/ctrl-pedidos.php';
+let api = 'http://www.coffeehuubie.com/dev/pedidos/ctrl/ctrl-pedidos.php';
 
 $(async () => {
-
-
-
-    // instancias.
     app = new App(api, 'root');
-    orders = app; // Variable global para acceder desde el botón
+    orders = app;
     app.init();
-
     app.navBar({ theme: 'dark' });
-
 });
 
-
-
 class App extends Templates {
-
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = "Orders";
@@ -29,20 +20,14 @@ class App extends Templates {
 
     render() {
         this.layout();
-
-        // interface.
-        // this.orderDetailsModal(25);
         this.showOrderDetails(30)
     }
 
     layout() {
-
         this.primaryLayout({
             parent: `root`,
             class: 'pt-14  p-3',
             id: this.PROJECT_NAME,
-
-
         });
     }
 
@@ -69,7 +54,6 @@ class App extends Templates {
             className: 'order-details-modal-dialog'
         });
 
-
         this.tabLayout({
             parent: "orderDetailsContainer",
             id: "orderDetailsTabs",
@@ -81,7 +65,6 @@ class App extends Templates {
                 {
                     id: "details",
                     tab: "Detalles del pedido",
-
                 },
                 {
                     id: "order",
@@ -91,19 +74,15 @@ class App extends Templates {
             ]
         });
 
-
         setTimeout(() => {
             this.renderOrderDetails({ json: response.data.order });
             this.renderOrder(response.data);
         }, 100);
 
-        // Agregar estilos CSS para el modal (tamaño pequeño)
         $("<style>").text(`
             .order-details-modal-dialog .modal-dialog {
                 max-width: 800px !important;
                 width: 90vw !important;
-            }
-            .order-details-modal-dialog .modal-header {
             }
             .order-details-modal-dialog .modal-body {
                 padding: 0 !important;
@@ -135,7 +114,6 @@ class App extends Templates {
 
         const html = `
         <div class="space-y-4">
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="space-y-3">
                 <div class="flex items-center gap-3">
@@ -195,13 +173,7 @@ class App extends Templates {
                 </div>
             </div>
             </div>
-
         </div>`;
-
-        // <div class="text-center">
-        //     <p class="text-gray-400 text-sm">Descuento</p>
-        //     <p class="text-yellow-400 font-bold">$${parseFloat(d.discount).toFixed(2)}</p>
-        // </div>
 
         $(`#${opts.parent}`).html(html);
     }
@@ -211,14 +183,14 @@ class App extends Templates {
         const products = data.products || [];
         const payments = data.payments || [];
 
+        console.log('📦 Datos recibidos en renderOrder:', data);
+        console.log('📦 Productos:', products);
+
         const orderHtml = `
             <div class="space-y-4">
-                <!-- Productos del Pedido -->
                 <div class="">
                     <h3 class="text-white font-semibold mb-3">Productos del Pedido</h3>
-                    <div id="container-products" class="space-y-3 max-h-96 overflow-y-auto">
-                     
-                    </div>
+                    <div id="container-products" class="space-y-3 max-h-96 overflow-y-auto"></div>
                 </div>
             </div>
         `;
@@ -252,17 +224,16 @@ class App extends Templates {
         let productsHtml = '';
 
         opts.json.forEach(product => {
+            console.log('🖼️ Producto individual:', product);
+            console.log('🖼️ Images del producto:', product.images);
+
             const total = parseFloat(product.price || 0) * parseInt(product.quantity || 1);
 
-            // Manejo de imagen del producto
             const hasImage = product.image && product.image.trim() !== '';
             let imageContent = '';
 
             if (hasImage) {
-                // Construir la URL de la imagen
                 let imageUrl = product.image;
-
-                // Si la imagen no tiene protocolo, usar la URL base del sistema
                 if (!imageUrl.startsWith('http')) {
                     imageUrl = `https://huubie.com.mx/${imageUrl}`;
                 }
@@ -271,8 +242,7 @@ class App extends Templates {
                     <img src="${imageUrl}" 
                          alt="${product.name}" 
                          class="object-cover w-full h-full"
-                         onload="console.log('Imagen cargada:', '${imageUrl}')"
-                         onerror="console.log('Error cargando imagen:', '${imageUrl}'); this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                     <div class="w-full h-full items-center justify-center hidden">
                         <i class="icon-birthday text-gray-500 text-2xl"></i>
                     </div>
@@ -285,20 +255,47 @@ class App extends Templates {
                 `;
             }
 
+            let thumbnailsHtml = '';
+            if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+                thumbnailsHtml = '<div class="flex gap-2 mt-3 flex-wrap">';
+                product.images.forEach(img => {
+                    let thumbUrl = img.path;
+                    if (!thumbUrl.startsWith('http')) {
+                        thumbUrl = `https://huubie.com.mx/${thumbUrl}`;
+                    }
+                    thumbnailsHtml += `
+                        <div class="w-16 h-16 rounded border-2 border-gray-600 overflow-hidden bg-[#1F2A37] cursor-pointer hover:border-blue-500 transition-colors">
+                            <img src="${thumbUrl}" 
+                                 alt="${img.original_name || 'Imagen'}" 
+                                 class="object-cover w-full h-full"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="w-full h-full items-center justify-center hidden">
+                                <i class="icon-picture text-gray-500 text-sm"></i>
+                            </div>
+                        </div>
+                    `;
+                });
+                thumbnailsHtml += '</div>';
+            }
+
             productsHtml += `
-            <div class="bg-[#283341] rounded-lg p-4">
+            <div class="bg-[#283341] rounded-lg p-3">
                 <div class="flex gap-4">
-                    
-                    <!-- Imagen -->
-                    <div class="w-24 h-24 rounded-md overflow-hidden flex-shrink-0 bg-[#1F2A37]">
-                        ${imageContent}
+                    <div class="flex-shrink-0">
+                        <div class="w-36 h-36 rounded-md overflow-hidden bg-[#1F2A37]">
+                            ${imageContent}
+                        </div>
+                        ${thumbnailsHtml}
                     </div>
 
-                    <!-- Info del producto -->
+                    <div class="w-px bg-gray-600 self-stretch"></div>
+
                     <div class="flex justify-between flex-1">
                         <div class="flex-1">
-                            <h4 class="text-white font-semibold text-lg uppercase mb-1">${product.name || 'Producto sin nombre'}</h4>
-                            <p class="text-green-400 font-medium mb-1">$${parseFloat(product.price || 0).toFixed(2)}</p>
+                            <div class="flex items-start justify-between mb-2">
+                                <h4 class="text-white font-semibold text-lg uppercase">${product.name || 'Producto sin nombre'}</h4>
+                                <p class="text-blue-400 font-medium text-lg ml-4">$${parseFloat(product.price || 0).toFixed(2)}</p>
+                            </div>
 
                             ${product.dedication ? `
                                 <div class="mb-1">
@@ -307,28 +304,26 @@ class App extends Templates {
                                 </div>
                             ` : ''}
 
-                            ${product.details ? `
+                            ${product.order_details ? `
                                 <div class="mb-1">
                                     <span class="text-gray-400 text-sm">Detalles:</span>
-                                    <p class="text-gray-300">${product.details}</p>
+                                    <p class="text-gray-300">${product.order_details}</p>
                                 </div>
                             ` : ''}
                         </div>
 
-                        <!-- Cantidad y total -->
-                        <div class="flex flex-col justify-between items-end ml-4">
-                            <div class="flex items-center gap-2">
+                        <div class="flex flex-col justify-end items-end ml-4">
+                            <div class="flex items-center gap-2 mb-2">
                                 <span class="text-gray-400 text-sm">Cantidad:</span>
                                 <span class="bg-[#1F2A37] text-white px-3 py-1 rounded-md font-medium">${product.quantity || 1}</span>
                             </div>
 
-                            <div class="text-right mt-auto">
+                            <div class="text-right">
                                 <div class="text-gray-400 text-sm mb-1">Total:</div>
                                 <div class="text-white font-bold text-xl">$${total.toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
         `;
@@ -336,9 +331,4 @@ class App extends Templates {
 
         $(`#${opts.parent}`).html(productsHtml);
     }
-
-
-
-
-
 }

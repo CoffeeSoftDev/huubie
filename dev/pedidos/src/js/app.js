@@ -10,12 +10,12 @@ $(async () => {
     let dataModifiers = await useFetch({ url: api, data: { opc: "getModifiers" } });
     categories = dataModifiers.data || [];
 
-    const req = await useFetch({ url: api, data: { opc: "init" } });
-    estado = req.status;
-    clients = req.clients || [];
-    app = new App(api, 'root');
-    custom = new CustomOrder(api, 'root');
-    normal = new CatalogProduct(api_catalogo, 'root');
+    const req     = await useFetch({ url: api, data: { opc: "init" } });
+          estado  = req.status;
+          clients = req.clients || [];
+          app     = new App(api, 'root');
+          custom  = new CustomOrder(api, 'root');
+          normal  = new CatalogProduct(api_catalogo, 'root');
 
     app.render();
     app.actualizarFechaHora();

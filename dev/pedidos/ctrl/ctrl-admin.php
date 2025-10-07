@@ -1,9 +1,6 @@
 <?php
     session_start();
     
-    // Manejar preflight OPTIONS request
-   
-    
     header("Access-Control-Allow-Origin: *");
     header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
     header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
