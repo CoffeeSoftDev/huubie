@@ -1016,37 +1016,9 @@ class CatalogProduct extends Pos {
             }
         });
 
-        this.orderPanelComponent({
-            title: `Orden Actual #P-00${idFolio}`,
-            customName: this.name_client,
-            parent: "orderPanel",
-            data: pos.list,
+        this.showOrder(pos.list)
 
-            onFinish: (data) => {
-                this.addPayment();
-            },
-            onEdit: (id) => {
-                this.editProduct(id);
-            },
-            onRemove: (id) => {
-                this.removeProduct(id);
-            },
-            onQuanty: (id, action, newQuantity) => {
-                this.quantityProduct(id, newQuantity);
-            },
-            onPrint: () => {
-                this.printOrder(idFolio);
-            },
-
-            onExit: () => {
-
-                app.render();
-            },
-
-            onClear: () => {
-                this.confirmClearOrder(idFolio);
-            },
-        });
+    
     }
 
     showOrder(list) {
@@ -1114,39 +1086,9 @@ class CatalogProduct extends Pos {
             }
         });
 
-        this.orderPanelComponent({
-            title: `Orden Actual #P-00${idFolio}`,
-            parent: "orderPanel",
-            data: pos.list,
-            customName: this.name_client,
+        this.showOrder(pos.list)
 
-            onFinish: (data) => {
-                this.addPayment();
-            },
-
-            onEdit: (id) => {
-                this.editProduct(id);
-            },
-
-            onRemove: (id) => {
-                this.removeProduct(id);
-            },
-            onQuanty: (id, action, newQuantity) => {
-                this.quantityProduct(id, newQuantity);
-            },
-            onPrint: () => {
-                console.log("print");
-                this.printOrder(idFolio);
-            },
-
-            onExit: () => {
-                app.render();
-            },
-
-            onClear: () => {
-                this.confirmClearOrder(idFolio);
-            },
-        });
+    
     }
 
     async removeProduct(id) {
@@ -1305,6 +1247,155 @@ class CatalogProduct extends Pos {
         });
 
         this.renderImages(request.images, 'previewImagenes')
+    }
+
+    async quantityProduct(packageId, newQuantity) {
+
+        const response = await useFetch({
+            url: this._link,
+            data: {
+                opc: "quantityProduct",
+                id: packageId,
+                quantity: newQuantity,
+                pedidos_id: idFolio
+            }
+        });
+
+        console.log('quantity', response)
+
+        // Actualizar el panel de órdenes con la nueva lista
+        this.orderPanelComponent({
+            title: `Orden Actual #P-00${idFolio}`,
+            parent: "orderPanel",
+            data: response.list,
+            customName: this.name_client,
+
+            onFinish: (data) => {
+                this.addPayment();
+            },
+            onEdit: (id) => {
+                this.editProduct(id);
+            },
+            onRemove: (id) => {
+                this.removeProduct(id);
+            },
+            onPrint: () => {
+                this.printOrder(idFolio);
+            },
+            onExit: () => {
+                app.render();
+            },
+            onClear: () => {
+                this.confirmClearOrder(idFolio);
+            },
+        });
+
+
+
+
+
+    }
+
+    showProductDetails(productId, options = {}) {
+        const defaults = {
+            theme: "dark"
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        // Fetch product details from backend
+        useFetch({
+            url: this._link,
+            data: {
+                opc: "getProductDetails",
+                id: productId
+            }
+        }).then(response => {
+            if (response.status === 200) {
+                const product = response.data;
+                const baseUrl = "https://huubie.com.mx/";
+
+                // Create modal with bootbox
+                const modal = bootbox.dialog({
+                    title: `<div class="flex items-center gap-2 text-white text-lg font-semibold">
+                        <i class="icon-info text-blue-400 text-xl"></i>
+                        Detalles del Producto
+                    </div>`,
+                    message: `
+                        <div class="flex flex-col md:flex-row gap-4 bg-[#1F2A37] text-white rounded-lg overflow-hidden">
+                            <!-- Left Pane - Product Image -->
+                            <div class="w-full md:w-1/2 bg-gray-800 flex items-center justify-center min-h-[300px]">
+                                ${product.image && product.image.trim() !== ""
+                            ? `<img src="${baseUrl}${product.image}" alt="${product.name}" class="object-cover w-full h-full rounded-lg">`
+                            : `<div class="flex items-center justify-center w-full h-full">
+                                         <i class="icon-birthday text-6xl text-gray-500"></i>
+                                       </div>`
+                        }
+                            </div>
+                            
+                            <!-- Right Pane - Product Details -->
+                            <div class="w-full md:w-1/2 p-4 flex flex-col justify-between">
+                                <div>
+                                    <h2 class="text-2xl font-bold text-white mb-2">${product.name}</h2>
+                                    
+                                    ${product.category
+                            ? `<span class="inline-block px-3 py-1 text-sm bg-blue-600 text-white rounded-full mb-3">${product.category}</span>`
+                            : ''
+                        }
+                                    
+                                    <div class="mb-4">
+                                        <p class="text-sm text-gray-400 mb-1">Precio</p>
+                                        <p class="text-3xl font-bold text-blue-400">${formatPrice(product.price)}</p>
+                                    </div>
+                                    
+                                    ${product.description
+                            ? `<div class="mb-4">
+                                             <p class="text-sm text-gray-400 mb-2">Descripción</p>
+                                             <p class="text-gray-300 leading-relaxed">${product.description}</p>
+                                           </div>`
+                            : ''
+                        }
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <button id="addToCartFromModal" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200">
+                                        <i class="icon-cart mr-2"></i>
+                                        Agregar al carrito
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    size: 'large',
+                    closeButton: true,
+                    className: 'product-details-modal'
+                });
+
+                // Add event handler for "Add to Cart" button
+                $(document).off('click', '#addToCartFromModal').on('click', '#addToCartFromModal', () => {
+                    this.addProduct(productId);
+                    modal.modal('hide');
+                });
+
+            } else {
+                alert({
+                    icon: "error",
+                    title: "Error",
+                    text: response.message || "No se pudieron cargar los detalles del producto",
+                    btn1: true,
+                    btn1Text: "Ok"
+                });
+            }
+        }).catch(error => {
+            console.error('Error fetching product details:', error);
+            alert({
+                icon: "error",
+                title: "Error",
+                text: "Error de conexión al cargar los detalles del producto",
+                btn1: true,
+                btn1Text: "Ok"
+            });
+        });
     }
 
     // aux method.
@@ -1849,154 +1940,7 @@ class CatalogProduct extends Pos {
         }
     }
 
-    async quantityProduct(packageId, newQuantity) {
-
-        const response = await useFetch({
-            url: this._link,
-            data: {
-                opc: "quantityProduct",
-                id: packageId,
-                quantity: newQuantity,
-                pedidos_id: idFolio
-            }
-        });
-
-        console.log('quantity',response)
-
-        // Actualizar el panel de órdenes con la nueva lista
-        this.orderPanelComponent({
-            title: `Orden Actual #P-00${idFolio}`,
-            parent: "orderPanel",
-            data: response.list,
-            customName: this.name_client,
-
-            onFinish: (data) => {
-                this.addPayment();
-            },
-            onEdit: (id) => {
-                this.editProduct(id);
-            },
-            onRemove: (id) => {
-                this.removeProduct(id);
-            },
-            onPrint: () => {
-                this.printOrder(idFolio);
-            },
-            onExit: () => {
-                app.render();
-            },
-            onClear: () => {
-                this.confirmClearOrder(idFolio);
-            },
-        });
-
-
-
-
-
-    }
-
-    showProductDetails(productId, options = {}) {
-        const defaults = {
-            theme: "dark"
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        // Fetch product details from backend
-        useFetch({
-            url: this._link,
-            data: {
-                opc: "getProductDetails",
-                id: productId
-            }
-        }).then(response => {
-            if (response.status === 200) {
-                const product = response.data;
-                const baseUrl = "https://huubie.com.mx/";
-
-                // Create modal with bootbox
-                const modal = bootbox.dialog({
-                    title: `<div class="flex items-center gap-2 text-white text-lg font-semibold">
-                        <i class="icon-info text-blue-400 text-xl"></i>
-                        Detalles del Producto
-                    </div>`,
-                    message: `
-                        <div class="flex flex-col md:flex-row gap-4 bg-[#1F2A37] text-white rounded-lg overflow-hidden">
-                            <!-- Left Pane - Product Image -->
-                            <div class="w-full md:w-1/2 bg-gray-800 flex items-center justify-center min-h-[300px]">
-                                ${product.image && product.image.trim() !== ""
-                            ? `<img src="${baseUrl}${product.image}" alt="${product.name}" class="object-cover w-full h-full rounded-lg">`
-                            : `<div class="flex items-center justify-center w-full h-full">
-                                         <i class="icon-birthday text-6xl text-gray-500"></i>
-                                       </div>`
-                        }
-                            </div>
-                            
-                            <!-- Right Pane - Product Details -->
-                            <div class="w-full md:w-1/2 p-4 flex flex-col justify-between">
-                                <div>
-                                    <h2 class="text-2xl font-bold text-white mb-2">${product.name}</h2>
-                                    
-                                    ${product.category
-                            ? `<span class="inline-block px-3 py-1 text-sm bg-blue-600 text-white rounded-full mb-3">${product.category}</span>`
-                            : ''
-                        }
-                                    
-                                    <div class="mb-4">
-                                        <p class="text-sm text-gray-400 mb-1">Precio</p>
-                                        <p class="text-3xl font-bold text-blue-400">${formatPrice(product.price)}</p>
-                                    </div>
-                                    
-                                    ${product.description
-                            ? `<div class="mb-4">
-                                             <p class="text-sm text-gray-400 mb-2">Descripción</p>
-                                             <p class="text-gray-300 leading-relaxed">${product.description}</p>
-                                           </div>`
-                            : ''
-                        }
-                                </div>
-                                
-                                <div class="mt-4">
-                                    <button id="addToCartFromModal" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200">
-                                        <i class="icon-cart mr-2"></i>
-                                        Agregar al carrito
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `,
-                    size: 'large',
-                    closeButton: true,
-                    className: 'product-details-modal'
-                });
-
-                // Add event handler for "Add to Cart" button
-                $(document).off('click', '#addToCartFromModal').on('click', '#addToCartFromModal', () => {
-                    this.addProduct(productId);
-                    modal.modal('hide');
-                });
-
-            } else {
-                alert({
-                    icon: "error",
-                    title: "Error",
-                    text: response.message || "No se pudieron cargar los detalles del producto",
-                    btn1: true,
-                    btn1Text: "Ok"
-                });
-            }
-        }).catch(error => {
-            console.error('Error fetching product details:', error);
-            alert({
-                icon: "error",
-                title: "Error",
-                text: "Error de conexión al cargar los detalles del producto",
-                btn1: true,
-                btn1Text: "Ok"
-            });
-        });
-    }
+  
 
 
 }

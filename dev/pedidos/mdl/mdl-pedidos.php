@@ -438,6 +438,9 @@ class MPedidos extends CRUD {
             if (!empty($product['custom_id'])) {
                 $product['is_custom'] = true;
                 
+                // Obtener productos personalizados (modificadores)
+                $product['customer_products'] = $this->getCustomerProducts([$product['custom_id']]);
+                
                 if (!empty($product['custom_price_real'])) {
                     $product['price'] = $product['custom_price_real'];
                 } else if (!empty($product['custom_price'])) {
@@ -449,6 +452,7 @@ class MPedidos extends CRUD {
                 }
             } else {
                 $product['is_custom'] = false;
+                $product['customer_products'] = [];
             }
         }
         unset($product);
@@ -625,6 +629,29 @@ class MPedidos extends CRUD {
         
         $result = $this->_Read($query, $array);
         return $result ? $result[0] : null;
+    }
+
+    function getCustomerProducts($array) {
+        $query = "
+            SELECT
+                ocp.id,
+                ocp.price as custom_price,
+                ocp.quantity ,
+                ocp.details ,
+                omp.name ,
+                omp.price ,
+                omp.description 
+            FROM
+                {$this->bd}order_custom_products ocp
+            INNER JOIN {$this->bd}order_modifier_products omp ON ocp.modifier_id = omp.id
+            WHERE
+                ocp.custom_id = ?
+            ORDER BY
+                ocp.id ASC
+        ";
+        
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
     }
 
     // function getOrderImages($array) {
