@@ -1,13 +1,7 @@
 <?php
 session_start();
 
-// Manejar preflight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-    exit(0);
-}
+
 
 header("Access-Control-Allow-Origin: *"); // Permite solicitudes de cualquier origen
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); // Métodos permitidos
@@ -207,7 +201,7 @@ class Pedidos extends MPedidos{
             
             // Obtener productos del pedido (si existen tablas relacionadas)
       
-            $products = $this->getOrderProducts([$orderId]) ;
+            $products = $this->getOrderById([$orderId]) ;
             
             $data = [
                 
@@ -221,10 +215,10 @@ class Pedidos extends MPedidos{
 
                 'products' => $products,
                 'summary' => [
-                    'total' => $total,
-                    'paid' => $totalPagado,
+                    'total'    => $total,
+                    'paid'     => $totalPagado,
                     'discount' => $discount,
-                    'balance' => $saldo
+                    'balance'  => $saldo
                 ]
             ];
             
@@ -366,7 +360,7 @@ class Pedidos extends MPedidos{
         $methods             = $this-> getMethodPayment([$_POST['id']]);
         $ls[0]['total_paid'] = array_sum(array_column($methods, 'pay'));
 
-         $folio    = formatSucursal($sucursal['name'], $sucursal['sucursal'], $ls[0]['folio']);
+        $folio    = formatSucursal($sucursal['name'], $sucursal['sucursal'], $ls[0]['folio']);
         $ls[0]['folio']      = $folio;
 
         $PaymentsDetails     = 0;
@@ -411,7 +405,6 @@ class Pedidos extends MPedidos{
 
     }
 
-
     function deletePay() {
         
         $values = $this->util->sql([
@@ -439,7 +432,7 @@ class Pedidos extends MPedidos{
 
     }
 
-     function listPayment() {
+    function listPayment() {
 
         $data = $this->getListPayment([$_POST['id']]);
         $__row = [];

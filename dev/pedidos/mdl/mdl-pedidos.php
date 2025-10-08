@@ -206,6 +206,65 @@ class MPedidos extends CRUD {
         return $this->_Read($query, $array)[0]['method_pay'];
     }
 
+    function addMethodPay($array){
+        return $this->_Insert([
+            'table'  => "{$this->bd}order_payments",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    function registerPayment($array) {
+
+        return $this->_Update([
+            'table'  => "{$this->bd}order",
+            'values' => $array['values'],
+            'where'  => $array['where'],
+            'data'   => $array['data'],
+        ]);
+    }
+
+    public function getMethodPayment($array) {
+        $query = "
+            SELECT
+            order_payments.method_pay_id,
+            method_pay.method_pay,
+            SUM(order_payments.pay) AS pay
+            FROM
+            {$this->bd}order_payments
+            INNER JOIN {$this->bd}method_pay ON order_payments.method_pay_id = method_pay.id
+            WHERE
+            order_payments.order_id = ?
+            GROUP BY
+            order_payments.method_pay_id,
+            method_pay.method_pay
+            ORDER BY
+            method_pay.method_pay ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function getListPayment($array) {
+        $query = "
+        SELECT
+        order_payments.id,
+        order_payments.date_pay,
+        order_payments.pay,
+        method_pay.method_pay,
+        order_payments.method_pay_id,
+        order_payments.type
+        FROM
+            {$this->bd}order_payments
+        INNER JOIN
+            {$this->bd}method_pay ON order_payments.method_pay_id = method_pay.id
+        WHERE
+            order_id = ?
+        ORDER BY
+            order_payments.id ASC
+        ";
+        return $this->_Read($query,$array);
+    }
+
    
 
     // add Histories.
@@ -360,7 +419,10 @@ class MPedidos extends CRUD {
                 order_package.dedication,
                 order_products.image,
                 order_package.custom_id,
-                order_custom.name as data_custom
+                order_custom.name as custom_name,
+                order_custom.price as custom_price,
+                order_custom.price_real as custom_price_real,
+                order_custom.portion_qty as custom_portion_qty
             FROM
                 {$this->bd}order_package
             INNER JOIN {$this->bd}order_products ON order_package.product_id = order_products.id
@@ -370,40 +432,30 @@ class MPedidos extends CRUD {
         
         $products = $this->_Read($sql, $array);
         
-        // // Para cada producto, obtener información personalizada si corresponde
-        // foreach ($products as &$product) {
-        //     if ($product['custom_id']) {
-        //         // Obtener datos del producto personalizado
-        //         $customData = $this->getcustomProducts([$product['custom_id']]);
-        //         if ($customData) {
-        //             // Agregar datos personalizados al producto
-        //             $product = array_merge($product, $customData);
-        //             // Si es personalizado, usar el nombre personalizado
-        //             if ($customData['custom_product_name']) {
-        //                 $product['product_name'] = $customData['custom_product_name'];
-        //             } else if ($customData['data_custom']) {
-        //                 $product['product_name'] = $customData['data_custom'];
-        //             }
-        //             // Usar precio personalizado si existe
-        //             if ($customData['custom_real_price']) {
-        //                 $product['unit_price'] = $customData['custom_real_price'];
-        //                 $product['total_price'] = $product['quantity'] * $customData['custom_real_price'];
-        //             }
-        //             // Usar cantidad personalizada si existe
-        //             if ($customData['custom_quantity']) {
-        //                 $product['quantity'] = $customData['custom_quantity'];
-        //                 $product['total_price'] = $customData['custom_quantity'] * $product['unit_price'];
-        //             }
-        //         }
-        //         // Obtener imágenes
-        //         $product['images'] = $this->getOrderImages([$product['id']]);
-        //         // Marcar como personalizado para el frontend
-        //         $product['is_custom'] = true;
-        //     } else {
-        //         $product['images'] = [];
-        //         $product['is_custom'] = false;
-        //     }
-        // }
+        foreach ($products as &$product) {
+            $product['images'] = $this->getOrderImages([$product['id']]);
+            
+            if (!empty($product['custom_id'])) {
+                $product['is_custom'] = true;
+                
+                // Obtener productos personalizados (modificadores)
+                $product['customer_products'] = $this->getCustomerProducts([$product['custom_id']]);
+                
+                if (!empty($product['custom_price_real'])) {
+                    $product['price'] = $product['custom_price_real'];
+                } else if (!empty($product['custom_price'])) {
+                    $product['price'] = $product['custom_price'];
+                }
+                
+                if (!empty($product['custom_name'])) {
+                    $product['name'] = $product['custom_name'];
+                }
+            } else {
+                $product['is_custom'] = false;
+                $product['customer_products'] = [];
+            }
+        }
+        unset($product);
         
         return $products;
     }
@@ -460,7 +512,8 @@ class MPedidos extends CRUD {
 
         ";
 
-        return $this->_Read($query, $array);
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
 
     }
 
@@ -473,27 +526,13 @@ class MPedidos extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function registerPayment($array) {
-
-        return $this->_Update([
-            'table'  => "{$this->bd}order",
-            'values' => $array['values'],
-            'where'  => $array['where'],
-            'data'   => $array['data'],
-        ]);
-    }
+    
 
    
 
 
     // Payment.
-    function addMethodPay($array){
-        return $this->_Insert([
-            'table'  => "{$this->bd}order_payments",
-            'values' => $array['values'],
-            'data'   => $array['data']
-        ]);
-    }
+  
 
 
 
@@ -522,46 +561,9 @@ class MPedidos extends CRUD {
 
     }
 
-    function getListPayment($array) {
-        $query = "
-        SELECT
-        order_payments.id,
-        order_payments.date_pay,
-        order_payments.pay,
-        method_pay.method_pay,
-        order_payments.method_pay_id,
-        order_payments.type
-        FROM
-            {$this->bd}order_payments
-        INNER JOIN
-            {$this->bd}method_pay ON order_payments.method_pay_id = method_pay.id
-        WHERE
-            order_id = ?
-        ORDER BY
-            order_payments.id ASC
-        ";
-        return $this->_Read($query,$array);
-    }
+   
 
-    public function getMethodPayment($array) {
-        $query = "
-            SELECT
-            order_payments.method_pay_id,
-            method_pay.method_pay,
-            SUM(order_payments.pay) AS pay
-            FROM
-            {$this->bd}order_payments
-            INNER JOIN {$this->bd}method_pay ON order_payments.method_pay_id = method_pay.id
-            WHERE
-            order_payments.order_id = ?
-            GROUP BY
-            order_payments.method_pay_id,
-            method_pay.method_pay
-            ORDER BY
-            method_pay.method_pay ASC
-        ";
-        return $this->_Read($query, $array);
-    }
+   
 
     public function getTotalPaidByOrder($array) {
         $query = "
@@ -612,31 +614,44 @@ class MPedidos extends CRUD {
 
 
     function getcustomProducts($array) {
+        $query = "
+            SELECT
+                id,
+                name as custom_product_name,
+                price as custom_base_price,
+                price_real as custom_real_price,
+                portion_qty as custom_portion_qty
+            FROM
+                {$this->bd}order_custom
+            WHERE
+                id = ?
+        ";
         
+        $result = $this->_Read($query, $array);
+        return $result ? $result[0] : null;
+    }
+
+    function getCustomerProducts($array) {
         $query = "
             SELECT
                 ocp.id,
                 ocp.price as custom_price,
-                ocp.quantity as custom_quantity,
-                ocp.details as custom_details,
-                oc.name as custom_product_name,
-                oc.price as custom_base_price,
-                oc.price_real as custom_real_price,
-                oc.portion_qty as custom_portion_qty
+                ocp.quantity ,
+                ocp.details ,
+                omp.name ,
+                omp.price ,
+                omp.description 
             FROM
                 {$this->bd}order_custom_products ocp
-            INNER JOIN {$this->bd}order_custom oc ON ocp.custom_id = oc.id
+            INNER JOIN {$this->bd}order_modifier_products omp ON ocp.modifier_id = omp.id
             WHERE
                 ocp.custom_id = ?
             ORDER BY
                 ocp.id ASC
         ";
         
-        error_log("🔍 Query ejecutada: " . $query);
         $result = $this->_Read($query, $array);
-        error_log("🔍 Resultado de la consulta: " . json_encode($result));
-        
-        return $result ? $result[0] : null;
+        return is_array($result) ? $result : [];
     }
 
     // function getOrderImages($array) {

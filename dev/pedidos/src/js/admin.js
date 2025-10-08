@@ -19,10 +19,6 @@ $(async () => {
 
 });
 
-
-
-
-
 class App extends Templates {
 
     constructor(link, div_modulo) {
