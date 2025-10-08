@@ -1,6 +1,6 @@
 let url = '../ctrl/ctrl-admin.php';
 let api = 'http://coffeehuubie.com/dev/pedidos/ctrl/ctrl-pedidos.php';
-
+let app;
 $(async () => {
 
 
@@ -11,6 +11,7 @@ $(async () => {
     app.init();
 
     app.navBar({ theme: 'dark' });
+    
 
 });
 
