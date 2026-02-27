@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "PHP Alignment Formatter",
+  "description": "Analiza archivos PHP modificados y aplica formato de alineación vertical a los operadores de asignación (=, =>, etc.) en bloques de código relacionados, mejorando la legibilidad mientras mantiene la funcionalidad intacta",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.php"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Analiza el archivo PHP modificado y aplica formato de alineación vertical siguiendo estas reglas:\n\n1. Alinea verticalmente los operadores de asignación (=) en bloques de código relacionados\n2. Alinea verticalmente los operadores de arrays (=>) en definiciones de arrays\n3. Mantén la funcionalidad y lógica del código intacta\n4. Aplica el formato solo donde mejore la legibilidad\n5. Respeta la indentación existente\n6. Agrupa líneas relacionadas para la alineación\n7. No alteres strings, comentarios o lógica del código\n\nEjemplo de transformación:\nANTES:\n```php\n$nombre = \"Juan\";\n$apellido = \"Pérez\";\n$edad = 25;\n$correo = \"juan@example.com\";\n```\n\nDESPUÉS:\n```php\n$nombre   = \"Juan\";\n$apellido = \"Pérez\";\n$edad     = 25;\n$correo   = \"juan@example.com\";\n```\n\nAnaliza el archivo modificado, identifica bloques de código que se beneficiarían de la alineación vertical, aplica el formato y muestra los cambios realizados de forma clara y concisa."
+  }
+}

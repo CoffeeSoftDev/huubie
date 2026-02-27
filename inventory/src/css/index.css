@@ -1,0 +1,440 @@
+@import url(colors.css);
+@import url(background.css);
+@import url(buttons.css);
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    height: 100vh;
+    margin: 0;
+    background-color: #f5f5f5;
+}
+
+.login-container {
+    display: flex;
+    height: 100vh;
+}
+
+.left-panel {
+    flex: 1;
+    background: linear-gradient(135deg, #2C1B18  0%, #8B5A3C 100%);
+    color: white;
+    padding: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.brand i {
+    font-size: 28px;
+}
+
+.brand-logo {
+    max-width: 200px;
+    height: auto;
+}
+
+.left-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 500px;
+}
+
+.left-content h1 {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    line-height: 1.2;
+}
+
+.left-content p {
+    font-size: 18px;
+    line-height: 1.6;
+    opacity: 0.9;
+}
+
+.footer-text {
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.right-panel {
+    flex: 1;
+    background-color: #FAF7F2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+.login-form-wrapper {
+    width: 100%;
+    max-width: 440px;
+}
+
+.login-form-wrapper h2 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    font-size: 15px;
+    color: #666;
+    margin-bottom: 40px;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+}
+
+.label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.forgot-link {
+    font-size: 13px;
+    color: #6B4423;
+    text-decoration: none;
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 15px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background-color: white;
+    transition: all 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #6B4423;
+    box-shadow: 0 0 0 3px rgba(107, 68, 35, 0.1);
+}
+
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper .form-control {
+    padding-right: 45px;
+}
+
+.eye-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #6b7280;
+    font-size: 18px;
+    padding: 4px;
+}
+
+.eye-icon:hover {
+    color: #374151;
+}
+
+.btn-login {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    background: #2C1B18;
+    /* linear-gradient(135deg,  0%, #8B5A3C 100%); */
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 8px;
+}
+
+.btn-login:hover {
+    transform: translateY(-1px);
+    background-color: #563731;
+    box-shadow: 0 4px 12px rgba(107, 68, 35, 0.3);
+}
+
+.btn-login:active {
+    transform: translateY(0);
+}
+
+.mobile-brand {
+    display: none;
+}
+
+.mobile-footer {
+    display: none;
+}
+
+@media (max-width: 950px) {
+    body {
+        background-color: #FAF7F2;
+    }
+
+    .login-container {
+        flex-direction: column;
+        background-color: #FAF7F2;
+    }
+
+    .left-panel {
+        display: none;
+    }
+
+    .right-panel {
+        flex: 1;
+        padding: 0;
+        background-color: #FAF7F2;
+        min-height: 100vh;
+        width: 100%;
+    }
+
+    .login-form-wrapper {
+        padding: 48px 32px;
+        max-width: 100%;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background-color: #FAF7F2;
+    }
+
+    .mobile-brand {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 0;
+        padding-top: 0;
+    }
+
+    .mobile-logo-circle {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .mobile-logo-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .mobile-brand-text {
+        font-size: 26px;
+        font-weight: 600;
+        color: #1a1a1a;
+        text-align: center;
+    }
+
+    .login-form-wrapper form {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .login-form-wrapper h2 {
+        font-size: 32px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 12px;
+        margin-top: 40px;
+    }
+
+    .subtitle {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 40px;
+        line-height: 1.5;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-group label {
+        color: #1a1a1a;
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    .form-control {
+        padding: 16px 18px;
+        font-size: 16px;
+        border-radius: 12px;
+        border: 1px solid #d1d5db;
+        background-color: #FFFFFF;
+        transition: all 0.2s;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #6B4423;
+        box-shadow: 0 0 0 3px rgba(107, 68, 35, 0.1);
+    }
+
+    .form-control::placeholder {
+        color: #9ca3af;
+    }
+
+    .btn-login {
+        padding: 18px;
+        font-size: 17px;
+        font-weight: 600;
+        border-radius: 12px;
+        margin-top: 16px;
+        background-color: #2C1B18;
+        color: white;
+    }
+
+    .btn-login:hover {
+        background-color: #563731;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(107, 68, 35, 0.3);
+    }
+
+    .mobile-footer {
+        display: block;
+        text-align: center;
+        font-size: 13px;
+        color: #9ca3af;
+        margin-top: 32px;
+        padding-bottom: 24px;
+    }
+
+    .forgot-link {
+        font-size: 14px;
+        color: #6B4423;
+    }
+
+    .label-row {
+        margin-bottom: 10px;
+    }
+}
+
+@media (max-width: 600px) {
+    .login-form-wrapper {
+        padding: 40px 24px;
+    }
+
+    .mobile-logo-circle {
+        width: 110px;
+        height: 110px;
+    }
+
+    .mobile-logo-img {
+        width: 100%;
+        height: 100%;
+    }
+
+    .mobile-brand-text {
+        font-size: 24px;
+    }
+
+    .login-form-wrapper h2 {
+        font-size: 30px;
+        margin-top: 32px;
+    }
+
+    .subtitle {
+        font-size: 15px;
+        margin-bottom: 36px;
+    }
+
+    .form-group label {
+        font-size: 14px;
+    }
+
+    .form-control {
+        padding: 15px 16px;
+        font-size: 16px;
+    }
+
+    .btn-login {
+        padding: 17px;
+        font-size: 16px;
+    }
+
+    .forgot-link {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 375px) {
+    .login-form-wrapper {
+        padding: 32px 20px;
+    }
+
+    .mobile-logo-circle {
+        width: 100px;
+        height: 100px;
+    }
+
+    .mobile-logo-img {
+        width: 100%;
+        height: 100%;
+    }
+
+    .mobile-brand-text {
+        font-size: 22px;
+    }
+
+    .login-form-wrapper h2 {
+        font-size: 28px;
+        margin-top: 28px;
+    }
+
+    .subtitle {
+        font-size: 14px;
+        margin-bottom: 32px;
+    }
+
+    .form-control {
+        padding: 14px 16px;
+        font-size: 15px;
+    }
+
+    .btn-login {
+        padding: 16px;
+        font-size: 15px;
+    }
+}

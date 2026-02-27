@@ -1,0 +1,135 @@
+[ 2026-02-27 10:50:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-30 10:48:39 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-30 10:45:44 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-29 13:16:32 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-29 09:41:57 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-29 09:40:51 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-19 14:50:31 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-19 14:30:56 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-19 12:54:19 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+

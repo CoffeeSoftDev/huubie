@@ -1,0 +1,17 @@
+.tb_input {
+    width:40px !important;
+    padding: 0 !important;
+}
+
+.tb_input > input {
+    width:40px !important;
+    text-align: center;
+    height: 50px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.tb_input > input:focus-visible {
+    outline: 1px solid var(--disabled5);
+}

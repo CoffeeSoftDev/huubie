@@ -1,0 +1,128 @@
+.bg-none {
+    background-color: transparent !important;
+    color: #000 !important;
+}
+.bg-light {
+    background-color: aliceblue !important;
+    color: #000 !important;
+}
+.bg-primary {
+    background-color: var(--primary) !important;
+    color: #fff !important;
+}
+
+.bg-secondary {
+    background-color: #003360 !important;
+    color: #fff !important;
+}
+
+
+.bg-primary-1 {
+    background-color: #0F243E !important;
+    color: #fff !important;
+}
+
+.bg-info {
+    background-color: var(--info) !important;
+    color: #000 !important;
+}
+
+.bg-info-1 {
+    background-color: var(--info1) !important;
+    color: #000 !important;
+}
+
+.bg-info-5 {
+    background-color: var(--info5) !important;
+    color: #000 !important;
+}
+
+.bg-info-light {
+    background-color: var(--info9) !important;
+    /* color: #000 !important; */
+}
+
+.bg-danger {
+    background-color: var(--danger) !important;
+    color: #fff !important;
+}
+.bg-warning {
+    background-color: var(--warning) !important;
+    color: #000 !important;
+}
+
+.bg-warning-1 {
+    /* background-color: #FFFFAA !important;
+    color: #000 !important; */
+        background-color: #fee3ab !important;
+    color: #000 !important;
+}
+
+.bg-success {
+    background-color: var(--success) !important;
+    color: #000 !important;
+}
+
+.bg-default {
+    background-color: var(--default) !important;
+    color:#A3B2C8;
+  
+}
+
+/* .bg-secondary {
+    background-color: var(--secondary) !important;
+    color: #fff !important;
+} */
+.bg-disabled {
+    background-color: var(--disabled) !important;
+    color: #fff !important;
+}
+
+.bg-disabled1 {
+    background-color: var(--disabled1) !important;
+    color: #fff !important;
+}
+.bg-disabled2 {
+    background-color: var(--disabled2) !important;
+    color: rgb(242, 246, 252);
+}
+.bg-disabled3 {
+    background-color: var(--disabled3) !important;
+    color: #fff !important;
+}
+.bg-disabled4 {
+    background-color: var(--disabled4) !important;
+    color: #fff !important;
+}
+.bg-disabled5 {
+    background-color: var(--disabled5) !important;
+    color: #fff !important;
+}
+
+.bg-alice {
+    background-color: var(--aliceblue_other) !important;
+    color: var(--primary) !important;
+}
+.bg-navbar {
+    background-color: var(--navbar) !important;
+    color: #FFF !important;
+}
+
+.modal-title{
+    font-weight: 500;
+}    
+
+
+.decorative-box{
+    
+  background: repeating-linear-gradient(
+        330deg,
+        #f4f4f4,
+        #f4f4f4 5px, /* Cambiado a 5px para hacer las líneas más densas */
+        #eaeaea 5px,
+        #eaeaea 7px
+    );
+    
+    padding: 1rem 1rem;
+    
+}

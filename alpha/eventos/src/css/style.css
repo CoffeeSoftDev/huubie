@@ -1,0 +1,36 @@
+.not-started {
+    background-color: #6E3630 !important;
+    color: white !important;
+}
+
+.in-progress {
+    background-color: #89632A !important;
+    color: white !important;
+}
+
+.completed {
+    background-color: #29553C !important;
+    color: white !important;
+}
+
+.paused {
+    background-color: #3A2372 !important;
+    color: white !important;
+}
+
+.cancelled {
+    background-color: #91242E !important;
+    color: white !important;
+}
+
+.font-10 {
+    font-size: 10px;
+}
+
+.font-11 {
+    font-size: 11px;
+}
+
+.font-12 {
+    font-size: 12px;
+}

@@ -1,0 +1,1464 @@
+[ 2025-12-09 05:23:37 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                m.id_movimiento,
+                m.folio,
+                DATE_FORMAT(m.fecha, '%d/%m/%Y') as fecha,
+                m.tipo_movimiento,
+                m.total_productos,
+                m.total_unidades,
+                m.estado,
+                m.fecha_creacion,
+                m.user_id,
+                d.id_detalle,
+                d.id_producto,
+                d.cantidad,
+                d.stock_anterior,
+                d.stock_resultante,
+                a.idAlmacen,
+                a.CodigoEquipo,
+                a.Equipo as nombre_producto,
+                a.id_categoria,
+                a.id_zona,
+                a.Area,
+                COALESCE(cat.nombreCategoria, 'Sin categoría') AS nombre_grupo,
+                COALESCE(z.nombre_zona, 'Sin zona') AS nombre_zona,
+                COALESCE(ar.nombre_area, 'Sin área') AS nombre_area
+            FROM fayxzvov_mtto.mtto_inventario_movimientos m
+            INNER JOIN fayxzvov_mtto.mtto_inventario_detalle d ON m.id_movimiento = d.id_movimiento
+            INNER JOIN fayxzvov_mtto.mtto_almacen a ON d.id_producto = a.idAlmacen
+            LEFT JOIN fayxzvov_mtto.mtto_categoria cat ON a.id_categoria = cat.idcategoria
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona = z.id_zona
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area = ar.idArea
+            WHERE
+            m.udn_id = 
+            and MONTH(m.fecha) = ? 
+            AND YEAR(m.fecha) = ?
+            
+            ORDER BY m.fecha DESC, m.id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'and MONTH(m.fecha) = '12' 
+            AND YEAR(m.fecha) = '2025'
+         ...' at line 33
+
+
+[ 2025-12-09 05:23:37 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                m.tipo_movimiento,
+                COUNT(DISTINCT m.id_movimiento) as total_movimientos,
+                SUM(d.cantidad) as total_unidades
+            FROM fayxzvov_mtto.mtto_inventario_movimientos m
+            INNER JOIN fayxzvov_mtto.mtto_inventario_detalle d ON m.id_movimiento = d.id_movimiento
+            INNER JOIN fayxzvov_mtto.mtto_almacen a ON d.id_producto = a.idAlmacen
+            LEFT JOIN fayxzvov_mtto.mtto_categoria cat ON a.id_categoria = cat.idcategoria
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona = z.id_zona
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area = ar.idArea
+            WHERE 
+             m.udn_id = 
+            AND MONTH(m.fecha) = ? 
+            AND YEAR(m.fecha) = ?
+            
+            GROUP BY m.tipo_movimiento
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AND MONTH(m.fecha) = '12' 
+            AND YEAR(m.fecha) = '2025'
+         ...' at line 13
+
+
+[ 2025-12-09 05:23:36 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                idcategoria as id,
+                nombreCategoria as valor,
+                DATE_FORMAT(date_creation, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_mtto.mtto_categoria
+            WHERE active = ?
+            AND udn_id = 
+            ORDER BY idcategoria DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY idcategoria DESC' at line 9
+
+
+[ 2025-12-09 05:23:36 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_zona as id,
+                nombre_zona as valor,
+                DATE_FORMAT(date_creation, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_mtto.mtto_almacen_zona
+            WHERE active = ?
+            AND udn_id = 
+            ORDER BY id_zona DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY id_zona DESC' at line 9
+
+
+[ 2025-12-09 05:23:36 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            AND udn_id = 
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY id_movimiento DESC' at line 17
+
+
+[ 2025-12-09 05:23:36 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-09 05:23:36 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT idArea as id, nombre_area AS valor
+            FROM fayxzvov_mtto.mtto_almacen_area
+            WHERE active = 1
+            AND udn_id = 
+            ORDER BY nombre_area ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY nombre_area ASC' at line 5
+
+
+[ 2025-12-09 05:23:36 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT idcategoria as id, nombreCategoria AS valor
+            FROM fayxzvov_mtto.mtto_categoria
+            WHERE active = 1
+            AND udn_id = 
+            ORDER BY nombreCategoria ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY nombreCategoria ASC' at line 5
+
+
+[ 2025-12-09 05:23:36 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id_zona as id, nombre_zona AS valor
+            FROM fayxzvov_mtto.mtto_almacen_zona
+            WHERE active = 1
+            AND udn_id = 
+            ORDER BY nombre_zona ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY nombre_zona ASC' at line 5
+
+
+[ 2025-12-09 05:23:31 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-09 05:23:30 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-09 05:23:30 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-09 05:23:30 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-09 05:23:29 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-09 05:23:29 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-09 05:23:29 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-09 05:23:28 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-09 05:23:27 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-08 22:58:35 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-003' for key 'uk_folio'
+
+
+[ 2025-12-08 22:58:27 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-003' for key 'uk_folio'
+
+
+[ 2025-12-08 22:56:28 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-002' for key 'uk_folio'
+
+
+[ 2025-12-08 22:55:51 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-002' for key 'uk_folio'
+
+
+[ 2025-12-08 22:55:23 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-002' for key 'uk_folio'
+
+
+[ 2025-12-08 22:55:18 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-002' for key 'uk_folio'
+
+
+[ 2025-12-08 22:54:50 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            udn_id = 3
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'udn_id = 3
+            ORDER BY id_movimiento DESC' at line 16
+
+
+[ 2025-12-08 22:54:50 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            udn_id = 3
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'udn_id = 3
+            ORDER BY id_movimiento DESC' at line 16
+
+
+[ 2025-12-08 22:54:50 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            udn_id = 3
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'udn_id = 3
+            ORDER BY id_movimiento DESC' at line 16
+
+
+[ 2025-12-08 22:54:49 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            udn_id = 3
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'udn_id = 3
+            ORDER BY id_movimiento DESC' at line 16
+
+
+[ 2025-12-08 22:54:49 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            udn_id = 3
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'udn_id = 3
+            ORDER BY id_movimiento DESC' at line 16
+
+
+[ 2025-12-08 22:54:49 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            udn_id = 3
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'udn_id = 3
+            ORDER BY id_movimiento DESC' at line 16
+
+
+[ 2025-12-08 22:54:49 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            udn_id = 3
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'udn_id = 3
+            ORDER BY id_movimiento DESC' at line 16
+
+
+[ 2025-12-08 22:54:48 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            udn_id = 3
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'udn_id = 3
+            ORDER BY id_movimiento DESC' at line 16
+
+
+[ 2025-12-08 22:54:48 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_movimiento,
+                folio,
+                DATE_FORMAT(fecha, '%d/%m/%Y') as fecha,
+                tipo_movimiento,
+                total_productos,
+                total_unidades,
+                estado,
+                user_id,
+                usser as responsable,
+                DATE_FORMAT(fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = user_id
+            WHERE fecha BETWEEN ? AND ?
+            AND (? = 'Todos' OR tipo_movimiento = ?)
+            udn_id = 3
+            ORDER BY id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'udn_id = 3
+            ORDER BY id_movimiento DESC' at line 16
+
+
+[ 2025-12-08 22:47:04 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                m.id_movimiento,
+                m.folio,
+                DATE_FORMAT(m.fecha, '%d/%m/%Y') as fecha,
+                m.tipo_movimiento,
+                m.total_productos,
+                m.total_unidades,
+                m.estado,
+                m.fecha_creacion,
+                m.user_id,
+                d.id_detalle,
+                d.id_producto,
+                d.cantidad,
+                d.stock_anterior,
+                d.stock_resultante,
+                a.idAlmacen,
+                a.CodigoEquipo,
+                a.Equipo as nombre_producto,
+                a.id_categoria,
+                a.id_zona,
+                a.Area,
+                COALESCE(cat.nombreCategoria, 'Sin categoría') AS nombre_grupo,
+                COALESCE(z.nombre_zona, 'Sin zona') AS nombre_zona,
+                COALESCE(ar.nombre_area, 'Sin área') AS nombre_area
+            FROM fayxzvov_mtto.mtto_inventario_movimientos m
+            INNER JOIN fayxzvov_mtto.mtto_inventario_detalle d ON m.id_movimiento = d.id_movimiento
+            INNER JOIN fayxzvov_mtto.mtto_almacen a ON d.id_producto = a.idAlmacen
+            LEFT JOIN fayxzvov_mtto.mtto_categoria cat ON a.id_categoria = cat.idcategoria
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona = z.id_zona
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area = ar.idArea
+            WHERE
+            m.udn_id = 
+            and MONTH(m.fecha) = ? 
+            AND YEAR(m.fecha) = ?
+            
+            ORDER BY m.fecha DESC, m.id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'and MONTH(m.fecha) = '12' 
+            AND YEAR(m.fecha) = '2025'
+         ...' at line 33
+
+
+[ 2025-12-08 22:47:04 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                m.tipo_movimiento,
+                COUNT(DISTINCT m.id_movimiento) as total_movimientos,
+                SUM(d.cantidad) as total_unidades
+            FROM fayxzvov_mtto.mtto_inventario_movimientos m
+            INNER JOIN fayxzvov_mtto.mtto_inventario_detalle d ON m.id_movimiento = d.id_movimiento
+            INNER JOIN fayxzvov_mtto.mtto_almacen a ON d.id_producto = a.idAlmacen
+            LEFT JOIN fayxzvov_mtto.mtto_categoria cat ON a.id_categoria = cat.idcategoria
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona = z.id_zona
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area = ar.idArea
+            WHERE 
+             m.udn_id = 
+            AND MONTH(m.fecha) = ? 
+            AND YEAR(m.fecha) = ?
+            
+            GROUP BY m.tipo_movimiento
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AND MONTH(m.fecha) = '12' 
+            AND YEAR(m.fecha) = '2025'
+         ...' at line 13
+
+
+[ 2025-12-08 22:47:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                idcategoria as id,
+                nombreCategoria as valor,
+                DATE_FORMAT(date_creation, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_mtto.mtto_categoria
+            WHERE active = ?
+            AND udn_id = 
+            ORDER BY idcategoria DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY idcategoria DESC' at line 9
+
+
+[ 2025-12-08 22:47:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_zona as id,
+                nombre_zona as valor,
+                DATE_FORMAT(date_creation, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_mtto.mtto_almacen_zona
+            WHERE active = ?
+            AND udn_id = 
+            ORDER BY id_zona DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY id_zona DESC' at line 9
+
+
+[ 2025-12-08 22:47:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-08 22:47:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT idArea as id, nombre_area AS valor
+            FROM fayxzvov_mtto.mtto_almacen_area
+            WHERE active = 1
+            AND udn_id = 
+            ORDER BY nombre_area ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY nombre_area ASC' at line 5
+
+
+[ 2025-12-08 22:47:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT idcategoria as id, nombreCategoria AS valor
+            FROM fayxzvov_mtto.mtto_categoria
+            WHERE active = 1
+            AND udn_id = 
+            ORDER BY nombreCategoria ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY nombreCategoria ASC' at line 5
+
+
+[ 2025-12-08 22:47:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id_zona as id, nombre_zona AS valor
+            FROM fayxzvov_mtto.mtto_almacen_zona
+            WHERE active = 1
+            AND udn_id = 
+            ORDER BY nombre_zona ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY nombre_zona ASC' at line 5
+
+
+[ 2025-12-08 22:46:42 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE 
+                udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 4
+
+
+[ 2025-12-08 22:46:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE 
+                udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 4
+
+
+[ 2025-12-08 22:46:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE 
+                udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 4
+
+
+[ 2025-12-08 22:45:44 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE 
+                udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 4
+
+
+[ 2025-12-08 22:44:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 3
+
+
+[ 2025-12-08 22:43:50 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 3
+
+
+[ 2025-12-08 22:43:00 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-001' for key 'uk_folio'
+
+
+[ 2025-12-08 22:43:00 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 3
+
+
+[ 2025-12-08 22:42:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                m.tipo_movimiento,
+                COUNT(DISTINCT m.id_movimiento) as total_movimientos,
+                SUM(d.cantidad) as total_unidades
+            FROM fayxzvov_mtto.mtto_inventario_movimientos m
+            INNER JOIN fayxzvov_mtto.mtto_inventario_detalle d ON m.id_movimiento = d.id_movimiento
+            INNER JOIN fayxzvov_mtto.mtto_almacen a ON d.id_producto = a.idAlmacen
+            LEFT JOIN fayxzvov_mtto.mtto_categoria cat ON a.id_categoria = cat.idcategoria
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona = z.id_zona
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area = ar.idArea
+            WHERE 
+             m.udn_id = 
+            AND MONTH(m.fecha) = ? 
+            AND YEAR(m.fecha) = ?
+            
+            GROUP BY m.tipo_movimiento
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AND MONTH(m.fecha) = '12' 
+            AND YEAR(m.fecha) = '2025'
+         ...' at line 13
+
+
+[ 2025-12-08 22:42:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                m.id_movimiento,
+                m.folio,
+                DATE_FORMAT(m.fecha, '%d/%m/%Y') as fecha,
+                m.tipo_movimiento,
+                m.total_productos,
+                m.total_unidades,
+                m.estado,
+                m.fecha_creacion,
+                m.user_id,
+                d.id_detalle,
+                d.id_producto,
+                d.cantidad,
+                d.stock_anterior,
+                d.stock_resultante,
+                a.idAlmacen,
+                a.CodigoEquipo,
+                a.Equipo as nombre_producto,
+                a.id_categoria,
+                a.id_zona,
+                a.Area,
+                COALESCE(cat.nombreCategoria, 'Sin categoría') AS nombre_grupo,
+                COALESCE(z.nombre_zona, 'Sin zona') AS nombre_zona,
+                COALESCE(ar.nombre_area, 'Sin área') AS nombre_area
+            FROM fayxzvov_mtto.mtto_inventario_movimientos m
+            INNER JOIN fayxzvov_mtto.mtto_inventario_detalle d ON m.id_movimiento = d.id_movimiento
+            INNER JOIN fayxzvov_mtto.mtto_almacen a ON d.id_producto = a.idAlmacen
+            LEFT JOIN fayxzvov_mtto.mtto_categoria cat ON a.id_categoria = cat.idcategoria
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona = z.id_zona
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area = ar.idArea
+            WHERE
+            m.udn_id = 
+            and MONTH(m.fecha) = ? 
+            AND YEAR(m.fecha) = ?
+            
+            ORDER BY m.fecha DESC, m.id_movimiento DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'and MONTH(m.fecha) = '12' 
+            AND YEAR(m.fecha) = '2025'
+         ...' at line 33
+
+
+[ 2025-12-08 22:42:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id_zona as id,
+                nombre_zona as valor,
+                DATE_FORMAT(date_creation, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_mtto.mtto_almacen_zona
+            WHERE active = ?
+            AND udn_id = 
+            ORDER BY id_zona DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY id_zona DESC' at line 9
+
+
+[ 2025-12-08 22:42:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                idcategoria as id,
+                nombreCategoria as valor,
+                DATE_FORMAT(date_creation, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_mtto.mtto_categoria
+            WHERE active = ?
+            AND udn_id = 
+            ORDER BY idcategoria DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY idcategoria DESC' at line 9
+
+
+[ 2025-12-08 22:42:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.CodigoEquipo,
+                a.Equipo,
+                a.cantidad,
+                a.Costo,
+                a.PrecioVenta,
+                a.Estado,
+                a.rutaImagen,
+                a.inventario_min,
+                a.Descripcion,
+                a.FechaIngreso,
+                ar.nombre_area as area,
+                c.nombreCategoria as categoria,
+                z.nombre_zona as zona,
+                d.nombre as departamento,
+                p.nombreProveedor as proveedor
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area       = ar.idArea
+            LEFT  JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria   = c.idcategoria
+            LEFT  JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona     = z.id_zona
+            LEFT  JOIN fayxzvov_mtto.departamento d ON a.id_dpto          = d.id
+            LEFT  JOIN fayxzvov_mtto.mtto_proveedores p ON a.id_Proveedor = p.idProveedor
+            WHERE UDN_Almacen   = 
+         ORDER BY a.idAlmacen DESC
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY a.idAlmacen DESC' at line 25
+
+
+[ 2025-12-08 22:42:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT idArea as id, nombre_area AS valor
+            FROM fayxzvov_mtto.mtto_almacen_area
+            WHERE active = 1
+            AND udn_id = 
+            ORDER BY nombre_area ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY nombre_area ASC' at line 5
+
+
+[ 2025-12-08 22:42:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT idcategoria as id, nombreCategoria AS valor
+            FROM fayxzvov_mtto.mtto_categoria
+            WHERE active = 1
+            AND udn_id = 
+            ORDER BY nombreCategoria ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY nombreCategoria ASC' at line 5
+
+
+[ 2025-12-08 22:42:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id_zona as id, nombre_zona AS valor
+            FROM fayxzvov_mtto.mtto_almacen_zona
+            WHERE active = 1
+            AND udn_id = 
+            ORDER BY nombre_zona ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY nombre_zona ASC' at line 5
+
+
+[ 2025-12-08 22:42:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-001' for key 'uk_folio'
+
+
+[ 2025-12-08 22:42:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 3
+
+
+[ 2025-12-08 22:42:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-001' for key 'uk_folio'
+
+
+[ 2025-12-08 22:42:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 3
+
+
+[ 2025-12-08 22:41:39 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-001' for key 'uk_folio'
+
+
+[ 2025-12-08 22:41:39 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 3
+
+
+[ 2025-12-08 22:40:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_mtto.mtto_inventario_movimientos (fecha,tipo_movimiento,folio,total_productos,total_unidades,estado,user_id,udn_id) VALUES (?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'MOV-001' for key 'uk_folio'
+
+
+[ 2025-12-08 22:40:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT COUNT(*) as max_numero
+            FROM fayxzvov_mtto.mtto_inventario_movimientos
+            WHERE udn_id = 
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 3
+
+
+[ 2025-12-08 12:40:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+                    p.nombre,
+                    i.cantidad as stock
+                  FROM inventario i
+                  INNER JOIN productos p ON i.idProducto = p.idProducto
+                  WHERE i.cantidad <= p.stockMinimo
+                  ORDER BY i.cantidad ASC
+                  LIMIT 5
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.inventario' doesn't exist
+
+
+[ 2025-12-08 12:40:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+                    DATE_FORMAT(m.fecha, '%d/%m/%Y') as fecha,
+                    p.nombre as producto,
+                    m.tipo,
+                    m.cantidad
+                  FROM movimientos m
+                  INNER JOIN productos p ON m.idProducto = p.idProducto
+                  ORDER BY m.fecha DESC
+                  LIMIT 10
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.movimientos' doesn't exist
+
+
+[ 2025-12-08 12:40:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT SUM(i.cantidad * p.precio) as total 
+                  FROM inventario i 
+                  INNER JOIN productos p ON i.idProducto = p.idProducto
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.inventario' doesn't exist
+
+
+[ 2025-12-08 12:40:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT COUNT(*) as total 
+                  FROM inventario i 
+                  INNER JOIN productos p ON i.idProducto = p.idProducto 
+                  WHERE i.cantidad <= p.stockMinimo
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.inventario' doesn't exist
+
+
+[ 2025-12-08 12:40:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT SUM(cantidad) as total FROM inventario
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.inventario' doesn't exist
+
+
+[ 2025-12-08 12:40:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT COUNT(*) as total FROM productos WHERE estado = 1
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.productos' doesn't exist
+
+
+[ 2025-12-08 12:35:23 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN a.cantidad > a.inventario_min THEN 1 ELSE 0 END) as disponibles,
+                SUM(CASE WHEN a.cantidad <= a.inventario_min AND a.cantidad > 0 THEN 1 ELSE 0 END) as stock_bajo,
+                SUM(CASE WHEN a.cantidad = 0 THEN 1 ELSE 0 END) as agotados,
+                SUM(a.cantidad * a.Costo) as valor_total
+            FROM fayxzvov_mtto.mtto_almacen a
+            WHERE a.UDN_Almacen =  AND a.id_zona = ? AND a.Area = ? AND a.id_categoria = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AND a.id_zona = '6' AND a.Area = '9' AND a.id_categoria = '8'' at line 8
+
+
+[ 2025-12-08 12:35:23 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.Equipo as producto,
+                c.nombreCategoria as presentacion,
+                a.inventario_min,
+                a.Costo,
+                a.PrecioVenta,
+                a.cantidad,
+                (SELECT MAX(m.fecha) 
+                 FROM fayxzvov_mtto.mtto_inventario_movimientos m 
+                 INNER JOIN fayxzvov_mtto.mtto_inventario_detalle d ON m.id_movimiento = d.id_movimiento 
+                 WHERE d.id_producto = a.idAlmacen AND m.tipo_movimiento = 'Entrada'
+                ) as fecha_mayoreo,
+                (SELECT d.stock_anterior 
+                 FROM fayxzvov_mtto.mtto_inventario_detalle d 
+                 INNER JOIN fayxzvov_mtto.mtto_inventario_movimientos m ON d.id_movimiento = m.id_movimiento
+                 WHERE d.id_producto = a.idAlmacen 
+                 ORDER BY m.fecha ASC LIMIT 1
+                ) as stock_inicial,
+                z.nombre_zona as zona,
+                ar.nombre_area as area
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria = c.idcategoria
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona = z.id_zona
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area = ar.idArea
+            WHERE a.UDN_Almacen =  AND a.id_zona = ? AND a.Area = ? AND a.id_categoria = ? AND a.cantidad > a.inventario_min
+            
+            ORDER BY a.Equipo ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AND a.id_zona = '6' AND a.Area = '9' AND a.id_categoria = '8' AND a.cantidad ...' at line 26
+
+
+[ 2025-12-08 12:35:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                a.idAlmacen as id,
+                a.Equipo as producto,
+                c.nombreCategoria as presentacion,
+                a.inventario_min,
+                a.Costo,
+                a.PrecioVenta,
+                a.cantidad,
+                (SELECT MAX(m.fecha) 
+                 FROM fayxzvov_mtto.mtto_inventario_movimientos m 
+                 INNER JOIN fayxzvov_mtto.mtto_inventario_detalle d ON m.id_movimiento = d.id_movimiento 
+                 WHERE d.id_producto = a.idAlmacen AND m.tipo_movimiento = 'Entrada'
+                ) as fecha_mayoreo,
+                (SELECT d.stock_anterior 
+                 FROM fayxzvov_mtto.mtto_inventario_detalle d 
+                 INNER JOIN fayxzvov_mtto.mtto_inventario_movimientos m ON d.id_movimiento = m.id_movimiento
+                 WHERE d.id_producto = a.idAlmacen 
+                 ORDER BY m.fecha ASC LIMIT 1
+                ) as stock_inicial,
+                z.nombre_zona as zona,
+                ar.nombre_area as area
+            FROM fayxzvov_mtto.mtto_almacen a
+            LEFT JOIN fayxzvov_mtto.mtto_categoria c ON a.id_categoria = c.idcategoria
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_zona z ON a.id_zona = z.id_zona
+            LEFT JOIN fayxzvov_mtto.mtto_almacen_area ar ON a.Area = ar.idArea
+            WHERE a.UDN_Almacen =  AND a.id_zona = ? AND a.Area = ? AND a.id_categoria = ?
+            
+            ORDER BY a.Equipo ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AND a.id_zona = '6' AND a.Area = '9' AND a.id_categoria = '8'
+            
+...' at line 26
+
+
+[ 2025-12-08 12:35:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN a.cantidad > a.inventario_min THEN 1 ELSE 0 END) as disponibles,
+                SUM(CASE WHEN a.cantidad <= a.inventario_min AND a.cantidad > 0 THEN 1 ELSE 0 END) as stock_bajo,
+                SUM(CASE WHEN a.cantidad = 0 THEN 1 ELSE 0 END) as agotados,
+                SUM(a.cantidad * a.Costo) as valor_total
+            FROM fayxzvov_mtto.mtto_almacen a
+            WHERE a.UDN_Almacen =  AND a.id_zona = ? AND a.Area = ? AND a.id_categoria = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AND a.id_zona = '6' AND a.Area = '9' AND a.id_categoria = '8'' at line 8
+
+
+[ 2025-12-08 12:35:20 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN a.cantidad > a.inventario_min THEN 1 ELSE 0 END) as disponibles,
+                SUM(CASE WHEN a.cantidad <= a.inventario_min AND a.cantidad > 0 THEN 1 ELSE 0 END) as stock_bajo,
+                SUM(CASE WHEN a.cantidad = 0 THEN 1 ELSE 0 END) as agotados,
+                SUM(a.cantidad * a.Costo) as valor_total
+            FROM fayxzvov_mtto.mtto_almacen a
+            WHERE a.UDN_Almacen =  AND a.id_zona = ? AND a.Area = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AND a.id_zona = '6' AND a.Area = '9'' at line 8
+
+

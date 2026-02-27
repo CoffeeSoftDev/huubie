@@ -1,0 +1,418 @@
+/* ========================================
+   PALETA DE COLORES - SISTEMA ERP
+   ======================================== */
+
+/* PRIMARY BLUE - #2563EB (bg-blue-600) */
+:root {
+    --primary-blue: #2563EB;
+    --primary-blue-hover: #1d4ed8;
+    --primary-blue-light: #3b82f6;
+    --primary-blue-dark: #1e40af;
+}
+
+/* SECONDARY - DARK SLATE #0F172A (bg-slate-900) */
+:root {
+    --secondary-dark: #0F172A;
+    --secondary-dark-hover: #1e293b;
+    --secondary-dark-light: #334155;
+    --secondary-dark-lighter: #475569;
+}
+
+/* SUCCESS GREEN - #22C55E (bg-green-500) */
+:root {
+    --success-green: #22C55E;
+    --success-green-hover: #16a34a;
+    --success-green-light: #4ade80;
+    --success-green-dark: #15803d;
+}
+
+/* DANGER RED - #EF4444 (bg-red-500) */
+:root {
+    --danger-red: #EF4444;
+    --danger-red-hover: #dc2626;
+    --danger-red-light: #f87171;
+    --danger-red-dark: #b91c1c;
+}
+
+/* ========================================
+   CLASES DE UTILIDAD - PRIMARY BLUE
+   ======================================== */
+
+.bg-primary {
+    background-color: var(--primary-blue) !important;
+    color: white !important;
+}
+
+.bg-primary-hover:hover {
+    background-color: var(--primary-blue-hover) !important;
+}
+
+.text-primary {
+    color: var(--primary-blue) !important;
+}
+
+.border-primary {
+    border-color: var(--primary-blue) !important;
+}
+
+.btn-primary {
+    background-color: var(--primary-blue) !important;
+    color: white !important;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-blue-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+}
+
+/* ========================================
+   CLASES DE UTILIDAD - SECONDARY DARK
+   ======================================== */
+
+.bg-secondary {
+    background-color: var(--secondary-dark) !important;
+    color: white !important;
+}
+
+.bg-secondary-hover:hover {
+    background-color: var(--secondary-dark-hover) !important;
+}
+
+.text-secondary {
+    color: var(--secondary-dark) !important;
+}
+
+.border-secondary {
+    border-color: var(--secondary-dark) !important;
+}
+
+.btn-secondary {
+    background-color: var(--secondary-dark) !important;
+    color: white !important;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background-color: var(--secondary-dark-hover) !important;
+}
+
+/* ========================================
+   CLASES DE UTILIDAD - SUCCESS GREEN
+   ======================================== */
+
+.bg-success {
+    background-color: var(--success-green) !important;
+    color: white !important;
+}
+
+.bg-success-hover:hover {
+    background-color: var(--success-green-hover) !important;
+}
+
+.text-success {
+    color: var(--success-green) !important;
+}
+
+.border-success {
+    border-color: var(--success-green) !important;
+}
+
+.btn-success {
+    background-color: var(--success-green) !important;
+    color: white !important;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+    background-color: var(--success-green-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(34, 197, 94, 0.3);
+}
+
+/* ========================================
+   CLASES DE UTILIDAD - DANGER RED
+   ======================================== */
+
+.bg-danger {
+    background-color: var(--danger-red) !important;
+    color: white !important;
+}
+
+.bg-danger-hover:hover {
+    background-color: var(--danger-red-hover) !important;
+}
+
+.text-danger {
+    color: var(--danger-red) !important;
+}
+
+.border-danger {
+    border-color: var(--danger-red) !important;
+}
+
+.btn-danger {
+    background-color: var(--danger-red) !important;
+    color: white !important;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.btn-danger:hover {
+    background-color: var(--danger-red-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+}
+
+/* ========================================
+   BADGES Y ESTADOS
+   ======================================== */
+
+.badge-primary {
+    background-color: var(--primary-blue);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.badge-success {
+    background-color: var(--success-green);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.badge-danger {
+    background-color: var(--danger-red);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.badge-secondary {
+    background-color: var(--secondary-dark);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* ========================================
+   ALERTAS
+   ======================================== */
+
+.alert-primary {
+    background-color: rgba(37, 99, 235, 0.1);
+    border-left: 4px solid var(--primary-blue);
+    color: var(--primary-blue-dark);
+    padding: 1rem;
+    border-radius: 0.375rem;
+}
+
+.alert-success {
+    background-color: rgba(34, 197, 94, 0.1);
+    border-left: 4px solid var(--success-green);
+    color: var(--success-green-dark);
+    padding: 1rem;
+    border-radius: 0.375rem;
+}
+
+.alert-danger {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid var(--danger-red);
+    color: var(--danger-red-dark);
+    padding: 1rem;
+    border-radius: 0.375rem;
+}
+
+.alert-secondary {
+    background-color: rgba(15, 23, 42, 0.1);
+    border-left: 4px solid var(--secondary-dark);
+    color: var(--secondary-dark);
+    padding: 1rem;
+    border-radius: 0.375rem;
+}
+
+/* ========================================
+   CARDS Y CONTENEDORES
+   ======================================== */
+
+.card-primary {
+    border-top: 3px solid var(--primary-blue);
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-secondary {
+    border-top: 3px solid var(--secondary-dark);
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-success {
+    border-top: 3px solid var(--success-green);
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-danger {
+    border-top: 3px solid var(--danger-red);
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   LINKS Y NAVEGACIÓN
+   ======================================== */
+
+.link-primary {
+    color: var(--primary-blue);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.link-primary:hover {
+    color: var(--primary-blue-hover);
+    text-decoration: underline;
+}
+
+.link-secondary {
+    color: var(--secondary-dark);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.link-secondary:hover {
+    color: var(--secondary-dark-hover);
+    text-decoration: underline;
+}
+
+/* ========================================
+   TABLAS
+   ======================================== */
+
+.table-primary thead {
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+.table-secondary thead {
+    background-color: var(--secondary-dark);
+    color: white;
+}
+
+.table-striped-primary tbody tr:nth-child(odd) {
+    background-color: rgba(37, 99, 235, 0.05);
+}
+
+.table-striped-secondary tbody tr:nth-child(odd) {
+    background-color: rgba(15, 23, 42, 0.05);
+}
+
+/* ========================================
+   FORMULARIOS
+   ======================================== */
+
+.form-control:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+}
+
+.form-control.is-valid {
+    border-color: var(--success-green);
+}
+
+.form-control.is-invalid {
+    border-color: var(--danger-red);
+}
+
+/* ========================================
+   UTILIDADES ADICIONALES
+   ======================================== */
+
+.shadow-primary {
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+}
+
+.shadow-success {
+    box-shadow: 0 4px 6px rgba(34, 197, 94, 0.3);
+}
+
+.shadow-danger {
+    box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+}
+
+.shadow-secondary {
+    box-shadow: 0 4px 6px rgba(15, 23, 42, 0.3);
+}
+
+/* ========================================
+   HOVER EFFECTS
+   ======================================== */
+
+.hover-primary:hover {
+    background-color: rgba(37, 99, 235, 0.1);
+    transition: background-color 0.3s ease;
+}
+
+.hover-success:hover {
+    background-color: rgba(34, 197, 94, 0.1);
+    transition: background-color 0.3s ease;
+}
+
+.hover-danger:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    transition: background-color 0.3s ease;
+}
+
+.hover-secondary:hover {
+    background-color: rgba(15, 23, 42, 0.1);
+    transition: background-color 0.3s ease;
+}
+
+/* ========================================
+   GRADIENTES
+   ======================================== */
+
+.gradient-primary {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+    color: white;
+}
+
+.gradient-success {
+    background: linear-gradient(135deg, var(--success-green) 0%, var(--success-green-dark) 100%);
+    color: white;
+}
+
+.gradient-danger {
+    background: linear-gradient(135deg, var(--danger-red) 0%, var(--danger-red-dark) 100%);
+    color: white;
+}
+
+.gradient-secondary {
+    background: linear-gradient(135deg, var(--secondary-dark) 0%, var(--secondary-dark-light) 100%);
+    color: white;
+}

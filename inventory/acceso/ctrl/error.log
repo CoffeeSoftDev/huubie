@@ -1,0 +1,1972 @@
+[ 2025-12-11 11:16:26 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1045] Access denied for user 'fayxzvov_sl'@'localhost' (using password: YES)
+
+[ 2025-12-11 11:10:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1045] Access denied for user 'fayxzvov_sl'@'localhost' (using password: YES)
+
+[ 2025-12-11 11:10:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1045] Access denied for user 'fayxzvov_sl'@'localhost' (using password: YES)
+
+[ 2025-12-07 23:21:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.users' doesn't exist
+
+
+[ 2025-12-07 23:20:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.users' doesn't exist
+
+
+[ 2025-12-07 23:19:24 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_erp.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1142 SELECT command denied to user 'fayxzvov_sl'@'localhost' for table `rfwsmqex_erp`.`users`
+
+
+[ 2025-12-07 23:16:50 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1142 SELECT command denied to user 'fayxzvov_sl'@'localhost' for table `rfwsmqex_inventory`.`users`
+
+
+[ 2025-12-07 23:16:02 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1142 SELECT command denied to user 'fayxzvov_sl'@'localhost' for table `rfwsmqex_inventory`.`users`
+
+
+[ 2025-12-07 23:04:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:53:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:53:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:53:34 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:51:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:46:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:45:52 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:43:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:42:11 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:41:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:41:32 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:41:28 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:40:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:39:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:37:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:32:24 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:30:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:23:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:19:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:19:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 22:12:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:52:14 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:48:24 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:46:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:43:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:42:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:39:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:35:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:35:25 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:31:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:26:00 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:25:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:25:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:25:01 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:21:21 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:19:31 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:19:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:19:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:17:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:15:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:15:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:08:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:07:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:07:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:07:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:07:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:07:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:07:34 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:07:31 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:07:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:06:21 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:06:20 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:06:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:06:15 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:05:32 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:05:20 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:05:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:05:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 21:05:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:08:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:08:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:07:52 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:07:32 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:07:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:06:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:06:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:04:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:03:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:02:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 20:02:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                id,
+                user,
+                fullname,
+                photo,
+                rol,
+                rol_id
+            FROM rfwsmqex_inventory.users
+            WHERE id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1049 Unknown database 'rfwsmqex_inventory'
+
+
+[ 2025-12-07 19:45:59 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                u.idUser AS IDU,
+                u.usr_perfil AS IDP,
+                d.dir_ruta AS ruta,
+                u.usr_udn AS udn_id,
+                udn.UDN AS udn_name
+            FROM usuarios u
+            INNER JOIN permisos p ON p.id_Perfil = u.usr_perfil
+            INNER JOIN directorios d ON d.id_Directorio = p.idDirectorio
+            INNER JOIN udn ON udn.idUDN = u.usr_udn
+            WHERE u.usser = ?
+                AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+                AND u.usr_estado = 1
+                AND d.dir_estado = 1
+                AND d.dir_visible = 1
+            ORDER BY d.dir_orden ASC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:42:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                u.idUser AS IDU,
+                u.usr_perfil AS IDP,
+                d.dir_ruta AS ruta,
+                u.usr_udn AS udn_id,
+                udn.UDN AS udn_name
+            FROM usuarios u
+            INNER JOIN permisos p ON p.id_Perfil = u.usr_perfil
+            INNER JOIN directorios d ON d.id_Directorio = p.idDirectorio
+            INNER JOIN udn ON udn.idUDN = u.usr_udn
+            WHERE u.usser = ?
+                AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+                AND u.usr_estado = 1
+                AND d.dir_estado = 1
+                AND d.dir_visible = 1
+            ORDER BY d.dir_orden ASC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:42:01 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                u.idUser AS IDU,
+                u.usr_perfil AS IDP,
+                d.dir_ruta AS ruta,
+                u.usr_udn AS udn_id,
+                udn.UDN AS udn_name
+            FROM usuarios u
+            INNER JOIN permisos p ON p.id_Perfil = u.usr_perfil
+            INNER JOIN directorios d ON d.id_Directorio = p.idDirectorio
+            INNER JOIN udn ON udn.idUDN = u.usr_udn
+            WHERE u.usser = ?
+                AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+                AND u.usr_estado = 1
+                AND d.dir_estado = 1
+                AND d.dir_visible = 1
+            ORDER BY d.dir_orden ASC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:42:00 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                u.idUser AS IDU,
+                u.usr_perfil AS IDP,
+                d.dir_ruta AS ruta,
+                u.usr_udn AS udn_id,
+                udn.UDN AS udn_name
+            FROM usuarios u
+            INNER JOIN permisos p ON p.id_Perfil = u.usr_perfil
+            INNER JOIN directorios d ON d.id_Directorio = p.idDirectorio
+            INNER JOIN udn ON udn.idUDN = u.usr_udn
+            WHERE u.usser = ?
+                AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+                AND u.usr_estado = 1
+                AND d.dir_estado = 1
+                AND d.dir_visible = 1
+            ORDER BY d.dir_orden ASC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:41:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                u.idUser AS IDU,
+                u.usr_perfil AS IDP,
+                d.dir_ruta AS ruta,
+                u.usr_udn AS udn_id,
+                udn.UDN AS udn_name
+            FROM fayxzvov_erp.usuarios u
+            INNER JOIN fayxzvov_erp.permisos p ON p.id_Perfil = u.usr_perfil
+            INNER JOIN fayxzvov_erp.directorios d ON d.id_Directorio = p.idDirectorio
+            INNER JOIN fayxzvov_erp.udn ON udn.idUDN = u.usr_udn
+            WHERE u.usser = ?
+                AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+                AND u.usr_estado = 1
+                AND d.dir_estado = 1
+                AND d.dir_visible = 1
+            ORDER BY d.dir_orden ASC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:40:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                u.idUser AS IDU,
+                u.usr_perfil AS IDP,
+                d.dir_ruta AS ruta,
+                u.usr_udn AS udn_id,
+                udn.UDN AS udn_name
+            FROM fayxzvov_erp.usuarios u
+            INNER JOIN fayxzvov_erp.permisos p ON p.id_Perfil = u.usr_perfil
+            INNER JOIN fayxzvov_erp.directorios d ON d.id_Directorio = p.idDirectorio
+            INNER JOIN fayxzvov_erp.udn ON udn.idUDN = u.usr_udn
+            WHERE u.usser = ?
+                AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+                AND u.usr_estado = 1
+                AND d.dir_estado = 1
+                AND d.dir_visible = 1
+            ORDER BY d.dir_orden ASC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:38:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+			SELECT
+				u.idUser AS IDU,
+				u.usr_perfil AS IDP,
+				d.dir_ruta AS ruta,
+				u.usr_udn AS udn_id,
+				udn.UDN AS udn_name
+			FROM usuarios u
+			INNER JOIN permisos p ON p.id_Perfil = u.usr_perfil
+			INNER JOIN directorios d ON d.id_Directorio = p.idDirectorio
+			INNER JOIN udn ON udn.idUDN = u.usr_udn
+			WHERE u.usser = ?
+				AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+				AND u.usr_estado = 1
+				AND d.dir_estado = 1
+				AND d.dir_visible = 1
+			ORDER BY d.dir_orden ASC
+			LIMIT 1
+		
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:37:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+			SELECT
+				u.idUser AS IDU,
+				u.usr_perfil AS IDP,
+				d.dir_ruta AS ruta,
+				u.usr_udn AS udn_id,
+				udn.UDN AS udn_name
+			FROM usuarios u
+			INNER JOIN permisos p ON p.id_Perfil = u.usr_perfil
+			INNER JOIN directorios d ON d.id_Directorio = p.idDirectorio
+			INNER JOIN udn ON udn.idUDN = u.usr_udn
+			WHERE u.usser = ?
+				AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+				AND u.usr_estado = 1
+				AND d.dir_estado = 1
+				AND d.dir_visible = 1
+			ORDER BY d.dir_orden ASC
+			LIMIT 1
+		
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:37:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+			SELECT
+				u.idUser AS IDU,
+				u.usr_perfil AS IDP,
+				d.dir_ruta AS ruta,
+				u.usr_udn AS udn_id,
+				udn.UDN AS udn_name
+			FROM usuarios u
+			INNER JOIN permisos p ON p.id_Perfil = u.usr_perfil
+			INNER JOIN directorios d ON d.id_Directorio = p.idDirectorio
+			INNER JOIN udn ON udn.idUDN = u.usr_udn
+			WHERE u.usser = ?
+				AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+				AND u.usr_estado = 1
+				AND d.dir_estado = 1
+				AND d.dir_visible = 1
+			ORDER BY d.dir_orden ASC
+			LIMIT 1
+		
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:37:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+			SELECT
+				u.idUser AS IDU,
+				u.usr_perfil AS IDP,
+				d.dir_ruta AS ruta,
+				u.usr_udn AS udn_id,
+				udn.UDN AS udn_name
+			FROM usuarios u
+			INNER JOIN permisos p ON p.id_Perfil = u.usr_perfil
+			INNER JOIN directorios d ON d.id_Directorio = p.idDirectorio
+			INNER JOIN udn ON udn.idUDN = u.usr_udn
+			WHERE u.usser = ?
+				AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
+				AND u.usr_estado = 1
+				AND d.dir_estado = 1
+				AND d.dir_visible = 1
+			ORDER BY d.dir_orden ASC
+			LIMIT 1
+		
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.id_Directorio' in 'on clause'
+
+
+[ 2025-12-07 19:34:07 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                usuarios.idUser AS IDU,
+                usuarios.usr_perfil AS IDP,
+                directorios.dir_ruta AS ruta,
+                usuarios.usr_udn AS udn_id,
+                udn.UDN AS udn_name,
+                udn.idUDN AS udn_id_full
+            FROM
+                usuarios
+                INNER JOIN permisos ON usuarios.usr_perfil = permisos.id_Perfil
+                INNER JOIN directorios ON permisos.idDirectorio = directorios.id_Directorio
+                LEFT JOIN udn ON usuarios.usr_udn = udn.idUDN
+            WHERE
+                usuarios.usser = ?
+                AND (usuarios.keey = MD5(?) OR usuarios.keey2 = MD5(?))
+                AND usuarios.usr_estado = 1
+                AND directorios.dir_estado = 1
+                AND directorios.dir_visible = 1
+            ORDER BY
+                directorios.dir_orden ASC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'permisos.idDirectorio' in 'on clause'
+
+
+[ 2025-12-07 19:34:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                usuarios.idUser AS IDU,
+                usuarios.usr_perfil AS IDP,
+                directorios.dir_ruta AS ruta,
+                usuarios.usr_udn AS udn_id,
+                udn.UDN AS udn_name,
+                udn.idUDN AS udn_id_full
+            FROM
+                usuarios
+                INNER JOIN permisos ON usuarios.usr_perfil = permisos.id_Perfil
+                INNER JOIN directorios ON permisos.idDirectorio = directorios.id_Directorio
+                LEFT JOIN udn ON usuarios.usr_udn = udn.idUDN
+            WHERE
+                usuarios.usser = ?
+                AND (usuarios.keey = MD5(?) OR usuarios.keey2 = MD5(?))
+                AND usuarios.usr_estado = 1
+                AND directorios.dir_estado = 1
+                AND directorios.dir_visible = 1
+            ORDER BY
+                directorios.dir_orden ASC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'permisos.idDirectorio' in 'on clause'
+
+
+[ 2025-12-07 19:32:53 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                usuarios.idUser AS IDU,
+                usuarios.usr_perfil AS IDP,
+                directorios.dir_ruta AS ruta,
+                usuarios.usr_udn AS udn_id,
+                udn.UDN AS udn_name,
+                udn.idUDN AS udn_id_full
+            FROM
+                usuarios
+                INNER JOIN permisos ON usuarios.usr_perfil = permisos.id_Perfil
+                INNER JOIN directorios ON permisos.idDirectorio = directorios.id_Directorio
+                LEFT JOIN udn ON usuarios.usr_udn = udn.idUDN
+            WHERE
+                usuarios.usser = ?
+                AND (usuarios.keey = MD5(?) OR usuarios.keey2 = MD5(?))
+                AND usuarios.usr_estado = 1
+                AND directorios.dir_estado = 1
+                AND directorios.dir_visible = 1
+            ORDER BY
+                directorios.dir_orden ASC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'permisos.idDirectorio' in 'on clause'
+
+
+[ 2025-12-07 19:04:14 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1049] Unknown database 'fayxzvov_erp'
+
+[ 2025-12-07 18:48:15 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1049] Unknown database 'fayxzvov_erp'
+
+[ 2025-12-07 14:03:19 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ ERROR CONECT ] :: SQLSTATE[HY000] [1049] Unknown database 'fayxzvov_erp'
+
+[ 2025-12-06 13:06:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:05:53 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:05:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:05:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:05:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:05:11 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:05:07 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:04:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:04:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:04:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+
+[ 2025-12-06 13:04:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT
+        	idUser AS IDU,
+        	usr_perfil AS IDP,
+        	dir_ruta AS ruta
+			usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos ON id_Perfil = usr_perfil
+        	INNER JOIN directorios ON id_Directorio = idDirectorio 
+        WHERE
+        	usser = ? 
+        	AND (
+        		keey = MD5( ? ) 
+        	OR keey2 = MD5( ? )) 
+        	AND usr_estado = 1
+        	AND directorios.dir_estado = 1 
+        	AND directorios.dir_visible = 1 
+        ORDER BY
+        	dir_orden ASC 
+        	LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'usr_udn as udn_id
+        FROM
+        	usuarios
+        	INNER JOIN permisos' at line 5
+
+

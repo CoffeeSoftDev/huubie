@@ -1,0 +1,291 @@
+/* ========================================
+   COMPACT STYLES - CoffeeSoft Framework
+   Tamaños reducidos para UI más compacta
+======================================== */
+
+/* Base font size */
+html {
+    font-size: 14px;
+}
+
+/* Form Controls - Inputs, Selects, Textareas */
+.form-control,
+.form-select,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+input[type="tel"],
+select,
+textarea {
+    font-size: 0.85rem !important;
+    /* padding: 0.375rem 0.65rem !important; */
+    height: auto !important;
+    /* min-height: 2rem !important; */
+}
+
+/* Labels */
+label,
+.form-label {
+    font-size: 0.75rem !important;
+    margin-bottom: 0.25rem !important;
+    font-weight: 500;
+    color: #6b7280;
+}
+
+/* Select2 Compact */
+.select2-container--bootstrap-5 .select2-selection {
+    font-size: 0.85rem !important;
+    min-height: 2rem !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+    font-size: 0.85rem !important;
+    line-height: 1.5 !important;
+}
+
+.select2-results__option {
+    font-size: 0.85rem !important;
+    padding: 0.35rem 0.65rem !important;
+}
+ 
+/* Buttons */
+.btn {
+    /* font-size: 0.8rem !important; */
+    /* padding: 0.35rem 0.75rem !important; */
+}
+
+.btn-sm {
+    font-size: 0.85rem !important;
+    /* padding: 0.25rem 0.5rem !important; */
+} 
+/* ========================================
+   TABLES - Estilos compactos para tablas
+======================================== */
+
+/* Bootstrap Tables */
+.table {
+    font-size: 0.8rem !important;
+}
+
+.table th,
+.table td {
+    font-size: 0.8rem !important;
+    padding: 0.4rem 0.5rem !important;
+    vertical-align: middle;
+}
+
+.table thead th {
+    font-size: 0.7rem !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.5rem !important;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid #e9ecef;
+}
+
+.table-sm th,
+.table-sm td {
+    font-size: 0.80rem !important;
+    padding: 0.3rem 0.4rem !important;
+}
+
+/* CoffeeSoft Tables - Tailwind */
+table th,
+table td {
+    font-size: 0.8rem !important;
+    padding: 0.4rem 0.5rem !important;
+}
+
+/* Table buttons */
+/* .table .btn,
+table .btn {
+    font-size: 0.7rem !important;
+    padding: 0.2rem 0.4rem !important;
+}
+
+.table .btn-sm,
+table .btn-sm {
+    font-size: 0.65rem !important;
+    padding: 0.15rem 0.35rem !important;
+} */
+
+/* Table dropdown */
+.table .dropdown-item,
+table .dropdown-item {
+    font-size: 0.75rem !important;
+    padding: 0.35rem 0.75rem !important;
+}
+
+/* DataTables */
+.dataTables_wrapper {
+    font-size: 0.8rem !important;
+}
+
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_paginate {
+    font-size: 0.75rem !important;
+}
+
+.dataTables_wrapper .dataTables_length select,
+.dataTables_wrapper .dataTables_filter input {
+    font-size: 0.75rem !important;
+    padding: 0.2rem 0.4rem !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* DataTables header */
+table.dataTable thead th,
+table.dataTable thead td {
+    font-size: 0.7rem !important;
+    padding: 0.5rem !important;
+}
+
+table.dataTable tbody th,
+table.dataTable tbody td {
+    font-size: 0.8rem !important;
+    padding: 0.4rem 0.5rem !important;
+}
+
+/* Striped tables */
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Hover effect */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Table responsive */
+.table-responsive {
+    font-size: 0.8rem !important;
+}
+
+/* CoffeeSoft Theme Tables */
+[class*="theme-"] table th,
+[class*="theme-"] table td {
+    font-size: 0.8rem !important;
+    padding: 0.4rem 0.5rem !important;
+}
+
+/* Group rows */
+.bg-disabled2,
+.bg-gray-300,
+[class*="bg-group"] {
+    font-size: 0.75rem !important;
+    font-weight: 600;
+}
+
+/* DateRangePicker */
+.daterangepicker {
+    font-size: 0.8rem !important;
+}
+
+.daterangepicker .calendar-table th,
+.daterangepicker .calendar-table td {
+    font-size: 0.75rem !important;
+    padding: 0.25rem !important;
+    min-width: 28px !important;
+    height: 28px !important;
+}
+
+.daterangepicker select.monthselect,
+.daterangepicker select.yearselect {
+    font-size: 0.75rem !important;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    font-size: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.breadcrumb-item {
+    font-size: 0.75rem !important;
+}
+
+/* Cards */
+.card-title {
+    font-size: 0.95rem !important;
+}
+
+.card-body {
+    padding: 0.75rem !important;
+}
+
+/* Headings */
+h1, .h1 { font-size: 1.4rem !important; }
+h2, .h2 { font-size: 1.25rem !important; }
+h3, .h3 { font-size: 1.1rem !important; }
+h4, .h4 { font-size: 1rem !important; }
+h5, .h5 { font-size: 0.9rem !important; }
+h6, .h6 { font-size: 0.85rem !important; }
+
+/* Paragraphs and text */
+p, span, div {
+    font-size: inherit;
+}
+
+.text-sm { font-size: 0.8rem !important; }
+.text-xs { font-size: 0.7rem !important; }
+
+/* Modal */
+.modal-title {
+    font-size: 1rem !important;
+}
+
+.modal-body {
+    font-size: 0.85rem !important;
+}
+
+/* SweetAlert2 */
+.swal2-title {
+    font-size: 1.1rem !important;
+}
+
+.swal2-html-container {
+    font-size: 0.85rem !important;
+}
+
+.swal2-confirm,
+.swal2-cancel {
+    font-size: 0.8rem !important;
+}
+
+/* Navbar compact */
+.navbar {
+    padding: 0.35rem 1rem !important;
+}
+
+/* FilterBar row spacing */
+.row.g-3 {
+    --bs-gutter-y: 0.5rem;
+    --bs-gutter-x: 0.5rem;
+}
+
+/* Compact spacing utilities */
+.compact-form .form-control,
+.compact-form .form-select {
+    font-size: 0.8rem !important;
+    padding: 0.3rem 0.5rem !important;
+}
+
+.compact-form label {
+    font-size: 0.7rem !important;
+    margin-bottom: 0.15rem !important;
+}

@@ -1,0 +1,635 @@
+[06-Dec-2025 19:57:11 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[06-Dec-2025 19:57:11 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[06-Dec-2025 19:57:11 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[06-Dec-2025 19:57:12 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[06-Dec-2025 19:57:12 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[06-Dec-2025 19:57:12 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[06-Dec-2025 19:57:12 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[06-Dec-2025 19:57:15 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[06-Dec-2025 19:57:15 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[06-Dec-2025 19:57:15 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[06-Dec-2025 19:57:15 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[06-Dec-2025 19:57:39 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[06-Dec-2025 19:57:39 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[06-Dec-2025 19:57:39 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[06-Dec-2025 19:57:39 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[06-Dec-2025 19:57:40 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:16:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:16:02 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:16:02 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:16:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:16:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:16:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:16:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:16:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:16:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:16:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:16:03 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:16:03 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:16:03 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:16:03 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:16:30 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:16:31 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:16:31 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:16:31 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:16:31 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:16:50 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:16:50 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:16:50 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:16:50 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:16:50 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:16:50 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:16:50 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:16:50 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:16:50 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:16:50 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:16:51 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:16:51 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:16:51 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:16:51 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:19:25 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:19:25 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:19:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:20:01 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:20:01 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:20:01 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:20:01 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:20:01 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:20:01 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:20:01 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:20:01 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:20:01 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:20:01 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:20:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:20:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:20:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:20:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:21:15 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:21:15 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:21:15 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:21:15 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:21:15 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:21:15 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:21:15 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:21:15 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:21:15 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:21:15 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:21:16 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:21:16 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:21:16 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:21:16 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:21:21 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:21:25 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:21:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:21:25 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:21:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 05:27:07 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:27:07 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:27:07 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:27:08 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:27:51 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:27:51 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:27:51 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:27:51 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:27:51 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:27:51 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:27:51 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:27:51 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:27:52 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:27:52 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:27:52 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:27:52 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:27:52 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:27:52 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:31:37 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:31:37 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:31:37 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:31:37 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:31:37 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:31:37 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:31:37 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:31:37 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:31:37 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:31:37 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:31:38 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:31:38 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:31:38 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:31:38 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:36:47 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:36:47 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:36:47 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:36:48 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:41:01 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:41:01 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:41:01 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:41:02 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:41:30 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:41:30 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:41:30 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:41:30 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:41:30 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:41:30 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:41:31 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:41:31 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:41:31 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:41:31 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:41:31 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:41:31 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:41:31 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:41:31 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:44:33 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:44:33 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:44:33 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:44:33 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:44:34 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:44:35 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:44:37 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:44:37 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:44:37 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:44:37 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:44:39 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:44:39 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:44:40 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:44:40 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 05:48:42 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[07-Dec-2025 23:48:42 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[07-Dec-2025 23:48:42 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:48:43 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:48:49 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:48:52 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:48:54 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 4
+[08-Dec-2025 05:58:47 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[08-Dec-2025 06:06:13 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:06:13 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:06:13 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:06:13 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:06:13 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:06:13 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:06:14 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:06:14 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:06:14 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:06:14 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:06:14 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:06:14 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:06:56 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:06:56 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:06:56 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:06:56 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:06:56 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:06:56 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:07:03 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:07:03 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:07:03 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:07:04 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:07:04 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 06:07:04 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 06:07:41 UTC] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 81
+[08-Dec-2025 06:07:41 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 82
+[08-Dec-2025 00:07:41 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 95
+[08-Dec-2025 06:07:47 UTC] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 81
+[08-Dec-2025 06:07:47 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 82
+[08-Dec-2025 00:07:47 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 95
+[08-Dec-2025 06:08:25 UTC] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 81
+[08-Dec-2025 06:08:25 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 82
+[08-Dec-2025 00:08:25 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 95
+[08-Dec-2025 06:08:39 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:08:39 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 217
+[08-Dec-2025 06:08:39 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 217
+[08-Dec-2025 06:08:40 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:08:40 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 06:08:40 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 06:08:44 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:08:44 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 06:08:44 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 06:08:46 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:08:46 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:08:46 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:08:48 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:08:48 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:08:48 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 86
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 86
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 88
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 88
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 63
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 63
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:08:52 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:08:54 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:08:54 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:08:54 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:08:54 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:08:54 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:08:54 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:09:05 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:09:05 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:09:05 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:09:05 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:09:05 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:09:05 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:09:28 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:09:28 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:09:28 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:09:28 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:09:28 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:09:28 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:09:28 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:28 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:28 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:28 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:28 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:28 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:35 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:35 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:35 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:35 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:35 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:35 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:44 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:09:44 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:09:44 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:09:45 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:09:45 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 06:09:45 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 06:09:46 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:09:46 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:09:46 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 06:09:46 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 06:09:46 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:09:46 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 06:09:48 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:48 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:48 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:48 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:48 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:48 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 06:09:55 UTC] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 81
+[08-Dec-2025 06:09:55 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 82
+[08-Dec-2025 13:09:25 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:09:25 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:09:25 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 13:09:25 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 13:09:25 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 13:09:25 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 13:09:25 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 13:09:25 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 13:09:25 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 13:09:25 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 13:09:25 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 13:09:25 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 13:10:18 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:10:18 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 13:10:18 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[08-Dec-2025 13:10:29 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:10:29 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 344
+[08-Dec-2025 13:10:29 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 344
+[08-Dec-2025 13:12:20 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:20 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 344
+[08-Dec-2025 13:12:20 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-catalogo.php on line 344
+[08-Dec-2025 13:12:20 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 178
+[08-Dec-2025 13:12:20 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 178
+[08-Dec-2025 13:12:20 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:20 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:20 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:43 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:43 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:43 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:44 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:44 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:44 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:44 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:44 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:44 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:45 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:46 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:46 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:46 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:46 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:46 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:46 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:47 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:48 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:12:48 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:12:48 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:13:22 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:13:22 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 13:13:22 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 24
+[08-Dec-2025 13:13:23 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:13:23 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 13:13:23 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 80
+[08-Dec-2025 13:13:24 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 4
+[08-Dec-2025 13:13:24 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:13:24 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 137
+[08-Dec-2025 13:17:49 UTC] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 81
+[08-Dec-2025 13:17:49 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 82
+[08-Dec-2025 07:17:49 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 95
+[08-Dec-2025 07:18:54 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 95
+[08-Dec-2025 07:19:45 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 95
+[08-Dec-2025 07:20:03 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 95
+[08-Dec-2025 07:21:59 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 93
+[08-Dec-2025 13:25:43 UTC] PHP Fatal error:  Uncaught Error: Call to undefined method ctrl::getMaxFolio() in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php:71
+Stack trace:
+#0 /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php(515): ctrl->addMovimiento()
+#1 {main}
+  thrown in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 71
+[08-Dec-2025 13:26:21 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 17:27:03 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 17:27:14 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 18:24:03 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:24:03 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:24:03 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:24:03 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:24:03 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:24:03 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:24:21 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:24:21 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:24:21 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:24:21 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:24:21 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:24:21 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:29:01 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:29:01 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:29:01 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:29:01 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:29:01 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:29:01 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:31:55 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:31:55 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:31:55 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:31:55 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:31:55 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:31:55 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:31:56 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:31:56 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:31:56 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:31:56 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:31:56 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:31:56 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 12:32:48 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 93
+[08-Dec-2025 12:32:56 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 93
+[08-Dec-2025 18:35:14 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:14 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:14 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:14 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:14 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:35:14 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:35:17 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:17 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:17 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:17 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:35:17 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:17 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:35:20 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:20 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:20 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:35:20 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:20 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:35:20 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:21 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:21 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:21 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:21 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:21 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:35:21 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:35:23 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:23 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:23 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 121
+[08-Dec-2025 18:35:23 UTC] PHP Warning:  session_start(): Session cannot be started after headers have already been sent in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 4
+[08-Dec-2025 18:35:23 UTC] PHP Warning:  Undefined global variable $_SESSION in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:35:23 UTC] PHP Warning:  Trying to access array offset on value of type null in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-existencias.php on line 52
+[08-Dec-2025 18:41:20 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 18:41:25 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 18:45:15 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 18:47:20 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 18:48:13 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 18:48:21 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 18:48:28 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 04:31:36 UTC] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 79
+[09-Dec-2025 04:31:36 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 80
+[09-Dec-2025 04:37:15 UTC] PHP Fatal error:  Uncaught ArgumentCountError: Too few arguments to function mdl::getMaxFolio(), 0 passed in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 71 and exactly 1 expected in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php:48
+Stack trace:
+#0 /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php(71): mdl->getMaxFolio()
+#1 /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php(515): ctrl->addMovimiento()
+#2 {main}
+  thrown in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 48
+[09-Dec-2025 04:37:27 UTC] PHP Fatal error:  Uncaught ArgumentCountError: Too few arguments to function mdl::getMaxFolio(), 0 passed in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 71 and exactly 1 expected in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php:48
+Stack trace:
+#0 /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php(71): mdl->getMaxFolio()
+#1 /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php(515): ctrl->addMovimiento()
+#2 {main}
+  thrown in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 48
+[09-Dec-2025 04:40:54 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 52
+[08-Dec-2025 22:40:54 America/Mexico_City] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 79
+[08-Dec-2025 22:40:54 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 80
+[08-Dec-2025 22:40:54 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 93
+[09-Dec-2025 04:41:39 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 52
+[08-Dec-2025 22:41:39 America/Mexico_City] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 79
+[08-Dec-2025 22:41:39 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 80
+[08-Dec-2025 22:41:39 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 93
+[09-Dec-2025 04:42:15 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 52
+[08-Dec-2025 22:42:15 America/Mexico_City] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 79
+[08-Dec-2025 22:42:15 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 80
+[08-Dec-2025 22:42:15 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 93
+[09-Dec-2025 04:42:21 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 52
+[08-Dec-2025 22:42:21 America/Mexico_City] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 79
+[08-Dec-2025 22:42:21 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 80
+[08-Dec-2025 22:42:21 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 93
+[09-Dec-2025 04:42:54 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[08-Dec-2025 22:42:54 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[08-Dec-2025 22:42:54 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[09-Dec-2025 04:42:54 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 04:42:54 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 23
+[09-Dec-2025 04:42:54 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[09-Dec-2025 04:42:55 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[09-Dec-2025 04:42:55 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[09-Dec-2025 04:43:00 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 52
+[08-Dec-2025 22:43:00 America/Mexico_City] PHP Warning:  Undefined array key "IDU" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 77
+[08-Dec-2025 22:43:00 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 78
+[08-Dec-2025 22:43:00 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 04:43:50 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 52
+[08-Dec-2025 22:43:50 America/Mexico_City] PHP Fatal error:  Uncaught TypeError: Unsupported operand types: array + int in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php:70
+Stack trace:
+#0 /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php(513): ctrl->addMovimiento()
+#1 {main}
+  thrown in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 70
+[09-Dec-2025 04:44:06 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 52
+[08-Dec-2025 22:44:06 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:44:06 America/Mexico_City] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[09-Dec-2025 04:44:32 UTC] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 04:44:32 UTC] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[09-Dec-2025 04:45:44 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 53
+[08-Dec-2025 22:45:44 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:45:44 America/Mexico_City] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[09-Dec-2025 04:46:01 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 53
+[08-Dec-2025 22:46:01 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:46:01 America/Mexico_City] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[08-Dec-2025 22:46:01 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 93
+[09-Dec-2025 04:46:15 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 53
+[08-Dec-2025 22:46:15 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:46:15 America/Mexico_City] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[09-Dec-2025 04:46:42 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 53
+[08-Dec-2025 22:46:43 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:46:43 America/Mexico_City] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[08-Dec-2025 22:46:43 America/Mexico_City] PHP Warning:  Undefined variable $_SESION in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 93
+[09-Dec-2025 04:47:03 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[08-Dec-2025 22:47:03 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[08-Dec-2025 22:47:03 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[09-Dec-2025 04:47:03 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 04:47:03 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[09-Dec-2025 04:47:03 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 23
+[09-Dec-2025 04:47:04 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[09-Dec-2025 04:47:04 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[09-Dec-2025 04:47:26 UTC] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 04:47:26 UTC] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[09-Dec-2025 04:48:01 UTC] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 04:48:01 UTC] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[09-Dec-2025 04:49:28 UTC] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 04:49:28 UTC] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[09-Dec-2025 04:50:02 UTC] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 04:50:02 UTC] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[09-Dec-2025 04:52:23 UTC] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 04:52:23 UTC] PHP Warning:  Undefined variable $folio in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 92
+[09-Dec-2025 04:53:02 UTC] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:55:18 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:55:23 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 04:55:46 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[08-Dec-2025 22:55:51 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:56:28 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 04:57:21 UTC] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:58:27 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[08-Dec-2025 22:58:35 America/Mexico_City] PHP Warning:  Undefined variable $id_movimiento in /home/fayxzvov/public_html/inventory/operacion/almacen/ctrl/ctrl-inventario.php on line 91
+[09-Dec-2025 05:01:17 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 05:01:17 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 05:01:39 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 05:01:39 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:23:27 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:28 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:29 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:29 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:29 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:30 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:30 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:30 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:31 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:36 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 22
+[09-Dec-2025 05:23:36 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 33
+[09-Dec-2025 05:23:36 America/Mexico_City] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 44
+[09-Dec-2025 11:23:36 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-almacen.php on line 96
+[09-Dec-2025 11:23:36 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-inventario.php on line 32
+[09-Dec-2025 11:23:36 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 136
+[09-Dec-2025 11:23:36 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-catalogo.php on line 23
+[09-Dec-2025 11:23:37 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 125
+[09-Dec-2025 11:23:37 UTC] PHP Warning:  Undefined array key "idUDN" in /home/fayxzvov/public_html/inventory/operacion/almacen/mdl/mdl-movimientos.php on line 76
+[09-Dec-2025 11:27:00 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:27:00 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:27:11 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:27:11 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:29:29 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:29:29 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:31:00 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:31:00 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:32:33 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:32:33 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:32:55 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:32:55 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:33:32 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:33:32 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:34:19 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:34:19 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:36:02 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:36:02 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:36:08 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71
+[09-Dec-2025 11:36:08 UTC] PHP Deprecated:  Function strftime() is deprecated in /home/fayxzvov/public_html/inventory/conf/coffeSoft.php on line 71

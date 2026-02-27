@@ -268,13 +268,112 @@ Ejemplos:
         }
    ```
 
+7. **delete[Entidad]()**
+
+   - Elimina un registro de forma permanente.
+   - **IMPORTANTE:** Validar permisos de usuario antes de eliminar (ej: solo administradores).
+
+   ```php
+   function deleteOrder() {
+        $status  = 500;
+        $message = 'Error al eliminar el pedido';
+
+        if ($_SESSION['ROLID'] != 1) {
+            return [
+                'status'  => 403,
+                'message' => 'No tienes permisos para eliminar pedidos'
+            ];
+        }
+
+        $id = $_POST['id'];
+        
+        $delete = $this->deleteOrderById([$id]);
+
+        if ($delete) {
+            $status  = 200;
+            $message = 'Pedido eliminado correctamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
+    }
+   ```
+
+   Funciones extra:
+
+   - **dropdown($id)**: Construye opciones de acciones disponibles según el estado del registro.
+   - **getEstatus($idStatus)**: Devuelve el texto correspondiente al estado (opcional).
+   - **a**: arreglo dentro de row para crear botones
+   
+## 7. **delete[Entidad]()**
+
+Elimina un registro de la base de datos utilizando el método del modelo.
+
+- Recibe el identificador por POST
+- Prepara los datos usando `$this->util->sql()` con el parámetro `1` para formato WHERE
+- Ejecuta `delete[Entidad]ById()` del modelo
+- Retorna `status` y `message` de eliminación
+
+**Estructura del método:**
+
+```php
+function deleteProductoMovimiento() {
+    $idDetalle = $_POST['id_detalle'];
+    $status    = 500;
+    $message   = 'Error al eliminar producto';
+    
+    $values = $this->util->sql(['id_detalle' => $idDetalle], 1);
+    $delete = $this->deleteDetalleMovimientoById($values);
+
+    if ($delete) {
+        $status = 200;
+        $message = 'Producto eliminado correctamente';
+    }
+
+    return [
+        'status'  => $status,
+        'message' => $message
+    ];
+}
+```
+
+**Notas sobre delete[Entidad]():**
+- Usar `$this->util->sql()` con parámetro `1` para generar formato WHERE/DATA
+- El método del modelo recibe `$values` que contiene `['where']` y `['data']`
+- Siempre validar el resultado con condicional `if ($delete)`
+- Retornar estructura estándar con `status` y `message`
+
+**Ejemplo alternativo (eliminación simple por ID):**
+
+```php
+function deleteMaterial() {
+    $status  = 500;
+    $message = 'Error al eliminar material';
+    
+    $values = $this->util->sql(['id' => $_POST['id']], 1);
+    $delete = $this->deleteMaterialById($values);
+
+    if ($delete) {
+        $status  = 200;
+        $message = 'Material eliminado correctamente';
+    }
+
+    return [
+        'status'  => $status,
+        'message' => $message
+    ];
+}
+```
+
    Funciones extra:
 
    - **dropdown($id)**: Construye opciones de acciones disponibles según el estado del registro.
    - **getEstatus($idStatus)**: Devuelve el texto correspondiente al estado (opcional).
    - **a**: arreglo dentro de row para crear botones
 
-## 7. **Funciones Auxiliares**
+## 8. **Funciones Auxiliares**
 
 Si necesitas funciones auxiliares (como `dropdown()`, `status()`, `formatSpanishDate()`, etc.), créalas después de la clase principal con el comentario `// Complements`:
 

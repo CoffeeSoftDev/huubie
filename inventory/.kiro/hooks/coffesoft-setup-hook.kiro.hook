@@ -1,0 +1,20 @@
+{
+  "enabled": false,
+  "name": "CoffeeSoft Project Setup",
+  "description": "Detecta cuando se inicia un nuevo proyecto y recuerda incluir coffeSoft.js y plugins.js en el archivo principal para poder consultarlos y usar el framework correctamente",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "index.php",
+      "*.html",
+      "main.js",
+      "app.js",
+      "*.php"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Un nuevo proyecto ha sido detectado. Recuerda que SIEMPRE debes incluir los archivos esenciales de CoffeeSoft:\n\n1. En el archivo principal (index.php o HTML):\n   ```html\n   <script src=\"src/js/coffeSoft.js\"></script>\n   <script src=\"src/js/plugins.js\"></script>\n   ```\n\n2. Verifica que la estructura del proyecto incluya:\n\n   - Div contenedor: <div id=\"root\"></div>\n   - Clases que extiendan Templates del framework\n\n3. Si es un nuevo componente, asegúrate de seguir las reglas de new-component.md\n\nEsto es CRÍTICO para que el framework CoffeeSoft funcione correctamente y los desarrolladores puedan consultar todas las utilidades disponibles."
+  }
+}

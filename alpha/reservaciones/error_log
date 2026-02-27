@@ -1,0 +1,12 @@
+[01-Sep-2025 18:05:43 UTC] PHP Fatal error:  Uncaught Error: Undefined constant "PATH_RESERVACIONES" in /home/fayxzvov/public_html/alpha/reservaciones/index.php:87
+Stack trace:
+#0 {main}
+  thrown in /home/fayxzvov/public_html/alpha/reservaciones/index.php on line 87
+[01-Sep-2025 18:05:59 UTC] PHP Fatal error:  Uncaught Error: Undefined constant "PATH_RESERVACIONES" in /home/fayxzvov/public_html/alpha/reservaciones/index.php:87
+Stack trace:
+#0 {main}
+  thrown in /home/fayxzvov/public_html/alpha/reservaciones/index.php on line 87
+[01-Sep-2025 18:15:19 UTC] PHP Fatal error:  Uncaught Error: Undefined constant "PATH_RESERVACIONES" in /home/fayxzvov/public_html/alpha/reservaciones/index.php:87
+Stack trace:
+#0 {main}
+  thrown in /home/fayxzvov/public_html/alpha/reservaciones/index.php on line 87

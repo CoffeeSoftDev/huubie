@@ -1,0 +1,101 @@
+Options +FollowSymLinks
+Options -Indexes
+
+RewriteEngine On
+
+# Base del proyecto
+RewriteBase /alpha/
+
+# -----------------------------
+# Rutas públicas (sin permisos)
+# -----------------------------
+# Inicio (login)
+# RewriteRule ^$ index.php [L]
+
+
+# # Cerrar sesión
+# RewriteRule ^salir/?$ logout.php [L]
+
+# # MENUS
+# RewriteRule ^menu/$ menus/menu.php [L]
+# RewriteRule ^ventas/$ menus/ventas.php [L]
+
+# # -----------------------------
+# # 2. Evitar bucle en la barra final
+# # -----------------------------
+# RewriteCond %{REQUEST_URI} !/$
+# RewriteCond %{REQUEST_URI} !^/alpha/$
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteCond %{REQUEST_FILENAME} !-d
+# RewriteRule ^(.+)$ /alpha/$1/ [R=301,L]
+
+# # -----------------------------
+# # 3. Router principal del ERP
+# # Todas las rutas pasan por index.php
+# # -----------------------------
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteCond %{REQUEST_FILENAME} !-d
+# RewriteRule ^(.*)$ validation.php?route=$1 [L,QSA]
+
+
+
+
+
+
+Options +FollowSymLinks
+Options -Indexes
+RewriteEngine on
+
+#Página base
+RewriteBase /alpha/
+#Página de inicio login
+RewriteRule ^./$ index.php [L]
+#Página para cerrar sesión
+RewriteRule ^salir/$ logout.php [L]
+
+# Evitar bucles infinitos al redirigir a minúsculas
+RewriteCond %{REQUEST_URI} [A-Z]
+RewriteRule . - [L]
+
+
+# RewriteRule (.*) ${lc:$1} [R=301,L]
+
+# Forzar la barra al final solo si no es un archivo o directorio real
+# RewriteCond %{REQUEST_URI} !(.*)/$
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteCond %{REQUEST_FILENAME} !-d
+# RewriteRule ^(.*)$ /alpha/$1/ [R=301,L]
+
+# MENUS
+RewriteRule ^menu/$ menus/menu.php [L]
+RewriteRule ^ventas/$ menus/ventas.php [L]
+# RewriteRule ^configuracion/$ menus/configuracion.php [L]
+
+# Configuracion
+RewriteRule ^usuarios/$ admin/index.php [L]
+RewriteRule ^empresas/$ admin/empresas.php [L]
+RewriteRule ^perfil/$ admin/perfil.php [L]
+
+# Pedidos
+RewriteRule ^pedidos/$ pedidos/index.php [L]
+# RewriteRule ^pedidos/catalogos/$ pedidos/admin.php [L]
+RewriteRule ^pedidos-catalogos/$ pedidos/admin.php [L]
+RewriteRule ^pedidos/calendario/$ pedidos/calendario/index.php [L]
+
+# Eventos
+RewriteRule ^eventos/$ eventos/index.php [L]
+RewriteRule ^eventos/catalogos/$ admin/paquetes.php [L]
+RewriteRule ^eventos/calendario/$ eventos/calendario.php [L]
+
+# Reservaciones
+RewriteRule ^reservaciones/$ reservaciones/index.php [L]
+
+
+# etc
+# RewriteRule ^playground/$ pedidos/playground.php [L]
+# RewriteRule ^dashboard/$ dashboard/index.php [L]
+
+# Manejo de rutas no definidas: Redirigir a acceso-denegado.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /alpha/access/404.php [L]

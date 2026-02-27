@@ -1,0 +1,3591 @@
+[ 2025-09-30 20:38:39 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_payments (pay,type,method_pay_id,evt_events_id,date_pay,user_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'INSERT INTO'
+
+
+[ 2025-09-30 20:38:30 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_payments (pay,type,method_pay_id,evt_events_id,date_pay,user_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'INSERT INTO'
+
+
+[ 2025-09-05 10:37:20 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_payments (pay,type,method_pay_id,evt_events_id,date_pay,user_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'INSERT INTO'
+
+
+[ 2025-08-08 07:03:37 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE fayxzvov_coffee.evt_events_package SET quantity = ?,total = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'total' in 'SET'
+
+
+[ 2025-08-08 07:03:33 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE fayxzvov_coffee.evt_events_package SET quantity = ?,total = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'total' in 'SET'
+
+
+[ 2025-08-08 07:01:42 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE fayxzvov_coffee.evt_events_package SET quantity = ?,total = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'total' in 'SET'
+
+
+[ 2025-08-08 06:44:25 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-07-29 15:28:26 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_histories (title,evt_events_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_histories`, CONSTRAINT `evt_histories_ibfk_1` FOREIGN KEY (`evt_events_id`) REFERENCES `evt_events` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-07-24 17:15:53 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_events_package (product_id,quantity,subevent_id,evt_events_id) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_id' in 'INSERT INTO'
+
+
+[ 2025-07-24 17:15:52 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_events_package (product_id,quantity,subevent_id,evt_events_id) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_id' in 'INSERT INTO'
+
+
+[ 2025-07-24 17:15:42 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_events_package (product_id,quantity,subevent_id,evt_events_id) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_id' in 'INSERT INTO'
+
+
+[ 2025-07-24 17:15:39 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_events_package (product_id,quantity,subevent_id,evt_events_id) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_id' in 'INSERT INTO'
+
+
+[ 2025-07-24 17:14:10 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_events_package (product_id,quantity,subevent_id,evt_events_id) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_id' in 'INSERT INTO'
+
+
+[ 2025-07-24 17:13:31 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_events_package (product_id,quantity,subevent_id,evt_events_id) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_id' in 'INSERT INTO'
+
+
+[ 2025-07-24 17:12:33 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_events_package (product_id,quantity,subevent_id,evt_events_id) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_id' in 'INSERT INTO'
+
+
+[ 2025-07-24 17:11:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_events_package (product_id,quantity,subevent_id,evt_events_id) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_id' in 'INSERT INTO'
+
+
+[ 2025-07-22 19:41:39 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_payments (pay,type,method_pay_id,evt_events_id,date_pay,user_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'INSERT INTO'
+
+
+[ 2025-07-22 19:41:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_payments (pay,type,method_pay_id,evt_events_id,date_pay,user_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'INSERT INTO'
+
+
+[ 2025-07-22 19:40:47 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_payments (pay,type,method_pay_id,evt_events_id,date_pay,user_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'INSERT INTO'
+
+
+[ 2025-07-15 19:55:22 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client,
+         FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON ev.status_process_id = s.id WHERE ev.subsidiaries_id = ? AND YEAR(ev.date_start) = YEAR(CURDATE()) GROUP BY ev.id ORDER BY ev.date_start ASC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON ev.status...' at line 10
+
+
+[ 2025-07-15 19:54:59 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client,
+         FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON ev.status_process_id = s.id WHERE ev.subsidiaries_id = ? AND YEAR(ev.date_start) = YEAR(CURDATE()) GROUP BY ev.id ORDER BY ev.date_start ASC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON ev.status...' at line 10
+
+
+[ 2025-07-15 19:47:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client
+            evt_events_id FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON ev.status_process_id = s.id LEFT JOIN evt_subevents sub ON ev.id = sub.evt_events_id WHERE ev.subsidiaries_id = ? AND YEAR(ev.date_start) = YEAR(CURDATE()) GROUP BY ev.id ORDER BY ev.date_start ASC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'evt_events_id FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process ...' at line 10
+
+
+[ 2025-07-15 19:21:41 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON ev.status_process_id = s.id LEFT JOIN evt_subevents sub ON ev.id = sub.evt_events_id WHERE ev.subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY ev.date_start ASC 
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'date_start' in WHERE is ambiguous
+
+
+[ 2025-07-15 19:21:00 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON ev.status_process_id = s.id LEFT JOIN evt_subevents sub ON ev.id = sub.evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'date_start' in WHERE is ambiguous
+
+
+[ 2025-07-15 19:20:16 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON status_process_id = status_process.id LEFT JOIN evt_subevents ON evt_events.id = evt_subevents.evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'date_start' in WHERE is ambiguous
+
+
+[ 2025-07-15 19:19:26 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON status_process_id = status_process.id LEFT JOIN evt_events_id ON evt_events.id = evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_events_id' doesn't exist
+
+
+[ 2025-07-15 19:18:41 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.evt_events.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON status_process_id = status_process.id LEFT JOIN evt_events_id ON evt_events.id = evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_events_id' doesn't exist
+
+
+[ 2025-07-15 19:18:10 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.evt_events.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON status_process_id = status_process.id LEFT JOIN evt_events_id ON evt_events.id = evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_events_id' doesn't exist
+
+
+[ 2025-07-15 19:18:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            ev.evt_events.id, 
+            ev.name_event AS title, 
+            ev.date_start AS start, 
+            ev.date_end AS end, 
+            ev.location, 
+            s.status, 
+            ev.status_process_id AS idStatus, 
+            ev.name_client AS client FROM fayxzvov_alpha_2.evt_events ev   LEFT JOIN status_process s ON status_process_id = status_process.id LEFT JOIN evt_events_id ON evt_events.id = evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_events_id' doesn't exist
+
+
+[ 2025-07-15 19:14:45 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            evt_events.id, 
+            name_event AS title, 
+            date_start AS start, 
+            date_end AS end, 
+            location, 
+            status, 
+            status_process_id AS idStatus, 
+            name_client AS client FROM fayxzvov_alpha_2.evt_events   LEFT JOIN status_process ON status_process_id = status_process.id LEFT JOIN evt_events_id ON evt_events.id = evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_events_id' doesn't exist
+
+
+[ 2025-07-15 19:12:59 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            evt_events.id, 
+            name_event AS title, 
+            date_start AS start, 
+            date_end AS end, 
+            location, 
+            status, 
+            status_process_id AS idStatus, 
+            name_client AS client,
+            evt_events_id FROM fayxzvov_alpha_2.evt_events   LEFT JOIN status_process ON status_process_id = status_process.id LEFT JOIN evt_subevents ON evt_events.id = evt_subevents.evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'date_start' in SELECT is ambiguous
+
+
+[ 2025-07-15 19:11:48 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            evt_events.id, 
+            name_event AS title, 
+            date_start AS start, 
+            date_end AS end, 
+            location, 
+            status, 
+            status_process_id AS idStatus, 
+            name_client AS client,
+            evt_events_id
+         FROM fayxzvov_alpha_2.evt_events   LEFT JOIN status_process ON status_process_id = status_process.id LEFT JOIN evt_subevents ON evt_events.id = evt_subevents.evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'date_start' in SELECT is ambiguous
+
+
+[ 2025-07-15 19:11:45 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            evt_events.id, 
+            name_event AS title, 
+            date_start AS start, 
+            date_end AS end, 
+            location, 
+            status, 
+            status_process_id AS idStatus, 
+            name_client AS client,
+            evt_events_id
+         FROM fayxzvov_alpha_2.evt_events   LEFT JOIN status_process ON status_process_id = status_process.id LEFT JOIN evt_subevents ON evt_events.id = evt_subevents.evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'date_start' in SELECT is ambiguous
+
+
+[ 2025-07-15 19:05:24 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+            evt_events.id, 
+            name_event AS title, 
+            date_start AS start, 
+            date_end AS end, 
+            location, 
+            status, 
+            status_process_id AS idStatus, 
+            name_client AS client,
+            evt_events_id
+         FROM fayxzvov_alpha_2.evt_events   LEFT JOIN status_process ON status_process_id = status_process.id LEFT JOIN evt_subevents ON evt_events.id = evt_subevents.evt_events_id WHERE subsidiaries_id = ? AND YEAR(date_start) = YEAR(CURDATE())  ORDER BY date_start ASC 
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'date_start' in SELECT is ambiguous
+
+
+[ 2025-07-15 16:49:47 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                evt_package.id,
+                evt_package.`name`,
+                evt_package.description,
+                evt_package.date_creation,  
+                evt_package.price_person,
+                evt_package.active,
+                evt_events_package.id,
+                evt_events_package.event_id,
+                evt_events_package.package_id ,
+                evt_events_package.subevent_id,
+                evt_events_package.quantity,
+                
+
+            FROM
+                fayxzvov_alpha.evt_package
+            INNER JOIN 
+                fayxzvov_alpha.evt_events_package ON evt_events_package.package_id = evt_package.id
+            WHERE subevent_id = ? 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'FROM
+                fayxzvov_alpha.evt_package
+            INNER JOIN 
+  ...' at line 15
+
+
+[ 2025-07-13 07:52:13 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_subevents (name_subevent,type_event,quantity_people,location,date_start,time_start,time_end,total_pay,notes,evt_events_id,date_creation,status_process_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_subevents`, CONSTRAINT `evt_subevents_ibfk_1` FOREIGN KEY (`evt_events_id`) REFERENCES `evt_events` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-07-11 09:33:16 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_payments (pay,type,method_pay_id,evt_events_id,date_pay,user_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'INSERT INTO'
+
+
+[ 2025-07-11 09:28:59 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_payments (pay,type,method_pay_id,evt_events_id,date_pay,user_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'INSERT INTO'
+
+
+[ 2025-07-06 08:16:50 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE .evt_subevents SET total_pay = ?,id = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '3' for key 'PRIMARY'
+
+
+[ 2025-07-06 08:16:17 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE .evt_subevents SET total_pay = ?,id = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '3' for key 'PRIMARY'
+
+
+[ 2025-07-01 18:16:08 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_coffee.evt_payments (pay,method_pay_id,evt_events_id,date_pay,user_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'INSERT INTO'
+
+
+[ 2025-07-01 12:44:16 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,subevent_id,date_creation) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-07-01 11:11:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,subevent_id,date_creation) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-07-01 11:11:13 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,subevent_id,date_creation) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-07-01 11:07:37 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_subevents (name_subevent,type_event,quantity_people,location,date_start,time_start,time_end,total_pay,notes,evt_events_id,date_creation,status_process_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_subevents`, CONSTRAINT `evt_subevents_ibfk_1` FOREIGN KEY (`evt_events_id`) REFERENCES `evt_events` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 11:04:50 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:11:30 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:08:59 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:05:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,subevent_id,date_creation) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:04:52 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,subevent_id,date_creation) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:04:28 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:04:24 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:03:34 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,subevent_id,date_creation) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:02:48 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:02:09 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-25 10:00:53 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha_2.evt_events_package (package_id,quantity,subevent_id,date_creation) VALUES (?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha_2`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-06-08 20:28:45 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:28:43 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:28:42 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:28:41 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:28:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:53 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:51 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:49 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:14 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:13 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:12 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:11 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  AND status_process_id = ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:27:00 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:26:57 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-08 20:26:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_events.id as id,name_event,name_client,DATE_FORMAT(date_creation,'%Y-%m-%d') AS date_creation,date_start,DATE_FORMAT(date_start,'%H:%i hrs') as hours_start,date_end,total_pay,notes,status_process.status,location,advanced_pay,phone,discount,email,status_process_id AS idStatus   INNER JOIN status_process ON evt_events.status_process_id = status_process.id  WHERE subsidiaries_id = ? AND date_creation BETWEEN ? AND ?  ORDER BY status_process.id ASC, evt_events.date_creation DESC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INNER JOIN status_process ON evt_events.status_process_id = status_process.id...' at line 1
+
+
+[ 2025-06-05 17:52:49 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+        	ep.id AS idRelation,
+            subevent_id,
+            ep.package_id,
+            ep.quantity,
+            ep.price,
+            ep.date_creation,
+            p.id AS idP,
+            p. NAME AS package,
+            description,
+            price_person,
+            pr.id AS idPr,
+            pr. NAME AS product,
+            evt_events_package.id AS idEvtPackage,
+            pp.quantity AS quantityProduct,
+            c.id AS idC,
+            c.classification
+         FROM evt_events_package AS ep   LEFT JOIN evt_package AS p ON ep.package_id = p.id LEFT JOIN evt_package_products AS pp ON p.id = pp.package_id LEFT JOIN evt_products AS pr ON pp.products_id = pr.id LEFT JOIN evt_classification AS c ON pr.id_classification = c.id WHERE ep.subevent_id = ? AND ep.product_id IS NULL AND ep.package_id IS NOT NULL   
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_package.id' in 'SELECT'
+
+
+[ 2025-06-05 17:52:42 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+        	ep.id AS idRelation,
+            subevent_id,
+            ep.package_id,
+            ep.quantity,
+            ep.price,
+            ep.date_creation,
+            p.id AS idP,
+            p. NAME AS package,
+            description,
+            price_person,
+            pr.id AS idPr,
+            pr. NAME AS product,
+            evt_events_package.id AS idEvtPackage,
+            pp.quantity AS quantityProduct,
+            c.id AS idC,
+            c.classification
+         FROM evt_events_package AS ep   LEFT JOIN evt_package AS p ON ep.package_id = p.id LEFT JOIN evt_package_products AS pp ON p.id = pp.package_id LEFT JOIN evt_products AS pr ON pp.products_id = pr.id LEFT JOIN evt_classification AS c ON pr.id_classification = c.id WHERE ep.subevent_id = ? AND ep.product_id IS NULL AND ep.package_id IS NOT NULL   
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_package.id' in 'SELECT'
+
+
+[ 2025-06-05 17:52:09 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+        	ep.id AS idRelation,
+            subevent_id,
+            ep.package_id,
+            ep.quantity,
+            ep.price,
+            ep.date_creation,
+            p.id AS idP,
+            p. NAME AS package,
+            description,
+            price_person,
+            pr.id AS idPr,
+            pr. NAME AS product,
+            evt_events_package.id AS idEvtPackage,
+            pp.quantity AS quantityProduct,
+            c.id AS idC,
+            c.classification
+         FROM evt_events_package AS ep   LEFT JOIN evt_package AS p ON ep.package_id = p.id LEFT JOIN evt_package_products AS pp ON p.id = pp.package_id LEFT JOIN evt_products AS pr ON pp.products_id = pr.id LEFT JOIN evt_classification AS c ON pr.id_classification = c.id WHERE ep.subevent_id = ? AND ep.product_id IS NULL AND ep.package_id IS NOT NULL   
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events_package.id' in 'SELECT'
+
+
+[ 2025-06-05 16:47:42 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_dishes SET quantity = ? WHERE subevent_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subevent_id' in 'WHERE'
+
+
+[ 2025-06-05 00:57:29 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_events_packages (package_id,quantity,subevent_id) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_events_packages' doesn't exist
+
+
+[ 2025-06-05 00:54:10 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_events_packages (package_id,quantity,subevent_id) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_events_packages' doesn't exist
+
+
+[ 2025-05-29 11:21:44 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET name_client = ?,phone = ?,email = ?,name_event = ?,location = ?,date_start = ?,date_end = ?,type_event = ?,advanced_pay = ?,total_pay = ?,notes = ?,id = ? WHERE status_process_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '123' for key 'PRIMARY'
+
+
+[ 2025-05-29 11:21:28 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET name_client = ?,phone = ?,email = ?,name_event = ?,location = ?,date_start = ?,date_end = ?,type_event = ?,advanced_pay = ?,total_pay = ?,notes = ?,id = ? WHERE status_process_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '123' for key 'PRIMARY'
+
+
+[ 2025-05-29 11:21:23 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET name_client = ?,phone = ?,email = ?,name_event = ?,location = ?,date_start = ?,date_end = ?,type_event = ?,advanced_pay = ?,total_pay = ?,notes = ?,id = ? WHERE status_process_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '123' for key 'PRIMARY'
+
+
+[ 2025-05-29 11:19:48 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET name_client = ?,phone = ?,email = ?,name_event = ?,location = ?,date_start = ?,date_end = ?,type_event = ?,advanced_pay = ?,total_pay = ?,notes = ?,id = ? WHERE status_process_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '123' for key 'PRIMARY'
+
+
+[ 2025-05-29 11:17:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET name_client = ?,phone = ?,email = ?,name_event = ?,location = ?,date_start = ?,date_end = ?,type_event = ?,advanced_pay = ?,total_pay = ?,notes = ?,id = ? WHERE status_process_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '123' for key 'PRIMARY'
+
+
+[ 2025-05-28 23:34:07 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET total_pay = ?,id = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '123' for key 'PRIMARY'
+
+
+[ 2025-05-28 23:34:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET total_pay = ?,id = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '123' for key 'PRIMARY'
+
+
+[ 2025-05-28 23:31:59 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE fayxzvov_alpha.evt_subevents SET name_subevent = ?,type_event = ?,quantity_people = ?,location = ?,date_start = ?,time_start = ?,time_end = ?,total_pay = ?,notes = ?,id = ? WHERE evt_events_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '43' for key 'PRIMARY'
+
+
+[ 2025-05-28 23:25:27 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET total_pay = ?,id = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '43' for key 'PRIMARY'
+
+
+[ 2025-05-28 23:25:19 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET total_pay = ?,id = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '43' for key 'PRIMARY'
+
+
+[ 2025-05-28 23:23:49 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET total_pay = ?,id = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '0' for key 'PRIMARY'
+
+
+[ 2025-05-28 23:23:27 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET total_pay = ?,id = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '0' for key 'PRIMARY'
+
+
+[ 2025-05-28 23:23:12 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET total_pay = ?,id = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '0' for key 'PRIMARY'
+
+
+[ 2025-05-28 23:19:08 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET values = ? WHERE data = ?
+[ ERROR C.U.D. ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-28 23:17:27 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET values = ?,data = ? 
+[ ERROR C.U.D. ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-27 11:40:32 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:39:36 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:37:56 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:37:27 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:37:24 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:37:22 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:37:09 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:36:58 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:36:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:35:57 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 11:35:42 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 10:45:48 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 10:45:44 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-27 10:45:40 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ ERROR CONECT ] :: SQLSTATE[HY000] [2002] No such file or directory
+
+[ 2025-05-16 18:18:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  DELETE FROM evt_dishes WHERE event_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'event_id' in 'WHERE'
+
+
+[ 2025-05-16 18:04:28 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 18:04:27 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 18:04:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 18:04:18 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 18:04:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:58:05 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:58:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:57:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:55:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:55:53 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:55:47 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:55:44 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:54:45 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:54:37 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:54:34 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:54:32 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:54:30 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:54:26 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:54:25 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:54:23 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:54:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:53:44 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:53:43 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:53:35 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:53:33 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:52:22 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:52:20 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:52:18 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:48:38 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:48:31 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:48:28 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:47:38 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:47:36 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:47:33 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:47:14 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:47:12 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:47:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:47:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:47:00 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:46:59 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:46:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:45:33 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:45:20 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:45:09 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:42:43 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 17:36:35 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT
+                id,
+                name_package,
+                description,
+                price,
+                quantity,
+                total
+            FROM evt_packages
+            WHERE events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.evt_packages' doesn't exist
+
+
+[ 2025-05-16 13:46:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT ep.id AS idRelation, event_id, package_id, quantity, price, date_creation, p.id AS idP, p.name AS package, description, price_person, pr.id AS idPr, pr.name AS product, pp.price AS priceProduct, pp.quantity AS quantityProduct, c.id AS idC, c.classification  FROM evt_events_package AS ep   LEFT JOIN evt_package AS p ON ep.package_id = p.id LEFT JOIN evt_package_products AS pp ON p.id = pp.package_id LEFT JOIN evt_products AS pr ON pp.products_id = pr.id LEFT JOIN evt_classification AS c ON pr.id_classification = c.id WHERE ep.event_id = ? AND ep.product_id IS NULL AND ep.package_id IS NOT NULL   
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'package_id' in SELECT is ambiguous
+
+
+[ 2025-05-16 13:44:27 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT ep.id AS idRelation, event_id, package_id, quantity, price, date_creation, p.id AS idP, p.name AS package, description, price_person, pr.id AS idPr, pr.name AS product, pp.price AS priceProduct, pp.quantity AS quantityProduct, c.id AS idC, c.classification  FROM evt_events_package AS ep   WHERE ep.event_id = ? AND ep.product_id IS NULL AND ep.package_id IS NOT NULL   
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.id' in 'SELECT'
+
+
+[ 2025-05-16 13:41:58 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT ep.id AS idRelation, event_id, package_id, quantity, price, date_creation, p.id AS idP, p.name AS package, description, price_person, pr.id AS idPr, pr.name AS product, pp.price AS priceProduct, pp.quantity AS quantityProduct, c.id AS idC, c.classification  FROM evt_events_package AS ep   WHERE ep.event_id = ? AND ep.product_id IS NULL AND ep.package_id IS NOT NULL   
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.id' in 'SELECT'
+
+
+[ 2025-05-16 13:40:31 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT ep.id AS idRelation, event_id, package_id, quantity, price, date_creation, p.id AS idP, p.name AS package, description, price_person, pr.id AS idPr, pr.name AS product, pp.price AS priceProduct, pp.quantity AS quantityProduct, c.id AS idC, c.classification  FROM evt_events_package AS ep   WHERE event_id = ? AND ep.product_id IS NULL AND ep.package_id IS NOT NULL   
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.id' in 'SELECT'
+
+
+[ 2025-05-16 13:40:05 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT ep.id AS idRelation, event_id, package_id, quantity, price, date_creation, p.id AS idP, p.name AS package, description, price_person, pr.id AS idPr, pr.name AS product, pp.price AS priceProduct, pp.quantity AS quantityProduct, c.id AS idC, c.classification  FROM evt_events_package AS ep   WHERE event_id = ? AND ep.product_id IS NULL AND ep.package_id IS NOT NULL   
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.id' in 'SELECT'
+
+
+[ 2025-05-16 11:07:17 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?), (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-05-16 11:06:14 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?), (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_package` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-05-16 10:20:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_events_package` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2025-05-16 10:18:49 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_events_package` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2025-05-16 10:16:05 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events_package (package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_events_package`, CONSTRAINT `evt_events_package_ibfk_3` FOREIGN KEY (`package_id`) REFERENCES `evt_events_package` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2025-05-16 10:15:07 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events_package (id_event,package_id,quantity,price,date_creation,event_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_event' in 'INSERT INTO'
+
+
+[ 2025-05-16 05:42:47 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.quantity_people,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 20
+
+
+[ 2025-05-16 05:42:47 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.quantity_people,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 20
+
+
+[ 2025-05-16 05:42:47 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.quantity_people,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 20
+
+
+[ 2025-05-16 05:41:19 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.quantity_people,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM evt_subevents sub
+        INNER JOIN evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 20
+
+
+[ 2025-05-16 05:41:19 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.quantity_people,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM evt_subevents sub
+        INNER JOIN evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 20
+
+
+[ 2025-05-16 05:40:38 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.quantity_people,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM evt_subevents sub
+        INNER JOIN evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 20
+
+
+[ 2025-05-16 05:40:38 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.quantity_people,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM evt_subevents sub
+        INNER JOIN evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 20
+
+
+[ 2025-05-16 05:40:38 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.quantity_people,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM evt_subevents sub
+        INNER JOIN evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 20
+
+
+[ 2025-05-16 05:05:08 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:05:08 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:05:08 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:05:07 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:05:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:04:28 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:04:25 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:04:24 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:04:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:04:05 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:03:59 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-16 05:03:57 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+            sub.name_subevent as title,
+            sub.name_subevent,
+            quantity_people,
+            sub.date_start as date,
+            sub.date_start,
+            sub.date_end,
+            sub.time_start,
+            sub.time_end,
+            sub.total_pay,
+            sub.location,
+            sub.notes,
+            sub.type_event,
+            sub.status_process_id,
+            sub.type_event as type,
+            evt.name_event as event
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'quantity_people' in SELECT is ambiguous
+
+
+[ 2025-05-11 11:29:05 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id_menu = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:29:05 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id_menu = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:28:31 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id_menu = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:28:31 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id_menu = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:28:10 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id_menu = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:28:10 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id_menu = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:27:46 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id_menu = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:27:46 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id_menu = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:26:05 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:26:05 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT id, dish, quantity, tiempo, id_menu, id_clasificacion, id_event FROM evt_dishes   WHERE id = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?' at line 1
+
+
+[ 2025-05-11 11:25:34 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_dishes.id AS id, dish, quantity, tiempo, id_menu, id_clasificacion, classification AS clasificacion, id_event FROM evt_dishes  INNER JOIN evt_classification ON evt_classification.id = id_clasificacion  WHERE id_menu = ?  ORDER BY id_clasificacion, dish, tiempo ASC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?  ORDER BY id_clasificacion, dish, tiempo ASC' at line 1
+
+
+[ 2025-05-11 11:25:34 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_dishes.id AS id, dish, quantity, tiempo, id_menu, id_clasificacion, classification AS clasificacion, id_event FROM evt_dishes  INNER JOIN evt_classification ON evt_classification.id = id_clasificacion  WHERE id_menu = ?  ORDER BY id_clasificacion, dish, tiempo ASC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?  ORDER BY id_clasificacion, dish, tiempo ASC' at line 1
+
+
+[ 2025-05-11 11:25:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_dishes.id AS id, dish, quantity, tiempo, id_menu, id_clasificacion, classification AS clasificacion, id_event FROM evt_dishes  INNER JOIN evt_classification ON evt_classification.id = id_clasificacion  WHERE id_menu = ?  ORDER BY id_clasificacion, dish, tiempo ASC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?  ORDER BY id_clasificacion, dish, tiempo ASC' at line 1
+
+
+[ 2025-05-11 11:25:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT evt_dishes.id AS id, dish, quantity, tiempo, id_menu, id_clasificacion, classification AS clasificacion, id_event FROM evt_dishes  INNER JOIN evt_classification ON evt_classification.id = id_clasificacion  WHERE id_menu = ?  ORDER BY id_clasificacion, dish, tiempo ASC 
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '?  ORDER BY id_clasificacion, dish, tiempo ASC' at line 1
+
+
+[ 2025-05-11 11:10:57 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:57 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:54 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:21 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:14 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:14 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:13 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:10:13 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:09:43 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:09:43 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:08:12 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:08:12 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:07:25 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:07:25 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:07:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:07:06 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:05:48 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:05:48 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:05:43 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:05:43 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:05:25 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 11:05:25 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 08:09:42 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-11 08:09:42 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+           SELECT
+            evt_dishes.id,
+            evt_dishes.tiempo,
+            evt_classification.classification,
+
+            evt_dishes.quantity,
+            evt_dishes.dish,
+            evt_menu.id_event,
+            evt_dishes.id_menu
+            FROM
+            evt_classification
+            INNER JOIN evt_dishes ON evt_dishes.id_clasificacion = evt_classification.id
+            INNER JOIN evt_menu ON evt_dishes.id_menu = evt_menu.id
+            Where evt_menu.id_event = ? and tiempo = ?
+            ORDER BY tiempo asc
+
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2025-05-03 23:13:00 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events (name_client,phone,email,name_event,location,date_start,date_end,type_event,advanced_pay,total_pay,notes,GAS_ALLIANCE
+28_de_marzo_06:30_horas
+Instalaciones_del_Club_Campestre,date_creation,status_process_id,subsidiaries_id,method_pay_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '28_de_marzo_06:30_horas
+Instalaciones_del_Club_Campestre,date_creation,status...' at line 2
+
+
+[ 2025-05-03 23:12:51 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events (name_client,phone,email,name_event,location,date_start,date_end,type_event,advanced_pay,total_pay,notes,GAS_ALLIANCE
+28_de_marzo_06:30_horas
+Instalaciones_del_Club_Campestre,date_creation,status_process_id,subsidiaries_id,method_pay_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '28_de_marzo_06:30_horas
+Instalaciones_del_Club_Campestre,date_creation,status...' at line 2
+
+
+[ 2025-04-30 05:33:56 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            sub.id,
+         
+        FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_events evt ON sub.evt_events_id = evt.id
+        WHERE sub.evt_events_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'FROM fayxzvov_alpha.evt_subevents sub
+        INNER JOIN fayxzvov_alpha.evt_...' at line 4
+
+
+[ 2025-04-28 14:33:09 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  DELETE FROM fayxzvov_alpha.evt_subevents WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_menu`, CONSTRAINT `evt_menu_ibfk_1` FOREIGN KEY (`id_sub_event`) REFERENCES `evt_subevents` (`id`))
+
+
+[ 2025-04-24 06:00:22 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET name_client = ?,phone = ?,email = ?,name_event = ?,location = ?,date_start = ?,time_start = ?,date_end = ?,type_event = ?,advanced_pay = ?,notes = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'time_start' in 'SET'
+
+
+[ 2025-04-20 10:14:49 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events (name_client,phone,email,name_event,location,date_start,time_start,date_end,type_event,total_pay,notes,date_creation,status_process_id,subsidiaries_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'time_start' in 'INSERT INTO'
+
+
+[ 2025-04-20 10:09:58 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events (name_client,phone,email,name_event,location,date_start,time_start,date_end,type_event,total_pay,notes,date_creation,status_process_id,subsidiaries_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'time_start' in 'INSERT INTO'
+
+
+[ 2025-04-20 10:09:50 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_events (name_client,phone,email,name_event,location,date_start,time_start,date_end,type_event,total_pay,notes,date_creation,status_process_id,subsidiaries_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'time_start' in 'INSERT INTO'
+
+
+[ 2025-04-14 21:01:02 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_payments (pay,method_pay_id,evt_events_id,methodPay,date_pay) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'methodPay' in 'INSERT INTO'
+
+
+[ 2025-04-04 18:39:26 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_dishes (dish,quantity,id_clasificacion,tiempo,id_menu) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_dishes`, CONSTRAINT `evt_dishes_ibfk_1` FOREIGN KEY (`id_menu`) REFERENCES `evt_menu` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-04-04 18:30:58 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_subevents (name_subevent,type_event,quantity_people,location,date_start,evt_events_id) VALUES (?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'quantity_people' in 'INSERT INTO'
+
+
+[ 2025-04-04 18:27:44 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_subevents (name_subevent,type_event,quantity_people,location,date_start,time_start,total_pay,notes,evt_events_id) VALUES (?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'quantity_people' in 'INSERT INTO'
+
+
+[ 2025-04-04 18:22:03 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_subevents (name_subevent,type_event,quantity_people,location,date_start,time_start,total_pay,notes,evt_events_id) VALUES (?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'quantity_people' in 'INSERT INTO'
+
+
+[ 2025-04-04 18:21:26 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_subevents (name_subevent,type_event,quantity_people,location,date_start,time_start,total_pay,notes,evt_events_id,date_creation,status_process_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'quantity_people' in 'INSERT INTO'
+
+
+[ 2025-04-04 18:14:24 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_subevents (name_subevent,type_event,quantity_people,location,date_start,time_start,total_pay,notes,evt_events_id,date_creation,status_process_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'quantity_people' in 'INSERT INTO'
+
+
+[ 2025-04-04 17:12:28 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_subevents (name_subevent,type_event,quantity_people,location,date_start,time_start,total_pay,notes,evt_events_id,date_creation,status_process_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'quantity_people' in 'INSERT INTO'
+
+
+[ 2025-04-03 18:53:37 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO fayxzvov_alpha.evt_subevents (name_subevent,type_event,location,date_start,date_end,total_pay,notes,evt_events_id,date_creation,status_process_id) VALUES (?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_subevents`, CONSTRAINT `evt_subevents_ibfk_1` FOREIGN KEY (`evt_events_id`) REFERENCES `evt_events` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-04-03 18:17:14 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_dishes (dish,quantity,id_clasificacion,tiempo,id_menu) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_dishes`, CONSTRAINT `evt_dishes_ibfk_1` FOREIGN KEY (`id_menu`) REFERENCES `evt_menu` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-04-03 17:14:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_dishes (dish,quantity,id_clasificacion,tiempo,id_menu) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_dishes`, CONSTRAINT `evt_dishes_ibfk_1` FOREIGN KEY (`id_menu`) REFERENCES `evt_menu` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-04-03 17:11:27 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  INSERT INTO evt_dishes (dish,quantity,id_clasificacion,tiempo,id_menu) VALUES (?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_dishes`, CONSTRAINT `evt_dishes_ibfk_1` FOREIGN KEY (`id_menu`) REFERENCES `evt_menu` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-04-03 14:49:53 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET name_client = ?,phone = ?,email = ?,name_event = ?,location = ?,date_start = ?,date_end = ?,type_event = ?,quantity_people = ?,advanced_pay = ?,method_pay_id = ?,notes = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_events`, CONSTRAINT `evt_events_ibfk_7` FOREIGN KEY (`method_pay_id`) REFERENCES `method_pay` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-04-03 14:48:43 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET name_client = ?,phone = ?,email = ?,name_event = ?,location = ?,date_start = ?,date_end = ?,type_event = ?,quantity_people = ?,advanced_pay = ?,method_pay_id = ?,notes = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_events`, CONSTRAINT `evt_events_ibfk_7` FOREIGN KEY (`method_pay_id`) REFERENCES `method_pay` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-04-03 14:46:30 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  UPDATE evt_events SET name_client = ?,phone = ?,email = ?,name_event = ?,location = ?,date_start = ?,date_end = ?,type_event = ?,quantity_people = ?,advanced_pay = ?,method_pay_id = ?,notes = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`evt_events`, CONSTRAINT `evt_events_ibfk_7` FOREIGN KEY (`method_pay_id`) REFERENCES `method_pay` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2025-04-03 14:09:12 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+            evt_category.category as type_event,
+            evt_events.phone,
+            evt_events.email,
+            evt_events.name_client as contact,
+            evt_events.name_event ,
+            evt_events.date_creation,
+            DATE_FORMAT(evt_events.date_start, '%Y/%m/%d') AS date_start,
+            DATE_FORMAT(evt_events.date_start, '%H:%i hrs ') AS date_start_hr,
+            DATE_FORMAT(evt_events.date_end, '%Y/%m/%d') AS date_end,
+            DATE_FORMAT(evt_events.date_end, '%H:%i hrs ') AS date_end_hr,
+            evt_events.total_pay,
+            evt_events.advanced_pay as advance_pay,
+            evt_events.notes,
+            evt_events.status_process_id,
+            evt_events.customers_id,
+            evt_events.location,
+            evt_events.quantity_people,
+            method_pay.id,
+            method_pay.method_pay,
+            evt_events.id
+        FROM
+            evt_category
+            LEFT JOIN evt_events ON evt_events.category_id = evt_category.id
+            LEFT JOIN method_pay ON evt_events.method_pay_id = method_pay.id
+        WHERE evt_events.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events.customers_id' in 'SELECT'
+
+
+[ 2025-04-03 13:58:56 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT
+            evt_category.category as type_event,
+            evt_events.phone,
+            evt_events.email,
+            evt_events.name_client as contact,
+            evt_events.name_event ,
+            evt_events.date_creation,
+            DATE_FORMAT(evt_events.date_start, '%Y/%m/%d') AS date_start,
+            DATE_FORMAT(evt_events.date_start, '%H:%i hrs ') AS date_start_hr,
+            DATE_FORMAT(evt_events.date_end, '%Y/%m/%d') AS date_end,
+            DATE_FORMAT(evt_events.date_end, '%H:%i hrs ') AS date_end_hr,
+            evt_events.total_pay,
+            evt_events.advanced_pay as advance_pay,
+            evt_events.notes,
+            evt_events.status_process_id,
+            evt_events.customers_id,
+            evt_events.location,
+            evt_events.quantity_people,
+            method_pay.id,
+            method_pay.method_pay,
+            evt_events.id
+        FROM
+            evt_category
+            LEFT JOIN evt_events ON evt_events.category_id = evt_category.id
+            LEFT JOIN method_pay ON evt_events.method_pay_id = method_pay.id
+        WHERE evt_events.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events.customers_id' in 'SELECT'
+
+
+[ 2025-04-03 13:58:22 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            evt_category.category as type_event,
+            evt_events.phone,
+            evt_events.email,
+            evt_events.name_client as contact,
+            evt_events.name_event ,
+            evt_events.date_creation,
+            DATE_FORMAT(evt_events.date_start, '%Y/%m/%d') AS date_start,
+            DATE_FORMAT(evt_events.date_start, '%H:%i hrs ') AS date_start_hr,
+            DATE_FORMAT(evt_events.date_end, '%Y/%m/%d') AS date_end,
+            DATE_FORMAT(evt_events.date_end, '%H:%i hrs ') AS date_end_hr,
+            evt_events.total_pay,
+            evt_events.advanced_pay as advance_pay,
+            evt_events.notes,
+            evt_events.status_process_id,
+            evt_events.customers_id,
+            evt_events.location,
+            evt_events.quantity_people,
+            method_pay.id,
+            method_pay.method_pay,
+            evt_events.id
+        FROM
+            evt_category
+        INNER JOIN evt_events ON evt_events.category_id = evt_category.id
+        INNER JOIN method_pay ON evt_events.method_pay_id = method_pay.id
+        WHERE evt_events.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events.customers_id' in 'SELECT'
+
+
+[ 2025-04-03 13:57:04 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+        	evt_events.id AS idEvent,
+            name_event,
+            date_creation,
+            date_start,
+            date_end,
+            total_pay,
+            status_process_id,
+            location,
+            name_client,
+            phone,
+            email,
+            type_event,
+            status,
+            quantity_people, 
+            notes,
+            subsidiaries_id,
+            advanced_pay,
+            method_pay_id,
+             FROM evt_events   LEFT JOIN status_process ON status_process_id = status_process.id WHERE evt_events.id = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'FROM evt_events   LEFT JOIN status_process ON status_process_id = status_proc...' at line 20
+
+
+[ 2025-04-03 13:57:01 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+        	evt_events.id AS idEvent,
+            name_event,
+            date_creation,
+            date_start,
+            date_end,
+            total_pay,
+            status_process_id,
+            location,
+            name_client,
+            phone,
+            email,
+            type_event,
+            status,
+            quantity_people, 
+            notes,
+            subsidiaries_id,
+            advanced_pay,
+            method_pay_id,
+             FROM evt_events   LEFT JOIN status_process ON status_process_id = status_process.id WHERE evt_events.id = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'FROM evt_events   LEFT JOIN status_process ON status_process_id = status_proc...' at line 20
+
+
+[ 2025-04-03 13:56:51 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  SELECT 
+        	evt_events.id AS idEvent,
+            name_event,
+            date_creation,
+            date_start,
+            date_end,
+            total_pay,
+            status_process_id,
+            location,
+            name_client,
+            phone,
+            email,
+            type_event,
+            status,
+            quantity_people, 
+            notes,
+            subsidiaries_id,
+            advanced_pay,
+            method_pay_id,
+             FROM evt_events   LEFT JOIN status_process ON status_process_id = status_process.id WHERE evt_events.id = ?   
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'FROM evt_events   LEFT JOIN status_process ON status_process_id = status_proc...' at line 20
+
+
+[ 2025-04-03 12:10:15 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            evt_category.category as type_event,
+            evt_events.phone,
+            evt_events.email,
+            evt_events.name_client as contact,
+            evt_events.name_event ,
+            evt_events.date_creation,
+            DATE_FORMAT(evt_events.date_start, '%Y/%m/%d') AS date_start,
+            DATE_FORMAT(evt_events.date_start, '%H:%i hrs ') AS date_start_hr,
+            DATE_FORMAT(evt_events.date_end, '%Y/%m/%d') AS date_end,
+            DATE_FORMAT(evt_events.date_end, '%H:%i hrs ') AS date_end_hr,
+            evt_events.total_pay,
+            evt_events.advanced_pay as advance_pay,
+            evt_events.notes,
+            evt_events.status_process_id,
+            evt_events.customers_id,
+            evt_events.location,
+            evt_events.quantity_people,
+            method_pay.id,
+            method_pay.method_pay,
+            evt_events.id
+        FROM
+            evt_category
+        INNER JOIN evt_events ON evt_events.category_id = evt_category.id
+        INNER JOIN method_pay ON evt_events.method_pay_id = method_pay.id
+        WHERE evt_events.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events.customers_id' in 'SELECT'
+
+
+[ 2025-04-03 11:58:26 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            evt_category.category as type_event,
+            evt_events.phone,
+            evt_events.email,
+            evt_events.name_client as contact,
+            evt_events.name_event ,
+            evt_events.date_creation,
+            DATE_FORMAT(evt_events.date_start, '%Y/%m/%d') AS date_start,
+            DATE_FORMAT(evt_events.date_start, '%H:%i hrs ') AS date_start_hr,
+            DATE_FORMAT(evt_events.date_end, '%Y/%m/%d') AS date_end,
+            DATE_FORMAT(evt_events.date_end, '%H:%i hrs ') AS date_end_hr,
+            evt_events.total_pay,
+            evt_events.advanced_pay as advance_pay,
+            evt_events.notes,
+            evt_events.status_process_id,
+            evt_events.customers_id,
+            evt_events.location,
+            evt_events.quantity_people,
+            method_pay.id,
+            method_pay.method_pay,
+            evt_events.id
+        FROM
+            evt_category
+        INNER JOIN evt_events ON evt_events.category_id = evt_category.id
+        INNER JOIN method_pay ON evt_events.method_pay_id = method_pay.id
+        WHERE evt_events.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events.advanced_pay' in 'SELECT'
+
+
+[ 2025-04-03 11:49:56 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+        SELECT
+            evt_category.category as type_event,
+            evt_events.phone,
+            evt_events.email,
+            evt_events.name_client as contact,
+            evt_events.name_event ,
+            evt_events.date_creation,
+            DATE_FORMAT(evt_events.date_start, '%Y/%m/%d') AS date_start,
+            DATE_FORMAT(evt_events.date_start, '%H:%i hrs ') AS date_start_hr,
+            DATE_FORMAT(evt_events.date_end, '%Y/%m/%d') AS date_end,
+            DATE_FORMAT(evt_events.date_end, '%H:%i hrs ') AS date_end_hr,
+            evt_events.total_pay,
+            evt_events.advanced_pay as advance_pay,
+            evt_events.notes,
+            evt_events.status_process_id,
+            evt_events.customers_id,
+            evt_events.location,
+            evt_events.quantity_people,
+            method_pay.id,
+            method_pay.method_pay,
+            evt_events.id
+        FROM
+            evt_category
+        INNER JOIN evt_events ON evt_events.category_id = evt_category.id
+        INNER JOIN method_pay ON evt_events.method_pay_id = method_pay.id
+        WHERE evt_events.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'evt_events.advanced_pay' in 'SELECT'
+
+

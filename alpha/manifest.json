@@ -1,0 +1,21 @@
+{
+    "name": "Mi Aplicación",
+    "short_name": "App",
+    "description": "Acceso directo a la app de reservas",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#1F2A37",
+    "theme_color": "#1F2A37",
+    "icons": [
+        {
+            "src": "alpha/src/img/logo/huubie.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "alpha/src/img/logo/huubie.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

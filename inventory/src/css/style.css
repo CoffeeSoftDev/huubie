@@ -1,0 +1,157 @@
+.table-xtra-condensed>thead>tr>th,
+.table-xtra-condensed>tbody>tr>th,
+.table-xtra-condensed>tfoot>tr>th,
+.table-xtra-condensed>thead>tr>td,
+.table-xtra-condensed>tbody>tr>td,
+.table-xtra-condensed>tfoot>tr>td {
+   padding: 1.2px;
+   /* font-size: 1rem; */
+   font-weight: 500;
+}
+
+/* --------------------------
+> TARJETA POS
+----------------------------*/
+/* .grid-container {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.grid-item {
+  flex-basis: 100;
+  color: white;
+  margin: 10px 10px;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  width: 180px;
+  height: 180px;
+  border-radius: 10px;
+   background-color: #DFDFDF;
+}
+
+.grid-item .div1 {
+  height: 7.5em;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.grid-item .div2 {
+  height: 3.8em;
+  border-bottom-right-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+
+.grid-item .div3 {
+  height: 2em;
+  width: 2em;
+  position: relative;
+  top: -11.3em;
+  border-top-right-radius: 8px;
+}
+
+.grid-item img {
+  max-height: 100%;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.grid-item:hover {
+  z-index: 1;
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.disabled-item {
+  cursor: not-allowed;
+  pointer-events: none;
+  opacity: 0.5;
+  filter: grayscale(100%); 
+}
+  */
+
+
+
+
+
+
+
+
+
+.cell {
+   border: none;
+   /*background:#eeeee4;*/
+   background-color: transparent;
+   font-size: 14px;
+   width: 100%;
+   height: auto;
+   padding: none;
+}
+
+.bg-primary-1592{
+ background: #2563EB;
+ color: white;
+}
+
+.bg-primary {
+ background: #2563EB !important;
+ color: white !important;
+}
+
+.bg-secondary {
+ background: #636363 !important;
+ color: white !important;
+}
+
+.bg-success {
+ background: #22C55E !important;
+ color: white !important;
+}
+
+.bg-danger {
+ background: #EF4444 !important;
+ color: white !important;
+}
+
+
+/* 
+.bg-default {
+   background: #F8F9FA;
+} 
+*/
+/* 
+.bg-default-gv {
+   background: #F2F2F2;
+   color: #200004;
+}
+
+
+.bg-default-dark {
+   background: #DFDFDF;
+   color: #4A4A4A;
+}
+
+.bg-info-1592 {
+   background: #ABEDF7;
+
+}
+
+.bg-default-soft {
+   background: #808080;
+   color: #333333;
+}
+
+.bg-default-soft-2 {
+   background: #C0C0C0;
+   color: #828282;
+}
+
+.bg-default-3 {
+    color: #828282;
+    background: #EBEBEB;
+} */
+/* .line-d{
+       border: 2px dashed #D6A8FD;
+} */

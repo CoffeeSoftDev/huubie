@@ -1,0 +1,18 @@
+#RewriteEngine On
+
+# Redireccionar a la versión sin "www."
+#RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
+#RewriteRule ^(.*)$ https://%1%{REQUEST_URI} [R=301,L]
+
+# Forzar el uso de SSL
+#RewriteCond %{HTTPS} !=on
+#RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+Options +FollowSymLinks
+RewriteEngine on
+RewriteBase /inventory/
+RewriteRule ^/$ index.php [L]
+RewriteRule ^salir$ acceso/ctrl/ctrl-logout.php [L]
+
+
+#COSTSYS

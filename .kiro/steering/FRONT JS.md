@@ -331,6 +331,39 @@ debe llevar la siguiente nomenclatura
     }
   ```
 
+- delete[Entidad](id)
+  - Utiliza swalQuestion() para confirmar la eliminación permanente de un registro.
+  - **IMPORTANTE:** Incluir advertencia visual de que la acción es irreversible.
+
+  ``` javascript
+    deleteOrder(id) {
+        const row = event.target.closest('tr');
+        const folio = row.querySelectorAll('td')[0]?.innerText || '';
+
+        this.swalQuestion({
+            opts: {
+                title: `¿Eliminar pedido?`,
+                html: `¿Estás seguro de eliminar el pedido con folio <strong>${folio}</strong>?
+                <br><br>
+                <span class="text-red-500">⚠️ Esta acción es permanente y no se puede deshacer.</span>`,
+                icon: "warning",
+            },
+            data: { opc: "deleteOrder", id: id },
+            methods: {
+                request: (data) => {
+                    alert({
+                        icon: "success",
+                        title: "Eliminado",
+                        text: "El pedido fue eliminado correctamente.",
+                        btn1: true
+                    });
+                    this.ls();
+                },
+            },
+        });
+    }
+  ```
+
 
 **Consideraciones Finales**
 - Usa los pivotes , templates para generar las funciones

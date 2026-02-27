@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Aplicar reglas de new-component.md",
+  "description": "Cuando se cree un nuevo componente, este hook aplicará automáticamente las reglas definidas en new-component.md y copiará el código resultante a src/js/components/name-component.js",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/js/components/*.js"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Un nuevo componente ha sido creado. Por favor:\n\n1. Revisa que el componente siga las reglas establecidas en **new-component.md**:\n   - Debe ser un método jQuery con patrón configurable por `options`\n   - Estructura: `defaults` → `Object.assign()` → lógica → construcción HTML → eventos → inserción DOM\n   - Usar exclusivamente **jQuery** y **TailwindCSS**\n   - Todo elemento visible debe provenir de `json: []`\n   - Datos al backend via `data: {}`\n\n2. Verifica que el componente tenga:\n   - Nombre en camelCase: `nombreComponente(options)`\n   - Configuración por defecto con `defaults`\n   - Sobrescritura de opciones con `Object.assign(defaults, options)`\n   - Lógica modular separada del renderizado HTML\n   - Inyección en DOM bajo `opts.parent`\n\n3. Si el componente requiere datos del backend:\n   - Implementa consulta obligatoria con `fetch()` o `useFetch`\n   - Eventos CRUD apropiados (`onAdd`, `onDelete`, `onUpdate`)\n\n4. Una vez validado, copia automáticamente el código del componente a `src/js/components/[nombre-componente].js`\n\n5. Si el componente tiene eventos CRUD, pregunta al usuario si desea generar automáticamente el controlador (ctrl) y modelo (mdl) correspondientes.\n\nAplica estas reglas y asegúrate de que el componente sea funcional y siga los estándares de CoffeeSoft."
+  }
+}
