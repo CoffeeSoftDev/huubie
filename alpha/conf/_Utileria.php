@@ -369,4 +369,5 @@ function formatSpanishDate($fecha = null, $type = 'short') {
     return strftime($formatoFecha, $marcaTiempo);
 }
 
+
 ?>

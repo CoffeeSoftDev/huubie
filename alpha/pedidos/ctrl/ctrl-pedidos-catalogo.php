@@ -380,11 +380,13 @@ class ctrl extends MPedidos{
         $pay        = floatval($_POST['advanced_pay']);
         $total_pay  = floatval($_POST['total']);
         $saldo      = floatval($_POST['saldo']);
+        $total_paid = floatval($_POST['total_paid'] ?? 0);
 
-        // 🧠 Lógica corregida:
-        if ($pay <= 0) {
+        if ($total_paid > 0) {
+            $type_id = 2; // Ya tiene abonos previos, mantener como abono parcial
+        } else if ($pay <= 0) {
             $type_id = 1; // Cotización sin abono
-        } else if ($pay ==  $saldo) {
+        } else if ($pay == $saldo) {
             $type_id = 3; // Pago completo
         } else {
             $type_id = 2; // Abono parcial

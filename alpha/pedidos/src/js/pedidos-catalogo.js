@@ -1845,8 +1845,6 @@ class CatalogProduct extends Pos {
 
     // payment.
 
-
-
     async addPayment() {
 
         let saldo, saldoOriginal, total, total_paid, saldo_restante, discount;
@@ -1884,7 +1882,7 @@ class CatalogProduct extends Pos {
                 id: "registerPaymentModal",
                 size: "medium"
             },
-            data: { opc: 'addPayment', total: total, saldo: saldo_restante, id: idFolio, discount: discount },
+            data: { opc: 'addPayment', total: total, saldo: saldo_restante, id: idFolio, discount: discount, total_paid: total_paid },
             json: [
                 this.cardPay(total, total_paid, discount),
                 {
@@ -1939,7 +1937,29 @@ class CatalogProduct extends Pos {
                 }
             }
         });
-        $("#btnSuccess").addClass("text-white");
+        const $btn = $("#btnSuccess");
+        const originalHandlers = $._data($btn[0], "events")?.click?.map(e => e.handler) || [];
+        $btn.off("click");
+        $btn.on("click", function () {
+            const abono = parseFloat($("#advanced_pay").val()) || 0;
+            if (abono <= 0 && total_paid <= 0) {
+                alert({
+                    icon: "question",
+                    title: "Sin abono",
+                    text: "No se registró ningún abono. El pedido se guardará como cotización. ¿Deseas continuar?",
+                    btn1Text: "Sí, continuar",
+                    btn2Text: "Cancelar",
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        originalHandlers.forEach(fn => fn());
+                    }
+                });
+            } else {
+                originalHandlers.forEach(fn => fn());
+            }
+        });
+
+        $btn.addClass("text-white");
         $("#btnExit").addClass("text-white");
     }
 

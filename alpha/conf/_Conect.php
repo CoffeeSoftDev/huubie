@@ -6,10 +6,10 @@
 		public function connect() {
             if (!$this->connected) {
                 $host = "localhost";
-                // $user = "root";
-                // $pass = "";
-                     $user = "fayxzvov_sl";
-                $pass = "coffeesoft2025";
+                $user = "root";
+                $pass = "";
+                // $user = "fayxzvov_sl";
+                // $pass = "@GVsl_1234";
                 $db   = "fayxzvov_alpha";
                 
                 //  La opción especifica que se debe ejecutar el comando "SET NAMES utf8" para asegurarse de que la conexión use la codificación de caracteres UTF-8.
