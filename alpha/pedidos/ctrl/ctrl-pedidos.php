@@ -1342,11 +1342,15 @@ class Pedidos extends MPedidos{
             if ($closure) {
                 $closure_exists = true;
                 $closure_id     = $closure['id'];
+                $closed_by      = $closure['closed_by_name'];
+                $closed_at      = $closure['created_at'];
             }
         }
 
         $data['closure_exists'] = $closure_exists;
         $data['closure_id']     = $closure_id;
+        $data['closed_by']      = $closed_by ?? null;
+        $data['closed_at']      = $closed_at ?? null;
 
         return [
             'status'  => $status,

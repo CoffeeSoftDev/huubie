@@ -2176,8 +2176,12 @@ class App extends Templates {
         bootbox.dialog({
             title: `<i class="icon-calendar"></i> Cierre del Día - Pedidos de Pastelería`,
             message: modalContent,
+            className: 'modal-ticket-close',
             closeButton: true
         });
+
+        // Aplicar ancho personalizado al modal
+        $('.modal-ticket-close .modal-dialog').css('max-width', '650px');
 
         let filterBarData = [];
 
@@ -2187,7 +2191,7 @@ class App extends Templates {
                 opc: "select",
                 id: "subsidiariesDailyClose",
                 lbl: "Sucursal:",
-                class: "col-sm-12 mb-2",
+                class: "col-sm-4 mb-2",
                 onchange: "app.viewDailyClose()",
                 data: subsidiaries
             });
@@ -2198,7 +2202,7 @@ class App extends Templates {
                 opc: "input-calendar",
                 id: "calendarDailyClose",
                 lbl: "Seleccionar fecha:",
-                class: "col-sm-5 mb-2"
+                class: "col-sm-3 mb-2"
             },
             {
                 opc: "button",
@@ -2206,7 +2210,7 @@ class App extends Templates {
                 text: "Realizar Cierre",
                 class: "col-sm-3",
                 className: "opacity-50 w-100 cursor-not-allowed",
-                color_btn: "warning",
+                color_btn: "secondary",
                 icono: "icon-lock",
                 disabled: true,
                 onClick: () => {
@@ -2332,7 +2336,7 @@ class App extends Templates {
         const defaults = {
             parent: "ticketContainer",
             id: "ticketDailyClose",
-            class: "bg-white p-4 rounded-lg shadow font-mono text-gray-900 py-5",
+            class: "bg-white p-4 rounded-lg shadow-lg font-mono text-gray-900 border border-gray-200",
             date: moment().format("YYYY-MM-DD"),
             data: {
                 total_sales: 0,
@@ -2347,40 +2351,39 @@ class App extends Templates {
         const d = opts.data;
         const fecha = opts.date;
 
-        // function formatPrice(value) {
-        //     return `$${parseFloat(value || 0).toFixed(2)}`;
-        // }
-
         const formattedDate = moment(fecha).format('DD [de] MMMM [de] YYYY');
 
         const layout = $("<div>", {
             id: 'layoutPrintCloseTicket',
-            class: 'p-2'
+            class: 'flex justify-center p-4'
         });
 
 
         const container = $("<div>", {
             id: opts.id,
-            class: opts.class
+            class: opts.class,
+            css: { 'max-width': '320px', 'width': '100%' }
         });
 
         // Información de la sucursal
         const subsidiaryInfo = d.subsidiary_name
-            ? `<div class="text-sm font-semibold text-gray-600 mt-1">${d.is_all_subsidiaries ? d.subsidiary_name : 'Sucursal: ' + d.subsidiary_name}</div>`
+            ? `<div class="text-xs font-semibold text-gray-600 mt-1">${d.is_all_subsidiaries ? d.subsidiary_name : 'Sucursal: ' + d.subsidiary_name}</div>`
             : '';
 
         const closureBadge = d.closure_exists
-            ? `<div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold mt-2">CERRADO - Folio #${d.closure_id}</div>`
+            ? `<div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO - Folio #${d.closure_id}</div>
+               <div class="text-[10px] text-gray-500 mt-0.5">Cerrado por: ${d.closed_by || 'N/A'}</div>
+               <div class="text-[10px] text-gray-500">${d.closed_at ? moment(d.closed_at).format('DD/MM/YYYY HH:mm') : ''}</div>`
             : '';
 
         const header = `
-        <div class="flex flex-col items-center mb-4">
-            <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
+        <div class="flex flex-col items-center mb-3">
+            <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
                 <img src="https://huubie.com.mx/alpha${d.logo}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
             </div>
-            <h1 class="text-lg font-bold">PEDIDOS DE PASTELERÍA</h1>
-            <div class="text-sm text-gray-600">Cierre del Día</div>
-            <div class="text-sm text-gray-600">${formattedDate}</div>
+            <h1 class="text-sm font-bold">PEDIDOS DE PASTELERÍA</h1>
+            <div class="text-xs text-gray-600">Cierre del Día</div>
+            <div class="text-xs text-gray-600">${formattedDate}</div>
              ${subsidiaryInfo}
              ${closureBadge}
         </div>
@@ -2390,7 +2393,7 @@ class App extends Templates {
         const totalPaymentMethods = parseFloat(d.cash_sales || 0) + parseFloat(d.card_sales || 0) + parseFloat(d.transfer_sales || 0);
 
         const resumen = `
-        <div class="text-sm space-y-2">
+        <div class="text-xs space-y-1">
              <div class="flex justify-between items-center">
                 <div class="font-semibold">EFECTIVO:</div>
                 <div>${formatPrice(d.cash_sales)}</div>
@@ -2406,19 +2409,19 @@ class App extends Templates {
                 <div>${formatPrice(d.transfer_sales)}</div>
             </div>
 
-            <hr class="border-dashed border-t my-2" />
+            <hr class="border-dashed border-t my-1" />
 
             <div class="flex justify-between items-center pt-1">
                 <div class="font-semibold">TOTAL FORMAS DE PAGO:</div>
-                <div class="text-lg font-bold">${formatPrice(totalPaymentMethods)}</div>
+                <div class="text-sm font-bold">${formatPrice(totalPaymentMethods)}</div>
             </div>
 
             <div class="flex justify-between items-center pt-1">
                 <div class="font-semibold">NÚMERO DE PEDIDOS:</div>
-                <div class="text-lg font-bold">${d.total_orders}</div>
+                <div class="text-sm font-bold">${d.total_orders}</div>
             </div>
 
-            <hr class="border-dashed border-t my-2" />
+            <hr class="border-dashed border-t my-1" />
 
             <div class="flex justify-between items-center">
                 <div class="font-semibold">COTIZACIONES:</div>
@@ -2440,11 +2443,11 @@ class App extends Templates {
     `;
 
         const footer = `
-        <div class="text-center mt-6 text-xs font-bold text-gray-900 space-y-1">
-            <p class="mt-2">GRACIAS POR SU PREFERENCIA</p>
+        <div class="text-center mt-4 text-[10px] font-bold text-gray-900 space-y-1">
+            <p class="mt-1">GRACIAS POR SU PREFERENCIA</p>
             <p>ESTE NO ES UN COMPROBANTE FISCAL</p>
-            <p class="text-purple-800 text-sm">Huubie</p>
-            <p class="text-gray-500 font-normal text-[10px] mt-1">
+            <p class="text-purple-800 text-xs">Huubie</p>
+            <p class="text-gray-500 font-normal text-[9px] mt-1">
                 Generado: ${moment().format('DD/MM/YYYY HH:mm:ss')}
             </p>
         </div>
