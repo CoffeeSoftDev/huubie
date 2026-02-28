@@ -2163,13 +2163,12 @@ class App extends Templates {
 
     printDailyClose() {
 
-
         const modalContent = `
             <div id="filterBarDailyClose" class="mb-3"></div>
             <div id="ticketContainer">
                 <div class="text-center text-gray-400 py-10">
                     <i class="icon-doc-text text-5xl mb-5"></i>
-                    <p class="mt-5">Selecciona una fecha y presiona "Consultar"</p>
+                    <p class="mt-5">Selecciona una fecha para consultar el cierre del día</p>
                 </div>
             </div>
         `;
@@ -2180,36 +2179,64 @@ class App extends Templates {
             closeButton: true
         });
 
-        // Crear filterBar con componentes de CoffeeSoft
-        this.createfilterBar({
-            parent: 'filterBarDailyClose',
-            data: [
-                {
-                    opc: "input-calendar",
-                    id: "calendarDailyClose",
-                    lbl: "Seleccionar fecha:",
-                    class: "col-sm-9 mb-2"
-                },
+        let filterBarData = [];
 
-                {
-                    opc: "button",
-                    id: "btnPrintTicket",
-                    text: "Imprimir",
-                    class: "col-sm-3",
-                    className: "opacity-50 w-100 cursor-not-allowed",
-                    color_btn: "primary",
-                    icono: "icon-print",
-                    disabled: true,
-                    onClick: () => {
-                        if (!$('#btnPrintTicket').prop('disabled')) {
-                            this.printDailyCloseTicket();
-                        }
+        // Select de sucursal solo para admin
+        if (rol == 1) {
+            filterBarData.push({
+                opc: "select",
+                id: "subsidiariesDailyClose",
+                lbl: "Sucursal:",
+                class: "col-sm-12 mb-2",
+                onchange: "app.viewDailyClose()",
+                data: subsidiaries
+            });
+        }
+
+        filterBarData.push(
+            {
+                opc: "input-calendar",
+                id: "calendarDailyClose",
+                lbl: "Seleccionar fecha:",
+                class: "col-sm-5 mb-2"
+            },
+            {
+                opc: "button",
+                id: "btnSaveDailyClose",
+                text: "Realizar Cierre",
+                class: "col-sm-3",
+                className: "opacity-50 w-100 cursor-not-allowed",
+                color_btn: "warning",
+                icono: "icon-lock",
+                disabled: true,
+                onClick: () => {
+                    if (!$('#btnSaveDailyClose').prop('disabled')) {
+                        this.saveDailyClose();
                     }
                 }
-            ]
+            },
+            {
+                opc: "button",
+                id: "btnPrintTicket",
+                text: "Imprimir",
+                class: "col-sm-2",
+                className: "opacity-50 w-100 cursor-not-allowed",
+                color_btn: "primary",
+                icono: "icon-print",
+                disabled: true,
+                onClick: () => {
+                    if (!$('#btnPrintTicket').prop('disabled')) {
+                        this.printDailyCloseTicket();
+                    }
+                }
+            }
+        );
+
+        this.createfilterBar({
+            parent: 'filterBarDailyClose',
+            data: filterBarData
         });
 
-        // Configurar dataPicker con fecha de hoy
         dataPicker({
             parent: "calendarDailyClose",
             type: 'simple',
@@ -2222,7 +2249,6 @@ class App extends Templates {
             },
         });
 
-
         this.viewDailyClose();
     }
 
@@ -2231,14 +2257,14 @@ class App extends Templates {
 
         let rangePicker = getDataRangePicker("calendarDailyClose");
         let date = rangePicker.fi;
+        let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
 
         const request = await useFetch({
             url: this._link,
-            data: { opc: "getDailyClose", date: date, subsidiaries_id: $('#subsidiaries_id').val() }
+            data: { opc: "getDailyClose", date: date, subsidiaries_id: subsidiaries_id }
         });
 
         if (request.status === 200) {
-            // Renderizar ticket
             this.ticketDailyClose({ data: request.data, date: date });
 
             // Habilitar botón de impresión
@@ -2246,8 +2272,19 @@ class App extends Templates {
                 .prop('disabled', false)
                 .removeClass('opacity-50 cursor-not-allowed')
                 .addClass('hover:bg-green-700');
+
+            // Manejar estado del botón de cierre
+            if (request.data.closure_exists) {
+                $('#btnSaveDailyClose')
+                    .prop('disabled', true)
+                    .addClass('opacity-50 cursor-not-allowed')
+                    .removeClass('hover:bg-yellow-600');
+            } else {
+                $('#btnSaveDailyClose')
+                    .prop('disabled', false)
+                    .removeClass('opacity-50 cursor-not-allowed');
+            }
         } else {
-            // Mostrar mensaje de error
             $('#ticketContainer').html(`
                 <div class="text-center py-10">
                     <i class="icon-attention text-5xl text-gray-400 mb-3"></i>
@@ -2255,13 +2292,41 @@ class App extends Templates {
                 </div>
             `);
 
-            // Mantener botón deshabilitado
+            // Deshabilitar ambos botones
             $('#btnPrintTicket')
+                .prop('disabled', true)
+                .addClass('opacity-50 cursor-not-allowed');
+
+            $('#btnSaveDailyClose')
                 .prop('disabled', true)
                 .addClass('opacity-50 cursor-not-allowed');
         }
     }
 
+    saveDailyClose() {
+        let rangePicker = getDataRangePicker("calendarDailyClose");
+        let date = rangePicker.fi;
+        let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
+
+        this.swalQuestion({
+            opts: {
+                title: '¿Realizar cierre del día?',
+                html: `Se guardarán los movimientos del <strong>${moment(date).format('DD/MM/YYYY')}</strong> y se asignará el folio de cierre a los pedidos. <br><br><span class="text-red-500">Esta acción no se puede deshacer.</span>`,
+            },
+            data: { opc: "saveDailyClose", date: date, subsidiaries_id: subsidiaries_id },
+            methods: {
+                request: (data) => {
+                    alert({
+                        icon: "success",
+                        title: "Cierre realizado",
+                        text: `Folio de cierre: #${data.closure_id}`,
+                        btn1: true
+                    });
+                    this.viewDailyClose();
+                },
+            },
+        });
+    }
 
     ticketDailyClose(options) {
         const defaults = {
@@ -2304,7 +2369,9 @@ class App extends Templates {
             ? `<div class="text-sm font-semibold text-gray-600 mt-1">${d.is_all_subsidiaries ? d.subsidiary_name : 'Sucursal: ' + d.subsidiary_name}</div>`
             : '';
 
-        console.log('ticket:',d);
+        const closureBadge = d.closure_exists
+            ? `<div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold mt-2">CERRADO - Folio #${d.closure_id}</div>`
+            : '';
 
         const header = `
         <div class="flex flex-col items-center mb-4">
@@ -2315,6 +2382,7 @@ class App extends Templates {
             <div class="text-sm text-gray-600">Cierre del Día</div>
             <div class="text-sm text-gray-600">${formattedDate}</div>
              ${subsidiaryInfo}
+             ${closureBadge}
         </div>
     `;
 

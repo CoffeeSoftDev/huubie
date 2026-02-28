@@ -1333,7 +1333,21 @@ class Pedidos extends MPedidos{
         }
 
         $data['logo'] = $_SESSION['LOGO'];
-        
+
+        // Verificar si ya existe un cierre para esta fecha/sucursal
+        $closure_exists = false;
+        $closure_id     = null;
+        if (!$is_all_subsidiaries) {
+            $closure = $this->getDailyClosureByDate([$_POST['date'], $subsidiaries_id]);
+            if ($closure) {
+                $closure_exists = true;
+                $closure_id     = $closure['id'];
+            }
+        }
+
+        $data['closure_exists'] = $closure_exists;
+        $data['closure_id']     = $closure_id;
+
         return [
             'status'  => $status,
             'message' => $message,
@@ -1342,7 +1356,91 @@ class Pedidos extends MPedidos{
             $subsidiaries_id
         ];
     }
-    
+
+    function saveDailyClose() {
+        $status  = 500;
+        $message = 'Error al realizar el cierre del día';
+
+        if ($_SESSION['ROLID'] == 1) {
+            $subsidiaries_id = $_POST['subsidiaries_id'];
+        } else {
+            $subsidiaries_id = $_SESSION['SUB'];
+        }
+
+        if ($subsidiaries_id == 0 || $subsidiaries_id == '0') {
+            return ['status' => 400, 'message' => 'No se puede cerrar todas las sucursales a la vez'];
+        }
+
+        $date = $_POST['date'];
+
+        $existing = $this->getDailyClosureByDate([$date, $subsidiaries_id]);
+        if ($existing) {
+            return ['status' => 409, 'message' => 'Ya existe un cierre para esta fecha y sucursal', 'closure_id' => $existing['id']];
+        }
+
+        $summary = $this->getDailySalesMetrics([$date, $subsidiaries_id]);
+        if (!$summary || $summary['total_orders'] <= 0) {
+            return ['status' => 404, 'message' => 'No hay pedidos para cerrar en esta fecha'];
+        }
+
+        $total_sales = floatval($summary['total_sales']);
+
+        $closure_id = $this->createDailyClosure([
+            'values' => 'total, tax, subtotal, employee_id, subsidiary_id, created_at, active, total_orders',
+            'data'   => [
+                $total_sales,
+                0,
+                $total_sales,
+                $_SESSION['ID'],
+                $subsidiaries_id,
+                date('Y-m-d H:i:s'),
+                1,
+                $summary['total_orders']
+            ]
+        ]);
+
+        if (!$closure_id) {
+            return ['status' => 500, 'message' => 'Error al crear el cierre'];
+        }
+
+        // Guardar formas de pago
+        $payments = [
+            ['method_id' => 1, 'amount' => floatval($summary['cash_sales'])],
+            ['method_id' => 2, 'amount' => floatval($summary['card_sales'])],
+            ['method_id' => 3, 'amount' => floatval($summary['transfer_sales'])]
+        ];
+
+        foreach ($payments as $pay) {
+            $this->createClosurePayment([
+                'values' => 'daily_closure_id, payment_method_id, amount',
+                'data'   => [$closure_id, $pay['method_id'], $pay['amount']]
+            ]);
+        }
+
+        // Guardar status de pedidos
+        $statuses = [
+            ['status_id' => 1, 'amount' => intval($summary['quotation_count'])],
+            ['status_id' => 2, 'amount' => intval($summary['pending_count'])],
+            ['status_id' => 4, 'amount' => intval($summary['cancelled_count'])]
+        ];
+
+        foreach ($statuses as $st) {
+            $this->createClosureStatusProcess([
+                'values' => 'daily_closure_id, status_process_id, amount',
+                'data'   => [$closure_id, $st['status_id'], $st['amount']]
+            ]);
+        }
+
+        // Asignar folio de cierre a pedidos del día
+        $this->updateOrdersDailyClosure([$closure_id, $date, $subsidiaries_id]);
+
+        return [
+            'status'     => 200,
+            'message'    => 'Cierre realizado correctamente',
+            'closure_id' => $closure_id
+        ];
+    }
+
     // Discount
     function addDiscount() {
         $status  = 500;

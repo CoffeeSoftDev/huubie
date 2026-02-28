@@ -1310,5 +1310,51 @@ class MPedidos extends CRUD {
         ];
     }
 
+    // Daily Closure
+    function getDailyClosureByDate($array) {
+        $query = "
+            SELECT * FROM {$this->bd}daily_closure
+            WHERE DATE(created_at) = ? AND subsidiary_id = ? AND active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function createDailyClosure($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}daily_closure",
+            'values' => $array['values'],
+            'data'   => $array['data'],
+        ]);
+    }
+
+    function createClosurePayment($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}closure_payment",
+            'values' => $array['values'],
+            'data'   => $array['data'],
+        ]);
+    }
+
+    function createClosureStatusProcess($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}closure_status_proccess",
+            'values' => $array['values'],
+            'data'   => $array['data'],
+        ]);
+    }
+
+    function updateOrdersDailyClosure($array) {
+        $query = "
+            UPDATE {$this->bd}`order`
+            SET daily_closure_id = ?
+            WHERE DATE(date_creation) = ?
+            AND subsidiaries_id = ?
+            AND (daily_closure_id IS NULL OR daily_closure_id = 0)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
 }
 ?>
