@@ -9,12 +9,11 @@ class Pos extends Templates {
         const opts = Object.assign({
             parent: "container-package",
             id: "posLayout",
-            theme: "dark", // 'light' | 'dark'
+            theme: "dark",
             class: "flex flex-col md:flex-row text-sm text-white h-full",
             onChange: (item) => { },
             onBuildCake: () => {
                 custom.render();
-                // armarPastel();
             }
         }, options);
 
@@ -22,32 +21,33 @@ class Pos extends Templates {
 
         const colors = {
             containerBg: isDark ? "" : "bg-white",
-            textColor: isDark ? "text-white" : "text-gray-600", 
+            textColor: isDark ? "text-white" : "text-gray-600",
             leftPaneBg: isDark ? "bg-[#1F2A37]" : "bg-gray-100",
             inputBg: isDark ? "bg-[#111827]" : "bg-white",
             borderColor: isDark ? "border-gray-700" : "border-gray-300",
             cardGridBg: isDark ? "" : "bg-white",
-            tabBg: isDark ? "" : "bg-gray-100"
+            tabBg: isDark ? "bg-[#151D2B]" : "bg-gray-100"
         };
 
-        // 📦 Container principal
         const container = $("<div>", {
             id: opts.id,
             class: `${opts.class} ${colors.containerBg} ${colors.textColor}`
         });
 
-        // 🟩 Left Pane
         const leftPane = $("<div>", {
             class: `flex-1 flex flex-col overflow-hidden ${colors.leftPaneBg} ${colors.borderColor}`
         });
 
-        // 🔍 Contenedor de búsqueda + botón
-        const searchContainer = $("<div>", {
-            class: `p-3 flex items-center justify-between flex-wrap gap-2 ${colors.borderColor}`
+        const mainContent = $("<div>", {
+            class: "flex-1 flex flex-col overflow-hidden px-4 py-3"
+        });
+
+        const topRow = $("<div>", {
+            class: "flex items-center justify-between gap-3 mb-3"
         });
 
         const searchInputWrap = $("<div>", {
-            class: "relative w-full md:w-[20rem]"
+            class: "relative flex-1 max-w-md"
         });
 
         const inputSearch = $("<input>", {
@@ -61,7 +61,7 @@ class Pos extends Templates {
         });
 
         const searchIcon = $("<i>", {
-            class: `icon-search absolute left-3 top-2 ${isDark ? "text-gray-400" : "text-gray-500"}`
+            class: `icon-search absolute left-3 top-2.5 ${isDark ? "text-gray-400" : "text-gray-500"}`
         });
 
         searchInputWrap.append(inputSearch, searchIcon);
@@ -73,39 +73,89 @@ class Pos extends Templates {
             click: () => opts.onBuildCake()
         });
 
-        searchContainer.append(searchInputWrap, buildCakeBtn);
+        topRow.append(searchInputWrap, buildCakeBtn);
 
-        // 🔽 Área visual de tabs de categoría
-        const categoryTabs = $("<div>", {
-            id: "categoryTabs",
-            class: `${colors.textColor} p-3 ${colors.tabBg} mb-2 text-center ${colors.borderColor}`,
-            text: "Tabs Categoría"
+        const categoryWrapper = $("<div>", {
+            class: "relative flex items-center gap-1 mb-3"
         });
 
-        // 🧁 Contenedor de cards
+        const scrollLeftBtn = $("<button>", {
+            id: "scrollCategoryLeft",
+            class: `${isDark ? 'bg-[#374151] hover:bg-[#4B5563]' : 'bg-gray-200 hover:bg-gray-300'} ${colors.textColor} w-9 h-9 rounded-full transition-colors duration-200 flex-shrink-0 flex items-center justify-center text-base hidden`,
+            html: '<i class="icon-left-open"></i>',
+            click: () => {
+                const tabsContainer = $('#categoryTabs');
+                tabsContainer.animate({
+                    scrollLeft: tabsContainer.scrollLeft() - 200
+                }, 300, () => this.updateScrollButtons());
+            }
+        });
+
+        const categoryTabs = $("<div>", {
+            id: "categoryTabs",
+            class: `${colors.textColor} flex-1 overflow-x-auto scrollbar-hide`
+        }).on("scroll", () => this.updateScrollButtons());
+
+        new ResizeObserver(() => this.updateScrollButtons()).observe(categoryTabs[0]);
+
+        const scrollRightBtn = $("<button>", {
+            id: "scrollCategoryRight",
+            class: `${isDark ? 'bg-[#374151] hover:bg-[#4B5563]' : 'bg-gray-200 hover:bg-gray-300'} ${colors.textColor} w-9 h-9 rounded-full transition-colors duration-200 flex-shrink-0 flex items-center justify-center text-base hidden`,
+            html: '<i class="icon-right-open"></i>',
+            click: () => {
+                const tabsContainer = $('#categoryTabs');
+                tabsContainer.animate({
+                    scrollLeft: tabsContainer.scrollLeft() + 200
+                }, 300, () => this.updateScrollButtons());
+            }
+        });
+
+        categoryWrapper.append(scrollLeftBtn, categoryTabs, scrollRightBtn);
+
         const productGridContainer = $("<div>", {
-            class: "flex-1 overflow-auto p-3"
+            class: "flex-1 overflow-auto"
         });
 
         const grid = $("<div>", {
             id: "productGrid",
-            class: `grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 ${colors.borderColor} p-3 rounded ${colors.cardGridBg}`
+            class: `grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 rounded ${colors.cardGridBg}`
         });
 
-        productGridContainer.append(grid);
+        const showMoreBtn = $("<button>", {
+            id: "showMoreProducts",
+            class: `w-full mt-3 py-2 rounded-md border ${colors.borderColor} ${isDark ? 'bg-[#374151] hover:bg-[#4B5563]' : 'bg-gray-100 hover:bg-gray-200'} ${colors.textColor} font-medium transition-colors duration-200 hidden`,
+            html: '<i class="icon-down-open"></i> Ver más productos',
+            click: function() {
+                const gridEl = $('#productGrid');
+                gridEl.toggleClass('max-h-[400px]');
+                const isExpanded = !gridEl.hasClass('max-h-[400px]');
+                $(this).html(isExpanded ? '<i class="icon-up-open"></i> Ver menos' : '<i class="icon-down-open"></i> Ver más productos');
+            }
+        });
 
-        // Ensamblar left pane
-        leftPane.append(searchContainer, categoryTabs, productGridContainer);
+        productGridContainer.append(grid, showMoreBtn);
 
-        // 🟥 Ticket (Right Panel)
+        mainContent.append(topRow, categoryWrapper, productGridContainer);
+        leftPane.append(mainContent);
+
         const rightPane = $("<div>", {
             id: "orderPanel",
             class: `w-full md:w-[25rem] max-w-full flex flex-col border-l ${colors.leftPaneBg} ${colors.borderColor}`
         });
 
-        // Armar layout final
         container.append(leftPane, rightPane);
         $(`#${opts.parent}`).html(container);
+    }
+
+    updateScrollButtons() {
+        const tabs = document.getElementById('categoryTabs');
+        if (!tabs) return;
+        const scrollLeft = tabs.scrollLeft;
+        const maxScroll = tabs.scrollWidth - tabs.clientWidth;
+        const needsScroll = tabs.scrollWidth > tabs.clientWidth;
+
+        $('#scrollCategoryLeft').toggleClass('hidden', !needsScroll || scrollLeft <= 0);
+        $('#scrollCategoryRight').toggleClass('hidden', !needsScroll || scrollLeft >= maxScroll - 1);
     }
 
     createProductTabs(options) {
@@ -127,11 +177,15 @@ class Pos extends Templates {
         }, options);
 
         const isDark = opts.theme === "dark";
-        const hoverClass = opts.hoverColor || (isDark ? "hover:bg-blue-700" : "hover:bg-gray-300");
-        const inactiveColor = opts.inactiveColor || (isDark ? "" : "bg-gray-200");
+        const activeClass = opts.activeColor;
+        const inactiveClass = opts.inactiveColor || "bg-[#283143]";
+        const inactiveBorder = isDark ? "borderx border-gray-600x" : "borderx border-gray-300x";
+        const hoverClass = opts.hoverColor || (isDark ? "hover:bg-white/10" : "hover:bg-gray-300");
         const textColor = isDark ? "text-white" : "text-gray-800";
+        const containerBorder = isDark ? "border-gray-600x" : "border-gray-300x";
+        const containerBg = isDark ? "xbg-[#151D2B]" : "bg-gray-100";
 
-        const container = $(`#${opts.parent}`).empty().addClass("flex gap-2 flex-wrap px-4 py-2 mt-2 rounded-md");
+        const container = $(`#${opts.parent}`).empty().addClass(`flex gap-1 flex-nowrap w-max px-1.5 py-1 rounded-lg borderx ${containerBorder} ${containerBg}`);
 
         // Aseguramos que siempre haya uno activo
         const defaultActiveId = opts.active ?? (opts.data.length > 0 ? opts.data[0].id : null);
@@ -140,29 +194,26 @@ class Pos extends Templates {
             const isActive = cat.id === defaultActiveId;
 
             // Icono o emoji opcional
-            let prefix = "";
-            if (cat.icon) prefix = `<i class="${cat.icon} mr-1"></i>`;
-            else if (cat.emoji) prefix = `${cat.emoji} `;
+            let iconHtml = "";
+            if (cat.icon) iconHtml = `<i class="${cat.icon}"></i>`;
+            else if (cat.emoji) iconHtml = `<span>${cat.emoji}</span>`;
 
             const formattedText = cat.text.charAt(0).toUpperCase() + cat.text.slice(1).toLowerCase();
 
             const btn = $("<button>", {
-                class: `tab-btn flex-1 ${textColor} px-2 py-2 rounded-lg text-sm transition-colors duration-200 text-center ${isActive ? opts.activeColor : `${inactiveColor} ${hoverClass}`}`,
-                html: `${prefix}${formattedText}`,
+                class: `tab-btn ${textColor} flex-shrink-0 px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 ${isActive ? `${activeClass} border border-transparent` : `${inactiveClass} ${inactiveBorder} ${hoverClass}`}`,
+                html: `${iconHtml}<span>${formattedText}</span>`,
                 "data-category": cat.id,
                 click: function () {
                     container.find(".tab-btn").each(function () {
                         $(this)
-                            .removeClass(opts.activeColor)
-                            .removeClass(inactiveColor)
-                            .removeClass(hoverClass)
-                            .addClass(`${inactiveColor} ${hoverClass}`);
+                            .removeClass(`${activeClass} border-transparent`)
+                            .addClass(`${inactiveClass} ${inactiveBorder} ${hoverClass}`);
                     });
 
                     $(this)
-                        .removeClass(inactiveColor)
-                        .removeClass(hoverClass)
-                        .addClass(opts.activeColor);
+                        .removeClass(`${inactiveClass} ${inactiveBorder} ${hoverClass}`)
+                        .addClass(`${activeClass} border border-transparent`);
 
                     // Callback general
                     opts.onChange(cat.id);
@@ -176,6 +227,8 @@ class Pos extends Templates {
 
             container.append(btn);
         });
+
+        setTimeout(() => this.updateScrollButtons(), 50);
     }
 
     createProductGrid(options) {
@@ -712,9 +765,9 @@ class Pos extends Templates {
         });
 
         const footer = $("<div>", {
-            class: "p-4 border-t border-gray-700 bg-[#333D4C]"
+            class: "px-3 py-3 border-t border-gray-700 bg-[#333D4C]"
         }).append(
-            $("<div>", { class: "space-y-2 text-sm text-gray-300" }).append(
+            $("<div>", { class: "space-y-1 text-sm text-gray-300" }).append(
                 $("<div>", {
                     class: "flex justify-between"
                 }).append(
@@ -730,26 +783,26 @@ class Pos extends Templates {
                     $("<span>", { id: "discountAmount", text: "-$0.00" })
                 ),
                 $("<div>", {
-                    class: "flex justify-between font-bold text-blue-400 text-base pt-2 border-t border-gray-600"
+                    class: "flex justify-between font-bold text-blue-400 text-base pt-1 border-t border-gray-600"
                 }).append(
                     $("<span>").text("Total:"),
                     $("<span>", { id: "total", text: "$0.00" })
                 )
             ),
-            $("<div>", { class: "grid grid-cols-3 gap-2 mt-4" }).append(
+            $("<div>", { class: "grid grid-cols-3 gap-2 mt-2" }).append(
                 $("<button>", {
                     id: "printOrder",
-                    class: "border border-gray-600 text-white rounded px-3 py-2 text-sm",
+                    class: "border border-gray-600 text-white rounded px-2 py-1.5 text-sm",
                     html: "🖨 Imprimir"
                 }),
                 $("<button>", {
                     id: "finishOrder",
-                    class: "bg-blue-700 text-white rounded px-3 py-2 text-sm hover:bg-blue-800",
+                    class: "bg-blue-700 text-white rounded px-2 py-1.5 text-sm hover:bg-blue-800",
                     html: "Terminar"
                 }),
                 $("<button>", {
                     id: "exitOrder",
-                    class: "border bg-red-700 text-white rounded px-3 py-2 text-sm hover:bg-red-800 hover:text-white",
+                    class: "border bg-red-700 text-white rounded px-2 py-1.5 text-sm hover:bg-red-800 hover:text-white",
                     html: "Salir"
                 })
             )
@@ -1760,7 +1813,7 @@ class CatalogProduct extends Pos {
         const totales = (() => {
             const hasAbono = anticipo > 0;
             const paymentMethods = opts.data.paymentMethods || [];
-            const discount = parseFloat(opts.discount || 0);
+            const discount = parseFloat(data.discount || 0);
             const hasDiscount = discount > 0;
             const totalConDescuento = total - discount;
             const hasMovimientos = hasAbono || (Array.isArray(paymentMethods) && paymentMethods.length > 0);

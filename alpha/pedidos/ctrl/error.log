@@ -1,3 +1,168 @@
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.`order`
+            SET daily_closure_id = ?
+            WHERE DATE(date_creation) = ?
+            AND subsidiaries_id = ?
+            AND (daily_closure_id IS NULL OR daily_closure_id = 0)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`order`, CONSTRAINT `order_ibfk_5` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.`order`
+            SET daily_closure_id = ?
+            WHERE DATE(date_creation) = ?
+            AND subsidiaries_id = ?
+            AND (daily_closure_id IS NULL OR daily_closure_id = 0)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`order`, CONSTRAINT `order_ibfk_5` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.`order`
+            SET daily_closure_id = ?
+            WHERE DATE(date_creation) = ?
+            AND subsidiaries_id = ?
+            AND (daily_closure_id IS NULL OR daily_closure_id = 0)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`order`, CONSTRAINT `order_ibfk_5` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
 [ 2026-02-27 10:50:55 ]
 [ UNIX_USR ] :: fayxzvov
 [ WINDOWS_USR ] :: %USERNAME%

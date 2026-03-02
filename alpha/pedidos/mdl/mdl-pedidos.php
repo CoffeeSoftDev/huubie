@@ -1347,6 +1347,24 @@ class MPedidos extends CRUD {
         ]);
     }
 
+    function getClosurePayments($closure_id) {
+        $query = "
+            SELECT payment_method_id, amount
+            FROM {$this->bd}closure_payment
+            WHERE daily_closure_id = ?
+        ";
+        return $this->_Read($query, [$closure_id]);
+    }
+
+    function getClosureStatusProcess($closure_id) {
+        $query = "
+            SELECT status_process_id, amount
+            FROM {$this->bd}closure_status_proccess
+            WHERE daily_closure_id = ?
+        ";
+        return $this->_Read($query, [$closure_id]);
+    }
+
     function updateOrdersDailyClosure($array) {
         $query = "
             UPDATE {$this->bd}`order`

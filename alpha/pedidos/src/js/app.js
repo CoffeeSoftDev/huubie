@@ -108,6 +108,7 @@ class App extends Templates {
                 id: 'btnNuevoPedido',
                 class: 'col-6 col-md-3 col-lg-2',
                 text: 'Nuevo Pedido',
+                icon: 'icon-plus',
                 className: 'btn-primary w-100',
                 onClick: () => this.showTypePedido()
             },
@@ -118,7 +119,7 @@ class App extends Templates {
                 class: "col-6 col-md-3 col-lg-2",
                 className: 'w-100',
                 color_btn: 'success',
-                icono: "icon-receipt",
+                icon: "icon-receipt",
                 onClick: () => this.printDailyClose()
             },
             {
@@ -128,6 +129,7 @@ class App extends Templates {
                 color_btn: "secondary",
                 id: "btnCalendario",
                 text: "Calendario",
+                icon: "icon-calendar",
                 onClick: () => {
                     window.location.href = '../pedidos/calendario/index.php'
                 }
@@ -147,11 +149,15 @@ class App extends Templates {
                 endDate: moment().endOf("month"), // Finaliza con el último día del mes actual
                 showDropdowns: true,
                 ranges: {
-                    "Mes actual": [moment().startOf("month"), moment().endOf("month")],
+                    "Hoy": [moment(), moment()],
+                    "Ayer": [moment().subtract(1, "days"), moment().subtract(1, "days")],
+                 
                     "Semana actual": [moment().startOf("week"), moment().endOf("week")],
-                    "Próxima semana": [moment().add(1, "week").startOf("week"), moment().add(1, "week").endOf("week")],
-                    "Próximo mes": [moment().add(1, "month").startOf("month"), moment().add(1, "month").endOf("month")],
-                    "Mes anterior": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")]
+                    "Mes actual": [moment().startOf("month"), moment().endOf("month")],
+                    // "Próxima semana": [moment().add(1, "week").startOf("week"), moment().add(1, "week").endOf("week")],
+                    // "Próximo mes": [moment().add(1, "month").startOf("month"), moment().add(1, "month").endOf("month")],
+                    "Mes anterior": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")],
+                    
                 },
             },
             onSelect: (start, end) => {
@@ -2177,6 +2183,7 @@ class App extends Templates {
             title: `<i class="icon-calendar"></i> Cierre del Día - Pedidos de Pastelería`,
             message: modalContent,
             className: 'modal-ticket-close',
+            // size:'small',
             closeButton: true
         });
 
@@ -2191,7 +2198,7 @@ class App extends Templates {
                 opc: "select",
                 id: "subsidiariesDailyClose",
                 lbl: "Sucursal:",
-                class: "col-sm-4 mb-2",
+                class: "col-sm-3 mb-2",
                 onchange: "app.viewDailyClose()",
                 data: subsidiaries
             });
@@ -2207,11 +2214,11 @@ class App extends Templates {
             {
                 opc: "button",
                 id: "btnSaveDailyClose",
-                text: "Realizar Cierre",
+                text: " Cerrar",
                 class: "col-sm-3",
                 className: "opacity-50 w-100 cursor-not-allowed",
                 color_btn: "secondary",
-                icono: "icon-lock",
+                icon: "icon-lock",
                 disabled: true,
                 onClick: () => {
                     if (!$('#btnSaveDailyClose').prop('disabled')) {
@@ -2223,10 +2230,10 @@ class App extends Templates {
                 opc: "button",
                 id: "btnPrintTicket",
                 text: "Imprimir",
-                class: "col-sm-2",
+                class: "col-sm-3",
                 className: "opacity-50 w-100 cursor-not-allowed",
                 color_btn: "primary",
-                icono: "icon-print",
+                icon: "icon-print",
                 disabled: true,
                 onClick: () => {
                     if (!$('#btnPrintTicket').prop('disabled')) {

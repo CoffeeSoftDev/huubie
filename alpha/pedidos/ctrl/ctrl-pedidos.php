@@ -1344,6 +1344,38 @@ class Pedidos extends MPedidos{
                 $closure_id     = $closure['id'];
                 $closed_by      = $closure['closed_by_name'];
                 $closed_at      = $closure['created_at'];
+
+                // Sobreescribir con los datos guardados del cierre
+                $closure_payments = $this->getClosurePayments($closure_id);
+                if (is_array($closure_payments)) {
+                    $data['cash_sales']     = 0;
+                    $data['card_sales']     = 0;
+                    $data['transfer_sales'] = 0;
+                    foreach ($closure_payments as $cp) {
+                        switch ($cp['payment_method_id']) {
+                            case 1: $data['cash_sales']     = $cp['amount']; break;
+                            case 2: $data['card_sales']     = $cp['amount']; break;
+                            case 3: $data['transfer_sales'] = $cp['amount']; break;
+                        }
+                    }
+                }
+
+                $closure_statuses = $this->getClosureStatusProcess($closure_id);
+                if (is_array($closure_statuses)) {
+                    $data['quotation_count'] = 0;
+                    $data['pending_count']   = 0;
+                    $data['cancelled_count'] = 0;
+                    foreach ($closure_statuses as $cs) {
+                        switch ($cs['status_process_id']) {
+                            case 1: $data['quotation_count'] = $cs['amount']; break;
+                            case 2: $data['pending_count']   = $cs['amount']; break;
+                            case 4: $data['cancelled_count'] = $cs['amount']; break;
+                        }
+                    }
+                }
+
+                $data['total_sales']  = $closure['total'];
+                $data['total_orders'] = $closure['total_orders'];
             }
         }
 

@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mysql -u root:*)"
+      "Bash(mysql -u root:*)",
+      "Bash(find:*)",
+      "Bash(xargs:*)",
+      "Bash(node:*)"
     ]
   }
 }
