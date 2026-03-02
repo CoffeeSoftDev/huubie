@@ -8,20 +8,20 @@ class mdl extends CRUD {
 
     public function __construct() {
         $this->util = new Utileria;
-        $this->bd = "fayxzvov_mtto.";
+        $this->bd = "fayxzvov_almacen.";
     }
 
     function listCategory($array) {
         $query = "
-            SELECT 
-                idcategoria as id,
-                nombreCategoria as valor,
-                DATE_FORMAT(date_creation, '%d/%m/%Y') as date_creation,
+            SELECT
+                id,
+                name as valor,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
                 active
-            FROM {$this->bd}mtto_categoria
+            FROM {$this->bd}presentations
             WHERE active = ?
             AND udn_id = ".$_SESSION['idUDN']."
-            ORDER BY idcategoria DESC
+            ORDER BY id DESC
         ";
         return $this->_Read($query, $array);
     }
@@ -29,8 +29,8 @@ class mdl extends CRUD {
     function getCategoryById($array) {
         $query = "
             SELECT *
-            FROM {$this->bd}mtto_categoria
-            WHERE idcategoria = ?
+            FROM {$this->bd}presentations
+            WHERE id = ?
         ";
         $result = $this->_Read($query, $array);
         return $result[0] ?? null;
@@ -38,7 +38,7 @@ class mdl extends CRUD {
 
     function createCategory($array) {
         return $this->_Insert([
-            'table'  => "{$this->bd}mtto_categoria",
+            'table'  => "{$this->bd}presentations",
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
@@ -46,7 +46,7 @@ class mdl extends CRUD {
 
     function updateCategory($array) {
         return $this->_Update([
-            'table'  => "{$this->bd}mtto_categoria",
+            'table'  => "{$this->bd}presentations",
             'values' => $array['values'],
             'where'  => $array['where'],
             'data'   => $array['data']
@@ -56,8 +56,8 @@ class mdl extends CRUD {
     function existsCategoryByName($array) {
         $query = "
             SELECT COUNT(*) as total
-            FROM {$this->bd}mtto_categoria
-            WHERE LOWER(nombreCategoria) = LOWER(?)
+            FROM {$this->bd}presentations
+            WHERE LOWER(name) = LOWER(?)
             AND active = 1
              AND udn_id = ".$_SESSION['idUDN']."
         ";
@@ -69,16 +69,16 @@ class mdl extends CRUD {
 
     function listArea($array) {
         $query = "
-            SELECT 
-                idArea as id,
-                Nombre_Area as valor,
-                DATE_FORMAT(date_creation, '%d/%m/%Y') as date_creation,
+            SELECT
+                id,
+                name as valor,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
                 active
-            FROM {$this->bd}mtto_almacen_area
+            FROM {$this->bd}product_groups
             WHERE active = ?
             AND udn_id = ".$_SESSION['idUDN']."
-            
-            ORDER BY idArea DESC
+
+            ORDER BY id DESC
         ";
         return $this->_Read($query, $array);
     }
@@ -86,8 +86,8 @@ class mdl extends CRUD {
     function getAreaById($array) {
         $query = "
             SELECT *
-            FROM {$this->bd}mtto_almacen_area
-            WHERE idArea = ?
+            FROM {$this->bd}product_groups
+            WHERE id = ?
         ";
         $result = $this->_Read($query, $array);
         return $result[0] ?? null;
@@ -95,7 +95,7 @@ class mdl extends CRUD {
 
     function createArea($array) {
         return $this->_Insert([
-            'table'  => "{$this->bd}mtto_almacen_area",
+            'table'  => "{$this->bd}product_groups",
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
@@ -103,7 +103,7 @@ class mdl extends CRUD {
 
     function updateArea($array) {
         return $this->_Update([
-            'table'  => "{$this->bd}mtto_almacen_area",
+            'table'  => "{$this->bd}product_groups",
             'values' => $array['values'],
             'where'  => $array['where'],
             'data'   => $array['data']
@@ -115,8 +115,8 @@ class mdl extends CRUD {
     function existsAreaByName($array) {
         $query = "
             SELECT COUNT(*) as total
-            FROM {$this->bd}mtto_almacen_area
-            WHERE LOWER(Nombre_Area) = LOWER(?)
+            FROM {$this->bd}product_groups
+            WHERE LOWER(name) = LOWER(?)
             AND active = 1
             AND udn_id = ".$_SESSION['idUDN']."
         ";
@@ -126,15 +126,15 @@ class mdl extends CRUD {
 
     function listZone($array) {
         $query = "
-            SELECT 
-                id_zona as id,
-                nombre_zona as valor,
-                DATE_FORMAT(date_creation, '%d/%m/%Y') as date_creation,
+            SELECT
+                id,
+                name as valor,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
                 active
-            FROM {$this->bd}mtto_almacen_zona
+            FROM {$this->bd}areas
             WHERE active = ?
             AND udn_id = ".$_SESSION['idUDN']."
-            ORDER BY id_zona DESC
+            ORDER BY id DESC
         ";
         return $this->_Read($query, $array);
     }
@@ -142,8 +142,8 @@ class mdl extends CRUD {
     function getZoneById($array) {
         $query = "
             SELECT *
-            FROM {$this->bd}mtto_almacen_zona
-            WHERE id_zona = ?
+            FROM {$this->bd}areas
+            WHERE id = ?
         ";
         $result = $this->_Read($query, $array);
         return $result[0] ?? null;
@@ -151,7 +151,7 @@ class mdl extends CRUD {
 
     function createZone($array) {
         return $this->_Insert([
-            'table'  => "{$this->bd}mtto_almacen_zona",
+            'table'  => "{$this->bd}areas",
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
@@ -159,7 +159,7 @@ class mdl extends CRUD {
 
     function updateZone($array) {
         return $this->_Update([
-            'table'  => "{$this->bd}mtto_almacen_zona",
+            'table'  => "{$this->bd}areas",
             'values' => $array['values'],
             'where'  => $array['where'],
             'data'   => $array['data']
@@ -171,8 +171,8 @@ class mdl extends CRUD {
     function existsZoneByName($array) {
         $query = "
             SELECT COUNT(*) as total
-            FROM {$this->bd}mtto_almacen_zona
-            WHERE LOWER(nombre_zona) = LOWER(?)
+            FROM {$this->bd}areas
+            WHERE LOWER(name) = LOWER(?)
             AND active = 1
             AND udn_id = ".$_SESSION['idUDN']."
         ";

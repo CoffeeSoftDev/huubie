@@ -12,13 +12,12 @@ class ctrl extends mdl {
             'zonas'        => $this->lsZonas(),
             'categorias'   => $this->lsCategories(),
             'areas'        => $this->lsAreas(),
-            'departamentos'=> $this->lsDepartamentos(),
             'proveedores'  => $this->lsProveedores()
         ];
     }
 
     function lsMateriales() {
-        
+
         $filters = [
             'zona'      => $_POST['zona'] ?? '',
             'categoria' => $_POST['categoria'] ?? '',
@@ -31,7 +30,7 @@ class ctrl extends mdl {
         $totalValue = 0;
 
         foreach ($data as $item) {
-            $value = floatval($item['cantidad']) * floatval($item['Costo']);
+            $value = floatval($item['quantity']) * floatval($item['cost']);
             $totalValue += $value;
 
             $a = [
@@ -41,9 +40,9 @@ class ctrl extends mdl {
                     'onclick' => 'products.editMaterial(' . $item['id'] . ')'
                 ],
                 [
-                    'class'   => $item['Estado'] == 1 ? 'btn btn-sm btn-danger' : 'btn btn-sm btn-outline-danger',
-                    'html'    => $item['Estado'] == 1 ? '<i class="icon-toggle-on"></i>' : '<i class="icon-toggle-off"></i>',
-                    'onclick' => 'products.statusMaterial(' . $item['id'] . ', ' . $item['Estado'] . ')'
+                    'class'   => $item['active'] == 1 ? 'btn btn-sm btn-danger' : 'btn btn-sm btn-outline-danger',
+                    'html'    => $item['active'] == 1 ? '<i class="icon-toggle-on"></i>' : '<i class="icon-toggle-off"></i>',
+                    'onclick' => 'products.statusMaterial(' . $item['id'] . ', ' . $item['active'] . ')'
                 ]
             ];
 
@@ -51,18 +50,16 @@ class ctrl extends mdl {
                 'id'           => $item['id'],
                 'Producto'     => [
                     'class' => 'justify-center px-2 py-2',
-                    'html'  => renderProductImage($item['rutaImagen'], $item['Equipo'])
+                    'html'  => renderProductImage('', $item['name'])
                 ],
-                // 'Código'       => $item['CodigoEquipo'],
-                // 'Equipo'       => $item['Equipo'],
                 'Grupo'         => $item['area'] ?? '-',
-                'Cantidad'     => $item['cantidad'],
+                'Cantidad'     => $item['quantity'],
                 'Presentación'    => $item['categoria'] ?? '-',
                 'Costo'        => [
-                    'html'  => '$' . number_format($item['Costo'], 2),
+                    'html'  => '$' . number_format($item['cost'], 2),
                     'class' => 'text-end '
                 ],
-                'Estado'       => renderStatus($item['Estado']),
+                'Estado'       => renderStatus($item['active']),
                 'a'            => $a
             ];
         }
@@ -91,21 +88,21 @@ class ctrl extends mdl {
             'status'  => $status,
             'message' => $message,
             'data'    => $data,
-           
+
         ];
     }
 
     function addMaterial() {
         $status  = 500;
         $message = 'No se pudo agregar el material';
-        
-        $_POST['FechaIngreso']  = date('Y-m-d H:i:s');
-        $_POST['Estado']        = 1;
-        $_POST['UDN_Almacen']   = $_SESSION['idUDN'];
-        $_POST['CodigoEquipo']  = $this->getNextCodigoEquipo();
+
+        $_POST['created_at']  = date('Y-m-d H:i:s');
+        $_POST['active']      = 1;
+        $_POST['udn_id']     = $_SESSION['idUDN'];
+        $_POST['code']        = $this->getNextCodigoEquipo();
 
         $create = $this->createMaterial($this->util->sql($_POST));
-        
+
         if ($create) {
             $status  = 200;
             $message = 'Producto agregado correctamente';
@@ -137,7 +134,7 @@ class ctrl extends mdl {
 
     function deleteMaterial() {
         $status  = 500;
-        $nuevoEstado = $_POST['Estado'];
+        $nuevoEstado = $_POST['active'];
         $message = $nuevoEstado == 1 ? 'No se pudo activar el Producto' : 'No se pudo desactivar el Producto';
 
         $update = $this->updateMaterial($this->util->sql($_POST, 1));
@@ -158,9 +155,9 @@ class ctrl extends mdl {
         $message = 'No se pudo actualizar el estado';
 
         $update = $this->updateMaterial([
-            'values' => 'Estado = ?',
-            'where'  => 'idAlmacen = ?',
-            'data'   => [$_POST['Estado'], $_POST['idAlmacen']]
+            'values' => 'active = ?',
+            'where'  => 'id = ?',
+            'data'   => [$_POST['active'], $_POST['id']]
         ]);
 
         if ($update) {

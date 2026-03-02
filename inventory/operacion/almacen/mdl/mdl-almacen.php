@@ -9,59 +9,49 @@ class mdl extends CRUD {
 
     public function __construct() {
         $this->util = new Utileria;
-        $this->bd   = "fayxzvov_mtto.";
+        $this->bd   = "fayxzvov_almacen.";
     }
 
     // Selects para filtros
 
     function lsZonas() {
         $query = "
-            SELECT id_zona as id, nombre_zona AS valor
-            FROM {$this->bd}mtto_almacen_zona
+            SELECT id, name AS valor
+            FROM {$this->bd}areas
             WHERE active = 1
             AND udn_id = ".$_SESSION['idUDN']."
-            ORDER BY nombre_zona ASC
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function lsCategories() {
         $query = "
-            SELECT idcategoria as id, nombreCategoria AS valor
-            FROM {$this->bd}mtto_categoria
+            SELECT id, name AS valor
+            FROM {$this->bd}presentations
             WHERE active = 1
             AND udn_id = ".$_SESSION['idUDN']."
-            ORDER BY nombreCategoria ASC
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function lsAreas() {
         $query = "
-            SELECT idArea as id, nombre_area AS valor
-            FROM {$this->bd}mtto_almacen_area
+            SELECT id, name AS valor
+            FROM {$this->bd}product_groups
             WHERE active = 1
             AND udn_id = ".$_SESSION['idUDN']."
-            ORDER BY nombre_area ASC
-        ";
-        return $this->_Read($query, []);
-    }
-
-    function lsDepartamentos() {
-        $query = "
-            SELECT id, nombre AS valor
-            FROM {$this->bd}departamento
-            WHERE active = 1
-            ORDER BY nombre ASC
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function lsProveedores() {
         $query = "
-            SELECT idProveedor as id, nombreProveedor AS valor
-            FROM {$this->bd}mtto_proveedores
-            ORDER BY nombreProveedor ASC
+            SELECT id, name AS valor
+            FROM {$this->bd}supplier
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
@@ -70,75 +60,66 @@ class mdl extends CRUD {
 
     function listMateriales($filters) {
         $query = "
-            SELECT 
-                a.idAlmacen as id,
-                a.CodigoEquipo,
-                a.Equipo,
-                a.cantidad,
-                a.Costo,
-                a.PrecioVenta,
-                a.Estado,
-                a.rutaImagen,
-                a.inventario_min,
-                a.Descripcion,
-                a.FechaIngreso,
-                ar.nombre_area as area,
-                c.nombreCategoria as categoria,
-                z.nombre_zona as zona,
-                d.nombre as departamento,
-                p.nombreProveedor as proveedor
-            FROM {$this->bd}mtto_almacen a
-            LEFT JOIN {$this->bd}mtto_almacen_area ar ON a.Area         = ar.idArea
-            LEFT JOIN {$this->bd}mtto_categoria c     ON a.id_categoria = c.idcategoria
-            LEFT JOIN {$this->bd}mtto_almacen_zona z  ON a.id_zona      = z.id_zona
-            LEFT JOIN {$this->bd}departamento d       ON a.id_dpto      = d.id
-            LEFT JOIN {$this->bd}mtto_proveedores p   ON a.id_Proveedor = p.idProveedor
-            WHERE UDN_Almacen = ".$_SESSION['idUDN']."
+            SELECT
+                a.id,
+                a.code,
+                a.name,
+                a.quantity,
+                a.cost,
+                a.price,
+                a.active,
+                a.min_stock,
+                a.description,
+                a.created_at,
+                ar.name as area,
+                c.name as categoria,
+                z.name as zona
+            FROM {$this->bd}product a
+            LEFT JOIN {$this->bd}product_groups ar ON a.group_id        = ar.id
+            LEFT JOIN {$this->bd}presentations c   ON a.presentations_id = c.id
+            LEFT JOIN {$this->bd}areas z            ON a.area_id         = z.id
+            WHERE a.udn_id = ".$_SESSION['idUDN']."
         ";
 
         $params = [];
 
         if (!empty($filters['zona'])) {
-            $query .= " AND a.id_zona = ?";
+            $query .= " AND a.area_id = ?";
             $params[] = $filters['zona'];
         }
 
         if (!empty($filters['categoria'])) {
-            $query .= " AND a.id_categoria = ?";
+            $query .= " AND a.presentations_id = ?";
             $params[] = $filters['categoria'];
         }
 
         if (!empty($filters['area'])) {
-            $query .= " AND a.Area = ?";
+            $query .= " AND a.group_id = ?";
             $params[] = $filters['area'];
         }
 
         if (isset($filters['estado']) && $filters['estado'] !== '') {
-            $query .= " AND a.Estado = ?";
+            $query .= " AND a.active = ?";
             $params[] = $filters['estado'];
         }
 
-        $query .= " ORDER BY a.idAlmacen DESC";
+        $query .= " ORDER BY a.id DESC";
 
         return $this->_Read($query, $params);
     }
 
     function getMaterialById($id) {
         $query = "
-            SELECT 
+            SELECT
                 a.*,
-                ar.nombre_area as area_nombre,
-                c.nombreCategoria as categoria_nombre,
-                z.nombre_zona as zona_nombre,
-                d.nombre as departamento_nombre,
-                p.nombreProveedor as proveedor_nombre
-            FROM {$this->bd}mtto_almacen a
-            LEFT JOIN {$this->bd}mtto_almacen_area ar ON a.Area         = ar.idArea
-            LEFT JOIN {$this->bd}mtto_categoria c     ON a.id_categoria = c.idcategoria
-            LEFT JOIN {$this->bd}mtto_almacen_zona z  ON a.id_zona      = z.id_zona
-            LEFT JOIN {$this->bd}departamento d       ON a.id_dpto      = d.id
-            LEFT JOIN {$this->bd}mtto_proveedores p   ON a.id_Proveedor = p.idProveedor
-            WHERE a.idAlmacen = ?
+                ar.name as area_nombre,
+                c.name as categoria_nombre,
+                z.name as zona_nombre
+            FROM {$this->bd}product a
+            LEFT JOIN {$this->bd}product_groups ar ON a.group_id        = ar.id
+            LEFT JOIN {$this->bd}presentations c   ON a.presentations_id = c.id
+            LEFT JOIN {$this->bd}areas z            ON a.area_id         = z.id
+            WHERE a.id = ?
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;
@@ -147,9 +128,9 @@ class mdl extends CRUD {
     function existsMaterialByCode($array) {
         $query = "
             SELECT COUNT(*) as count
-            FROM {$this->bd}mtto_almacen
-            WHERE CodigoEquipo = ? AND Estado = 1
-            AND UDN_Almacen = ".$_SESSION['idUDN']."
+            FROM {$this->bd}product
+            WHERE code = ? AND active = 1
+            AND udn_id = ".$_SESSION['idUDN']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['count'] > 0;
@@ -157,8 +138,8 @@ class mdl extends CRUD {
 
     function getNextCodigoEquipo() {
         $query = "
-            SELECT COALESCE(MAX(idAlmacen), 0) + 1 as next_id
-            FROM {$this->bd}mtto_almacen
+            SELECT COALESCE(MAX(id), 0) + 1 as next_id
+            FROM {$this->bd}product
         ";
         $result = $this->_Read($query, []);
         $nextId = $result[0]['next_id'];
@@ -167,7 +148,7 @@ class mdl extends CRUD {
 
     function createMaterial($data) {
         return $this->_Insert([
-            'table'  => "{$this->bd}mtto_almacen",
+            'table'  => "{$this->bd}product",
             'values' => $data['values'],
             'data'   => $data['data']
         ]);
@@ -175,7 +156,7 @@ class mdl extends CRUD {
 
     function updateMaterial($data) {
         return $this->_Update([
-            'table'  => "{$this->bd}mtto_almacen",
+            'table'  => "{$this->bd}product",
             'values' => $data['values'],
             'where'  => $data['where'],
             'data'   => $data['data']
@@ -184,7 +165,7 @@ class mdl extends CRUD {
 
     function deleteMaterialById($array) {
         return $this->_Delete([
-            'table' => "{$this->bd}mtto_almacen",
+            'table' => "{$this->bd}product",
             'where' => $array['where'],
             'data'  => $array['data']
         ]);
@@ -194,20 +175,20 @@ class mdl extends CRUD {
 
     function listCategorias() {
         $query = "
-            SELECT 
-                idcategoria as id,
-                nombreCategoria,
-                date_creation,
+            SELECT
+                id,
+                name,
+                created_at as date_creation,
                 active
-            FROM {$this->bd}mtto_categoria
-            ORDER BY nombreCategoria ASC
+            FROM {$this->bd}presentations
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function getCategoriaById($id) {
         $query = "
-            SELECT * FROM {$this->bd}mtto_categoria WHERE idcategoria = ?
+            SELECT * FROM {$this->bd}presentations WHERE id = ?
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;
@@ -215,7 +196,7 @@ class mdl extends CRUD {
 
     function createCategoria($data) {
         return $this->_Insert([
-            'table'  => "{$this->bd}mtto_categoria",
+            'table'  => "{$this->bd}presentations",
             'values' => $data['values'],
             'data'   => $data['data']
         ]);
@@ -223,7 +204,7 @@ class mdl extends CRUD {
 
     function updateCategoria($data) {
         return $this->_Update([
-            'table'  => "{$this->bd}mtto_categoria",
+            'table'  => "{$this->bd}presentations",
             'values' => $data['values'],
             'where'  => $data['where'],
             'data'   => $data['data']
@@ -234,20 +215,20 @@ class mdl extends CRUD {
 
     function listAreas() {
         $query = "
-            SELECT 
-                idArea as id,
-                nombre_area,
-                date_creation,
+            SELECT
+                id,
+                name,
+                created_at as date_creation,
                 active
-            FROM {$this->bd}mtto_almacen_area
-            ORDER BY nombre_area ASC
+            FROM {$this->bd}product_groups
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function getAreaById($id) {
         $query = "
-            SELECT * FROM {$this->bd}mtto_almacen_area WHERE idArea = ?
+            SELECT * FROM {$this->bd}product_groups WHERE id = ?
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;
@@ -255,7 +236,7 @@ class mdl extends CRUD {
 
     function createArea($data) {
         return $this->_Insert([
-            'table'  => "{$this->bd}mtto_almacen_area",
+            'table'  => "{$this->bd}product_groups",
             'values' => $data['values'],
             'data'   => $data['data']
         ]);
@@ -263,7 +244,7 @@ class mdl extends CRUD {
 
     function updateArea($data) {
         return $this->_Update([
-            'table'  => "{$this->bd}mtto_almacen_area",
+            'table'  => "{$this->bd}product_groups",
             'values' => $data['values'],
             'where'  => $data['where'],
             'data'   => $data['data']
@@ -274,20 +255,20 @@ class mdl extends CRUD {
 
     function listZonas() {
         $query = "
-            SELECT 
-                id_zona as id,
-                nombre_zona,
-                date_creation,
+            SELECT
+                id,
+                name,
+                created_at as date_creation,
                 active
-            FROM {$this->bd}mtto_almacen_zona
-            ORDER BY nombre_zona ASC
+            FROM {$this->bd}areas
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function getZonaById($id) {
         $query = "
-            SELECT * FROM {$this->bd}mtto_almacen_zona WHERE id_zona = ?
+            SELECT * FROM {$this->bd}areas WHERE id = ?
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;
@@ -295,7 +276,7 @@ class mdl extends CRUD {
 
     function createZona($data) {
         return $this->_Insert([
-            'table'  => "{$this->bd}mtto_almacen_zona",
+            'table'  => "{$this->bd}areas",
             'values' => $data['values'],
             'data'   => $data['data']
         ]);
@@ -303,7 +284,7 @@ class mdl extends CRUD {
 
     function updateZona($data) {
         return $this->_Update([
-            'table'  => "{$this->bd}mtto_almacen_zona",
+            'table'  => "{$this->bd}areas",
             'values' => $data['values'],
             'where'  => $data['where'],
             'data'   => $data['data']
@@ -314,18 +295,18 @@ class mdl extends CRUD {
 
     function listProveedores() {
         $query = "
-            SELECT 
-                idProveedor as id,
-                nombreProveedor
-            FROM {$this->bd}mtto_proveedores
-            ORDER BY nombreProveedor ASC
+            SELECT
+                id,
+                name
+            FROM {$this->bd}supplier
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function getProveedorById($id) {
         $query = "
-            SELECT * FROM {$this->bd}mtto_proveedores WHERE idProveedor = ?
+            SELECT * FROM {$this->bd}supplier WHERE id = ?
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;
@@ -333,7 +314,7 @@ class mdl extends CRUD {
 
     function createProveedor($data) {
         return $this->_Insert([
-            'table'  => "{$this->bd}mtto_proveedores",
+            'table'  => "{$this->bd}supplier",
             'values' => $data['values'],
             'data'   => $data['data']
         ]);
@@ -341,7 +322,7 @@ class mdl extends CRUD {
 
     function updateProveedor($data) {
         return $this->_Update([
-            'table'  => "{$this->bd}mtto_proveedores",
+            'table'  => "{$this->bd}supplier",
             'values' => $data['values'],
             'where'  => $data['where'],
             'data'   => $data['data']

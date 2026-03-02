@@ -9,39 +9,39 @@ class mdl extends CRUD {
 
     public function __construct() {
         $this->util = new Utileria;
-        $this->bd = "fayxzvov_mtto.";
+        $this->bd = "fayxzvov_almacen.";
     }
 
     // Selects para filtros
 
     function lsZonas() {
         $query = "
-            SELECT id_zona as id, nombre_zona AS valor
-            FROM {$this->bd}mtto_almacen_zona
+            SELECT id, name AS valor
+            FROM {$this->bd}areas
             WHERE active = 1 and
             udn_id = ".$_SESSION['idUDN']."
-            ORDER BY nombre_zona ASC
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function lsCategorias() {
         $query = "
-            SELECT idcategoria as id, nombreCategoria AS valor
-            FROM {$this->bd}mtto_categoria
+            SELECT id, name AS valor
+            FROM {$this->bd}presentations
             WHERE active = 1  and
             udn_id = ".$_SESSION['idUDN']."
-            ORDER BY nombreCategoria ASC
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function lsAreas() {
         $query = "
-            SELECT idArea as id, nombre_area AS valor
-            FROM {$this->bd}mtto_almacen_area
+            SELECT id, name AS valor
+            FROM {$this->bd}product_groups
             WHERE active = 1 AND udn_id = ".$_SESSION['idUDN']."
-            ORDER BY nombre_area ASC
+            ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
@@ -49,34 +49,34 @@ class mdl extends CRUD {
     // Existencias
 
     function listExistencias($filters) {
-        $whereConditions = ['a.UDN_Almacen = '.$_SESSION['idUDN']];
+        $whereConditions = ['a.udn_id = '.$_SESSION['idUDN']];
         $params = [];
 
         if (!empty($filters['zona']) && $filters['zona'] != 'Todos') {
-            $whereConditions[] = 'a.id_zona = ?';
+            $whereConditions[] = 'a.area_id = ?';
             $params[] = $filters['zona'];
         }
 
         if (!empty($filters['area']) && $filters['area'] != 'Todos') {
-            $whereConditions[] = 'a.Area = ?';
+            $whereConditions[] = 'a.group_id = ?';
             $params[] = $filters['area'];
         }
 
         if (!empty($filters['categoria']) && $filters['categoria'] != 'Todos') {
-            $whereConditions[] = 'a.id_categoria = ?';
+            $whereConditions[] = 'a.presentations_id = ?';
             $params[] = $filters['categoria'];
         }
 
         if (!empty($filters['estatus']) && $filters['estatus'] != 'Todos') {
             switch ($filters['estatus']) {
                 case 'disponible':
-                    $whereConditions[] = 'a.cantidad > a.inventario_min';
+                    $whereConditions[] = 'a.quantity > a.min_stock';
                     break;
                 case 'bajo':
-                    $whereConditions[] = 'a.cantidad <= a.inventario_min AND a.cantidad > 0';
+                    $whereConditions[] = 'a.quantity <= a.min_stock AND a.quantity > 0';
                     break;
                 case 'agotado':
-                    $whereConditions[] = 'a.cantidad = 0';
+                    $whereConditions[] = 'a.quantity = 0';
                     break;
             }
         }
@@ -84,68 +84,69 @@ class mdl extends CRUD {
         $whereClause = implode(' AND ', $whereConditions);
 
         $query = "
-            SELECT 
-                a.idAlmacen as id,
-                a.Equipo as producto,
-                c.nombreCategoria as presentacion,
-                a.inventario_min,
-                a.Costo,
-                a.PrecioVenta,
-                a.cantidad,
-                (SELECT MAX(m.fecha) 
-                 FROM {$this->bd}mtto_inventario_movimientos m 
-                 INNER JOIN {$this->bd}mtto_inventario_detalle d ON m.id_movimiento = d.id_movimiento 
-                 WHERE d.id_producto = a.idAlmacen AND m.tipo_movimiento = 'Entrada'
+            SELECT
+                a.id,
+                a.name as producto,
+                c.name as presentacion,
+                a.min_stock as inventario_min,
+                a.cost as Costo,
+                a.price as PrecioVenta,
+                a.quantity as cantidad,
+                (SELECT MAX(m.date)
+                 FROM {$this->bd}inventory_movement m
+                 INNER JOIN {$this->bd}inventory_movement_detail d ON m.id = d.inventory_movement_id
+                 LEFT JOIN {$this->bd}movement_type mt ON m.movement_type_id = mt.id
+                 WHERE d.product_id = a.id AND mt.name = 'Entrada'
                 ) as fecha_mayoreo,
-                (SELECT d.stock_anterior 
-                 FROM {$this->bd}mtto_inventario_detalle d 
-                 INNER JOIN {$this->bd}mtto_inventario_movimientos m ON d.id_movimiento = m.id_movimiento
-                 WHERE d.id_producto = a.idAlmacen 
-                 ORDER BY m.fecha ASC LIMIT 1
+                (SELECT d.previous_stock
+                 FROM {$this->bd}inventory_movement_detail d
+                 INNER JOIN {$this->bd}inventory_movement m ON d.inventory_movement_id = m.id
+                 WHERE d.product_id = a.id
+                 ORDER BY m.date ASC LIMIT 1
                 ) as stock_inicial,
-                z.nombre_zona as zona,
-                ar.nombre_area as area
-            FROM {$this->bd}mtto_almacen a
-            LEFT JOIN {$this->bd}mtto_categoria c ON a.id_categoria = c.idcategoria
-            LEFT JOIN {$this->bd}mtto_almacen_zona z ON a.id_zona = z.id_zona
-            LEFT JOIN {$this->bd}mtto_almacen_area ar ON a.Area = ar.idArea
+                z.name as zona,
+                ar.name as area
+            FROM {$this->bd}product a
+            LEFT JOIN {$this->bd}presentations c ON a.presentations_id = c.id
+            LEFT JOIN {$this->bd}areas z ON a.area_id = z.id
+            LEFT JOIN {$this->bd}product_groups ar ON a.group_id = ar.id
             WHERE $whereClause
-            
-            ORDER BY a.Equipo ASC
+
+            ORDER BY a.name ASC
         ";
 
         return $this->_Read($query, $params);
     }
 
     function getResumen($filters) {
-        $whereConditions = ['a.UDN_Almacen = '.$_SESSION['idUDN']];
+        $whereConditions = ['a.udn_id = '.$_SESSION['idUDN']];
         $params = [];
 
         if (!empty($filters['zona']) && $filters['zona'] != 'Todos') {
-            $whereConditions[] = 'a.id_zona = ?';
+            $whereConditions[] = 'a.area_id = ?';
             $params[] = $filters['zona'];
         }
 
         if (!empty($filters['area']) && $filters['area'] != 'Todos') {
-            $whereConditions[] = 'a.Area = ?';
+            $whereConditions[] = 'a.group_id = ?';
             $params[] = $filters['area'];
         }
 
         if (!empty($filters['categoria']) && $filters['categoria'] != 'Todos') {
-            $whereConditions[] = 'a.id_categoria = ?';
+            $whereConditions[] = 'a.presentations_id = ?';
             $params[] = $filters['categoria'];
         }
 
         $whereClause = implode(' AND ', $whereConditions);
 
         $query = "
-            SELECT 
+            SELECT
                 COUNT(*) as total,
-                SUM(CASE WHEN a.cantidad > a.inventario_min THEN 1 ELSE 0 END) as disponibles,
-                SUM(CASE WHEN a.cantidad <= a.inventario_min AND a.cantidad > 0 THEN 1 ELSE 0 END) as stock_bajo,
-                SUM(CASE WHEN a.cantidad = 0 THEN 1 ELSE 0 END) as agotados,
-                SUM(a.cantidad * a.Costo) as valor_total
-            FROM {$this->bd}mtto_almacen a
+                SUM(CASE WHEN a.quantity > a.min_stock THEN 1 ELSE 0 END) as disponibles,
+                SUM(CASE WHEN a.quantity <= a.min_stock AND a.quantity > 0 THEN 1 ELSE 0 END) as stock_bajo,
+                SUM(CASE WHEN a.quantity = 0 THEN 1 ELSE 0 END) as agotados,
+                SUM(a.quantity * a.cost) as valor_total
+            FROM {$this->bd}product a
             WHERE $whereClause
         ";
 
@@ -154,16 +155,16 @@ class mdl extends CRUD {
 
     function getProductoById($id) {
         $query = "
-            SELECT 
+            SELECT
                 a.*,
-                c.nombreCategoria as categoria_nombre,
-                z.nombre_zona as zona_nombre,
-                ar.nombre_area as area_nombre
-            FROM {$this->bd}mtto_almacen a
-            LEFT JOIN {$this->bd}mtto_categoria c ON a.id_categoria = c.idcategoria
-            LEFT JOIN {$this->bd}mtto_almacen_zona z ON a.id_zona = z.id_zona
-            LEFT JOIN {$this->bd}mtto_almacen_area ar ON a.Area = ar.idArea
-            WHERE a.idAlmacen = ? AND a.UDN_Almacen = ".$_SESSION['idUDN']."
+                c.name as categoria_nombre,
+                z.name as zona_nombre,
+                ar.name as area_nombre
+            FROM {$this->bd}product a
+            LEFT JOIN {$this->bd}presentations c ON a.presentations_id = c.id
+            LEFT JOIN {$this->bd}areas z ON a.area_id = z.id
+            LEFT JOIN {$this->bd}product_groups ar ON a.group_id = ar.id
+            WHERE a.id = ? AND a.udn_id = ".$_SESSION['idUDN']."
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;

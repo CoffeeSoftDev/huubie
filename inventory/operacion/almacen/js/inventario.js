@@ -21,7 +21,7 @@ class Inventario extends Templates {
             }
         });
 
-     
+
     }
 
     filterBar() {
@@ -45,7 +45,7 @@ class Inventario extends Templates {
                     ],
                     onchange: "inventario.lsMovimientos()"
                 },
-              
+
                 {
                     opc: "button",
                     id: "btnNuevaLista",
@@ -71,10 +71,10 @@ class Inventario extends Templates {
         this.createTable({
             parent: `container${this.PROJECT_NAME}`,
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
-            data: { 
-                opc: "lsMovimientos", 
-                fi: rangePicker.fi, 
-                ff: rangePicker.ff 
+            data: {
+                opc: "lsMovimientos",
+                fi: rangePicker.fi,
+                ff: rangePicker.ff
             },
             coffeesoft: true,
             conf: { datatable: true, pag: 15 },
@@ -102,7 +102,7 @@ class Inventario extends Templates {
                 console.log(response)
 
                 if (response.status === 200) {
-                                  
+
                     captura.render(response.id_movimiento);
                 } else {
                     alert({
@@ -117,9 +117,6 @@ class Inventario extends Templates {
     }
 
     cancelMovimiento(id, event) {
-        // const row = event.target.closest('tr');
-        // const folio = row.querySelectorAll('td')[0]?.innerText || '';
-
         this.swalQuestion({
             opts: {
                 title: "¿Cancelar Movimiento?",
@@ -127,9 +124,9 @@ class Inventario extends Templates {
                        Esta acción revertirá los cambios de stock realizados.`,
                 icon: "warning"
             },
-            data: { 
-                opc: "cancelMovimiento", 
-                id: id 
+            data: {
+                opc: "cancelMovimiento",
+                id: id
             },
             methods: {
                 send: (response) => {
@@ -157,7 +154,7 @@ class Inventario extends Templates {
         return [
             {
                 opc: "input",
-                id: "fecha",
+                id: "date",
                 lbl: "Fecha del Movimiento",
                 type: "date",
                 class: "col-12 mb-3",
@@ -165,14 +162,14 @@ class Inventario extends Templates {
             },
             {
                 opc: "select",
-                id: "tipo_movimiento",
+                id: "movement_type_id",
                 lbl: "Tipo de Movimiento",
                 class: "col-12 mb-3",
                 data: tipoMovimiento,
                 text: "valor",
                 value: "id"
             },
-    
+
         ];
     }
 }
@@ -186,7 +183,7 @@ class CapturaMovimiento extends Templates {
 
     async render(idMovimiento) {
         this.idMovimiento = idMovimiento;
-        
+
         const movimiento = await useFetch({
             url: this._link,
             data: { opc: "getMovimiento", id: idMovimiento }
@@ -324,19 +321,12 @@ class CapturaMovimiento extends Templates {
             data: {
                 opc: "addProductoMovimiento",
                 id_movimiento: this.idMovimiento,
-                id_producto: idProducto,
-                cantidad: cantidad
+                product_id: idProducto,
+                quantity: cantidad
             }
         });
 
         if (response.status === 200) {
-            // alert({
-            //     icon: "success",
-            //     text: "Producto agregado",
-            //     timer: 1500,
-            //     showConfirmButton: false
-            // });
-
             $("#selectProducto").val(null).trigger("change");
             $("#inputCantidad").val(1);
 
@@ -356,9 +346,9 @@ class CapturaMovimiento extends Templates {
             parent: "tablaProductos",
             idFilterBar: `filterBar`,
 
-            data: { 
-                opc: "lsDetalleMovimiento", 
-                id_movimiento: this.idMovimiento 
+            data: {
+                opc: "lsDetalleMovimiento",
+                id_movimiento: this.idMovimiento
             },
             coffeesoft: true,
             conf: { datatable: true },
@@ -366,7 +356,6 @@ class CapturaMovimiento extends Templates {
                 id: "tbDetalleMovimiento",
                 theme: "light",
                 striped:true,
-                // title: "Productos Agregados",
                 center: [ 1, 3, 4,5]
             },
             success: () => {
@@ -380,17 +369,11 @@ class CapturaMovimiento extends Templates {
             url: this._link,
             data: {
                 opc: "deleteProductoMovimiento",
-                id_detalle: idDetalle
+                id: idDetalle
             }
         });
 
         if (response.status === 200) {
-            // alert({
-            //     icon: "success",
-            //     text: "Producto eliminado",
-            //     btn1: true
-            // });
-
             this.lsDetalleMovimiento();
             this.updateResumen();
         } else {
@@ -405,49 +388,49 @@ class CapturaMovimiento extends Templates {
     async updateResumen() {
         const detalles = await useFetch({
             url: this._link,
-            data: { 
-                opc: "lsDetalleMovimiento", 
-                id_movimiento: this.idMovimiento 
+            data: {
+                opc: "lsDetalleMovimiento",
+                id_movimiento: this.idMovimiento
             }
         });
 
-       
+
         const totalProductos = detalles.ls ? detalles.ls.length : 0;
         const totalUnidades = detalles.ls ? detalles.ls.reduce((sum, item) => sum + parseInt(item.cantidad), 0) : 0;
 
-        const tipoColor = this.movimientoData.tipo_movimiento === 'Entrada' 
-            ? 'text-green-600' 
+        const tipoColor = this.movimientoData.tipo_movimiento === 'Entrada'
+            ? 'text-green-600'
             : 'text-red-600';
 
-        const tipoIcon = this.movimientoData.tipo_movimiento === 'Entrada' 
-            ? '↑' 
+        const tipoIcon = this.movimientoData.tipo_movimiento === 'Entrada'
+            ? '↑'
             : '↓';
 
         const resumen = $("<div>", {
             class: "sticky top-4"
         }).html(`
             <h3 class="font-semibold text-gray-700 mb-3 pb-2 border-b">Resumen</h3>
-            
+
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
                     <span class="text-gray-600 text-sm">Folio:</span>
                     <span class="font-bold text-gray-900">${this.movimientoData.folio}</span>
                 </div>
-                
+
                 <div class="flex justify-between items-center">
                     <span class="text-gray-600 text-sm">Tipo:</span>
                     <span class="font-semibold ${tipoColor}">${tipoIcon} ${this.movimientoData.tipo_movimiento}</span>
                 </div>
             </div>
-            
+
             <hr class="my-3 border-gray-200">
-            
+
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
                     <span class="text-gray-600 text-sm">Productos:</span>
                     <span class="font-bold text-lg text-gray-900">${totalProductos}</span>
                 </div>
-                
+
                 <div class="flex justify-between items-center">
                     <span class="text-gray-600 text-sm">Total unidades:</span>
                     <span class="font-bold text-lg text-gray-900">${totalUnidades}</span>
@@ -505,7 +488,7 @@ class CapturaMovimiento extends Templates {
 
     async editMovimiento(idMovimiento) {
         this.idMovimiento = idMovimiento;
-        
+
         const movimiento = await useFetch({
             url: this._link,
             data: { opc: "getMovimiento", id: idMovimiento }

@@ -43,7 +43,6 @@ class ctrl extends mdl {
             $rows[] = [
                 'id'              => $item['id'],
                 'Categoría'       => $item['valor'],
-                // 'Fecha Creación'  => $item['date_creation'],
                 'Estado'          => renderStatus($item['active']),
                 'a'               => $a
             ];
@@ -81,11 +80,11 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear categoría';
 
-        $_POST['date_creation'] = date('Y-m-d H:i:s');
-        $_POST['active']        = 1;
-        $_POST['udn_id']        = $_SESSION['idUDN'];
+        $_POST['created_at'] = date('Y-m-d H:i:s');
+        $_POST['active']     = 1;
+        $_POST['udn_id']    = $_SESSION['idUDN'];
 
-        $exists = $this->existsCategoryByName([$_POST['nombreCategoria'],$_SESSION['idUDN']]);
+        $exists = $this->existsCategoryByName([$_POST['name'],$_SESSION['idUDN']]);
 
         if ($exists > 0) {
             return [
@@ -122,7 +121,7 @@ class ctrl extends mdl {
         return [
             'status'  => $status,
             'message' => $message,
-        
+
         ];
     }
 
@@ -212,11 +211,11 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear área';
 
-        $_POST['date_creation'] = date('Y-m-d H:i:s');
-        $_POST['active']        = 1;
-        $_POST['udn_id']        = $_SESSION['idUDN'];
+        $_POST['created_at'] = date('Y-m-d H:i:s');
+        $_POST['active']     = 1;
+        $_POST['udn_id']    = $_SESSION['idUDN'];
 
-        $exists = $this->existsAreaByName([$_POST['nombre_area']]);
+        $exists = $this->existsAreaByName([$_POST['name']]);
 
         if ($exists > 0) {
             return [
@@ -339,11 +338,11 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear zona';
 
-        $_POST['date_creation'] = date('Y-m-d H:i:s');
-        $_POST['active']        = 1;
-        $_POST['udn_id']        = $_SESSION['idUDN'];
+        $_POST['created_at'] = date('Y-m-d H:i:s');
+        $_POST['active']     = 1;
+        $_POST['udn_id']    = $_SESSION['idUDN'];
 
-        $exists = $this->existsZoneByName([$_POST['nombre_zona']]);
+        $exists = $this->existsZoneByName([$_POST['name']]);
 
         if ($exists > 0) {
             return [
@@ -369,7 +368,7 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al editar zona';
 
-     
+
 
         $edit    = $this->updateZone($this->util->sql($_POST, 1));
 
@@ -380,7 +379,7 @@ class ctrl extends mdl {
 
         return [
             'status'  => $status,
-            'message' => $message, 
+            'message' => $message,
         ];
     }
 

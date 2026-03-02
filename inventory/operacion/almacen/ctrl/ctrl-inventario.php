@@ -39,8 +39,7 @@ class ctrl extends mdl {
                $a[] = [
                     'class'   => 'btn btn-sm btn-primary disabled me-1',
                     'html'    => '<i class="icon-pencil"></i>',
-                    // 'onclick' => 'captura.render(' . $item['id_movimiento'] . ')'
-                ]; 
+                ];
             }
 
             $rows[] = [
@@ -70,13 +69,13 @@ class ctrl extends mdl {
         $nuevoNumero = $maxFolio + 1;
         $folio       = formatFolio($nuevoNumero);
 
-        $_POST['folio']           = $folio;
-        $_POST['total_productos'] = 0;
-        $_POST['total_unidades']  = 0;
-        $_POST['estado']          = 'Activa';
-        $_POST['user_id']         = $_SESSION['IDU'];
-        $_POST['udn_id']        = $_SESSION['idUDN'];
-        
+        $_POST['folio']          = $folio;
+        $_POST['total_products'] = 0;
+        $_POST['total_units']    = 0;
+        $_POST['status']         = 'Activa';
+        $_POST['user_id']        = $_SESSION['IDU'];
+        $_POST['udn_id']         = $_SESSION['idUDN'];
+
         $create = $this->createMovimiento($this->util->sql($_POST));
 
         if ($create) {
@@ -92,7 +91,7 @@ class ctrl extends mdl {
             'folio'         => $folio,
             $_SESSION['idUDN'],
            $_POST
-          
+
         ];
     }
 
@@ -142,20 +141,20 @@ class ctrl extends mdl {
 
         $movimiento = $this->getMovimientoById($id);
 
-        if ($movimiento && $movimiento['estado'] == 'Activa') {
+        if ($movimiento && $movimiento['status'] == 'Activa') {
             $detalles = $this->listDetalleMovimiento([$id]);
 
             foreach ($detalles as $detalle) {
                 $stockAnterior = $detalle['stock_anterior'];
                 $this->updateStockProducto([
-                    'values' => 'cantidad = ?',
+                    'values' => 'quantity = ?',
                     'data'   => [$stockAnterior, $detalle['id_producto']]
                 ]);
             }
 
             $cancel = $this->updateMovimiento([
-                'values' => 'estado = ?',
-                'where'  => 'id_movimiento = ?',
+                'values' => 'status = ?',
+                'where'  => 'id = ?',
                 'data'   => ['Cancelada', $id]
             ]);
 
@@ -171,7 +170,7 @@ class ctrl extends mdl {
         ];
     }
 
-    // Capture Details 
+    // Capture Details
 
     function lsDetalleMovimiento() {
         $idMovimiento = $_POST['id_movimiento'];
@@ -182,7 +181,6 @@ class ctrl extends mdl {
             $rows[] = [
                 'id'       => $item['id_detalle'],
                 '#'                => count($rows) + 1,
-                // '#'                => $item['id_detalle'],
                 'Producto'         => $item['nombre_producto'],
                 'Stock Actual'     => $item['stock_actual'],
                 'Cantidad'         => [
@@ -212,8 +210,8 @@ class ctrl extends mdl {
         $message = 'Error al agregar producto';
 
         $idMovimiento = $_POST['id_movimiento'];
-        $idProducto   = $_POST['id_producto'];
-        $cantidad     = intval($_POST['cantidad']);
+        $idProducto   = $_POST['product_id'];
+        $cantidad     = intval($_POST['quantity']);
 
         if ($cantidad <= 0) {
             return [
@@ -226,12 +224,12 @@ class ctrl extends mdl {
         $movimiento      = $this->getMovimientoById($idMovimiento);
         $tipoMovimiento  = $movimiento['tipo_movimiento'];
 
-        $stockResultante = ($tipoMovimiento == 'Entrada') 
-            ? $stockActual + $cantidad 
+        $stockResultante = ($tipoMovimiento == 'Entrada')
+            ? $stockActual + $cantidad
             : $stockActual - $cantidad;
 
-        $_POST['stock_anterior']   = $stockActual;
-        $_POST['stock_resultante'] = $stockResultante;
+        $_POST['previous_stock']  = $stockActual;
+        $_POST['resulting_stock'] = $stockResultante;
 
         $create = $this->createDetalleMovimiento($this->util->sql($_POST));
 
@@ -249,12 +247,12 @@ class ctrl extends mdl {
     }
 
     function deleteProductoMovimiento() {
-        $idDetalle = $_POST['id_detalle'];
+        $idDetalle = $_POST['id'];
         $status    = 500;
         $message   = 'Error al eliminar producto';
-        
 
-        $values = $this->util->sql(['id_detalle' => $idDetalle], 1);
+
+        $values = $this->util->sql(['id' => $idDetalle], 1);
 
         $delete    = $this->deleteDetalleMovimientoById($values);
 
@@ -273,7 +271,7 @@ class ctrl extends mdl {
 
     function getResumenInventario() {
         $resumen = $this->getResumenStock();
-        
+
         return [
             'status'           => 200,
             'total_productos'  => $resumen['total_productos'] ?? 0,
@@ -338,8 +336,8 @@ class ctrl extends mdl {
     }
 
     function editMovimientoDetalle() {
-        $idDetalle = $_POST['id_detalle'];
-        $cantidad  = intval($_POST['cantidad']);
+        $idDetalle = $_POST['id'];
+        $cantidad  = intval($_POST['quantity']);
         $status    = 500;
         $message   = 'Error al actualizar cantidad';
 
@@ -353,7 +351,7 @@ class ctrl extends mdl {
         $detalle    = $this->getDetalleById($idDetalle);
         $movimiento = $this->getMovimientoById($detalle['id_movimiento']);
 
-        if ($movimiento['estado'] != 'Activa') {
+        if ($movimiento['status'] != 'Activa') {
             return [
                 'status'  => 400,
                 'message' => 'No se puede editar un movimiento cerrado'
@@ -368,8 +366,8 @@ class ctrl extends mdl {
             : $stockActual - $cantidad;
 
         $update = $this->updateDetalleMovimiento([
-            'values' => 'cantidad = ?, stock_resultante = ?',
-            'where'  => 'id_detalle = ?',
+            'values' => 'quantity = ?, resulting_stock = ?',
+            'where'  => 'id = ?',
             'data'   => [$cantidad, $stockResultante, $idDetalle]
         ]);
 
@@ -386,7 +384,7 @@ class ctrl extends mdl {
     }
 
     function getDetalleMovimiento() {
-        $idDetalle = $_POST['id_detalle'];
+        $idDetalle = $_POST['id'];
         $status    = 404;
         $message   = 'Detalle no encontrado';
         $data      = null;
@@ -407,8 +405,8 @@ class ctrl extends mdl {
     }
 
     function validarStock() {
-        $idProducto     = $_POST['id_producto'];
-        $cantidad       = intval($_POST['cantidad']);
+        $idProducto     = $_POST['product_id'];
+        $cantidad       = intval($_POST['quantity']);
         $tipoMovimiento = $_POST['tipo_movimiento'];
 
         $stockActual = $this->getStockProducto($idProducto);
@@ -460,14 +458,14 @@ class ctrl extends mdl {
 
             $nuevoStock = $detalle['stock_resultante'];
             $this->updateStockProducto([
-                'values' => 'cantidad = ?',
+                'values' => 'quantity = ?',
                 'data'   => [$nuevoStock, $detalle['id_producto']]
             ]);
         }
 
         $update = $this->updateMovimiento([
-            'values' => 'total_productos = ?, total_unidades = ?, estado = ?',
-            'where'  => 'id_movimiento = ?',
+            'values' => 'total_products = ?, total_units = ?, status = ?',
+            'where'  => 'id = ?',
             'data'   => [$totalProductos, $totalUnidades, 'Activa', $idMovimiento]
         ]);
 

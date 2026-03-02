@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-almacen.php';
 let main, products;
-let zonas, categorias, areas, departamentos, proveedores;
+let zonas, categorias, areas, proveedores;
 
 // Inventario.
 let api_inventario = 'ctrl/ctrl-inventario.php';
@@ -22,7 +22,6 @@ $(async () => {
     zonas          = data.zonas;
     categorias     = data.categorias;
     areas          = data.areas;
-    departamentos  = data.departamentos;
     proveedores    = data.proveedores;
 
     main = new Main(api, "root");
@@ -40,7 +39,7 @@ $(async () => {
     inventario = new Inventario(api_inventario, "root");
     captura = new CapturaMovimiento(api_inventario, "root");
     inventario.render();
-    
+
     // Movimientos.
 
     const req = await useFetch({ url: api_movimientos, data: { opc: "init" } });
@@ -71,11 +70,11 @@ class Main extends Templates {
 
     render() {
         this.layout();
-     
+
     }
 
     layout() {
-        
+
         this.primaryLayout({
             parent: "root",
             id: this.PROJECT_NAME,
@@ -99,14 +98,14 @@ class Main extends Templates {
                     lucideIcon: "package",
                     active: true,
                     class: "mb-1",
-                    
+
                     onClick: () => products.render()
                 },
                 {
                     id: "inventario",
                     tab: "Inventario",
                     lucideIcon: "clipboard-list",
-                  
+
 
                     onClick: () => inventario.render()
                 },
@@ -114,15 +113,15 @@ class Main extends Templates {
                     id: "movimientos",
                     tab: "Movimientos",
                     lucideIcon: "arrow-left-right",
-                   
+
                     onClick: () => movimientos.renderMovimiento()
                 },
                 {
                     id: "catalogo",
                     tab: "Catálogo",
                     lucideIcon: "book-open",
-                  
-                  
+
+
                 }
             ]
         });
@@ -224,8 +223,6 @@ class Productos extends Templates {
                 id: 'tbMateriales',
                 theme: 'light',
                 class: 'w-100 lowercase',
-                // title: 'Lista de productos',
-                // subtitle: 'Productos registrados en el sistema',
                 striped:true,
                 center: [1,3,4,7],
                 right: [5],
@@ -249,20 +246,12 @@ class Productos extends Templates {
         return [
             {
                 opc: "select",
-                id: "id_zona",
+                id: "area_id",
                 lbl: "Negocio: *",
                 class: "col-12 col-md-6 mb-3",
                 data: zonas,
                 required: true
             },
-            // {
-            //     opc: "input",
-            //     id: "CodigoEquipo",
-            //     lbl: "Código *",
-            //     placeholder: "AR-01-29-XXX",
-            //     class: "col-12 col-md-6 mb-3",
-            //     // required: true
-            // },
             {
                 opc: "label",
                 id: "lblMaterial",
@@ -271,27 +260,22 @@ class Productos extends Templates {
             },
             {
                 opc: "input",
-                id: "Equipo",
+                id: "name",
                 lbl: "Nombre del Producto *",
                 class: "col-12 col-md-6 mb-3",
                 required: true
             },
             {
                 opc: "select",
-                id: "Area",
+                id: "group_id",
                 lbl: "Grupo",
                 class: "col-12 col-md-6 mb-3",
                 data: areas,
                 required: true
             },
-         
-          
-         
-          
-          
             {
                 opc: "input",
-                id: "cantidad",
+                id: "quantity",
                 lbl: "Cantidad inicial *",
                 tipo: "numero",
                 class: "col-12 col-md-6 mb-3",
@@ -299,7 +283,7 @@ class Productos extends Templates {
             },
             {
                 opc: "select",
-                id: "id_categoria",
+                id: "presentations_id",
                 lbl: "Presentación *",
                 class: "col-12 col-md-6 mb-3",
                 data: categorias,
@@ -308,7 +292,7 @@ class Productos extends Templates {
 
             {
                 opc: "input",
-                id: "Costo",
+                id: "cost",
                 lbl: "Costo Unitario *",
                 tipo: "cifra",
                 class: "col-12 col-md-6 mb-3",
@@ -316,21 +300,21 @@ class Productos extends Templates {
             },
             {
                 opc: "input",
-                id: "PrecioVenta",
+                id: "price",
                 lbl: "Precio de Venta",
                 tipo: "cifra",
                 class: "col-12 col-md-6 mb-3"
             },
             {
                 opc: "input",
-                id: "inventario_min",
+                id: "min_stock",
                 lbl: "Inventario Mínimo",
                 tipo: "numero",
                 class: "col-12 col-md-6 mb-3"
             },
             {
                 opc: "textarea",
-                id: "Descripcion",
+                id: "description",
                 lbl: "Descripción",
                 class: "col-12 mb-3",
                 rows: 3
@@ -377,7 +361,7 @@ class Productos extends Templates {
         if (request.status === 200) {
             this.createModalForm({
                 id: 'formMaterialEdit',
-                data: { opc: 'editMaterial', idAlmacen: id },
+                data: { opc: 'editMaterial', id: id },
                 bootbox: {
                     title: 'Editar Material',
                     closeButton: true
@@ -410,7 +394,7 @@ class Productos extends Templates {
         return [
             {
                 opc: "select",
-                id: "id_zona",
+                id: "area_id",
                 lbl: "Negocio: *",
                 class: "col-12 col-md-6 mb-3",
                 data: zonas,
@@ -424,14 +408,14 @@ class Productos extends Templates {
             },
             {
                 opc: "input",
-                id: "Equipo",
+                id: "name",
                 lbl: "Nombre del Producto *",
                 class: "col-12 col-md-6 mb-3",
                 required: true
             },
             {
                 opc: "select",
-                id: "Area",
+                id: "group_id",
                 lbl: "Grupo",
                 class: "col-12 col-md-6 mb-3",
                 data: areas,
@@ -439,7 +423,7 @@ class Productos extends Templates {
             },
             {
                 opc: "input",
-                id: "cantidad",
+                id: "quantity",
                 lbl: "Cantidad actual",
                 tipo: "numero",
                 class: "col-12 col-md-6 mb-3",
@@ -447,7 +431,7 @@ class Productos extends Templates {
             },
             {
                 opc: "select",
-                id: "id_categoria",
+                id: "presentations_id",
                 lbl: "Presentación *",
                 class: "col-12 col-md-6 mb-3",
                 data: categorias,
@@ -455,7 +439,7 @@ class Productos extends Templates {
             },
             {
                 opc: "input",
-                id: "Costo",
+                id: "cost",
                 lbl: "Costo Unitario *",
                 tipo: "cifra",
                 class: "col-12 col-md-6 mb-3",
@@ -463,21 +447,21 @@ class Productos extends Templates {
             },
             {
                 opc: "input",
-                id: "PrecioVenta",
+                id: "price",
                 lbl: "Precio de Venta",
                 tipo: "cifra",
                 class: "col-12 col-md-6 mb-3"
             },
             {
                 opc: "input",
-                id: "inventario_min",
+                id: "min_stock",
                 lbl: "Inventario Mínimo",
                 tipo: "numero",
                 class: "col-12 col-md-6 mb-3"
             },
             {
                 opc: "textarea",
-                id: "Descripcion",
+                id: "description",
                 lbl: "Descripción",
                 class: "col-12 mb-3",
                 rows: 3
@@ -495,7 +479,7 @@ class Productos extends Templates {
                 html: `El producto será ${accion === 'desactivar' ? 'desactivado' : 'activado'}.`,
                 icon: "warning"
             },
-            data: { opc: "deleteMaterial", Estado: nuevoEstado, idAlmacen: id,  },
+            data: { opc: "deleteMaterial", active: nuevoEstado, id: id,  },
             methods: {
                 send: (response) => {
                     if (response.status === 200) {

@@ -1,5 +1,6 @@
 
 
+
 class Catalogo extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
@@ -22,7 +23,7 @@ class Catalogo extends Templates {
             }
         });
 
-       
+
 
         this.tabLayout({
             parent: `container${this.PROJECT_NAME}`,
@@ -42,7 +43,7 @@ class Catalogo extends Templates {
                     tab: "Presentación",
                     lucideIcon: "folder-tree",
                     class: "mb-1",
-                   
+
                     onClick: () => category.lsCategory()
                 },
                 {
@@ -51,7 +52,7 @@ class Catalogo extends Templates {
                     lucideIcon: "map-pin",
                     onClick: () => area.lsArea()
                 },
-              
+
             ]
         });
 
@@ -158,7 +159,7 @@ class Category extends Templates {
 
             this.createModalForm({
                 id: "formCategoryEdit",
-                data: { opc: "editCategory", idcategoria: id },
+                data: { opc: "editCategory", id: id },
                 bootbox: {
                     title: "Editar Categoría",
                     size: 'small',
@@ -200,9 +201,9 @@ class Category extends Templates {
             },
             data: {
                 opc: "statusCategory",
-              
+
                 active: active === 1 ? 0 : 1,
-                idcategoria: id,
+                id: id,
             },
             methods: {
                 send: (response) => {
@@ -230,7 +231,7 @@ class Category extends Templates {
         return [
             {
                 opc: "input",
-                id: "nombreCategoria",
+                id: "name",
                 lbl: "Nombre de la Categoría",
                 tipo: "texto",
                 class: "col-12 mb-3",
@@ -286,7 +287,7 @@ class Area extends Templates {
             attr: {
                 id: "tbArea",
                 theme: "light",
-               
+
                 title: "Lista de Áreas",
                 subtitle: "Espacios físicos del almacén",
                 center: [2, 3]
@@ -337,7 +338,7 @@ class Area extends Templates {
             console.log(data);
             this.createModalForm({
                 id: "formAreaEdit",
-                data: { opc: "editArea", idArea: id },
+                data: { opc: "editArea", id: id },
                 bootbox: {
                     title: "Editar Área",
                     size: 'small',
@@ -380,7 +381,7 @@ class Area extends Templates {
             data: {
                 opc: "statusArea",
                 active: active === 1 ? 0 : 1,
-                idArea: id,
+                id: id,
             },
             methods: {
                 send: (response) => {
@@ -408,7 +409,7 @@ class Area extends Templates {
         return [
             {
                 opc: "input",
-                id: "nombre_area",
+                id: "name",
                 lbl: "Nombre del Área",
                 tipo: "texto",
                 class: "col-12 mb-3",
@@ -464,8 +465,6 @@ class Zone extends Templates {
             attr: {
                 id: "tbZone",
                 theme: "light",
-                // title: "Lista de Zonas",
-                // subtitle: "Subdivisiones internas del almacén",
                 center: [ 2, 3]
             }
         });
@@ -513,7 +512,7 @@ class Zone extends Templates {
 
             this.createModalForm({
                 id: "formZoneEdit",
-                data: { opc: "editZone", id_zona: id },
+                data: { opc: "editZone", id: id },
                 bootbox: {
                     title: "Editar Zona",
                     size: 'small',
@@ -556,7 +555,7 @@ class Zone extends Templates {
             data: {
                 opc: "statusZone",
                 active: active === 1 ? 0 : 1,
-                id_zona: id,
+                id: id,
             },
             methods: {
                 send: (response) => {
@@ -584,7 +583,7 @@ class Zone extends Templates {
         return [
             {
                 opc: "input",
-                id: "nombre_zona",
+                id: "name",
                 lbl: "Nombre",
                 tipo: "texto",
                 class: "col-12 mb-3",
@@ -728,7 +727,7 @@ class Negocio extends Templates {
             },
             data: {
                 opc: "statusZone",
-                id_zona: id,
+                id: id,
                 active: active === 1 ? 0 : 1
             },
             methods: {
@@ -756,7 +755,7 @@ class Negocio extends Templates {
         return [
             {
                 opc: "input",
-                id: "nombre_zona",
+                id: "name",
                 lbl: "Nombre del Negocio",
                 tipo: "texto",
                 class: "col-12 mb-3",
