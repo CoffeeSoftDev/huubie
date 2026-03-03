@@ -1718,6 +1718,7 @@ function dropdownOrder($id, $status, $discount = 0) {
     $instancia = 'app';
     $impresion = 'payment';
     $rolId     = $_SESSION['ROLID'] ?? 0;
+    $owner     = $_SESSION['OWNER'] ?? 0;
     $hasDiscount = $discount > 0;
 
     $options = [
@@ -1744,6 +1745,9 @@ function dropdownOrder($id, $status, $discount = 0) {
             } else {
                 $options[] = ['Aplicar descuento', 'icon-percent', "{$instancia}.addDiscount({$id})"];
             }
+        }
+        
+        if ($owner == 1) {
             $options[] = ['Eliminar', 'icon-trash', "{$instancia}.deleteOrder({$id})"];
         }
     } elseif ($status == 3) { // Pagado
@@ -1752,7 +1756,7 @@ function dropdownOrder($id, $status, $discount = 0) {
             ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"],
         ];
 
-        if ($rolId == 1) {
+        if ($owner == 1) {
             $options[] = ['Historial', 'icon-history', "{$instancia}.showHistory({$id})"];
         }
     } elseif ($status == 1) { // Cotización
@@ -1772,13 +1776,19 @@ function dropdownOrder($id, $status, $discount = 0) {
             } else {
                 $options[] = ['Aplicar descuento', 'icon-percent', "{$instancia}.addDiscount({$id})"];
             }
+        }
+
+        if ($owner == 1) {
             $options[] = ['Eliminar', 'icon-trash', "{$instancia}.deleteOrder({$id})"];
         }
     } elseif ($status == 4) { // Cancelado
         $options = [
             ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
-            ['Eliminar', 'icon-trash', "{$instancia}.deleteOrder({$id})"]
         ];
+
+        if ($owner == 1) {
+            $options[] = ['Eliminar', 'icon-trash', "{$instancia}.deleteOrder({$id})"];
+        }
     }
 
     return array_map(fn($opt) => [

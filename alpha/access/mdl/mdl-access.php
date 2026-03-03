@@ -14,6 +14,7 @@
                         subsidiaries.name AS subsidiaries_name,
                     	usr_users.`user` AS user,
                     	usr_users.enabled AS active,
+                    	usr_users.owner AS owner,
                     	usr_rols.rols AS rol,
                     	usr_rols.id AS rol_id,
                     	fayxzvov_admin.companies.social_name AS company,

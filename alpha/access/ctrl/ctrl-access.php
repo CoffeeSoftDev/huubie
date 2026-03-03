@@ -31,6 +31,7 @@ class Access extends MAccess {
             $_SESSION['USR']           = $idUser;
             $_SESSION['ROL']           = $idRol;
             $_SESSION['ROLID']         = $sql['rol_id'];
+            $_SESSION['OWNER']         = $sql['owner'];
             $_SESSION['SUB']           = $idSub;
             $_SESSION['SUBSIDIARIE_NAME']           = $sql['subsidiaries_name'];
             $_SESSION['COMPANY']       = $social_name;
@@ -59,7 +60,7 @@ class Access extends MAccess {
         if (!empty($sql['photo'])) {
             $photo = '../../alpha' . $sql['photo'];
         } else {
-            $photo = 'src/img/df-user.png';
+            $photo = '../src/img/df-user.png';
         }
 
         $routes = [];

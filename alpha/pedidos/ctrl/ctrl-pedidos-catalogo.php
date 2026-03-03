@@ -103,7 +103,7 @@ class ctrl extends MPedidos{
 
         return [
             'id' => $ls,
-         'products'=>   $__row
+            'products'=>   $__row
         ];
     }
 
