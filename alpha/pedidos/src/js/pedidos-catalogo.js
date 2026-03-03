@@ -724,7 +724,9 @@ class Pos extends Templates {
             onPrint: () => { },
             onExit: () => { },
             onFinish: () => { },
-            onBuildCake: () => { armarPastel(); }
+            onBuildCake: () => { armarPastel(); },
+            payments: [],
+            totalPaid: 0
         };
 
         
@@ -765,44 +767,57 @@ class Pos extends Templates {
         });
 
         const footer = $("<div>", {
-            class: "px-3 py-3 border-t border-gray-700 bg-[#333D4C]"
+            class: "px-3 py-2 border-t border-gray-700 bg-[#333D4C]"
         }).append(
-            $("<div>", { class: "space-y-1 text-sm text-gray-300" }).append(
+            $("<div>", { class: "space-y-1 text-xs text-gray-300" }).append(
+                $("<div>", { class: "flex items-center gap-1 mb-1" }).append(
+                    $("<span>", { class: "text-green-400 text-sm" }).text("$"),
+                    $("<span>", { class: "text-white font-semibold italic text-sm" }).text("Resumen de pago")
+                ),
                 $("<div>", {
                     class: "flex justify-between"
                 }).append(
                     $("<span>").text("Subtotal:"),
-                    $("<span>", { id: "subtotal", text: "$0.00" })
+                    $("<span>", { id: "subtotal", class: "text-white", text: "$0.00" })
                 ),
                 $("<div>", {
                     id: "discountRow",
-                    class: "flex justify-between text-green-400",
+                    class: "flex justify-between",
                     css: { display: "none" }
                 }).append(
                     $("<span>").text("Descuento:"),
-                    $("<span>", { id: "discountAmount", text: "-$0.00" })
+                    $("<span>", { id: "discountAmount", class: "text-yellow-400", text: "-$0.00" })
                 ),
                 $("<div>", {
-                    class: "flex justify-between font-bold text-blue-400 text-base pt-1 border-t border-gray-600"
+                    id: "pagadoRow",
+                    class: "flex justify-between",
+                    css: { display: "none" }
                 }).append(
-                    $("<span>").text("Total:"),
-                    $("<span>", { id: "total", text: "$0.00" })
+                    $("<span>").text("Pagado:"),
+                    $("<span>", { id: "pagado", class: "text-green-400", text: "$0.00" })
+                ),
+                $("<div>", {
+                    id: "saldoRow",
+                    class: "flex justify-between pt-1 mt-1 border-t border-gray-600"
+                }).append(
+                    $("<span>", { class: "font-semibold" }).text("Saldo:"),
+                    $("<span>", { id: "saldo", class: "text-red-500 font-bold", text: "$0.00" })
                 )
             ),
             $("<div>", { class: "grid grid-cols-3 gap-2 mt-2" }).append(
                 $("<button>", {
                     id: "printOrder",
-                    class: "border border-gray-600 text-white rounded px-2 py-1.5 text-sm",
+                    class: "border border-gray-600 text-white rounded px-2 py-1.5 text-xs",
                     html: "🖨 Imprimir"
                 }),
                 $("<button>", {
                     id: "finishOrder",
-                    class: "bg-blue-700 text-white rounded px-2 py-1.5 text-sm hover:bg-blue-800",
+                    class: "bg-blue-700 text-white rounded px-2 py-1.5 text-xs hover:bg-blue-800",
                     html: "Terminar"
                 }),
                 $("<button>", {
                     id: "exitOrder",
-                    class: "border bg-red-700 text-white rounded px-2 py-1.5 text-sm hover:bg-red-800 hover:text-white",
+                    class: "border bg-red-700 text-white rounded px-2 py-1.5 text-xs hover:bg-red-800 hover:text-white",
                     html: "Salir"
                 })
             )
@@ -973,6 +988,8 @@ class Pos extends Templates {
             const subtotal = totalAcc;
             const discount = parseFloat(opts.discount) || 0;
             const finalTotal = subtotal - discount;
+            const totalPaid = parseFloat(opts.totalPaid) || 0;
+            const saldo = finalTotal - totalPaid;
             
             $('#subtotal').text(formatPrice(subtotal));
             
@@ -981,7 +998,20 @@ class Pos extends Templates {
                 $('#discountAmount').text(`-${formatPrice(discount)}`);
             }
             
-            $(opts.totalSelector).text(formatPrice(finalTotal));
+            if (totalPaid > 0) {
+                $('#pagadoRow').show();
+                $('#pagado').text(formatPrice(totalPaid));
+            }
+            
+            if (saldo > 0) {
+                $('#saldoRow').show();
+                $('#saldo').text(formatPrice(saldo)).removeClass('text-green-400').addClass('text-red-500');
+            } else if (saldo <= 0 && totalPaid > 0) {
+                $('#saldoRow').show();
+                $('#saldo').text(formatPrice(0) + ' ✓').removeClass('text-red-500').addClass('text-green-400');
+            } else {
+                $('#saldo').text(formatPrice(finalTotal));
+            }
         }
 
         // 🔁 Delegación segura para botones
@@ -1144,6 +1174,8 @@ class CatalogProduct extends Pos {
         const pos = await useFetch({ url: this._link, data: { opc: "init", id: idFolio } });
         this.name_client = pos.order.name ?? '';
         this.discount = pos.order.discount ?? '';
+        this.payments = pos.payments ?? [];
+        this.total_paid = pos.total_paid ?? 0;
 
         this.createProductTabs({
             data: pos.modifier,
@@ -1173,6 +1205,8 @@ class CatalogProduct extends Pos {
             discount: this.discount,
             customName: this.name_client,
             data: list,
+            payments: this.payments,
+            totalPaid: this.total_paid,
 
             onFinish: (data) => {
                 console.log('finish')
@@ -1915,11 +1949,12 @@ class CatalogProduct extends Pos {
             saldo_restante = total - total_paid;
 
         } else {
-            const totalText = $('#total').text();
+            const totalText = $('#subtotal').text();
             saldo = totalText;
-            saldoOriginal = totalText.replace(/[^0-9.-]+/g, "");
+            saldoOriginal = totalText.replace(/[^0-9.-]+/g, "") || "0";
             discount = parseFloat($('#discountAmount').text().replace(/[^0-9.-]+/g, "")) || 0;
-            total = parseFloat(saldoOriginal) - discount;
+            total = parseFloat(saldoOriginal) || 0;
+            total = total - discount;
             total_paid = 0;
             saldo_restante = total - total_paid;
         }

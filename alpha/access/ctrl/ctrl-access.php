@@ -36,6 +36,7 @@ class Access extends MAccess {
             $_SESSION['SUBSIDIARIE_NAME']           = $sql['subsidiaries_name'];
             $_SESSION['COMPANY']       = $social_name;
             $_SESSION['last_activity'] = time();
+            $_SESSION['login_time']    = time();
             $_SESSION['USER']          = $sql['user'];
             $_SESSION['DB']            = $sql['DB'];
             $_SESSION['UBICATION']     = $sql['ubication'];
@@ -153,25 +154,37 @@ class Access extends MAccess {
     }
       // SESSION
     function checkSession(){
-        define('SESSION_TIMEOUT', 1800);  // 30 minutos
-        define('WARNING_TIME', 300);      // 5 minutos antes de expirar
+        define('SESSION_TIMEOUT', 1800);       // 30 minutos de inactividad
+        define('WARNING_TIME', 300);           // 5 minutos antes de expirar por inactividad
+        define('MAX_SESSION_DURATION', 28800); // 8 horas límite absoluto
 
           // Verificar si la sesión existe
         if (!isset($_SESSION['last_activity'])) {
-            $_SESSION['last_activity'] = time();  // Inicializar si no está definida
+            $_SESSION['last_activity'] = time();
+        }
+        if (!isset($_SESSION['login_time'])) {
+            $_SESSION['login_time'] = time();
         }
 
-        $inactive_time = time() - $_SESSION['last_activity'];
-        $result        = [
+        $inactive_time  = time() - $_SESSION['last_activity'];
+        $total_duration = time() - $_SESSION['login_time'];
+        $result         = [
             "status"  => 200,
             "message" => "active",
         ];
 
-          // Verifica si la sesión está activa
+          // Límite absoluto de 8 horas
+        if ($total_duration >= MAX_SESSION_DURATION) {
+            $this->logout();
+            $result = ["status" => "expired", "reason" => "max_duration"];
+            exit(json_encode($result));
+        }
+
+          // Timeout por inactividad
         if ($inactive_time >= SESSION_TIMEOUT) {
             $this->logout();
-            $result = ["status" => "expired"];  // Notificar al frontend que la sesión expiró
-            exit   (json_encode($result));      // Salir inmediatamente
+            $result = ["status" => "expired", "reason" => "inactivity"];
+            exit(json_encode($result));
         } elseif ($inactive_time >= (SESSION_TIMEOUT - WARNING_TIME)) {
             $time_left = SESSION_TIMEOUT - $inactive_time;
             $result    = [

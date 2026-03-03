@@ -12,8 +12,9 @@ class Pedidos extends MPedidos{
 
     function init(){
         $subsidiaries = $this->lsSubsidiaries();
+        $dailyClosure = $this->checkDailyClosure();
+        
         return [
-            
             'modifier'          => $this->getAllModifiers([1]),
             'products'          => $this->lsProductos([1,$_SESSION['SUB']]),
             'clients'           => $this->getAllClients([$_SESSION['SUB']]),
@@ -21,7 +22,24 @@ class Pedidos extends MPedidos{
             'sucursales'        => $subsidiaries['data'],
             'access'            => $_SESSION['ROLID'],
             'subsidiaries_name' => $_SESSION['SUBSIDIARIE_NAME'],
-              
+            'daily_closure'     => $dailyClosure
+        ];
+    }
+
+    function checkDailyClosure() {
+        $subsidiaries_id = isset($_POST['subsidiaries_id']) && $_POST['subsidiaries_id'] != '0' 
+            ? $_POST['subsidiaries_id'] 
+            : $_SESSION['SUB'];
+        
+        $today = date('Y-m-d');
+        $closure = $this->getDailyClosureByDate([$today, $subsidiaries_id]);
+        
+        return [
+            'is_closed'      => !empty($closure),
+            'closure_id'     => $closure['id'] ?? null,
+            'closed_by'      => $closure['closed_by_name'] ?? null,
+            'closed_at'      => $closure['created_at'] ?? null,
+            'subsidiary_id'  => $subsidiaries_id
         ];
     }
 
@@ -1482,12 +1500,12 @@ class Pedidos extends MPedidos{
         $status  = 500;
         $message = "Error al aplicar el descuento";
 
-        if ($_SESSION['ROLID'] != 1) {
-            return [
-                'status'  => 403,
-                'message' => 'No tienes permisos para aplicar descuentos'
-            ];
-        }
+        // if ($_SESSION['ROLID'] != 1) {
+        //     return [
+        //         'status'  => 403,
+        //         'message' => 'No tienes permisos para aplicar descuentos'
+        //     ];
+        // }
 
         $id       = $_POST['id'];
         $discount = floatval($_POST['discount'] ?? 0);
@@ -1496,19 +1514,13 @@ class Pedidos extends MPedidos{
         $order    = $this->getOrderID([$id])[0];
         $totalPay = floatval($order['total_pay']);
 
-        if ($discount < 0) {
-            return [
-                'status'  => 400,
-                'message' => 'El monto del descuento no puede ser negativo'
-            ];
-        }
 
-        if ($discount > $totalPay) {
-            return [
-                'status'  => 400,
-                'message' => 'El descuento no puede ser mayor al total del pedido ($' . number_format($totalPay, 2) . ')'
-            ];
-        }
+        // if ($discount > $totalPay) {
+        //     return [
+        //         'status'  => 400,
+        //         'message' => 'El descuento no puede ser mayor al total del pedido ($' . number_format($totalPay, 2) . ')'
+        //     ];
+        // }
 
         $values = [
             'discount'      => $discount,
@@ -1533,11 +1545,15 @@ class Pedidos extends MPedidos{
         return [
             'status'  => $status,
             'message' => $message,
-            'data'    => $update ? [
+            'data'    => 
+            $update ? 
+            [
                 'discount'    => $discount,
                 'total_pay'   => $totalPay,
-                'total_final' => $totalPay - $discount
-            ] : null
+                'total_final' => $totalPay - $discount,
+                'update'      => $updateData
+            ]
+             : null
         ];
     }
 
@@ -1652,12 +1668,12 @@ class Pedidos extends MPedidos{
     }
 
     function deleteDiscount() {
-        if ($_SESSION['ROLID'] != 1) {
-            return [
-                'status'  => 403,
-                'message' => 'No tienes permisos para eliminar descuentos'
-            ];
-        }
+        // if ($_SESSION['ROLID'] != 1) {
+        //     return [
+        //         'status'  => 403,
+        //         'message' => 'No tienes permisos para eliminar descuentos'
+        //     ];
+        // }
 
         $id = $_POST['id'];
 
@@ -1739,14 +1755,15 @@ function dropdownOrder($id, $status, $discount = 0) {
         ];
         if ($rolId == 1) {
             $options[] = ['Historial', 'icon-history', "{$instancia}.showHistory({$id})"];
-            if ($hasDiscount) {
-                $options[] = ['Editar descuento', 'icon-percent', "{$instancia}.editDiscount({$id})"];
-                $options[] = ['Eliminar descuento', 'icon-cancel', "{$instancia}.deleteDiscount({$id})"];
-            } else {
-                $options[] = ['Aplicar descuento', 'icon-percent', "{$instancia}.addDiscount({$id})"];
-            }
         }
-        
+
+        if ($hasDiscount) {
+            $options[] = ['Editar descuento', 'icon-percent', "{$instancia}.editDiscount({$id})"];
+            $options[] = ['Eliminar descuento', 'icon-cancel', "{$instancia}.deleteDiscount({$id})"];
+        } else {
+            $options[] = ['Aplicar descuento', 'icon-percent', "{$instancia}.addDiscount({$id})"];
+        }
+
         if ($owner == 1) {
             $options[] = ['Eliminar', 'icon-trash', "{$instancia}.deleteOrder({$id})"];
         }
@@ -1769,13 +1786,11 @@ function dropdownOrder($id, $status, $discount = 0) {
             ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"],
         ];
 
-        if ($rolId == 1) {
-            if ($hasDiscount) {
-                $options[] = ['Editar descuento', 'icon-percent', "{$instancia}.editDiscount({$id})"];
-                $options[] = ['Eliminar descuento', 'icon-cancel', "{$instancia}.deleteDiscount({$id})"];
-            } else {
-                $options[] = ['Aplicar descuento', 'icon-percent', "{$instancia}.addDiscount({$id})"];
-            }
+        if ($hasDiscount) {
+            $options[] = ['Editar descuento', 'icon-percent', "{$instancia}.editDiscount({$id})"];
+            $options[] = ['Eliminar descuento', 'icon-cancel', "{$instancia}.deleteDiscount({$id})"];
+        } else {
+            $options[] = ['Aplicar descuento', 'icon-percent', "{$instancia}.addDiscount({$id})"];
         }
 
         if ($owner == 1) {

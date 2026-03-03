@@ -20,12 +20,17 @@ class ctrl extends MPedidos{
             $orderProducts = [];
         }
 
+        $payments = $this->getListPayment([$_POST['id']]);
+        $totalPaid = $this->getTotalPaidByOrder([$_POST['id']]);
+
         return [
-            'modifier' => $this->getCategory(),
-            'products' => $this->lsProductos([1, $_SESSION['SUB']]),
-            'id'       => $_POST['id'],
-            'list'     => $orderProducts,
-            'order'    => $order
+            'modifier'   => $this->getCategory(),
+            'products'   => $this->lsProductos([1, $_SESSION['SUB']]),
+            'id'         => $_POST['id'],
+            'list'       => $orderProducts,
+            'order'      => $order,
+            'payments'   => $payments,
+            'total_paid' => $totalPaid
         ];
     }
 

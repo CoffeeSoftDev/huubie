@@ -7,6 +7,7 @@ let idFolio, sub_name;
 let categories, estado, clients;
 
 let rol, subsidiaries, udn;
+let dailyClosure = { is_closed: false };
 
 $(async () => {
     let dataModifiers = await useFetch({ url: api, data: { opc: "getModifiers" } });
@@ -18,6 +19,7 @@ $(async () => {
           rol          = req.access;
           sub_name     = req.subsidiaries_name;
           subsidiaries = req.sucursales;
+          dailyClosure = req.daily_closure || { is_closed: false };
           app          = new App(api, 'root');
           custom       = new CustomOrder(api_custom, 'root');
           normal       = new CatalogProduct(api_catalogo, 'root');
@@ -41,7 +43,8 @@ class App extends Templates {
         this.layout();
         this.createFilterBar();
         this.ls();
-        this.actualizarFechaHora({ label: sub_name })
+        this.actualizarFechaHora({ label: sub_name });
+        // this.updateDailyClosureStatus();
     }
 
     layout() {
@@ -74,7 +77,7 @@ class App extends Templates {
                 id: "subsidiaries_id",
                 lbl: "Filtrar por sucursal:",
                 class: "col-12 col-md-3 col-lg-2",
-                onchange: "app.ls()",
+                onchange: "app.onSubsidiaryChange()",
                 data: [
                     { id: "0", valor: "Todas las sucursales" },
                     ...subsidiaries
@@ -199,7 +202,76 @@ class App extends Templates {
         $(`#${opts.parent}`).html(div);
     }
 
+    async onSubsidiaryChange() {
+        this.ls();
+        await this.checkAndUpdateDailyClosure();
+    }
+
+    async checkAndUpdateDailyClosure() {
+        let subsidiaries_id = rol == 1 ? $('#subsidiaries_id').val() : null;
+        
+        if (subsidiaries_id === '0') {
+            this.enableNewOrderButton();
+            return;
+        }
+
+        const request = await useFetch({
+            url: this._link,
+            data: { opc: "checkDailyClosure", subsidiaries_id: subsidiaries_id }
+        });
+
+        dailyClosure = request || { is_closed: false };
+        this.updateDailyClosureStatus();
+    }
+
+    updateDailyClosureStatus() {
+        const btn = $('#btnNuevoPedido');
+        
+        if (dailyClosure.is_closed) {
+            btn.prop('disabled', true)
+               .removeClass('btn-primary')
+               .addClass('btn-secondary opacity-50 cursor-not-allowed')
+               .attr('title', 'Ya se realizó el cierre del día');
+            
+            if ($('#dailyClosureAlert').length === 0) {
+                const alertHtml = `
+                    <div id="dailyClosureAlert" class="bg-yellow-900/50 border border-yellow-600 text-yellow-200 px-4 py-2 rounded-lg mb-3 flex items-center gap-2">
+                        <i class="icon-lock text-yellow-400"></i>
+                        <span>
+                            <strong>Cierre del día realizado.</strong> 
+                            No se pueden crear nuevos pedidos para hoy.
+                            ${dailyClosure.closed_by ? `<br><small class="text-yellow-400">Cerrado por: ${dailyClosure.closed_by}</small>` : ''}
+                        </span>
+                    </div>
+                `;
+                $('#containerHours').after(alertHtml);
+            }
+        } else {
+            this.enableNewOrderButton();
+        }
+    }
+
+    enableNewOrderButton() {
+        $('#btnNuevoPedido')
+            .prop('disabled', false)
+            .removeClass('btn-secondary opacity-50 cursor-not-allowed')
+            .addClass('btn-primary')
+            .attr('title', '');
+        
+        $('#dailyClosureAlert').remove();
+    }
+
     showTypePedido() {
+        if (dailyClosure.is_closed) {
+            alert({
+                icon: "warning",
+                title: "Cierre del día realizado",
+                text: "No se pueden crear nuevos pedidos porque ya se realizó el cierre del día para esta sucursal.",
+                btn1: true,
+                btn1Text: "Entendido"
+            });
+            return;
+        }
         normal.render();
     }
 
@@ -2322,7 +2394,16 @@ class App extends Templates {
         this.swalQuestion({
             opts: {
                 title: '¿Realizar cierre del día?',
-                html: `Se guardarán los movimientos del <strong>${moment(date).format('DD/MM/YYYY')}</strong> y se asignará el folio de cierre a los pedidos. <br><br><span class="text-red-500">Esta acción no se puede deshacer.</span>`,
+                html: `Se guardarán los movimientos del <strong>${moment(date).locale('es').format('DD [de] MMMM [de] YYYY')}</strong> y se asignará el folio de cierre a los pedidos.
+                    <div class="border border-gray-500 rounded-lg p-4 mt-4 text-left">
+                        <p class="font-bold text-sm uppercase mb-2">Restricciones tras el cierre:</p>
+                        <ul class="list-disc list-inside text-sm space-y-1">
+                            <li>No se podrá capturar pedidos de este día.</li>
+                            <li>No se podrá editar pedidos existentes.</li>
+                            <li>No se podrá cancelar abonos realizados.</li>
+                        </ul>
+                    </div>
+                    <br><span class="text-red-500">Esta acción no se puede deshacer.</span>`,
             },
             data: { opc: "saveDailyClose", date: date, subsidiaries_id: subsidiaries_id },
             methods: {
