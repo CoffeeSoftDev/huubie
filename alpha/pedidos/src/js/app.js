@@ -189,7 +189,7 @@ class App extends Templates {
         }).append(
 
             $("<label>", {
-                html: '<i class="icon-shop"></i> ' + opts.label,
+                html: '<i class=" icon-location-8"></i> ' + opts.label,
                 class: "text-xs font-medium text-gray-600 text-left flex-1",
                 css: { 'font-size': '1rem', 'align-items': 'center', 'display': 'flex' }
             }),

@@ -1,9 +1,16 @@
 :root {
-    
+
     --gray         : #374151;
     --light        : #CED2D8;
     --primarydark  : #111928;
     --secondaryDark: #1F2A37;
+
+    /* Navbar */
+    --navbar-bg       : #0f172a;
+    --navbar-bg-light : #1e293b;
+    --navbar-accent   : #ec4899;
+    --navbar-text     : #ffffff;
+    --navbar-text-muted: #9ca3af;
     
     --primary: rgb(28, 100, 242);
     --primary9: rgb(61, 36, 116, 0.9);

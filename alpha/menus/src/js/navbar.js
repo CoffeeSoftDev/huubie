@@ -33,7 +33,7 @@ class Navbar {
         }
 
         const navbarHtml = `
-            <nav class="bg-[#1F2937] fixed top-0 left-0 w-full text-white px-4 py-3 h-16 z-50 shadow flex items-center justify-between">
+            <nav class="bg-[#111827] fixed top-0 left-0 w-full text-white px-4 py-3 h-16 z-50 flex items-center justify-between border-b-2 border-pink-500">
                 <div class="flex items-center space-x-2">
                     <img src="${this.settings.logo}" alt="Logo" class="w-10 h-10" />
                     <button id="toggleSidebar" class="text-white text-2xl">☰</button>

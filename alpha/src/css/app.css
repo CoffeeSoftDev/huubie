@@ -1,14 +1,48 @@
 header {
-    background-color: #111827;
+    background-color: var(--navbar-bg);
   }
   header > nav > ul > li > ul {
-    background-color: #1f2a37;
+    background-color: var(--navbar-bg-light);
   }
   header > nav {
-    background-color: #1f2a37;
+    background-color: var(--navbar-bg);
   }
   header > section {
-    background-color: #1f2a37;
+    background-color: var(--navbar-bg);
+  }
+
+  /* ===== Navbar ===== */
+  .navbar {
+    background-color: var(--navbar-bg);
+    border-bottom: 2px solid var(--navbar-accent);
+  }
+  .navbar-logo {
+    color: var(--navbar-text);
+  }
+  .navbar-logo .dot {
+    color: var(--navbar-accent);
+  }
+  .navbar-icon {
+    color: var(--navbar-text-muted);
+  }
+  .navbar-icon:hover {
+    color: var(--navbar-text);
+  }
+  .navbar-avatar {
+    background-color: var(--navbar-accent);
+    color: var(--navbar-text);
+  }
+  .navbar-user-name {
+    color: var(--navbar-text);
+  }
+  .navbar-user-status {
+    color: var(--navbar-accent);
+  }
+  .navbar-dropdown {
+    background-color: var(--navbar-bg);
+  }
+  .navbar-dropdown-header {
+    background-color: var(--navbar-bg-light);
   }
 
   .modal-custom .modal-content {
