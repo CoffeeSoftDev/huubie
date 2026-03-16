@@ -13,7 +13,11 @@ class Pedidos extends MPedidos{
     function init(){
         $subsidiaries = $this->lsSubsidiaries();
         $dailyClosure = $this->checkDailyClosure();
-        
+
+        // Verificar turno abierto para la sucursal del usuario
+        $sub_id = $_SESSION['SUB'];
+        $openShift = $this->getOpenShiftBySubsidiary([$sub_id]);
+
         return [
             'modifier'          => $this->getAllModifiers([1]),
             'products'          => $this->lsProductos([1,$_SESSION['SUB']]),
@@ -22,7 +26,14 @@ class Pedidos extends MPedidos{
             'sucursales'        => $subsidiaries['data'],
             'access'            => $_SESSION['ROLID'],
             'subsidiaries_name' => $_SESSION['SUBSIDIARIE_NAME'],
-            'daily_closure'     => $dailyClosure
+            'daily_closure'     => $dailyClosure,
+            'open_shift'        => $openShift ? [
+                'has_open_shift' => true,
+                'shift_id'       => $openShift['id'],
+                'opened_at'      => $openShift['opened_at'],
+                'shift_name'     => $openShift['shift_name'],
+                'employee_name'  => $openShift['employee_name']
+            ] : ['has_open_shift' => false]
         ];
     }
 
@@ -136,6 +147,7 @@ class Pedidos extends MPedidos{
             $hasDiscount   = $discount > 0;
 
             $Sucursal = $this->getSucursalByID([$order['subsidiaries_id']]);
+            if (!$Sucursal) $Sucursal = ['name' => '', 'sucursal' => ''];
 
             $htmlTotal = $hasDiscount
                 ? "<div class='text-end'>
@@ -1495,6 +1507,242 @@ class Pedidos extends MPedidos{
         ];
     }
 
+    // =============================================
+    // Cash Shift (Turnos)
+    // =============================================
+
+    function openShift() {
+        if ($_SESSION['ROLID'] == 1) {
+            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        } else {
+            $subsidiaries_id = $_SESSION['SUB'];
+        }
+
+        // Validar que no exista turno abierto
+        $existing = $this->getOpenShiftBySubsidiary([$subsidiaries_id]);
+        if ($existing) {
+            return [
+                'status'  => 409,
+                'message' => 'Ya existe un turno abierto para esta sucursal. Ciérralo antes de abrir uno nuevo.'
+            ];
+        }
+
+        $shift_name     = $_POST['shift_name'] ?? null;
+        $opening_amount = floatval($_POST['opening_amount'] ?? 0);
+
+        $this->createCashShift([
+            'values' => 'subsidiary_id, employee_id, shift_name, opened_at, opening_amount, status, active',
+            'data'   => [
+                $subsidiaries_id,
+                $_SESSION['ID'],
+                $shift_name,
+                date('Y-m-d H:i:s'),
+                $opening_amount,
+                'open',
+                1
+            ]
+        ]);
+
+        $max = $this->getMaxCashShift();
+        $shift_id = $max ? $max['id'] : null;
+
+        if (!$shift_id) {
+            return ['status' => 500, 'message' => 'Error al crear el turno'];
+        }
+
+        $shift = $this->getCashShiftById($shift_id);
+
+        return [
+            'status'   => 200,
+            'message'  => 'Turno abierto correctamente',
+            'shift_id' => $shift_id,
+            'shift'    => $shift
+        ];
+    }
+
+    function closeShift() {
+        $shift_id = $_POST['shift_id'];
+
+        $shift = $this->getCashShiftById($shift_id);
+        if (!$shift) {
+            return ['status' => 404, 'message' => 'Turno no encontrado'];
+        }
+        if ($shift['status'] !== 'open') {
+            return ['status' => 409, 'message' => 'Este turno ya fue cerrado'];
+        }
+
+        $closed_at = date('Y-m-d H:i:s');
+        $opened_at = $shift['opened_at'];
+        $subsidiary_id = $shift['subsidiary_id'];
+
+        // Calcular métricas del turno
+        $metrics = $this->getShiftSalesMetrics([$opened_at, $closed_at, $subsidiary_id]);
+
+        $total_sales    = floatval($metrics['total_sales']);
+        $cash_sales     = floatval($metrics['cash_sales']);
+        $card_sales     = floatval($metrics['card_sales']);
+        $transfer_sales = floatval($metrics['transfer_sales']);
+        $total_orders   = intval($metrics['total_orders']);
+
+        // Cerrar turno
+        $this->closeCashShift([
+            $closed_at, $total_sales, $cash_sales, $card_sales,
+            $transfer_sales, $total_orders, $shift_id
+        ]);
+
+        // Guardar desglose de pagos
+        $payments = [
+            ['method_id' => 1, 'amount' => $cash_sales],
+            ['method_id' => 2, 'amount' => $card_sales],
+            ['method_id' => 3, 'amount' => $transfer_sales]
+        ];
+        foreach ($payments as $pay) {
+            $this->createShiftPayment([
+                'values' => 'cash_shift_id, payment_method_id, amount',
+                'data'   => [$shift_id, $pay['method_id'], $pay['amount']]
+            ]);
+        }
+
+        // Guardar conteo por status
+        $statuses = [
+            ['status_id' => 1, 'amount' => intval($metrics['quotation_count'])],
+            ['status_id' => 2, 'amount' => intval($metrics['pending_count'])],
+            ['status_id' => 4, 'amount' => intval($metrics['cancelled_count'])]
+        ];
+        foreach ($statuses as $st) {
+            $this->createShiftStatusProcess([
+                'values' => 'cash_shift_id, status_process_id, amount',
+                'data'   => [$shift_id, $st['status_id'], $st['amount']]
+            ]);
+        }
+
+        // Vincular órdenes al turno
+        $this->updateOrdersCashShift([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
+
+        // Retornar datos actualizados
+        $updatedShift = $this->getCashShiftById($shift_id);
+        $date = date('Y-m-d', strtotime($opened_at));
+        $shifts = $this->getShiftsBySubsidiaryDate([$date, $subsidiary_id]);
+
+        return [
+            'status'  => 200,
+            'message' => 'Turno cerrado correctamente',
+            'shift'   => $updatedShift,
+            'shifts'  => $shifts,
+            'metrics' => $metrics
+        ];
+    }
+
+    function getShiftsByDate() {
+        if ($_SESSION['ROLID'] == 1) {
+            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        } else {
+            $subsidiaries_id = $_SESSION['SUB'];
+        }
+
+        $date = $_POST['date'] ?? date('Y-m-d');
+        $shifts = $this->getShiftsBySubsidiaryDate([$date, $subsidiaries_id]);
+
+        return [
+            'status' => 200,
+            'shifts' => is_array($shifts) ? $shifts : []
+        ];
+    }
+
+    function getShiftMetrics() {
+        $shift_id = $_POST['shift_id'];
+        $shift = $this->getCashShiftById($shift_id);
+
+        if (!$shift) {
+            return ['status' => 404, 'message' => 'Turno no encontrado'];
+        }
+
+        $subsidiary_id = $shift['subsidiary_id'];
+
+        // Obtener nombre de sucursal
+        $subsidiary = $this->getSucursalByID([$subsidiary_id]);
+        $subsidiary_name = ($subsidiary && isset($subsidiary['name'])) ? $subsidiary['name'] : 'Sucursal';
+
+        if ($shift['status'] === 'closed') {
+            // Retornar datos guardados
+            return [
+                'status'          => 200,
+                'shift'           => $shift,
+                'subsidiary_name' => $subsidiary_name,
+                'logo'            => $_SESSION['LOGO'],
+                'data' => [
+                    'total_sales'     => $shift['total_sales'],
+                    'cash_sales'      => $shift['total_cash'],
+                    'card_sales'      => $shift['total_card'],
+                    'transfer_sales'  => $shift['total_transfer'],
+                    'total_orders'    => $shift['total_orders'],
+                    'quotation_count' => 0,
+                    'pending_count'   => 0,
+                    'cancelled_count' => 0
+                ]
+            ];
+        }
+
+        // Turno abierto: calcular en tiempo real
+        $opened_at = $shift['opened_at'];
+        $now = date('Y-m-d H:i:s');
+        $metrics = $this->getShiftSalesMetrics([$opened_at, $now, $subsidiary_id]);
+
+        return [
+            'status'          => 200,
+            'shift'           => $shift,
+            'subsidiary_name' => $subsidiary_name,
+            'logo'            => $_SESSION['LOGO'],
+            'data'            => $metrics
+        ];
+    }
+
+    function getShiftOrders() {
+        $shift_id = $_POST['shift_id'];
+        $shift = $this->getCashShiftById($shift_id);
+
+        if (!$shift) {
+            return ['status' => 404, 'message' => 'Turno no encontrado'];
+        }
+
+        $opened_at = $shift['opened_at'];
+        $closed_at = $shift['status'] === 'closed' ? $shift['closed_at'] : date('Y-m-d H:i:s');
+        $subsidiary_id = $shift['subsidiary_id'];
+
+        $orders = $this->getShiftDetailedOrders([$opened_at, $closed_at, $subsidiary_id]);
+
+        return [
+            'status' => 200,
+            'orders' => is_array($orders) ? $orders : []
+        ];
+    }
+
+    function checkOpenShift() {
+        if ($_SESSION['ROLID'] == 1) {
+            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        } else {
+            $subsidiaries_id = $_SESSION['SUB'];
+        }
+
+        $openShift = $this->getOpenShiftBySubsidiary([$subsidiaries_id]);
+
+        if ($openShift) {
+            return [
+                'status'         => 200,
+                'has_open_shift' => true,
+                'shift_id'       => $openShift['id'],
+                'opened_at'      => $openShift['opened_at'],
+                'shift_name'     => $openShift['shift_name'],
+                'employee_name'  => $openShift['employee_name']
+            ];
+        }
+
+        return [
+            'status'         => 200,
+            'has_open_shift' => false
+        ];
+    }
+
     // Discount
     function addDiscount() {
         $status  = 500;
@@ -1780,11 +2028,13 @@ function dropdownOrder($id, $status, $discount = 0) {
         $options = [
             ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
             ['Editar', 'icon-pencil', "{$instancia}.editOrder({$id})"],
-            // Solo agrega "Cancelar" si el rol no es 3
-            ...($rolId != 3 ? [['Cancelar', 'icon-block-1', "{$instancia}.cancelOrder({$id})"]] : []),
-            ['Pagar', 'icon-money', "{$instancia}.historyPay({$id})"],
-            ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"],
         ];
+        // Solo agrega "Cancelar" si el rol no es 3
+        if ($rolId != 3) {
+            $options[] = ['Cancelar', 'icon-block-1', "{$instancia}.cancelOrder({$id})"];
+        }
+        $options[] = ['Pagar', 'icon-money', "{$instancia}.historyPay({$id})"];
+        $options[] = ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"];
 
         if ($hasDiscount) {
             $options[] = ['Editar descuento', 'icon-percent', "{$instancia}.editDiscount({$id})"];

@@ -1376,5 +1376,179 @@ class MPedidos extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    // =============================================
+    // Cash Shift (Turnos)
+    // =============================================
+
+    function createCashShift($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}cash_shift",
+            'values' => $array['values'],
+            'data'   => $array['data'],
+        ]);
+    }
+
+    function getMaxCashShift() {
+        $query = "SELECT MAX(id) as id FROM {$this->bd}cash_shift";
+        $result = $this->_Read($query, null);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function getCashShiftById($id) {
+        $query = "
+            SELECT cs.*, u.fullname AS employee_name
+            FROM {$this->bd}cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.id = ? AND cs.active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, [$id]);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function getShiftsBySubsidiaryDate($array) {
+        $query = "
+            SELECT cs.*, u.fullname AS employee_name
+            FROM {$this->bd}cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at DESC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function getOpenShiftBySubsidiary($array) {
+        $query = "
+            SELECT cs.*, u.fullname AS employee_name
+            FROM {$this->bd}cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function closeCashShift($array) {
+        $query = "
+            UPDATE {$this->bd}cash_shift
+            SET closed_at = ?, status = 'closed',
+                total_sales = ?, total_cash = ?, total_card = ?,
+                total_transfer = ?, total_orders = ?
+            WHERE id = ? AND status = 'open'
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function getShiftSalesMetrics($array) {
+        $startDate    = $array[0];
+        $endDate      = $array[1];
+        $subsidiary_id = $array[2];
+
+        // 1. Total de ventas y pedidos en la ventana del turno
+        $queryOrders = "
+            SELECT COUNT(*) as total_orders, COALESCE(SUM(total_pay), 0) as total_sales
+            FROM {$this->bd}`order`
+            WHERE date_creation >= ? AND date_creation < ?
+            AND subsidiaries_id = ? AND status != 4
+        ";
+        $orders = $this->_Read($queryOrders, [$startDate, $endDate, $subsidiary_id]);
+        $ordersData = is_array($orders) && !empty($orders) ? $orders[0] : ['total_orders' => 0, 'total_sales' => 0];
+
+        // 2. Pagos agrupados por metodo
+        $queryPayments = "
+            SELECT pp.method_pay_id, SUM(pp.pay) as total_paid
+            FROM {$this->bd}order_payments pp
+            INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
+            WHERE po.date_creation >= ? AND po.date_creation < ?
+            AND po.subsidiaries_id = ? AND po.status != 4
+            GROUP BY pp.method_pay_id
+        ";
+        $payments = $this->_Read($queryPayments, [$startDate, $endDate, $subsidiary_id]);
+
+        $cash_sales = 0; $card_sales = 0; $transfer_sales = 0;
+        if (is_array($payments)) {
+            foreach ($payments as $p) {
+                switch ($p['method_pay_id']) {
+                    case 1: $cash_sales     = $p['total_paid']; break;
+                    case 2: $card_sales     = $p['total_paid']; break;
+                    case 3: $transfer_sales = $p['total_paid']; break;
+                }
+            }
+        }
+
+        // 3. Conteo por status
+        $quotation_count = 0; $pending_count = 0; $cancelled_count = 0;
+
+        $queryByStatus = "
+            SELECT status, COUNT(*) as count
+            FROM {$this->bd}`order`
+            WHERE date_creation >= ? AND date_creation < ?
+            AND subsidiaries_id = ?
+            GROUP BY status
+        ";
+        $statuses = $this->_Read($queryByStatus, [$startDate, $endDate, $subsidiary_id]);
+        if (is_array($statuses)) {
+            foreach ($statuses as $s) {
+                switch ($s['status']) {
+                    case 1: $quotation_count = $s['count']; break;
+                    case 2: $pending_count   = $s['count']; break;
+                    case 4: $cancelled_count = $s['count']; break;
+                }
+            }
+        }
+
+        return [
+            'total_orders'    => $ordersData['total_orders'],
+            'total_sales'     => $ordersData['total_sales'],
+            'cash_sales'      => $cash_sales,
+            'card_sales'      => $card_sales,
+            'transfer_sales'  => $transfer_sales,
+            'quotation_count' => $quotation_count,
+            'pending_count'   => $pending_count,
+            'cancelled_count' => $cancelled_count
+        ];
+    }
+
+    function getShiftDetailedOrders($array) {
+        $query = "
+            SELECT o.id, o.total_pay, o.status, o.date_creation,
+                   c.name AS client_name
+            FROM {$this->bd}`order` o
+            LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            WHERE o.date_creation >= ? AND o.date_creation < ?
+            AND o.subsidiaries_id = ? AND o.status != 4
+            ORDER BY o.date_creation ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function createShiftPayment($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}shift_payment",
+            'values' => $array['values'],
+            'data'   => $array['data'],
+        ]);
+    }
+
+    function createShiftStatusProcess($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}shift_status_process",
+            'values' => $array['values'],
+            'data'   => $array['data'],
+        ]);
+    }
+
+    function updateOrdersCashShift($array) {
+        $query = "
+            UPDATE {$this->bd}`order`
+            SET cash_shift_id = ?
+            WHERE date_creation >= ? AND date_creation < ?
+            AND subsidiaries_id = ?
+            AND (cash_shift_id IS NULL OR cash_shift_id = 0)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
 }
 ?>

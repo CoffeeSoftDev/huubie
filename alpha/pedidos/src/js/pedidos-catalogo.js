@@ -1172,13 +1172,25 @@ class CatalogProduct extends Pos {
     async initPos() {
 
         const pos = await useFetch({ url: this._link, data: { opc: "init", id: idFolio } });
+
+        if (!pos || !pos.order) {
+            console.error("Error: No se pudo cargar la información del catálogo", pos);
+            $("#productGrid").html(`
+                <div class="col-span-full text-center text-gray-400 py-10">
+                    <i class="icon-alert text-3xl mb-2"></i>
+                    <p>No se pudieron cargar los productos. Intenta recargar.</p>
+                </div>
+            `);
+            return;
+        }
+
         this.name_client = pos.order.name ?? '';
         this.discount = pos.order.discount ?? '';
         this.payments = pos.payments ?? [];
         this.total_paid = pos.total_paid ?? 0;
 
         this.createProductTabs({
-            data: pos.modifier,
+            data: pos.modifier || [],
             onChange: (category) => {
                 this.listProduct(category)
             }
@@ -1187,14 +1199,14 @@ class CatalogProduct extends Pos {
         // Products.
 
         this.createProductGrid({
-            data: pos.products,
+            data: pos.products || [],
             onClick: (item) => {
                 this.addProduct(item.id)
             }
         });
 
 
-        this.showOrder(pos.list)
+        this.showOrder(pos.list || [])
     }
 
     showOrder(list) {
