@@ -2254,8 +2254,8 @@ class App extends Templates {
         bootbox.dialog({
             title: `<i class="icon-calendar"></i> Cierre del Día - Pedidos de Pastelería`,
             message: modalContent,
-            className: 'modal-ticket-close',
-            // size:'small',
+            // className: 'modal-ticket-close',
+            size:'large',
             closeButton: true
         });
 
@@ -2270,7 +2270,7 @@ class App extends Templates {
                 opc: "select",
                 id: "subsidiariesDailyClose",
                 lbl: "Sucursal:",
-                class: "col-sm-3 mb-2",
+                class: "col-sm-2 mb-2",
                 onchange: "app.viewDailyClose()",
                 data: subsidiaries
             });
@@ -2284,10 +2284,23 @@ class App extends Templates {
                 class: "col-sm-3 mb-2"
             },
             {
+                opc: "select",
+                id: "sel",
+                lbl: "Seleccionar turno:",
+                class: "col-sm-3 mb-2",
+                data: [
+                    { id: '0', valor: '--Cerrar turno --' },
+                    { id: '0', valor: '2026-15-03 07:03 PM' },
+                ]
+            },
+           
+          
+
+            {
                 opc: "button",
                 id: "btnSaveDailyClose",
                 text: " Cerrar",
-                class: "col-sm-3",
+                class: "col-sm-2",
                 className: "opacity-50 w-100 cursor-not-allowed",
                 color_btn: "secondary",
                 icon: "icon-lock",
@@ -2301,8 +2314,8 @@ class App extends Templates {
             {
                 opc: "button",
                 id: "btnPrintTicket",
-                text: "Imprimir",
-                class: "col-sm-3",
+                // text: "Imprimir",
+                class: "col-sm-2",
                 className: "opacity-50 w-100 cursor-not-allowed",
                 color_btn: "primary",
                 icon: "icon-print",
