@@ -1,3 +1,69 @@
+[ 2026-03-16 10:29:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  SELECT MAX(id) as id FROM fayxzvov_reginas.cash_shift
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.cash_shift (subsidiary_id, employee_id, shift_name, opened_at, opening_amount, status, active) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
 [ 2026-02-28 23:06:39 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
