@@ -8,6 +8,7 @@ let categories, estado, clients;
 
 let rol, subsidiaries, udn;
 let dailyClosure = { is_closed: false };
+let openShift = { has_open_shift: false };
 
 $(async () => {
     let dataModifiers = await useFetch({ url: api, data: { opc: "getModifiers" } });
@@ -20,6 +21,7 @@ $(async () => {
           sub_name     = req.subsidiaries_name;
           subsidiaries = req.sucursales;
           dailyClosure = req.daily_closure || { is_closed: false };
+          openShift    = req.open_shift || { has_open_shift: false };
           app          = new App(api, 'root');
           custom       = new CustomOrder(api_custom, 'root');
           normal       = new CatalogProduct(api_catalogo, 'root');
@@ -267,6 +269,16 @@ class App extends Templates {
                 icon: "warning",
                 title: "Cierre del día realizado",
                 text: "No se pueden crear nuevos pedidos porque ya se realizó el cierre del día para esta sucursal.",
+                btn1: true,
+                btn1Text: "Entendido"
+            });
+            return;
+        }
+        if (!openShift.has_open_shift) {
+            alert({
+                icon: "warning",
+                title: "Sin turno abierto",
+                text: "Debes abrir un turno de caja antes de crear pedidos. Ve a 'Cierre del día' para abrir turno.",
                 btn1: true,
                 btn1Text: "Entendido"
             });
@@ -2237,375 +2249,478 @@ class App extends Templates {
         }
     }
 
-    // Cierre de pedido
+    // =============================================
+    // Cierre del Día - Sistema de Turnos
+    // =============================================
 
     printDailyClose() {
+        this.reportMode = 'detailed';
+        this._selectedShiftId = null;
+
+        const subsidiarySelect = rol == 1 ? `
+            <div class="mb-4">
+                <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
+                <select id="subsidiariesDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.onDailyCloseFilterChange()">
+                    ${subsidiaries.map(s => `<option value="${s.id}">${s.valor}</option>`).join('')}
+                </select>
+            </div>
+        ` : '';
 
         const modalContent = `
-            <div id="filterBarDailyClose" class="mb-3"></div>
-            <div id="ticketContainer">
-                <div class="text-center text-gray-400 py-10">
-                    <i class="icon-doc-text text-5xl mb-5"></i>
-                    <p class="mt-5">Selecciona una fecha para consultar el cierre del día</p>
+            <div class="flex flex-col lg:flex-row gap-4" style="min-height: 450px;">
+                <!-- Sidebar -->
+                <div class="w-full lg:w-[280px] flex-shrink-0 space-y-4">
+                    ${subsidiarySelect}
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar fecha</label>
+                        <div id="calendarDailyClose"></div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Modo de reporte</label>
+                        <div class="flex rounded-lg overflow-hidden border border-gray-600">
+                            <button id="btnModeDetailed" class="flex-1 py-2 text-sm font-semibold bg-purple-600 text-white" onclick="app.toggleReportMode('detailed')">Detallado</button>
+                            <button id="btnModeSummary" class="flex-1 py-2 text-sm font-semibold bg-[#1a2332] text-gray-300 hover:bg-gray-700" onclick="app.toggleReportMode('summary')">Resumido</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar turno</label>
+                        <select id="shiftSelector" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.viewShiftPreview()">
+                            <option value="">-- Seleccionar --</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2 mt-2">
+                        <button id="btnOpenShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2" onclick="app.openShift()">
+                            <i class="icon-plus"></i> Abrir Turno
+                        </button>
+                        <button id="btnCloseShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.closeShift()">
+                            <i class="icon-lock"></i> Cerrar Caja
+                        </button>
+                        <button id="btnPrintTicket" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
+                            <i class="icon-print"></i> Imprimir Ticket
+                        </button>
+                    </div>
+                </div>
+                <!-- Ticket Preview -->
+                <div class="flex-1 bg-[#151d2a] rounded-lg p-4 overflow-y-auto" style="max-height: 70vh;">
+                    <p class="text-xs text-gray-500 mb-2">Vista previa de impresión</p>
+                    <div id="ticketContainer">
+                        <div class="text-center text-gray-400 py-16">
+                            <i class="icon-doc-text text-5xl mb-4"></i>
+                            <p class="mt-4">Selecciona un turno para ver el ticket</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
 
         bootbox.dialog({
-            title: `<i class="icon-calendar"></i> Cierre del Día - Pedidos de Pastelería`,
+            title: `
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                        <i class="icon-calendar text-white"></i>
+                    </div>
+                    <span class="text-lg font-bold text-white">Cierre del Día</span>
+                </div>`,
             message: modalContent,
             className: 'modal-ticket-close',
-            // size:'small',
             closeButton: true
         });
 
-        // Aplicar ancho personalizado al modal
-        $('.modal-ticket-close .modal-dialog').css('max-width', '650px');
-
-        let filterBarData = [];
-
-        // Select de sucursal solo para admin
-        if (rol == 1) {
-            filterBarData.push({
-                opc: "select",
-                id: "subsidiariesDailyClose",
-                lbl: "Sucursal:",
-                class: "col-sm-3 mb-2",
-                onchange: "app.viewDailyClose()",
-                data: subsidiaries
-            });
-        }
-
-        filterBarData.push(
-            {
-                opc: "input-calendar",
-                id: "calendarDailyClose",
-                lbl: "Seleccionar fecha:",
-                class: "col-sm-3 mb-2"
-            },
-            {
-                opc: "button",
-                id: "btnSaveDailyClose",
-                text: " Cerrar",
-                class: "col-sm-3",
-                className: "opacity-50 w-100 cursor-not-allowed",
-                color_btn: "secondary",
-                icon: "icon-lock",
-                disabled: true,
-                onClick: () => {
-                    if (!$('#btnSaveDailyClose').prop('disabled')) {
-                        this.saveDailyClose();
-                    }
-                }
-            },
-            {
-                opc: "button",
-                id: "btnPrintTicket",
-                text: "Imprimir",
-                class: "col-sm-3",
-                className: "opacity-50 w-100 cursor-not-allowed",
-                color_btn: "primary",
-                icon: "icon-print",
-                disabled: true,
-                onClick: () => {
-                    if (!$('#btnPrintTicket').prop('disabled')) {
-                        this.printDailyCloseTicket();
-                    }
-                }
-            }
-        );
-
-        this.createfilterBar({
-            parent: 'filterBarDailyClose',
-            data: filterBarData
-        });
+        $('.modal-ticket-close .modal-dialog').css('max-width', '900px');
 
         dataPicker({
             parent: "calendarDailyClose",
             type: 'simple',
             startDate: moment(),
-            locale: {
-                format: 'YYYY-MM-DD'
-            },
-            onSelect: (start, end) => {
-                this.viewDailyClose();
-            },
+            locale: { format: 'YYYY-MM-DD' },
+            onSelect: () => this.onDailyCloseFilterChange(),
         });
 
-        this.viewDailyClose();
+        this.loadShifts();
     }
 
+    onDailyCloseFilterChange() {
+        this.loadShifts();
+    }
 
-    async viewDailyClose() {
-
+    async loadShifts() {
         let rangePicker = getDataRangePicker("calendarDailyClose");
         let date = rangePicker.fi;
         let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
 
-        const request = await useFetch({
+        const response = await useFetch({
             url: this._link,
-            data: { opc: "getDailyClose", date: date, subsidiaries_id: subsidiaries_id }
+            data: { opc: "getShiftsByDate", date: date, subsidiaries_id: subsidiaries_id }
         });
 
-        if (request.status === 200) {
-            this.ticketDailyClose({ data: request.data, date: date });
+        const shifts = response.shifts || [];
+        const select = $('#shiftSelector');
+        select.html('<option value="">-- Cerrar turno --</option>');
 
-            // Habilitar botón de impresión
-            $('#btnPrintTicket')
-                .prop('disabled', false)
-                .removeClass('opacity-50 cursor-not-allowed')
-                .addClass('hover:bg-green-700');
+        let hasOpenShift = false;
 
-            // Manejar estado del botón de cierre
-            if (request.data.closure_exists) {
-                $('#btnSaveDailyClose')
-                    .prop('disabled', true)
-                    .addClass('opacity-50 cursor-not-allowed')
-                    .removeClass('hover:bg-yellow-600');
-            } else {
-                $('#btnSaveDailyClose')
-                    .prop('disabled', false)
-                    .removeClass('opacity-50 cursor-not-allowed');
-            }
+        shifts.forEach(s => {
+            const time = moment(s.opened_at).format('YYYY-MM-DD hh:mm A');
+            const badge = s.status === 'open' ? ' [ABIERTO]' : '';
+            select.append(`<option value="${s.id}" data-status="${s.status}">${time}${badge}</option>`);
+            if (s.status === 'open') hasOpenShift = true;
+        });
+
+        // Mostrar/ocultar botón abrir turno
+        if (hasOpenShift) {
+            $('#btnOpenShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').removeClass('hover:bg-green-700');
+        } else {
+            $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        }
+
+        // Si hay turnos, seleccionar el primero (más reciente)
+        if (shifts.length > 0) {
+            select.val(shifts[0].id);
+            this.viewShiftPreview();
         } else {
             $('#ticketContainer').html(`
-                <div class="text-center py-10">
-                    <i class="icon-attention text-5xl text-gray-400 mb-3"></i>
-                    <p class="text-gray-600">${request.message || "No hay pedidos registrados para esta fecha"}</p>
+                <div class="text-center text-gray-400 py-16">
+                    <i class="icon-clock text-5xl mb-4"></i>
+                    <p class="mt-4">No hay turnos para esta fecha</p>
+                    <p class="text-sm mt-2">Abre un turno para comenzar</p>
                 </div>
             `);
-
-            // Deshabilitar ambos botones
-            $('#btnPrintTicket')
-                .prop('disabled', true)
-                .addClass('opacity-50 cursor-not-allowed');
-
-            $('#btnSaveDailyClose')
-                .prop('disabled', true)
-                .addClass('opacity-50 cursor-not-allowed');
+            $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
         }
     }
 
-    saveDailyClose() {
-        let rangePicker = getDataRangePicker("calendarDailyClose");
-        let date = rangePicker.fi;
-        let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
+    async viewShiftPreview() {
+        const shiftId = $('#shiftSelector').val();
+        if (!shiftId) {
+            $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            return;
+        }
 
-        this.swalQuestion({
-            opts: {
-                title: '¿Realizar cierre del día?',
-                html: `Se guardarán los movimientos del <strong>${moment(date).locale('es').format('DD [de] MMMM [de] YYYY')}</strong> y se asignará el folio de cierre a los pedidos.
-                    <div class="border border-gray-500 rounded-lg p-4 mt-4 text-left">
-                        <p class="font-bold text-sm uppercase mb-2">Restricciones tras el cierre:</p>
-                        <ul class="list-disc list-inside text-sm space-y-1">
-                            <li>No se podrá capturar pedidos de este día.</li>
-                            <li>No se podrá editar pedidos existentes.</li>
-                            <li>No se podrá cancelar abonos realizados.</li>
-                        </ul>
+        this._selectedShiftId = shiftId;
+        const selectedOption = $(`#shiftSelector option[value="${shiftId}"]`);
+        const shiftStatus = selectedOption.data('status');
+
+        // Obtener métricas
+        const metricsRes = await useFetch({
+            url: this._link,
+            data: { opc: "getShiftMetrics", shift_id: shiftId }
+        });
+
+        if (metricsRes.status !== 200) {
+            $('#ticketContainer').html(`<p class="text-center text-gray-400 py-10">${metricsRes.message || 'Error al obtener datos'}</p>`);
+            return;
+        }
+
+        // Obtener órdenes si modo detallado
+        let orders = [];
+        if (this.reportMode === 'detailed') {
+            const ordersRes = await useFetch({
+                url: this._link,
+                data: { opc: "getShiftOrders", shift_id: shiftId }
+            });
+            orders = ordersRes.orders || [];
+        }
+
+        this.ticketShiftClose({
+            data: metricsRes.data,
+            shift: metricsRes.shift,
+            subsidiary_name: metricsRes.subsidiary_name,
+            logo: metricsRes.logo,
+            orders: orders
+        });
+
+        // Habilitar botón imprimir
+        $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+
+        // Botón cerrar caja: solo si turno está abierto
+        if (shiftStatus === 'open') {
+            $('#btnCloseShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        } else {
+            $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        }
+    }
+
+    ticketShiftClose(options) {
+        const d = options.data || {};
+        const shift = options.shift || {};
+        const subsidiaryName = options.subsidiary_name || '';
+        const logo = options.logo || '';
+        const orders = options.orders || [];
+        const isDetailed = this.reportMode === 'detailed';
+
+        const fecha = moment(shift.opened_at).format('DD/MM/YYYY');
+        const turnoLabel = shift.shift_name || moment(shift.opened_at).format('hh:mm A');
+        const isClosed = shift.status === 'closed';
+
+        const closedBadge = isClosed
+            ? `<div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO</div>
+               <div class="text-[10px] text-gray-500 mt-0.5">Por: ${shift.employee_name || 'N/A'}</div>
+               <div class="text-[10px] text-gray-500">${shift.closed_at ? moment(shift.closed_at).format('DD/MM/YYYY HH:mm') : ''}</div>`
+            : `<div class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">EN CURSO</div>`;
+
+        // Desglose de ventas (modo detallado)
+        let detailedSection = '';
+        if (isDetailed && orders.length > 0) {
+            const orderRows = orders.map(o => `
+                <div class="flex justify-between items-center">
+                    <div class="italic">Venta Folio #${o.id}</div>
+                    <div>${formatPrice(o.total_pay)}</div>
+                </div>
+            `).join('');
+
+            detailedSection = `
+                <div class="font-semibold mt-2 mb-1">DESGLOSE DE VENTAS</div>
+                ${orderRows}
+                <hr class="border-dashed border-t my-1" />
+            `;
+        }
+
+        const totalPayments = parseFloat(d.cash_sales || 0) + parseFloat(d.card_sales || 0) + parseFloat(d.transfer_sales || 0);
+
+        const ticketHtml = `
+            <div id="layoutPrintCloseTicket" class="flex justify-center p-4">
+                <div id="ticketDailyClose" class="bg-white p-4 rounded-lg shadow-lg font-mono text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%;">
+                    <!-- Header -->
+                    <div class="flex flex-col items-center mb-3">
+                        ${logo ? `<div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
+                            <img src="https://huubie.com.mx/alpha${logo}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                        </div>` : ''}
+                        <h1 class="text-sm font-bold uppercase">${subsidiaryName}</h1>
+                        <div class="text-xs font-semibold">PEDIDOS DE PASTELERÍA</div>
+                        <div class="text-xs text-gray-600">Cierre Operativo</div>
+                        ${closedBadge}
                     </div>
-                    <br><span class="text-red-500">Esta acción no se puede deshacer.</span>`,
+
+                    <!-- Info -->
+                    <div class="text-xs space-y-0.5 mb-2">
+                        <div class="flex justify-between"><span>Fecha:</span><span>${fecha}</span></div>
+                        <div class="flex justify-between"><span>Turno:</span><span>${turnoLabel}</span></div>
+                        <div class="flex justify-between"><span>Sucursal:</span><span>${subsidiaryName}</span></div>
+                    </div>
+
+                    <hr class="border-dashed border-t my-1" />
+
+                    <!-- Detalle (si aplica) -->
+                    <div class="text-xs space-y-0.5">
+                        ${detailedSection}
+
+                        <!-- Formas de pago -->
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">EFECTIVO:</div>
+                            <div>${formatPrice(d.cash_sales)}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">TARJETA:</div>
+                            <div>${formatPrice(d.card_sales)}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">TRANSFERENCIA:</div>
+                            <div>${formatPrice(d.transfer_sales)}</div>
+                        </div>
+
+                        <hr class="border-dashed border-t my-1" />
+
+                        <div class="flex justify-between items-center font-bold">
+                            <div>TOTAL CAJA:</div>
+                            <div class="text-sm">${formatPrice(totalPayments)}</div>
+                        </div>
+
+                        <hr class="border-dashed border-t my-1" />
+
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">NÚMERO DE PEDIDOS:</div>
+                            <div class="font-bold">${d.total_orders || 0}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">COTIZACIONES:</div>
+                            <div>${d.quotation_count || 0}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">CANCELADOS:</div>
+                            <div>${d.cancelled_count || 0}</div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="text-center mt-4 text-[10px] font-bold text-gray-900 space-y-1">
+                        <p>GRACIAS POR SU PREFERENCIA</p>
+                        <p class="text-purple-800 text-xs">Huubie</p>
+                        <p class="text-gray-500 font-normal text-[9px]">
+                            Generado: ${moment().format('DD/MM/YYYY HH:mm:ss')}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('#ticketContainer').html(ticketHtml);
+    }
+
+    toggleReportMode(mode) {
+        this.reportMode = mode;
+
+        if (mode === 'detailed') {
+            $('#btnModeDetailed').addClass('bg-purple-600 text-white').removeClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700');
+            $('#btnModeSummary').addClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700').removeClass('bg-purple-600 text-white');
+        } else {
+            $('#btnModeSummary').addClass('bg-purple-600 text-white').removeClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700');
+            $('#btnModeDetailed').addClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700').removeClass('bg-purple-600 text-white');
+        }
+
+        if (this._selectedShiftId) {
+            this.viewShiftPreview();
+        }
+    }
+
+    openShift() {
+        let subsidiaries_id = rol == 1 ? ($('#subsidiariesDailyClose').val() || null) : null;
+
+        Swal.fire({
+            title: 'Abrir Turno de Caja',
+            html: `
+                <div class="text-left space-y-3">
+                    <div>
+                        <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
+                        <input id="swalShiftName" class="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Ej: Matutino, Vespertino">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-300 block mb-1">Fondo de caja inicial</label>
+                        <input id="swalOpeningAmount" type="number" class="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="0.00" min="0" step="0.01">
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Abrir Turno',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#10b981',
+            customClass: {
+                popup: 'bg-[#1F2A37] text-white rounded-lg',
             },
-            data: { opc: "saveDailyClose", date: date, subsidiaries_id: subsidiaries_id },
-            methods: {
-                request: (data) => {
-                    alert({
-                        icon: "success",
-                        title: "Cierre realizado",
-                        text: `Folio de cierre: #${data.closure_id}`,
-                        btn1: true
-                    });
-                    this.viewDailyClose();
-                },
-            },
+            preConfirm: () => {
+                return {
+                    shift_name: document.getElementById('swalShiftName').value.trim(),
+                    opening_amount: parseFloat(document.getElementById('swalOpeningAmount').value) || 0
+                };
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const response = await useFetch({
+                    url: this._link,
+                    data: {
+                        opc: "openShift",
+                        shift_name: result.value.shift_name,
+                        opening_amount: result.value.opening_amount,
+                        subsidiaries_id: subsidiaries_id
+                    }
+                });
+
+                if (response.status === 200) {
+                    alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
+                    this.loadShifts();
+
+                    // Actualizar variable global
+                    openShift = { has_open_shift: true, shift_id: response.shift_id };
+                } else {
+                    alert({ icon: "error", title: "Error", text: response.message, btn1: true });
+                }
+            }
         });
     }
 
-    ticketDailyClose(options) {
-        const defaults = {
-            parent: "ticketContainer",
-            id: "ticketDailyClose",
-            class: "bg-white p-4 rounded-lg shadow-lg font-mono text-gray-900 border border-gray-200",
-            date: moment().format("YYYY-MM-DD"),
-            data: {
-                total_sales: 0,
-                card_sales: 0,
-                cash_sales: 0,
-                transfer_sales: 0,
-                total_orders: 0
+    async closeShift() {
+        const shiftId = this._selectedShiftId || $('#shiftSelector').val();
+        if (!shiftId) return;
+
+        // Obtener conteo de pedidos
+        const ordersRes = await useFetch({
+            url: this._link,
+            data: { opc: "getShiftOrders", shift_id: shiftId }
+        });
+        const orderCount = (ordersRes.orders || []).length;
+
+        Swal.fire({
+            title: '¿Cerrar ticket de turno?',
+            html: `<p>Se procederá a realizar el corte de caja. Se cerrarán <strong><u>${orderCount}</u></strong> tickets de venta con la información actual.</p>`,
+            icon: 'question',
+            iconColor: '#8b5cf6',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, cerrar turno',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#8b5cf6',
+            customClass: {
+                popup: 'bg-[#1F2A37] text-white rounded-lg',
             }
-        };
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const response = await useFetch({
+                    url: this._link,
+                    data: { opc: "closeShift", shift_id: shiftId }
+                });
 
-        const opts = Object.assign({}, defaults, options);
-        const d = opts.data;
-        const fecha = opts.date;
+                if (response.status === 200) {
+                    alert({ icon: "success", title: "Turno cerrado", text: response.message, timer: 2000 });
+                    this.loadShifts();
+                    this.ls();
 
-        const formattedDate = moment(fecha).format('DD [de] MMMM [de] YYYY');
-
-        const layout = $("<div>", {
-            id: 'layoutPrintCloseTicket',
-            class: 'flex justify-center p-4'
+                    // Actualizar variable global
+                    openShift = { has_open_shift: false };
+                } else {
+                    alert({ icon: "error", title: "Error", text: response.message, btn1: true });
+                }
+            }
         });
-
-
-        const container = $("<div>", {
-            id: opts.id,
-            class: opts.class,
-            css: { 'max-width': '320px', 'width': '100%' }
-        });
-
-        // Información de la sucursal
-        const subsidiaryInfo = d.subsidiary_name
-            ? `<div class="text-xs font-semibold text-gray-600 mt-1">${d.is_all_subsidiaries ? d.subsidiary_name : 'Sucursal: ' + d.subsidiary_name}</div>`
-            : '';
-
-        const closureBadge = d.closure_exists
-            ? `<div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO - Folio #${d.closure_id}</div>
-               <div class="text-[10px] text-gray-500 mt-0.5">Cerrado por: ${d.closed_by || 'N/A'}</div>
-               <div class="text-[10px] text-gray-500">${d.closed_at ? moment(d.closed_at).format('DD/MM/YYYY HH:mm') : ''}</div>`
-            : '';
-
-        const header = `
-        <div class="flex flex-col items-center mb-3">
-            <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
-                <img src="https://huubie.com.mx/alpha${d.logo}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
-            </div>
-            <h1 class="text-sm font-bold">PEDIDOS DE PASTELERÍA</h1>
-            <div class="text-xs text-gray-600">Cierre del Día</div>
-            <div class="text-xs text-gray-600">${formattedDate}</div>
-             ${subsidiaryInfo}
-             ${closureBadge}
-        </div>
-    `;
-
-        // Calcular total de formas de pago
-        const totalPaymentMethods = parseFloat(d.cash_sales || 0) + parseFloat(d.card_sales || 0) + parseFloat(d.transfer_sales || 0);
-
-        const resumen = `
-        <div class="text-xs space-y-1">
-             <div class="flex justify-between items-center">
-                <div class="font-semibold">EFECTIVO:</div>
-                <div>${formatPrice(d.cash_sales)}</div>
-            </div>
-
-            <div class="flex justify-between items-center">
-                <div class="font-semibold">TARJETA:</div>
-                <div>${formatPrice(d.card_sales)}</div>
-            </div>
-
-            <div class="flex justify-between items-center">
-                <div class="font-semibold">TRANSFERENCIA:</div>
-                <div>${formatPrice(d.transfer_sales)}</div>
-            </div>
-
-            <hr class="border-dashed border-t my-1" />
-
-            <div class="flex justify-between items-center pt-1">
-                <div class="font-semibold">TOTAL FORMAS DE PAGO:</div>
-                <div class="text-sm font-bold">${formatPrice(totalPaymentMethods)}</div>
-            </div>
-
-            <div class="flex justify-between items-center pt-1">
-                <div class="font-semibold">NÚMERO DE PEDIDOS:</div>
-                <div class="text-sm font-bold">${d.total_orders}</div>
-            </div>
-
-            <hr class="border-dashed border-t my-1" />
-
-            <div class="flex justify-between items-center">
-                <div class="font-semibold">COTIZACIONES:</div>
-                <div>${d.quotation_count || 0}</div>
-            </div>
-
-            <div class="flex justify-between items-center">
-                <div class="font-semibold">PENDIENTES:</div>
-                <div>${d.pending_count || 0}</div>
-            </div>
-
-            <div class="flex justify-between items-center">
-                <div class="font-semibold">CANCELADOS:</div>
-                <div>${d.cancelled_count || 0}</div>
-            </div>
-
-
-        </div>
-    `;
-
-        const footer = `
-        <div class="text-center mt-4 text-[10px] font-bold text-gray-900 space-y-1">
-            <p class="mt-1">GRACIAS POR SU PREFERENCIA</p>
-            <p>ESTE NO ES UN COMPROBANTE FISCAL</p>
-            <p class="text-purple-800 text-xs">Huubie</p>
-            <p class="text-gray-500 font-normal text-[9px] mt-1">
-                Generado: ${moment().format('DD/MM/YYYY HH:mm:ss')}
-            </p>
-        </div>
-    `;
-
-        container.append(header);
-        container.append(resumen);
-        container.append(footer);
-
-        layout.append(container);
-
-        $(`#${opts.parent}`).html(layout);
     }
 
     printDailyCloseTicket() {
-        // Obtener solo el contenido del ticket (sin el layout wrapper)
         const ticketContent = document.getElementById('ticketDailyClose');
 
         if (!ticketContent) {
-            alert({
-                icon: "warning",
-                text: "No hay ticket para imprimir. Por favor consulta primero.",
-                btn1: true,
-                btn1Text: "Ok"
-            });
+            alert({ icon: "warning", text: "No hay ticket para imprimir.", btn1: true, btn1Text: "Ok" });
             return;
         }
 
         const printWindow = window.open('', '', 'height=600,width=400');
-        printWindow.document.write('<html><head><title>Cierre del Día</title>');
+        printWindow.document.write('<html><head><title>Cierre de Turno</title>');
         printWindow.document.write(`
             <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    padding: 20px;
-                    max-width: 400px;
-                    margin: 0 auto;
-                }
+                body { font-family: 'Courier New', monospace; padding: 10px; max-width: 320px; margin: 0 auto; }
                 .bg-white { background-color: white; }
                 .p-4 { padding: 1rem; }
                 .rounded-lg { border-radius: 0.5rem; }
-                .shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+                .shadow-lg { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
                 .font-mono { font-family: 'Courier New', monospace; }
                 .text-gray-900 { color: #111827; }
                 .flex { display: flex; }
                 .flex-col { flex-direction: column; }
                 .items-center { align-items: center; }
                 .justify-between { justify-content: space-between; }
-                .mb-4 { margin-bottom: 1rem; }
+                .mb-3 { margin-bottom: 0.75rem; }
+                .mb-2 { margin-bottom: 0.5rem; }
                 .mb-1 { margin-bottom: 0.25rem; }
-                .w-20 { width: 5rem; }
-                .text-lg { font-size: 1.125rem; }
+                .mt-4 { margin-top: 1rem; }
+                .mt-2 { margin-top: 0.5rem; }
+                .mt-1 { margin-top: 0.25rem; }
                 .text-sm { font-size: 0.875rem; }
                 .text-xs { font-size: 0.75rem; }
+                .text-\\[10px\\] { font-size: 10px; }
+                .text-\\[9px\\] { font-size: 9px; }
                 .font-bold { font-weight: bold; }
                 .font-semibold { font-weight: 600; }
                 .text-gray-600 { color: #4B5563; }
                 .text-gray-500 { color: #6B7280; }
                 .text-purple-800 { color: #6B21A8; }
-                .space-y-2 > * + * { margin-top: 0.5rem; }
-                .space-y-1 > * + * { margin-top: 0.25rem; }
                 .text-center { text-align: center; }
-                .mt-6 { margin-top: 1.5rem; }
-                .mt-2 { margin-top: 0.5rem; }
-                .mt-1 { margin-top: 0.25rem; }
-                .pt-1 { padding-top: 0.25rem; }
+                .uppercase { text-transform: uppercase; }
+                .italic { font-style: italic; }
+                .space-y-1 > * + * { margin-top: 0.25rem; }
+                .space-y-0\\.5 > * + * { margin-top: 0.125rem; }
                 hr { border: 0; border-top: 1px dashed #D1D5DB; margin: 0.5rem 0; }
-                @media print {
-                    body { padding: 0; }
-                }
+                .bg-green-100, .bg-blue-100 { padding: 2px 8px; border-radius: 9999px; display: inline-block; }
+                .bg-green-100 { background: #dcfce7; color: #166534; }
+                .bg-blue-100 { background: #dbeafe; color: #1e40af; }
+                @media print { body { padding: 0; } }
             </style>
         `);
         printWindow.document.write('</head><body>');
@@ -2613,9 +2728,7 @@ class App extends Templates {
         printWindow.document.write('</body></html>');
         printWindow.document.close();
 
-        setTimeout(() => {
-            printWindow.print();
-        }, 250);
+        setTimeout(() => { printWindow.print(); }, 250);
     }
 
 }
