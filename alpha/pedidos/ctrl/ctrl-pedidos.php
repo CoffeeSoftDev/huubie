@@ -136,6 +136,7 @@ class Pedidos extends MPedidos{
             $hasDiscount   = $discount > 0;
 
             $Sucursal = $this->getSucursalByID([$order['subsidiaries_id']]);
+            if (!$Sucursal) $Sucursal = ['name' => '', 'sucursal' => ''];
 
             $htmlTotal = $hasDiscount
                 ? "<div class='text-end'>
@@ -1780,11 +1781,13 @@ function dropdownOrder($id, $status, $discount = 0) {
         $options = [
             ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
             ['Editar', 'icon-pencil', "{$instancia}.editOrder({$id})"],
-            // Solo agrega "Cancelar" si el rol no es 3
-            ...($rolId != 3 ? [['Cancelar', 'icon-block-1', "{$instancia}.cancelOrder({$id})"]] : []),
-            ['Pagar', 'icon-money', "{$instancia}.historyPay({$id})"],
-            ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"],
         ];
+        // Solo agrega "Cancelar" si el rol no es 3
+        if ($rolId != 3) {
+            $options[] = ['Cancelar', 'icon-block-1', "{$instancia}.cancelOrder({$id})"];
+        }
+        $options[] = ['Pagar', 'icon-money', "{$instancia}.historyPay({$id})"];
+        $options[] = ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"];
 
         if ($hasDiscount) {
             $options[] = ['Editar descuento', 'icon-percent', "{$instancia}.editDiscount({$id})"];
