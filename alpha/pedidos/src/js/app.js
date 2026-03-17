@@ -2656,11 +2656,11 @@ class App extends Templates {
                 <div class="text-left space-y-3">
                     <div>
                         <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
-                        <input id="swalShiftName" class="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Ej: Matutino, Vespertino">
+                        <input id="swalShiftName" class="swal2-input" style="background:#374151;border:1px solid #4b5563;color:#fff;border-radius:6px;padding:8px 12px;font-size:14px;width:100%;margin:0;" placeholder="Ej: Matutino, Vespertino">
                     </div>
                     <div>
                         <label class="text-sm font-medium text-gray-300 block mb-1">Fondo de caja inicial</label>
-                        <input id="swalOpeningAmount" type="number" class="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="0.00" min="0" step="0.01">
+                        <input id="swalOpeningAmount" type="number" class="swal2-input" style="background:#374151;border:1px solid #4b5563;color:#fff;border-radius:6px;padding:8px 12px;font-size:14px;width:100%;margin:0;" placeholder="0.00" min="0" step="0.01">
                     </div>
                 </div>
             `,
@@ -2669,7 +2669,13 @@ class App extends Templates {
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#10b981',
             customClass: {
+                container: 'swal-over-bootbox',
                 popup: 'bg-[#1F2A37] text-white rounded-lg',
+            },
+            didOpen: () => {
+                // Asegurar que SweetAlert quede encima de bootbox (z-index 1055)
+                const container = document.querySelector('.swal-over-bootbox');
+                if (container) container.style.zIndex = '9999';
             },
             preConfirm: () => {
                 return {
