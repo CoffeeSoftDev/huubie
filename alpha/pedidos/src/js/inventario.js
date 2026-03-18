@@ -216,7 +216,7 @@ class InventarioApp extends Templates {
             { opc: "input", id: "stock", lbl: "Stock actual", tipo: "numero", class: "col-12 col-md-4 mb-3" },
             { opc: "input", id: "min_stock", lbl: "Stock minimo", tipo: "numero", class: "col-12 col-md-4 mb-3" },
             { opc: "input", id: "cost", lbl: "Costo unitario", tipo: "cifra", class: "col-12 col-md-4 mb-3" },
-            { opc: "btn-submit", text: "Guardar", class: "col-12" }
+            // { opc: "btn-submit", text: "Guardar", class: "col-12" }
         ];
     }
 
@@ -226,6 +226,7 @@ class InventarioApp extends Templates {
         this.createTable({
             parent: 'tabla-proveedores',
             data: { opc: 'lsProveedores' },
+            idFilterBar: `filterBar${this.PROJECT_NAME}`,
             coffeesoft: true,
             conf: { datatable: true, pag: 15 },
             attr: {
@@ -349,6 +350,7 @@ class InventarioApp extends Templates {
     lsRecipes(productId) {
         this.createTable({
             parent: 'tabla-receta',
+            idFilterBar: `filterBar${this.PROJECT_NAME}`,
             data: { opc: 'lsRecipes', product_id: productId },
             coffeesoft: true,
             conf: { datatable: false },
@@ -510,6 +512,7 @@ class InventarioApp extends Templates {
 
         this.createTable({
             parent: 'tabla-compras',
+            idFilterBar: `filterBar${this.PROJECT_NAME}`,
             data: { opc: 'lsPurchaseOrders', fi: rangePicker.fi, ff: rangePicker.ff },
             coffeesoft: true,
             conf: { datatable: true, pag: 15 },
@@ -705,6 +708,7 @@ class InventarioApp extends Templates {
 
         this.createTable({
             parent: 'tabla-kardex',
+            idFilterBar: `filterBar${this.PROJECT_NAME}`,
             data: { opc: 'lsKardex', fi: rangePicker.fi, ff: rangePicker.ff },
             coffeesoft: true,
             conf: { datatable: true, pag: 20 },
@@ -730,6 +734,7 @@ class InventarioApp extends Templates {
 
         this.createTable({
             parent: 'tabla-kardex-supply',
+            idFilterBar: `filterBar${this.PROJECT_NAME}`,
             data: { opc: 'lsKardexBySupply', supply_id: supplyId },
             coffeesoft: true,
             conf: { datatable: true, pag: 15 },

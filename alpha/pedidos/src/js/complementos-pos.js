@@ -242,6 +242,8 @@ class ComplementosApp extends Templates {
     lsLoyaltyClients() {
         this.createTable({
             parent: 'tableLoyaltyClients',
+            idFilterBar: `filterBar${this.PROJECT_NAME}`,
+
             data: { opc: 'lsLoyaltyClients' },
             coffeesoft: true,
             conf: { datatable: true, pag: 15 },
@@ -257,6 +259,8 @@ class ComplementosApp extends Templates {
     lsLoyaltyTransactions() {
         this.createTable({
             parent: 'tableLoyaltyTransactions',
+            idFilterBar: `filterBar${this.PROJECT_NAME}`,
+
             data: { opc: 'lsLoyaltyTransactions' },
             coffeesoft: true,
             conf: { datatable: true, pag: 15 },
