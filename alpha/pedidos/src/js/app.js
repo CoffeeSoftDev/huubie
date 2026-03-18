@@ -131,12 +131,72 @@ class App extends Templates {
                 opc: "button",
                 className: "w-100",
                 class: "col-12 col-md-3 col-lg-2",
+                color_btn: "warning",
+                id: "btnPOS",
+                text: "Punto de Venta",
+                icon: "icon-basket",
+                onClick: () => {
+                    window.location.href = '../pedidos/pos.php'
+                }
+            },
+            {
+                opc: "button",
+                className: "w-100",
+                class: "col-12 col-md-3 col-lg-2",
                 color_btn: "secondary",
                 id: "btnCalendario",
                 text: "Calendario",
                 icon: "icon-calendar",
                 onClick: () => {
                     window.location.href = '../pedidos/calendario/index.php'
+                }
+            },
+            {
+                opc: "button",
+                className: "w-100",
+                class: "col-12 col-md-3 col-lg-2",
+                color_btn: "info",
+                id: "btnInventario",
+                text: "Inventario",
+                icon: "icon-box",
+                onClick: () => {
+                    window.location.href = '../pedidos/inventario.php'
+                }
+            },
+            {
+                opc: "button",
+                className: "w-100",
+                class: "col-12 col-md-3 col-lg-2",
+                color_btn: "danger",
+                id: "btnReportes",
+                text: "Reportes",
+                icon: "icon-chart-bar",
+                onClick: () => {
+                    window.location.href = '../pedidos/reportes.php'
+                }
+            },
+            {
+                opc: "button",
+                className: "w-100",
+                class: "col-12 col-md-3 col-lg-2",
+                color_btn: "warning",
+                id: "btnCocina",
+                text: "Cocina (KDS)",
+                icon: "icon-food",
+                onClick: () => {
+                    window.location.href = '../pedidos/cocina.php'
+                }
+            },
+            {
+                opc: "button",
+                className: "w-100",
+                class: "col-12 col-md-3 col-lg-2",
+                color_btn: "secondary",
+                id: "btnComplementos",
+                text: "Complementos",
+                icon: "icon-cog",
+                onClick: () => {
+                    window.location.href = '../pedidos/complementos.php'
                 }
             }
         );
