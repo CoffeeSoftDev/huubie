@@ -4,13 +4,21 @@ let posProducts = [];
 let posCategories = [];
 let posMethodPay = [];
 let posShift = { has_open_shift: false };
+let posAccess = 0;
+let posSubsidiaries = [];
+let posSubsidiaryId = 0;
+let posSubsidiaryName = '';
 
 $(async () => {
     const req = await useFetch({ url: apiPos, data: { opc: "init" } });
-    posProducts   = req.products || [];
-    posCategories = req.categories || [];
-    posMethodPay  = req.method_pay || [];
-    posShift      = req.open_shift || { has_open_shift: false };
+    posProducts        = req.products || [];
+    posCategories      = req.categories || [];
+    posMethodPay       = req.method_pay || [];
+    posShift           = req.open_shift || { has_open_shift: false };
+    posAccess          = req.access;
+    posSubsidiaries    = req.subsidiaries || [];
+    posSubsidiaryId    = req.subsidiary_id;
+    posSubsidiaryName  = req.subsidiaries_name;
 
     pos = new POS(apiPos, 'root');
 
@@ -52,6 +60,27 @@ class POS extends Templates {
     }
 
     layoutPOS() {
+        const shiftSubName = posShift.has_open_shift
+            ? (posSubsidiaries.find(s => s.id == posShift.subsidiary_id)?.name || posSubsidiaryName)
+            : posSubsidiaryName;
+
+        let subsidiarySelector = '';
+        if (posAccess == 1 && posSubsidiaries.length > 0) {
+            const options = posSubsidiaries.map(s =>
+                `<option value="${s.id}" ${s.id == posSubsidiaryId ? 'selected' : ''}>${s.name}</option>`
+            ).join('');
+            subsidiarySelector = `
+                <select id="posSubsidiarySelect" class="bg-[#1F2A37] text-white border border-gray-600 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" onchange="pos.changeSubsidiary(this.value)">
+                    ${options}
+                </select>`;
+        } else {
+            subsidiarySelector = `<span class="bg-[#1F2A37] text-gray-300 px-3 py-2 rounded-lg text-sm"><i class="icon-home"></i> ${shiftSubName}</span>`;
+        }
+
+        const shiftBadge = posShift.has_open_shift
+            ? `<span class="bg-green-900 text-green-300 px-3 py-2 rounded-lg text-xs font-semibold"><i class="icon-clock"></i> Turno abierto - ${shiftSubName}</span>`
+            : `<span class="bg-red-900 text-red-300 px-3 py-2 rounded-lg text-xs font-semibold"><i class="icon-lock"></i> Sin turno</span>`;
+
         $('#root').html(`
             <div class="flex h-screen bg-[#111827] overflow-hidden">
                 <div class="flex-1 flex flex-col p-3 overflow-hidden">
@@ -59,6 +88,8 @@ class POS extends Templates {
                         <button class="bg-[#1F2A37] text-gray-300 px-3 py-2 rounded-lg hover:bg-gray-700 text-sm" onclick="window.location.href='../pedidos/index.php'">
                             <i class="icon-arrow-left"></i> Pedidos
                         </button>
+                        ${subsidiarySelector}
+                        ${shiftBadge}
                         <div class="flex-1 relative">
                             <i class="icon-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <input id="posSearch" type="text" placeholder="Buscar producto..."
@@ -97,6 +128,20 @@ class POS extends Templates {
         `);
 
         this.renderCategoryTabs();
+    }
+
+    async changeSubsidiary(subId) {
+        posSubsidiaryId = subId;
+        const req = await useFetch({ url: apiPos, data: { opc: "init", subsidiary_id: subId } });
+        posProducts    = req.products || [];
+        posCategories  = req.categories || [];
+        posMethodPay   = req.method_pay || [];
+        posShift       = req.open_shift || { has_open_shift: false };
+        posSubsidiaryName = posSubsidiaries.find(s => s.id == subId)?.name || '';
+        this.cart = [];
+        this.searchTerm = '';
+        this.activeCategory = null;
+        this.render();
     }
 
     renderCategoryTabs() {

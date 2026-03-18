@@ -38,10 +38,19 @@ class MPos extends CRUD {
                 op.active
             FROM {$this->bd}order_products op
             LEFT JOIN {$this->bd}order_category oc ON op.category_id = oc.id
-            WHERE op.active = ? AND op.subsidiaries_id = ?
+            WHERE op.active = ?
             ORDER BY op.id DESC
         ";
         return $this->_Read($query, $array);
+    }
+
+    function lsSubsidiaries() {
+        $query = "
+            SELECT s.id, s.name
+            FROM fayxzvov_alpha.subsidiaries s
+            ORDER BY s.name ASC
+        ";
+        return $this->_Read($query, null);
     }
 
     function getOpenShiftBySubsidiary($array) {

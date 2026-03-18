@@ -11,14 +11,18 @@ require_once '../mdl/mdl-pos.php';
 class POS extends MPos {
 
     function init() {
-        $sub_id = $_SESSION['SUB'];
+        $sub_id = isset($_POST['subsidiary_id']) && $_SESSION['ROLID'] == 1
+            ? intval($_POST['subsidiary_id'])
+            : $_SESSION['SUB'];
+
         $openShift = $this->getOpenShiftBySubsidiary([$sub_id]);
 
-        return [
-            'products'          => $this->lsProductos([1, $_SESSION['SUB']]),
+        $result = [
+            'products'          => $this->lsProductos([1]),
             'categories'        => $this->getAllCategory([1]),
             'method_pay'        => $this->lsMethodPay(),
             'access'            => $_SESSION['ROLID'],
+            'subsidiary_id'     => $sub_id,
             'subsidiaries_name' => $_SESSION['SUBSIDIARIE_NAME'],
             'open_shift'        => $openShift ? [
                 'has_open_shift' => true,
@@ -26,9 +30,16 @@ class POS extends MPos {
                 'opened_at'      => $openShift['opened_at'],
                 'shift_name'     => $openShift['shift_name'],
                 'employee_name'  => $openShift['employee_name'],
-                'opening_amount' => $openShift['opening_amount']
+                'opening_amount' => $openShift['opening_amount'],
+                'subsidiary_id'  => $openShift['subsidiary_id'],
             ] : ['has_open_shift' => false]
         ];
+
+        if ($_SESSION['ROLID'] == 1) {
+            $result['subsidiaries'] = $this->lsSubsidiaries();
+        }
+
+        return $result;
     }
 
     function addQuickSale() {
