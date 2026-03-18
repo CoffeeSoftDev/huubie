@@ -4,7 +4,23 @@
       "Bash(mysql -u root:*)",
       "Bash(find:*)",
       "Bash(xargs:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "mcp__mysql__mysql_query",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW TABLES FROM fayxzvov_reginas LIKE ''cash%''\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"DESCRIBE fayxzvov_reginas.cash_shift\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW TABLES FROM fayxzvov_reginas LIKE ''shift%''\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW TABLES FROM fayxzvov_reginas LIKE ''corte%''\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW TABLES FROM fayxzvov_reginas LIKE ''cash_shift_movements''\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW COLUMNS FROM fayxzvov_reginas.\\\\`order\\\\` LIKE ''order_type''\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW COLUMNS FROM fayxzvov_reginas.cash_shift LIKE ''folio_z''\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW COLUMNS FROM fayxzvov_reginas.order_payments LIKE ''tip''\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW COLUMNS FROM fayxzvov_reginas.\\\\`order\\\\` LIKE ''cash_shift_id''\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas -e \":*)",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW TABLES FROM fayxzvov_reginas WHERE Tables_in_fayxzvov_reginas IN \\(''cash_shift_movements'', ''corte_x_log''\\)\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW COLUMNS FROM fayxzvov_reginas.cash_shift WHERE Field IN \\(''folio_z'',''closing_cash_counted'',''cash_difference'',''total_discount'',''total_cancelled'',''total_tips''\\)\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW COLUMNS FROM fayxzvov_reginas.order_payments WHERE Field = ''tip''\")",
+      "Bash(c:/wamp64/bin/mysql/mysql8.4.3/bin/mysql.exe -u root fayxzvov_reginas)",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas)"
     ]
   }
 }
