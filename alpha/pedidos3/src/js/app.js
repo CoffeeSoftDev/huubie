@@ -2273,7 +2273,7 @@ class App extends Templates {
                     ${subsidiarySelect}
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar fecha</label>
-                        <div id="calendarDailyClose"></div>
+                        <input type="text" id="calendarDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm cursor-pointer" readonly placeholder="Seleccionar fecha" />
                     </div>
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Modo de reporte</label>
@@ -2313,7 +2313,7 @@ class App extends Templates {
             </div>
         `;
 
-        bootbox.dialog({
+        const dialog = bootbox.dialog({
             title: `
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
@@ -2322,94 +2322,26 @@ class App extends Templates {
                     <span class="text-lg font-bold text-white">Cierre del Día</span>
                 </div>`,
             message: modalContent,
-            // className: 'modal-ticket-close',
             size:'large',
             closeButton: true
         });
 
-        // Aplicar ancho personalizado al modal
-        $('.modal-ticket-close .modal-dialog').css('max-width', '650px');
-
-        let filterBarData = [];
-
-        // Select de sucursal solo para admin
-        if (rol == 1) {
-            filterBarData.push({
-                opc: "select",
-                id: "subsidiariesDailyClose",
-                lbl: "Sucursal:",
-                class: "col-sm-2 mb-2",
-                onchange: "app.viewDailyClose()",
-                data: subsidiaries
+        dialog.on('shown.bs.modal', () => {
+            dataPicker({
+                parent: "calendarDailyClose",
+                type: 'simple',
+                rangeDefault: {
+                    singleDatePicker: true,
+                    showDropdowns: true,
+                    autoApply: true,
+                    startDate: moment(),
+                    locale: { format: 'YYYY-MM-DD' }
+                },
+                onSelect: () => this.onDailyCloseFilterChange(),
             });
-        }
 
-        filterBarData.push(
-            {
-                opc: "input-calendar",
-                id: "calendarDailyClose",
-                lbl: "Seleccionar fecha:",
-                class: "col-sm-3 mb-2"
-            },
-            {
-                opc: "select",
-                id: "sel",
-                lbl: "Seleccionar turno:",
-                class: "col-sm-3 mb-2",
-                data: [
-                    { id: '0', valor: '--Cerrar turno --' },
-                    { id: '0', valor: '2026-15-03 07:03 PM' },
-                ]
-            },
-           
-          
-
-            {
-                opc: "button",
-                id: "btnSaveDailyClose",
-                text: " Cerrar",
-                class: "col-sm-2",
-                className: "opacity-50 w-100 cursor-not-allowed",
-                color_btn: "secondary",
-                icon: "icon-lock",
-                disabled: true,
-                onClick: () => {
-                    if (!$('#btnSaveDailyClose').prop('disabled')) {
-                        this.saveDailyClose();
-                    }
-                }
-            },
-            {
-                opc: "button",
-                id: "btnPrintTicket",
-                // text: "Imprimir",
-                class: "col-sm-2",
-                className: "opacity-50 w-100 cursor-not-allowed",
-                color_btn: "primary",
-                icon: "icon-print",
-                disabled: true,
-                onClick: () => {
-                    if (!$('#btnPrintTicket').prop('disabled')) {
-                        this.printDailyCloseTicket();
-                    }
-                }
-            }
-        );
-
-        this.createfilterBar({
-            parent: 'filterBarDailyClose',
-            data: filterBarData
+            this.loadShifts();
         });
-
-        dataPicker({
-            parent: "calendarDailyClose",
-            type: 'simple',
-            startDate: moment(),
-            locale: { format: 'YYYY-MM-DD' },
-            onSelect: () => this.onDailyCloseFilterChange(),
-        });
-
-        this.loadShifts();
     }
 
     onDailyCloseFilterChange() {
@@ -2417,8 +2349,8 @@ class App extends Templates {
     }
 
     async loadShifts() {
-        let rangePicker = getDataRangePicker("calendarDailyClose");
-        let date = rangePicker.fi;
+        let rangePicker     = getDataRangePicker("calendarDailyClose");
+        let date            = rangePicker.fi;
         let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
 
         const response = await useFetch({
@@ -2650,59 +2582,51 @@ class App extends Templates {
     openShift() {
         let subsidiaries_id = rol == 1 ? ($('#subsidiariesDailyClose').val() || null) : null;
 
-        Swal.fire({
+        bootbox.dialog({
             title: 'Abrir Turno de Caja',
-            html: `
-                <div class="text-left space-y-3">
+            message: `
+                <div class="space-y-3">
                     <div>
                         <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
-                        <input id="swalShiftName" class="swal2-input" style="background:#374151;border:1px solid #4b5563;color:#fff;border-radius:6px;padding:8px 12px;font-size:14px;width:100%;margin:0;" placeholder="Ej: Matutino, Vespertino">
+                        <input id="shiftName" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="Ej: Matutino, Vespertino">
                     </div>
                     <div>
                         <label class="text-sm font-medium text-gray-300 block mb-1">Fondo de caja inicial</label>
-                        <input id="swalOpeningAmount" type="number" class="swal2-input" style="background:#374151;border:1px solid #4b5563;color:#fff;border-radius:6px;padding:8px 12px;font-size:14px;width:100%;margin:0;" placeholder="0.00" min="0" step="0.01">
+                        <input id="openingAmount" type="number" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="0.00" min="0" step="0.01">
                     </div>
                 </div>
             `,
-            showCancelButton: true,
-            confirmButtonText: 'Abrir Turno',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#10b981',
-            customClass: {
-                container: 'swal-over-bootbox',
-                popup: 'bg-[#1F2A37] text-white rounded-lg',
-            },
-            didOpen: () => {
-                // Asegurar que SweetAlert quede encima de bootbox (z-index 1055)
-                const container = document.querySelector('.swal-over-bootbox');
-                if (container) container.style.zIndex = '9999';
-            },
-            preConfirm: () => {
-                return {
-                    shift_name: document.getElementById('swalShiftName').value.trim(),
-                    opening_amount: parseFloat(document.getElementById('swalOpeningAmount').value) || 0
-                };
-            }
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                const response = await useFetch({
-                    url: this._link,
-                    data: {
-                        opc: "openShift",
-                        shift_name: result.value.shift_name,
-                        opening_amount: result.value.opening_amount,
-                        subsidiaries_id: subsidiaries_id
+            closeButton: true,
+            buttons: {
+                cancel: {
+                    label: 'Cancelar',
+                    className: 'btn-secondary'
+                },
+                confirm: {
+                    label: 'Abrir Turno',
+                    className: 'btn-success',
+                    callback: async () => {
+                        const shift_name = $('#shiftName').val().trim();
+                        const opening_amount = parseFloat($('#openingAmount').val()) || 0;
+
+                        const response = await useFetch({
+                            url: this._link,
+                            data: {
+                                opc: "openShift",
+                                shift_name: shift_name,
+                                opening_amount: opening_amount,
+                                subsidiaries_id: subsidiaries_id
+                            }
+                        });
+
+                        if (response.status === 200) {
+                            alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
+                            this.loadShifts();
+                            openShift = { has_open_shift: true, shift_id: response.shift_id };
+                        } else {
+                            alert({ icon: "error", title: "Error", text: response.message, btn1: true });
+                        }
                     }
-                });
-
-                if (response.status === 200) {
-                    alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
-                    this.loadShifts();
-
-                    // Actualizar variable global
-                    openShift = { has_open_shift: true, shift_id: response.shift_id };
-                } else {
-                    alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }
             }
         });
