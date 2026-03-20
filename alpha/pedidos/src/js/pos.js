@@ -581,6 +581,7 @@ class POS extends Templates {
         this.createTable({
             parent: 'containerMovements',
             idFilterBar:'filterbar-productos',
+            idFilterBar:'filterbar-productos',
             data: { 
                 opc: 'lsMovements', 
                 cash_shift_id: 
@@ -900,6 +901,7 @@ class POS extends Templates {
         if (typeof tickets !== 'undefined') {
             tickets.createTable({
                 parent: 'containerSalesHistory',
+                idFilterBar: 'filterbar-productos',
                 data: { opc: 'lsSales', fi: moment(posShift.opened_at).format('YYYY-MM-DD'), ff: moment().format('YYYY-MM-DD') },
                 coffeesoft: true,
                 conf: { datatable: true, pag: 10 },
