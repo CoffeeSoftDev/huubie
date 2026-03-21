@@ -147,25 +147,29 @@ class App extends Templates {
             data: filterBar
         });
 
+        const savedRange = JSON.parse(localStorage.getItem('pedidos3_calendar_range') || 'null');
+        const startDate = savedRange ? moment(savedRange.fi) : moment().startOf("month");
+        const endDate = savedRange ? moment(savedRange.ff) : moment().endOf("month");
+
         dataPicker({
             parent: "calendar",
             rangepicker: {
-                startDate: moment().startOf("month"), // Inicia con el primer día del mes actual
-                endDate: moment().endOf("month"), // Finaliza con el último día del mes actual
+                startDate: startDate,
+                endDate: endDate,
                 showDropdowns: true,
                 ranges: {
                     "Hoy": [moment(), moment()],
                     "Ayer": [moment().subtract(1, "days"), moment().subtract(1, "days")],
-                 
                     "Semana actual": [moment().startOf("week"), moment().endOf("week")],
                     "Mes actual": [moment().startOf("month"), moment().endOf("month")],
-                    // "Próxima semana": [moment().add(1, "week").startOf("week"), moment().add(1, "week").endOf("week")],
-                    // "Próximo mes": [moment().add(1, "month").startOf("month"), moment().add(1, "month").endOf("month")],
                     "Mes anterior": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")],
-                    
                 },
             },
             onSelect: (start, end) => {
+                localStorage.setItem('pedidos3_calendar_range', JSON.stringify({
+                    fi: start.format('YYYY-MM-DD'),
+                    ff: end.format('YYYY-MM-DD')
+                }));
                 this.ls();
             },
         });
@@ -2275,6 +2279,7 @@ class App extends Templates {
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar fecha</label>
                         <input type="text" id="calendarDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm cursor-pointer" readonly placeholder="Seleccionar fecha" />
                     </div>
+                    <div id="openShiftsAlert" class="hidden"></div>
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Modo de reporte</label>
                         <div class="flex rounded-lg overflow-hidden border border-gray-600">
@@ -2353,28 +2358,54 @@ class App extends Templates {
         let date            = rangePicker.fi;
         let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
 
-        const response = await useFetch({
-            url: this._link,
-            data: { opc: "getShiftsByDate", date: date, subsidiaries_id: subsidiaries_id }
-        });
+        const [response, openRes] = await Promise.all([
+            useFetch({ url: this._link, data: { opc: "getShiftsByDate", date: date, subsidiaries_id: subsidiaries_id } }),
+            useFetch({ url: this._link, data: { opc: "getOpenShifts", subsidiaries_id: subsidiaries_id } })
+        ]);
 
         const shifts = response.shifts || [];
+        const openShifts = openRes.shifts || [];
         const select = $('#shiftSelector');
         select.html('<option value="">-- Cerrar turno --</option>');
-
-        let hasOpenShift = false;
 
         shifts.forEach(s => {
             const time = moment(s.opened_at).format('YYYY-MM-DD hh:mm A');
             const badge = s.status === 'open' ? ' [ABIERTO]' : '';
             select.append(`<option value="${s.id}" data-status="${s.status}">${time}${badge}</option>`);
-            if (s.status === 'open') hasOpenShift = true;
         });
 
-        // Mostrar/ocultar botón abrir turno
-        if (hasOpenShift) {
+        // Mostrar turnos abiertos pendientes
+        const alertContainer = $('#openShiftsAlert');
+        if (openShifts.length > 0) {
+            const shiftItems = openShifts.map(s => {
+                const date = moment(s.opened_at).format('DD/MM/YYYY');
+                const time = moment(s.opened_at).format('hh:mm A');
+                const name = s.shift_name || time;
+                return `
+                    <div class="flex items-center justify-between py-1.5 px-2 bg-[#1a2332] rounded-md cursor-pointer hover:bg-[#243044] transition-colors" onclick="$('#shiftSelector').val('${s.id}').trigger('change'); $('#calendarDailyClose').val('${moment(s.opened_at).format('YYYY-MM-DD')}');">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
+                            <span class="text-xs text-gray-300">${name}</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500">${date}</span>
+                    </div>
+                `;
+            }).join('');
+
+            alertContainer.html(`
+                <div class="bg-orange-900/30 border border-orange-600/50 rounded-lg p-3">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="icon-attention text-orange-400 text-sm"></i>
+                        <span class="text-xs font-bold text-orange-400 uppercase">Turnos sin cerrar (${openShifts.length})</span>
+                    </div>
+                    <div class="space-y-1">${shiftItems}</div>
+                </div>
+            `).removeClass('hidden');
+
+            // Deshabilitar abrir turno si hay turnos abiertos
             $('#btnOpenShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').removeClass('hover:bg-green-700');
         } else {
+            alertContainer.addClass('hidden').html('');
             $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
         }
 
@@ -2470,9 +2501,10 @@ class App extends Templates {
         if (isDetailed && orders.length > 0) {
             const orderRows = orders.map(o => `
                 <div class="flex justify-between items-center">
-                    <div class="italic">Venta Folio #${o.id}</div>
+                    <div class="italic">${o.folio || 'Folio #' + o.id}</div>
                     <div>${formatPrice(o.total_pay)}</div>
                 </div>
+                <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
             `).join('');
 
             detailedSection = `
@@ -2490,8 +2522,10 @@ class App extends Templates {
                     <!-- Header -->
                     <div class="flex flex-col items-center mb-3">
                         ${logo ? `<div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
-                            <img src="https://huubie.com.mx/alpha${logo}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
-                        </div>` : ''}
+                            <img src="/alpha${logo}" alt="" onerror="this.parentElement.outerHTML='<div style=\\'width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;\\'><span style=\\'color:white;font-size:24px;font-weight:bold;\\'>${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span></div>'" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                        </div>` : `<div style="width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;" class="mb-1">
+                            <span style="color:white;font-size:24px;font-weight:bold;">${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span>
+                        </div>`}
                         <h1 class="text-sm font-bold uppercase">${subsidiaryName}</h1>
                         <div class="text-xs font-semibold">PEDIDOS DE PASTELERÍA</div>
                         <div class="text-xs text-gray-600">Cierre Operativo</div>
@@ -2501,6 +2535,7 @@ class App extends Templates {
                     <!-- Info -->
                     <div class="text-xs space-y-0.5 mb-2">
                         <div class="flex justify-between"><span>Fecha:</span><span>${fecha}</span></div>
+                        <div class="flex justify-between"><span>Apertura:</span><span>${moment(shift.opened_at).format('hh:mm A')}</span></div>
                         <div class="flex justify-between"><span>Turno:</span><span>${turnoLabel}</span></div>
                         <div class="flex justify-between"><span>Sucursal:</span><span>${subsidiaryName}</span></div>
                     </div>

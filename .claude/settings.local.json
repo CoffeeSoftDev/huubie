@@ -20,7 +20,8 @@
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW COLUMNS FROM fayxzvov_reginas.cash_shift WHERE Field IN \\(''folio_z'',''closing_cash_counted'',''cash_difference'',''total_discount'',''total_cancelled'',''total_tips''\\)\")",
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW COLUMNS FROM fayxzvov_reginas.order_payments WHERE Field = ''tip''\")",
       "Bash(c:/wamp64/bin/mysql/mysql8.4.3/bin/mysql.exe -u root fayxzvov_reginas)",
-      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas)"
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas)",
+      "WebSearch"
     ]
   }
 }
