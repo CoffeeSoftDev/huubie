@@ -99,13 +99,15 @@ class MReportes extends CRUD {
         return $this->_Read($query, $array);
     }
 
-    function lsSubsidiaries() {
-        $query = "
-            SELECT id, name as valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        ";
-        return $this->_Read($query, null);
+    function getSubsidiariesByCompany($array) {
+        $query = "SELECT
+            id,
+            name as valor
+        FROM
+            fayxzvov_alpha.subsidiaries
+        WHERE
+            companies_id = ?
+        ORDER BY name";
+        return $this->_Read($query, $array);
     }
 }

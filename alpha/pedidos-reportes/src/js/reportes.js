@@ -1,6 +1,7 @@
 let api = 'ctrl/ctrl-reportes.php';
 let appReportes;
-let lsSucursales = [];
+let sucursales = [];
+let rol, subId;
 
 $(async () => {
     const data = await useFetch({ url: api, data: { opc: "init" } });
@@ -10,7 +11,10 @@ $(async () => {
         return;
     }
 
-    lsSucursales = data.subsidiaries || [];
+    sucursales = data.sucursales || [];
+    rol        = data.access;
+    subId      = data.sub_id;
+
     appReportes = new AppReportes(api, 'root');
     appReportes.render();
 });
@@ -70,18 +74,23 @@ class AppReportes extends Templates {
     }
 
     createFilterBar() {
-        let filterData = [
-            {
+        let filterBar = [];
+
+        if (rol == 1) {
+            filterBar.push({
                 opc: "select",
-                id: "sub_id",
-                lbl: "Sucursal:",
+                id: "subsidiaries_id",
+                lbl: "Filtrar por sucursal:",
                 class: "col-12 col-md-3 col-lg-2",
                 onchange: "appReportes.refreshCurrentTab()",
                 data: [
                     { id: "0", valor: "Todas las sucursales" },
-                    ...lsSucursales
+                    ...sucursales
                 ]
-            },
+            });
+        }
+
+        filterBar.push(
             {
                 opc: "input-calendar",
                 class: "col-12 col-md-3 col-lg-2",
@@ -98,11 +107,21 @@ class AppReportes extends Templates {
                 icono: "icon-search",
                 onClick: () => this.refreshCurrentTab()
             },
-        ];
+            {
+                opc: "button",
+                class: "col-12 col-md-2 col-lg-1",
+                color_btn: "secondary",
+                id: "btnImprimir",
+                text: "Imprimir",
+                className: 'w-full',
+                icono: "icon-print",
+                onClick: () => this.printReport()
+            }
+        );
 
         this.createfilterBar({
             parent: `filterBar${this.PROJECT_NAME}`,
-            data: filterData,
+            data: filterBar
         });
 
         dataPicker({
@@ -121,10 +140,10 @@ class AppReportes extends Templates {
 
     getFilterParams() {
         let rangePicker = getDataRangePicker("calendar" + this.PROJECT_NAME);
-        let sub_id = $(`#filterBar${this.PROJECT_NAME} #sub_id`).val() || '0';
+        let sub_id = $(`#filterBar${this.PROJECT_NAME} #subsidiaries_id`).val() || '0';
 
-        if (sub_id === '0' && lsSucursales.length > 0) {
-            sub_id = lsSucursales[0].id;
+        if (sub_id === '0' && sucursales.length > 0) {
+            sub_id = sucursales[0].id;
         }
 
         return {
@@ -154,13 +173,13 @@ class AppReportes extends Templates {
             },
             success: (data) => {
                 if (data.totals) {
-                    this.renderTotalsBar(data.totals);
+                    this.renderTotalsBar(data.totals, 'container-tickets');
                 }
             }
         });
     }
 
-    renderTotalsBar(totals) {
+    renderTotalsBar(totals, parent) {
         let existingBar = $(`#totalsBar${this.PROJECT_NAME}`);
         if (existingBar.length) existingBar.remove();
 
@@ -197,7 +216,7 @@ class AppReportes extends Templates {
             </div>
         `;
 
-        $(`#container-tickets`).prepend(html);
+        $(`#${parent}`).prepend(html);
     }
 
     lsShifts() {
@@ -221,94 +240,208 @@ class AppReportes extends Templates {
         });
     }
 
-    async showShiftDetail(id) {
-        const data = await useFetch({ url: this._link, data: { opc: "showShiftDetail", id } });
+    printReport() {
+        let params = this.getFilterParams();
+        let subName = '';
+        if (sucursales.length > 0) {
+            let found = sucursales.find(s => s.id == params.sub_id);
+            subName = found ? found.valor : 'Todas';
+        }
 
-        if (data.status !== 200) {
-            alert({ icon: "error", text: data.message, btn1: true, btn1Text: "Aceptar" });
+        if (this.currentTab === 'tickets') {
+            this.printTicketsReport(params, subName);
+        } else {
+            this.printShiftsReport(params, subName);
+        }
+    }
+
+    async printTicketsReport(params, subName) {
+        const data = await useFetch({ url: this._link, data: { opc: "lsTickets", ...params } });
+
+        if (!data.row || data.row.length === 0) {
+            alert({ icon: "info", text: "No hay datos para imprimir.", btn1: true, btn1Text: "Aceptar" });
             return;
         }
 
-        const s = data.shift;
-        const openDate = s.opened_at ? new Date(s.opened_at).toLocaleString('es-MX') : '-';
-        const closeDate = s.closed_at ? new Date(s.closed_at).toLocaleString('es-MX') : 'Abierto';
+        const t = data.totals;
+        let rowsHtml = '';
+        data.row.forEach(r => {
+            rowsHtml += `
+                <tr>
+                    <td>${r['Folio']}</td>
+                    <td>${r['Fecha']}</td>
+                    <td>${r['Cuenta']}</td>
+                    <td>${r['Tipo']}</td>
+                    <td class="text-right">${r['Descuento'].html}</td>
+                    <td class="text-right">${r['Propina'].html}</td>
+                    <td class="text-right" style="font-weight:bold;background:#f0f0f0">${r['Importe'].html}</td>
+                    <td class="text-right">${r['Efectivo'].html}</td>
+                    <td class="text-right">${r['Tarjeta'].html}</td>
+                    <td class="text-right">${r['Transferencia'].html}</td>
+                </tr>
+            `;
+        });
 
-        let content = `
-            <div class="p-3">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div class="bg-[#283341] p-3 rounded-lg">
-                        <p class="text-xs text-gray-400">Cajero</p>
-                        <p class="text-sm font-bold text-white">${s.employee_name || 'Sin asignar'}</p>
-                    </div>
-                    <div class="bg-[#283341] p-3 rounded-lg">
-                        <p class="text-xs text-gray-400">Apertura</p>
-                        <p class="text-sm font-bold text-white">${openDate}</p>
-                    </div>
-                    <div class="bg-[#283341] p-3 rounded-lg">
-                        <p class="text-xs text-gray-400">Cierre</p>
-                        <p class="text-sm font-bold text-white">${closeDate}</p>
-                    </div>
-                    <div class="bg-[#283341] p-3 rounded-lg">
-                        <p class="text-xs text-gray-400">Folio Z</p>
-                        <p class="text-sm font-bold text-white">${s.folio_z || '-'}</p>
-                    </div>
+        let printContent = `
+            <html>
+            <head>
+                <title>Reporte de Tickets</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Courier New', monospace; font-size: 11px; color: #000; padding: 10px; }
+                    h2 { text-align: center; margin-bottom: 5px; font-size: 14px; }
+                    .info { text-align: center; margin-bottom: 10px; font-size: 11px; color: #555; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+                    th, td { border: 1px solid #999; padding: 3px 5px; font-size: 10px; }
+                    th { background: #ddd; font-weight: bold; text-align: center; }
+                    .text-right { text-align: right; }
+                    .text-center { text-align: center; }
+                    .totals-row { font-weight: bold; background: #eee; }
+                    .summary { margin-top: 10px; }
+                    .summary table { width: auto; margin: 0 auto; }
+                    .summary td { padding: 2px 10px; border: none; }
+                    .summary .label { text-align: right; font-weight: bold; }
+                    .summary .value { text-align: right; }
+                    @media print { body { padding: 5px; } }
+                </style>
+            </head>
+            <body>
+                <h2>DETALLE DE TICKETS</h2>
+                <p class="info">Sucursal: ${subName} | Periodo: ${params.fi} al ${params.ff}</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>FOLIO CUENTA</th>
+                            <th>FECHA</th>
+                            <th>CUENTA</th>
+                            <th>TIPO</th>
+                            <th>DESCUENTO</th>
+                            <th>PROPINA</th>
+                            <th>IMPORTE</th>
+                            <th>EFECTIVO</th>
+                            <th>TARJETA</th>
+                            <th>TRANSFERENCIA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                        <tr class="totals-row">
+                            <td colspan="4" class="text-right">TOTALES:</td>
+                            <td class="text-right">${t.descuento}</td>
+                            <td class="text-right">${t.propina}</td>
+                            <td class="text-right">${t.importe}</td>
+                            <td class="text-right">${t.efectivo}</td>
+                            <td class="text-right">${t.tarjeta}</td>
+                            <td class="text-right">${t.transferencia}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="summary">
+                    <table>
+                        <tr><td class="label">TOTAL TICKETS:</td><td class="value">${t.total_tickets}</td></tr>
+                        <tr><td class="label">FORMA DE PAGO VENTAS:</td><td></td></tr>
+                        <tr><td class="label">EFECTIVO:</td><td class="value">${t.efectivo}</td></tr>
+                        <tr><td class="label">TARJETA:</td><td class="value">${t.tarjeta}</td></tr>
+                        <tr><td class="label">TRANSFERENCIA:</td><td class="value">${t.transferencia}</td></tr>
+                        <tr><td class="label">PROPINAS:</td><td class="value">${t.propina}</td></tr>
+                        <tr><td class="label">DESCUENTOS:</td><td class="value">${t.descuento}</td></tr>
+                        <tr><td class="label" style="border-top:2px solid #000;padding-top:5px">VENTA BRUTA:</td><td class="value" style="border-top:2px solid #000;padding-top:5px;font-weight:bold">${t.importe}</td></tr>
+                    </table>
                 </div>
-
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-                    <div class="bg-[#283341] p-3 rounded-lg border border-gray-700">
-                        <p class="text-xs text-gray-400">Total Ventas</p>
-                        <p class="text-lg font-bold text-green-400">$${parseFloat(s.total_sales || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
-                    </div>
-                    <div class="bg-[#283341] p-3 rounded-lg border border-gray-700">
-                        <p class="text-xs text-gray-400">Efectivo</p>
-                        <p class="text-lg font-bold text-blue-400">$${parseFloat(s.total_cash || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
-                    </div>
-                    <div class="bg-[#283341] p-3 rounded-lg border border-gray-700">
-                        <p class="text-xs text-gray-400">Tarjeta</p>
-                        <p class="text-lg font-bold text-purple-400">$${parseFloat(s.total_card || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
-                    </div>
-                    <div class="bg-[#283341] p-3 rounded-lg border border-gray-700">
-                        <p class="text-xs text-gray-400">Transferencia</p>
-                        <p class="text-lg font-bold text-yellow-400">$${parseFloat(s.total_transfer || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
-                    </div>
-                    <div class="bg-[#283341] p-3 rounded-lg border border-gray-700">
-                        <p class="text-xs text-gray-400">Propinas</p>
-                        <p class="text-lg font-bold text-teal-400">$${parseFloat(s.total_tips || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
-                    </div>
-                    <div class="bg-[#283341] p-3 rounded-lg border border-gray-700">
-                        <p class="text-xs text-gray-400">Pedidos</p>
-                        <p class="text-lg font-bold text-white">${s.total_orders || 0}</p>
-                    </div>
-                </div>
-
-                <div id="shiftTicketsTable"></div>
-            </div>
+            </body>
+            </html>
         `;
 
-        bootbox.dialog({
-            title: `Detalle del Turno #${s.id}`,
-            message: content,
-            size: 'extra-large',
-            className: 'bg-[#1F2A37]',
-            onShown: () => {
-                if (data.tickets && data.tickets.length > 0) {
-                    this.createCoffeTable({
-                        parent: "shiftTicketsTable",
-                        id: "tbShiftTickets",
-                        theme: "dark",
-                        data: {
-                            thead: ["Folio", "Fecha", "Cuenta", "Descuento", "Propina", "Importe", "Efectivo", "Tarjeta", "Transf."],
-                            row: data.tickets
-                        }
-                    });
-                } else {
-                    $('#shiftTicketsTable').html(`
-                        <div class="text-center py-8 text-gray-400">
-                            <p>No hay tickets asociados a este turno</p>
-                        </div>
-                    `);
-                }
-            }
+        let printWindow = window.open('', '_blank', 'width=900,height=700');
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    }
+
+    async printShiftsReport(params, subName) {
+        const data = await useFetch({ url: this._link, data: { opc: "lsShifts", ...params } });
+
+        if (!data.row || data.row.length === 0) {
+            alert({ icon: "info", text: "No hay turnos para imprimir.", btn1: true, btn1Text: "Aceptar" });
+            return;
+        }
+
+        let rowsHtml = '';
+        data.row.forEach(r => {
+            rowsHtml += `
+                <tr>
+                    <td>${r['Cajero']}</td>
+                    <td class="text-center">${r['Apertura']}</td>
+                    <td class="text-center">${r['Cierre']}</td>
+                    <td class="text-right" style="font-weight:bold;background:#f0f0f0">${r['Total'].html}</td>
+                    <td class="text-right">${r['Efectivo'].html}</td>
+                    <td class="text-right">${r['Tarjeta'].html}</td>
+                    <td class="text-right">${r['Transferencia'].html}</td>
+                    <td class="text-right">${r['Propinas'].html}</td>
+                    <td class="text-right">${r['Descuentos'].html}</td>
+                    <td class="text-center">${r['Pedidos'].html}</td>
+                    <td class="text-right">${r['Diferencia'].html}</td>
+                    <td class="text-center">${r['Estado']}</td>
+                </tr>
+            `;
         });
+
+        let printContent = `
+            <html>
+            <head>
+                <title>Reporte de Turnos</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Courier New', monospace; font-size: 11px; color: #000; padding: 10px; }
+                    h2 { text-align: center; margin-bottom: 5px; font-size: 14px; }
+                    .info { text-align: center; margin-bottom: 10px; font-size: 11px; color: #555; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #999; padding: 3px 5px; font-size: 10px; }
+                    th { background: #ddd; font-weight: bold; text-align: center; }
+                    .text-right { text-align: right; }
+                    .text-center { text-align: center; }
+                    .badge { padding: 2px 6px; border-radius: 3px; font-size: 9px; }
+                    .bg-success { background: #28a745; color: #fff; }
+                    .bg-secondary { background: #6c757d; color: #fff; }
+                    @media print { body { padding: 5px; } }
+                </style>
+            </head>
+            <body>
+                <h2>**** CORTE DE CAJA ****</h2>
+                <p class="info">Sucursal: ${subName} | Periodo: ${params.fi} al ${params.ff}</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>CAJERO</th>
+                            <th>APERTURA</th>
+                            <th>CIERRE</th>
+                            <th>TOTAL</th>
+                            <th>EFECTIVO</th>
+                            <th>TARJETA</th>
+                            <th>TRANSFERENCIA</th>
+                            <th>PROPINA</th>
+                            <th>DESCUENTOS</th>
+                            <th>PEDIDOS</th>
+                            <th>DIFERENCIA</th>
+                            <th>ESTADO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        let printWindow = window.open('', '_blank', 'width=1000,height=700');
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
     }
 }
