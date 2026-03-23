@@ -46,7 +46,7 @@ class App extends Templates {
         this.createFilterBar();
         this.ls();
         this.actualizarFechaHora({ label: sub_name });
-        // this.updateDailyClosureStatus();
+        this.updateDailyClosureStatus();
     }
 
     layout() {
@@ -190,8 +190,24 @@ class App extends Templates {
         let opts = Object.assign({}, opciones, options);
         let fechaFormateada = fecha.toLocaleString("es-ES", opts);
 
+        const isOldShift = openShift.has_open_shift && openShift.opened_at && !moment(openShift.opened_at).isSame(moment(), 'day');
+
+        const shiftTime = openShift.has_open_shift && openShift.opened_at
+            ? moment(openShift.opened_at).format('h:mm A')
+            : '';
+        const showShiftInHeader = openShift.has_open_shift && !isOldShift;
+        const borderClass = showShiftInHeader ? 'border-b-2 border-green-500/30' : 'border-b border-gray-300';
+
+        const shiftInfo = showShiftInHeader
+            ? `<span class="inline-flex items-center gap-1.5 text-[11px] text-gray-500">
+                <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                Turno desde las ${shiftTime}
+               </span>
+               <span class="text-gray-700">|</span>`
+            : '';
+
         let div = $("<div>", {
-            class: "flex justify-between border-b border-gray-300 mt-2 mb-3",
+            class: `flex justify-between ${borderClass} mt-2 mb-3`,
         }).append(
 
             $("<label>", {
@@ -199,9 +215,9 @@ class App extends Templates {
                 class: "text-xs font-medium text-gray-600 text-left flex-1",
                 css: { 'font-size': '1rem', 'align-items': 'center', 'display': 'flex' }
             }),
-            $("<label>", {
-                text: fechaFormateada,
-                class: "text-uppercase text-end font-semibold mb-2",
+            $("<div>", {
+                class: "flex items-center gap-3",
+                html: `${shiftInfo}<span class="text-uppercase font-semibold mb-2">${fechaFormateada}</span>`
             })
         );
 
@@ -232,22 +248,61 @@ class App extends Templates {
 
     updateDailyClosureStatus() {
         const btn = $('#btnNuevoPedido');
-        
+
         if (dailyClosure.is_closed) {
             btn.prop('disabled', true)
                .removeClass('btn-primary')
                .addClass('btn-secondary opacity-50 cursor-not-allowed')
                .attr('title', 'Ya se realizó el cierre del día');
-            
+
             if ($('#dailyClosureAlert').length === 0) {
                 const alertHtml = `
                     <div id="dailyClosureAlert" class="bg-yellow-900/50 border border-yellow-600 text-yellow-200 px-4 py-2 rounded-lg mb-3 flex items-center gap-2">
                         <i class="icon-lock text-yellow-400"></i>
                         <span>
-                            <strong>Cierre del día realizado.</strong> 
+                            <strong>Cierre del día realizado.</strong>
                             No se pueden crear nuevos pedidos para hoy.
                             ${dailyClosure.closed_by ? `<br><small class="text-yellow-400">Cerrado por: ${dailyClosure.closed_by}</small>` : ''}
                         </span>
+                    </div>
+                `;
+                $('#containerHours').after(alertHtml);
+            }
+        } else if (!openShift.has_open_shift) {
+            btn.prop('disabled', true)
+               .removeClass('btn-primary')
+               .addClass('btn-secondary opacity-50 cursor-not-allowed')
+               .attr('title', 'Debes abrir un turno de caja');
+
+            if ($('#shiftAlert').length === 0) {
+                const alertHtml = `
+                    <div id="shiftAlert" class="flex items-center gap-2 mb-3 pl-1">
+                        <span class="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse flex-shrink-0"></span>
+                        <p class="text-[11px] text-gray-500">
+                            Sin turno abierto —
+                            <a href="javascript:void(0)" onclick="app.printDailyClose()" class="text-amber-400/80 hover:text-amber-300 underline underline-offset-2">abrir turno</a>
+                            en "Cierre del día" para crear pedidos
+                        </p>
+                    </div>
+                `;
+                $('#containerHours').after(alertHtml);
+            }
+        } else if (openShift.has_open_shift && openShift.opened_at && !moment(openShift.opened_at).isSame(moment(), 'day')) {
+            const shiftDate = moment(openShift.opened_at).locale('es').format('DD/MMM/YYYY');
+            btn.prop('disabled', true)
+               .removeClass('btn-primary')
+               .addClass('btn-secondary opacity-50 cursor-not-allowed')
+               .attr('title', 'Existe un turno abierto de otro día');
+
+            if ($('#shiftOldAlert').length === 0) {
+                const alertHtml = `
+                    <div id="shiftOldAlert" class="flex items-center gap-2 mb-3 pl-1">
+                        <span class="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse flex-shrink-0"></span>
+                        <p class="text-[11px] text-gray-500">
+                            Turno del <span class="text-amber-400/70">${shiftDate}</span> sin cerrar —
+                            <a href="javascript:void(0)" onclick="app.printDailyClose()" class="text-amber-400/80 hover:text-amber-300 underline underline-offset-2">cerrar turno</a>
+                            para crear nuevos pedidos
+                        </p>
                     </div>
                 `;
                 $('#containerHours').after(alertHtml);
@@ -263,8 +318,10 @@ class App extends Templates {
             .removeClass('btn-secondary opacity-50 cursor-not-allowed')
             .addClass('btn-primary')
             .attr('title', '');
-        
+
         $('#dailyClosureAlert').remove();
+        $('#shiftAlert').remove();
+        $('#shiftOldAlert').remove();
     }
 
     showTypePedido() {
@@ -283,6 +340,16 @@ class App extends Templates {
                 icon: "warning",
                 title: "Sin turno abierto",
                 text: "Debes abrir un turno de caja antes de crear pedidos. Ve a 'Cierre del día' para abrir turno.",
+                btn1: true,
+                btn1Text: "Entendido"
+            });
+            return;
+        }
+        if (openShift.has_open_shift && openShift.opened_at && !moment(openShift.opened_at).isSame(moment(), 'day')) {
+            alert({
+                icon: "warning",
+                title: "Turno pendiente de otro día",
+                text: "Existe un turno abierto que no corresponde al día de hoy. Debes cerrarlo antes de continuar.",
                 btn1: true,
                 btn1Text: "Entendido"
             });
@@ -2382,7 +2449,7 @@ class App extends Templates {
                 const time = moment(s.opened_at).format('hh:mm A');
                 const name = s.shift_name || time;
                 return `
-                    <div class="flex items-center justify-between py-1.5 px-2 bg-[#1a2332] rounded-md cursor-pointer hover:bg-[#243044] transition-colors" onclick="$('#shiftSelector').val('${s.id}').trigger('change'); $('#calendarDailyClose').val('${moment(s.opened_at).format('YYYY-MM-DD')}');">
+                    <div class="flex items-center justify-between py-1.5 px-2 bg-[#1a2332] rounded-md cursor-pointer hover:bg-[#243044] transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
                         <div class="flex items-center gap-2">
                             <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
                             <span class="text-xs text-gray-300">${name}</span>
@@ -2424,6 +2491,15 @@ class App extends Templates {
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
         }
+    }
+
+    async selectOpenShift(shiftId, date) {
+        const picker = $('#calendarDailyClose').data('daterangepicker');
+        const momentDate = moment(date);
+        picker.setStartDate(momentDate);
+        picker.setEndDate(momentDate);
+        await this.loadShifts();
+        $('#shiftSelector').val(shiftId).trigger('change');
     }
 
     async viewShiftPreview() {
@@ -2657,7 +2733,9 @@ class App extends Templates {
                         if (response.status === 200) {
                             alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
                             this.loadShifts();
-                            openShift = { has_open_shift: true, shift_id: response.shift_id };
+                            openShift = { has_open_shift: true, shift_id: response.shift_id, shift_name: shift_name || null, opened_at: new Date().toISOString() };
+                            this.updateDailyClosureStatus();
+                            this.actualizarFechaHora({ label: sub_name });
                         } else {
                             alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                         }
@@ -2704,6 +2782,8 @@ class App extends Templates {
 
                     // Actualizar variable global
                     openShift = { has_open_shift: false };
+                    this.updateDailyClosureStatus();
+                    this.actualizarFechaHora({ label: sub_name });
                 } else {
                     alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }

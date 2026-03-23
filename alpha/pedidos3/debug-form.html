@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Formulario Crear Orden</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #111928; font-family: 'Segoe UI', sans-serif; color: white; }
+        .form-control, .form-select { background: #374151; border-color: #4B5563; color: white; }
+        .form-control:focus, .form-select:focus { background: #374151; color: white; border-color: #8b5cf6; }
+        label { color: #9CA3AF; }
+    </style>
+</head>
+<body class="p-4">
+
+    <h2 class="text-gray-500 text-xs uppercase tracking-widest mb-2">Debug — Así se ve el formulario con el problema de offset</h2>
+    <p class="text-gray-600 text-xs mb-6">El select de sucursal tiene <code class="text-red-400">offset-10</code> que empuja todo a la derecha</p>
+
+    <div class="bg-[#1F2A37] rounded-lg p-4">
+
+        <h3 class="text-sm text-red-400 font-bold mb-3 border-b border-red-500/30 pb-2">❌ PROBLEMA: con offset-10 col-lg-2</h3>
+        <div class="row mb-6">
+            <!-- Así se renderiza inicialmente con offset-10 -->
+            <div class="col-12 offset-10 col-lg-2 mb-1">
+                <div class="flex flex-col gap-1 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm w-full">
+                    <label for="sub1" class="text-sm font-medium text-white">Sucursal:</label>
+                    <select id="sub1" class="w-full text-xs border border-purple-300 rounded-md px-2 py-1 bg-[#374151] text-white">
+                        <option>Reginas kafeto</option>
+                        <option>Sucursal 2</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <label class="col-12 fw-bold text-lg mb-2 p-1 border-b">Información del cliente</label>
+            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                <label class="form-label text-xs">Nombre del cliente</label>
+                <input type="text" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                <label class="form-label text-xs">Teléfono</label>
+                <input type="tel" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                <label class="form-label text-xs">Correo electrónico</label>
+                <input type="email" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                <label class="form-label text-xs">Fecha de cumpleaños</label>
+                <input type="date" class="form-control form-control-sm">
+            </div>
+
+            <label class="col-12 fw-bold text-lg mb-2 p-1 border-b">Datos del pedido</label>
+            <div class="col-12 col-lg-3 mb-3">
+                <label class="form-label text-xs">Fecha de entrega</label>
+                <input type="date" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-lg-3 mb-3">
+                <label class="form-label text-xs">Hora de entrega</label>
+                <input type="time" class="form-control form-control-sm">
+            </div>
+
+            <!-- Radio con col-12 col-lg-6 (antes del removeClass) -->
+            <div class="col-12 col-lg-6">
+                <label class="form-label text-xs">Tipo de entrega</label>
+                <div>
+                    <div class="form-check form-check-inline col-sm-3 mt-2">
+                        <input class="form-check-input me-2" type="radio" name="dt1" id="local1" checked>
+                        <label class="form-check-label" for="local1">Local</label>
+                    </div>
+                    <div class="form-check form-check-inline col-sm-3 mt-2">
+                        <input class="form-check-input me-2" type="radio" name="dt1" id="dom1">
+                        <label class="form-check-label" for="dom1">A domicilio</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3">
+                <label class="form-label text-xs">Notas adicionales</label>
+                <textarea rows="3" class="form-control form-control-sm"></textarea>
+            </div>
+
+            <div class="col-12 offset-md-8 offset-lg-6 col-md-2 col-lg-3">
+                <button class="btn btn-primary w-100">Guardar Pedido</button>
+            </div>
+            <div class="col-12 col-lg-3 col-md-2">
+                <button class="btn btn-danger w-100">Salir</button>
+            </div>
+        </div>
+
+        <hr class="my-6 border-gray-600">
+
+        <h3 class="text-sm text-green-400 font-bold mb-3 border-b border-green-500/30 pb-2">✅ CORREGIDO: sin offset, select integrado en la fila</h3>
+        <div class="row">
+            <!-- Select corregido arriba a la derecha sin offset -->
+            <div class="col-12 col-lg-3 mb-3 ms-auto">
+                <div class="flex flex-col gap-1 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm w-full">
+                    <label for="sub2" class="text-sm font-medium text-white">Sucursal:</label>
+                    <select id="sub2" class="w-full text-xs border border-purple-300 rounded-md px-2 py-1 bg-[#374151] text-white">
+                        <option>Reginas kafeto</option>
+                        <option>Sucursal 2</option>
+                    </select>
+                </div>
+            </div>
+
+            <label class="col-12 fw-bold text-lg mb-2 p-1 border-b">Información del cliente</label>
+            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                <label class="form-label text-xs">Nombre del cliente</label>
+                <input type="text" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                <label class="form-label text-xs">Teléfono</label>
+                <input type="tel" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                <label class="form-label text-xs">Correo electrónico</label>
+                <input type="email" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                <label class="form-label text-xs">Fecha de cumpleaños</label>
+                <input type="date" class="form-control form-control-sm">
+            </div>
+
+            <label class="col-12 fw-bold text-lg mb-2 p-1 border-b">Datos del pedido</label>
+            <div class="col-12 col-lg-3 mb-3">
+                <label class="form-label text-xs">Fecha de entrega</label>
+                <input type="date" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-lg-3 mb-3">
+                <label class="form-label text-xs">Hora de entrega</label>
+                <input type="time" class="form-control form-control-sm">
+            </div>
+
+            <!-- Radio corregido -->
+            <div class="">
+                <label class="form-label text-xs">Tipo de entrega</label>
+                <div>
+                    <div class="form-check form-check-inline mt-2">
+                        <input class="form-check-input me-2" type="radio" name="dt2" id="local2" checked>
+                        <label class="form-check-label" for="local2">Local</label>
+                    </div>
+                    <div class="form-check form-check-inline mt-2">
+                        <input class="form-check-input me-2" type="radio" name="dt2" id="dom2">
+                        <label class="form-check-label" for="dom2">A domicilio</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3">
+                <label class="form-label text-xs">Notas adicionales</label>
+                <textarea rows="3" class="form-control form-control-sm"></textarea>
+            </div>
+
+            <div class="col-12 col-lg-3 ms-auto">
+                <button class="btn btn-primary w-100">Guardar Pedido</button>
+            </div>
+            <div class="col-12 col-lg-3">
+                <button class="btn btn-danger w-100">Salir</button>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
