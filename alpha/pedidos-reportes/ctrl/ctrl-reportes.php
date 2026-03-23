@@ -15,13 +15,37 @@ class Reportes extends MReportes {
             return ['status' => 403, 'message' => 'No tienes permisos'];
         }
 
-        $data = [
+        $subsidiaries = $this->lsSubsidiaries();
+
+        return [
             'access'       => $_SESSION['ROLID'],
-            'subsidiaries' => $this->lsSubsidiaries(),
+            'sucursales'   => $subsidiaries['data'],
             'sub_id'       => $_SESSION['SUB'],
         ];
+    }
 
-        return $data;
+    function lsSubsidiaries() {
+        $status  = 500;
+        $message = 'Error al obtener las sucursales';
+        $data    = [];
+
+        if ($_SESSION['ROLID'] == 1) {
+            $subsidiaries = $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']]);
+            if ($subsidiaries) {
+                $status  = 200;
+                $message = 'Sucursales obtenidas correctamente';
+                $data    = $subsidiaries;
+            }
+        } else {
+            $status  = 403;
+            $message = 'No tienes permisos para acceder a esta información';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message,
+            'data'    => $data
+        ];
     }
 
     function lsTickets() {
@@ -31,7 +55,9 @@ class Reportes extends MReportes {
 
         $fi = $_POST['fi'];
         $ff = $_POST['ff'];
-        $sub_id = $_POST['sub_id'];
+        $sub_id = isset($_POST['sub_id']) && $_POST['sub_id'] != '0'
+            ? $_POST['sub_id']
+            : $_SESSION['SUB'];
 
         $ls = $this->listTickets([$fi, $ff, $sub_id]);
         $__row = [];
@@ -42,6 +68,7 @@ class Reportes extends MReportes {
         $totalEfectivo = 0;
         $totalTarjeta = 0;
         $totalTransferencia = 0;
+        $totalCargo = 0;
 
         if (is_array($ls)) {
             foreach ($ls as $key) {
@@ -60,7 +87,7 @@ class Reportes extends MReportes {
                     'Tipo'          => $key['order_type'] == 'mostrador' ? 'Mostrador' : 'Pedido',
                     'Descuento'     => ['html' => evaluar($key['descuento_importe']), 'class' => 'text-end'],
                     'Propina'       => ['html' => evaluar($key['propina']), 'class' => 'text-end'],
-                    'Importe'       => ['html' => evaluar($key['importe']), 'class' => 'text-end bg-[#283341]'],
+                    'Importe'       => ['html' => evaluar($key['importe']), 'class' => 'text-end bg-[#283341] font-bold'],
                     'Efectivo'      => ['html' => evaluar($key['efectivo']), 'class' => 'text-end'],
                     'Tarjeta'       => ['html' => evaluar($key['tarjeta']), 'class' => 'text-end'],
                     'Transferencia' => ['html' => evaluar($key['transferencia']), 'class' => 'text-end'],
@@ -90,7 +117,9 @@ class Reportes extends MReportes {
 
         $fi = $_POST['fi'];
         $ff = $_POST['ff'];
-        $sub_id = $_POST['sub_id'];
+        $sub_id = isset($_POST['sub_id']) && $_POST['sub_id'] != '0'
+            ? $_POST['sub_id']
+            : $_SESSION['SUB'];
 
         $ls = $this->listShifts([$sub_id, $fi, $ff]);
         $__row = [];
@@ -111,7 +140,7 @@ class Reportes extends MReportes {
                     'Cajero'       => $key['employee_name'] ? $key['employee_name'] : 'Sin asignar',
                     'Apertura'     => formatSpanishDate($key['opened_at']),
                     'Cierre'       => $key['closed_at'] ? formatSpanishDate($key['closed_at']) : 'Abierto',
-                    'Total'        => ['html' => evaluar($key['total_sales']), 'class' => 'text-end bg-[#283341]'],
+                    'Total'        => ['html' => evaluar($key['total_sales']), 'class' => 'text-end bg-[#283341] font-bold'],
                     'Efectivo'     => ['html' => evaluar($key['total_cash']), 'class' => 'text-end'],
                     'Tarjeta'      => ['html' => evaluar($key['total_card']), 'class' => 'text-end'],
                     'Transferencia'=> ['html' => evaluar($key['total_transfer']), 'class' => 'text-end'],
@@ -152,7 +181,7 @@ class Reportes extends MReportes {
                     'Cuenta'    => $key['cuenta'],
                     'Descuento' => ['html' => evaluar($key['descuento_importe']), 'class' => 'text-end'],
                     'Propina'   => ['html' => evaluar($key['propina']), 'class' => 'text-end'],
-                    'Importe'   => ['html' => evaluar($key['importe']), 'class' => 'text-end bg-[#283341]'],
+                    'Importe'   => ['html' => evaluar($key['importe']), 'class' => 'text-end bg-[#283341] font-bold'],
                     'Efectivo'  => ['html' => evaluar($key['efectivo']), 'class' => 'text-end'],
                     'Tarjeta'   => ['html' => evaluar($key['tarjeta']), 'class' => 'text-end'],
                     'Transf.'   => ['html' => evaluar($key['transferencia']), 'class' => 'text-end'],
