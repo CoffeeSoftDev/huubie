@@ -1429,6 +1429,17 @@ class MPedidos extends CRUD {
         return is_array($result) && !empty($result) ? $result[0] : null;
     }
 
+    function getAllOpenShiftsBySubsidiary($array) {
+        $query = "
+            SELECT cs.*, u.fullname AS employee_name
+            FROM {$this->bd}cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            ORDER BY cs.opened_at DESC
+        ";
+        return $this->_Read($query, $array);
+    }
+
     function closeCashShift($array) {
         $query = "
             UPDATE {$this->bd}cash_shift
@@ -1441,30 +1452,34 @@ class MPedidos extends CRUD {
     }
 
     function getShiftSalesMetrics($array) {
-        $startDate    = $array[0];
-        $endDate      = $array[1];
-        $subsidiary_id = $array[2];
+        $shift_id      = $array[0];
+        $startDate     = $array[1];
+        $endDate       = $array[2];
+        $subsidiary_id = $array[3];
 
-        // 1. Total de ventas y pedidos en la ventana del turno
+        // Condición: vinculados al turno O dentro del rango sin turno asignado
+        $shiftCondition = "(cash_shift_id = ? OR (cash_shift_id IS NULL AND date_creation >= ? AND date_creation < ? AND subsidiaries_id = ?))";
+        $params = [$shift_id, $startDate, $endDate, $subsidiary_id];
+
+        // 1. Total de ventas y pedidos
         $queryOrders = "
             SELECT COUNT(*) as total_orders, COALESCE(SUM(total_pay), 0) as total_sales
             FROM {$this->bd}`order`
-            WHERE date_creation >= ? AND date_creation < ?
-            AND subsidiaries_id = ? AND status != 4
+            WHERE {$shiftCondition} AND status != 4
         ";
-        $orders = $this->_Read($queryOrders, [$startDate, $endDate, $subsidiary_id]);
+        $orders = $this->_Read($queryOrders, $params);
         $ordersData = is_array($orders) && !empty($orders) ? $orders[0] : ['total_orders' => 0, 'total_sales' => 0];
 
         // 2. Pagos agrupados por metodo
+        $shiftConditionPo = "(po.cash_shift_id = ? OR (po.cash_shift_id IS NULL AND po.date_creation >= ? AND po.date_creation < ? AND po.subsidiaries_id = ?))";
         $queryPayments = "
             SELECT pp.method_pay_id, SUM(pp.pay) as total_paid
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
-            WHERE po.date_creation >= ? AND po.date_creation < ?
-            AND po.subsidiaries_id = ? AND po.status != 4
+            WHERE {$shiftConditionPo} AND po.status != 4
             GROUP BY pp.method_pay_id
         ";
-        $payments = $this->_Read($queryPayments, [$startDate, $endDate, $subsidiary_id]);
+        $payments = $this->_Read($queryPayments, $params);
 
         $cash_sales = 0; $card_sales = 0; $transfer_sales = 0;
         if (is_array($payments)) {
@@ -1483,11 +1498,10 @@ class MPedidos extends CRUD {
         $queryByStatus = "
             SELECT status, COUNT(*) as count
             FROM {$this->bd}`order`
-            WHERE date_creation >= ? AND date_creation < ?
-            AND subsidiaries_id = ?
+            WHERE {$shiftCondition}
             GROUP BY status
         ";
-        $statuses = $this->_Read($queryByStatus, [$startDate, $endDate, $subsidiary_id]);
+        $statuses = $this->_Read($queryByStatus, $params);
         if (is_array($statuses)) {
             foreach ($statuses as $s) {
                 switch ($s['status']) {
@@ -1511,16 +1525,21 @@ class MPedidos extends CRUD {
     }
 
     function getShiftDetailedOrders($array) {
+        $shift_id      = $array[0];
+        $startDate     = $array[1];
+        $endDate       = $array[2];
+        $subsidiary_id = $array[3];
+
         $query = "
             SELECT o.id, o.total_pay, o.status, o.date_creation,
                    c.name AS client_name
             FROM {$this->bd}`order` o
             LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
-            WHERE o.date_creation >= ? AND o.date_creation < ?
-            AND o.subsidiaries_id = ? AND o.status != 4
+            WHERE (o.cash_shift_id = ? OR (o.cash_shift_id IS NULL AND o.date_creation >= ? AND o.date_creation < ? AND o.subsidiaries_id = ?))
+            AND o.status != 4
             ORDER BY o.date_creation ASC
         ";
-        return $this->_Read($query, $array);
+        return $this->_Read($query, [$shift_id, $startDate, $endDate, $subsidiary_id]);
     }
 
     function createShiftPayment($array) {

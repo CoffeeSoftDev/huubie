@@ -1111,7 +1111,7 @@ class CatalogProduct extends Pos {
             id: "tabsPedido",
             theme: "dark",
             type: 'short',
-            content: { class: "h-[calc(100vh-200px)] overflow-hidden" },
+            content: { class: "h-[calc(100vh-200px)] overflow-y-auto" },
             json: [
                 {
                     id: "pedido",

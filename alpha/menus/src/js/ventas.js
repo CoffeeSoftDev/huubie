@@ -26,6 +26,13 @@ $(async () => {
 
     if (data['level'] == '1') {
         tarjetas.push({
+            titulo: "Reportes",
+            descripcion: "Genera reportes detallados de ventas y turnos.",
+            imagen: "/alpha/src/img/reportes.svg",
+            enlace: "/alpha/pedidos-reportes/",
+            padding: ""
+        });
+        tarjetas.push({
             titulo: "Configuración",
             descripcion: "Agrega usuarios y sucursales.",
             imagen: "/alpha/src/img/configuracion.svg",
