@@ -57,9 +57,9 @@ class Reportes extends MReportes {
         $ff = $_POST['ff'];
         $sub_id = isset($_POST['sub_id']) && $_POST['sub_id'] != '0'
             ? $_POST['sub_id']
-            : $_SESSION['SUB'];
+            : '0';
 
-        $ls = $this->listTickets([$fi, $ff, $sub_id]);
+        $ls = $this->listTickets([$fi, $ff, $sub_id, $sub_id]);
         $__row = [];
 
         $totalImporte = 0;
@@ -119,9 +119,9 @@ class Reportes extends MReportes {
         $ff = $_POST['ff'];
         $sub_id = isset($_POST['sub_id']) && $_POST['sub_id'] != '0'
             ? $_POST['sub_id']
-            : $_SESSION['SUB'];
+            : '0';
 
-        $ls = $this->listShifts([$sub_id, $fi, $ff]);
+        $ls = $this->listShifts([$sub_id, $sub_id, $fi, $ff]);
         $__row = [];
 
         if (is_array($ls)) {

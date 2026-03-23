@@ -15,7 +15,6 @@ class MReportes extends CRUD {
         $query = "
             SELECT
                 o.id as folio_cuenta,
-                o.folio_ticket as folio_nota,
                 o.date_creation as fecha,
                 c.name as cuenta,
                 o.order_type,
@@ -30,7 +29,7 @@ class MReportes extends CRUD {
             LEFT JOIN {$this->bd}order_clients c ON o.client_id = c.id
             LEFT JOIN {$this->bd}order_payments pp ON pp.order_id = o.id
             WHERE DATE(o.date_creation) BETWEEN ? AND ?
-            AND o.subsidiaries_id = ?
+            AND (o.subsidiaries_id = ? OR ? = '0')
             GROUP BY o.id
             ORDER BY o.id ASC
         ";
@@ -41,15 +40,15 @@ class MReportes extends CRUD {
         $query = "
             SELECT
                 cs.id, cs.shift_name, cs.opened_at, cs.closed_at,
-                cs.opening_amount, cs.total_sales, cs.total_cash,
-                cs.total_card, cs.total_transfer, cs.total_orders,
-                cs.closing_cash_counted, cs.cash_difference,
-                cs.total_discount, cs.total_cancelled, cs.total_tips,
-                cs.folio_z, cs.status,
+                cs.opening_amount, cs.total_sales,
+                COALESCE(cs.cash, 0) as total_cash,
+                COALESCE(cs.card, 0) as total_card,
+                COALESCE(cs.transfer, 0) as total_transfer,
+                cs.total_orders, cs.status,
                 u.fullname as employee_name
             FROM {$this->bd}cash_shift cs
             LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
-            WHERE cs.subsidiary_id = ?
+            WHERE (cs.subsidiary_id = ? OR ? = '0')
             AND DATE(cs.opened_at) BETWEEN ? AND ?
             ORDER BY cs.opened_at DESC
         ";
@@ -60,11 +59,11 @@ class MReportes extends CRUD {
         $query = "
             SELECT
                 cs.id, cs.shift_name, cs.opened_at, cs.closed_at,
-                cs.opening_amount, cs.total_sales, cs.total_cash,
-                cs.total_card, cs.total_transfer, cs.total_orders,
-                cs.closing_cash_counted, cs.cash_difference,
-                cs.total_discount, cs.total_cancelled, cs.total_tips,
-                cs.folio_z, cs.status,
+                cs.opening_amount, cs.total_sales,
+                COALESCE(cs.cash, 0) as total_cash,
+                COALESCE(cs.card, 0) as total_card,
+                COALESCE(cs.transfer, 0) as total_transfer,
+                cs.total_orders, cs.status,
                 u.fullname as employee_name
             FROM {$this->bd}cash_shift cs
             LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
@@ -78,7 +77,6 @@ class MReportes extends CRUD {
         $query = "
             SELECT
                 o.id as folio_cuenta,
-                o.folio_ticket as folio_nota,
                 o.date_creation as fecha,
                 c.name as cuenta,
                 o.order_type,

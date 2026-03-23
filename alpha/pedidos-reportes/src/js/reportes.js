@@ -142,10 +142,6 @@ class AppReportes extends Templates {
         let rangePicker = getDataRangePicker("calendar" + this.PROJECT_NAME);
         let sub_id = $(`#filterBar${this.PROJECT_NAME} #subsidiaries_id`).val() || '0';
 
-        if (sub_id === '0' && sucursales.length > 0) {
-            sub_id = sucursales[0].id;
-        }
-
         return {
             fi: rangePicker.fi,
             ff: rangePicker.ff,
@@ -164,7 +160,7 @@ class AppReportes extends Templates {
             coffeesoft: true,
             attr: {
                 id: `tb${this.PROJECT_NAME}Tickets`,
-                theme: 'shadcdn',
+                theme: 'dark',
                 title: 'Detalle de Tickets',
                 subtitle: '',
                 center: [3, 4],
@@ -230,7 +226,7 @@ class AppReportes extends Templates {
             coffeesoft: true,
             attr: {
                 id: `tb${this.PROJECT_NAME}Shifts`,
-                theme: 'shadcdn',
+                theme: 'dark',
                 title: 'Historial de Turnos',
                 subtitle: '',
                 center: [10, 12],
