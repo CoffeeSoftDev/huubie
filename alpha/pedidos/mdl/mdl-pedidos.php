@@ -1444,8 +1444,8 @@ class MPedidos extends CRUD {
         $query = "
             UPDATE {$this->bd}cash_shift
             SET closed_at = ?, status = 'closed',
-                total_sales = ?, total_cash = ?, total_card = ?,
-                total_transfer = ?, total_orders = ?
+                total_sales = ?, cash = ?, card = ?,
+                transfer = ?, total_orders = ?
             WHERE id = ? AND status = 'open'
         ";
         return $this->_CUD($query, $array);
