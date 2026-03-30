@@ -21,7 +21,10 @@
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"SHOW COLUMNS FROM fayxzvov_reginas.order_payments WHERE Field = ''tip''\")",
       "Bash(c:/wamp64/bin/mysql/mysql8.4.3/bin/mysql.exe -u root fayxzvov_reginas)",
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep -r FROM.*{ c:/wamp64/www/huubie/alpha/pedidos/mdl/)",
+      "Bash(/c/wamp64/www/huubie/alpha/pedidos/docs/bd/pedidos-db.excalidraw:*)",
+      "Bash(python -c \"import json; f=open\\(''c:/wamp64/www/huubie/alpha/pedidos/docs/bd/pedidos-db.excalidraw'',''r'',encoding=''utf-8''\\); data=json.load\\(f\\); print\\(''Valid JSON''\\); print\\(f''Type: {data.get\\(\"\"type\"\"\\)}''\\); print\\(f''Version: {data.get\\(\"\"version\"\"\\)}''\\); print\\(f''Elements: {len\\(data.get\\(\"\"elements\"\",[]\\)\\)}''\\); types={}; [types.update\\({e[\"\"type\"\"]:types.get\\(e[\"\"type\"\"],0\\)+1}\\) for e in data.get\\(''elements'',[]\\)]; print\\(f''Element types: {types}''\\)\")"
     ]
   }
 }
