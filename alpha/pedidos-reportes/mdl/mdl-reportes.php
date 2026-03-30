@@ -97,6 +97,27 @@ class MReportes extends CRUD {
         return $this->_Read($query, $array);
     }
 
+    function listDailyTickets($array) {
+        $query = "
+            SELECT
+                DATE(cs.opened_at) as fecha,
+                COALESCE(SUM(cs.total_orders), 0) as total_tickets,
+                COALESCE(SUM(cs.total_sales), 0) as importe,
+                COALESCE(SUM(cs.total_discount), 0) as descuento,
+                COALESCE(SUM(cs.total_tips), 0) as propina,
+                COALESCE(SUM(cs.total_cash), 0) as efectivo,
+                COALESCE(SUM(cs.total_card), 0) as tarjeta,
+                COALESCE(SUM(cs.total_transfer), 0) as transferencia
+            FROM {$this->bd}cash_shift cs
+            WHERE cs.status = 'closed'
+            AND DATE(cs.opened_at) BETWEEN ? AND ?
+            AND (cs.subsidiary_id = ? OR ? = '0')
+            GROUP BY DATE(cs.opened_at)
+            ORDER BY fecha ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
     function getSubsidiariesByCompany($array) {
         $query = "SELECT
             id,

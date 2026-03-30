@@ -2,7 +2,7 @@ let api = 'ctrl/ctrl-pedidos.php';
 let api_catalogo = 'ctrl/ctrl-pedidos-catalogo.php';
 let api_custom = 'ctrl/ctrl-pedidos-personalizado.php';
 
-let normal, app, custom; //Clases.
+let normal, app, custom, cierre; //Clases.
 let idFolio, sub_name;
 let categories, estado, clients;
 
@@ -25,6 +25,7 @@ $(async () => {
           app          = new App(api, 'root');
           custom       = new CustomOrder(api_custom, 'root');
           normal       = new CatalogProduct(api_catalogo, 'root');
+          cierre       = new Cierre(apiCierre);
 
     app.render();
 
@@ -2378,6 +2379,11 @@ class App extends Templates {
                             <i class="icon-print"></i> Imprimir Ticket
                         </button>
                     </div>
+                    <div class="border-t border-gray-600 pt-2 mt-2">
+                        <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2" onclick="cierre.initCierre()">
+                            <i class="icon-check"></i> Cerrar Dia
+                        </button>
+                    </div>
                 </div>
                 <!-- Ticket Preview -->
                 <div class="flex-1 bg-[#151d2a] rounded-lg p-4 overflow-y-auto" style="max-height: 70vh;">
@@ -2497,6 +2503,11 @@ class App extends Templates {
             `);
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        }
+
+        const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiaries_id } });
+        if (closureCheck.status === 200 && closureCheck.closure) {
+            cierre.loadClosedView(date, subsidiaries_id);
         }
     }
 
