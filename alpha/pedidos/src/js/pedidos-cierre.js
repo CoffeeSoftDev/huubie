@@ -278,6 +278,8 @@ class Cierre {
                     <hr class="border-dashed border-t border-gray-400 my-2" />
                     <div class="text-xs space-y-0.5">
                         <div class="flex justify-between"><span class="font-semibold">TOTAL PEDIDOS:</span><span class="font-bold">${c.total_orders}</span></div>
+                        <div class="flex justify-between"><span class="font-semibold">PAGADOS:</span><span>${(c.total_orders || 0) - (res.counts.quotations || 0) - (res.counts.cancelled || 0) - (res.counts.pending || 0)}</span></div>
+                        <div class="flex justify-between"><span class="font-semibold">PENDIENTES:</span><span>${res.counts.pending}</span></div>
                         <div class="flex justify-between"><span class="font-semibold">COTIZACIONES:</span><span>${res.counts.quotations}</span></div>
                         <div class="flex justify-between"><span class="font-semibold">ENTREGADOS:</span><span>${res.counts.delivered}</span></div>
                         <div class="flex justify-between"><span class="font-semibold">CANCELADOS:</span><span>${res.counts.cancelled}</span></div>

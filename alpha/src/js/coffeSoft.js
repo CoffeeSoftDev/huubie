@@ -3469,7 +3469,7 @@ class Templates extends Components {
                 name: "singleLayout",
                 class: "flex flex-col col-12",
                 filterBar: { class: 'w-full my-3 ', id: 'filterBar' + name },
-                container: { class: 'w-full my-3 bg-[#1F2A37] rounded-lg h-[calc(100vh-20rem)] ', id: 'container' + name }
+                container: { class: 'w-full my-3 bg-[#1F2A37] rounded-lg h-[calc(100vh-20rem)] overflow-auto ', id: 'container' + name }
             }
         };
 
