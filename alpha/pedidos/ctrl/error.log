@@ -1,3 +1,600 @@
+[ 2026-04-01 08:26:41 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                o.id, o.folio, o.date_creation, o.total_pay,
+                COALESCE(SUM(pp.pay), 0) as total_paid,
+                (o.total_pay - COALESCE(SUM(pp.pay), 0)) as pending_balance
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_payments pp ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY o.id
+            HAVING pending_balance > 0.01
+            ORDER BY pending_balance DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-04-01 08:26:40 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT o.id, o.folio, o.date_creation, o.total_pay, o.status
+            FROM fayxzvov_reginas.`order` o
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND (o.cash_shift_id IS NULL OR o.cash_shift_id = 0)
+              AND o.status != 4 AND o.is_legacy = 0
+            ORDER BY o.date_creation ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-03-31 22:16:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT COALESCE(SUM(o.discount), 0) as total_discount
+            FROM fayxzvov_reginas.`order` o
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_legacy' in 'where clause'
+
+
+[ 2026-03-31 22:16:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                pp.method_pay_id,
+                SUM(pp.pay) as total_paid
+            FROM fayxzvov_reginas.order_payments pp
+            INNER JOIN fayxzvov_reginas.`order` o ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY pp.method_pay_id
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_legacy' in 'where clause'
+
+
+[ 2026-03-31 22:16:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                o.id, o.folio, o.date_creation, o.total_pay,
+                COALESCE(SUM(pp.pay), 0) as total_paid,
+                (o.total_pay - COALESCE(SUM(pp.pay), 0)) as pending_balance
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_payments pp ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY o.id
+            HAVING pending_balance > 0.01
+            ORDER BY pending_balance DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-03-31 22:16:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT o.id, o.folio, o.date_creation, o.total_pay, o.status
+            FROM fayxzvov_reginas.`order` o
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND (o.cash_shift_id IS NULL OR o.cash_shift_id = 0)
+              AND o.status != 4 AND o.is_legacy = 0
+            ORDER BY o.date_creation ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-03-31 22:16:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 22:16:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 22:05:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at, cs.status,
+                cs.total_sales, cs.total_orders, cs.total_cash, cs.total_card, cs.total_transfer,
+                u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.total_cash' in 'field list'
+
+
+[ 2026-03-31 22:05:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT COALESCE(SUM(o.discount), 0) as total_discount
+            FROM fayxzvov_reginas.`order` o
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_legacy' in 'where clause'
+
+
+[ 2026-03-31 22:05:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                pp.method_pay_id,
+                SUM(pp.pay) as total_paid
+            FROM fayxzvov_reginas.order_payments pp
+            INNER JOIN fayxzvov_reginas.`order` o ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY pp.method_pay_id
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_legacy' in 'where clause'
+
+
+[ 2026-03-31 22:05:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                o.id, o.folio, o.date_creation, o.total_pay,
+                COALESCE(SUM(pp.pay), 0) as total_paid,
+                (o.total_pay - COALESCE(SUM(pp.pay), 0)) as pending_balance
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_payments pp ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY o.id
+            HAVING pending_balance > 0.01
+            ORDER BY pending_balance DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-03-31 22:05:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT o.id, o.folio, o.date_creation, o.total_pay, o.status
+            FROM fayxzvov_reginas.`order` o
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND (o.cash_shift_id IS NULL OR o.cash_shift_id = 0)
+              AND o.status != 4 AND o.is_legacy = 0
+            ORDER BY o.date_creation ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-03-31 22:05:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                COUNT(*) as total_shifts,
+                COALESCE(SUM(cs.total_orders), 0) as total_orders,
+                COALESCE(SUM(cs.total_sales), 0) as total_sales,
+                COALESCE(SUM(cs.total_cash), 0) as total_cash,
+                COALESCE(SUM(cs.total_card), 0) as total_card,
+                COALESCE(SUM(cs.total_transfer), 0) as total_transfer
+            FROM fayxzvov_reginas.cash_shift cs
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.status = 'closed' AND cs.active = 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.total_cash' in 'field list'
+
+
+[ 2026-03-31 22:05:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 22:05:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:48:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at, cs.status,
+                cs.total_sales, cs.total_orders, cs.total_cash, cs.total_card, cs.total_transfer,
+                u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.total_cash' in 'field list'
+
+
+[ 2026-03-31 21:48:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT COALESCE(SUM(o.discount), 0) as total_discount
+            FROM fayxzvov_reginas.`order` o
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_legacy' in 'where clause'
+
+
+[ 2026-03-31 21:48:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                pp.method_pay_id,
+                SUM(pp.pay) as total_paid
+            FROM fayxzvov_reginas.order_payments pp
+            INNER JOIN fayxzvov_reginas.`order` o ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY pp.method_pay_id
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_legacy' in 'where clause'
+
+
+[ 2026-03-31 21:48:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                o.id, o.folio, o.date_creation, o.total_pay,
+                COALESCE(SUM(pp.pay), 0) as total_paid,
+                (o.total_pay - COALESCE(SUM(pp.pay), 0)) as pending_balance
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_payments pp ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY o.id
+            HAVING pending_balance > 0.01
+            ORDER BY pending_balance DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-03-31 21:48:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT o.id, o.folio, o.date_creation, o.total_pay, o.status
+            FROM fayxzvov_reginas.`order` o
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND (o.cash_shift_id IS NULL OR o.cash_shift_id = 0)
+              AND o.status != 4 AND o.is_legacy = 0
+            ORDER BY o.date_creation ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-03-31 21:48:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                COUNT(*) as total_shifts,
+                COALESCE(SUM(cs.total_orders), 0) as total_orders,
+                COALESCE(SUM(cs.total_sales), 0) as total_sales,
+                COALESCE(SUM(cs.total_cash), 0) as total_cash,
+                COALESCE(SUM(cs.total_card), 0) as total_card,
+                COALESCE(SUM(cs.total_transfer), 0) as total_transfer
+            FROM fayxzvov_reginas.cash_shift cs
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.status = 'closed' AND cs.active = 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.total_cash' in 'field list'
+
+
+[ 2026-03-31 21:48:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:48:31 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:47:31 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:47:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:47:19 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at, cs.status,
+                cs.total_sales, cs.total_orders, cs.total_cash, cs.total_card, cs.total_transfer,
+                u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.total_cash' in 'field list'
+
+
+[ 2026-03-31 21:47:19 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT COALESCE(SUM(o.discount), 0) as total_discount
+            FROM fayxzvov_reginas.`order` o
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_legacy' in 'where clause'
+
+
+[ 2026-03-31 21:47:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                pp.method_pay_id,
+                SUM(pp.pay) as total_paid
+            FROM fayxzvov_reginas.order_payments pp
+            INNER JOIN fayxzvov_reginas.`order` o ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY pp.method_pay_id
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_legacy' in 'where clause'
+
+
+[ 2026-03-31 21:47:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                o.id, o.folio, o.date_creation, o.total_pay,
+                COALESCE(SUM(pp.pay), 0) as total_paid,
+                (o.total_pay - COALESCE(SUM(pp.pay), 0)) as pending_balance
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_payments pp ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY o.id
+            HAVING pending_balance > 0.01
+            ORDER BY pending_balance DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-03-31 21:47:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT o.id, o.folio, o.date_creation, o.total_pay, o.status
+            FROM fayxzvov_reginas.`order` o
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND (o.cash_shift_id IS NULL OR o.cash_shift_id = 0)
+              AND o.status != 4 AND o.is_legacy = 0
+            ORDER BY o.date_creation ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.folio' in 'field list'
+
+
+[ 2026-03-31 21:47:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                COUNT(*) as total_shifts,
+                COALESCE(SUM(cs.total_orders), 0) as total_orders,
+                COALESCE(SUM(cs.total_sales), 0) as total_sales,
+                COALESCE(SUM(cs.total_cash), 0) as total_cash,
+                COALESCE(SUM(cs.total_card), 0) as total_card,
+                COALESCE(SUM(cs.total_transfer), 0) as total_transfer
+            FROM fayxzvov_reginas.cash_shift cs
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.status = 'closed' AND cs.active = 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.total_cash' in 'field list'
+
+
+[ 2026-03-31 21:47:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:47:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:47:01 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:46:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:45:00 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:44:41 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:43:53 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:43:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
+[ 2026-03-31 21:42:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM fayxzvov_reginas.daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'dc.closure_date' in 'where clause'
+
+
 [ 2026-03-30 10:44:46 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$

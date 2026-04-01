@@ -190,7 +190,8 @@ class Cierre {
         if (res.shifts && res.shifts.length > 0) {
             res.shifts.forEach(shift => {
                 const time = moment(shift.opened_at).format('YYYY-MM-DD hh:mm A');
-                select.append(`<option value="${shift.id}" data-status="${shift.status}">${time}</option>`);
+                const badge = shift.status === 'open' ? ' [ABIERTO]' : ' [CERRADO]';
+                select.append(`<option value="${shift.id}" data-status="${shift.status}">${time}${badge}</option>`);
             });
         }
         select.off('change').on('change', function() { cierre.onShiftSelectorChange($(this).val()); });

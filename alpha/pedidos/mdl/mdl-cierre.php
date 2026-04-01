@@ -40,9 +40,9 @@ class MCierre extends CRUD {
                 COUNT(*) as total_shifts,
                 COALESCE(SUM(cs.total_orders), 0) as total_orders,
                 COALESCE(SUM(cs.total_sales), 0) as total_sales,
-                COALESCE(SUM(cs.total_cash), 0) as total_cash,
-                COALESCE(SUM(cs.total_card), 0) as total_card,
-                COALESCE(SUM(cs.total_transfer), 0) as total_transfer
+                COALESCE(SUM(cs.cash), 0) as total_cash,
+                COALESCE(SUM(cs.card), 0) as total_card,
+                COALESCE(SUM(cs.transfer), 0) as total_transfer
             FROM {$this->bd}cash_shift cs
             WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.status = 'closed' AND cs.active = 1
         ";
@@ -179,7 +179,7 @@ class MCierre extends CRUD {
         $query = "
             SELECT
                 cs.id, cs.shift_name, cs.opened_at, cs.closed_at, cs.status,
-                cs.total_sales, cs.total_orders, cs.total_cash, cs.total_card, cs.total_transfer,
+                cs.total_sales, cs.total_orders, cs.cash as total_cash, cs.card as total_card, cs.transfer as total_transfer,
                 u.fullname AS employee_name
             FROM {$this->bd}cash_shift cs
             LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id

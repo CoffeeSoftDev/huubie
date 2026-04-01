@@ -1558,6 +1558,16 @@ class MPedidos extends CRUD {
         ]);
     }
 
+    function getShiftStatusCounts($array) {
+        $query = "
+            SELECT status_process_id, amount
+            FROM {$this->bd}shift_status_process
+            WHERE cash_shift_id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
     function updateOrdersCashShift($array) {
         $query = "
             UPDATE {$this->bd}`order`

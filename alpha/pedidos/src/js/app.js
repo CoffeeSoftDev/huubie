@@ -2510,7 +2510,7 @@ class App extends Templates {
 
         shifts.forEach(s => {
             const time = moment(s.opened_at).format('YYYY-MM-DD hh:mm A');
-            const badge = s.status === 'open' ? ' [ABIERTO]' : '';
+            const badge = s.status === 'open' ? ' [ABIERTO]' : ' [CERRADO]';
             select.append(`<option value="${s.id}" data-status="${s.status}">${time}${badge}</option>`);
         });
 
@@ -2690,6 +2690,7 @@ class App extends Templates {
                     <div class="text-xs space-y-0.5 mb-2">
                         <div class="flex justify-between"><span>Fecha:</span><span>${fecha}</span></div>
                         <div class="flex justify-between"><span>Apertura:</span><span>${moment(shift.opened_at).format('hh:mm A')}</span></div>
+                        <div class="flex justify-between"><span>Inicio de caja:</span><span>${formatPrice(shift.opening_amount || 0)}</span></div>
                         <div class="flex justify-between"><span>Turno:</span><span>${turnoLabel}</span></div>
                         <div class="flex justify-between"><span>Sucursal:</span><span>${subsidiaryName}</span></div>
                     </div>
@@ -2727,6 +2728,7 @@ class App extends Templates {
                             <div class="font-semibold">NÚMERO DE PEDIDOS:</div>
                             <div class="font-bold">${d.total_orders || 0}</div>
                         </div>
+                        <div class="mt-2"></div>
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">PAGADOS:</div>
                             <div>${(d.total_orders || 0) - (d.quotation_count || 0) - (d.cancelled_count || 0) - (d.pending_count || 0)}</div>

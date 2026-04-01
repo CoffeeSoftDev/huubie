@@ -1690,7 +1690,17 @@ class Pedidos extends MPedidos{
         $subsidiary_name = ($subsidiary && isset($subsidiary['name'])) ? $subsidiary['name'] : 'Sucursal';
 
         if ($shift['status'] === 'closed') {
-            // Retornar datos guardados
+            // Obtener conteos de status guardados
+            $statusCounts = $this->getShiftStatusCounts([$shift_id]);
+            $quotation_count = 0; $pending_count = 0; $cancelled_count = 0;
+            foreach ($statusCounts as $sc) {
+                switch ($sc['status_process_id']) {
+                    case 1: $quotation_count = intval($sc['amount']); break;
+                    case 2: $pending_count   = intval($sc['amount']); break;
+                    case 4: $cancelled_count = intval($sc['amount']); break;
+                }
+            }
+
             return [
                 'status'          => 200,
                 'shift'           => $shift,
@@ -1698,13 +1708,13 @@ class Pedidos extends MPedidos{
                 'logo'            => $_SESSION['LOGO'],
                 'data' => [
                     'total_sales'     => $shift['total_sales'],
-                    'cash_sales'      => $shift['total_cash'],
-                    'card_sales'      => $shift['total_card'],
-                    'transfer_sales'  => $shift['total_transfer'],
+                    'cash_sales'      => $shift['cash'],
+                    'card_sales'      => $shift['card'],
+                    'transfer_sales'  => $shift['transfer'],
                     'total_orders'    => $shift['total_orders'],
-                    'quotation_count' => 0,
-                    'pending_count'   => 0,
-                    'cancelled_count' => 0
+                    'quotation_count' => $quotation_count,
+                    'pending_count'   => $pending_count,
+                    'cancelled_count' => $cancelled_count
                 ]
             ];
         }
