@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadmap 1 - Cierre Diario Simple (MVP)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+        pre { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+        .sql-block { background: #1a1a2e; border-left: 3px solid #7c3aed; }
+        table { border-collapse: collapse; width: 100%; }
+        th { background: #1e293b; text-align: left; padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; border-bottom: 2px solid #334155; }
+        td { padding: 10px 14px; border-bottom: 1px solid #1e293b; font-size: 13px; }
+        tr:hover td { background: #1e293b44; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+        .badge-green { background: #065f46; color: #6ee7b7; }
+        .badge-yellow { background: #78350f; color: #fcd34d; }
+        .badge-red { background: #7f1d1d; color: #fca5a5; }
+        .badge-blue { background: #1e3a5f; color: #93c5fd; }
+        .badge-purple { background: #4c1d95; color: #c4b5fd; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; }
+        h1 { font-size: 2rem; font-weight: 800; }
+        h2 { font-size: 1.4rem; font-weight: 700; border-bottom: 2px solid #334155; padding-bottom: 8px; margin-top: 2rem; }
+        h3 { font-size: 1.1rem; font-weight: 600; color: #a78bfa; margin-top: 1.5rem; }
+        .nav-link { color: #94a3b8; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+        .nav-link:hover { background: #1e293b; color: #e2e8f0; }
+        .nav-link.active { background: #7c3aed; color: white; }
+        .phase-number { width: 2.5rem; height: 2.5rem; background: #7c3aed; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-[#0f172a]/95 backdrop-blur border-b border-gray-800 px-6 py-3">
+        <div class="max-w-5xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">H</div>
+                <span class="text-sm font-semibold text-gray-400">Pedidos / Docs / Plan Cierre</span>
+            </div>
+            <div class="flex gap-1">
+                <a href="analisis-actual.html" class="nav-link">Analisis</a>
+                <a href="estrategia-cierre-diario.html" class="nav-link">Estrategia</a>
+                <a href="roadmap-propuesta-1.html" class="nav-link active">MVP</a>
+                <a href="roadmap-propuesta-2.html" class="nav-link">Validaciones</a>
+                <a href="roadmap-propuesta-3.html" class="nav-link">Dashboard</a>
+                <a href="roadmap-propuesta-4.html" class="nav-link">Automatizado</a>
+                <a href="comparativa-propuestas.html" class="nav-link">Comparativa</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-6 py-10">
+
+        <!-- Header -->
+        <div class="mb-10">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="badge badge-purple">ROADMAP 1</span>
+            </div>
+            <h1 class="text-white mb-2">Cierre Diario Simple (MVP)</h1>
+            <p class="text-gray-400 text-lg">Implementacion minima viable. Un boton que ejecute el cierre diario con las validaciones basicas.</p>
+        </div>
+
+        <!-- Alcance -->
+        <section class="mb-10">
+            <h2 class="text-white">Alcance</h2>
+            <div class="card mt-4">
+                <ul class="space-y-3 text-gray-300">
+                    <li class="flex items-start gap-3"><span class="text-green-400 mt-0.5">&#x2713;</span> Boton "Cerrar Dia" en el modal existente</li>
+                    <li class="flex items-start gap-3"><span class="text-green-400 mt-0.5">&#x2713;</span> Validacion de turnos abiertos</li>
+                    <li class="flex items-start gap-3"><span class="text-green-400 mt-0.5">&#x2713;</span> Consolidacion de metricas de turnos cerrados</li>
+                    <li class="flex items-start gap-3"><span class="text-green-400 mt-0.5">&#x2713;</span> Registro en <code class="text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded">daily_closure</code> + tablas relacionadas</li>
+                    <li class="flex items-start gap-3"><span class="text-green-400 mt-0.5">&#x2713;</span> Bloqueo de creacion de pedidos post-cierre</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Fases -->
+        <section class="mb-10">
+            <h2 class="text-white">Fases</h2>
+
+            <!-- Phase 1 -->
+            <div class="card mt-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="phase-number">1</div>
+                    <div>
+                        <h3 class="!mt-0 !text-white text-lg">Backend - Endpoint closeDailyShift</h3>
+                        <p class="text-sm text-gray-400">Archivo: <code class="text-cyan-400">ctrl-pedidos.php</code></p>
+                    </div>
+                </div>
+
+                <p class="text-sm text-gray-400 mb-3 font-semibold">Flujo:</p>
+                <ol class="space-y-2 text-sm text-gray-300 list-decimal list-inside mb-6">
+                    <li>Recibir <code class="text-purple-400">date</code> / <code class="text-purple-400">subsidiaries_id</code></li>
+                    <li>Validar no exista cierre previo</li>
+                    <li>Validar no haya turnos abiertos</li>
+                    <li>Calcular metricas consolidadas</li>
+                    <li><code class="text-green-400">INSERT</code> daily_closure</li>
+                    <li><code class="text-green-400">INSERT</code> closure_payment x3</li>
+                    <li><code class="text-green-400">INSERT</code> closure_status_proccess xN</li>
+                    <li><code class="text-blue-400">UPDATE</code> order</li>
+                    <li><code class="text-blue-400">UPDATE</code> cash_shift</li>
+                    <li>Retornar <code class="text-yellow-400">{ status: 200 }</code></li>
+                </ol>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-400 mb-2 font-semibold">Queries nuevas:</p>
+                        <ul class="space-y-1 text-sm text-gray-300">
+                            <li><code class="text-yellow-400">getDailyConsolidatedMetrics()</code></li>
+                            <li><code class="text-yellow-400">getOpenShiftsByDate()</code></li>
+                            <li><code class="text-yellow-400">linkShiftsToClosure()</code></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-400 mb-2 font-semibold">Queries reutilizadas:</p>
+                        <ul class="space-y-1 text-sm text-gray-300">
+                            <li><code class="text-green-400">getDailyClosureByDate()</code></li>
+                            <li><code class="text-green-400">createDailyClosure()</code></li>
+                            <li><code class="text-green-400">updateOrdersDailyClosure()</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2 -->
+            <div class="card mt-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="phase-number">2</div>
+                    <div>
+                        <h3 class="!mt-0 !text-white text-lg">Frontend - Boton y Logica</h3>
+                        <p class="text-sm text-gray-400">Archivo: <code class="text-cyan-400">src/js/app.js</code></p>
+                    </div>
+                </div>
+
+                <ul class="space-y-2 text-sm text-gray-300">
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Agregar boton en <code class="text-cyan-400">printDailyClose()</code> despues de "Imprimir Ticket"</li>
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Crear metodo <code class="text-cyan-400">executeDailyClose()</code></li>
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Obtener fecha y sucursal</li>
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Llamar API</li>
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Manejar respuesta</li>
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Actualizar <code class="text-purple-400">dailyClosure</code> global</li>
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Llamar <code class="text-cyan-400">updateDailyClosureStatus()</code></li>
+                </ul>
+            </div>
+
+            <!-- Phase 3 -->
+            <div class="card mt-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="phase-number">3</div>
+                    <div>
+                        <h3 class="!mt-0 !text-white text-lg">Integracion</h3>
+                    </div>
+                </div>
+
+                <ul class="space-y-2 text-sm text-gray-300">
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Probar flujo completo</li>
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Verificar bloqueo</li>
+                    <li class="flex items-start gap-2"><span class="text-purple-400">&#x2022;</span> Verificar <code class="text-cyan-400">init()</code> detecta cierre</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Diagrama de Flujo -->
+        <section class="mb-10">
+            <h2 class="text-white">Diagrama de Flujo</h2>
+            <div class="card mt-4">
+                <pre class="!bg-[#0f172a] !border-purple-900/50"><code class="text-gray-300">[Btn "Cerrar Dia"] --> executeDailyClose()
+    |
+    v
+API: closeDailyShift
+    |
+    +-- Turnos abiertos? --> <span class="text-red-400">Error: "Cierra los turnos primero"</span>
+    +-- Ya cerrado? --> <span class="text-red-400">Error: "El dia ya fue cerrado"</span>
+    |
+    └── OK:
+        +-- <span class="text-green-400">INSERT</span> daily_closure
+        +-- <span class="text-green-400">INSERT</span> closure_payment
+        +-- <span class="text-green-400">INSERT</span> closure_status_proccess
+        +-- <span class="text-blue-400">UPDATE</span> order
+        +-- <span class="text-blue-400">UPDATE</span> cash_shift
+        └── Return <span class="text-yellow-400">{ status: 200 }</span>
+            |
+            v
+        <span class="text-green-400">Alert: "Cierre completado"</span>
+        dailyClosure = { is_closed: true }
+        updateDailyClosureStatus()</code></pre>
+            </div>
+        </section>
+
+        <!-- Estimacion de Complejidad -->
+        <section class="mb-10">
+            <h2 class="text-white">Estimacion de Complejidad</h2>
+            <div class="card mt-4 overflow-x-auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Componente</th>
+                            <th>Complejidad</th>
+                            <th>Archivo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Backend endpoint</td><td><span class="badge badge-green">Baja</span></td><td><code class="text-cyan-400">ctrl-pedidos.php</code></td></tr>
+                        <tr><td>Queries modelo</td><td><span class="badge badge-green">Baja</span></td><td><code class="text-yellow-400">mdl-pedidos.php</code></td></tr>
+                        <tr><td>Boton + logica JS</td><td><span class="badge badge-green">Baja</span></td><td><code class="text-cyan-400">app.js</code></td></tr>
+                        <tr class="border-t-2 border-gray-600"><td class="font-bold text-white">Total</td><td><span class="badge badge-green">Baja</span></td><td class="text-gray-400">3 archivos</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Ventajas / Desventajas -->
+        <section class="mb-10">
+            <h2 class="text-white">Ventajas / Desventajas</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div class="card border-green-900/50">
+                    <h3 class="!text-green-400 !mt-0 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        Ventajas
+                    </h3>
+                    <ul class="space-y-3 text-sm text-gray-300">
+                        <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5">&#x2713;</span> Rapido de implementar</li>
+                        <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5">&#x2713;</span> Reutiliza infraestructura existente</li>
+                        <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5">&#x2713;</span> Minimo riesgo de regresion</li>
+                    </ul>
+                </div>
+
+                <div class="card border-red-900/50">
+                    <h3 class="!text-red-400 !mt-0 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                        Desventajas
+                    </h3>
+                    <ul class="space-y-3 text-sm text-gray-300">
+                        <li class="flex items-start gap-2"><span class="text-red-500 mt-0.5">&#x2717;</span> Sin preview antes de confirmar</li>
+                        <li class="flex items-start gap-2"><span class="text-red-500 mt-0.5">&#x2717;</span> Sin ticket de cierre diario</li>
+                        <li class="flex items-start gap-2"><span class="text-red-500 mt-0.5">&#x2717;</span> Sin opcion de reabrir cierre</li>
+                        <li class="flex items-start gap-2"><span class="text-red-500 mt-0.5">&#x2717;</span> Sin manejo de pedidos huerfanos</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer Nav -->
+        <div class="flex justify-between mt-12 pb-8">
+            <a href="estrategia-cierre-diario.html" class="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                Anterior: Estrategia
+            </a>
+            <a href="roadmap-propuesta-2.html" class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                Siguiente: Validaciones
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+    </main>
+</body>
+</html>

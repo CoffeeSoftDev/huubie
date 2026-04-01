@@ -29,7 +29,8 @@ class AppReportes extends Templates {
     render() {
         this.layout();
         this.createFilterBar();
-        this.lsTickets();
+        // this.lsTickets();
+        this.lsDailyTickets();
     }
 
     layout() {
@@ -51,22 +52,32 @@ class AppReportes extends Templates {
             type: "short",
             json: [
                 {
-                    id: "tickets",
-                    tab: "Detalle de Tickets",
-                    active: true,
+                    id: "daily",
+                    tab: "Ticket Diario",
+                    active:true,
                     onClick: () => {
-                        this.currentTab = 'tickets';
-                        this.lsTickets();
+                        this.currentTab = 'daily';
+                        this.lsDailyTickets();
                     }
                 },
-                {
-                    id: "turnos",
-                    tab: "Turnos",
-                    onClick: () => {
-                        this.currentTab = 'turnos';
-                        this.lsShifts();
-                    }
-                },
+                // {
+                //     id: "tickets",
+                //     tab: "Detalle de Tickets",
+                //     active: true,
+                //     onClick: () => {
+                //         this.currentTab = 'tickets';
+                //         this.lsTickets();
+                //     }
+                // },
+                // {
+                //     id: "turnos",
+                //     tab: "Turnos",
+                //     onClick: () => {
+                //         this.currentTab = 'turnos';
+                //         this.lsShifts();
+                //     }
+                // },
+              
             ]
         });
 
@@ -126,6 +137,19 @@ class AppReportes extends Templates {
 
         dataPicker({
             parent: "calendar" + this.PROJECT_NAME,
+            rangepicker: {
+                startDate: moment().startOf("week"),
+                endDate: moment(),
+                showDropdowns: true,
+                autoApply: true,
+                locale: { format: "DD-MM-YYYY" },
+                ranges: {
+                    'Semana actual': [moment().startOf("week"), moment()],
+                    'Semana anterior': [moment().subtract(1, "week").startOf("week"), moment().subtract(1, "week").endOf("week")],
+                    'Mes actual': [moment().startOf("month"), moment()],
+                    'Mes anterior': [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")],
+                },
+            },
             onSelect: () => this.refreshCurrentTab(),
         });
     }
@@ -133,8 +157,10 @@ class AppReportes extends Templates {
     refreshCurrentTab() {
         if (this.currentTab === 'tickets') {
             this.lsTickets();
-        } else {
+        } else if (this.currentTab === 'turnos') {
             this.lsShifts();
+        } else {
+            this.lsDailyTickets();
         }
     }
 
@@ -149,30 +175,28 @@ class AppReportes extends Templates {
         };
     }
 
-    lsTickets() {
+    async lsTickets() {
         let params = this.getFilterParams();
+        const data = await useFetch({ url: this._link, data: { opc: "lsTickets", ...params } });
 
-        this.createTable({
-            parent: `container-tickets`,
-            idFilterBar: `filterBar${this.PROJECT_NAME}`,
-            data: { opc: "lsTickets", ...params },
-            conf: { datatable: true, pag: 25 },
-            coffeesoft: true,
-            attr: {
-                id: `tb${this.PROJECT_NAME}Tickets`,
-                theme: 'dark',
-                title: 'Detalle de Tickets',
-                subtitle: '',
-                center: [3, 4],
-                right: [5, 6, 7, 8, 9, 10],
-                extends: true,
-            },
-            success: (data) => {
-                if (data.totals) {
-                    this.renderTotalsBar(data.totals, 'container-tickets');
-                }
-            }
+        this.createCoffeeTable3({
+            parent: 'container-tickets',
+            id: `tb${this.PROJECT_NAME}Tickets`,
+            theme: 'dark',
+            title: 'Detalle de Tickets',
+            subtitle: '',
+            center: [3, 4],
+            right: [5, 6, 7, 8, 9, 10],
+            extends: true,
+            scrollable: false,
+            data: data,
         });
+
+        if (data.totals) {
+            this.renderTotalsBar(data.totals, 'container-tickets');
+        }
+
+        simple_data_table(`#tb${this.PROJECT_NAME}Tickets`, 25);
     }
 
     renderTotalsBar(totals, parent) {
@@ -215,25 +239,48 @@ class AppReportes extends Templates {
         $(`#${parent}`).prepend(html);
     }
 
-    lsShifts() {
+    async lsShifts() {
         let params = this.getFilterParams();
+        const data = await useFetch({ url: this._link, data: { opc: "lsShifts", ...params } });
 
-        this.createTable({
-            parent: `container-turnos`,
-            idFilterBar: `filterBar${this.PROJECT_NAME}`,
-            data: { opc: "lsShifts", ...params },
-            conf: { datatable: true, pag: 15 },
-            coffeesoft: true,
-            attr: {
-                id: `tb${this.PROJECT_NAME}Shifts`,
-                theme: 'dark',
-                title: 'Historial de Turnos',
-                subtitle: '',
-                center: [10, 12],
-                right: [4, 5, 6, 7, 8, 9, 11],
-                extends: true,
-            },
+        this.createCoffeeTable3({
+            parent: 'container-turnos',
+            id: `tb${this.PROJECT_NAME}Shifts`,
+            theme: 'dark',
+            title: 'Historial de Turnos',
+            subtitle: '',
+            center: [10, 12],
+            right: [4, 5, 6, 7, 8, 9, 11],
+            extends: true,
+            scrollable: false,
+            data: data,
         });
+
+        simple_data_table(`#tb${this.PROJECT_NAME}Shifts`, 15);
+    }
+
+    async lsDailyTickets() {
+        let params = this.getFilterParams();
+        const data = await useFetch({ url: this._link, data: { opc: "lsDailyTickets", ...params } });
+
+        this.createCoffeeTable3({
+            parent: 'container-daily',
+            id: `tb${this.PROJECT_NAME}Daily`,
+            theme: 'dark',
+            title: 'Ticket Diario',
+            subtitle: '',
+            center: [2],
+            right: [3, 4, 5, 6, 7],
+            extends: true,
+            scrollable: false,
+            data: data,
+        });
+
+        if (data.totals) {
+            this.renderTotalsBar(data.totals, 'container-daily');
+        }
+
+        simple_data_table(`#tb${this.PROJECT_NAME}Daily`, 25);
     }
 
     printReport() {

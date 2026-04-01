@@ -84,9 +84,9 @@ class Reportes extends MReportes {
                     'Folio'         => str_pad($key['folio_cuenta'], 8, '0', STR_PAD_LEFT),
                     'Fecha'         => formatSpanishDate($key['fecha']),
                     'Cuenta'        => $key['cuenta'],
-                    'Tipo'          => $key['order_type'] == 'mostrador' ? 'Mostrador' : 'Pedido',
+                    // 'Tipo'          => $key['order_type'] == 'mostrador' ? 'Mostrador' : 'Pedido',
                     'Descuento'     => ['html' => evaluar($key['descuento_importe']), 'class' => 'text-end'],
-                    'Propina'       => ['html' => evaluar($key['propina']), 'class' => 'text-end'],
+                    // 'Propina'       => ['html' => evaluar($key['propina']), 'class' => 'text-end'],
                     'Importe'       => ['html' => evaluar($key['importe']), 'class' => 'text-end bg-[#283341] font-bold'],
                     'Efectivo'      => ['html' => evaluar($key['efectivo']), 'class' => 'text-end'],
                     'Tarjeta'       => ['html' => evaluar($key['tarjeta']), 'class' => 'text-end'],
@@ -155,6 +155,66 @@ class Reportes extends MReportes {
         }
 
         return ['row' => $__row];
+    }
+
+    function lsDailyTickets() {
+        if ($_SESSION['ROLID'] != 1) {
+            return ['status' => 403, 'message' => 'No tienes permisos'];
+        }
+
+        $fi = $_POST['fi'];
+        $ff = $_POST['ff'];
+        $sub_id = isset($_POST['sub_id']) && $_POST['sub_id'] != '0'
+            ? $_POST['sub_id']
+            : '0';
+
+        $ls = $this->listDailyTickets([$fi, $ff, $sub_id, $sub_id]);
+        $__row = [];
+
+        $grandImporte = 0;
+        $grandDescuento = 0;
+        $grandPropina = 0;
+        $grandEfectivo = 0;
+        $grandTarjeta = 0;
+        $grandTransferencia = 0;
+        $grandTickets = 0;
+
+        if (is_array($ls)) {
+            foreach ($ls as $key) {
+                $grandImporte += floatval($key['importe']);
+                $grandDescuento += floatval($key['descuento']);
+                $grandPropina += floatval($key['propina']);
+                $grandEfectivo += floatval($key['efectivo']);
+                $grandTarjeta += floatval($key['tarjeta']);
+                $grandTransferencia += floatval($key['transferencia']);
+                $grandTickets += intval($key['total_tickets']);
+
+                $__row[] = [
+                    'id'            => $key['fecha'],
+                    'Fecha'         => formatSpanishDate($key['fecha']),
+                    'Tickets'       => ['html' => $key['total_tickets'], 'class' => 'text-center'],
+                    'Descuento'     => ['html' => evaluar($key['descuento']), 'class' => 'text-end'],
+                    'Importe'       => ['html' => evaluar($key['importe']), 'class' => 'text-end bg-[#283341] font-bold'],
+                    'Efectivo'      => ['html' => evaluar($key['efectivo']), 'class' => 'text-end'],
+                    'Tarjeta'       => ['html' => evaluar($key['tarjeta']), 'class' => 'text-end'],
+                    'Transferencia' => ['html' => evaluar($key['transferencia']), 'class' => 'text-end'],
+                    'opc'           => 0
+                ];
+            }
+        }
+
+        return [
+            'row'    => $__row,
+            'totals' => [
+                'importe'       => evaluar($grandImporte),
+                'descuento'     => evaluar($grandDescuento),
+                'propina'       => evaluar($grandPropina),
+                'efectivo'      => evaluar($grandEfectivo),
+                'tarjeta'       => evaluar($grandTarjeta),
+                'transferencia' => evaluar($grandTransferencia),
+                'total_tickets' => $grandTickets,
+            ]
+        ];
     }
 
     function showShiftDetail() {

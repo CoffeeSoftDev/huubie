@@ -2,7 +2,7 @@ let api = 'ctrl/ctrl-pedidos.php';
 let api_catalogo = 'ctrl/ctrl-pedidos-catalogo.php';
 let api_custom = 'ctrl/ctrl-pedidos-personalizado.php';
 
-let normal, app, custom; //Clases.
+let normal, app, custom, cierre; //Clases.
 let idFolio, sub_name;
 let categories, estado, clients;
 
@@ -21,17 +21,19 @@ $(async () => {
           sub_name     = req.subsidiaries_name;
           subsidiaries = req.sucursales;
           dailyClosure = req.daily_closure || { is_closed: false };
+          udn          = dailyClosure.subsidiary_id;
           openShift    = req.open_shift || { has_open_shift: false };
           app          = new App(api, 'root');
           custom       = new CustomOrder(api_custom, 'root');
           normal       = new CatalogProduct(api_catalogo, 'root');
+          cierre       = new Cierre(apiCierre);
 
     app.render();
 
 
 
     setInterval(() => {
-        app.actualizarFechaHora({ label: sub_name });
+        app.actualizarFechaHora({ label: app.getSubsidiaryLabel() });
     }, 60000);
 });
 
@@ -45,7 +47,7 @@ class App extends Templates {
         this.layout();
         this.createFilterBar();
         this.ls();
-        this.actualizarFechaHora({ label: sub_name });
+        this.actualizarFechaHora({ label: this.getSubsidiaryLabel() });
         this.updateDailyClosureStatus();
     }
 
@@ -57,7 +59,7 @@ class App extends Templates {
             heightPreset: 'viewport',
             card: {
                 filterBar: { class: 'w-full ', id: 'filterBar' },
-                container: { class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3', id: 'container' + this.PROJECT_NAME }
+                container: { class: 'w-full my-2 bg-[#1F2A37] h-[calc(100vh-12rem)] rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
             }
         });
 
@@ -147,6 +149,11 @@ class App extends Templates {
             data: filterBar
         });
 
+        // Inicializar select con la sucursal activa del usuario
+        if (rol == 1 && dailyClosure.subsidiary_id) {
+            $('#subsidiaries_id').val(dailyClosure.subsidiary_id);
+        }
+
         const savedRange = JSON.parse(localStorage.getItem('pedidos3_calendar_range') || 'null');
         const startDate = savedRange ? moment(savedRange.fi) : moment().startOf("month");
         const endDate = savedRange ? moment(savedRange.ff) : moment().endOf("month");
@@ -195,7 +202,7 @@ class App extends Templates {
         const shiftTime = openShift.has_open_shift && openShift.opened_at
             ? moment(openShift.opened_at).format('h:mm A')
             : '';
-        const showShiftInHeader = openShift.has_open_shift && !isOldShift;
+        const showShiftInHeader = openShift.has_open_shift && openShift.opened_at && !isOldShift;
         const borderClass = showShiftInHeader ? 'border-b-2 border-green-500/30' : 'border-b border-gray-300';
 
         const shiftInfo = showShiftInHeader
@@ -224,6 +231,15 @@ class App extends Templates {
         $(`#${opts.parent}`).html(div);
     }
 
+    getSubsidiaryLabel() {
+        if (rol != 1) return sub_name;
+        const selected = $('#subsidiaries_id');
+        if (!selected.length || selected.val() === '0') return sub_name;
+        const selectedName = selected.find('option:selected').text();
+        const isOwnSubsidiary = selected.val() == udn;
+        return isOwnSubsidiary ? `${selectedName} (Mi sucursal)` : selectedName;
+    }
+
     async onSubsidiaryChange() {
         this.ls();
         await this.checkAndUpdateDailyClosure();
@@ -236,6 +252,7 @@ class App extends Templates {
             openShift = { has_open_shift: true };
             dailyClosure = { is_closed: false };
             this.enableNewOrderButton();
+            this.actualizarFechaHora({ label: 'Todas las sucursales' });
             return;
         }
 
@@ -248,9 +265,12 @@ class App extends Templates {
 
         if (request.open_shift) {
             openShift = request.open_shift;
+        } else {
+            openShift = { has_open_shift: false };
         }
 
         this.updateDailyClosureStatus();
+        this.actualizarFechaHora({ label: this.getSubsidiaryLabel() });
     }
 
     updateDailyClosureStatus() {
@@ -1078,9 +1098,10 @@ class App extends Templates {
             html: `
                 <div class="flex flex-col gap-1 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm w-full">
                     <label for="subsidiaries_id" class="text-sm font-medium text-white">Sucursal:</label>
-                    <select id="subsidiaries_id" name="subsidiaries_id" class="w-full text-xs border border-purple-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:border-purple-400">
-                        ${subsidiaries.map(sub => `<option value="${sub.id}">${sub.valor}</option>`).join('')}
+                    <select id="subsidiaries_id" name="subsidiaries_id" class="w-full text-xs border border-purple-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:border-purple-400" onchange="app.validateOrderSubsidiary()">
+                        ${subsidiaries.map(sub => `<option value="${sub.id}" ${dailyClosure.subsidiary_id == sub.id ? 'selected' : ''}>${sub.valor}</option>`).join('')}
                     </select>
+                    <div id="orderSubsidiaryAlert"></div>
                 </div>
             `
         });
@@ -1209,11 +1230,50 @@ class App extends Templates {
        });
 
        if (response.status === 200) {
-           clients = response.data; // Actualiza la variable global
-           console.log(clients)
+           clients = response.data;
        }
    }
 
+    async validateOrderSubsidiary() {
+        const subsidiaries_id = $('#formPedido #subsidiaries_id').val();
+        const btn = $('#btnGuardarPedido');
+        const alertDiv = $('#orderSubsidiaryAlert');
+
+        const response = await useFetch({
+            url: this._link,
+            data: { opc: "checkDailyClosure", subsidiaries_id: subsidiaries_id }
+        });
+
+        const shift = response.open_shift || { has_open_shift: false };
+        const isClosed = response.is_closed || false;
+        const isOldShift = shift.has_open_shift && shift.opened_at && !moment(shift.opened_at).isSame(moment(), 'day');
+
+        if (isClosed) {
+            btn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
+            alertDiv.html(`
+                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-yellow-900/40 border border-yellow-600/50 rounded text-[11px] text-yellow-300">
+                    <i class="icon-lock"></i> Cierre del día realizado en esta sucursal
+                </div>
+            `);
+        } else if (!shift.has_open_shift) {
+            btn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
+            alertDiv.html(`
+                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-amber-900/40 border border-amber-600/50 rounded text-[11px] text-amber-300">
+                    <i class="icon-attention"></i> Sin turno abierto en esta sucursal
+                </div>
+            `);
+        } else if (isOldShift) {
+            btn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
+            alertDiv.html(`
+                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-amber-900/40 border border-amber-600/50 rounded text-[11px] text-amber-300">
+                    <i class="icon-attention"></i> Turno pendiente de otro día sin cerrar
+                </div>
+            `);
+        } else {
+            btn.prop('disabled', false).removeClass('btn-secondary opacity-50 cursor-not-allowed').addClass('btn-primary');
+            alertDiv.html('');
+        }
+    }
 
 
     // Payments.
@@ -2332,14 +2392,14 @@ class App extends Templates {
     // =============================================
 
     printDailyClose() {
-        this.reportMode = 'detailed';
+        this.reportMode = 'summary';
         this._selectedShiftId = null;
 
         const subsidiarySelect = rol == 1 ? `
-            <div class="mb-4">
+            <div class="mb-3">
                 <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
                 <select id="subsidiariesDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.onDailyCloseFilterChange()">
-                    ${subsidiaries.map(s => `<option value="${s.id}">${s.valor}</option>`).join('')}
+                    ${subsidiaries.map(s => `<option value="${s.id}" ${dailyClosure.subsidiary_id == s.id ? 'selected' : ''}>${s.valor}</option>`).join('')}
                 </select>
             </div>
         ` : '';
@@ -2357,8 +2417,8 @@ class App extends Templates {
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Modo de reporte</label>
                         <div class="flex rounded-lg overflow-hidden border border-gray-600">
-                            <button id="btnModeDetailed" class="flex-1 py-2 text-sm font-semibold bg-purple-600 text-white" onclick="app.toggleReportMode('detailed')">Detallado</button>
-                            <button id="btnModeSummary" class="flex-1 py-2 text-sm font-semibold bg-[#1a2332] text-gray-300 hover:bg-gray-700" onclick="app.toggleReportMode('summary')">Resumido</button>
+                            <button id="btnModeSummary" class="flex-1 py-2 text-sm font-semibold bg-purple-600 text-white" onclick="app.toggleReportMode('summary')">Resumido</button>
+                            <button id="btnModeDetailed" class="flex-1 py-2 text-sm font-semibold bg-[#1a2332] text-gray-300 hover:bg-gray-700" onclick="app.toggleReportMode('detailed')">Detallado</button>
                         </div>
                     </div>
                     <div>
@@ -2376,6 +2436,11 @@ class App extends Templates {
                         </button>
                         <button id="btnPrintTicket" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
                             <i class="icon-print"></i> Imprimir Ticket
+                        </button>
+                    </div>
+                    <div class="border-t border-gray-600 pt-2 mt-2">
+                        <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2" onclick="cierre.initCierre()">
+                            <i class="icon-check"></i> Cerrar Dia
                         </button>
                     </div>
                 </div>
@@ -2438,13 +2503,14 @@ class App extends Templates {
         ]);
 
         const shifts = response.shifts || [];
-        const openShifts = openRes.shifts || [];
+        const today = moment().format('YYYY-MM-DD');
+        const openShifts = (openRes.shifts || []).filter(s => !moment(s.opened_at).isSame(today, 'day'));
         const select = $('#shiftSelector');
         select.html('<option value="">-- Cerrar turno --</option>');
 
         shifts.forEach(s => {
             const time = moment(s.opened_at).format('YYYY-MM-DD hh:mm A');
-            const badge = s.status === 'open' ? ' [ABIERTO]' : '';
+            const badge = s.status === 'open' ? ' [ABIERTO]' : ' [CERRADO]';
             select.append(`<option value="${s.id}" data-status="${s.status}">${time}${badge}</option>`);
         });
 
@@ -2497,6 +2563,11 @@ class App extends Templates {
             `);
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        }
+
+        const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiaries_id } });
+        if (closureCheck.status === 200 && closureCheck.closure) {
+            cierre.loadClosedView(date, subsidiaries_id);
         }
     }
 
@@ -2619,6 +2690,7 @@ class App extends Templates {
                     <div class="text-xs space-y-0.5 mb-2">
                         <div class="flex justify-between"><span>Fecha:</span><span>${fecha}</span></div>
                         <div class="flex justify-between"><span>Apertura:</span><span>${moment(shift.opened_at).format('hh:mm A')}</span></div>
+                        <div class="flex justify-between"><span>Inicio de caja:</span><span>${formatPrice(shift.opening_amount || 0)}</span></div>
                         <div class="flex justify-between"><span>Turno:</span><span>${turnoLabel}</span></div>
                         <div class="flex justify-between"><span>Sucursal:</span><span>${subsidiaryName}</span></div>
                     </div>
@@ -2655,6 +2727,15 @@ class App extends Templates {
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">NÚMERO DE PEDIDOS:</div>
                             <div class="font-bold">${d.total_orders || 0}</div>
+                        </div>
+                        <div class="mt-2"></div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">PAGADOS:</div>
+                            <div>${(d.total_orders || 0) - (d.quotation_count || 0) - (d.cancelled_count || 0) - (d.pending_count || 0)}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">PENDIENTES:</div>
+                            <div>${d.pending_count || 0}</div>
                         </div>
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">COTIZACIONES:</div>
@@ -2699,11 +2780,18 @@ class App extends Templates {
 
     openShift() {
         let subsidiaries_id = rol == 1 ? ($('#subsidiariesDailyClose').val() || null) : null;
+        const subName = rol == 1
+            ? $('#subsidiariesDailyClose option:selected').text()
+            : sub_name;
 
         bootbox.dialog({
             title: 'Abrir Turno de Caja',
             message: `
                 <div class="space-y-3">
+                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <i class="icon-home text-purple-400"></i>
+                        <span class="text-sm font-medium text-purple-300">${subName}</span>
+                    </div>
                     <div>
                         <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
                         <input id="shiftName" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="Ej: Matutino, Vespertino">

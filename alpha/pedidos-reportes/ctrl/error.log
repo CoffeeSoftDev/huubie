@@ -1,3 +1,150 @@
+[ 2026-03-29 13:08:25 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at,
+                cs.opening_amount, cs.total_sales,
+                COALESCE(cs.cash, 0) as total_cash,
+                COALESCE(cs.card, 0) as total_card,
+                COALESCE(cs.transfer, 0) as total_transfer,
+                cs.total_orders, cs.status,
+                u.fullname as employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE (cs.subsidiary_id = ? OR ? = '0')
+            AND DATE(cs.opened_at) BETWEEN ? AND ?
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.cash' in 'field list'
+
+
+[ 2026-03-29 13:08:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at,
+                cs.opening_amount, cs.total_sales,
+                COALESCE(cs.cash, 0) as total_cash,
+                COALESCE(cs.card, 0) as total_card,
+                COALESCE(cs.transfer, 0) as total_transfer,
+                cs.total_orders, cs.status,
+                u.fullname as employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE (cs.subsidiary_id = ? OR ? = '0')
+            AND DATE(cs.opened_at) BETWEEN ? AND ?
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.cash' in 'field list'
+
+
+[ 2026-03-29 13:04:59 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at,
+                cs.opening_amount, cs.total_sales,
+                COALESCE(cs.cash, 0) as total_cash,
+                COALESCE(cs.card, 0) as total_card,
+                COALESCE(cs.transfer, 0) as total_transfer,
+                cs.total_orders, cs.status,
+                u.fullname as employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE (cs.subsidiary_id = ? OR ? = '0')
+            AND DATE(cs.opened_at) BETWEEN ? AND ?
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.cash' in 'field list'
+
+
+[ 2026-03-29 13:04:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at,
+                cs.opening_amount, cs.total_sales,
+                COALESCE(cs.cash, 0) as total_cash,
+                COALESCE(cs.card, 0) as total_card,
+                COALESCE(cs.transfer, 0) as total_transfer,
+                cs.total_orders, cs.status,
+                u.fullname as employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE (cs.subsidiary_id = ? OR ? = '0')
+            AND DATE(cs.opened_at) BETWEEN ? AND ?
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.cash' in 'field list'
+
+
+[ 2026-03-29 13:04:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at,
+                cs.opening_amount, cs.total_sales,
+                COALESCE(cs.cash, 0) as total_cash,
+                COALESCE(cs.card, 0) as total_card,
+                COALESCE(cs.transfer, 0) as total_transfer,
+                cs.total_orders, cs.status,
+                u.fullname as employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE (cs.subsidiary_id = ? OR ? = '0')
+            AND DATE(cs.opened_at) BETWEEN ? AND ?
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.cash' in 'field list'
+
+
+[ 2026-03-29 12:58:31 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at,
+                cs.opening_amount, cs.total_sales,
+                COALESCE(cs.cash, 0) as total_cash,
+                COALESCE(cs.card, 0) as total_card,
+                COALESCE(cs.transfer, 0) as total_transfer,
+                cs.total_orders, cs.status,
+                u.fullname as employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE (cs.subsidiary_id = ? OR ? = '0')
+            AND DATE(cs.opened_at) BETWEEN ? AND ?
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.cash' in 'field list'
+
+
+[ 2026-03-29 12:55:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                cs.id, cs.shift_name, cs.opened_at, cs.closed_at,
+                cs.opening_amount, cs.total_sales,
+                COALESCE(cs.cash, 0) as total_cash,
+                COALESCE(cs.card, 0) as total_card,
+                COALESCE(cs.transfer, 0) as total_transfer,
+                cs.total_orders, cs.status,
+                u.fullname as employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE (cs.subsidiary_id = ? OR ? = '0')
+            AND DATE(cs.opened_at) BETWEEN ? AND ?
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.cash' in 'field list'
+
+
 [ 2026-03-23 13:22:14 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

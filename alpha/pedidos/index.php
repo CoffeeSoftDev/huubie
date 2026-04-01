@@ -137,6 +137,7 @@
     <script src="<?=PATH_PEDIDOS?>src/js/pedidos-personalizado.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/order-reports.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/dashboard-pedidos.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_PEDIDOS?>src/js/pedidos-cierre.js?t=<?php echo time(); ?>"></script>
 
     
     
