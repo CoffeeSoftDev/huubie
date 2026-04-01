@@ -1698,9 +1698,9 @@ class Pedidos extends MPedidos{
                 'logo'            => $_SESSION['LOGO'],
                 'data' => [
                     'total_sales'     => $shift['total_sales'],
-                    'cash_sales'      => $shift['total_cash'],
-                    'card_sales'      => $shift['total_card'],
-                    'transfer_sales'  => $shift['total_transfer'],
+                    'cash_sales'      => $shift['cash'],
+                    'card_sales'      => $shift['card'],
+                    'transfer_sales'  => $shift['transfer'],
                     'total_orders'    => $shift['total_orders'],
                     'quotation_count' => 0,
                     'pending_count'   => 0,
