@@ -135,15 +135,13 @@ class App extends Templates {
                             </div>
                         </div>
                     </div>
-
-                    ${this.isAdmin ? `
+                    
                     <div class="flex flex-col gap-1 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm w-fit">
                         <label for="subsidiaryFilter" class="text-xs font-medium text-purple-700">Sucursal:</label>
                         <select id="subsidiaryFilter" class="text-xs border border-purple-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:border-purple-400" style="min-width: 180px;">
                             <option value="0">Todas las sucursales</option>
                         </select>
                     </div>
-                    ` : ''}
 
                     <div class="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                         <p class="flex items-center">
@@ -172,10 +170,10 @@ class App extends Templates {
     }
 
     initSubsidiaryFilter() {
-        if (!this.isAdmin) return;
+        // if (!this.isAdmin) return;
 
         const $select = $('#subsidiaryFilter');
-        
+
         this.subsidiaries.forEach(sub => {
             $select.append(`<option value="${sub.id}">${sub.valor}</option>`);
         });
@@ -277,7 +275,8 @@ class App extends Templates {
             return;
         }
 
-        const subsidiaryId = this.isAdmin ? ($('#subsidiaryFilter').val() || 0) : 0;
+        // const subsidiaryId = this.isAdmin ? ($('#subsidiaryFilter').val() || 0) : 0;
+        const subsidiaryId = $('#subsidiaryFilter').val() || 0;
 
         let data = await useFetch({
             url: this._link,
@@ -327,7 +326,7 @@ class App extends Templates {
         let envio_domicilio = arg.event.extendedProps.type == 'Envío a Domicilio' ? true : false;
         let entregado = arg.event.extendedProps.delivery == 'Entregado' ? true : false;
         let paraProducir = arg.event.extendedProps.delivery == 'Para Producir' ? true : false;
-        
+
         // Si es para producir, usar emoji de pastel, sino usar el emoji según tipo de entrega
         let emoji = paraProducir ? "🎂" : (envio_domicilio ? "🚚" : "🏠");
 
@@ -361,7 +360,7 @@ class App extends Templates {
         badgeEl.classList.add("mt-1.5");
 
         let badgeClass = "bg-orange-100 text-orange-700 border-1 border-orange-300";
-        
+
         if (entregado) {
             badgeClass = "bg-green-100 text-green-700 border-1 border-green-300";
         } else if (paraProducir) {
@@ -476,7 +475,7 @@ class App extends Templates {
         }
     }
 
-   
+
 
     // Show Order.
 
