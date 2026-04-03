@@ -32,8 +32,6 @@ class Cierre extends MCierre {
         if ($existing) {
             $checks[] = ['key' => 'no_existing', 'ok' => false, 'blocker' => true, 'label' => 'Ya existe un cierre para esta fecha', 'detail' => 'Cerrado por ' . $existing['closed_by_name']];
             $can_close = false;
-        } else {
-            $checks[] = ['key' => 'no_existing', 'ok' => true, 'blocker' => true, 'label' => 'Sin cierre previo', 'detail' => 'No existe cierre para esta fecha y sucursal'];
         }
 
         $openShifts = $this->listOpenShifts([$date, $subsidiaries_id]);
@@ -164,7 +162,7 @@ class Cierre extends MCierre {
                 $card,
                 $transfer,
                 $discount,
-                'closed',
+                0,
                 0
             ]
         ]);
@@ -278,7 +276,7 @@ class Cierre extends MCierre {
             return ['status' => 404, 'message' => 'Cierre no encontrado'];
         }
 
-        if ($closure['status'] == 'reopened') {
+        if ($closure['status'] == 1) {
             return ['status' => 409, 'message' => 'Este cierre ya fue reabierto'];
         }
 

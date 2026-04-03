@@ -105,7 +105,7 @@ class Cierre {
         const html = `
             <h2 class="text-base font-bold text-white mb-1">Checklist de Cierre</h2>
             <p class="text-xs text-gray-500 mb-4">${data.subsidiary_name} — ${moment(date).format('DD/MM/YYYY')}</p>
-            <div class="grid grid-cols-3 gap-3 mb-5">
+            <div class="grid grid-cols-3 gap-3 mb-3">
                 <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700/50">
                     <p class="text-lg font-bold text-green-400">${formatPrice(s.total_sales)}</p>
                     <p class="text-[10px] text-gray-500">Ventas</p>
@@ -196,15 +196,17 @@ class Cierre {
         }
         select.off('change').on('change', function() { cierre.onShiftSelectorChange($(this).val()); });
 
-        $('#openShiftsAlert').html(`
-            <div class="bg-green-900/20 border border-green-600/30 rounded-lg p-3">
-                <div class="flex items-center gap-2 mb-1">
-                    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span class="text-xs font-bold text-green-400 uppercase">Dia cerrado</span>
-                </div>
-                <p class="text-[10px] text-gray-400">Por: <strong class="text-gray-300">${res.closure.closed_by || 'Admin'}</strong> — ${moment(res.closure.created_at).format('hh:mm A')}</p>
-            </div>
-        `).removeClass('hidden');
+        $('#openShiftsAlert').addClass('hidden').html('');
+
+        // Opcion C: badge integrado junto al label de fecha
+        const dateLabel = $('#calendarDailyClose').closest('div');
+        dateLabel.find('.closure-badge, .closure-wrapper').remove();
+        const label = dateLabel.find('label');
+        label.wrap(`<div class="closure-wrapper flex items-center justify-between mb-1"></div>`);
+        label.removeClass('mb-1').addClass('!mb-0');
+        label.after(`<span class="closure-badge bg-green-600 text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-full tracking-wide leading-none">Cerrado</span>`);
+        $('#calendarDailyClose').addClass('!border-green-600/50');
+        dateLabel.append(`<p class="closure-badge text-[10px] text-gray-500 mt-1">Por: <strong class="text-gray-300">${res.closure.closed_by || 'Admin'}</strong> — ${moment(res.closure.created_at).format('hh:mm A')}</p>`);
 
         $('#btnOpenShift, #btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
         $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');

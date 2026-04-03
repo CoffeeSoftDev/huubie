@@ -27,7 +27,7 @@ class MCierre extends CRUD {
             SELECT dc.*, u.fullname AS closed_by_name
             FROM {$this->bd}daily_closure dc
             LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
-            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 'closed' AND dc.active = 1
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 0 AND dc.active = 1
             LIMIT 1
         ";
         $result = $this->_Read($query, $array);
@@ -67,7 +67,7 @@ class MCierre extends CRUD {
 
     function listOrphanOrders($array) {
         $query = "
-            SELECT o.id, o.folio, o.date_creation, o.total_pay, o.status
+            SELECT o.id, o.id as folio, o.date_creation, o.total_pay, o.status
             FROM {$this->bd}`order` o
             WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
               AND (o.cash_shift_id IS NULL OR o.cash_shift_id = 0)
@@ -81,7 +81,7 @@ class MCierre extends CRUD {
     function listPendingBalance($array) {
         $query = "
             SELECT
-                o.id, o.folio, o.date_creation, o.total_pay,
+                o.id, o.id as folio, o.date_creation, o.total_pay,
                 COALESCE(SUM(pp.pay), 0) as total_paid,
                 (o.total_pay - COALESCE(SUM(pp.pay), 0)) as pending_balance
             FROM {$this->bd}`order` o
@@ -193,7 +193,7 @@ class MCierre extends CRUD {
     function updateClosureReopen($array) {
         $query = "
             UPDATE {$this->bd}daily_closure
-            SET status = 'reopened', reopened_by = ?, reopen_reason = ?, reopened_at = ?
+            SET status = 1, reopened_by = ?, reopen_reason = ?, reopened_at = ?
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);

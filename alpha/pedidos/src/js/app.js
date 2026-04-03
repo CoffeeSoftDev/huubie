@@ -2497,6 +2497,25 @@ class App extends Templates {
         let date            = rangePicker.fi;
         let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
 
+        // Limpiar badge de cierre (opcion C) y restaurar boton Cerrar Dia
+        $('.closure-badge').remove();
+        const wrapper = $('.closure-wrapper');
+        if (wrapper.length) {
+            const label = wrapper.find('label');
+            label.removeClass('!mb-0').addClass('mb-1');
+            wrapper.replaceWith(label);
+        }
+        $('#calendarDailyClose').removeClass('!border-green-600/50');
+        let btnArea = $('#btnCerrarDia').parent();
+        if (!$('#btnCerrarDia').length) {
+            btnArea = $('#btnReabrirDia').parent();
+            btnArea.html(`
+                <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2" onclick="cierre.initCierre()">
+                    <i class="icon-check"></i> Cerrar Dia
+                </button>
+            `);
+        }
+
         const [response, openRes] = await Promise.all([
             useFetch({ url: this._link, data: { opc: "getShiftsByDate", date: date, subsidiaries_id: subsidiaries_id } }),
             useFetch({ url: this._link, data: { opc: "getOpenShifts", subsidiaries_id: subsidiaries_id } })
@@ -2504,7 +2523,9 @@ class App extends Templates {
 
         const shifts = response.shifts || [];
         const today = moment().format('YYYY-MM-DD');
-        const openShifts = (openRes.shifts || []).filter(s => !moment(s.opened_at).isSame(today, 'day'));
+        const allOpenShifts = openRes.shifts || [];
+        const openShifts = allOpenShifts.filter(s => !moment(s.opened_at).isSame(today, 'day'));
+        const hasAnyOpenShift = allOpenShifts.length > 0;
         const select = $('#shiftSelector');
         select.html('<option value="">-- Cerrar turno --</option>');
 
@@ -2542,10 +2563,14 @@ class App extends Templates {
                 </div>
             `).removeClass('hidden');
 
-            // Deshabilitar abrir turno si hay turnos abiertos
-            $('#btnOpenShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').removeClass('hover:bg-green-700');
         } else {
             alertContainer.addClass('hidden').html('');
+        }
+
+        // Deshabilitar abrir turno si hay cualquier turno abierto (hoy u otros días)
+        if (hasAnyOpenShift) {
+            $('#btnOpenShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').removeClass('hover:bg-green-700');
+        } else {
             $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
         }
 
