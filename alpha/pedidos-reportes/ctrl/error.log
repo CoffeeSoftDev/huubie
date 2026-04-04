@@ -1,3 +1,53 @@
+[ 2026-04-04 09:01:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                o.id as folio_cuenta,
+                o.date_creation as fecha,
+                c.name as cuenta,
+                o.order_type,
+                COALESCE(o.discount, 0) as descuento_importe,
+                COALESCE(SUM(pp.tip), 0) as propina,
+                COALESCE(o.total_pay, 0) as importe,
+                COALESCE(SUM(CASE WHEN pp.method_pay_id = 1 THEN pp.pay ELSE 0 END), 0) as efectivo,
+                COALESCE(SUM(CASE WHEN pp.method_pay_id = 2 THEN pp.pay ELSE 0 END), 0) as tarjeta,
+                COALESCE(SUM(CASE WHEN pp.method_pay_id = 3 THEN pp.pay ELSE 0 END), 0) as transferencia,
+                o.status
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_clients c ON o.client_id = c.id
+            LEFT JOIN fayxzvov_reginas.order_payments pp ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) BETWEEN ? AND ?
+            AND (o.subsidiaries_id = ? OR ? = '0')
+            GROUP BY o.id
+            ORDER BY o.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.tip' in 'field list'
+
+
+[ 2026-04-04 09:01:26 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                DATE(cs.opened_at) as fecha,
+                COALESCE(SUM(cs.total_orders), 0) as total_tickets,
+                COALESCE(SUM(cs.total_sales), 0) as importe,
+                COALESCE(SUM(cs.total_discount), 0) as descuento,
+                COALESCE(SUM(cs.total_tips), 0) as propina,
+                COALESCE(SUM(cs.total_cash), 0) as efectivo,
+                COALESCE(SUM(cs.total_card), 0) as tarjeta,
+                COALESCE(SUM(cs.total_transfer), 0) as transferencia
+            FROM fayxzvov_reginas.cash_shift cs
+            WHERE cs.status = 'closed'
+            AND DATE(cs.opened_at) BETWEEN ? AND ?
+            AND (cs.subsidiary_id = ? OR ? = '0')
+            GROUP BY DATE(cs.opened_at)
+            ORDER BY fecha ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'cs.total_discount' in 'field list'
+
+
 [ 2026-03-29 13:08:25 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$

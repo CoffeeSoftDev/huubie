@@ -158,7 +158,8 @@ class MPedidos extends CRUD {
 
             DATE_FORMAT(order.time_order, '%h:%i %p') AS time_order,
 
-            status_process.id AS idStatus
+            status_process.id AS idStatus,
+            order.cash_shift_id
         FROM
             {$this->bd}order
         INNER JOIN {$this->bd}order_clients ON client_id = order_clients.id
@@ -489,9 +490,9 @@ class MPedidos extends CRUD {
                 order_products.active",
 
             'leftjoin' => $leftjoin,
-            'where'    => 'order_products.active = ? AND order_products.subsidiaries_id = ?',
-            'order'    => ['DESC' => 'order_products.id'],
-            'data'     => $array
+            'where'    => 'order_products.active = ?',
+            'order'    => ['ASC' => 'order_products.id'],
+            'data'     => [$array[0]]
         ]);
     }
 
@@ -555,11 +556,11 @@ class MPedidos extends CRUD {
 
     public function listProductsById($array) {
         $sql = "
-            SELECT id, name AS valor, price, description,image
+            SELECT id, name AS valor, price, description, image
             FROM {$this->bd}order_products
-            WHERE category_id = ?
+            WHERE category_id = ? AND active = 1
         ";
-        return $this->_Read($sql, $array);
+        return $this->_Read($sql, [$array[0]]);
     }
 
     public function createProduct($array) {

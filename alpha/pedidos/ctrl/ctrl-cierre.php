@@ -259,6 +259,111 @@ class Cierre extends MCierre {
         ];
     }
 
+    function showCorteCaja() {
+        $date            = $_POST['date'];
+        $subsidiaries_id = $this->resolveSubsidiary();
+
+        $sub = $this->getSubsidiaryName([$subsidiaries_id]);
+        $subsidiary_name = $sub ? $sub['sucursal'] : 'Sucursal';
+        $company_name    = $sub ? $sub['company'] : '';
+
+        $summary    = $this->getOrdersSummary([$date, $subsidiaries_id]);
+        $payments   = $this->getPaymentBreakdown([$date, $subsidiaries_id]);
+        $categories = $this->getSalesByCategory([$date, $subsidiaries_id]);
+        $shifts     = $this->getCashShiftsSummary([$date, $subsidiaries_id]);
+
+        $total_cuentas  = intval($summary['total_cuentas']);
+        $canceladas     = intval($summary['canceladas']);
+        $con_descuento  = intval($summary['con_descuento']);
+        $total_ventas   = floatval($summary['total_ventas']);
+        $cuenta_promedio = floatval($summary['cuenta_promedio']);
+        $folio_inicial  = $summary['folio_inicial'];
+        $folio_final    = $summary['folio_final'];
+        $total_descuentos = floatval($summary['total_descuentos']);
+
+        $efectivo      = floatval($payments['Efectivo'] ?? 0);
+        $tarjeta       = floatval($payments['Tarjeta'] ?? 0);
+        $transferencia = floatval($payments['Transferencia'] ?? 0);
+
+        $opening_total = 0;
+        foreach ($shifts as $shift) {
+            $opening_total += floatval($shift['fondo_caja']);
+        }
+
+        $saldo_final = $opening_total + $efectivo;
+
+        return [
+            'status' => 200,
+            'cuentas' => [
+                'normales'        => $total_cuentas - $canceladas,
+                'canceladas'      => $canceladas,
+                'con_descuento'   => $con_descuento,
+                'cuenta_promedio' => $cuenta_promedio,
+                'folio_inicial'   => $folio_inicial,
+                'folio_final'     => $folio_final,
+                'total_ventas'    => $total_ventas
+            ],
+            'caja' => [
+                'efectivo_inicial'  => $opening_total,
+                'efectivo'          => $efectivo,
+                'tarjeta'           => $tarjeta,
+                'transferencia'     => $transferencia,
+                'saldo_final'       => $saldo_final,
+                'total_descuentos'  => $total_descuentos
+            ],
+            'forma_pago'   => $payments,
+            'ventas_categoria' => $categories,
+            'shifts'       => $shifts,
+            'subsidiary_name' => $subsidiary_name,
+            'company_name'    => $company_name,
+            'date'            => $date
+        ];
+    }
+
+    function lsCorteCaja() {
+        $date            = $_POST['date'];
+        $subsidiaries_id = $this->resolveSubsidiary();
+
+        $orders = $this->getOrdersDetail([$date, $subsidiaries_id]);
+        $__row  = [];
+
+        foreach ($orders as $orden) {
+            $isCancelled = intval($orden['status_id']) === 4;
+
+            $__row[] = [
+                'id'        => $orden['folio_cuenta'],
+                'Folio'     => $orden['folio_cuenta'],
+                'Fecha'     => formatSpanishDate($orden['fecha']),
+                'Estado'    => statusCorte($orden['status_id']),
+                'Descuento' => [
+                    'html'  => evaluar($orden['descuento_importe']),
+                    'class' => 'text-end'
+                ],
+                'Importe'   => [
+                    'html'  => $isCancelled
+                        ? '<span class="line-through text-red-400">' . evaluar($orden['importe']) . '</span>'
+                        : evaluar($orden['importe']),
+                    'class' => 'text-end'
+                ],
+                'Efectivo'  => [
+                    'html'  => evaluar($orden['efectivo']),
+                    'class' => 'text-end'
+                ],
+                'Tarjeta'   => [
+                    'html'  => evaluar($orden['tarjeta']),
+                    'class' => 'text-end'
+                ],
+                'Transferencia' => [
+                    'html'  => evaluar($orden['transferencia']),
+                    'class' => 'text-end'
+                ],
+                'opc' => 0
+            ];
+        }
+
+        return ['row' => $__row, 'thead' => ''];
+    }
+
     function statusCierre() {
         if ($_SESSION['ROLID'] != 1) {
             return ['status' => 403, 'message' => 'Solo administradores pueden reabrir un cierre'];
@@ -288,6 +393,20 @@ class Cierre extends MCierre {
             'message' => 'Cierre reabierto correctamente'
         ];
     }
+}
+
+// Complements
+function statusCorte($statusId) {
+    $statuses = [
+        1 => ['bg' => 'bg-blue-100',   'text' => 'text-blue-700',   'label' => 'Cotización'],
+        2 => ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-700', 'label' => 'Pendiente'],
+        3 => ['bg' => 'bg-green-100',  'text' => 'text-green-700',  'label' => 'Pagado'],
+        4 => ['bg' => 'bg-red-100',    'text' => 'text-red-700',    'label' => 'Cancelado']
+    ];
+
+    $style = $statuses[$statusId] ?? ['bg' => 'bg-gray-100', 'text' => 'text-gray-700', 'label' => 'Desconocido'];
+
+    return '<span class="px-2 py-1 rounded text-xs font-bold ' . $style['bg'] . ' ' . $style['text'] . '">' . $style['label'] . '</span>';
 }
 
 $obj = new Cierre();

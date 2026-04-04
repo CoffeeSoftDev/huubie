@@ -220,4 +220,131 @@ class MCierre extends CRUD {
         $result = $this->_Read($query, $array);
         return is_array($result) && !empty($result) ? $result[0] : null;
     }
+
+    // Corte de Caja:
+
+    function getOrdersSummary($array) {
+        $query = "
+            SELECT
+                COUNT(*) AS total_cuentas,
+                SUM(CASE WHEN o.status = 4 THEN 1 ELSE 0 END) AS canceladas,
+                SUM(CASE WHEN o.discount > 0 AND o.status != 4 THEN 1 ELSE 0 END) AS con_descuento,
+                COALESCE(SUM(CASE WHEN o.status != 4 THEN o.total_pay ELSE 0 END), 0) AS total_ventas,
+                COALESCE(AVG(CASE WHEN o.status != 4 THEN o.total_pay ELSE NULL END), 0) AS cuenta_promedio,
+                MIN(o.id) AS folio_inicial,
+                MAX(o.id) AS folio_final,
+                COALESCE(SUM(CASE WHEN o.status != 4 THEN o.discount ELSE 0 END), 0) AS total_descuentos
+            FROM {$this->bd}`order` o
+            WHERE DATE(o.date_creation) = ?
+            AND o.subsidiaries_id = ?
+            AND o.is_legacy = 0
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function getPaymentBreakdown($array) {
+        $query = "
+            SELECT
+                mp.method_pay AS nombre,
+                COALESCE(SUM(pp.pay), 0) AS total
+            FROM {$this->bd}order_payments pp
+            INNER JOIN {$this->bd}`order` o ON pp.order_id = o.id
+            INNER JOIN {$this->bd}method_pay mp ON pp.method_pay_id = mp.id
+            WHERE DATE(o.date_creation) = ?
+            AND o.subsidiaries_id = ?
+            AND o.status != 4
+            AND o.is_legacy = 0
+            GROUP BY mp.id, mp.method_pay
+            ORDER BY mp.id ASC
+        ";
+        $result = $this->_Read($query, $array);
+        $breakdown = [];
+
+        if (is_array($result) && !empty($result)) {
+            foreach ($result as $row) {
+                $breakdown[$row['nombre']] = floatval($row['total']);
+            }
+        }
+
+        return $breakdown;
+    }
+
+    function getOrdersDetail($array) {
+        $query = "
+            SELECT
+                o.id AS folio_cuenta,
+                o.id AS folio_nota,
+                o.date_creation AS fecha,
+                sp.status AS status_nombre,
+                o.status AS status_id,
+                COALESCE(o.discount, 0) AS descuento_importe,
+                o.total_pay AS importe,
+                COALESCE((SELECT SUM(pp.pay) FROM {$this->bd}order_payments pp WHERE pp.order_id = o.id AND pp.method_pay_id = 1), 0) AS efectivo,
+                COALESCE((SELECT SUM(pp.pay) FROM {$this->bd}order_payments pp WHERE pp.order_id = o.id AND pp.method_pay_id = 2), 0) AS tarjeta,
+                COALESCE((SELECT SUM(pp.pay) FROM {$this->bd}order_payments pp WHERE pp.order_id = o.id AND pp.method_pay_id = 3), 0) AS transferencia
+            FROM {$this->bd}`order` o
+            LEFT JOIN {$this->bd}status_process sp ON o.status = sp.id
+            WHERE DATE(o.date_creation) = ?
+            AND o.subsidiaries_id = ?
+            AND o.is_legacy = 0
+            ORDER BY o.id ASC
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
+    function getCashShiftsSummary($array) {
+        $query = "
+            SELECT
+                cs.id,
+                cs.shift_name AS estacion,
+                u.fullname AS cajero,
+                cs.opened_at AS apertura,
+                cs.closed_at AS cierre,
+                cs.total_sales AS total,
+                cs.opening_amount AS fondo_caja,
+                cs.cash AS efectivo,
+                cs.card AS tarjeta,
+                cs.transfer AS transferencia,
+                cs.total_orders,
+                cs.status
+            FROM {$this->bd}cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ?
+            AND cs.subsidiary_id = ?
+            AND cs.active = 1
+            ORDER BY cs.opened_at ASC
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
+    function getSalesByCategory($array) {
+        $query = "
+            SELECT
+                oc.classification AS categoria,
+                COALESCE(SUM(pkg.price * pkg.quantity), 0) AS total
+            FROM {$this->bd}order_package pkg
+            INNER JOIN {$this->bd}`order` o ON pkg.pedidos_id = o.id
+            LEFT JOIN {$this->bd}order_products op ON pkg.product_id = op.id
+            LEFT JOIN {$this->bd}order_category oc ON op.category_id = oc.id
+            WHERE DATE(o.date_creation) = ?
+            AND o.subsidiaries_id = ?
+            AND o.status != 4
+            AND o.is_legacy = 0
+            GROUP BY oc.id, oc.classification
+            ORDER BY total DESC
+        ";
+        $result = $this->_Read($query, $array);
+        $categories = [];
+
+        if (is_array($result) && !empty($result)) {
+            foreach ($result as $row) {
+                $categories[$row['categoria'] ?: 'Sin categoría'] = floatval($row['total']);
+            }
+        }
+
+        return $categories;
+    }
 }

@@ -56,10 +56,10 @@ class App extends Templates {
             parent: "root",
             id: this.PROJECT_NAME,
             class: 'flex mx-2  p-2 ',
-            heightPreset: 'viewport',
+            heightPreset: 'full',
             card: {
                 filterBar: { class: 'w-full ', id: 'filterBar' },
-                container: { class: 'w-full my-2 bg-[#1F2A37] h-[calc(100vh-12rem)] rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
+                container: { class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
             }
         });
 
@@ -284,13 +284,11 @@ class App extends Templates {
 
             if ($('#dailyClosureAlert').length === 0) {
                 const alertHtml = `
-                    <div id="dailyClosureAlert" class="bg-yellow-900/50 border border-yellow-600 text-yellow-200 px-4 py-2 rounded-lg mb-3 flex items-center gap-2">
-                        <i class="icon-lock text-yellow-400"></i>
-                        <span>
-                            <strong>Cierre del día realizado.</strong>
-                            No se pueden crear nuevos pedidos para hoy.
-                            ${dailyClosure.closed_by ? `<br><small class="text-yellow-400">Cerrado por: ${dailyClosure.closed_by}</small>` : ''}
-                        </span>
+                    <div id="dailyClosureAlert" class="flex items-center gap-2 mb-3 pl-1">
+                        <span class="w-2 h-2 bg-red-400 rounded-full flex-shrink-0"></span>
+                        <p class="text-[11px] text-gray-400">
+                            Día cerrado <span class="text-gray-600">—</span> <span class="text-gray-500">${dailyClosure.closed_by || ''}${dailyClosure.closed_at ? ', ' + moment(dailyClosure.closed_at).format('hh:mm A') : ''}</span>
+                        </p>
                     </div>
                 `;
                 $('#containerHours').after(alertHtml);
@@ -401,11 +399,21 @@ class App extends Templates {
             attr: {
                 id: `tb${this.PROJECT_NAME}`,
                 theme: 'dark',
-                center: [1, 2, 7, 8, 9, 10, 11],
+                center: [1, 2,7, 8, 9, 10, 11, 12],
                 extends: true,
                 f_size:12,
             },
         });
+
+        this.injectShiftPulseStyle();
+    }
+
+    injectShiftPulseStyle() {
+        if ($('#shiftPulseStyle').length) return;
+        $('<style id="shiftPulseStyle">').text(
+            `.shift-pulse { animation: shiftPulse 3s ease-in-out infinite; }` +
+            `@keyframes shiftPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`
+        ).appendTo('head');
     }
 
     addOrder() {
@@ -2438,7 +2446,10 @@ class App extends Templates {
                             <i class="icon-print"></i> Imprimir Ticket
                         </button>
                     </div>
-                    <div class="border-t border-gray-600 pt-2 mt-2">
+                    <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
+                        <button id="btnCorteCaja" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2" onclick="cierre.showCorteCaja()">
+                            <i class="icon-doc-text"></i> Corte de Caja
+                        </button>
                         <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2" onclick="cierre.initCierre()">
                             <i class="icon-check"></i> Cerrar Dia
                         </button>
@@ -2817,10 +2828,10 @@ class App extends Templates {
                         <i class="icon-home text-purple-400"></i>
                         <span class="text-sm font-medium text-purple-300">${subName}</span>
                     </div>
-                    <div>
+                    <!-- <div>
                         <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
                         <input id="shiftName" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="Ej: Matutino, Vespertino">
-                    </div>
+                    </div> -->
                     <div>
                         <label class="text-sm font-medium text-gray-300 block mb-1">Fondo de caja inicial</label>
                         <input id="openingAmount" type="number" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="0.00" min="0" step="0.01">
@@ -2837,7 +2848,7 @@ class App extends Templates {
                     label: 'Abrir Turno',
                     className: 'btn-success',
                     callback: async () => {
-                        const shift_name = $('#shiftName').val().trim();
+                        const shift_name = ($('#shiftName').val() || '').trim();
                         const opening_amount = parseFloat($('#openingAmount').val()) || 0;
 
                         const response = await useFetch({

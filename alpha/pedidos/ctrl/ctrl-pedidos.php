@@ -136,6 +136,10 @@ class Pedidos extends MPedidos{
             $subsidiaries_id = $sessionSub;
         }
       
+        $currentSubForShift = ($subsidiaries_id && $subsidiaries_id != '0') ? $subsidiaries_id : $sessionSub;
+        $currentShift = $this->getOpenShiftBySubsidiary([$currentSubForShift]);
+        $currentShiftId = $currentShift ? $currentShift['id'] : null;
+
         $orders   = $this->getOrders([
 
             'fi'              => $_POST['fi'] ?? '',
@@ -170,12 +174,14 @@ class Pedidos extends MPedidos{
 
             $Folio   = formatSucursal($Sucursal['name'], $Sucursal['sucursal'], $order['id']);
 
-
-            // list.
+            $isCurrentShift = $currentShiftId && $order['cash_shift_id'] == $currentShiftId;
+            $shiftDot = $isCurrentShift
+                ? "<span class='inline-block w-1.5 h-1.5 bg-green-400 rounded-full shift-pulse mr-1.5'></span>"
+                : "<span class='inline-block w-1.5 h-1.5 bg-gray-500 rounded-full mr-1.5'></span>";
 
             $rows[] = [
                 'id'       => $order['id'],
-                'folio'    => $Folio,
+                'folio'    => ['html' => "<span class='flex items-center'>{$shiftDot}{$Folio}</span>"],
                 'Creación' => formatSpanishDate($order['date_creation']),
 
                 'Cliente' => [

@@ -22,7 +22,21 @@
       "Bash(c:/wamp64/bin/mysql/mysql8.4.3/bin/mysql.exe -u root fayxzvov_reginas)",
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas)",
       "WebSearch",
-      "Bash(grep -E \"\\(^[^/]*\\\\.php$|README|\\\\.md$\\)\")"
+      "Bash(grep -E \"\\(^[^/]*\\\\.php$|README|\\\\.md$\\)\")",
+      "Bash(grep -r \"SELECT\\\\|INSERT\\\\|UPDATE\\\\|DELETE\" /c/wamp64/www/huubie/alpha/pedidos/mdl/*.php)",
+      "Bash(grep -r \"function\\\\|class\" /c/wamp64/www/huubie/alpha/pedidos/src/js/*.js)",
+      "Bash(wc:*)",
+      "Bash(grep -r \"inventory\\\\|stock\\\\|waste\\\\|print\\\\|ticket\\\\|drawer\\\\|refund\\\\|return\\\\|revert\\\\|undo\" /c/wamp64/www/huubie/alpha/pedidos/src/js/*.js)",
+      "Bash(grep -r \"CREATE TABLE\" /c/wamp64/www/huubie/alpha/pedidos2/sql/*.sql)",
+      "Bash(grep -rE '\\\\$this->bd\\\\s*\\\\.\\\\s*'\\\\''[a-z_]+'\\\\''' /c/wamp64/www/huubie/alpha/pedidos/mdl/mdl-pedidos.php)",
+      "Bash(grep -n \"CREATE TABLE\" /c/wamp64/www/huubie/alpha/pedidos/sql/*.sql)",
+      "Bash(grep -oE '$this->bd\\\\s*\\\\.\\\\s*['\\\\''\"]\\([^'\\\\''\"]+\\)['\\\\''\"]' /c/wamp64/www/huubie/alpha/pedidos/mdl/mdl-pedidos.php)",
+      "Bash(grep -oE '$this->bd\\\\s*\\\\.\\\\s*['\\\\''\"]\\([^'\\\\''\"]+\\)['\\\\''\"]' /c/wamp64/www/huubie/alpha/pedidos/mdl/mdl-cierre.php)",
+      "Bash(grep -E \"'\\(order_|cash_|daily_|closure_\\)\" /c/wamp64/www/huubie/alpha/pedidos/mdl/*.php)",
+      "Bash(grep -E \"bd\\\\}\\([a-z_]+\\)|->bd\\\\s*\\\\.\\\\s*['\\\\\"]\\([a-z_]+\\)\" /c/wamp64/www/huubie/alpha/pedidos/mdl/*.php)",
+      "Bash(grep -rh '$this->bd\\\\}' /c/wamp64/www/huubie/alpha/pedidos/mdl/)",
+      "Bash(grep -oE \"\\\\`[a-z_]+\\\\`|'[a-z_]+'\")",
+      "Bash(grep -rh \"bd}['\\\\`]*[a-z_]*\" /c/wamp64/www/huubie/alpha/pedidos/mdl/)"
     ]
   }
 }

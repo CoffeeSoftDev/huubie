@@ -309,28 +309,306 @@ class Cierre {
         }
     }
 
-    async reopenClosure(closureId) {
-        const result = await Swal.fire({
+    // Corte de Caja
+
+    async showCorteCaja() {
+        let rangePicker     = getDataRangePicker("calendarDailyClose");
+        let date            = rangePicker.fi;
+        let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
+
+        $('#ticketContainer').html(`
+            <div class="text-center text-gray-400 py-16">
+                <div class="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p>Generando corte de caja...</p>
+            </div>
+        `);
+
+        const data = await useFetch({ url: this.api, data: { opc: 'showCorteCaja', date: date, subsidiaries_id: subsidiaries_id } });
+
+        if (data.status !== 200) {
+            $('#ticketContainer').html(`<p class="text-center text-red-400 py-10">${data.message || 'Error al generar reporte'}</p>`);
+            return;
+        }
+
+        this._corteCajaData = data;
+        this.renderCorteCaja(data);
+    }
+
+    renderCorteCaja(data) {
+        const c   = data.cuentas;
+        const cj  = data.caja;
+        const fp  = data.forma_pago;
+        const cat = data.ventas_categoria;
+        const shifts = data.shifts || [];
+        const fecha  = moment(data.date).format('DD/MM/YYYY');
+
+        const sectionClass = 'bg-white rounded-lg border border-gray-200 p-4 mb-4';
+        const headerClass  = 'text-xs font-bold uppercase tracking-wide text-purple-700 border-b border-gray-200 pb-2 mb-3';
+        const rowClass     = 'flex justify-between text-xs py-0.5';
+        const valBold      = 'font-semibold text-gray-900';
+        const valNormal    = 'text-gray-700';
+
+        const row = (label, value, bold = false) =>
+            `<div class="${rowClass}"><span class="${valNormal}">${label}</span><span class="${bold ? valBold : valNormal}">${value}</span></div>`;
+
+        const moneyRow = (label, amount, bold = false) =>
+            row(label, formatPrice(amount), bold);
+
+        // Seccion CUENTAS
+        const cuentasHtml = `
+            <div class="${sectionClass}">
+                <div class="${headerClass}">Cuentas</div>
+                ${row('Normales', c.normales)}
+                ${row('Canceladas', c.canceladas)}
+                ${row('Con Descuento', c.con_descuento)}
+                ${moneyRow('Cuenta Promedio', c.cuenta_promedio)}
+                ${row('Folio Inicial', c.folio_inicial || '-')}
+                ${row('Folio Final', c.folio_final || '-')}
+                <div class="border-t border-gray-100 mt-2 pt-2">
+                    ${moneyRow('Total Ventas', c.total_ventas, true)}
+                </div>
+            </div>
+        `;
+
+        // Seccion CAJA
+        const cajaHtml = `
+            <div class="${sectionClass}">
+                <div class="${headerClass}">Caja</div>
+                ${moneyRow('Efectivo Inicial', cj.efectivo_inicial)}
+                ${moneyRow('Efectivo', cj.efectivo)}
+                ${moneyRow('Tarjeta', cj.tarjeta)}
+                ${moneyRow('Transferencia', cj.transferencia)}
+                <div class="border-t border-gray-100 mt-2 pt-2">
+                    ${moneyRow('Saldo Final', cj.saldo_final, true)}
+                </div>
+                <div class="border-t border-gray-100 mt-2 pt-2">
+                    ${moneyRow('Total Descuentos', cj.total_descuentos)}
+                </div>
+            </div>
+        `;
+
+        // Seccion FORMA DE PAGO
+        let fpRows = '';
+        let fpTotal = 0;
+        Object.keys(fp).forEach(key => {
+            fpRows += moneyRow(key, fp[key]);
+            fpTotal += fp[key];
+        });
+
+        const formaPagoHtml = `
+            <div class="${sectionClass}">
+                <div class="${headerClass}">Forma de Pago - Ventas</div>
+                ${fpRows}
+                <div class="border-t border-gray-100 mt-2 pt-2">
+                    ${moneyRow('Total', fpTotal, true)}
+                </div>
+            </div>
+        `;
+
+        // Seccion VENTAS POR CATEGORIA
+        let catRows = '';
+        let catTotal = 0;
+        Object.keys(cat).forEach(key => {
+            catRows += moneyRow(key, cat[key]);
+            catTotal += cat[key];
+        });
+
+        const ventasCatHtml = `
+            <div class="${sectionClass}">
+                <div class="${headerClass}">Ventas por Categoría</div>
+                ${catRows}
+                <div class="border-t border-gray-100 mt-2 pt-2">
+                    ${moneyRow('Total', catTotal, true)}
+                </div>
+            </div>
+        `;
+
+        // Seccion CORTE DE CAJA X (Turnos)
+        let shiftsRows = '';
+        shifts.forEach(shift => {
+            const apertura = shift.apertura ? moment(shift.apertura).format('hh:mm A') : '-';
+            const cierre   = shift.cierre ? moment(shift.cierre).format('hh:mm A') : 'Abierto';
+            const statusBg = shift.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700';
+
+            shiftsRows += `
+                <div class="bg-gray-50 rounded-lg p-3 mb-2 border border-gray-100">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-gray-800">${shift.cajero || 'Sin cajero'}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusBg}">${shift.status === 'closed' ? 'CERRADO' : 'ABIERTO'}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 text-[11px]">
+                        <div><span class="text-gray-500">Apertura:</span> <span class="font-medium">${apertura}</span></div>
+                        <div><span class="text-gray-500">Cierre:</span> <span class="font-medium">${cierre}</span></div>
+                        <div><span class="text-gray-500">Fondo:</span> <span class="font-medium">${formatPrice(shift.fondo_caja || 0)}</span></div>
+                        <div><span class="text-gray-500">Pedidos:</span> <span class="font-medium">${shift.total_orders || 0}</span></div>
+                    </div>
+                    <div class="border-t border-gray-200 mt-2 pt-2 grid grid-cols-3 gap-1 text-[11px]">
+                        <div class="text-center"><div class="text-gray-500">Efectivo</div><div class="font-bold">${formatPrice(shift.efectivo || 0)}</div></div>
+                        <div class="text-center"><div class="text-gray-500">Tarjeta</div><div class="font-bold">${formatPrice(shift.tarjeta || 0)}</div></div>
+                        <div class="text-center"><div class="text-gray-500">Transferencia</div><div class="font-bold">${formatPrice(shift.transferencia || 0)}</div></div>
+                    </div>
+                    <div class="border-t border-gray-200 mt-2 pt-2 flex justify-between">
+                        <span class="text-xs font-bold text-gray-700">Total</span>
+                        <span class="text-xs font-bold text-gray-900">${formatPrice(shift.total || 0)}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        const shiftsHtml = `
+            <div class="${sectionClass}">
+                <div class="${headerClass}">Corte de Caja X - Turnos (${shifts.length})</div>
+                ${shiftsRows || '<p class="text-xs text-gray-400 text-center py-3">Sin turnos registrados</p>'}
+            </div>
+        `;
+
+        const html = `
+            <div id="corteCajaReport" class="max-w-lg mx-auto">
+                <div class="text-center mb-4">
+                    <h2 class="text-base font-bold text-gray-900">CORTE DE CAJA</h2>
+                    <p class="text-xs text-gray-500">${data.company_name || ''}</p>
+                    <p class="text-xs text-gray-500">${data.subsidiary_name} — ${fecha}</p>
+                </div>
+                ${cuentasHtml}
+                ${cajaHtml}
+                ${formaPagoHtml}
+                ${ventasCatHtml}
+                ${shiftsHtml}
+                <div class="text-center mt-2 mb-4">
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg" onclick="cierre.showCorteCajaDetail()">
+                        <i class="icon-doc-text mr-1"></i> Ver Detalle de Cuentas
+                    </button>
+                </div>
+                <div id="corteCajaDetailContainer"></div>
+                <p class="text-[9px] text-gray-400 text-center mt-4">Generado: ${moment().format('DD/MM/YYYY HH:mm:ss')}</p>
+            </div>
+        `;
+
+        $('#ticketContainer').html(html);
+        $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+    }
+
+    async showCorteCajaDetail() {
+        let rangePicker     = getDataRangePicker("calendarDailyClose");
+        let date            = rangePicker.fi;
+        let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
+
+        $('#corteCajaDetailContainer').html(`
+            <div class="text-center text-gray-400 py-4">
+                <div class="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                <p class="text-xs">Cargando detalle...</p>
+            </div>
+        `);
+
+        const data = await useFetch({ url: this.api, data: { opc: 'lsCorteCaja', date: date, subsidiaries_id: subsidiaries_id } });
+
+        if (!data.row || data.row.length === 0) {
+            $('#corteCajaDetailContainer').html('<p class="text-xs text-gray-400 text-center py-4">Sin registros para esta fecha</p>');
+            return;
+        }
+
+        let totalImporte = 0, totalEfectivo = 0, totalTarjeta = 0, totalTransferencia = 0, totalDescuento = 0;
+
+        const rows = data.row.map(r => {
+            const importe = parseFloat(r.Importe?.html?.replace(/[^0-9.-]/g, '') || 0);
+            const efectivo = parseFloat(r.Efectivo?.html?.replace(/[^0-9.-]/g, '') || 0);
+            const tarjeta = parseFloat(r.Tarjeta?.html?.replace(/[^0-9.-]/g, '') || 0);
+            const transferencia = parseFloat(r.Transferencia?.html?.replace(/[^0-9.-]/g, '') || 0);
+            const descuento = parseFloat(r.Descuento?.html?.replace(/[^0-9.-]/g, '') || 0);
+
+            totalImporte += importe;
+            totalEfectivo += efectivo;
+            totalTarjeta += tarjeta;
+            totalTransferencia += transferencia;
+            totalDescuento += descuento;
+
+            return `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-1.5 px-2 text-center">${r.Folio}</td>
+                    <td class="py-1.5 px-2">${r.Fecha}</td>
+                    <td class="py-1.5 px-2 text-center">${r.Estado}</td>
+                    <td class="py-1.5 px-2 text-end">${r.Descuento?.html || '-'}</td>
+                    <td class="py-1.5 px-2 text-end">${r.Importe?.html || '-'}</td>
+                    <td class="py-1.5 px-2 text-end">${r.Efectivo?.html || '-'}</td>
+                    <td class="py-1.5 px-2 text-end">${r.Tarjeta?.html || '-'}</td>
+                    <td class="py-1.5 px-2 text-end">${r.Transferencia?.html || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const html = `
+            <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 overflow-x-auto">
+                <div class="text-xs font-bold uppercase tracking-wide text-purple-700 border-b border-gray-200 pb-2 mb-3">Detalle de Cuentas</div>
+                <table class="w-full text-[11px] text-gray-700">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-600 uppercase text-[10px]">
+                            <th class="py-2 px-2 text-center">Folio</th>
+                            <th class="py-2 px-2 text-left">Fecha</th>
+                            <th class="py-2 px-2 text-center">Estado</th>
+                            <th class="py-2 px-2 text-end">Descuento</th>
+                            <th class="py-2 px-2 text-end">Importe</th>
+                            <th class="py-2 px-2 text-end">Efectivo</th>
+                            <th class="py-2 px-2 text-end">Tarjeta</th>
+                            <th class="py-2 px-2 text-end">Transferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot>
+                        <tr class="bg-gray-100 font-bold text-gray-900 text-[11px]">
+                            <td class="py-2 px-2" colspan="3">TOTALES</td>
+                            <td class="py-2 px-2 text-end">${formatPrice(totalDescuento)}</td>
+                            <td class="py-2 px-2 text-end">${formatPrice(totalImporte)}</td>
+                            <td class="py-2 px-2 text-end">${formatPrice(totalEfectivo)}</td>
+                            <td class="py-2 px-2 text-end">${formatPrice(totalTarjeta)}</td>
+                            <td class="py-2 px-2 text-end">${formatPrice(totalTransferencia)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+
+        $('#corteCajaDetailContainer').html(html);
+    }
+
+    reopenClosure(closureId) {
+        const modal = bootbox.dialog({
             title: 'Reabrir Cierre Diario',
-            html: '<p class="text-sm text-gray-300">Indica el motivo de la reapertura:</p>',
-            input: 'textarea',
-            inputPlaceholder: 'Motivo de reapertura...',
-            inputAttributes: { required: true },
-            showCancelButton: true,
-            confirmButtonColor: '#d97706',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Reabrir',
-            cancelButtonText: 'Cancelar',
-            background: '#1F2A37',
-            color: '#fff',
-            inputValidator: (value) => {
-                if (!value || value.trim() === '') return 'Debes indicar un motivo';
+            message: `
+                <p class="text-sm text-gray-300 mb-3">Indica el motivo de la reapertura:</p>
+                <textarea id="reopenReason" class="w-full bg-[#151d2a] border border-gray-600 rounded-lg p-3 text-white text-sm focus:border-amber-500 focus:outline-none resize-none" rows="4" placeholder="Motivo de reapertura..."></textarea>
+                <p id="reopenError" class="text-red-400 text-xs mt-1 hidden">Debes indicar un motivo</p>
+            `,
+            closeButton: true,
+            buttons: {
+                cancel: {
+                    label: 'Cancelar',
+                    className: 'btn bg-gray-600 hover:bg-gray-700 text-white border-0'
+                },
+                confirm: {
+                    label: 'Reabrir',
+                    className: 'btn bg-amber-600 hover:bg-amber-700 text-white border-0',
+                    callback: () => {
+                        const reason = $('#reopenReason').val();
+                        if (!reason || reason.trim() === '') {
+                            $('#reopenError').removeClass('hidden');
+                            $('#reopenReason').addClass('!border-red-500');
+                            return false;
+                        }
+                        this._executeReopen(closureId, reason, modal);
+                        return false;
+                    }
+                }
             }
         });
 
-        if (!result.isConfirmed) return;
+        modal.on('shown.bs.modal', () => {
+            $('#reopenReason').focus();
+        });
+    }
 
-        const res = await useFetch({ url: this.api, data: { opc: 'statusCierre', closure_id: closureId, reason: result.value } });
+    async _executeReopen(closureId, reason, modal) {
+        const res = await useFetch({ url: this.api, data: { opc: 'statusCierre', closure_id: closureId, reason: reason } });
+        modal.modal('hide');
 
         if (res.status === 200) {
             Swal.fire({ title: 'Cierre reabierto', text: res.message, icon: 'success', background: '#1F2A37', color: '#fff', confirmButtonColor: '#d97706' });
