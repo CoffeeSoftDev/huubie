@@ -613,6 +613,7 @@ class Cierre {
         if (res.status === 200) {
             Swal.fire({ title: 'Cierre reabierto', text: res.message, icon: 'success', background: '#1F2A37', color: '#fff', confirmButtonColor: '#d97706' });
             dailyClosure = { is_closed: false };
+            app.updateDailyClosureStatus();
             app.loadShifts();
         } else {
             Swal.fire({ title: 'Error', text: res.message || 'Error al reabrir', icon: 'error', background: '#1F2A37', color: '#fff' });

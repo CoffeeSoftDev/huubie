@@ -276,6 +276,9 @@ class App extends Templates {
     updateDailyClosureStatus() {
         const btn = $('#btnNuevoPedido');
 
+        // Limpiar todas las alertas previas antes de evaluar el nuevo estado
+        $('#dailyClosureAlert, #shiftAlert, #shiftOldAlert').remove();
+
         if (dailyClosure.is_closed) {
             btn.prop('disabled', true)
                .removeClass('btn-primary')
@@ -2447,9 +2450,6 @@ class App extends Templates {
                         </button>
                     </div>
                     <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
-                        <button id="btnCorteCaja" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2" onclick="cierre.showCorteCaja()">
-                            <i class="icon-doc-text"></i> Corte de Caja
-                        </button>
                         <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2" onclick="cierre.initCierre()">
                             <i class="icon-check"></i> Cerrar Dia
                         </button>
@@ -2604,6 +2604,10 @@ class App extends Templates {
         const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiaries_id } });
         if (closureCheck.status === 200 && closureCheck.closure) {
             cierre.loadClosedView(date, subsidiaries_id);
+        } else if (date === moment().format('YYYY-MM-DD')) {
+            // Sincronizar estado de la pantalla principal si hoy no hay cierre activo
+            dailyClosure = { is_closed: false, subsidiary_id: subsidiaries_id || udn };
+            this.updateDailyClosureStatus();
         }
     }
 
