@@ -68,7 +68,7 @@
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
     <div id="mainContainer"
-        class="w-full min-h-screen flex flex-col text-white mt-12 p-3 overflow-x-hidden">
+        class="w-full flex flex-col text-white mt-12 p-3 overflow-x-hidden">
         <div style="background-color:#111827;" class="w-full max-w-full overflow-x-auto" id="root"></div>
     </div>
 

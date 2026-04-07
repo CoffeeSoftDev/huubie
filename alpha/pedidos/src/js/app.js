@@ -2443,14 +2443,14 @@ class App extends Templates {
                             <i class="icon-plus"></i> Abrir Turno
                         </button>
                         <button id="btnCloseShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.closeShift()">
-                            <i class="icon-lock"></i> Cerrar Caja
+                            <i class="icon-lock"></i> Cerrar Turno
                         </button>
                         <button id="btnPrintTicket" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
                             <i class="icon-print"></i> Imprimir Ticket
                         </button>
                     </div>
                     <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
-                        <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2" onclick="cierre.initCierre()">
+                        <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
                             <i class="icon-check"></i> Cerrar Dia
                         </button>
                     </div>
@@ -2521,7 +2521,7 @@ class App extends Templates {
         if (!$('#btnCerrarDia').length) {
             btnArea = $('#btnReabrirDia').parent();
             btnArea.html(`
-                <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2" onclick="cierre.initCierre()">
+                <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
                     <i class="icon-check"></i> Cerrar Dia
                 </button>
             `);
@@ -2599,6 +2599,14 @@ class App extends Templates {
             `);
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        }
+
+        // Habilitar botón Cerrar Día solo si hay al menos un turno cerrado
+        const hasClosedShifts = shifts.some(s => s.status === 'closed');
+        if (hasClosedShifts) {
+            $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        } else {
+            $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
         }
 
         const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiaries_id } });

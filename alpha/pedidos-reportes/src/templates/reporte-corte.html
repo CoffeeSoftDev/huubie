@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte - Corte de Caja</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            color: #e0e0e0;
+            background: #111928;
+            padding: 16px;
+        }
+
+        /* ── Tabs ── */
+        .tabs-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 12px;
+            background: #1F2A37;
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+        .tab-btn {
+            padding: 8px 18px;
+            border: none;
+            background: transparent;
+            color: #9CA3AF;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { background: #283341; color: #D1D5DB; }
+        .tab-btn.active { background: #3B82F6; color: #fff; }
+
+        /* ══════════════════════════════════════════
+           RESUMEN CORTE - Estilo Bancario
+           ══════════════════════════════════════════ */
+        .pdf-document {
+            background: #fff;
+            color: #2c3e50;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 36px 44px;
+            border-radius: 3px;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04);
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11px;
+        }
+
+        /* Header documento */
+        .pdf-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 3px double #2c3e50;
+        }
+        .pdf-header h2 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #1a252f;
+            letter-spacing: 1.5px;
+        }
+        .pdf-header .meta {
+            font-size: 10px;
+            color: #7f8c8d;
+        }
+        .pdf-header .meta span {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        /* Barra de totales */
+        .pdf-totals-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .pdf-totals-bar .total-item {
+            padding: 12px 14px;
+            background: #f7f9fb;
+            border: 1px solid #dce3ea;
+            border-radius: 4px;
+            border-top: 3px solid #bdc3c7;
+        }
+        .pdf-totals-bar .total-item .label {
+            font-size: 8px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .pdf-totals-bar .total-item .value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2c3e50;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        .pdf-totals-bar .total-item.highlight {
+            background: #3d4f5f;
+            border-color: #3d4f5f;
+            border-top-color: #2c3e50;
+        }
+        .pdf-totals-bar .total-item.highlight .label { color: #b0bec5; }
+        .pdf-totals-bar .total-item.highlight .value { color: #eceff1; }
+
+        /* Grid secciones */
+        .pdf-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        @media (max-width: 900px) { .pdf-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 600px) { .pdf-grid { grid-template-columns: 1fr; } }
+
+        /* Secciones */
+        .pdf-section {
+            border: 1px solid #dce3ea;
+            border-radius: 3px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .pdf-section-title {
+            background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%);
+            padding: 7px 12px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #4a5568;
+            border-bottom: 1px solid #d1d9e0;
+        }
+        .pdf-section-body {
+            padding: 10px 12px;
+        }
+
+        /* Filas key-value */
+        .pdf-kv {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #f0f2f5;
+        }
+        .pdf-kv:last-child { border-bottom: none; }
+        .pdf-kv .kv-label {
+            color: #5a6a7a;
+            font-size: 10px;
+        }
+        .pdf-kv .kv-value {
+            font-weight: 600;
+            font-size: 11px;
+            color: #2c3e50;
+            text-align: right;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        .pdf-kv.total-row {
+            border-top: 1px solid #95a5a6;
+            border-bottom: none;
+            padding-top: 6px;
+            margin-top: 4px;
+            background: #f7f9fb;
+            margin-left: -12px;
+            margin-right: -12px;
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-bottom: 5px;
+        }
+        .pdf-kv.total-row .kv-label { font-weight: 700; color: #2c3e50; }
+        .pdf-kv.total-row .kv-value { font-weight: 800; font-size: 12px; color: #1a252f; }
+
+        .pdf-kv .kv-value.negative { color: #943030; }
+        .pdf-kv .kv-value.accent { color: #2c3e50; }
+
+        /* Sub-titulos internos */
+        .pdf-sub-title {
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 1px;
+            margin: 8px 0 4px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #e8ecf0;
+        }
+
+        /* Barras de porcentaje */
+        .pdf-pct-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 5px;
+        }
+        .pdf-pct-bar .bar {
+            flex: 1;
+            height: 5px;
+            background: #e8ecf0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .pdf-pct-bar .bar .fill {
+            height: 100%;
+            border-radius: 2px;
+        }
+        .pdf-pct-bar .pct-text {
+            font-size: 9px;
+            color: #7f8c8d;
+            min-width: 30px;
+            text-align: right;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* Grid inferior (pago + corte) */
+        .pdf-grid-bottom {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        @media (max-width: 768px) { .pdf-grid-bottom { grid-template-columns: 1fr; } }
+
+        /* Tablas documento */
+        table.pdf-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+        }
+        table.pdf-table thead th {
+            background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%);
+            color: #4a5568;
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 6px 10px;
+            text-align: left;
+            border-bottom: 1px solid #d1d9e0;
+        }
+        table.pdf-table tbody tr {
+            border-bottom: 1px solid #f0f2f5;
+        }
+        table.pdf-table tbody tr:nth-child(even) {
+            background: #fafbfc;
+        }
+        table.pdf-table tbody td {
+            padding: 5px 10px;
+            color: #2c3e50;
+            white-space: nowrap;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        table.pdf-table .text-right { text-align: right; }
+        table.pdf-table .text-center { text-align: center; }
+        table.pdf-table .col-importe { font-weight: 700; color: #1a252f; background: #f0f3f6; }
+        table.pdf-table .col-efectivo { color: #2c3e50; font-weight: 600; }
+        table.pdf-table .col-tarjeta { color: #2c3e50; font-weight: 600; }
+
+        /* Boton imprimir */
+        .btn-print {
+            background: #2c3e50;
+            color: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            padding: 5px 14px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: background 0.2s;
+        }
+        .btn-print:hover { background: #1a252f; }
+
+        /* Footer documento */
+        .pdf-footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 3px double #bdc3c7;
+            display: flex;
+            justify-content: space-between;
+            font-size: 8px;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* ══════════════════════════════════════════
+           TABS DARK (Tickets y Turnos)
+           ══════════════════════════════════════════ */
+        .report-table-wrapper {
+            background: #1F2A37;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .report-table-wrapper .section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #374151;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #D1D5DB;
+            border-bottom: 1px solid #4B5563;
+        }
+        .report-table-wrapper .badge {
+            background: #283341;
+            color: #9CA3AF;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        table.report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        table.report-table thead th {
+            background: #283341;
+            color: #9CA3AF;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 2px solid #374151;
+        }
+        table.report-table tbody tr {
+            border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+        }
+        table.report-table tbody tr:hover {
+            background: rgba(55, 65, 81, 0.3);
+        }
+        table.report-table tbody td {
+            padding: 6px 10px;
+            color: #D1D5DB;
+            white-space: nowrap;
+        }
+        table.report-table .text-right { text-align: right; }
+        table.report-table .text-center { text-align: center; }
+        table.report-table .col-importe { background: rgba(40, 51, 65, 0.6); font-weight: 700; color: #34D399; }
+        table.report-table .col-efectivo { color: #60A5FA; }
+        table.report-table .col-tarjeta { color: #A78BFA; }
+        table.report-table .col-transfer { color: #FBBF24; }
+        table.report-table tfoot td {
+            background: #283341;
+            font-weight: 700;
+            color: #E5E7EB;
+            padding: 8px 10px;
+            border-top: 2px solid #4B5563;
+        }
+        table.report-table tfoot .grand-total { color: #34D399; font-size: 13px; }
+
+        /* Filtro turno en tickets */
+        .ticket-filter-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 14px;
+            background: #1F2A37;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .ticket-filter-bar label {
+            font-size: 10px;
+            color: #9CA3AF;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        .ticket-filter-bar select {
+            background: #283341;
+            border: 1px solid #374151;
+            color: #E5E7EB;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            min-width: 250px;
+        }
+
+        .badge-closed {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            background: #374151;
+            color: #9CA3AF;
+        }
+
+        /* ── Print styles ── */
+        @media print {
+            body { background: #fff; padding: 0; }
+            body > div:first-child { display: none !important; }
+            .tabs-bar { display: none; }
+            .pdf-document { box-shadow: none; padding: 20px; max-width: 100%; }
+            .btn-print { display: none !important; }
+            .pdf-totals-bar .total-item.highlight { background: #333; }
+            .pdf-totals-bar .total-item.highlight .value { color: #000; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════
+     FILTER BAR
+     ════════════════════════════════════════════════════ -->
+<div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:12px;padding:12px 16px;background:#1F2A37;border-radius:8px;border:1px solid #374151;flex-wrap:wrap">
+    <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px">Sucursal</label>
+        <select id="rpt-sucursal-select" style="background:#283341;border:1px solid #374151;color:#E5E7EB;padding:6px 10px;border-radius:6px;font-size:12px;min-width:180px">
+            <option value="0">Todas las sucursales</option>
+            <option value="1" selected>Marinni Centro</option>
+        </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px">Fecha</label>
+        <input type="date" id="rpt-fecha" value="2026-04-04" style="background:#283341;border:1px solid #374151;color:#E5E7EB;padding:6px 10px;border-radius:6px;font-size:12px;min-width:160px">
+    </div>
+    <button onclick="buscarReporte()" style="background:#3B82F6;color:#fff;border:none;padding:7px 18px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+        <span style="font-size:14px">&#128269;</span> Buscar
+    </button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TABS
+     ════════════════════════════════════════════════════ -->
+<div class="tabs-bar">
+    <button class="tab-btn active" onclick="showTab('resumen')">Resumen Corte</button>
+    <button class="tab-btn" onclick="showTab('tickets')">Detalle de Tickets</button>
+    <button class="tab-btn" onclick="showTab('turnos')">Corte de Caja X</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TAB: RESUMEN CORTE (estilo documento PDF)
+     ════════════════════════════════════════════════════ -->
+<div id="tab-resumen">
+    <div class="pdf-document">
+
+        <!-- Header -->
+        <div class="pdf-header">
+            <div>
+                <h2>CORTE DE CAJA</h2>
+                <div class="meta">Sucursal: <span id="rpt-sucursal">Marinni Centro</span></div>
+            </div>
+            <div style="text-align:right;display:flex;align-items:flex-start;gap:12px">
+                <div>
+                    <div class="meta">Periodo: <span id="rpt-periodo">26/03/2026 al 04/04/2026</span></div>
+                    <div class="meta">Generado: <span id="rpt-generado">04/04/2026 06:00 PM</span></div>
+                </div>
+                <button onclick="window.print()" class="btn-print">Imprimir</button>
+            </div>
+        </div>
+
+        <!-- Barra de totales -->
+        <div class="pdf-totals-bar">
+            <div class="total-item">
+                <div class="label">Desc./Cort.</div>
+                <div class="value">$0.00</div>
+            </div>
+            <div class="total-item highlight">
+                <div class="label">Venta Bruta</div>
+                <div class="value">$35,290.00</div>
+            </div>
+            <div class="total-item">
+                <div class="label">Efectivo</div>
+                <div class="value">$3,781.00</div>
+            </div>
+            <div class="total-item">
+                <div class="label">Tarjeta</div>
+                <div class="value">$6,110.00</div>
+            </div>
+        </div>
+
+        <!-- Grid principal -->
+        <div class="pdf-grid">
+
+            <!-- CUENTAS -->
+            <div class="pdf-section">
+                <div class="pdf-section-title">Cuentas</div>
+                <div class="pdf-section-body">
+                    <div class="pdf-kv"><span class="kv-label">Normales</span><span class="kv-value">35</span></div>
+                    <div class="pdf-kv"><span class="kv-label">Canceladas</span><span class="kv-value">0</span></div>
+                    <div class="pdf-kv"><span class="kv-label">Con Descuento</span><span class="kv-value">0 &mdash; $0.00</span></div>
+                    <div class="pdf-kv"><span class="kv-label">Con Cortesia</span><span class="kv-value">0 &mdash; $0.00</span></div>
+                    <div class="pdf-kv"><span class="kv-label">Cuenta Promedio</span><span class="kv-value">$1,037.94</span></div>
+                    <div class="pdf-sub-title">Folios</div>
+                    <div class="pdf-kv"><span class="kv-label">Folio Inicial</span><span class="kv-value">171</span></div>
+                    <div class="pdf-kv"><span class="kv-label">Folio Final</span><span class="kv-value">280</span></div>
+                </div>
+            </div>
+
+            <!-- CAJA -->
+            <div class="pdf-section">
+                <div class="pdf-section-title">Caja</div>
+                <div class="pdf-section-body">
+                    <div class="pdf-kv"><span class="kv-label">+ Efectivo Inicial</span><span class="kv-value">$5,500.00</span></div>
+                    <div class="pdf-kv"><span class="kv-label">+ Efectivo</span><span class="kv-value">$3,781.00</span></div>
+                    <div class="pdf-kv"><span class="kv-label">+ Tarjeta</span><span class="kv-value">$6,110.00</span></div>
+                    <div class="pdf-kv"><span class="kv-label">+ Transferencia</span><span class="kv-value">$13,650.00</span></div>
+                    <div class="pdf-kv total-row"><span class="kv-label">= Saldo Final</span><span class="kv-value">$23,541.00</span></div>
+                </div>
+            </div>
+
+            <!-- DESCUENTOS Y CORTESIAS -->
+            <div class="pdf-section">
+                <div class="pdf-section-title">Descuentos y Cortesias</div>
+                <div class="pdf-section-body">
+                    <div class="pdf-sub-title">Cortesias</div>
+                    <div class="pdf-kv"><span class="kv-label">Total Cortesias</span><span class="kv-value">$0.00</span></div>
+                    <div class="pdf-sub-title">Descuentos</div>
+                    <div class="pdf-kv"><span class="kv-label">Total Descuentos</span><span class="kv-value">$0.00</span></div>
+                    <div class="pdf-kv total-row" style="margin-top:8px"><span class="kv-label">Total</span><span class="kv-value">$0.00</span></div>
+                </div>
+            </div>
+
+            <!-- VENTAS -->
+            <div class="pdf-section">
+                <div class="pdf-section-title">Ventas</div>
+                <div class="pdf-section-body">
+                    <div class="pdf-sub-title">Por Tipo de Producto</div>
+                    <div class="pdf-kv">
+                        <span class="kv-label">Personalizado</span>
+                        <span class="kv-value">$27,646.00 <small style="color:#7f8c8d">(85%)</small></span>
+                    </div>
+                    <div class="pdf-pct-bar">
+                        <div class="bar"><div class="fill" style="width:85%;background:#4a6785"></div></div>
+                        <span class="pct-text">85%</span>
+                    </div>
+                    <div class="pdf-kv">
+                        <span class="kv-label">Pasteles Tradicionales</span>
+                        <span class="kv-value">$3,080.00 <small style="color:#7f8c8d">(9%)</small></span>
+                    </div>
+                    <div class="pdf-pct-bar">
+                        <div class="bar"><div class="fill" style="width:9%;background:#7f9bb5"></div></div>
+                        <span class="pct-text">9%</span>
+                    </div>
+                    <div class="pdf-kv">
+                        <span class="kv-label">Pasteles Especialidades</span>
+                        <span class="kv-value">$1,820.00 <small style="color:#7f8c8d">(6%)</small></span>
+                    </div>
+                    <div class="pdf-pct-bar">
+                        <div class="bar"><div class="fill" style="width:6%;background:#a3b8cc"></div></div>
+                        <span class="pct-text">6%</span>
+                    </div>
+                    <div class="pdf-sub-title">Resumen</div>
+                    <div class="pdf-kv"><span class="kv-label">Subtotal</span><span class="kv-value">$35,290.00</span></div>
+                    <div class="pdf-kv"><span class="kv-label">- Desc. / Cort.</span><span class="kv-value negative">$0.00</span></div>
+                    <div class="pdf-kv"><span class="kv-label">Venta Neta</span><span class="kv-value">$35,290.00</span></div>
+                    <div class="pdf-kv total-row"><span class="kv-label">Venta Bruta</span><span class="kv-value">$35,290.00</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FORMA DE PAGO + CORTE DE CAJA X -->
+        <div class="pdf-grid-bottom">
+            <div class="pdf-section">
+                <div class="pdf-section-title">Forma de Pago Ventas</div>
+                <div class="pdf-section-body">
+                    <div class="pdf-kv"><span class="kv-label">Efectivo</span><span class="kv-value">$3,781.00</span></div>
+                    <div class="pdf-kv"><span class="kv-label">Tarjeta</span><span class="kv-value">$6,110.00</span></div>
+                    <div class="pdf-kv"><span class="kv-label">Transferencia</span><span class="kv-value">$13,650.00</span></div>
+                    <div class="pdf-kv total-row"><span class="kv-label">Total</span><span class="kv-value">$23,541.00</span></div>
+                </div>
+            </div>
+
+            <div class="pdf-section">
+                <div class="pdf-section-title" style="display:flex;justify-content:space-between;align-items:center">
+                    <span>Corte de Caja X</span>
+                    <span style="font-size:10px;color:#95a5a6;font-weight:400">GERENTE</span>
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="pdf-table">
+                        <thead>
+                            <tr>
+                                <th>Responsable</th>
+                                <th>Apertura</th>
+                                <th>Cierre</th>
+                                <th class="text-right">Total</th>
+                                <th class="text-right">Efectivo</th>
+                                <th class="text-right">Tarjeta</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>ANDREA MORALES</td>
+                                <td>04/04/2026 05:29 AM</td>
+                                <td>05:38 AM</td>
+                                <td class="text-right col-importe">$980.00</td>
+                                <td class="text-right col-efectivo">$900.00</td>
+                                <td class="text-right col-tarjeta">$0.00</td>
+                            </tr>
+                            <tr>
+                                <td>ANDREA MORALES</td>
+                                <td>04/04/2026 05:38 AM</td>
+                                <td>05:41 AM</td>
+                                <td class="text-right col-importe">$850.00</td>
+                                <td class="text-right col-efectivo">$250.00</td>
+                                <td class="text-right col-tarjeta">$0.00</td>
+                            </tr>
+                            <tr>
+                                <td>ANDREA MORALES</td>
+                                <td>04/04/2026 05:52 AM</td>
+                                <td>01:45 PM</td>
+                                <td class="text-right col-importe">$480.00</td>
+                                <td class="text-right col-efectivo">$0.00</td>
+                                <td class="text-right col-tarjeta">$0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer documento -->
+        <div class="pdf-footer">
+            <span>Documento generado automaticamente</span>
+            <span>Pagina 1 de 1</span>
+        </div>
+
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TAB: DETALLE DE TICKETS
+     ════════════════════════════════════════════════════ -->
+<div id="tab-tickets" style="display:none">
+
+    <div class="ticket-filter-bar">
+        <label>Filtrar por turno:</label>
+        <select id="filter-turno" onchange="filterByTurno()">
+            <option value="all">Todos los turnos</option>
+            <option value="1">Turno #1 — ANDREA MORALES (05:29 - 05:38 AM)</option>
+            <option value="2">Turno #2 — ANDREA MORALES (05:38 - 05:41 AM)</option>
+            <option value="3">Turno #3 — ANDREA MORALES (05:52 AM - 01:45 PM)</option>
+            <option value="4">Turno #4 — ANDREA MORALES (04:33 - 05:16 PM)</option>
+            <option value="5">Turno #5 — ANDREA MORALES (05:16 - 05:22 PM)</option>
+        </select>
+        <span id="filter-turno-count" style="font-size:11px;color:#9CA3AF;margin-left:auto"></span>
+    </div>
+
+    <div class="report-table-wrapper">
+        <div class="section-title">
+            <span>Detalle de Tickets</span>
+            <span class="badge" id="tickets-count-badge">35 tickets</span>
+        </div>
+        <div style="overflow-x:auto; max-height:600px; overflow-y:auto">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Fecha</th>
+                        <th>Cuenta</th>
+                        <th class="text-right">Descuento</th>
+                        <th class="text-right">Importe</th>
+                        <th class="text-right">Efectivo</th>
+                        <th class="text-right">Tarjeta</th>
+                        <th class="text-right">Transferencia</th>
+                    </tr>
+                </thead>
+                <tbody id="tickets-tbody">
+                    <tr data-turno="0"><td>00000171</td><td>26/03/2026</td><td>Kristell Solorzano</td><td class="text-right">$0.00</td><td class="text-right col-importe">$580.00</td><td class="text-right col-efectivo">$290.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$290.00</td></tr>
+                    <tr data-turno="0"><td>00000231</td><td>26/03/2026</td><td>Majo Zacarias</td><td class="text-right">$0.00</td><td class="text-right col-importe">$900.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$900.00</td></tr>
+                    <tr data-turno="0"><td>00000242</td><td>26/03/2026</td><td>David Juarez</td><td class="text-right">$0.00</td><td class="text-right col-importe">$500.00</td><td class="text-right col-efectivo">$200.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$300.00</td></tr>
+                    <tr data-turno="0"><td>00000250</td><td>26/03/2026</td><td>ANA GABRIELA ROMAN</td><td class="text-right">$0.00</td><td class="text-right col-importe">$1,610.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$1,610.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000251</td><td>26/03/2026</td><td>SOFIA RANGEL</td><td class="text-right">$0.00</td><td class="text-right col-importe">$370.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$200.00</td></tr>
+                    <tr data-turno="0"><td>00000252</td><td>26/03/2026</td><td>PAMELA MACAL</td><td class="text-right">$0.00</td><td class="text-right col-importe">$350.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$150.00</td></tr>
+                    <tr data-turno="0"><td>00000253</td><td>26/03/2026</td><td>WENDY RODRIGUEZ</td><td class="text-right">$0.00</td><td class="text-right col-importe">$2,500.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$1,250.00</td></tr>
+                    <tr data-turno="0"><td>00000254</td><td>26/03/2026</td><td>IVONNE CORZO</td><td class="text-right">$0.00</td><td class="text-right col-importe">$790.00</td><td class="text-right col-efectivo">$790.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000255</td><td>27/03/2026</td><td>DIANA CONSUEGRA</td><td class="text-right">$0.00</td><td class="text-right col-importe">$1,260.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$900.00</td></tr>
+                    <tr data-turno="0"><td>00000256</td><td>27/03/2026</td><td>Angel Sosa</td><td class="text-right">$0.00</td><td class="text-right col-importe">$3,195.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$2,850.00</td></tr>
+                    <tr data-turno="0"><td>00000257</td><td>27/03/2026</td><td>Claudia Sanchez</td><td class="text-right">$0.00</td><td class="text-right col-importe">$2,550.00</td><td class="text-right col-efectivo">$1,350.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000258</td><td>27/03/2026</td><td>Cindy Ordonez</td><td class="text-right">$0.00</td><td class="text-right col-importe">$3,135.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$1,500.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000259</td><td>27/03/2026</td><td>DIEGO LOPEZ</td><td class="text-right">$0.00</td><td class="text-right col-importe">$550.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$400.00</td></tr>
+                    <tr data-turno="0"><td>00000260</td><td>28/03/2026</td><td>Luis Arenas</td><td class="text-right">$0.00</td><td class="text-right col-importe">$550.00</td><td class="text-right col-efectivo">$1.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000261</td><td>28/03/2026</td><td>CAMILA</td><td class="text-right">$0.00</td><td class="text-right col-importe">$480.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$240.00</td></tr>
+                    <tr data-turno="0"><td>00000262</td><td>29/03/2026</td><td>Alejandra Ulloa</td><td class="text-right">$0.00</td><td class="text-right col-importe">$2,050.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$1,025.00</td></tr>
+                    <tr data-turno="0"><td>00000196</td><td>29/03/2026</td><td>Harumi Ruiz</td><td class="text-right">$0.00</td><td class="text-right col-importe">$800.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$400.00</td><td class="text-right col-transfer">$400.00</td></tr>
+                    <tr data-turno="0"><td>00000263</td><td>29/03/2026</td><td>Carolina Rodriguez</td><td class="text-right">$0.00</td><td class="text-right col-importe">$330.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$165.00</td></tr>
+                    <tr data-turno="0"><td>00000264</td><td>30/03/2026</td><td>Nora Medina</td><td class="text-right">$0.00</td><td class="text-right col-importe">$670.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$300.00</td></tr>
+                    <tr data-turno="0"><td>00000265</td><td>30/03/2026</td><td>JAZMIN ANGEL</td><td class="text-right">$0.00</td><td class="text-right col-importe">$450.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$450.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000266</td><td>31/03/2026</td><td>HERIBERTO PALACIOS</td><td class="text-right">$0.00</td><td class="text-right col-importe">$810.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$400.00</td></tr>
+                    <tr data-turno="0"><td>00000267</td><td>31/03/2026</td><td>Dulce Cruz</td><td class="text-right">$0.00</td><td class="text-right col-importe">$1,400.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$700.00</td></tr>
+                    <tr data-turno="0"><td>00000268</td><td>31/03/2026</td><td>Gabby Castellanos</td><td class="text-right">$0.00</td><td class="text-right col-importe">$1,000.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$500.00</td></tr>
+                    <tr data-turno="0"><td>00000269</td><td>01/04/2026</td><td>Francisca Leyva</td><td class="text-right">$0.00</td><td class="text-right col-importe">$550.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$550.00</td></tr>
+                    <tr data-turno="0"><td>00000271</td><td>01/04/2026</td><td>Claudia Vaca</td><td class="text-right">$0.00</td><td class="text-right col-importe">$480.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$480.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000272</td><td>02/04/2026</td><td>Yareni Medina</td><td class="text-right">$0.00</td><td class="text-right col-importe">$1,200.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$700.00</td></tr>
+                    <tr data-turno="0"><td>00000273</td><td>02/04/2026</td><td>Leticia Echeverria</td><td class="text-right">$0.00</td><td class="text-right col-importe">$1,670.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$1,670.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000274</td><td>03/04/2026</td><td>Tatiana Guillen</td><td class="text-right">$0.00</td><td class="text-right col-importe">$1,430.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$1,430.00</td></tr>
+                    <tr data-turno="1"><td>00000275</td><td>03/04/2026</td><td>Jazmin Morales</td><td class="text-right">$0.00</td><td class="text-right col-importe">$460.00</td><td class="text-right col-efectivo">$400.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="1"><td>00000276</td><td>03/04/2026</td><td>Sergio Osorio Mendez</td><td class="text-right">$0.00</td><td class="text-right col-importe">$520.00</td><td class="text-right col-efectivo">$500.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="2"><td>00000277</td><td>03/04/2026</td><td>Carolina Rodriguez</td><td class="text-right">$0.00</td><td class="text-right col-importe">$850.00</td><td class="text-right col-efectivo">$250.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="3"><td>00000278</td><td>03/04/2026</td><td>Jazmin Morales</td><td class="text-right">$0.00</td><td class="text-right col-importe">$480.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000279</td><td>04/04/2026</td><td>Jazmin Morales</td><td class="text-right">$0.00</td><td class="text-right col-importe">$460.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                    <tr data-turno="0"><td>00000280</td><td>04/04/2026</td><td>Jazmin Morales</td><td class="text-right">$0.00</td><td class="text-right col-importe">$360.00</td><td class="text-right col-efectivo">$0.00</td><td class="text-right col-tarjeta">$0.00</td><td class="text-right col-transfer">$0.00</td></tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-right" style="font-weight:700">TOTALES:</td>
+                        <td class="text-right">$0.00</td>
+                        <td class="text-right grand-total">$35,290.00</td>
+                        <td class="text-right" style="color:#60A5FA">$3,781.00</td>
+                        <td class="text-right" style="color:#A78BFA">$6,110.00</td>
+                        <td class="text-right" style="color:#FBBF24">$13,650.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TAB: CORTE DE CAJA X (TURNOS)
+     ════════════════════════════════════════════════════ -->
+<div id="tab-turnos" style="display:none">
+
+    <div class="report-table-wrapper">
+        <div class="section-title">
+            <span>Historial de Turnos</span>
+            <span class="badge">5 turnos</span>
+        </div>
+        <div style="overflow-x:auto">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Responsable</th>
+                        <th>Apertura</th>
+                        <th>Cierre</th>
+                        <th class="text-right">Total</th>
+                        <th class="text-right">Efectivo</th>
+                        <th class="text-right">Tarjeta</th>
+                        <th class="text-right">Transferencia</th>
+                        <th class="text-center">Pedidos</th>
+                        <th class="text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>ANDREA MORALES</td>
+                        <td>04/04/2026 05:29 AM</td>
+                        <td>04/04/2026 05:38 AM</td>
+                        <td class="text-right col-importe">$980.00</td>
+                        <td class="text-right col-efectivo">$900.00</td>
+                        <td class="text-right col-tarjeta">$0.00</td>
+                        <td class="text-right col-transfer">$0.00</td>
+                        <td class="text-center">2</td>
+                        <td class="text-center"><span class="badge-closed">Cerrado</span></td>
+                    </tr>
+                    <tr>
+                        <td>ANDREA MORALES</td>
+                        <td>04/04/2026 05:38 AM</td>
+                        <td>04/04/2026 05:41 AM</td>
+                        <td class="text-right col-importe">$850.00</td>
+                        <td class="text-right col-efectivo">$250.00</td>
+                        <td class="text-right col-tarjeta">$0.00</td>
+                        <td class="text-right col-transfer">$0.00</td>
+                        <td class="text-center">1</td>
+                        <td class="text-center"><span class="badge-closed">Cerrado</span></td>
+                    </tr>
+                    <tr>
+                        <td>ANDREA MORALES</td>
+                        <td>04/04/2026 05:52 AM</td>
+                        <td>04/04/2026 01:45 PM</td>
+                        <td class="text-right col-importe">$480.00</td>
+                        <td class="text-right col-efectivo">$0.00</td>
+                        <td class="text-right col-tarjeta">$0.00</td>
+                        <td class="text-right col-transfer">$0.00</td>
+                        <td class="text-center">1</td>
+                        <td class="text-center"><span class="badge-closed">Cerrado</span></td>
+                    </tr>
+                    <tr>
+                        <td>ANDREA MORALES</td>
+                        <td>04/04/2026 04:33 PM</td>
+                        <td>04/04/2026 05:16 PM</td>
+                        <td class="text-right col-importe">$0.00</td>
+                        <td class="text-right col-efectivo">$0.00</td>
+                        <td class="text-right col-tarjeta">$0.00</td>
+                        <td class="text-right col-transfer">$0.00</td>
+                        <td class="text-center">0</td>
+                        <td class="text-center"><span class="badge-closed">Cerrado</span></td>
+                    </tr>
+                    <tr>
+                        <td>ANDREA MORALES</td>
+                        <td>04/04/2026 05:16 PM</td>
+                        <td>04/04/2026 05:22 PM</td>
+                        <td class="text-right col-importe">$0.00</td>
+                        <td class="text-right col-efectivo">$0.00</td>
+                        <td class="text-right col-tarjeta">$0.00</td>
+                        <td class="text-right col-transfer">$0.00</td>
+                        <td class="text-center">0</td>
+                        <td class="text-center"><span class="badge-closed">Cerrado</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function buscarReporte() {
+        const fecha = document.getElementById('rpt-fecha').value;
+        const sucSelect = document.getElementById('rpt-sucursal-select');
+        const sucNombre = sucSelect.options[sucSelect.selectedIndex].text;
+
+        const fechaFormateada = fecha.split('-').reverse().join('/');
+        document.getElementById('rpt-periodo').textContent = fechaFormateada;
+        document.getElementById('rpt-sucursal').textContent = sucNombre;
+    }
+
+    function filterByTurno() {
+        const val = document.getElementById('filter-turno').value;
+        const rows = document.querySelectorAll('#tickets-tbody tr');
+        let visible = 0;
+
+        rows.forEach(row => {
+            if (val === 'all' || row.dataset.turno === val) {
+                row.style.display = '';
+                visible++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.getElementById('tickets-count-badge').textContent = visible + ' tickets';
+    }
+
+    function showTab(tab) {
+        document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('tab-' + tab).style.display = 'block';
+        event.target.classList.add('active');
+    }
+</script>
+
+</body>
+</html>
