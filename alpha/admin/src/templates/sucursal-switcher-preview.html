@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Switcher de Sucursal · Propuesta 2</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+    body { background:#111827; color:#E5E7EB; font-family:system-ui,sans-serif; margin:0; }
+    .navbar-mock { background:#1F2A37; border-bottom:1px solid #374151; padding:10px 20px; display:flex; align-items:center; gap:20px; }
+    .navbar-mock .logo { font-weight:700; color:#3B82F6; font-size:1.1rem; }
+    .navbar-mock .spacer { flex:1; }
+    .navbar-mock .user { display:flex; align-items:center; gap:8px; color:#9CA3AF; }
+
+    .content { padding:40px; max-width:1100px; margin:auto; }
+    h3 { color:#F9FAFB; }
+    .subtitle { color:#9CA3AF; font-size:.9rem; margin-bottom:24px; }
+    .card-dark { background:#1F2A37; border:1px solid #374151; border-radius:12px; padding:20px; margin-bottom:28px; }
+
+    /* ------- Switcher Variante A: Dropdown compacto ------- */
+    .sub-switcher { position:relative; }
+    .sub-switcher .trigger {
+        background:#111827; border:1px solid #374151; color:#E5E7EB;
+        padding:6px 14px; border-radius:8px; display:flex; align-items:center; gap:10px;
+        cursor:pointer; font-size:.9rem; min-width:220px;
+    }
+    .sub-switcher .trigger:hover { border-color:#3B82F6; }
+    .sub-switcher .trigger .dot { width:8px; height:8px; border-radius:50%; background:#10B981; }
+    .sub-switcher .trigger .name { flex:1; font-weight:500; }
+    .sub-switcher .trigger .caret { color:#9CA3AF; }
+
+    .sub-dropdown {
+        position:absolute; top:calc(100% + 6px); right:0;
+        background:#1F2A37; border:1px solid #374151; border-radius:10px;
+        min-width:280px; box-shadow:0 10px 30px rgba(0,0,0,.4); z-index:100;
+        padding:6px;
+    }
+    .sub-dropdown .header {
+        padding:10px 12px 8px; color:#6B7280; font-size:.7rem;
+        text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid #374151; margin-bottom:4px;
+    }
+    .sub-dropdown .item {
+        display:flex; align-items:center; gap:10px; padding:10px 12px;
+        border-radius:6px; cursor:pointer; transition:background .15s;
+    }
+    .sub-dropdown .item:hover { background:#111827; }
+    .sub-dropdown .item.active { background:rgba(59,130,246,.15); }
+    .sub-dropdown .item .icon-wrap {
+        width:34px; height:34px; border-radius:8px; background:#374151;
+        display:flex; align-items:center; justify-content:center; color:#9CA3AF;
+    }
+    .sub-dropdown .item.active .icon-wrap { background:#3B82F6; color:#fff; }
+    .sub-dropdown .item .info { flex:1; }
+    .sub-dropdown .item .info .t { color:#F9FAFB; font-size:.9rem; font-weight:500; }
+    .sub-dropdown .item .info .s { color:#9CA3AF; font-size:.75rem; }
+    .sub-dropdown .item .check { color:#10B981; }
+    .sub-dropdown .item:not(.active) .check { visibility:hidden; }
+    .sub-dropdown .footer { padding:8px 12px; border-top:1px solid #374151; margin-top:4px; color:#6B7280; font-size:.75rem; }
+
+    /* ------- Variante B: Pills en banner ------- */
+    .banner-pills { background:#1F2A37; border:1px solid #374151; border-radius:12px; padding:14px 18px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    .banner-pills .label { color:#9CA3AF; font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; }
+    .pill { background:#111827; border:1px solid #374151; color:#D1D5DB; padding:6px 14px; border-radius:999px; font-size:.85rem; cursor:pointer; transition:all .15s; }
+    .pill:hover { border-color:#3B82F6; }
+    .pill.active { background:#3B82F6; color:#fff; border-color:#3B82F6; }
+
+    /* ------- Variante C: Segmented sidebar ------- */
+    .segmented { background:#1F2A37; border:1px solid #374151; border-radius:10px; padding:4px; display:inline-flex; gap:2px; }
+    .segmented button { background:transparent; border:none; color:#9CA3AF; padding:8px 18px; border-radius:7px; font-size:.85rem; cursor:pointer; transition:all .15s; }
+    .segmented button:hover { color:#E5E7EB; }
+    .segmented button.active { background:#3B82F6; color:#fff; }
+
+    .note { background:rgba(59,130,246,.08); border-left:3px solid #3B82F6; padding:10px 14px; color:#93C5FD; font-size:.85rem; border-radius:4px; margin-top:14px; }
+</style>
+</head>
+<body>
+
+<!-- ============ NAVBAR MOCK con Switcher A ============ -->
+<div class="navbar-mock">
+    <span class="logo">huubie</span>
+    <span class="text-gray-400 small">Pedidos</span>
+    <div class="spacer"></div>
+
+    <div class="sub-switcher">
+        <div class="trigger" onclick="document.getElementById('dd').classList.toggle('d-none')">
+            <span class="dot"></span>
+            <span class="name">Matriz CDMX</span>
+            <i class="bi bi-chevron-down caret"></i>
+        </div>
+        <div class="sub-dropdown" id="dd">
+            <div class="header">Tus sucursales (4)</div>
+
+            <div class="item active">
+                <div class="icon-wrap"><i class="bi bi-shop"></i></div>
+                <div class="info">
+                    <div class="t">Matriz CDMX</div>
+                    <div class="s">Av. Reforma 123 · Ciudad de México</div>
+                </div>
+                <i class="bi bi-check-circle-fill check"></i>
+            </div>
+
+            <div class="item">
+                <div class="icon-wrap"><i class="bi bi-shop"></i></div>
+                <div class="info">
+                    <div class="t">Sucursal Polanco</div>
+                    <div class="s">Masaryk 45 · CDMX</div>
+                </div>
+                <i class="bi bi-check-circle-fill check"></i>
+            </div>
+
+            <div class="item">
+                <div class="icon-wrap"><i class="bi bi-shop"></i></div>
+                <div class="info">
+                    <div class="t">Sucursal Roma Norte</div>
+                    <div class="s">Álvaro Obregón 210 · CDMX</div>
+                </div>
+                <i class="bi bi-check-circle-fill check"></i>
+            </div>
+
+            <div class="item">
+                <div class="icon-wrap"><i class="bi bi-shop"></i></div>
+                <div class="info">
+                    <div class="t">Sucursal Guadalajara</div>
+                    <div class="s">Av. Chapultepec 88 · JAL</div>
+                </div>
+                <i class="bi bi-check-circle-fill check"></i>
+            </div>
+
+            <div class="footer">Cambiar recargará los datos del módulo actual.</div>
+        </div>
+    </div>
+
+    <div class="user">
+        <i class="bi bi-person-circle fs-5"></i>
+        <span>Luis R.</span>
+    </div>
+</div>
+
+<!-- ============ CONTENT ============ -->
+<div class="content">
+    <h3>Switcher de sucursal · Propuesta 2</h3>
+    <p class="subtitle">Usuario con múltiples sucursales asignadas. Cambio en caliente sin cerrar sesión.</p>
+
+    <div class="card-dark">
+        <h5 style="color:#F9FAFB;"><i class="bi bi-chevron-down text-primary"></i> Variante A · Dropdown en navbar <small class="text-muted">(arriba ↑)</small></h5>
+        <p class="subtitle mb-0">Compacto, discreto, siempre accesible. El usuario ve de un vistazo cuál está activa por el <span style="color:#10B981;">●</span> verde y el nombre. Al abrir muestra todas las asignadas con dirección. <strong>Recomendada</strong> porque no resta espacio vertical al contenido.</p>
+    </div>
+
+    <div class="card-dark">
+        <h5 style="color:#F9FAFB;"><i class="bi bi-circle-fill text-primary"></i> Variante B · Pills en banner superior</h5>
+        <p class="subtitle">Más visible, las opciones están siempre a la vista (un click, no dos). Ocupa una fila debajo del navbar.</p>
+        <div class="banner-pills">
+            <span class="label"><i class="bi bi-shop"></i> Sucursal activa:</span>
+            <span class="pill active">Matriz CDMX</span>
+            <span class="pill">Polanco</span>
+            <span class="pill">Roma Norte</span>
+            <span class="pill">Guadalajara</span>
+        </div>
+        <div class="note"><i class="bi bi-info-circle"></i> Ideal si el usuario cambia muy seguido durante el día.</div>
+    </div>
+
+    <div class="card-dark">
+        <h5 style="color:#F9FAFB;"><i class="bi bi-toggle-on text-primary"></i> Variante C · Segmented control</h5>
+        <p class="subtitle">Minimalista tipo toggle, funciona bien con 2-3 sucursales. Con más opciones se vuelve incómodo.</p>
+        <div class="segmented">
+            <button class="active">Matriz CDMX</button>
+            <button>Polanco</button>
+            <button>Roma Norte</button>
+        </div>
+        <div class="note"><i class="bi bi-exclamation-triangle"></i> No escala bien para usuarios con 5+ sucursales.</div>
+    </div>
+
+    <div class="card-dark">
+        <h5 style="color:#F9FAFB;"><i class="bi bi-gear-fill text-primary"></i> Flujo backend propuesto</h5>
+        <ol style="color:#D1D5DB; font-size:.9rem; line-height:1.8;">
+            <li>Login: cargar todas las sucursales asignadas a <code>$_SESSION['SUBS'] = [1,2,3]</code> y poner la primera como <code>$_SESSION['SUB']</code>.</li>
+            <li>Navbar hace <code>GET ctrl-access.php?opc=mySubs</code> al inicializar → pinta las opciones.</li>
+            <li>Al click en una opción: <code>POST setActiveSub {id}</code> → actualiza <code>$_SESSION['SUB']</code> y <code>SUBSIDIARIE_NAME</code>.</li>
+            <li>Callback refresca el módulo actual (<code>pedidos.ls()</code>, <code>cierre.render()</code>, etc.) sin recargar la página.</li>
+        </ol>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Asignar Sucursales · 3 propuestas</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+    body { background:#111827; color:#E5E7EB; font-family:system-ui,sans-serif; padding:24px; }
+    .card-dark { background:#1F2A37; border:1px solid #374151; border-radius:12px; padding:20px; margin-bottom:28px; }
+    h5.title { color:#F9FAFB; font-weight:700; margin-bottom:4px; }
+    .subtitle { color:#9CA3AF; font-size:.85rem; margin-bottom:16px; }
+    .form-label { color:#D1D5DB; font-weight:500; }
+    .form-control, .form-select { background:#111827; border:1px solid #374151; color:#E5E7EB; }
+    .form-control:focus, .form-select:focus { background:#111827; color:#E5E7EB; border-color:#3B82F6; box-shadow:none; }
+
+    /* ---------- Opción 1: Chips / Tags ---------- */
+    .chip-input-wrap { background:#111827; border:1px solid #374151; border-radius:8px; padding:8px; min-height:46px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    .chip { background:#3B82F6; color:#fff; padding:4px 10px; border-radius:999px; font-size:.85rem; display:inline-flex; align-items:center; gap:6px; }
+    .chip i { cursor:pointer; opacity:.8; }
+    .chip i:hover { opacity:1; }
+    .chip-input-wrap select { background:transparent; border:none; color:#E5E7EB; flex:1; min-width:140px; outline:none; }
+
+    /* ---------- Opción 2: Checklist con buscador ---------- */
+    .checklist { background:#111827; border:1px solid #374151; border-radius:8px; max-height:220px; overflow-y:auto; }
+    .checklist .item { display:flex; align-items:center; padding:10px 14px; border-bottom:1px solid #1F2A37; cursor:pointer; transition:background .15s; }
+    .checklist .item:hover { background:#1F2A37; }
+    .checklist .item:last-child { border-bottom:none; }
+    .checklist .item input { margin-right:12px; }
+    .checklist .item .name { flex:1; }
+    .checklist .item .badge-loc { background:#374151; color:#9CA3AF; font-size:.7rem; }
+    .counter { color:#9CA3AF; font-size:.8rem; margin-top:6px; }
+
+    /* ---------- Opción 3: Dual List (disponibles / asignadas) ---------- */
+    .dual-col { background:#111827; border:1px solid #374151; border-radius:8px; height:240px; overflow-y:auto; }
+    .dual-col .head { padding:8px 12px; background:#1F2A37; color:#9CA3AF; font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; position:sticky; top:0; }
+    .dual-col .row-item { padding:8px 14px; cursor:pointer; display:flex; align-items:center; gap:8px; }
+    .dual-col .row-item:hover { background:#1F2A37; }
+    .dual-col .row-item.active { background:#3B82F6; color:#fff; }
+    .dual-actions { display:flex; flex-direction:column; gap:8px; justify-content:center; align-items:center; height:100%; }
+    .dual-actions .btn { width:42px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h3 class="mb-1" style="color:#F9FAFB;">Asignar Sucursales — 3 propuestas de UI</h3>
+    <p class="subtitle">Reemplazo del <code>&lt;select&gt;</code> simple actual en el modal "Nuevo Usuario".</p>
+
+    <!-- ============ OPCIÓN 1: CHIPS / TAGS ============ -->
+    <div class="card-dark">
+        <h5 class="title"><i class="bi bi-tags-fill text-primary"></i> Opción 1 · Chips / Tags</h5>
+        <p class="subtitle">Compacto. Selecciona del dropdown y aparece como pill removible. Ideal cuando hay pocas sucursales asignadas.</p>
+
+        <label class="form-label">Sucursales asignadas</label>
+        <div class="chip-input-wrap">
+            <span class="chip">Matriz CDMX <i class="bi bi-x-circle-fill"></i></span>
+            <span class="chip">Sucursal Polanco <i class="bi bi-x-circle-fill"></i></span>
+            <span class="chip">Sucursal Roma Norte <i class="bi bi-x-circle-fill"></i></span>
+            <select>
+                <option>+ Agregar sucursal…</option>
+                <option>Sucursal Condesa</option>
+                <option>Sucursal Coyoacán</option>
+                <option>Sucursal Santa Fe</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- ============ OPCIÓN 2: CHECKLIST CON BUSCADOR ============ -->
+    <div class="card-dark">
+        <h5 class="title"><i class="bi bi-list-check text-success"></i> Opción 2 · Checklist con buscador</h5>
+        <p class="subtitle">Vista de lista con checkboxes y filtro en vivo. Ideal cuando hay muchas sucursales (10+).</p>
+
+        <label class="form-label">Sucursales</label>
+        <input type="text" class="form-control mb-2" placeholder="🔍 Buscar sucursal...">
+        <div class="checklist">
+            <label class="item"><input type="checkbox" checked> <span class="name">Matriz CDMX</span> <span class="badge badge-loc">CDMX</span></label>
+            <label class="item"><input type="checkbox" checked> <span class="name">Sucursal Polanco</span> <span class="badge badge-loc">CDMX</span></label>
+            <label class="item"><input type="checkbox"> <span class="name">Sucursal Condesa</span> <span class="badge badge-loc">CDMX</span></label>
+            <label class="item"><input type="checkbox" checked> <span class="name">Sucursal Roma Norte</span> <span class="badge badge-loc">CDMX</span></label>
+            <label class="item"><input type="checkbox"> <span class="name">Sucursal Coyoacán</span> <span class="badge badge-loc">CDMX</span></label>
+            <label class="item"><input type="checkbox"> <span class="name">Sucursal Santa Fe</span> <span class="badge badge-loc">CDMX</span></label>
+            <label class="item"><input type="checkbox"> <span class="name">Sucursal Guadalajara Centro</span> <span class="badge badge-loc">JAL</span></label>
+        </div>
+        <div class="counter">3 de 7 sucursales seleccionadas · <a href="#" class="text-primary">Seleccionar todas</a></div>
+    </div>
+
+    <!-- ============ OPCIÓN 3: DUAL LIST ============ -->
+    <div class="card-dark">
+        <h5 class="title"><i class="bi bi-arrow-left-right text-warning"></i> Opción 3 · Dual List (Disponibles ↔ Asignadas)</h5>
+        <p class="subtitle">Dos columnas: izquierda disponibles, derecha asignadas. Ideal para gestión avanzada con muchos elementos.</p>
+
+        <div class="row g-2">
+            <div class="col-5">
+                <div class="dual-col">
+                    <div class="head">Disponibles (4)</div>
+                    <div class="row-item"><i class="bi bi-shop"></i> Sucursal Condesa</div>
+                    <div class="row-item active"><i class="bi bi-shop"></i> Sucursal Coyoacán</div>
+                    <div class="row-item"><i class="bi bi-shop"></i> Sucursal Santa Fe</div>
+                    <div class="row-item"><i class="bi bi-shop"></i> Sucursal Guadalajara</div>
+                </div>
+            </div>
+            <div class="col-2">
+                <div class="dual-actions">
+                    <button class="btn btn-primary btn-sm"><i class="bi bi-chevron-right"></i></button>
+                    <button class="btn btn-outline-primary btn-sm"><i class="bi bi-chevron-double-right"></i></button>
+                    <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i></button>
+                    <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-double-left"></i></button>
+                </div>
+            </div>
+            <div class="col-5">
+                <div class="dual-col">
+                    <div class="head">Asignadas (3)</div>
+                    <div class="row-item"><i class="bi bi-check-circle-fill text-success"></i> Matriz CDMX</div>
+                    <div class="row-item"><i class="bi bi-check-circle-fill text-success"></i> Sucursal Polanco</div>
+                    <div class="row-item"><i class="bi bi-check-circle-fill text-success"></i> Sucursal Roma Norte</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>
