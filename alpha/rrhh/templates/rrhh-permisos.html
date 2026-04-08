@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huubie RRHH — Permisos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; height:100vh; overflow:hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width:4px; height:4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+        .badge-base       { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; }
+        .badge-aprobado   { background:rgba(63,193,137,.15); color:#3fc189; border-color:rgba(63,193,137,.3); }
+        .badge-rechazado  { background:rgba(234,2,52,.15); color:#ea0234; border-color:rgba(234,2,52,.35); }
+        .badge-pendiente  { background:rgba(251,191,36,.15); color:#fbbf24; border-color:rgba(251,191,36,.3); }
+        .badge-sin-estatus{ background:rgba(156,163,175,.15); color:#9ca3af; border-color:rgba(156,163,175,.3); }
+        .badge-incapacidad{ background:rgba(244,114,182,.15); color:#f472b6; border-color:rgba(244,114,182,.3); }
+        .badge-vacaciones { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-permiso    { background:rgba(249,115,22,.15); color:#fb923c; border-color:rgba(249,115,22,.3); }
+        .badge-puesto-admin  { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-puesto-cocina { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-puesto-piso   { background:rgba(28,100,242,.18); color:#76a9fa; border-color:rgba(28,100,242,.35); }
+        .input-base         { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:6px 12px; font-size:12px; color:#d1d5db; }
+        .input-base:focus   { outline:none; border-color:#7c3aed; }
+        .btn-primary-purple { background:#7c3aed; color:#fff; padding:6px 14px; border-radius:8px; font-size:12px; font-weight:600; }
+        .btn-primary-purple:hover { background:#8b5cf6; }
+        .btn-primary-blue   { background:#1c64f2; color:#fff; padding:6px 14px; border-radius:8px; font-size:12px; font-weight:600; }
+        .sidebar-item       { display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:8px; font-size:12px; color:#9ca3af; cursor:pointer; text-decoration:none; }
+        .sidebar-item:hover { background:rgba(124,58,237,.08); color:#d1d5db; }
+        .sidebar-item.active{ color:#c4b5fd; background:rgba(124,58,237,.15); }
+        .sidebar-sub        { padding-left:32px; font-size:11px; }
+        .sidebar-sub.active { color:#c4b5fd; background:rgba(124,58,237,.12); border-left:2px solid #7c3aed; }
+    </style>
+</head>
+<body class="flex">
+
+    <!-- SIDEBAR -->
+    <aside class="w-56 bg-[#0f172a] border-r border-gray-800 flex flex-col flex-shrink-0 h-screen">
+        <div class="px-4 py-4 border-b border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-xs">hb</div>
+            <span class="font-bold text-sm">Huubie</span>
+        </div>
+        <nav class="flex-1 overflow-y-auto scrollbar-thin py-3 px-2">
+            <a href="rrhh-resumen.html" class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3"/></svg>
+                Resumen
+            </a>
+            <div class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2"/></svg>
+                Finanzas
+            </div>
+            <div class="sidebar-item active">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Recursos Humanos
+            </div>
+            <div class="mt-1 space-y-0.5">
+                <a href="rrhh-personal.html" class="sidebar-item sidebar-sub">Personal</a>
+                <a href="rrhh-incidencia-diario.html" class="sidebar-item sidebar-sub">Incidencia</a>
+                <a href="rrhh-nomina.html" class="sidebar-item sidebar-sub">Nómina</a>
+                <a href="rrhh-permisos.html" class="sidebar-item sidebar-sub active">Permisos</a>
+                <div class="sidebar-item sidebar-sub opacity-60">Desempeño</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Reclutamiento</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Cursos</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Actas</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Reconocimientos</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Configuración</div>
+            </div>
+            <div class="sidebar-item mt-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7"/></svg>Operaciones</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4"/></svg>Mkt y clientes</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4"/></svg>Ventas</div>
+        </nav>
+        <div class="px-2 py-3 border-t border-gray-800 space-y-0.5">
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>Asistencia</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6"/></svg>Documentos</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2"/></svg>Ayuda</div>
+        </div>
+    </aside>
+
+    <!-- CONTENIDO -->
+    <div class="flex-1 flex flex-col min-w-0 h-screen">
+        <!-- Header -->
+        <header class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-3 flex-1 max-w-md">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" placeholder="Buscar" class="bg-transparent text-sm text-gray-300 w-full focus:outline-none">
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+                    <button class="px-3 py-1 text-[11px] text-gray-500">○ Claro</button>
+                    <button class="px-3 py-1 text-[11px] text-white bg-purple-600/80 rounded">○ Oscuro</button>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">AK</div>
+            </div>
+        </header>
+
+        <!-- Sub-header -->
+        <div class="px-6 py-4 bg-[#141d2b] border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+            <div>
+                <h1 class="text-lg font-bold">Permisos</h1>
+                <p class="text-[11px] text-gray-500">Gestión de solicitudes</p>
+            </div>
+            <span class="text-[11px] text-gray-500">9 de agosto del 2024 · 12:32 pm</span>
+        </div>
+
+        <!-- Filtros -->
+        <div class="flex items-center gap-2 px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-2 bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 flex-1 max-w-xs">
+                <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" placeholder="Colaborador" class="bg-transparent text-xs text-gray-300 w-full focus:outline-none">
+            </div>
+            <select class="input-base"><option>Sucursal</option><option>Sucursal 1</option><option>Sucursal 2</option></select>
+            <select class="input-base"><option>Turno</option><option>Matutino</option><option>Vespertino</option></select>
+            <select class="input-base"><option>Estatus</option><option>Aprobado</option><option>Rechazado</option><option>Pendiente</option></select>
+            <select class="input-base"><option>Fecha</option><option>Hoy</option><option>Esta semana</option><option>Este mes</option></select>
+            <button class="btn-primary-purple flex items-center gap-1.5" onclick="document.getElementById('modalPermiso').classList.remove('hidden');document.getElementById('modalPermiso').classList.add('flex')">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                Solicitar
+            </button>
+        </div>
+
+        <!-- Tabla -->
+        <div class="flex-1 overflow-auto scrollbar-thin">
+            <table class="w-full">
+                <thead class="sticky top-0 bg-[#111928] z-10">
+                    <tr class="text-[10px] text-gray-500 uppercase tracking-wider border-b border-gray-800">
+                        <th class="text-left py-3 px-6 font-medium">ID</th>
+                        <th class="text-left py-3 px-3 font-medium">Fecha</th>
+                        <th class="text-left py-3 px-3 font-medium">Colaborador</th>
+                        <th class="text-left py-3 px-3 font-medium">Puesto</th>
+                        <th class="text-left py-3 px-3 font-medium">Turno</th>
+                        <th class="text-left py-3 px-3 font-medium">Permiso</th>
+                        <th class="text-left py-3 px-3 font-medium">Estatus</th>
+                        <th class="text-center py-3 px-3 font-medium">Solicitud</th>
+                        <th class="text-center py-3 px-6 font-medium">Comprobante</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/50">
+                    <tr class="hover:bg-[#1a2332] cursor-pointer" onclick="document.getElementById('modalPermiso').classList.remove('hidden');document.getElementById('modalPermiso').classList.add('flex')">
+                        <td class="py-3 px-6 text-xs font-bold">123</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">09/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[9px] font-bold">JL</div><p class="text-xs font-medium">Jese Leos</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-admin">Admin</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-incapacidad">Incapacidad</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-aprobado">Aprobado</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto" onclick="event.stopPropagation();document.getElementById('modalUpload').classList.remove('hidden');document.getElementById('modalUpload').classList.add('flex')"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">94</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">08/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center text-[9px] font-bold">BG</div><p class="text-xs font-medium">Bonnie Green</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-vacaciones">Vacaciones</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-rechazado">Rechazado</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3"/></svg></button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">49</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">08/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[9px] font-bold">LL</div><p class="text-xs font-medium">Leslie Livingston</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-permiso">Permiso</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-pendiente">Pendiente</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1"/></svg></button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">108</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">07/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-[9px] font-bold">MG</div><p class="text-xs font-medium">Micheal Gough</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-permiso">Permiso</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-sin-estatus">Sin Estatus</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16"/></svg></button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">21</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">07/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center text-[9px] font-bold">JM</div><p class="text-xs font-medium">Joseph McFall</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-permiso">Permiso</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-aprobado">Aprobado</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16"/></svg></button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">76</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">06/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center text-[9px] font-bold">RB</div><p class="text-xs font-medium">Robert Brown</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-permiso">Permiso</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-aprobado">Aprobado</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16"/></svg></button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">15</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">05/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center text-[9px] font-bold">KN</div><p class="text-xs font-medium">Karen Nelson</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-incapacidad">Incapacidad</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-aprobado">Aprobado</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16"/></svg></button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">81</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">04/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-[9px] font-bold">HE</div><p class="text-xs font-medium">Helene Engels</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-vacaciones">Vacaciones</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-sin-estatus">Sin Estatus</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16"/></svg></button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">03</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">04/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[9px] font-bold">LB</div><p class="text-xs font-medium">Lana Byrd</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-incapacidad">Incapacidad</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-aprobado">Aprobado</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16"/></svg></button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">108</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">01/08/2024</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center text-[9px] font-bold">NS</div><p class="text-xs font-medium">Neil Sims</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-vacaciones">Vacaciones</span></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-aprobado">Aprobado</span></td>
+                        <td class="py-3 px-3 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12"/></svg></button></td>
+                        <td class="py-3 px-6 text-center"><button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 mx-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16"/></svg></button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-2 bg-[#141d2b] border-t border-gray-800 flex items-center justify-between text-[10px] text-gray-500 flex-shrink-0">
+            <p>© 2023 Huubie, LLC. All rights reserved. <a href="#" class="hover:text-gray-300">Privacy Policy</a> · <a href="#" class="hover:text-gray-300">API</a> · <a href="#" class="hover:text-gray-300">Contact</a></p>
+            <div class="flex items-center gap-2">
+                <button class="hover:text-gray-300">🇺🇸 English(US) ▾</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- MODAL PERMISO (embebido, click Solicitar para abrir)     -->
+    <!-- ======================================================= -->
+    <div id="modalPermiso" class="hidden fixed inset-0 bg-black/60 z-40 items-center justify-center">
+        <div class="w-[420px] bg-[#1F2A37] rounded-2xl p-6 border border-gray-700 relative">
+            <button class="absolute top-3 right-3 text-gray-400 hover:text-white" onclick="document.getElementById('modalPermiso').classList.add('hidden');document.getElementById('modalPermiso').classList.remove('flex')"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <div class="flex items-center gap-3 mb-4">
+                <h2 class="text-lg font-bold">Permiso</h2>
+                <span class="text-sm text-gray-400">PC-001</span>
+            </div>
+            <div class="flex flex-col items-center mb-4">
+                <div class="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xl font-bold mb-2">JL</div>
+                <p class="text-xs text-gray-400">Nombre de empleado</p>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Tipo</label>
+                    <select class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-purple-500">
+                        <option>Seleccionar</option>
+                        <option>Incapacidad</option>
+                        <option>Vacaciones</option>
+                        <option>Permiso</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Inicia</label>
+                    <input type="date" class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Finaliza</label>
+                    <input type="date" class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Razón</label>
+                    <textarea rows="3" class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-purple-500" placeholder="Escribe la razón del permiso..."></textarea>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 mt-5">
+                <button class="flex-1 py-2 rounded-lg bg-gray-600 text-white text-xs font-semibold" onclick="document.getElementById('modalPermiso').classList.add('hidden');document.getElementById('modalPermiso').classList.remove('flex')">Cancelar</button>
+                <button class="flex-1 py-2 rounded-lg bg-[#7c3aed] text-white text-xs font-semibold" onclick="document.getElementById('modalAuth').classList.remove('hidden');document.getElementById('modalAuth').classList.add('flex')">Enviar</button>
+                <button class="flex-1 py-2 rounded-lg bg-[#ea0234] text-white text-xs font-semibold">Rechazar</button>
+                <button class="w-9 h-9 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- MODAL UPLOAD                                              -->
+    <!-- ======================================================= -->
+    <div id="modalUpload" class="hidden fixed inset-0 bg-black/60 z-40 items-center justify-center">
+        <div class="w-[440px] bg-[#1F2A37] rounded-2xl p-8 border border-gray-700 relative">
+            <button class="absolute top-3 right-3 text-gray-400 hover:text-white" onclick="document.getElementById('modalUpload').classList.add('hidden');document.getElementById('modalUpload').classList.remove('flex')"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <div class="flex flex-col items-center text-center">
+                <div class="w-14 h-14 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 mb-4">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                </div>
+                <h2 class="text-base font-bold text-white mb-1">Drag & Drop or <span class="text-[#7c3aed] underline">upload file</span> to upload</h2>
+                <p class="text-[11px] text-gray-500 mb-5">Supported formats: .jpeg, .pdf</p>
+                <div class="flex gap-2 w-full">
+                    <button class="flex-1 py-2 rounded-lg bg-gray-600 text-white text-xs font-semibold" onclick="document.getElementById('modalUpload').classList.add('hidden');document.getElementById('modalUpload').classList.remove('flex')">Cancelar</button>
+                    <button class="flex-1 py-2 rounded-lg bg-[#1c64f2] text-white text-xs font-semibold">Enable</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- MODAL AUTORIZACION                                        -->
+    <!-- ======================================================= -->
+    <div id="modalAuth" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center">
+        <div class="w-[380px] bg-[#1F2A37] rounded-2xl p-6 border border-gray-700 relative">
+            <button class="absolute top-3 right-3 text-gray-400 hover:text-white" onclick="document.getElementById('modalAuth').classList.add('hidden');document.getElementById('modalAuth').classList.remove('flex')"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <h2 class="text-2xl font-bold text-white mb-1">Este cambio requiere</h2>
+            <h2 class="text-2xl font-bold text-white mb-5">autorización.</h2>
+            <label class="text-xs text-gray-400 block mb-1">Contraseña</label>
+            <input type="password" placeholder="****" class="w-full bg-[#141d2b] border border-gray-700 rounded-lg px-3 py-3 text-sm text-gray-300 mb-5 focus:outline-none focus:border-[#1c64f2]">
+            <button class="px-6 py-2.5 rounded-lg bg-[#1c64f2] text-white text-sm font-semibold hover:bg-blue-500">Autorizar</button>
+        </div>
+    </div>
+
+</body>
+</html>

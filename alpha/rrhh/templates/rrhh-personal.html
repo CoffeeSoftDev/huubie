@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huubie RRHH — Personal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; height:100vh; overflow:hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width:4px; height:4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+        .tab-btn.active { color:#7c3aed; border-bottom:2px solid #7c3aed; }
+
+        /* === BADGES RRHH === */
+        .badge-base       { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; }
+        .badge-aprobado   { background:rgba(63,193,137,.15); color:#3fc189; border-color:rgba(63,193,137,.3); }
+        .badge-rechazado  { background:rgba(234,2,52,.15); color:#ea0234; border-color:rgba(234,2,52,.35); }
+        .badge-pendiente  { background:rgba(251,191,36,.15); color:#fbbf24; border-color:rgba(251,191,36,.3); }
+        .badge-sin-estatus{ background:rgba(156,163,175,.15); color:#9ca3af; border-color:rgba(156,163,175,.3); }
+        .badge-activo     { background:rgba(63,193,137,.15); color:#3fc189; border-color:rgba(63,193,137,.3); }
+        .badge-baja       { background:rgba(156,163,175,.15); color:#9ca3af; border-color:rgba(156,163,175,.3); }
+        .badge-atiempo    { background:rgba(63,193,137,.15); color:#3fc189; border-color:rgba(63,193,137,.3); }
+        .badge-retardo    { background:rgba(234,2,52,.15); color:#ea0234; border-color:rgba(234,2,52,.35); }
+        .badge-falta      { background:rgba(234,2,52,.15); color:#ea0234; border-color:rgba(234,2,52,.35); }
+
+        /* === TIPOS DE PERMISO === */
+        .badge-incapacidad{ background:rgba(244,114,182,.15); color:#f472b6; border-color:rgba(244,114,182,.3); }
+        .badge-vacaciones { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-permiso    { background:rgba(249,115,22,.15); color:#fb923c; border-color:rgba(249,115,22,.3); }
+
+        /* === PUESTOS === */
+        .badge-puesto-admin  { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-puesto-cocina { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-puesto-piso   { background:rgba(28,100,242,.18); color:#76a9fa; border-color:rgba(28,100,242,.35); }
+        .badge-puesto-barista{ background:rgba(234,88,12,.18); color:#fdba74; border-color:rgba(234,88,12,.35); }
+
+        /* === DOTS === */
+        .dot                { display:inline-block; width:6px; height:6px; border-radius:9999px; margin-right:6px; }
+        .dot-asistencia     { background:#3fc189; }
+        .dot-falta          { background:#ea0234; }
+        .dot-vacaciones     { background:#fbbf24; }
+        .dot-incidencia     { background:#fb923c; }
+        .dot-reconocimiento { background:#c4b5fd; }
+
+        /* === UTILIDADES === */
+        .card-base          { background:#1F2A37; border:1px solid rgba(55,65,81,.6); border-radius:12px; }
+        .input-base         { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:6px 12px; font-size:12px; color:#d1d5db; }
+        .input-base:focus   { outline:none; border-color:#7c3aed; }
+        .btn-primary-purple { background:#7c3aed; color:#fff; padding:6px 14px; border-radius:8px; font-size:12px; font-weight:600; transition:.15s; }
+        .btn-primary-purple:hover { background:#8b5cf6; }
+        .btn-primary-blue   { background:#1c64f2; color:#fff; padding:6px 14px; border-radius:8px; font-size:12px; font-weight:600; }
+        .btn-danger         { background:#ea0234; color:#fff; padding:6px 14px; border-radius:8px; font-size:12px; font-weight:600; }
+        .btn-success        { background:#3fc189; color:#fff; padding:6px 14px; border-radius:8px; font-size:12px; font-weight:600; }
+
+        /* === SIDEBAR === */
+        .sidebar-item       { display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:8px; font-size:12px; color:#9ca3af; cursor:pointer; }
+        .sidebar-item:hover { background:rgba(124,58,237,.08); color:#d1d5db; }
+        .sidebar-item.active{ color:#c4b5fd; background:rgba(124,58,237,.15); }
+        .sidebar-sub        { padding-left:32px; font-size:11px; }
+        .sidebar-sub.active { color:#c4b5fd; background:rgba(124,58,237,.12); border-left:2px solid #7c3aed; }
+    </style>
+</head>
+<body class="flex">
+
+    <!-- ================================================ -->
+    <!-- SIDEBAR                                            -->
+    <!-- ================================================ -->
+    <aside class="w-56 bg-[#0f172a] border-r border-gray-800 flex flex-col flex-shrink-0 h-screen">
+        <!-- Logo -->
+        <div class="px-4 py-4 border-b border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-xs">hb</div>
+            <span class="font-bold text-sm">Huubie</span>
+        </div>
+
+        <!-- Menu scrollable -->
+        <nav class="flex-1 overflow-y-auto scrollbar-thin py-3 px-2">
+            <div class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                Resumen
+            </div>
+            <div class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
+                Finanzas
+                <svg class="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <div class="sidebar-item active">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                Recursos Humanos
+                <svg class="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+            </div>
+            <!-- Submenu RRHH -->
+            <div class="mt-1 space-y-0.5">
+                <a href="rrhh-personal.html" class="sidebar-item sidebar-sub active">Personal</a>
+                <a href="rrhh-incidencia-diario.html" class="sidebar-item sidebar-sub">Incidencia</a>
+                <a href="rrhh-nomina.html" class="sidebar-item sidebar-sub">Nómina</a>
+                <a href="rrhh-permisos.html" class="sidebar-item sidebar-sub">Permisos</a>
+                <div class="sidebar-item sidebar-sub opacity-60">Desempeño</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Reclutamiento</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Cursos</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Actas</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Reconocimientos</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Configuración</div>
+            </div>
+            <div class="sidebar-item mt-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg>
+                Operaciones
+            </div>
+            <div class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4z"/></svg>
+                Mkt y clientes
+            </div>
+            <div class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                Ventas
+            </div>
+        </nav>
+
+        <!-- Footer sidebar -->
+        <div class="px-2 py-3 border-t border-gray-800 space-y-0.5">
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>Asistencia</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Documentos</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Ayuda</div>
+        </div>
+    </aside>
+
+    <!-- ================================================ -->
+    <!-- CONTENIDO                                         -->
+    <!-- ================================================ -->
+    <div class="flex-1 flex flex-col min-w-0 h-screen">
+
+        <!-- Header -->
+        <header class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-3 flex-1 max-w-md">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" placeholder="Buscar" class="bg-transparent text-sm text-gray-300 w-full focus:outline-none">
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+                    <button class="px-3 py-1 text-[11px] text-gray-500">○ Claro</button>
+                    <button class="px-3 py-1 text-[11px] text-white bg-purple-600/80 rounded">○ Oscuro</button>
+                </div>
+                <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></button>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">AK</div>
+            </div>
+        </header>
+
+        <!-- Sub-header título -->
+        <div class="px-6 py-4 bg-[#141d2b] border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+            <div>
+                <h1 class="text-lg font-bold">Personal</h1>
+                <p class="text-[11px] text-gray-500">Colaboradores activos en la organización</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[11px] text-gray-500">9 de agosto del 2024 · 12:32 pm</span>
+                <button class="btn-primary-purple flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    Agregar Colaborador
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="flex items-center gap-2 px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-2 bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 flex-1 max-w-xs">
+                <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" placeholder="Colaborador" class="bg-transparent text-xs text-gray-300 w-full focus:outline-none">
+            </div>
+            <select class="input-base"><option>Sucursal</option><option>Sucursal 1</option><option>Sucursal 2</option></select>
+            <select class="input-base"><option>Turno</option><option>Matutino</option><option>Vespertino</option></select>
+            <select class="input-base"><option>Puesto</option><option>Admin</option><option>Cocina</option><option>Piso</option></select>
+            <select class="input-base"><option>Estatus</option><option>Activo</option><option>Baja</option></select>
+            <button class="btn-primary-blue">Aplicar</button>
+        </div>
+
+        <!-- Tabla -->
+        <div class="flex-1 overflow-auto scrollbar-thin">
+            <table class="w-full">
+                <thead class="sticky top-0 bg-[#111928] z-10">
+                    <tr class="text-[10px] text-gray-500 uppercase tracking-wider border-b border-gray-800">
+                        <th class="text-left py-3 px-6 font-medium">ID</th>
+                        <th class="text-left py-3 px-3 font-medium">Colaborador</th>
+                        <th class="text-left py-3 px-3 font-medium">Puesto</th>
+                        <th class="text-left py-3 px-3 font-medium">Turno</th>
+                        <th class="text-left py-3 px-3 font-medium">Fecha Ingreso</th>
+                        <th class="text-left py-3 px-3 font-medium">Teléfono</th>
+                        <th class="text-left py-3 px-3 font-medium">Sucursal</th>
+                        <th class="text-left py-3 px-3 font-medium">Estatus</th>
+                        <th class="text-center py-3 px-6 font-medium">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/50">
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-001</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">JL</div><div><p class="text-xs font-medium">Jese Leos</p><p class="text-[9px] text-gray-500">jese@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-admin">Admin</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">15/01/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 1234 5678</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 1</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-activo">Activo</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-blue-400" title="Ver"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-purple-400" title="Editar"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-red-400" title="Baja"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button></div></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-002</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center text-[10px] font-bold">BG</div><div><p class="text-xs font-medium">Bonnie Green</p><p class="text-[9px] text-gray-500">bonnie@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">02/03/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 2345 6789</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 1</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-activo">Activo</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21"/></svg></button></div></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-003</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[10px] font-bold">LL</div><div><p class="text-xs font-medium">Leslie Livingston</p><p class="text-[9px] text-gray-500">leslie@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">10/04/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 3456 7890</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 2</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-activo">Activo</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142"/></svg></button></div></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-004</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-[10px] font-bold">MG</div><div><p class="text-xs font-medium">Micheal Gough</p><p class="text-[9px] text-gray-500">micheal@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Vespertino</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">22/05/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 4567 8901</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 1</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-activo">Activo</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7"/></svg></button></div></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-005</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center text-[10px] font-bold">JM</div><div><p class="text-xs font-medium">Joseph McFall</p><p class="text-[9px] text-gray-500">joseph@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">15/06/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 5678 9012</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 2</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-activo">Activo</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7"/></svg></button></div></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-006</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">RB</div><div><p class="text-xs font-medium">Robert Brown</p><p class="text-[9px] text-gray-500">robert@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Vespertino</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">30/07/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 6789 0123</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 1</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-activo">Activo</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7"/></svg></button></div></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-007</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center text-[10px] font-bold">KN</div><div><p class="text-xs font-medium">Karen Nelson</p><p class="text-[9px] text-gray-500">karen@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">12/08/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 7890 1234</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 2</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-activo">Activo</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7"/></svg></button></div></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-008</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">HE</div><div><p class="text-xs font-medium">Helene Engels</p><p class="text-[9px] text-gray-500">helene@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">05/09/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 8901 2345</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 1</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-activo">Activo</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19"/></svg></button></div></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-009</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-bold">LB</div><div><p class="text-xs font-medium">Lana Byrd</p><p class="text-[9px] text-gray-500">lana@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Nocturno</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">20/10/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 9012 3456</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 2</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-baja">Baja</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19"/></svg></button></div></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332] cursor-pointer">
+                        <td class="py-3 px-6 text-xs font-bold">EMP-010</td>
+                        <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">NS</div><div><p class="text-xs font-medium">Neil Sims</p><p class="text-[9px] text-gray-500">neil@huubie.com</p></div></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">08/11/2023</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">55 0123 4567</td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Sucursal 1</td>
+                        <td class="py-3 px-3"><span class="badge-base badge-activo">Activo</span></td>
+                        <td class="py-3 px-6"><div class="flex justify-center gap-1"><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11"/></svg></button><button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19"/></svg></button></div></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginador -->
+        <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-t border-gray-800 flex-shrink-0">
+            <p class="text-[11px] text-gray-500">Mostrando 1-10 de 42 colaboradores</p>
+            <div class="flex gap-1">
+                <button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+                <button class="w-7 h-7 rounded bg-purple-600 text-white text-[11px] font-bold">1</button>
+                <button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 text-gray-400 text-[11px]">2</button>
+                <button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 text-gray-400 text-[11px]">3</button>
+                <button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 text-gray-400 text-[11px]">4</button>
+                <button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 text-gray-400 text-[11px]">5</button>
+                <button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

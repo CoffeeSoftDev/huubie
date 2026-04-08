@@ -36,7 +36,17 @@
       "Bash(grep -E \"bd\\\\}\\([a-z_]+\\)|->bd\\\\s*\\\\.\\\\s*['\\\\\"]\\([a-z_]+\\)\" /c/wamp64/www/huubie/alpha/pedidos/mdl/*.php)",
       "Bash(grep -rh '$this->bd\\\\}' /c/wamp64/www/huubie/alpha/pedidos/mdl/)",
       "Bash(grep -oE \"\\\\`[a-z_]+\\\\`|'[a-z_]+'\")",
-      "Bash(grep -rh \"bd}['\\\\`]*[a-z_]*\" /c/wamp64/www/huubie/alpha/pedidos/mdl/)"
+      "Bash(grep -rh \"bd}['\\\\`]*[a-z_]*\" /c/wamp64/www/huubie/alpha/pedidos/mdl/)",
+      "Bash(grep -r \"require_once\\\\|include\" /c/wamp64/www/huubie/alpha/pedidos/*.php)",
+      "Bash(grep -r \"class \" /c/wamp64/www/huubie/alpha/*/ctrl/*.php)",
+      "Bash(grep -r \"class M\" /c/wamp64/www/huubie/alpha/*/mdl/*.php)",
+      "Bash(grep:*)",
+      "Bash(cp:*)",
+      "Bash(mv ctrl/ctrl-pedidos-catalogo.php ctrl/ctrl-catalogo.php)",
+      "Bash(mv ctrl/ctrl-pedidos-personalizado.php ctrl/ctrl-personalizado.php)",
+      "Bash(mv mdl/mdl-pedidos-catalogo.php mdl/mdl-catalogo.php)",
+      "Bash(mv mdl/mdl-pedidos-personalizado.php mdl/mdl-personalizado.php)",
+      "Bash(mv src/js/pedidos-catalogo.js src/js/catalogo.js)"
     ]
   }
 }
