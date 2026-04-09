@@ -32,6 +32,15 @@ class Navbar {
             className = 'icon-crown text-[14px] text-yellow-400'   
         }
 
+        const hasPhoto = this.settings.imgPerfil && this.settings.imgPerfil.trim() !== '';
+        const navbarAvatar = hasPhoto
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-10 h-10 rounded-full border-2 border-white object-cover" onerror="this.outerHTML='<div class=\\'w-10 h-10 rounded-full border-2 border-white bg-purple-600 flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-xl\\'></i></div>'" />`
+            : `<div class="w-10 h-10 rounded-full border-2 border-white bg-purple-600 flex items-center justify-center"><i class="icon-user-7 text-white text-xl"></i></div>`;
+
+        const dropdownAvatar = hasPhoto
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="this.outerHTML='<div class=\\'w-20 h-20 rounded-full border-2 border-white shadow-lg bg-purple-600 flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-4xl\\'></i></div>'" />`
+            : `<div class="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-purple-600 flex items-center justify-center"><i class="icon-user-7 text-white text-4xl"></i></div>`;
+
         const navbarHtml = `
             <nav class="bg-[#111827] fixed top-0 left-0 w-full text-white px-4 py-3 h-16 z-50 flex items-center justify-between border-b-2 border-pink-500">
                 <div class="flex items-center space-x-2">
@@ -49,7 +58,7 @@ class Navbar {
 
                 </ul>
                 <button id="btnUserMenu" class="ml-2 flex items-center justify-center border-l border-gray-500 pl-2">
-                    <img src="${this.settings.imgPerfil}" alt="Usuario" class="w-10 h-10 rounded-full border-2 border-white" />
+                    ${navbarAvatar}
                 </button>
             </nav>
             <div class="relative mt-16 z-50">
@@ -62,7 +71,7 @@ class Navbar {
                         </button>
                         <div class="absolute -bottom-10">
                             <div class="relative">
-                                <img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" />
+                                ${dropdownAvatar}
                                 <span class="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#1F2A37]"></span>
                             </div>
                         </div>
