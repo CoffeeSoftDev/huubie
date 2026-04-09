@@ -566,4 +566,6 @@ function badgeEstatusNomina($estatus) {
 }
 
 $obj = new ctrl();
+if (ob_get_length()) ob_clean();
+header('Content-Type: application/json');
 echo json_encode($obj->{$_POST['opc']}());

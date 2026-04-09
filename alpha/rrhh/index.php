@@ -39,7 +39,7 @@
     <!-- CoffeeSoft Framework -->
     <script src="<?=PATH_BASE?>src/js/complementos.js"></script>
     <script src="<?=PATH_BASE?>src/js/plugins.js?t=<?php echo time(); ?>"></script>
-    <script src="<?=PATH_BASE?>src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_BASE?>src/js/coffeSoft.js?t=<?php echo time(); ?>"></script>
 
     <!-- Session / Nav -->
     <script src="<?=PATH_BASE?>access/src/js/session.js"></script>

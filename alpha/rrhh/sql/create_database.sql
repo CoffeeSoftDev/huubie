@@ -278,7 +278,7 @@ CREATE TABLE IF NOT EXISTS `rrhh_documentos_empleado` (
 -- SEED: Sucursales (copia de fayxzvov_alpha)
 -- ============================================================
 
-INSERT INTO `subsidiaries` (`id`, `name`, `companies_id`, `enabled`, `ubication`, `active`, `date_creation`)
+INSERT IGNORE INTO `subsidiaries` (`id`, `name`, `companies_id`, `enabled`, `ubication`, `active`, `date_creation`)
 SELECT `id`, `name`, `companies_id`, `enabled`, `ubication`, `active`, `date_creation`
 FROM `fayxzvov_alpha`.`subsidiaries`;
 
@@ -286,7 +286,7 @@ FROM `fayxzvov_alpha`.`subsidiaries`;
 -- SEED: Catalogos
 -- ============================================================
 
-INSERT INTO `rrhh_puestos` (`nombre`, `color_badge`, `salario_base_sugerido`) VALUES
+INSERT IGNORE INTO `rrhh_puestos` (`nombre`, `color_badge`, `salario_base_sugerido`) VALUES
 ('Administrador', 'purple', 500.00),
 ('Gerente',       'purple', 450.00),
 ('Cocina',        'purple', 280.00),
@@ -296,7 +296,7 @@ INSERT INTO `rrhh_puestos` (`nombre`, `color_badge`, `salario_base_sugerido`) VA
 ('Limpieza',      'gray',   220.00),
 ('Viewer',        'gray',   200.00);
 
-INSERT INTO `rrhh_turnos` (`nombre`, `hora_entrada`, `hora_salida`, `tolerancia_retardo_min`, `duracion_horas`) VALUES
+INSERT IGNORE INTO `rrhh_turnos` (`nombre`, `hora_entrada`, `hora_salida`, `tolerancia_retardo_min`, `duracion_horas`) VALUES
 ('Matutino',   '07:00:00', '15:00:00', 10, 8.00),
 ('Vespertino', '15:00:00', '23:00:00', 10, 8.00),
 ('Nocturno',   '23:00:00', '07:00:00', 10, 8.00),
@@ -306,7 +306,7 @@ INSERT INTO `rrhh_turnos` (`nombre`, `hora_entrada`, `hora_salida`, `tolerancia_
 -- SEED: Empleados de prueba
 -- ============================================================
 
-INSERT INTO `rrhh_empleados` (`codigo_empleado`, `nombre`, `apellido_paterno`, `apellido_materno`, `email`, `telefono`, `puesto_id`, `turno_id`, `subsidiaries_id`, `companies_id`, `tipo_contrato`, `fecha_ingreso`, `salario_diario`, `frecuencia_pago`, `estado`, `created_by`) VALUES
+INSERT IGNORE INTO `rrhh_empleados` (`codigo_empleado`, `nombre`, `apellido_paterno`, `apellido_materno`, `email`, `telefono`, `puesto_id`, `turno_id`, `subsidiaries_id`, `companies_id`, `tipo_contrato`, `fecha_ingreso`, `salario_diario`, `frecuencia_pago`, `estado`, `created_by`) VALUES
 ('EMP-0001', 'Carlos',   'Lopez',    'Martinez',  'carlos@test.com',  '9611234567', 1, 1, 1, 1, 'indefinido', '2024-01-15', 500.00, 'quincenal', 'activo', 1),
 ('EMP-0002', 'Maria',    'Garcia',   'Hernandez', 'maria@test.com',   '9612345678', 3, 1, 1, 1, 'indefinido', '2024-02-01', 280.00, 'quincenal', 'activo', 1),
 ('EMP-0003', 'Juan',     'Perez',    'Diaz',      'juan@test.com',    '9613456789', 5, 2, 1, 1, 'indefinido', '2024-03-10', 240.00, 'quincenal', 'activo', 1),

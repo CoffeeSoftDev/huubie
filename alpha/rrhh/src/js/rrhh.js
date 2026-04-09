@@ -19,6 +19,7 @@ class App extends Templates {
 
     async init() {
         const req = await useFetch({ url: this.link, data: { opc: 'init' } });
+        if (!req) return;
         this.subsidiaries = req.subsidiaries || [];
         this.puestos = req.puestos || [];
         this.turnos = req.turnos || [];
@@ -86,7 +87,7 @@ class App extends Templates {
             data: { opc: 'showResumen', subsidiaries_id: this.selectedSub }
         });
 
-        if (req.status === 200) {
+        if (req && req.status === 200) {
             this.renderResumenCards(req.counts);
             this.renderResumenPermisos(req.permisos);
         }
@@ -237,7 +238,7 @@ class App extends Templates {
                 theme: 'corporativo',
                 title: 'Colaboradores'
             },
-            json: req.row || []
+            json: (req && req.row) ? req.row : []
         });
     }
 
@@ -246,7 +247,7 @@ class App extends Templates {
             url: this.link,
             data: { opc: 'showPersonal', subsidiaries_id: $('#personal_sub').val() || '0' }
         });
-        if (req.status === 200 && req.counts) {
+        if (req && req.status === 200 && req.counts) {
             $('#personalStats').html(`
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div class="bg-[#1F2A37] rounded-lg p-3 text-center">
@@ -580,7 +581,7 @@ class App extends Templates {
                 theme: 'corporativo',
                 title: 'Permisos'
             },
-            json: req.row || []
+            json: (req && req.row) ? req.row : []
         });
     }
 
@@ -776,7 +777,7 @@ class App extends Templates {
                 theme: 'corporativo',
                 title: 'Incidencias - ' + fecha
             },
-            json: req.row || []
+            json: (req && req.row) ? req.row : []
         });
     }
 
@@ -864,7 +865,7 @@ class App extends Templates {
                 theme: 'corporativo',
                 title: 'Periodos de Nomina'
             },
-            json: req.row || []
+            json: (req && req.row) ? req.row : []
         });
     }
 
@@ -932,7 +933,7 @@ class App extends Templates {
             data: { opc: 'showNomina', periodo_id: periodoId }
         });
 
-        if (req.status === 200) {
+        if (req && req.status === 200) {
             $('#containerNominaTable').html('');
             $('#containerNominaTable').append(`
                 <div class="mb-3">
