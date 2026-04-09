@@ -32,11 +32,21 @@
 3. **Aislamos cambios de esquema del core.** Cualquier adición de columna laboral (bonos fijos, comisiones, parentesco con beneficiarios, etc.) ocurre en `rrhh_empleados` y no toca tablas compartidas con otros módulos.
 4. **Portabilidad.** Si mañana el core migra de `usr_users` a otro sistema de identidad (OAuth, SSO), solo se actualiza el campo `usr_users_id` sin tocar el esquema laboral.
 
-### 1.3 FKs cross-database = FKs lógicas
+### 1.3 `subsidiaries` como tabla propia en `fayxzvov_rrhh`
 
-MySQL **no valida** `FOREIGN KEY` entre bases de datos distintas. Las referencias de `rrhh_empleados.usr_users_id` → `fayxzvov_alpha.usr_users.id` o `rrhh_empleados.subsidiaries_id` → `fayxzvov_alpha.subsidiaries.id` son **FKs lógicas**: se documentan en este archivo y se validan en los modelos PHP antes de cada `INSERT` o `UPDATE`. No se declaran con `FOREIGN KEY` en el DDL.
+**Decisión:** copiar la estructura de `fayxzvov_alpha.subsidiaries` a `fayxzvov_rrhh` como `subsidiaries`. La tabla `companies` permanece en `fayxzvov_admin` (FK lógica).
 
-### 1.4 Conexión
+**Razones:**
+
+1. **Independencia del módulo.** RRHH no debe depender de la BD de alpha para funcionar. Si alpha migra o cambia la tabla, RRHH no se rompe.
+2. **FKs reales.** Al estar en la misma BD, `rrhh_empleados.subsidiaries_id`, `rrhh_incidencias.subsidiaries_id` y `rrhh_nomina_periodos.subsidiaries_id` pueden tener `FOREIGN KEY` enforzada por MySQL, garantizando integridad referencial.
+3. **Sincronización.** Los datos de sucursales se sincronizan desde alpha a rrhh mediante lógica de negocio (Fase 2), manteniendo ambas tablas consistentes.
+
+### 1.4 FKs cross-database restantes = FKs lógicas
+
+MySQL **no valida** `FOREIGN KEY` entre bases de datos distintas. Las referencias restantes como `rrhh_empleados.usr_users_id` → `fayxzvov_alpha.usr_users.id` o `subsidiaries.companies_id` → `fayxzvov_admin.companies.id` son **FKs lógicas**: se documentan en este archivo y se validan en los modelos PHP antes de cada `INSERT` o `UPDATE`. No se declaran con `FOREIGN KEY` en el DDL.
+
+### 1.5 Conexión
 
 | Parámetro | Valor |
 |---|---|
@@ -53,7 +63,28 @@ En `alpha/rrhh/mdl/mdl-rrhh.php` (Fase 2), el prefijo será `$this->bd = 'fayxzv
 
 ## 2. Catálogo de tablas
 
-### 2.1 `rrhh_puestos`
+### 2.1 `subsidiaries`
+
+**Propósito:** Copia local de sucursales dentro de `fayxzvov_rrhh`. Estructura idéntica a `fayxzvov_alpha.subsidiaries` para permitir FKs reales dentro de la misma BD.
+
+| Columna | Tipo | Null | Default | Nota |
+|---|---|---|---|---|
+| `id` | INT AI PK | NO | | Mismo ID que en `fayxzvov_alpha.subsidiaries` |
+| `name` | VARCHAR(200) | YES | NULL | Nombre de la sucursal |
+| `companies_id` | INT | YES | NULL | FK lógica → `fayxzvov_admin.companies.id` |
+| `enabled` | INT | YES | 1 | |
+| `logo` | TEXT | YES | NULL | |
+| `ubication` | TEXT | YES | NULL | |
+| `active` | SMALLINT | YES | 0 | |
+| `date_creation` | DATETIME | YES | NULL | |
+
+**Índices:** `INDEX(companies_id)`, `INDEX(active)`.
+
+**Nota:** Los datos se sincronizan desde `fayxzvov_alpha.subsidiaries` (Fase 2). Los IDs deben coincidir para mantener consistencia.
+
+---
+
+### 2.2 `rrhh_puestos` (antes 2.1)
 
 **Propósito:** Catálogo de puestos/cargos disponibles en la organización.
 
@@ -116,7 +147,7 @@ En `alpha/rrhh/mdl/mdl-rrhh.php` (Fase 2), el prefijo será `$this->bd = 'fayxzv
 | `banco` | VARCHAR(40) | YES | NULL | |
 | `puesto_id` | INT UNSIGNED | NO | | FK → `rrhh_puestos.id` |
 | `turno_id` | INT UNSIGNED | NO | | FK → `rrhh_turnos.id` |
-| `subsidiaries_id` | INT UNSIGNED | NO | | FK lógica → `fayxzvov_alpha.subsidiaries.id` |
+| `subsidiaries_id` | INT UNSIGNED | NO | | FK → `subsidiaries.id` |
 | `companies_id` | INT UNSIGNED | NO | | FK lógica → `fayxzvov_admin.companies.id` |
 | `tipo_contrato` | ENUM('indefinido','temporal','honorarios','eventual') | NO | 'indefinido' | |
 | `fecha_ingreso` | DATE | NO | | |
@@ -145,6 +176,7 @@ En `alpha/rrhh/mdl/mdl-rrhh.php` (Fase 2), el prefijo será `$this->bd = 'fayxzv
 **FKs enforzadas (dentro de la misma BD):**
 - `puesto_id` → `rrhh_puestos(id)` ON DELETE RESTRICT
 - `turno_id` → `rrhh_turnos(id)` ON DELETE RESTRICT
+- `subsidiaries_id` → `subsidiaries(id)` ON DELETE RESTRICT
 
 ---
 
@@ -348,7 +380,8 @@ En `alpha/rrhh/mdl/mdl-rrhh.php` (Fase 2), el prefijo será `$this->bd = 'fayxzv
 ```mermaid
 erDiagram
     usr_users ||--o| rrhh_empleados : "1:0..1 (lógica)"
-    subsidiaries ||--o{ rrhh_empleados : "1:N (lógica)"
+    companies ||--o{ subsidiaries : "1:N (lógica)"
+    subsidiaries ||--o{ rrhh_empleados : "1:N (FK real)"
     companies ||--o{ rrhh_empleados : "1:N (lógica)"
 
     rrhh_puestos ||--o{ rrhh_empleados : "1:N"
@@ -362,9 +395,18 @@ erDiagram
     rrhh_permisos  ||--o{ rrhh_incidencias : "0:N (días derivados)"
 
     rrhh_nomina_periodos ||--o{ rrhh_nomina_detalle : "1:N"
-    subsidiaries ||--o{ rrhh_nomina_periodos : "1:N (lógica)"
+    subsidiaries ||--o{ rrhh_incidencias : "1:N (FK real)"
+    subsidiaries ||--o{ rrhh_nomina_periodos : "1:N (FK real)"
 
     usr_users ||--o{ rrhh_autorizaciones_log : "1:N (lógica)"
+
+    subsidiaries {
+        int id PK
+        string name
+        int companies_id FK
+        int enabled
+        smallint active
+    }
 
     rrhh_empleados {
         int id PK
@@ -429,6 +471,24 @@ CREATE DATABASE IF NOT EXISTS `fayxzvov_rrhh`
 USE `fayxzvov_rrhh`;
 
 -- ============================================================
+-- 0. SUCURSALES (copia de fayxzvov_alpha.subsidiaries)
+-- ============================================================
+
+CREATE TABLE `subsidiaries` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(200) DEFAULT NULL,
+  `companies_id` INT DEFAULT NULL COMMENT 'FK lógica → fayxzvov_admin.companies.id',
+  `enabled` INT DEFAULT '1',
+  `logo` TEXT,
+  `ubication` TEXT,
+  `active` SMALLINT DEFAULT '0',
+  `date_creation` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_subsidiaries_company` (`companies_id`),
+  KEY `idx_subsidiaries_active` (`active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- 1. CATÁLOGOS
 -- ============================================================
 
@@ -483,8 +543,8 @@ CREATE TABLE `rrhh_empleados` (
   `banco` VARCHAR(40) NULL,
   `puesto_id` INT UNSIGNED NOT NULL,
   `turno_id` INT UNSIGNED NOT NULL,
-  `subsidiaries_id` INT UNSIGNED NOT NULL COMMENT 'FK lógica',
-  `companies_id` INT UNSIGNED NOT NULL COMMENT 'FK lógica',
+  `subsidiaries_id` INT NOT NULL COMMENT 'FK → subsidiaries.id',
+  `companies_id` INT UNSIGNED NOT NULL COMMENT 'FK lógica → fayxzvov_admin.companies.id',
   `tipo_contrato` ENUM('indefinido','temporal','honorarios','eventual') NOT NULL DEFAULT 'indefinido',
   `fecha_ingreso` DATE NOT NULL,
   `fecha_baja` DATE NULL,
@@ -508,7 +568,8 @@ CREATE TABLE `rrhh_empleados` (
   KEY `idx_rrhh_empleados_estado` (`estado`),
   KEY `idx_rrhh_empleados_ingreso` (`fecha_ingreso`),
   CONSTRAINT `fk_rrhh_empleados_puesto` FOREIGN KEY (`puesto_id`) REFERENCES `rrhh_puestos`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_rrhh_empleados_turno` FOREIGN KEY (`turno_id`) REFERENCES `rrhh_turnos`(`id`) ON DELETE RESTRICT
+  CONSTRAINT `fk_rrhh_empleados_turno` FOREIGN KEY (`turno_id`) REFERENCES `rrhh_turnos`(`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_rrhh_empleados_sub` FOREIGN KEY (`subsidiaries_id`) REFERENCES `subsidiaries`(`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -560,7 +621,7 @@ CREATE TABLE `rrhh_incidencias` (
   `observaciones` TEXT NULL,
   `registrado_por` INT UNSIGNED NULL,
   `permiso_id` INT UNSIGNED NULL,
-  `subsidiaries_id` INT UNSIGNED NOT NULL,
+  `subsidiaries_id` INT NOT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -570,7 +631,8 @@ CREATE TABLE `rrhh_incidencias` (
   KEY `idx_rrhh_incidencias_sub_fecha` (`subsidiaries_id`, `fecha`),
   KEY `idx_rrhh_incidencias_permiso` (`permiso_id`),
   CONSTRAINT `fk_rrhh_incidencias_empleado` FOREIGN KEY (`empleado_id`) REFERENCES `rrhh_empleados`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_rrhh_incidencias_permiso` FOREIGN KEY (`permiso_id`) REFERENCES `rrhh_permisos`(`id`) ON DELETE SET NULL
+  CONSTRAINT `fk_rrhh_incidencias_permiso` FOREIGN KEY (`permiso_id`) REFERENCES `rrhh_permisos`(`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_rrhh_incidencias_sub` FOREIGN KEY (`subsidiaries_id`) REFERENCES `subsidiaries`(`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -580,8 +642,8 @@ CREATE TABLE `rrhh_incidencias` (
 CREATE TABLE `rrhh_nomina_periodos` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `codigo` VARCHAR(30) NOT NULL,
-  `subsidiaries_id` INT UNSIGNED NOT NULL,
-  `companies_id` INT UNSIGNED NOT NULL,
+  `subsidiaries_id` INT NOT NULL,
+  `companies_id` INT UNSIGNED NOT NULL COMMENT 'FK lógica → fayxzvov_admin.companies.id',
   `fecha_inicio` DATE NOT NULL,
   `fecha_fin` DATE NOT NULL,
   `frecuencia` ENUM('semanal','catorcenal','quincenal','mensual') NOT NULL,
@@ -601,7 +663,8 @@ CREATE TABLE `rrhh_nomina_periodos` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_rrhh_nomina_periodos_codigo` (`codigo`),
   KEY `idx_rrhh_nomina_periodos_sub_fechas` (`subsidiaries_id`, `fecha_inicio`, `fecha_fin`),
-  KEY `idx_rrhh_nomina_periodos_estatus` (`estatus`)
+  KEY `idx_rrhh_nomina_periodos_estatus` (`estatus`),
+  CONSTRAINT `fk_rrhh_nomina_periodos_sub` FOREIGN KEY (`subsidiaries_id`) REFERENCES `subsidiaries`(`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `rrhh_nomina_detalle` (

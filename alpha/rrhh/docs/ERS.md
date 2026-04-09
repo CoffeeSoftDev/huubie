@@ -98,7 +98,7 @@ El módulo comparte la sesión de autenticación, el navbar, el sidebar y el sis
 ### 2.4 Restricciones
 
 - **Stack fijo:** PHP 7.4+, MySQL 5.7+/8.0, PDO, jQuery 3.7, Tailwind CDN, Bootstrap 5, Chart.js 4.4, SweetAlert2, Select2, DataTables, DateRangePicker.
-- **Bases de datos cruzadas:** `fayxzvov_alpha` (core), `fayxzvov_admin` (admin global), nueva `fayxzvov_rrhh` (este módulo). Las FKs entre bases son lógicas, no enforzadas por MySQL.
+- **Bases de datos cruzadas:** `fayxzvov_alpha` (core), `fayxzvov_admin` (admin global), nueva `fayxzvov_rrhh` (este módulo). La tabla `subsidiaries` se copia como `subsidiaries` dentro de `fayxzvov_rrhh` para permitir FKs reales. Las FKs restantes entre bases (`usr_users`, `companies`) son lógicas, no enforzadas por MySQL.
 - **Sesión compartida** con `$_SESSION['USR']`, `$_SESSION['SUB']`, `$_SESSION['ROLID']`.
 - **Paleta visual obligatoria:** los colores vienen de `alpha/src/css/colors.css`. No se pueden introducir colores nuevos que rompan el tema oscuro.
 - **Re-autenticación obligatoria:** toda operación crítica debe pasar por el modal de autorización con password (RF-06).
@@ -107,7 +107,7 @@ El módulo comparte la sesión de autenticación, el navbar, el sidebar y el sis
 ### 2.5 Suposiciones y dependencias
 
 - La tabla `usr_users` (en `fayxzvov_alpha` / `fayxzvov_admin`) ya existe y contiene los usuarios del sistema.
-- La tabla `subsidiaries` ya tiene al menos dos sucursales configuradas.
+- La tabla `fayxzvov_alpha.subsidiaries` ya tiene al menos dos sucursales configuradas. Sus datos se copian a `subsidiaries` en `fayxzvov_rrhh` para independencia del módulo.
 - El frontend del ERP ya carga globalmente Chart.js, DataTables, SweetAlert2 y Select2 desde `alpha/pedidos/index.php` y similares.
 - Existen archivos subidos al servidor bajo una ruta convenida (por definir en Fase 2) donde se guardarán fotos de empleados, comprobantes de permisos y documentos de expediente.
 

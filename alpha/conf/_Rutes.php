@@ -16,5 +16,6 @@
     define('PATH_PEDIDOS3', '/alpha/pedidos3/');
     define('PATH_ADMIN', '/alpha/admin/');
     define('PATH_RESERVACIONES', '/dev/reservaciones/');
-    
+    define('PATH_RRHH', '/alpha/rrhh/');
+
 ?>

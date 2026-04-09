@@ -1,0 +1,14 @@
+[ 2026-04-09 08:38:30 ]
+[ UNIX_USR ] :: CoffeSoft
+[ WINDOWS_USR ] :: CoffeSoft
+[ INFO ] ::  INSERT INTO fayxzvov_rrhh.rrhh_permisos (empleado_id,tipo,fecha_inicio,fecha_fin,razon,estatus,codigo,solicitado_por,dias) VALUES (?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'solicitado_por' cannot be null
+
+
+[ 2026-04-09 08:38:24 ]
+[ UNIX_USR ] :: CoffeSoft
+[ WINDOWS_USR ] :: CoffeSoft
+[ INFO ] ::  INSERT INTO fayxzvov_rrhh.rrhh_permisos (empleado_id,tipo,fecha_inicio,fecha_fin,razon,estatus,codigo,solicitado_por,dias) VALUES (?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'solicitado_por' cannot be null
+
+

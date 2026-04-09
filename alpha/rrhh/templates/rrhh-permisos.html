@@ -33,6 +33,31 @@
         .sidebar-item.active{ color:#c4b5fd; background:rgba(124,58,237,.15); }
         .sidebar-sub        { padding-left:32px; font-size:11px; }
         .sidebar-sub.active { color:#c4b5fd; background:rgba(124,58,237,.12); border-left:2px solid #7c3aed; }
+
+        /* === LIGHT THEME OVERRIDES === */
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] aside.bg-\[\#0f172a\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#111928\] { background:#f9fafb !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .text-gray-600 { color:#9ca3af !important; }
+        body[data-theme="light"] .sidebar-item { color:#6b7280 !important; }
+        body[data-theme="light"] .sidebar-item:hover { background:rgba(124,58,237,.08) !important; color:#111928 !important; }
+        body[data-theme="light"] .sidebar-item.active { color:#7c3aed !important; background:rgba(124,58,237,.12) !important; }
+        body[data-theme="light"] .hover\:bg-\[\#1a2332\]:hover { background:#f3f4f6 !important; }
+        body[data-theme="light"] thead { background:#f9fafb !important; }
+        body[data-theme="light"] .divide-gray-800\/50 > * + * { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .input-base { background:#f9fafb !important; border-color:#e5e7eb !important; color:#111928 !important; }
+        body[data-theme="light"] input::placeholder { color:#9ca3af !important; }
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
     </style>
 </head>
 <body class="flex">
@@ -89,8 +114,8 @@
             </div>
             <div class="flex items-center gap-3">
                 <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
-                    <button class="px-3 py-1 text-[11px] text-gray-500">○ Claro</button>
-                    <button class="px-3 py-1 text-[11px] text-white bg-purple-600/80 rounded">○ Oscuro</button>
+                    <button data-theme-btn="light" onclick="setTheme('light')" class="px-3 py-1 text-[11px] text-gray-500 rounded">○ Claro</button>
+                    <button data-theme-btn="dark" onclick="setTheme('dark')" class="px-3 py-1 text-[11px] text-gray-500 rounded">○ Oscuro</button>
                 </div>
                 <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">AK</div>
             </div>
@@ -326,6 +351,26 @@
             </div>
         </div>
     </div>
+
+    <script>
+        (function(){
+            const t = localStorage.getItem('huubie-theme') || 'dark';
+            document.body.setAttribute('data-theme', t);
+        })();
+        function setTheme(theme){
+            document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('huubie-theme', theme);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === theme);
+            });
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            const t = document.body.getAttribute('data-theme');
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === t);
+            });
+        });
+    </script>
 
     <!-- ======================================================= -->
     <!-- MODAL AUTORIZACION                                        -->
