@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huubie Finanzas — Demos Fase 1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; }
+        .card-demo { background:#1F2A37; border:1px solid rgba(55,65,81,.6); border-radius:12px; padding:1.5rem; transition:.15s; text-decoration:none; display:block; }
+        .card-demo:hover { border-color:#7c3aed; background:#1F2A37; transform:translateY(-2px); box-shadow:0 10px 30px rgba(0,0,0,.3); }
+
+        body[data-theme="light"] { background:#f3f4f6 !important; color:#111928 !important; }
+        body[data-theme="light"] .card-demo { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .card-demo:hover { background:#ffffff !important; border-color:#7c3aed !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .text-gray-600 { color:#9ca3af !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; color:#374151 !important; }
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-sm">hb</div>
+                    <div>
+                        <h1 class="text-2xl font-bold">Huubie — Modulo Finanzas</h1>
+                        <p class="text-[12px] text-gray-500">Demos estaticas · Fase 1 · Plantillas HTML navegables</p>
+                    </div>
+                </div>
+                <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+                    <button data-theme-btn="light" onclick="setTheme('light')" class="px-3 py-1 text-[11px] text-gray-500 rounded">○ Claro</button>
+                    <button data-theme-btn="dark" onclick="setTheme('dark')" class="px-3 py-1 text-[11px] text-gray-500 rounded">○ Oscuro</button>
+                </div>
+            </div>
+            <p class="text-sm text-gray-400 mt-4 max-w-2xl">Este hub contiene todas las plantillas HTML del modulo de Finanzas. Cada card abre una demo funcional standalone que respeta los colores del proyecto y los mockups aprobados en <code class="bg-[#1a2332] px-1.5 py-0.5 rounded text-[11px]">alpha/finanzas/</code>.</p>
+        </header>
+
+        <!-- ======= INGRESOS ======= -->
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Ingresos</h2>
+        <div class="grid grid-cols-3 gap-4 mb-8">
+
+            <a href="finanzas-ingresos.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Ingresos</h3>
+                <p class="text-[11px] text-gray-500">Tabla principal con filtros, paginacion y boton subir ingreso</p>
+                <p class="text-[10px] text-purple-400 mt-3">finanzas.png →</p>
+            </a>
+
+            <a href="finanzas-ingresos-detalle.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Detalle de Ingreso</h3>
+                <p class="text-[11px] text-gray-500">Grid 3x2 de cards resumen: Venta Total, Bancos, Propina, Efectivo, Descuentos</p>
+                <p class="text-[10px] text-purple-400 mt-3">finanzas ingresos.png →</p>
+            </a>
+
+            <a href="finanzas-ingresos-corte-form.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Formulario Corte</h3>
+                <p class="text-[11px] text-gray-500">Grid 3x3 para captura de datos de corte con comprobantes</p>
+                <p class="text-[10px] text-purple-400 mt-3">finanzas-3.png →</p>
+            </a>
+
+            <a href="finanzas-ingresos-efectivo.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-yellow-500/20 text-yellow-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Ingreso de Efectivo</h3>
+                <p class="text-[11px] text-gray-500">Card centrada con formulario de monto, cuenta y destino</p>
+                <p class="text-[10px] text-purple-400 mt-3">finanzas-4.png →</p>
+            </a>
+
+            <a href="finanzas-ingresos-deposito.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Deposito a Bancos</h3>
+                <p class="text-[11px] text-gray-500">Card centrada con formulario y opciones pre cargadas</p>
+                <p class="text-[10px] text-purple-400 mt-3">finanzas-5.png →</p>
+            </a>
+
+        </div>
+
+        <!-- ======= COMPRAS ======= -->
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Ordenes de Compra</h2>
+        <div class="grid grid-cols-3 gap-4 mb-8">
+
+            <a href="finanzas-compras.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Ordenes de Compra</h3>
+                <p class="text-[11px] text-gray-500">Tabla con filtros, badges de status y paginacion</p>
+                <p class="text-[10px] text-purple-400 mt-3">compra-1.png →</p>
+            </a>
+
+            <a href="finanzas-compras-detalle.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Detalle de Compra</h3>
+                <p class="text-[11px] text-gray-500">Panel lateral slide-in con detalle de orden sobre la tabla</p>
+                <p class="text-[10px] text-purple-400 mt-3">compra-2.png →</p>
+            </a>
+
+        </div>
+
+        <!-- ======= EGRESOS ======= -->
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Egresos</h2>
+        <div class="grid grid-cols-3 gap-4 mb-8">
+
+            <a href="finanzas-egresos.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Egresos</h3>
+                <p class="text-[11px] text-gray-500">Tabla de egresos con filtros, comprobantes y paginacion</p>
+                <p class="text-[10px] text-purple-400 mt-3">egresos-1.png →</p>
+            </a>
+
+            <a href="finanzas-egresos-detalle.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Detalle de Egreso</h3>
+                <p class="text-[11px] text-gray-500">Panel lateral slide-in con detalle de egreso y referencia a OC</p>
+                <p class="text-[10px] text-purple-400 mt-3">egresos-2.png →</p>
+            </a>
+
+        </div>
+
+        <!-- ======= MODALES ======= -->
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Modales reutilizables</h2>
+        <div class="grid grid-cols-3 gap-4 mb-8">
+
+            <a href="modals/modal-seleccionar-ingreso.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Seleccionar Ingreso</h3>
+                <p class="text-[11px] text-gray-500">6 opciones tipo card: Corte X/Y, Manual X/Y, Efectivo, Deposito</p>
+                <p class="text-[10px] text-purple-400 mt-3">finanazas ingresos.png →</p>
+            </a>
+
+            <a href="modals/modal-confirmacion-datos.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-yellow-500/20 text-yellow-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Confirmacion de Datos</h3>
+                <p class="text-[11px] text-gray-500">Dialogo de confirmacion con botones Si/No</p>
+                <p class="text-[10px] text-purple-400 mt-3">finanzas-2.png →</p>
+            </a>
+
+            <a href="modals/modal-nueva-orden-compra.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Nueva Orden de Compra</h3>
+                <p class="text-[11px] text-gray-500">Formulario 2 columnas con upload de cotizaciones y totales</p>
+                <p class="text-[10px] text-purple-400 mt-3">compra-3.png →</p>
+            </a>
+
+            <a href="modals/modal-nuevo-proveedor.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Nuevo Proveedor</h3>
+                <p class="text-[11px] text-gray-500">Formulario 2 columnas con uploads de cedula fiscal y constancia</p>
+                <p class="text-[10px] text-purple-400 mt-3">compra-4.png →</p>
+            </a>
+
+            <a href="modals/modal-nuevo-egreso.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Nuevo Egreso</h3>
+                <p class="text-[11px] text-gray-500">Formulario con boton para vincular Orden de Compra</p>
+                <p class="text-[10px] text-purple-400 mt-3">egresos-3.png →</p>
+            </a>
+
+            <a href="modals/modal-seleccionar-orden-compra.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Seleccionar Orden de Compra</h3>
+                <p class="text-[11px] text-gray-500">4 opciones tipo card para vincular OC a un egreso</p>
+                <p class="text-[10px] text-purple-400 mt-3">egresos-4.png →</p>
+            </a>
+
+        </div>
+
+        <footer class="text-center text-[11px] text-gray-600 pt-8 border-t border-gray-800">
+            <p>© 2026 Huubie, LLC. · Modulo Finanzas Fase 1 · Stack: Tailwind CSS + Inter font · Paleta: <code class="bg-[#1a2332] px-1.5 py-0.5 rounded">alpha/src/css/colors.css</code></p>
+        </footer>
+    </div>
+
+    <script>
+        (function(){
+            const t = localStorage.getItem('huubie-theme') || 'dark';
+            document.body.setAttribute('data-theme', t);
+        })();
+        function setTheme(theme){
+            document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('huubie-theme', theme);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === theme);
+            });
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            const t = document.body.getAttribute('data-theme');
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === t);
+            });
+        });
+    </script>
+</body>
+</html>

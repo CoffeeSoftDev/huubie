@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmacion de Datos — Huubie Finanzas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; }
+        .input-modal { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:8px 12px; font-size:12px; color:#d1d5db; width:100%; }
+        .input-modal:focus { outline:none; border-color:#7c3aed; }
+    </style>
+</head>
+<body>
+
+    <div class="fixed inset-0 bg-black/60"></div>
+
+    <div class="relative z-10 w-[400px] bg-[#1F2A37] rounded-2xl p-7 border border-gray-700 text-center">
+
+        <div class="flex justify-center mb-5">
+            <div class="w-16 h-16 rounded-full bg-yellow-400/20 border-2 border-yellow-400 flex items-center justify-center">
+                <svg class="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01"/>
+                </svg>
+            </div>
+        </div>
+
+        <h2 class="text-xl font-bold mb-3">Los datos son correctos?</h2>
+
+        <p class="text-xs text-gray-400 mb-6 leading-relaxed px-4">Una vez enviado, no podra hacer modificaciones sin autorizacion del administrador.</p>
+
+        <div class="flex items-center justify-center gap-4">
+            <button class="px-8 py-2.5 rounded-lg bg-[#1c64f2] text-white text-sm font-semibold hover:bg-blue-600 transition">Si</button>
+            <button class="px-8 py-2.5 rounded-lg bg-[#ea0234] text-white text-sm font-semibold hover:bg-red-600 transition">No</button>
+        </div>
+    </div>
+
+</body>
+</html>

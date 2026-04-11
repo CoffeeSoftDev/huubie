@@ -1,0 +1,14 @@
+[ 2026-04-10 22:18:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_rrhh.rrhh_nomina_periodos (codigo,subsidiaries_id,companies_id,fecha_inicio,fecha_fin,frecuencia,estatus,calculado_por,calculado_at) VALUES (?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'NOM-20260410-18' for key 'rrhh_nomina_periodos.uk_rrhh_nomina_periodos_codigo'
+
+
+[ 2026-04-10 21:53:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  UPDATE fayxzvov_rrhh.rrhh_incidencias SET id = ? WHERE estatus = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '109' for key 'rrhh_incidencias.PRIMARY'
+
+

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmacion — Huubie Inventario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; }
+    </style>
+</head>
+<body>
+
+    <div class="fixed inset-0 bg-black/60"></div>
+
+    <div class="relative z-10 w-[400px] bg-[#1F2A37] rounded-2xl p-7 border border-gray-700 text-center">
+
+        <div class="flex justify-center mb-5">
+            <div class="w-16 h-16 rounded-full bg-yellow-400/20 border-2 border-yellow-400 flex items-center justify-center">
+                <svg class="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.832c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>
+            </div>
+        </div>
+
+        <h2 class="text-xl font-bold mb-3">Eliminar este producto?</h2>
+
+        <p class="text-xs text-gray-400 mb-6 leading-relaxed px-4">Esta accion no se puede deshacer. El producto sera eliminado permanentemente del inventario junto con su historial de movimientos.</p>
+
+        <div class="flex items-center justify-center gap-4">
+            <button class="px-8 py-2.5 rounded-lg bg-[#ea0234] text-white text-sm font-semibold hover:bg-red-600 transition">Si, Eliminar</button>
+            <button class="px-8 py-2.5 rounded-lg border border-gray-500 text-gray-300 text-sm font-semibold hover:bg-gray-700 transition" onclick="window.close()">No, Cancelar</button>
+        </div>
+    </div>
+
+</body>
+</html>

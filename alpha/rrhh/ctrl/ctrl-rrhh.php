@@ -1,4 +1,6 @@
 <?php
+ob_start();
+error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
@@ -12,33 +14,40 @@ class ctrl extends mdl {
         $turnos       = $this->lsTurnos();
 
         return [
-            'status'        => 200,
-            'subsidiaries'  => $subsidiaries,
-            'puestos'       => $puestos,
-            'turnos'        => $turnos,
-            'usr'           => $_SESSION['USR'] ?? null,
-            'sub'           => $_SESSION['SUB'] ?? null,
-            'rol'           => $_SESSION['ROLID'] ?? null
+            'status'       => 200,
+            'subsidiaries' => $subsidiaries,
+            'puestos'      => $puestos,
+            'turnos'       => $turnos,
+            'usr'          => $_SESSION['USR'],
+            'sub'          => $_SESSION['SUB'],
+            'rol'          => $_SESSION['ROLID']
         ];
     }
 
-    // ===================== RESUMEN =====================
+    function getEmpleadosSelect() {
+        $subsidiariesId = $_POST['subsidiaries_id'];
+        return $this->lsEmpleados(['subsidiaries_id' => $subsidiariesId]);
+    }
+
+    // Resumen:
 
     function showResumen() {
         $subsidiariesId = $_POST['subsidiaries_id'];
-        $counts  = $this->getResumenCounts(['subsidiaries_id' => $subsidiariesId]);
+
+        $counts   = $this->getResumenCounts(['subsidiaries_id' => $subsidiariesId]);
         $permisos = $this->getResumenPermisosPendientes(['subsidiaries_id' => $subsidiariesId]);
 
         $__permisos = [];
-        foreach ($permisos as $row) {
+        foreach ($permisos as $permiso) {
             $__permisos[] = [
-                'id'       => $row['id'],
-                'codigo'   => $row['codigo'],
-                'nombre'   => $row['nombre_completo'],
-                'puesto'   => badgePuesto($row['puesto'], $row['color_badge']),
-                'tipo'     => badgeTipoPermiso($row['tipo']),
-                'fecha'    => $row['fecha_inicio'] . ' / ' . $row['fecha_fin'],
-                'estatus'  => badgeEstatus($row['estatus'])
+                'id'      => $permiso['id'],
+                'codigo'  => $permiso['codigo'],
+                'nombre'  => $permiso['nombre_completo'],
+                'puesto'  => badgePuesto($permiso['puesto'], $permiso['color_badge']),
+                'tipo'    => badgeTipoPermiso($permiso['tipo']),
+                'fecha'   => $permiso['fecha_inicio'] . ' / ' . $permiso['fecha_fin'],
+                'estatus' => badgeEstatus($permiso['estatus']),
+                'opc'     => 0
             ];
         }
 
@@ -49,7 +58,7 @@ class ctrl extends mdl {
         ];
     }
 
-    // ===================== PERSONAL =====================
+    // Personal:
 
     function lsPersonal() {
         $subsidiariesId = $_POST['subsidiaries_id'];
@@ -65,44 +74,36 @@ class ctrl extends mdl {
         ]);
 
         $__row = [];
-        foreach ($ls as $row) {
-            $actions = [];
-            $actions[] = [
-                'class'   => 'btn btn-sm btn-primary me-1',
-                'html'    => '<i class="icon-pencil"></i>',
-                'onclick' => 'app.editPersonal(' . $row['id'] . ')'
-            ];
-            $actions[] = [
-                'class'   => 'btn btn-sm btn-danger',
-                'html'    => '<i class="icon-trash"></i>',
-                'onclick' => 'app.deletePersonal(' . $row['id'] . ')'
-            ];
-
+        foreach ($ls as $empleado) {
             $__row[] = [
-                'id'        => $row['id'],
-                'codigo'    => $row['codigo_empleado'],
-                'nombre'    => $row['nombre'] . ' ' . $row['apellido_paterno'],
-                'puesto'    => badgePuesto($row['puesto'], $row['color_badge']),
-                'turno'     => $row['turno'],
-                'sucursal'  => $row['sucursal'],
-                'salario'   => '$' . number_format($row['salario_diario'], 2),
-                'estado'    => badgeEstadoEmpleado($row['estado']),
-                'ingreso'   => $row['fecha_ingreso'],
-                'a'         => $actions
+                'id'       => $empleado['id'],
+                'codigo'   => $empleado['codigo_empleado'],
+                'nombre'   => $empleado['nombre'] . ' ' . $empleado['apellido_paterno'],
+                'puesto'   => badgePuesto($empleado['puesto'], $empleado['color_badge']),
+                'turno'    => $empleado['turno'],
+                'sucursal' => $empleado['sucursal'],
+                'salario'  => evaluar($empleado['salario_diario']),
+                'estado'   => badgeEstadoEmpleado($empleado['estado']),
+                'ingreso'  => formatSpanishDate($empleado['fecha_ingreso']),
+                'a'        => actionButtonsPersonal($empleado['id'])
             ];
         }
 
-        return ['row' => $__row];
+        return ['row' => $__row, 'thead' => ''];
     }
 
     function showPersonal() {
         $subsidiariesId = $_POST['subsidiaries_id'];
         $counts = $this->getPersonalCounts(['subsidiaries_id' => $subsidiariesId]);
-        return ['status' => 200, 'counts' => $counts];
+
+        return [
+            'status' => 200,
+            'counts' => $counts
+        ];
     }
 
     function getPersonal() {
-        $id = $_POST['id'];
+        $id   = $_POST['id'];
         $data = $this->getPersonalById([$id]);
 
         return [
@@ -112,48 +113,63 @@ class ctrl extends mdl {
     }
 
     function addPersonal() {
+        $status  = 500;
+        $message = 'Error al registrar colaborador';
+
         $maxNum = $this->getMaxPersonalCodigo();
         $codigo = 'EMP-' . str_pad(($maxNum + 1), 4, '0', STR_PAD_LEFT);
         $_POST['codigo_empleado'] = $codigo;
-        $_POST['created_by'] = $_SESSION['USR'];
+        $_POST['created_by']     = $_SESSION['USR'];
 
         $result = $this->createPersonal($this->util->sql($_POST));
 
+        if ($result) {
+            $status  = 200;
+            $message = 'Colaborador registrado correctamente';
+        }
+
         return [
-            'status'  => $result ? 200 : 500,
-            'message' => $result ? 'Colaborador registrado correctamente' : 'Error al registrar colaborador'
+            'status'  => $status,
+            'message' => $message
         ];
     }
 
     function editPersonal() {
+        $status  = 500;
+        $message = 'Error al actualizar colaborador';
+
         $_POST['updated_by'] = $_SESSION['USR'];
         $result = $this->updatePersonal($this->util->sql($_POST, 1));
 
+        if ($result) {
+            $status  = 200;
+            $message = 'Colaborador actualizado correctamente';
+        }
+
         return [
-            'status'  => $result ? 200 : 500,
-            'message' => $result ? 'Colaborador actualizado correctamente' : 'Error al actualizar colaborador'
+            'status'  => $status,
+            'message' => $message
         ];
     }
 
     function statusPersonal() {
-        $id     = $_POST['id'];
-        $estado = $_POST['estado'];
+        $status  = 500;
+        $message = 'Error al actualizar estado';
 
-        $data = ['estado', $estado, $id];
-        $result = $this->_Update([
-            'table'  => "fayxzvov_rrhh.rrhh_empleados",
-            'values' => 'estado = ?',
-            'where'  => 'id = ?',
-            'data'   => [$estado, $id]
-        ]);
+        $result = $this->updatePersonal($this->util->sql($_POST, 1));
+
+        if ($result) {
+            $status  = 200;
+            $message = 'Estado actualizado correctamente';
+        }
 
         return [
-            'status'  => $result ? 200 : 500,
-            'message' => $result ? 'Estado actualizado' : 'Error al actualizar estado'
+            'status'  => $status,
+            'message' => $message
         ];
     }
 
-    // ===================== PERMISOS =====================
+    // Permisos:
 
     function lsPermisos() {
         $subsidiariesId = $_POST['subsidiaries_id'];
@@ -167,41 +183,28 @@ class ctrl extends mdl {
         ]);
 
         $__row = [];
-        foreach ($ls as $row) {
-            $actions = [];
-            if ($row['estatus'] === 'pendiente') {
-                $actions[] = [
-                    'class'   => 'btn btn-sm btn-success me-1',
-                    'html'    => '<i class="icon-ok"></i>',
-                    'onclick' => 'app.aprobarPermiso(' . $row['id'] . ')'
-                ];
-                $actions[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-cancel"></i>',
-                    'onclick' => 'app.rechazarPermiso(' . $row['id'] . ')'
-                ];
-            }
-
+        foreach ($ls as $permiso) {
             $__row[] = [
-                'id'       => $row['id'],
-                'codigo'   => $row['codigo'],
-                'nombre'   => $row['nombre_completo'],
-                'puesto'   => badgePuesto($row['puesto'], $row['color_badge']),
-                'tipo'     => badgeTipoPermiso($row['tipo']),
-                'inicio'   => $row['fecha_inicio'],
-                'fin'      => $row['fecha_fin'],
-                'dias'     => $row['dias'],
-                'estatus'  => badgeEstatus($row['estatus']),
-                'a'        => $actions
+                'id'      => $permiso['id'],
+                'codigo'  => $permiso['codigo'],
+                'nombre'  => $permiso['nombre_completo'],
+                'puesto'  => badgePuesto($permiso['puesto'], $permiso['color_badge']),
+                'tipo'    => badgeTipoPermiso($permiso['tipo']),
+                'inicio'  => $permiso['fecha_inicio'],
+                'fin'     => $permiso['fecha_fin'],
+                'dias'    => $permiso['dias'],
+                'estatus' => badgeEstatus($permiso['estatus']),
+                'a'       => actionButtonsPermiso($permiso['id'], $permiso['estatus'])
             ];
         }
 
-        return ['row' => $__row];
+        return ['row' => $__row, 'thead' => ''];
     }
 
     function getPermiso() {
-        $id = $_POST['id'];
+        $id   = $_POST['id'];
         $data = $this->getPermisoById([$id]);
+
         return [
             'status' => $data ? 200 : 404,
             'data'   => $data
@@ -209,9 +212,12 @@ class ctrl extends mdl {
     }
 
     function addPermiso() {
+        $status  = 500;
+        $message = 'Error al registrar permiso';
+
         $maxNum = $this->getMaxPermisoCodigo();
         $codigo = 'PC-' . str_pad(($maxNum + 1), 4, '0', STR_PAD_LEFT);
-        $_POST['codigo'] = $codigo;
+        $_POST['codigo']        = $codigo;
         $_POST['solicitado_por'] = $_SESSION['USR'];
 
         $fechaInicio = $_POST['fecha_inicio'];
@@ -221,21 +227,35 @@ class ctrl extends mdl {
 
         $result = $this->createPermiso($this->util->sql($_POST));
 
+        if ($result) {
+            $status  = 200;
+            $message = 'Permiso registrado correctamente';
+        }
+
         return [
-            'status'  => $result ? 200 : 500,
-            'message' => $result ? 'Permiso registrado correctamente' : 'Error al registrar permiso'
+            'status'  => $status,
+            'message' => $message
         ];
     }
 
     function editPermiso() {
+        $status  = 500;
+        $message = 'Error al actualizar permiso';
+
         $result = $this->updatePermiso($this->util->sql($_POST, 1));
+
+        if ($result) {
+            $status  = 200;
+            $message = 'Permiso actualizado correctamente';
+        }
+
         return [
-            'status'  => $result ? 200 : 500,
-            'message' => $result ? 'Permiso actualizado' : 'Error al actualizar'
+            'status'  => $status,
+            'message' => $message
         ];
     }
 
-    // ===================== INCIDENCIAS =====================
+    // Incidencias:
 
     function lsIncidenciaDiario() {
         $fecha          = $_POST['fecha'];
@@ -251,24 +271,20 @@ class ctrl extends mdl {
         ]);
 
         $__row = [];
-        foreach ($ls as $row) {
+        foreach ($ls as $incidencia) {
             $__row[] = [
-                'id'            => $row['id'],
-                'nombre'        => $row['nombre_completo'],
-                'puesto'        => badgePuesto($row['puesto'], $row['color_badge']),
-                'turno'         => $row['turno'],
-                'tipo_ingreso'  => $row['tipo_ingreso'],
-                'hora_entrada'  => $row['hora_entrada'] ?? '--:--',
-                'estatus'       => badgeIncidencia($row['estatus']),
-                'a'             => [[
-                    'class'   => 'btn btn-sm btn-outline-secondary',
-                    'html'    => '<i class="icon-pencil"></i>',
-                    'onclick' => 'app.editIncidencia(' . $row['id'] . ')'
-                ]]
+                'id'           => $incidencia['id'],
+                'nombre'       => $incidencia['nombre_completo'],
+                'puesto'       => badgePuesto($incidencia['puesto'], $incidencia['color_badge']),
+                'turno'        => $incidencia['turno'],
+                'tipo_ingreso' => $incidencia['tipo_ingreso'],
+                'hora_entrada' => $incidencia['hora_entrada'],
+                'estatus'      => badgeIncidencia($incidencia['estatus']),
+                'a'            => actionButtonsIncidencia($incidencia['id'])
             ];
         }
 
-        return ['row' => $__row];
+        return ['row' => $__row, 'thead' => ''];
     }
 
     function lsIncidenciaPersonalizado() {
@@ -286,70 +302,66 @@ class ctrl extends mdl {
     }
 
     function editIncidencia() {
+        $status  = 500;
+        $message = 'Error al actualizar incidencia';
+
         $result = $this->updateIncidencia($this->util->sql($_POST, 1));
+
+        if ($result) {
+            $status  = 200;
+            $message = 'Incidencia actualizada correctamente';
+        }
+
         return [
-            'status'  => $result ? 200 : 500,
-            'message' => $result ? 'Incidencia actualizada' : 'Error al actualizar'
+            'status'  => $status,
+            'message' => $message
         ];
     }
 
-    // ===================== NOMINA =====================
+    // Nomina:
 
     function lsNomina() {
         $subsidiariesId = $_POST['subsidiaries_id'];
         $ls = $this->listNominaPeriodos(['subsidiaries_id' => $subsidiariesId]);
 
         $__row = [];
-        foreach ($ls as $row) {
-            $actions = [];
-            if ($row['estatus'] === 'calculada') {
-                $actions[] = [
-                    'class'   => 'btn btn-sm btn-success me-1',
-                    'html'    => '<i class="icon-ok"></i> Aprobar',
-                    'onclick' => 'app.aprobarNomina(' . $row['id'] . ')'
-                ];
-            }
-            $actions[] = [
-                'class'   => 'btn btn-sm btn-primary',
-                'html'    => '<i class="icon-eye"></i>',
-                'onclick' => 'app.verNominaDetalle(' . $row['id'] . ')'
-            ];
-
+        foreach ($ls as $periodo) {
             $__row[] = [
-                'id'          => $row['id'],
-                'codigo'      => $row['codigo'],
-                'sucursal'    => $row['sucursal'],
-                'periodo'     => $row['fecha_inicio'] . ' / ' . $row['fecha_fin'],
-                'frecuencia'  => $row['frecuencia'],
-                'total'       => '$' . number_format($row['total_general'], 2),
-                'colaboradores' => $row['total_colaboradores'],
-                'estatus'     => badgeEstatusNomina($row['estatus']),
-                'a'           => $actions
+                'id'            => $periodo['id'],
+                'codigo'        => $periodo['codigo'],
+                'sucursal'      => $periodo['sucursal'],
+                'periodo'       => $periodo['fecha_inicio'] . ' / ' . $periodo['fecha_fin'],
+                'frecuencia'    => $periodo['frecuencia'],
+                'total'         => evaluar($periodo['total_general']),
+                'colaboradores' => $periodo['total_colaboradores'],
+                'estatus'       => badgeEstatusNomina($periodo['estatus']),
+                'a'             => actionButtonsNomina($periodo['id'], $periodo['estatus'])
             ];
         }
 
-        return ['row' => $__row];
+        return ['row' => $__row, 'thead' => ''];
     }
 
     function showNomina() {
         $periodoId = $_POST['periodo_id'];
-        $detalle = $this->listNominaDetalle(['periodo_id' => $periodoId]);
-        $totals  = $this->getNominaCounts(['periodo_id' => $periodoId]);
+        $detalle   = $this->listNominaDetalle(['periodo_id' => $periodoId]);
+        $totals    = $this->getNominaCounts(['periodo_id' => $periodoId]);
 
         $__row = [];
-        foreach ($detalle as $row) {
+        foreach ($detalle as $registro) {
             $__row[] = [
-                'id'              => $row['id'],
-                'codigo'          => $row['codigo_empleado'],
-                'nombre'          => $row['nombre_completo'],
-                'puesto'          => $row['puesto'],
-                'dias_laborados'  => $row['dias_laborados'],
-                'dias_faltas'     => $row['dias_faltas'],
-                'sueldo_diario'   => '$' . number_format($row['sueldo_diario'], 2),
-                'salario_total'   => '$' . number_format($row['salario_total'], 2),
-                'bonos'           => '$' . number_format($row['bonos'], 2),
-                'descuentos'      => '$' . number_format($row['descuentos'], 2),
-                'total_nomina'    => '$' . number_format($row['total_nomina'], 2)
+                'id'             => $registro['id'],
+                'codigo'         => $registro['codigo_empleado'],
+                'nombre'         => $registro['nombre_completo'],
+                'puesto'         => $registro['puesto'],
+                'dias_laborados' => $registro['dias_laborados'],
+                'dias_faltas'    => $registro['dias_faltas'],
+                'sueldo_diario'  => evaluar($registro['sueldo_diario']),
+                'salario_total'  => evaluar($registro['salario_total']),
+                'bonos'          => evaluar($registro['bonos']),
+                'descuentos'     => evaluar($registro['descuentos']),
+                'total_nomina'   => evaluar($registro['total_nomina']),
+                'opc'            => 0
             ];
         }
 
@@ -361,6 +373,9 @@ class ctrl extends mdl {
     }
 
     function addNomina() {
+        $status  = 500;
+        $message = 'Error al crear periodo de nomina';
+
         $subsidiariesId = $_POST['subsidiaries_id'];
         $companiesId    = $_POST['companies_id'];
         $fechaInicio    = $_POST['fecha_inicio'];
@@ -382,11 +397,10 @@ class ctrl extends mdl {
         ]));
 
         if (!$periodoResult) {
-            return ['status' => 500, 'message' => 'Error al crear periodo'];
+            return ['status' => $status, 'message' => $message];
         }
 
-        $periodoId = $this->_Read("SELECT MAX(id) AS id FROM fayxzvov_rrhh.rrhh_nomina_periodos")[0]['id'];
-
+        $periodoId   = $this->getMaxNominaPeriodoId();
         $empleados   = $this->getEmpleadosActivosBySucursal(['subsidiaries_id' => $subsidiariesId]);
         $incidencias = $this->getIncidenciasPeriodo([
             'subsidiaries_id' => $subsidiariesId,
@@ -404,11 +418,11 @@ class ctrl extends mdl {
         $totalGeneral  = 0;
 
         foreach ($empleados as $emp) {
-            $empInc = $incMap[$emp['id']] ?? [
-                'dias_laborados'  => 0,
-                'dias_faltas'     => 0,
-                'dias_vacaciones' => 0,
-                'dias_incapacidad'=> 0
+            $empInc = isset($incMap[$emp['id']]) ? $incMap[$emp['id']] : [
+                'dias_laborados'   => 0,
+                'dias_faltas'      => 0,
+                'dias_vacaciones'  => 0,
+                'dias_incapacidad' => 0
             ];
 
             $diasLab  = $empInc['dias_laborados'];
@@ -426,39 +440,53 @@ class ctrl extends mdl {
             $totalGeneral += $totalNomina;
 
             $this->createNominaDetalle($this->util->sql([
-                'periodo_id'              => $periodoId,
-                'empleado_id'             => $emp['id'],
-                'dias_laborados'          => $diasLab,
-                'dias_faltas'             => $diasFalt,
-                'dias_vacaciones'         => $diasVac,
-                'dias_incapacidad'        => $diasInc,
-                'sueldo_diario'           => $sueldo,
-                'salario_total'           => $salarioTotal,
+                'periodo_id'                => $periodoId,
+                'empleado_id'               => $emp['id'],
+                'dias_laborados'            => $diasLab,
+                'dias_faltas'               => $diasFalt,
+                'dias_vacaciones'           => $diasVac,
+                'dias_incapacidad'          => $diasInc,
+                'sueldo_diario'             => $sueldo,
+                'salario_total'             => $salarioTotal,
                 'faltas_retardos_descuento' => $descFaltas,
-                'a_pagar_bancos'          => $pagarBancos,
-                'total_nomina'            => $totalNomina
+                'a_pagar_bancos'            => $pagarBancos,
+                'total_nomina'              => $totalNomina
             ]));
         }
 
-        $this->_Update([
-            'table'  => 'fayxzvov_rrhh.rrhh_nomina_periodos',
-            'values' => 'total_efectivo = ?, total_bancos = ?, total_general = ?, total_colaboradores = ?',
-            'where'  => 'id = ?',
-            'data'   => [$totalEfectivo, $totalBancos, $totalGeneral, count($empleados), $periodoId]
-        ]);
+        $this->updateNominaPeriodo($this->util->sql([
+            'id'                  => $periodoId,
+            'total_efectivo'      => $totalEfectivo,
+            'total_bancos'        => $totalBancos,
+            'total_general'       => $totalGeneral,
+            'total_colaboradores' => count($empleados)
+        ], 1));
 
-        return ['status' => 200, 'message' => 'Nomina calculada correctamente', 'periodo_id' => $periodoId];
-    }
-
-    function editNomina() {
-        $result = $this->updateNominaPeriodo($this->util->sql($_POST, 1));
         return [
-            'status'  => $result ? 200 : 500,
-            'message' => $result ? 'Nomina actualizada' : 'Error al actualizar'
+            'status'     => 200,
+            'message'    => 'Nomina calculada correctamente',
+            'periodo_id' => $periodoId
         ];
     }
 
-    // ===================== AUTORIZACION =====================
+    function editNomina() {
+        $status  = 500;
+        $message = 'Error al actualizar nomina';
+
+        $result = $this->updateNominaPeriodo($this->util->sql($_POST, 1));
+
+        if ($result) {
+            $status  = 200;
+            $message = 'Nomina actualizada correctamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
+    }
+
+    // Autorizacion:
 
     function addAutorizacion() {
         $password = $_POST['password'];
@@ -481,88 +509,187 @@ class ctrl extends mdl {
         $registroId = $_POST['registro_id'];
 
         $this->createAutorizacion($this->util->sql([
-            'usr_users_id'  => $userId,
-            'accion'        => $accion,
+            'usr_users_id'   => $userId,
+            'accion'         => $accion,
             'tabla_afectada' => $tabla,
-            'registro_id'   => $registroId,
-            'valor_anterior' => $_POST['valor_anterior'] ?? '',
-            'valor_nuevo'   => $_POST['valor_nuevo'] ?? '',
-            'ip'            => $_SERVER['REMOTE_ADDR'],
-            'user_agent'    => $_SERVER['HTTP_USER_AGENT']
+            'registro_id'    => $registroId,
+            'valor_anterior' => $_POST['valor_anterior'],
+            'valor_nuevo'    => $_POST['valor_nuevo'],
+            'ip'             => $_SERVER['REMOTE_ADDR'],
+            'user_agent'     => $_SERVER['HTTP_USER_AGENT']
         ]));
 
         return ['status' => 200, 'message' => 'Autorizado correctamente'];
     }
 }
 
-// ===================== COMPLEMENTS =====================
+// Complements
+
+function actionButtonsPersonal($id) {
+    return [
+        [
+            'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 me-1',
+            'html'    => '<i class="icon-pencil"></i>',
+            'onclick' => "app.editPersonal($id)"
+        ],
+        [
+            'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/20 hover:bg-red-500/30 text-red-400',
+            'html'    => '<i class="icon-trash"></i>',
+            'onclick' => "app.deletePersonal($id)"
+        ]
+    ];
+}
+
+function actionButtonsPermiso($id, $estatus) {
+    $actions = [];
+
+    if ($estatus === 'pendiente') {
+        $actions[] = [
+            'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-green-500/20 hover:bg-green-500/30 text-green-400 me-1',
+            'html'    => '<i class="icon-ok"></i>',
+            'onclick' => "app.aprobarPermiso($id)"
+        ];
+        $actions[] = [
+            'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/20 hover:bg-red-500/30 text-red-400',
+            'html'    => '<i class="icon-cancel"></i>',
+            'onclick' => "app.rechazarPermiso($id)"
+        ];
+    }
+
+    return $actions;
+}
+
+function actionButtonsIncidencia($id) {
+    return [
+        [
+            'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-gray-500/20 hover:bg-gray-500/30 text-gray-400',
+            'html'    => '<i class="icon-pencil"></i>',
+            'onclick' => "app.editIncidencia($id)"
+        ]
+    ];
+}
+
+function actionButtonsNomina($id, $estatus) {
+    $actions = [];
+
+    if ($estatus === 'calculada') {
+        $actions[] = [
+            'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-green-500/20 hover:bg-green-500/30 text-green-400 me-1',
+            'html'    => '<i class="icon-ok"></i>',
+            'onclick' => "app.aprobarNomina($id)"
+        ];
+    }
+
+    $actions[] = [
+        'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-400',
+        'html'    => '<i class="icon-eye"></i>',
+        'onclick' => "app.verNominaDetalle($id)"
+    ];
+
+    return $actions;
+}
 
 function badgePuesto($puesto, $color) {
     $colors = [
-        'purple' => ['bg' => '#2d1b69', 'text' => '#c4b5fd'],
-        'blue'   => ['bg' => '#1e3a5f', 'text' => '#93c5fd'],
-        'gray'   => ['bg' => '#374151', 'text' => '#9ca3af'],
-        'orange' => ['bg' => '#5c3d1a', 'text' => '#fb923c']
+        'purple' => 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+        'blue'   => 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+        'gray'   => 'bg-gray-500/15 text-gray-400 border-gray-500/30',
+        'orange' => 'bg-orange-500/15 text-orange-400 border-orange-500/30'
     ];
     $c = $colors[$color] ?? $colors['gray'];
-    return "<span class='px-2 py-1 rounded-md text-xs font-semibold' style='background-color:{$c['bg']}; color:{$c['text']}'>{$puesto}</span>";
+    return "<span class='inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border {$c}'>{$puesto}</span>";
 }
 
 function badgeEstatus($estatus) {
     $map = [
-        'aprobado'    => ['bg' => '#014737', 'text' => '#3fc189', 'label' => 'Aprobado'],
-        'rechazado'   => ['bg' => '#721c24', 'text' => '#ea0234', 'label' => 'Rechazado'],
-        'pendiente'   => ['bg' => '#78350f', 'text' => '#fbbf24', 'label' => 'Pendiente'],
-        'sin_estatus' => ['bg' => '#374151', 'text' => '#9ca3af', 'label' => 'Sin Estatus']
+        'aprobado'  => 'bg-green-500/15 text-green-400 border-green-500/30',
+        'rechazado' => 'bg-red-500/15 text-red-400 border-red-500/30',
+        'pendiente' => 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30'
     ];
-    $s = $map[$estatus] ?? $map['sin_estatus'];
-    return "<span class='px-2 py-1 rounded-md text-xs font-semibold' style='background-color:{$s['bg']}; color:{$s['text']}'>{$s['label']}</span>";
+    $labels = [
+        'aprobado'  => 'Aprobado',
+        'rechazado' => 'Rechazado',
+        'pendiente' => 'Pendiente'
+    ];
+    $c = $map[$estatus] ?? 'bg-gray-500/15 text-gray-400 border-gray-500/30';
+    $l = $labels[$estatus] ?? 'Sin Estatus';
+    return "<span class='inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border {$c}'>{$l}</span>";
 }
 
 function badgeEstadoEmpleado($estado) {
     $map = [
-        'activo'     => ['bg' => '#014737', 'text' => '#3fc189', 'label' => 'Activo'],
-        'baja'       => ['bg' => '#721c24', 'text' => '#ea0234', 'label' => 'Baja'],
-        'suspendido' => ['bg' => '#78350f', 'text' => '#fbbf24', 'label' => 'Suspendido']
+        'activo'     => 'bg-green-500/15 text-green-400 border-green-500/30',
+        'baja'       => 'bg-red-500/15 text-red-400 border-red-500/30',
+        'suspendido' => 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30'
     ];
-    $s = $map[$estado] ?? $map['activo'];
-    return "<span class='px-2 py-1 rounded-md text-xs font-semibold' style='background-color:{$s['bg']}; color:{$s['text']}'>{$s['label']}</span>";
+    $labels = [
+        'activo'     => 'Activo',
+        'baja'       => 'Baja',
+        'suspendido' => 'Suspendido'
+    ];
+    $c = $map[$estado] ?? 'bg-gray-500/15 text-gray-400 border-gray-500/30';
+    $l = $labels[$estado] ?? 'Activo';
+    return "<span class='inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border {$c}'>{$l}</span>";
 }
 
 function badgeTipoPermiso($tipo) {
     $map = [
-        'incapacidad' => ['bg' => '#831843', 'text' => '#f472b6', 'label' => 'Incapacidad'],
-        'vacaciones'  => ['bg' => '#2d1b69', 'text' => '#c4b5fd', 'label' => 'Vacaciones'],
-        'permiso'     => ['bg' => '#5c3d1a', 'text' => '#fb923c', 'label' => 'Permiso']
+        'incapacidad' => 'bg-pink-500/15 text-pink-400 border-pink-500/30',
+        'vacaciones'  => 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+        'permiso'     => 'bg-orange-500/15 text-orange-400 border-orange-500/30'
     ];
-    $s = $map[$tipo] ?? ['bg' => '#374151', 'text' => '#9ca3af', 'label' => $tipo];
-    return "<span class='px-2 py-1 rounded-md text-xs font-semibold' style='background-color:{$s['bg']}; color:{$s['text']}'>{$s['label']}</span>";
+    $labels = [
+        'incapacidad' => 'Incapacidad',
+        'vacaciones'  => 'Vacaciones',
+        'permiso'     => 'Permiso'
+    ];
+    $c = $map[$tipo] ?? 'bg-gray-500/15 text-gray-400 border-gray-500/30';
+    $l = $labels[$tipo] ?? $tipo;
+    return "<span class='inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border {$c}'>{$l}</span>";
 }
 
 function badgeIncidencia($estatus) {
     $map = [
-        'atiempo'        => ['bg' => '#014737', 'text' => '#3fc189', 'label' => 'A Tiempo'],
-        'retardo'        => ['bg' => '#721c24', 'text' => '#ea0234', 'label' => 'Retardo'],
-        'falta'          => ['bg' => '#721c24', 'text' => '#ea0234', 'label' => 'Falta'],
-        'sin_estatus'    => ['bg' => '#374151', 'text' => '#9ca3af', 'label' => 'Sin Estatus'],
-        'vacaciones'     => ['bg' => '#2d1b69', 'text' => '#c4b5fd', 'label' => 'Vacaciones'],
-        'incapacidad'    => ['bg' => '#831843', 'text' => '#f472b6', 'label' => 'Incapacidad'],
-        'reconocimiento' => ['bg' => '#14532d', 'text' => '#86efac', 'label' => 'Reconocimiento']
+        'atiempo'        => 'bg-green-500/15 text-green-400 border-green-500/30',
+        'retardo'        => 'bg-red-500/15 text-red-400 border-red-500/30',
+        'falta'          => 'bg-red-500/15 text-red-400 border-red-500/30',
+        'vacaciones'     => 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+        'incapacidad'    => 'bg-pink-500/15 text-pink-400 border-pink-500/30',
+        'reconocimiento' => 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+        'sin_estatus'    => 'bg-gray-500/15 text-gray-400 border-gray-500/30'
     ];
-    $s = $map[$estatus] ?? $map['sin_estatus'];
-    return "<span class='px-2 py-1 rounded-md text-xs font-semibold' style='background-color:{$s['bg']}; color:{$s['text']}'>{$s['label']}</span>";
+    $labels = [
+        'atiempo'        => 'A Tiempo',
+        'retardo'        => 'Retardo',
+        'falta'          => 'Falta',
+        'vacaciones'     => 'Vacaciones',
+        'incapacidad'    => 'Incapacidad',
+        'reconocimiento' => 'Reconocimiento',
+        'sin_estatus'    => 'Sin Estatus'
+    ];
+    $c = $map[$estatus] ?? $map['sin_estatus'];
+    $l = $labels[$estatus] ?? 'Sin Estatus';
+    return "<span class='inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border {$c}'>{$l}</span>";
 }
 
 function badgeEstatusNomina($estatus) {
     $map = [
-        'abierta'    => ['bg' => '#1e3a5f', 'text' => '#93c5fd', 'label' => 'Abierta'],
-        'calculada'  => ['bg' => '#78350f', 'text' => '#fbbf24', 'label' => 'Calculada'],
-        'aprobada'   => ['bg' => '#014737', 'text' => '#3fc189', 'label' => 'Aprobada'],
-        'pagada'     => ['bg' => '#14532d', 'text' => '#86efac', 'label' => 'Pagada'],
-        'cancelada'  => ['bg' => '#721c24', 'text' => '#ea0234', 'label' => 'Cancelada']
+        'abierta'   => 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+        'calculada' => 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+        'aprobada'  => 'bg-green-500/15 text-green-400 border-green-500/30',
+        'pagada'    => 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+        'cancelada' => 'bg-red-500/15 text-red-400 border-red-500/30'
     ];
-    $s = $map[$estatus] ?? $map['abierta'];
-    return "<span class='px-2 py-1 rounded-md text-xs font-semibold' style='background-color:{$s['bg']}; color:{$s['text']}'>{$s['label']}</span>";
+    $labels = [
+        'abierta'   => 'Abierta',
+        'calculada' => 'Calculada',
+        'aprobada'  => 'Aprobada',
+        'pagada'    => 'Pagada',
+        'cancelada' => 'Cancelada'
+    ];
+    $c = $map[$estatus] ?? $map['abierta'];
+    $l = $labels[$estatus] ?? 'Abierta';
+    return "<span class='inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border {$c}'>{$l}</span>";
 }
 
 $obj = new ctrl();

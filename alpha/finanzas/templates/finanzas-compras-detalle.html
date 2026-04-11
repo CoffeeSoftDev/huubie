@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huubie Finanzas — Compras Detalle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; height:100vh; overflow:hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width:4px; height:4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+        .badge-base       { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; }
+        .card-base        { background:#1F2A37; border:1px solid rgba(55,65,81,.6); border-radius:12px; }
+        .input-base       { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:6px 12px; font-size:12px; color:#d1d5db; }
+        .input-base:focus { outline:none; border-color:#7c3aed; }
+        .sidebar-item       { display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:8px; font-size:12px; color:#9ca3af; cursor:pointer; text-decoration:none; }
+        .sidebar-item:hover { background:rgba(124,58,237,.08); color:#d1d5db; }
+        .sidebar-item.active{ color:#c4b5fd; background:rgba(124,58,237,.15); }
+        .sidebar-sub        { padding-left:32px; font-size:11px; }
+        .sidebar-sub.active { color:#c4b5fd; background:rgba(124,58,237,.12); border-left:2px solid #7c3aed; }
+
+        .badge-aprobado    { background:rgba(63,193,137,.15); color:#3fc189; border-color:rgba(63,193,137,.3); }
+        .badge-pagado-blue { background:rgba(28,100,242,.18); color:#76a9fa; border-color:rgba(28,100,242,.35); }
+
+        .detail-label { font-size:10px; color:#6b7280; font-weight:600; text-transform:uppercase; letter-spacing:.03em; margin-bottom:2px; }
+        .detail-value { font-size:12px; color:#d1d5db; line-height:1.4; }
+
+        /* LIGHT THEME */
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] aside.bg-\[\#0f172a\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#111928\] { background:#f9fafb !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .text-gray-600 { color:#9ca3af !important; }
+        body[data-theme="light"] .sidebar-item { color:#6b7280 !important; }
+        body[data-theme="light"] .sidebar-item:hover { background:rgba(124,58,237,.08) !important; color:#111928 !important; }
+        body[data-theme="light"] .sidebar-item.active { color:#7c3aed !important; background:rgba(124,58,237,.12) !important; }
+        body[data-theme="light"] .hover\:bg-\[\#1a2332\]:hover { background:#f3f4f6 !important; }
+        body[data-theme="light"] thead { background:#f9fafb !important; }
+        body[data-theme="light"] .divide-gray-800\/50 > * + * { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .card-base { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .input-base { background:#f9fafb !important; border-color:#e5e7eb !important; color:#111928 !important; }
+        body[data-theme="light"] input::placeholder { color:#9ca3af !important; }
+        body[data-theme="light"] .detail-label { color:#9ca3af !important; }
+        body[data-theme="light"] .detail-value { color:#374151 !important; }
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+    </style>
+</head>
+<body class="flex">
+
+    <!-- SIDEBAR -->
+    <aside class="w-56 bg-[#0f172a] border-r border-gray-800 flex flex-col flex-shrink-0 h-screen">
+        <div class="px-4 py-4 border-b border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-xs">hb</div>
+            <span class="font-bold text-sm">Huubie</span>
+        </div>
+        <nav class="flex-1 overflow-y-auto scrollbar-thin py-3 px-2">
+            <a href="#" class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3"/></svg>Inicio</a>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7"/></svg>RRHH</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8"/></svg>Mkt y Clientes</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944"/></svg>Calidad</div>
+            <div class="sidebar-item active">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1"/></svg>
+                Finanzas
+                <svg class="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+            </div>
+            <div class="mt-1 space-y-0.5">
+                <a href="finanzas-ingresos.html" class="sidebar-item sidebar-sub">Ingresos</a>
+                <a href="#" class="sidebar-item sidebar-sub">Egresos</a>
+                <a href="#" class="sidebar-item sidebar-sub active">Compras</a>
+                <div class="sidebar-item sidebar-sub opacity-60">Bancos</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Finanzas</div>
+                <div class="sidebar-item sidebar-sub opacity-60">CxC y CxP</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Presupuestos</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Cuentas</div>
+            </div>
+        </nav>
+        <div class="px-2 py-3 border-t border-gray-800 space-y-0.5">
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35"/></svg>Settings</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Logout</div>
+        </div>
+        <div class="px-4 py-3 border-t border-gray-800">
+            <div class="text-[10px] text-gray-600">
+                <span class="font-bold text-purple-400">huubie</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CONTENIDO + PANEL LATERAL -->
+    <div class="flex-1 flex min-w-0 h-screen">
+
+        <!-- AREA PRINCIPAL (tabla) -->
+        <div class="flex-1 flex flex-col min-w-0">
+
+            <!-- Header -->
+            <header class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+                <div class="flex items-center gap-3 flex-1 max-w-md">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="text" placeholder="Search" class="bg-transparent text-sm text-gray-300 w-full focus:outline-none">
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+                        <button data-theme-btn="light" onclick="setTheme('light')" class="px-3 py-1 text-[11px] text-gray-500 rounded">Claro</button>
+                        <button data-theme-btn="dark" onclick="setTheme('dark')" class="px-3 py-1 text-[11px] text-gray-500 rounded">Oscuro</button>
+                    </div>
+                    <span class="text-[11px] text-gray-500">English</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">JM</div>
+                        <div class="text-right">
+                            <p class="text-xs font-medium">Juan Marichal</p>
+                            <p class="text-[10px] text-gray-500">Admin</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Sub-header -->
+            <div class="px-6 py-4 bg-[#141d2b] border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <h1 class="text-lg font-bold">Ordenes de Compra</h1>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="flex items-center gap-3 px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+                <div class="flex items-center gap-2 text-xs text-gray-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                    <span class="font-semibold">Filter By</span>
+                </div>
+                <select class="input-base"><option>Cuenta</option></select>
+                <select class="input-base"><option>Tipo de pago</option></select>
+                <button class="text-xs text-red-400 font-semibold hover:text-red-300 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Reset Filter
+                </button>
+            </div>
+
+            <!-- Tabla -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin">
+                <table class="w-full">
+                    <thead class="bg-[#141d2b] sticky top-0">
+                        <tr class="border-b border-gray-800">
+                            <th class="text-left text-[10px] text-gray-500 uppercase tracking-wider font-medium px-6 py-3">ID</th>
+                            <th class="text-left text-[10px] text-gray-500 uppercase tracking-wider font-medium px-3 py-3">Cuenta</th>
+                            <th class="text-left text-[10px] text-gray-500 uppercase tracking-wider font-medium px-3 py-3">Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800/50">
+                        <tr class="hover:bg-[#1a2332] transition-colors bg-[#1a2332]/40">
+                            <td class="px-6 py-3 text-xs text-gray-300">00001</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Mtto</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Reparacion equip...</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a2332] transition-colors">
+                            <td class="px-6 py-3 text-xs text-gray-300">00002</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Alimentos</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Compra de la sem...</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a2332] transition-colors">
+                            <td class="px-6 py-3 text-xs text-gray-300">00003</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Uniformes</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Uniformes nuevo...</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a2332] transition-colors">
+                            <td class="px-6 py-3 text-xs text-gray-300">00004</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Gilbert Johnston</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">768 Destiny Lake...</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a2332] transition-colors">
+                            <td class="px-6 py-3 text-xs text-gray-300">00005</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Alan Cain</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">042 Mylene Thro...</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a2332] transition-colors">
+                            <td class="px-6 py-3 text-xs text-gray-300">00006</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Alfred Murray</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">543 Weimann M...</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a2332] transition-colors">
+                            <td class="px-6 py-3 text-xs text-gray-300">00007</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Maggie Sullivan</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">New Scottsberg...</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a2332] transition-colors">
+                            <td class="px-6 py-3 text-xs text-gray-300">00008</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Rosie Todd</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">New Jon...</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a2332] transition-colors">
+                            <td class="px-6 py-3 text-xs text-gray-300">00009</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">Dollie Hines</td>
+                            <td class="px-3 py-3 text-xs text-gray-300">124 Lyla Forge S...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginacion -->
+            <div class="px-6 py-3 bg-[#141d2b] border-t border-gray-800 flex items-center justify-between text-[11px] text-gray-500 flex-shrink-0">
+                <span>Showing 1-09 of 78</span>
+                <div class="flex items-center gap-1">
+                    <button class="w-7 h-7 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332]"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+                    <button class="w-7 h-7 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332]"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL LATERAL DERECHO (Detalle) -->
+        <aside class="w-[420px] bg-[#1F2A37] border-l border-gray-800 flex flex-col h-screen flex-shrink-0 overflow-y-auto scrollbar-thin">
+
+            <!-- Panel Header -->
+            <div class="px-5 pt-5 pb-3 border-b border-gray-800">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-white">ID OC01</h2>
+                    <div class="flex items-center gap-1">
+                        <button class="w-7 h-7 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332] hover:text-white">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        </button>
+                        <button class="w-7 h-7 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332] hover:text-white">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Badges -->
+                <div class="flex items-start gap-3 flex-wrap">
+                    <div class="flex flex-col items-start gap-1">
+                        <span class="badge-base badge-aprobado">APROBADO</span>
+                        <span class="text-[10px] text-gray-500">31 ene 2024 2:00pm</span>
+                    </div>
+                    <div class="flex flex-col items-start gap-1">
+                        <span class="badge-base badge-pagado-blue">PAGADO</span>
+                        <span class="text-[10px] text-gray-500">31 ene 2024 5:00pm</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Body -->
+            <div class="flex-1 px-5 py-4 space-y-4">
+
+                <!-- Cuenta / Pago -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="detail-label">Cuenta</p>
+                        <p class="detail-value">Mantenimiento</p>
+                    </div>
+                    <div>
+                        <p class="detail-label">Pago</p>
+                        <p class="detail-value">Aprovisionado</p>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-800"></div>
+
+                <!-- Detalle / Cotizacion -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="detail-label">Detalle</p>
+                        <p class="detail-value">Reparacion de un equipo de cocina con las siguientes caracteristicas</p>
+                    </div>
+                    <div>
+                        <p class="detail-label">Cotizacion</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <svg class="w-4 h-4 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <span class="detail-value text-blue-400 cursor-pointer hover:underline">Cotizacion A252.PDF</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-800"></div>
+
+                <!-- Tipo de pago / Se Factura -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="detail-label">Tipo de pago</p>
+                        <p class="detail-value">Transferencia</p>
+                        <p class="detail-value text-[11px] text-gray-500 mt-1">Clave: 0014604527461</p>
+                        <p class="detail-value text-[11px] text-gray-500">Banco: banca el mejor</p>
+                    </div>
+                    <div>
+                        <p class="detail-label">Se Factura</p>
+                        <p class="detail-value">Si</p>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-800"></div>
+
+                <!-- Monto / Anticipo -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="detail-label">Monto</p>
+                        <p class="detail-value text-[11px]">Sub Total: <span class="text-white font-medium">2,300</span></p>
+                        <p class="detail-value text-[11px]">Impuestos: <span class="text-white font-medium">0</span></p>
+                        <p class="detail-value text-[11px]">Total: <span class="text-white font-semibold">2,300</span></p>
+                    </div>
+                    <div>
+                        <p class="detail-label">Anticipo</p>
+                        <p class="detail-value">No</p>
+                        <p class="detail-value text-[11px] text-gray-500 mt-1">Anticipo: 0</p>
+                        <p class="detail-value text-[11px] text-gray-500">Restante: 0</p>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-800"></div>
+
+                <!-- Entregado / Fecha de Pago -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="detail-label">Entregado el mismo dia</p>
+                        <p class="detail-value">No</p>
+                        <p class="detail-value text-[11px] text-gray-500 mt-1">Fecha de entrega:</p>
+                        <p class="detail-value">2 Feb 2024</p>
+                    </div>
+                    <div>
+                        <p class="detail-label">Fecha de Pago</p>
+                        <p class="detail-value">1 Feb 2024</p>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-800"></div>
+
+                <!-- Pagos -->
+                <div>
+                    <p class="detail-label">Pagos</p>
+                    <div class="flex items-center gap-2 mt-1">
+                        <svg class="w-4 h-4 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span class="detail-value text-blue-400 cursor-pointer hover:underline">Pago ID0001.PDF</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Footer -->
+            <div class="px-5 py-4 border-t border-gray-800">
+                <div class="mb-4">
+                    <p class="text-xs font-semibold text-gray-300">Realizado</p>
+                    <p class="text-[11px] text-gray-500">31 ene 2024 12:00 pm</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button class="flex-1 px-4 py-2 rounded-lg border border-gray-600 text-xs font-semibold text-gray-300 hover:bg-[#1a2332] transition">Cambiar Estatus</button>
+                    <button class="flex-1 px-4 py-2 rounded-lg border border-gray-600 text-xs font-semibold text-gray-300 hover:bg-[#1a2332] transition">Cerrar</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        (function(){const t=localStorage.getItem('huubie-theme')||'dark';document.body.setAttribute('data-theme',t)})();
+        function setTheme(theme){document.body.setAttribute('data-theme',theme);localStorage.setItem('huubie-theme',theme);document.querySelectorAll('[data-theme-btn]').forEach(b=>{b.classList.toggle('theme-active',b.dataset.themeBtn===theme)})}
+        window.addEventListener('DOMContentLoaded',()=>{const t=document.body.getAttribute('data-theme');document.querySelectorAll('[data-theme-btn]').forEach(b=>{b.classList.toggle('theme-active',b.dataset.themeBtn===t)})});
+    </script>
+</body>
+</html>

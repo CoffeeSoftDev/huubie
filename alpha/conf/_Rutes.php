@@ -17,5 +17,7 @@
     define('PATH_ADMIN', '/alpha/admin/');
     define('PATH_RESERVACIONES', '/dev/reservaciones/');
     define('PATH_RRHH', '/alpha/rrhh/');
+    define('PATH_FINANZAS', '/alpha/finanzas/');
+    define('PATH_RRHH3', '/alpha/rrhh3/');
 
 ?>

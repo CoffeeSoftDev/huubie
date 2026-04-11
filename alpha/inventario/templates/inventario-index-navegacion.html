@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huubie Inventario — Demos Fase 1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; }
+        .card-demo { background:#1F2A37; border:1px solid rgba(55,65,81,.6); border-radius:12px; padding:1.5rem; transition:.15s; text-decoration:none; display:block; }
+        .card-demo:hover { border-color:#7c3aed; background:#1F2A37; transform:translateY(-2px); box-shadow:0 10px 30px rgba(0,0,0,.3); }
+
+        /* === LIGHT THEME OVERRIDES === */
+        body[data-theme="light"] { background:#f3f4f6 !important; color:#111928 !important; }
+        body[data-theme="light"] .card-demo { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .card-demo:hover { background:#ffffff !important; border-color:#7c3aed !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .text-gray-600 { color:#9ca3af !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; color:#374151 !important; }
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-sm">hb</div>
+                    <div>
+                        <h1 class="text-2xl font-bold">Huubie — Modulo Inventario</h1>
+                        <p class="text-[12px] text-gray-500">Demos estaticas - Fase 1 - Plantillas HTML navegables</p>
+                    </div>
+                </div>
+                <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+                    <button data-theme-btn="light" onclick="setTheme('light')" class="px-3 py-1 text-[11px] text-gray-500 rounded">&#9675; Claro</button>
+                    <button data-theme-btn="dark" onclick="setTheme('dark')" class="px-3 py-1 text-[11px] text-gray-500 rounded">&#9675; Oscuro</button>
+                </div>
+            </div>
+            <p class="text-sm text-gray-400 mt-4 max-w-2xl">Este hub contiene todas las plantillas HTML del modulo de Inventario. Cada card abre una demo funcional standalone que respeta los colores del proyecto y el sistema de diseno Huubie.</p>
+        </header>
+
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Plantillas principales</h2>
+        <div class="grid grid-cols-3 gap-4 mb-8">
+
+            <a href="inventario-productos.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Productos</h3>
+                <p class="text-[11px] text-gray-500">Tabla principal con filtros por categoria, status y busqueda. Paginacion y acciones por fila.</p>
+                <p class="text-[10px] text-purple-400 mt-3">inventario-productos.html</p>
+            </a>
+
+        </div>
+
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Modales reutilizables</h2>
+        <div class="grid grid-cols-3 gap-4 mb-8">
+
+            <a href="modals/modal-nuevo-producto.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Modal Nuevo Producto</h3>
+                <p class="text-[11px] text-gray-500">Formulario 720px con grid 2 columnas: datos del producto, proveedor, imagen drag-drop</p>
+                <p class="text-[10px] text-purple-400 mt-3">modal-nuevo-producto.html</p>
+            </a>
+
+            <a href="modals/modal-confirmacion.html" class="card-demo">
+                <div class="w-10 h-10 rounded-lg bg-yellow-500/20 text-yellow-400 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.832c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold mb-1">Modal Confirmacion</h3>
+                <p class="text-[11px] text-gray-500">Confirmacion de eliminacion con icono warning y botones Si/No</p>
+                <p class="text-[10px] text-purple-400 mt-3">modal-confirmacion.html</p>
+            </a>
+
+        </div>
+
+        <footer class="text-center text-[11px] text-gray-600 pt-8 border-t border-gray-800">
+            <p>&copy; 2026 Huubie, LLC. - Modulo Inventario Fase 1 - Stack: Tailwind CSS + Inter font - Paleta: <code class="bg-[#1a2332] px-1.5 py-0.5 rounded">alpha/src/css/colors.css</code></p>
+        </footer>
+    </div>
+
+    <script>
+        (function(){
+            const t = localStorage.getItem('huubie-theme') || 'dark';
+            document.body.setAttribute('data-theme', t);
+        })();
+        function setTheme(theme){
+            document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('huubie-theme', theme);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === theme);
+            });
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            const t = document.body.getAttribute('data-theme');
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === t);
+            });
+        });
+    </script>
+</body>
+</html>

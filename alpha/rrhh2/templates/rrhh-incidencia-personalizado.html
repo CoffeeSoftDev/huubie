@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huubie RRHH — Incidencia Personalizada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; height:100vh; overflow:hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width:4px; height:4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+        .badge-base       { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; }
+        .badge-puesto-admin  { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-puesto-cocina { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-puesto-piso   { background:rgba(28,100,242,.18); color:#76a9fa; border-color:rgba(28,100,242,.35); }
+        .input-base         { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:6px 12px; font-size:12px; color:#d1d5db; }
+        .sidebar-item       { display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:8px; font-size:12px; color:#9ca3af; cursor:pointer; text-decoration:none; }
+        .sidebar-item:hover { background:rgba(124,58,237,.08); color:#d1d5db; }
+        .sidebar-item.active{ color:#c4b5fd; background:rgba(124,58,237,.15); }
+        .sidebar-sub        { padding-left:32px; font-size:11px; }
+        .sidebar-sub.active { color:#c4b5fd; background:rgba(124,58,237,.12); border-left:2px solid #7c3aed; }
+        .toggle-pill        { padding:6px 18px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block; }
+        .toggle-pill.active { background:#7c3aed; color:#fff; }
+        .toggle-pill.inactive { background:transparent; color:#9ca3af; }
+
+        /* DOTS */
+        .dot                { display:inline-block; width:6px; height:6px; border-radius:9999px; margin-right:6px; }
+        .dot-asistencia     { background:#3fc189; }
+        .dot-falta          { background:#ea0234; }
+        .dot-vacaciones     { background:#fbbf24; }
+        .dot-incidencia     { background:#fb923c; }
+        .dot-reconocimiento { background:#c4b5fd; }
+
+        .cell-btn { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; font-size:11px; color:#d1d5db; cursor:pointer; border:1px solid transparent; }
+        .cell-btn:hover { background:rgba(124,58,237,.1); border-color:rgba(124,58,237,.3); }
+        .cell-btn.open { background:rgba(124,58,237,.18); border-color:rgba(124,58,237,.5); }
+
+        .dropdown-menu { position:fixed; background:#1F2A37; border:1px solid #374151; border-radius:8px; padding:4px; min-width:170px; z-index:50; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+        .dropdown-item { display:flex; align-items:center; gap:8px; padding:7px 12px; border-radius:6px; font-size:11px; color:#d1d5db; cursor:pointer; }
+        .dropdown-item:hover { background:rgba(124,58,237,.15); }
+
+        /* === LIGHT THEME OVERRIDES === */
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] aside.bg-\[\#0f172a\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#111928\] { background:#f9fafb !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .text-gray-600 { color:#9ca3af !important; }
+        body[data-theme="light"] .sidebar-item { color:#6b7280 !important; }
+        body[data-theme="light"] .sidebar-item:hover { background:rgba(124,58,237,.08) !important; color:#111928 !important; }
+        body[data-theme="light"] .sidebar-item.active { color:#7c3aed !important; background:rgba(124,58,237,.12) !important; }
+        body[data-theme="light"] .hover\:bg-\[\#1a2332\]:hover { background:#f3f4f6 !important; }
+        body[data-theme="light"] thead { background:#f9fafb !important; }
+        body[data-theme="light"] .divide-gray-800\/50 > * + * { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .input-base { background:#f9fafb !important; border-color:#e5e7eb !important; color:#111928 !important; }
+        body[data-theme="light"] .cell-btn { color:#374151 !important; }
+        body[data-theme="light"] .dropdown-menu { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .dropdown-item { color:#374151 !important; }
+        body[data-theme="light"] input::placeholder { color:#9ca3af !important; }
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+    </style>
+</head>
+<body class="flex">
+
+    <aside class="w-56 bg-[#0f172a] border-r border-gray-800 flex flex-col flex-shrink-0 h-screen">
+        <div class="px-4 py-4 border-b border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-xs">hb</div>
+            <span class="font-bold text-sm">Huubie</span>
+        </div>
+        <nav class="flex-1 overflow-y-auto scrollbar-thin py-3 px-2">
+            <a href="rrhh-resumen.html" class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7"/></svg>Resumen</a>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0"/></svg>Finanzas</div>
+            <div class="sidebar-item active"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2"/></svg>Recursos Humanos</div>
+            <div class="mt-1 space-y-0.5">
+                <a href="rrhh-personal.html" class="sidebar-item sidebar-sub">Personal</a>
+                <a href="rrhh-incidencia-diario.html" class="sidebar-item sidebar-sub active">Incidencia</a>
+                <a href="rrhh-nomina.html" class="sidebar-item sidebar-sub">Nómina</a>
+                <a href="rrhh-permisos.html" class="sidebar-item sidebar-sub">Permisos</a>
+                <div class="sidebar-item sidebar-sub opacity-60">Desempeño</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Reclutamiento</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Cursos</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Actas</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Reconocimientos</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Configuración</div>
+            </div>
+            <div class="sidebar-item mt-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2"/></svg>Operaciones</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10"/></svg>Mkt y clientes</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2"/></svg>Ventas</div>
+        </nav>
+        <div class="px-2 py-3 border-t border-gray-800 space-y-0.5">
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>Asistencia</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6"/></svg>Documentos</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549"/></svg>Ayuda</div>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0 h-screen">
+        <header class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-3 flex-1 max-w-md">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0"/></svg>
+                <input type="text" placeholder="Buscar" class="bg-transparent text-sm text-gray-300 w-full focus:outline-none">
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+                    <button data-theme-btn="light" onclick="setTheme('light')" class="px-3 py-1 text-[11px] text-gray-500 rounded">○ Light</button>
+                    <button data-theme-btn="dark" onclick="setTheme('dark')" class="px-3 py-1 text-[11px] text-gray-500 rounded">○ Dark</button>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">AK</div>
+            </div>
+        </header>
+
+        <div class="px-6 py-4 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <h1 class="text-lg font-bold">Incidencia Personalizada <span class="text-xs text-gray-500">(intervalos de varios días)</span></h1>
+        </div>
+
+        <div class="flex items-center gap-2 px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-2 bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 flex-1 max-w-xs">
+                <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0"/></svg>
+                <input type="text" placeholder="Colaborador" class="bg-transparent text-xs text-gray-300 w-full focus:outline-none">
+            </div>
+            <select class="input-base"><option>Sucursal</option></select>
+            <select class="input-base"><option>Turno</option></select>
+            <select class="input-base"><option>Estatus</option></select>
+            <div class="ml-auto flex bg-[#1a2332] border border-gray-700 rounded-lg p-1 gap-1">
+                <a href="rrhh-incidencia-diario.html" class="toggle-pill inactive">Diario</a>
+                <button class="toggle-pill active">Personalizado</button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-auto scrollbar-thin">
+            <table class="w-full min-w-[1200px]">
+                <thead class="sticky top-0 bg-[#111928] z-10">
+                    <tr class="text-[10px] text-gray-500 uppercase tracking-wider border-b border-gray-800">
+                        <th class="text-left py-3 px-6 font-medium">Colaborador</th>
+                        <th class="text-left py-3 px-3 font-medium">Puesto</th>
+                        <th class="text-left py-3 px-3 font-medium">Turno</th>
+                        <th class="text-center py-3 px-2 font-medium">Lunes<br><span class="text-[8px] text-gray-600">22/07/2024</span></th>
+                        <th class="text-center py-3 px-2 font-medium">Martes<br><span class="text-[8px] text-gray-600">23/07/2024</span></th>
+                        <th class="text-center py-3 px-2 font-medium">Miércoles<br><span class="text-[8px] text-gray-600">24/07/2024</span></th>
+                        <th class="text-center py-3 px-2 font-medium">Jueves<br><span class="text-[8px] text-gray-600">25/07/2024</span></th>
+                        <th class="text-center py-3 px-2 font-medium">Viernes<br><span class="text-[8px] text-gray-600">26/07/2024</span></th>
+                        <th class="text-center py-3 px-2 font-medium">Sábado<br><span class="text-[8px] text-gray-600">27/07/2024</span></th>
+                        <th class="text-center py-3 px-2 font-medium">Domingo<br><span class="text-[8px] text-gray-600">28/07/2024</span></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/50">
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">JL</div><p class="text-xs font-medium">Jese Leos</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-admin">Admin</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center text-[10px] font-bold">BG</div><p class="text-xs font-medium">Bonnie Green</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[10px] font-bold">LL</div><p class="text-xs font-medium">Leslie Livingston</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-[10px] font-bold">MG</div><p class="text-xs font-medium">Micheal Gough</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center text-[10px] font-bold">JM</div><p class="text-xs font-medium">Joseph McFall</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">RB</div><p class="text-xs font-medium">Robert Brown</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-vacaciones"></span>Vacaciones</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-falta"></span>Falta</button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center text-[10px] font-bold">KN</div><p class="text-xs font-medium">Karen Nelson</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">HE</div><p class="text-xs font-medium">Helene Engels</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-bold">LB</div><p class="text-xs font-medium">Lana Byrd</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-piso">Piso</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                    </tr>
+                    <tr class="hover:bg-[#1a2332]">
+                        <td class="py-3 px-6"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">NS</div><p class="text-xs font-medium">Neil Sims</p></div></td>
+                        <td class="py-3 px-3"><span class="badge-base badge-puesto-cocina">Cocina</span></td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Matutino</td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                        <td class="py-3 px-2 text-center"><button class="cell-btn"><span class="dot dot-asistencia"></span>Asistencia</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="px-6 py-2 bg-[#141d2b] border-t border-gray-800 flex items-center justify-between text-[10px] text-gray-500 flex-shrink-0">
+            <p>© 2023 Huubie, LLC. All rights reserved.</p>
+            <span>🇺🇸 English(US) ▾</span>
+        </div>
+    </div>
+
+    <!-- Dropdown contextual global (cambio de estatus) -->
+    <div id="ctxMenu" class="dropdown-menu hidden">
+        <div class="dropdown-item" data-status="incidencia"><span class="dot dot-incidencia"></span>Incidencia</div>
+        <div class="dropdown-item" data-status="falta"><span class="dot dot-falta"></span>Falta</div>
+        <div class="dropdown-item" data-status="asistencia"><span class="dot dot-asistencia"></span>Asistencia</div>
+        <div class="dropdown-item" data-status="vacaciones"><span class="dot dot-vacaciones"></span>Vacaciones</div>
+        <div class="dropdown-item" data-status="reconocimiento"><span class="dot dot-reconocimiento"></span>Reconocimiento</div>
+    </div>
+
+    <script>
+        // === Cambio de estatus en celdas ===
+        (function(){
+            const ctxMenu = document.getElementById('ctxMenu');
+            let currentBtn = null;
+
+            const labels = {
+                incidencia:     'Incidencia',
+                falta:          'Falta',
+                asistencia:     'Asistencia',
+                vacaciones:     'Vacaciones',
+                reconocimiento: 'Reconocimiento'
+            };
+
+            // Abrir el menú al click en una celda
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('.cell-btn');
+                if (btn) {
+                    e.stopPropagation();
+                    // Si es el mismo botón, cierra
+                    if (currentBtn === btn && !ctxMenu.classList.contains('hidden')) {
+                        closeMenu();
+                        return;
+                    }
+                    currentBtn = btn;
+                    btn.classList.add('open');
+                    const r = btn.getBoundingClientRect();
+                    ctxMenu.classList.remove('hidden');
+                    // Posicionar (verifica que quepa en pantalla)
+                    let top = r.bottom + 4;
+                    let left = r.left;
+                    const menuRect = ctxMenu.getBoundingClientRect();
+                    if (left + menuRect.width > window.innerWidth) {
+                        left = window.innerWidth - menuRect.width - 8;
+                    }
+                    if (top + menuRect.height > window.innerHeight) {
+                        top = r.top - menuRect.height - 4;
+                    }
+                    ctxMenu.style.top  = top + 'px';
+                    ctxMenu.style.left = left + 'px';
+                    return;
+                }
+
+                // Click en una opción del menú
+                const item = e.target.closest('.dropdown-item');
+                if (item && currentBtn) {
+                    const status = item.dataset.status;
+                    currentBtn.innerHTML = `<span class="dot dot-${status}"></span>${labels[status]}`;
+                    closeMenu();
+                    return;
+                }
+
+                // Click fuera = cerrar
+                closeMenu();
+            });
+
+            // Cerrar con ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeMenu();
+            });
+
+            function closeMenu() {
+                ctxMenu.classList.add('hidden');
+                if (currentBtn) currentBtn.classList.remove('open');
+                currentBtn = null;
+            }
+        })();
+
+        // === Theme toggle ===
+        (function(){
+            const t = localStorage.getItem('huubie-theme') || 'dark';
+            document.body.setAttribute('data-theme', t);
+        })();
+        function setTheme(theme){
+            document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('huubie-theme', theme);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === theme);
+            });
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            const t = document.body.getAttribute('data-theme');
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === t);
+            });
+        });
+    </script>
+</body>
+</html>

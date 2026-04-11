@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuevo Proveedor — Huubie Finanzas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; }
+        .input-modal { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:8px 12px; font-size:12px; color:#d1d5db; width:100%; }
+        .input-modal:focus { outline:none; border-color:#7c3aed; }
+    </style>
+</head>
+<body>
+
+    <div class="fixed inset-0 bg-black/60"></div>
+
+    <div class="relative z-10 w-[600px] bg-[#1F2A37] rounded-2xl p-6 border border-gray-700">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-lg font-bold">Nuevo Proveedor</h2>
+            <button class="text-gray-400 hover:text-white" onclick="window.close()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6">
+
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Nombre Comercial</label>
+                    <input type="text" class="input-modal" placeholder="">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Razon Social</label>
+                    <input type="text" class="input-modal" placeholder="">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">RFC</label>
+                    <input type="text" class="input-modal" placeholder="">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Contacto</label>
+                    <input type="text" class="input-modal" placeholder="">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Telefono</label>
+                    <input type="tel" class="input-modal" placeholder="">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">E-mail</label>
+                    <input type="email" class="input-modal" placeholder="">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Direccion</label>
+                    <input type="text" class="input-modal" placeholder="">
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Banco</label>
+                    <input type="text" class="input-modal" placeholder="">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Clave</label>
+                    <input type="text" class="input-modal" placeholder="">
+                </div>
+                <div>
+                    <label class="text-[11px] text-gray-500 block mb-1">Contacto</label>
+                    <input type="text" class="input-modal" placeholder="">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 pt-2">
+                    <div class="border border-dashed border-gray-600 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition">
+                        <div class="w-10 h-10 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center mb-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                            </svg>
+                        </div>
+                        <span class="text-[10px] text-gray-400 font-medium text-center leading-tight">Subir Cedula Fiscal</span>
+                    </div>
+                    <div class="border border-dashed border-gray-600 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition">
+                        <div class="w-10 h-10 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center mb-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                            </svg>
+                        </div>
+                        <span class="text-[10px] text-gray-400 font-medium text-center leading-tight">Subir Constancia Banco</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col items-center gap-3 mt-6">
+            <button class="w-48 py-2.5 rounded-lg bg-[#1c64f2] text-white text-sm font-semibold hover:bg-blue-600 transition">Enviar</button>
+            <button class="w-48 py-2.5 rounded-lg border border-gray-500 text-gray-300 text-sm font-semibold hover:bg-gray-700 transition" onclick="window.close()">Cancel</button>
+        </div>
+    </div>
+
+</body>
+</html>

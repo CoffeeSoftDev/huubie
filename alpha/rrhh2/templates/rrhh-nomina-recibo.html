@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huubie RRHH — Recibo de Nómina</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; height:100vh; overflow:hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width:4px; height:4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+        .badge-base       { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; }
+        .badge-admin { background:rgba(28,100,242,.18); color:#76a9fa; border-color:rgba(28,100,242,.35); }
+        .sidebar-item       { display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:8px; font-size:12px; color:#9ca3af; cursor:pointer; text-decoration:none; }
+        .sidebar-item:hover { background:rgba(124,58,237,.08); color:#d1d5db; }
+        .sidebar-item.active{ color:#c4b5fd; background:rgba(124,58,237,.15); }
+        .sidebar-sub        { padding-left:32px; font-size:11px; }
+        .sidebar-sub.active { color:#c4b5fd; background:rgba(124,58,237,.12); border-left:2px solid #7c3aed; }
+
+        /* === LIGHT THEME OVERRIDES === */
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] aside.bg-\[\#0f172a\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#111928\] { background:#f9fafb !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .text-gray-600 { color:#9ca3af !important; }
+        body[data-theme="light"] .sidebar-item { color:#6b7280 !important; }
+        body[data-theme="light"] .sidebar-item:hover { background:rgba(124,58,237,.08) !important; color:#111928 !important; }
+        body[data-theme="light"] .sidebar-item.active { color:#7c3aed !important; background:rgba(124,58,237,.12) !important; }
+        body[data-theme="light"] .hover\:bg-\[\#1a2332\]:hover { background:#f3f4f6 !important; }
+        body[data-theme="light"] thead { background:#f9fafb !important; }
+        body[data-theme="light"] .divide-gray-800\/50 > * + * { border-color:#e5e7eb !important; }
+        body[data-theme="light"] input::placeholder { color:#9ca3af !important; }
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+    </style>
+</head>
+<body class="flex">
+
+    <aside class="w-56 bg-[#0f172a] border-r border-gray-800 flex flex-col flex-shrink-0 h-screen">
+        <div class="px-4 py-4 border-b border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-xs">hb</div>
+            <span class="font-bold text-sm">Huubie</span>
+        </div>
+        <nav class="flex-1 overflow-y-auto scrollbar-thin py-3 px-2">
+            <a href="rrhh-resumen.html" class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2"/></svg>Resumen</a>
+            <div class="sidebar-item active"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2"/></svg>Recursos Humanos</div>
+            <div class="mt-1 space-y-0.5">
+                <a href="rrhh-incidencia-diario.html" class="sidebar-item sidebar-sub">Incidencia</a>
+                <a href="rrhh-nomina.html" class="sidebar-item sidebar-sub active">Nómina</a>
+                <a href="rrhh-personal.html" class="sidebar-item sidebar-sub">Personal</a>
+                <div class="sidebar-item sidebar-sub opacity-60">Desempeño</div>
+                <div class="sidebar-item sidebar-sub opacity-60">Reclutamiento</div>
+            </div>
+            <div class="sidebar-item mt-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10"/></svg>Mkt y clientes</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2"/></svg>Calidad</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c"/></svg>Finanzas</div>
+        </nav>
+        <div class="px-2 py-3 border-t border-gray-800 space-y-0.5">
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6"/></svg>Docs</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2"/></svg>Components</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549"/></svg>Help</div>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0 h-screen">
+        <!-- Header -->
+        <header class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-3 flex-1 max-w-md">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0"/></svg>
+                <input type="text" placeholder="Buscar" class="bg-transparent text-sm text-gray-300 w-full focus:outline-none">
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+                    <button data-theme-btn="light" onclick="setTheme('light')" class="px-3 py-1 text-[11px] text-gray-500 rounded">○ Claro</button>
+                    <button data-theme-btn="dark" onclick="setTheme('dark')" class="px-3 py-1 text-[11px] text-gray-500 rounded">○ Oscuro</button>
+                </div>
+                <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5"/></svg></button>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">AK</div>
+            </div>
+        </header>
+
+        <div class="flex items-center justify-between px-6 py-4 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <h1 class="text-lg font-bold">Nómina <span class="text-gray-400 font-normal">— Recibos de Nómina</span></h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="text-[11px] text-gray-500">27 de marzo del 2024 · 12:32 pm</div>
+                <button class="px-3 py-1.5 rounded-lg bg-[#1c64f2] text-white text-xs font-semibold flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Download Full
+                    <span class="bg-white/20 px-1.5 py-0.5 rounded text-[9px]">1867</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Contenido central: card recibo -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-6">
+                <div class="max-w-3xl mx-auto bg-[#1F2A37] rounded-2xl border border-gray-800 p-6">
+                    <!-- Header recibo -->
+                    <div class="flex items-start justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-[#1c64f2]/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold">Tu empresa</h2>
+                                <p class="text-[11px] text-gray-500">Pago correspondiente a la nomina de fecha a fecha</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[11px] text-gray-500">Recibo</p>
+                            <p class="text-sm font-bold text-white">#1</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="text-[11px] text-gray-500">Fecha: <span class="text-gray-300">05/07/2023</span></p>
+                    </div>
+
+                    <!-- Datos empresa/colaborador -->
+                    <div class="grid grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Empresa</p>
+                            <p class="text-xs font-medium text-white">Tu empresa</p>
+                            <p class="text-[11px] text-gray-400">Dirección de la empresa</p>
+                            <p class="text-[11px] text-gray-400">Datos generales</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Recibo de nómina</p>
+                            <p class="text-xs font-medium text-white">Nombre del colaborador</p>
+                            <p class="text-[11px] text-gray-400">email@example.com</p>
+                            <p class="text-[11px] text-gray-400">Datos personales</p>
+                        </div>
+                    </div>
+
+                    <!-- Tabla desglose -->
+                    <table class="w-full mb-4">
+                        <thead>
+                            <tr class="border-y border-gray-700">
+                                <th class="text-left text-[10px] text-gray-500 uppercase tracking-wider font-medium py-2">Pago desglosado</th>
+                                <th class="text-right text-[10px] text-gray-500 uppercase tracking-wider font-medium py-2">Total Price</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800/50">
+                            <tr>
+                                <td class="py-3 text-xs text-gray-300">Salario Total</td>
+                                <td class="py-3 text-right text-xs font-bold text-white">$269</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 text-xs text-gray-300">Salario Diario</td>
+                                <td class="py-3 text-right text-xs font-bold text-white">$447</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 text-xs text-gray-300">Bonos e Incentivos</td>
+                                <td class="py-3 text-right text-xs font-bold text-white">$0</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 text-xs text-gray-300">Descuentos</td>
+                                <td class="py-3 text-right text-xs font-bold text-white">$199</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3">
+                                    <p class="text-xs text-gray-300">Extras</p>
+                                    <p class="text-[10px] text-gray-500">Prima Vacacional, Horas extras, etc.</p>
+                                </td>
+                                <td class="py-3 text-right text-xs font-bold text-white">$1598</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Resumen -->
+                    <div class="flex justify-end">
+                        <div class="w-64 space-y-2 pt-4 border-t border-gray-700">
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Resumen</p>
+                            <div class="flex justify-between text-[11px]">
+                                <span class="text-gray-400">Efectivo</span>
+                                <span class="text-white font-medium">$2513</span>
+                            </div>
+                            <div class="flex justify-between text-[11px]">
+                                <span class="text-gray-400">Bancos</span>
+                                <span class="text-white font-medium">$477</span>
+                            </div>
+                            <div class="flex justify-between pt-2 border-t border-gray-700">
+                                <span class="text-sm font-bold text-white">Salario Total</span>
+                                <span class="text-sm font-bold text-white">$2990</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel lateral colaboradores -->
+            <aside class="w-[340px] bg-[#141d2b] border-l border-gray-800 flex flex-col flex-shrink-0">
+                <div class="px-4 py-3 border-b border-gray-800">
+                    <h3 class="text-sm font-bold mb-2">Colaboradores</h3>
+                    <select class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300">
+                        <option>Colaborador</option>
+                    </select>
+                </div>
+                <div class="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1">
+                    <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-[#1a2332] cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">NS</div>
+                        <div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">Neil Sims</p><p class="text-[10px] text-gray-500 truncate">email@example.com</p></div>
+                        <span class="badge-base badge-admin">Admin</span>
+                    </div>
+                    <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-[#1a2332] cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center text-[10px] font-bold">BG</div>
+                        <div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">Bonnie Green</p><p class="text-[10px] text-gray-500 truncate">email@example.com</p></div>
+                        <span class="badge-base badge-admin">Admin</span>
+                    </div>
+                    <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-[#1a2332] cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-[10px] font-bold">MG</div>
+                        <div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">Michael Gough</p><p class="text-[10px] text-gray-500 truncate">email@example.com</p></div>
+                        <span class="badge-base badge-admin">Admin</span>
+                    </div>
+                    <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-[#1a2332] cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">TL</div>
+                        <div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">Thomas Lean</p><p class="text-[10px] text-gray-500 truncate">email@example.com</p></div>
+                        <span class="badge-base badge-admin">Admin</span>
+                    </div>
+                    <div class="flex items-center gap-2 p-2 rounded-lg bg-[#1a2332] cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-bold">LB</div>
+                        <div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">Lana Byrd</p><p class="text-[10px] text-gray-500 truncate">email@example.com</p></div>
+                        <span class="badge-base badge-admin">Admin</span>
+                    </div>
+                    <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-[#1a2332] cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">JL</div>
+                        <div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">Jese Leos</p><p class="text-[10px] text-gray-500 truncate">email@example.com</p></div>
+                        <span class="badge-base badge-admin">Admin</span>
+                    </div>
+                    <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-[#1a2332] cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center text-[10px] font-bold">KN</div>
+                        <div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">Karen Nelson</p><p class="text-[10px] text-gray-500 truncate">email@example.com</p></div>
+                        <span class="badge-base badge-admin">Admin</span>
+                    </div>
+                    <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-[#1a2332] cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">HE</div>
+                        <div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">Helene Engels</p><p class="text-[10px] text-gray-500 truncate">email@example.com</p></div>
+                        <span class="badge-base badge-admin">Admin</span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <div class="px-6 py-2 bg-[#141d2b] border-t border-gray-800 flex items-center justify-between text-[10px] text-gray-500 flex-shrink-0">
+            <p>© 2023 Huubie, LLC. All rights reserved. <a href="#" class="hover:text-gray-300">Privacy Policy</a> · <a href="#" class="hover:text-gray-300">API</a> · <a href="#" class="hover:text-gray-300">Contact</a></p>
+            <span>🇺🇸 English(US) ▾</span>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            const t = localStorage.getItem('huubie-theme') || 'dark';
+            document.body.setAttribute('data-theme', t);
+        })();
+        function setTheme(theme){
+            document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('huubie-theme', theme);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === theme);
+            });
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            const t = document.body.getAttribute('data-theme');
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === t);
+            });
+        });
+    </script>
+</body>
+</html>

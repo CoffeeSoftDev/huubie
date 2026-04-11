@@ -46,7 +46,8 @@
       "Bash(mv ctrl/ctrl-pedidos-personalizado.php ctrl/ctrl-personalizado.php)",
       "Bash(mv mdl/mdl-pedidos-catalogo.php mdl/mdl-catalogo.php)",
       "Bash(mv mdl/mdl-pedidos-personalizado.php mdl/mdl-personalizado.php)",
-      "Bash(mv src/js/pedidos-catalogo.js src/js/catalogo.js)"
+      "Bash(mv src/js/pedidos-catalogo.js src/js/catalogo.js)",
+      "Bash(jq --version)"
     ]
   }
 }

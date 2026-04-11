@@ -59,8 +59,16 @@
         <div style="background-color:#111827;" class="w-full max-w-full overflow-x-auto" id="root"></div>
     </div>
 
+    <!-- RRHH Components -->
+    <script src="<?=PATH_RRHH?>src/js/components/incidencia-grid.js?t=<?php echo time(); ?>"></script>
+
     <!-- RRHH Module -->
     <script src="<?=PATH_RRHH?>src/js/rrhh.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_RRHH?>src/js/rrhh-resumen.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_RRHH?>src/js/rrhh-personal.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_RRHH?>src/js/rrhh-permisos.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_RRHH?>src/js/rrhh-incidencias.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_RRHH?>src/js/rrhh-nomina.js?t=<?php echo time(); ?>"></script>
 </body>
 
 </html>
