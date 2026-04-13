@@ -92,6 +92,53 @@
     .footer { text-align:center; margin-top:32px; color:#6B7280; font-size:.82rem; }
     .footer a { color:#9CA3AF; text-decoration:none; }
     .footer a:hover { color:#E5E7EB; }
+
+    /* ── Theme toggle ── */
+    .theme-toggle {
+        position:fixed; bottom:24px; right:24px; z-index:100;
+        width:48px; height:48px; border-radius:50%;
+        border:2px solid #374151; background:#1F2A37;
+        color:#E5E7EB; font-size:1.2rem;
+        cursor:pointer; transition:all .3s;
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:0 4px 14px rgba(0,0,0,.3);
+    }
+    .theme-toggle:hover { transform:scale(1.1); border-color:#3B82F6; }
+    .theme-toggle .icon-light { display:none; }
+    .theme-toggle .icon-dark  { display:inline; }
+
+    /* ── Light theme ── */
+    body.light { background:#F3F4F6; color:#1F2937; }
+    body.light .hb-nav { background:#fff; color:#1F2937; border-bottom-color:#EC4899; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+    body.light .hb-nav .toggle,
+    body.light .hb-nav .right a { color:#1F2937; }
+    body.light .hb-nav .right a:hover { color:#6B7280; }
+    body.light .hb-nav .logo-box { background:#3B82F6; color:#fff; }
+    body.light .hb-nav .avatar { background:#9333EA; color:#fff; }
+    body.light .hb-nav .avatar-btn { border-left-color:#D1D5DB; }
+
+    body.light .header h2 { color:#111827; }
+    body.light .header p { color:#6B7280; }
+    body.light .header .logo { color:#3B82F6; }
+    body.light .header .user-chip { background:#fff; border-color:#E5E7EB; color:#4B5563; }
+    body.light .header .user-chip strong { color:#111827 !important; }
+
+    body.light .sub-card { background:#fff; border-color:#E5E7EB; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+    body.light .sub-card:hover { border-color:#3B82F6; box-shadow:0 12px 30px rgba(0,0,0,.1); }
+    body.light .sub-card h5 { color:#111827; }
+    body.light .sub-card .addr { color:#6B7280; }
+    body.light .sub-card .meta { color:#9CA3AF; }
+    body.light .sub-card .arrow { color:#9CA3AF; }
+    body.light .sub-card:hover .arrow { color:#3B82F6; }
+    body.light .sub-card.last-used { border-color:#10B981; }
+
+    body.light .footer { color:#9CA3AF; }
+    body.light .footer a { color:#6B7280; }
+    body.light .footer a:hover { color:#1F2937; }
+
+    body.light .theme-toggle { background:#fff; border-color:#E5E7EB; color:#1F2937; box-shadow:0 4px 14px rgba(0,0,0,.08); }
+    body.light .theme-toggle .icon-light { display:inline; }
+    body.light .theme-toggle .icon-dark  { display:none; }
 </style>
 </head>
 <body>
@@ -178,6 +225,21 @@
 
 </div>
 </div>
+
+<!-- Theme toggle button -->
+<button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">
+    <i class="bi bi-sun-fill icon-light"></i>
+    <i class="bi bi-moon-fill icon-dark"></i>
+</button>
+
+<script>
+function toggleTheme(){
+    document.body.classList.toggle('light');
+    localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
+}
+// Restore saved preference
+if(localStorage.getItem('theme') === 'light') document.body.classList.add('light');
+</script>
 
 </body>
 </html>
