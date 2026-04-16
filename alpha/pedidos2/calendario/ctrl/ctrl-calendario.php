@@ -30,12 +30,12 @@ class ctrlCalendario extends MCalendarioPedidos{
         $sessionSub = $_SESSION['SUB'];
 
         // Si es admin (rol 1), usar la sucursal del POST, sino usar la de sesión
-        if ($rolId == 1) {
+        // if ($rolId == 1) {
             // Validar que subsidiaries_id exista y no sea vacío
             $subsidiaries_id = isset($_POST['subsidiaries_id']) ? $_POST['subsidiaries_id'] : 0;
-        } else {
-            $subsidiaries_id = $sessionSub;
-        }
+        // } else {
+        //     $subsidiaries_id = $sessionSub;
+        // }
 
         $event = [];
         $statuses = isset($_POST['statuses']) ? explode(',', $_POST['statuses']) : ['1', '2', '3', '4'];

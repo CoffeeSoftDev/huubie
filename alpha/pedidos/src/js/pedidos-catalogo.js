@@ -1644,7 +1644,7 @@ class CatalogProduct extends Pos {
         const defaults = {
             parent: "root",
             id: "ticketPasteleria",
-            class: "bg-white p-4 rounded-lg shadow font-mono text-gray-900",
+            class: "bg-white p-4 rounded-lg shadow text-gray-900",
             data: {
                 head: {
                     folio: "",
@@ -1707,7 +1707,7 @@ class CatalogProduct extends Pos {
                                         padding: 0;
                                         width: 100%;
                                         height: 100%;
-                                        font-family: 'Courier New', monospace;
+                                        font-family: 'Consolas', 'Roboto Mono', 'Lucida Console', monospace;
                                         font-size:12px;
                                         background: white;
                                     }
@@ -1769,9 +1769,9 @@ class CatalogProduct extends Pos {
 
         const container = $("<div>", {
             id: opts.id,
-            class: "bg-white p-4 rounded-lg shadow font-mono text-gray-900",
+            class: "bg-white p-4 rounded-lg shadow text-gray-900",
             css: {
-                // maxWidth: "350px",
+                fontFamily: "Consolas, 'Roboto Mono', 'Lucida Console', monospace",
                 minHeight: "600px",
                 margin: "0 auto"
             }

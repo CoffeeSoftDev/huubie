@@ -109,6 +109,9 @@
         <div style="background-color:#111827;" class="w-full max-w-full overflow-x-auto" id="root"></div>
     </div>
 
+    <!-- Pedidos catalogo (ticketPasteleria) -->
+    <script src="<?=PATH_PEDIDOS?>src/js/pedidos-catalogo.js?t=<?php echo time(); ?>"></script>
+
     <!-- Init -->
     <script src="src/js/calendario-pedidos.js?t=<?php echo time(); ?>"></script>
 

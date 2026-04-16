@@ -13,6 +13,8 @@ class App extends Templates {
         this.calendar = null;
         this.subsidiaries = [];
         this.isAdmin = false;
+        this._pedidosLink = '../ctrl/ctrl-pedidos.php';
+        this._calendarLink = link;
     }
 
     async init() {
@@ -279,7 +281,7 @@ class App extends Templates {
         const subsidiaryId = $('#subsidiaryFilter').val() || 0;
 
         let data = await useFetch({
-            url: this._link,
+            url: this._calendarLink,
             data: {
                 opc: 'getCalendar',
                 statuses: selectedStatuses.join(','),
@@ -481,7 +483,7 @@ class App extends Templates {
 
     async showOrder(orderId) {
         const response = await useFetch({
-            url: '../ctrl/ctrl-pedidos.php',
+            url: this._pedidosLink,
             data: { opc: 'getOrderDetails', id: orderId }
         });
 
@@ -542,6 +544,20 @@ class App extends Templates {
             container.html(`
                 <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
                     <div class="lg:sticky lg:top-4">
+                        <div class="grid grid-cols-3 gap-2 mb-3">
+                            <button onclick="app.historyPay(${orderId})"
+                                class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                                <i class="icon-dollar text-xs"></i> Pagar
+                            </button>
+                            <button onclick="app.printOrder(${orderId})"
+                                class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                                <i class="icon-print text-xs"></i> Imprimir
+                            </button>
+                            <button onclick="app.addDiscount(${orderId})"
+                                class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                                <i class="icon-percent text-xs"></i> Descuento
+                            </button>
+                        </div>
                         ${this.detailsCard(orderData)}
                     </div>
                 </div>
@@ -610,12 +626,6 @@ class App extends Templates {
     detailsCard(orderData) {
         return `
             <div class="space-y-3">
-                <button type="button"
-                    class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
-                    onclick="app.openHistoryPay('${orderData.id}')">
-                    <i class="icon-money text-base"></i>
-                    Gestión de Pagos
-                </button>
                 ${this.infoOrder(orderData)}
                 ${this.infoSales(orderData)}
             </div>
@@ -963,23 +973,404 @@ class App extends Templates {
         `;
     }
 
-    // Payments
+    // =============================================
+    // Migrado desde app.js - Descuentos
+    // =============================================
 
-    openHistoryPay(id) {
-        // Cerrar el modal de detalles antes de abrir gestión de pagos
-        const detailsModal = $('.order-details-enhanced-modal');
-        if (detailsModal.length) {
-            detailsModal.one('hidden.bs.modal', () => {
-                this.historyPay(id);
+    _switchToPedidos() {
+        this._calendarLink = this._link;
+        this._link = this._pedidosLink;
+    }
+
+    _restoreLink() {
+        this._link = this._calendarLink;
+    }
+
+    async refreshOrderDetails(orderId) {
+        const response = await useFetch({
+            url: this._pedidosLink,
+            data: { opc: 'getOrderDetails', id: orderId }
+        });
+        const orderData = response.data.order || {};
+        $('#orderInfoPanel .lg\\:sticky').html(`
+            <div class="grid grid-cols-3 gap-2 mb-3">
+                <button onclick="app.historyPay(${orderId})"
+                    class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                    <i class="icon-dollar text-xs"></i> Pagar
+                </button>
+                <button onclick="app.printOrder(${orderId})"
+                    class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                    <i class="icon-print text-xs"></i> Imprimir
+                </button>
+                <button onclick="app.addDiscount(${orderId})"
+                    class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                    <i class="icon-percent text-xs"></i> Descuento
+                </button>
+            </div>
+            ${this.detailsCard(orderData)}
+        `);
+    }
+
+    async addDiscount(id) {
+        const discountInfo = await useFetch({
+            url: this._pedidosLink,
+            data: { opc: "getDiscount", id: id }
+        });
+
+        const totalPay = parseFloat(discountInfo.data?.total_pay) || 0;
+        const currentDiscount = parseFloat(discountInfo.data?.discount) || 0;
+        const hasDiscount = currentDiscount > 0;
+
+        this._switchToPedidos();
+        this.createModalForm({
+            id: 'formAddDiscount',
+            data: { opc: 'addDiscount', id: id },
+            autofill: discountInfo.data,
+            bootbox: {
+                title: '<i class="icon-percent text-green-400"></i> Aplicar Descuento',
+                size: 'medium'
+            },
+            json: [
+                {
+                    opc: "input-group",
+                    id: "total_pay",
+                    lbl: "Total del pedido",
+                    icon: 'icon-dollar',
+                    disabled: true,
+                    tipo: "cifra",
+                    class: "col-12 mb-3"
+                },
+                {
+                    opc: "input-group",
+                    id: "discount",
+                    lbl: "Monto del descuento",
+                    icon: 'icon-dollar',
+                    tipo: "cifra",
+                    class: "col-12 mb-3",
+                    placeholder: "$ 0.00",
+                    required: true,
+                    onkeyup: `app.calculateDiscounted(${totalPay})`
+                },
+                {
+                    opc: "input",
+                    id: "info_discount",
+                    lbl: "Motivo del descuento",
+                    class: "col-12 mb-3",
+                    placeholder: "Ej: CLIENTE FRECUENTE",
+                    required: true
+                },
+                ...(hasDiscount ? [{
+                    opc: "button",
+                    id: "btnRemoveDiscount",
+                    color_btn: "outline-danger",
+                    className: 'w-100',
+                    text: "Quitar descuento actual",
+                    class: "col-12",
+                    onClick: () => {
+                        this.removeDiscount(id, {
+                            discount: currentDiscount,
+                            reason: discountInfo.data?.info_discount || '',
+                            total: totalPay
+                        });
+                        $('#formAddDiscount').closest('.bootbox').modal('hide');
+                    }
+                }] : []),
+                {
+                    opc: "div",
+                    id: "totalDescontado",
+                    class: 'col-12',
+                    html: `
+                        <div class="w-full mt-3 text-center bg-[#1E293B] p-4 rounded-lg">
+                            <p class="text-sm text-gray-400 font-medium mb-1">Total con Descuento</p>
+                            <p id="TotalConDescuento" class="text-2xl text-white font-bold">${formatPrice(totalPay)}</p>
+                        </div>
+                    `
+                }
+            ],
+            success: (response) => {
+                this._restoreLink();
+                if (response.status == 200) {
+                    alert({
+                        icon: "success",
+                        title: "Descuento aplicado",
+                        text: response.message,
+                        btn1: true
+                    });
+                    this.refreshOrderDetails(id);
+                } else {
+                    alert({
+                        icon: "error",
+                        title: "Error",
+                        text: response.message,
+                        btn1: true
+                    });
+                }
+            }
+        });
+
+        this.calculateDiscounted(totalPay);
+    }
+
+    calculateDiscounted(totalOriginal) {
+        const descuentoInput = document.getElementById("discount");
+        const saldoElement = document.getElementById("TotalConDescuento");
+        const applyBtn = document.querySelector(".bootbox .btn-primary");
+
+        if (descuentoInput && saldoElement && applyBtn) {
+            const saldoOriginal = parseFloat(totalOriginal) || 0;
+            const descuento = parseFloat(descuentoInput.value) || 0;
+            const nuevoTotal = saldoOriginal - descuento;
+
+            const totalFormateado = nuevoTotal.toLocaleString("es-MX", {
+                style: "currency",
+                currency: "MXN",
+                minimumFractionDigits: 2
             });
-            detailsModal.modal('hide');
-        } else {
-            this.historyPay(id);
+
+            saldoElement.textContent = totalFormateado;
+
+            if (nuevoTotal < 0) {
+                saldoElement.classList.add("text-red-500");
+                saldoElement.classList.remove("text-white");
+            } else {
+                saldoElement.classList.remove("text-red-500");
+                saldoElement.classList.add("text-white");
+            }
+
+            applyBtn.disabled = nuevoTotal < 0;
         }
     }
 
+    removeDiscount(id, orderData) {
+        const { discount, reason, total } = orderData;
+
+        this._switchToPedidos();
+        this.createModalForm({
+            id: "modalQuitarDescuento",
+            parent: "root",
+            data: { opc: "deleteDiscount", id: id },
+            class: "",
+            json: [
+                {
+                    opc: "div",
+                    id: "bloqueDescuentoActual",
+                    class: "col-12",
+                    html: `
+                        <div class="bg-[#334155] text-red-400 p-4 rounded-lg mb-3">
+                            <p class="text-sm">Descuento actual:</p>
+                            <p class="text-lg font-bold">-${formatPrice(discount)}</p>
+                            <p class="text-sm text-white">${reason || 'Sin motivo especificado'}</p>
+                        </div>
+                    `
+                },
+                {
+                    opc: "div",
+                    id: "bloquePrecioSinDescuento",
+                    class: "col-12",
+                    html: `
+                        <div class="bg-[#1E293B] p-4 rounded-lg text-center mb-3">
+                            <p class="text-sm text-gray-400">Precio sin descuento</p>
+                            <p class="text-2xl font-bold text-white">${formatPrice(total)}</p>
+                        </div>
+                    `
+                },
+                {
+                    opc: "div",
+                    id: "mensajeConfirmacion",
+                    class: "col-12 text-center",
+                    html: `<p class="text-sm text-gray-400">¿Estás seguro de que deseas quitar el descuento aplicado?</p>`
+                }
+            ],
+            bootbox: {
+                title: '<i class="icon-tag text-yellow-400"></i> Quitar Descuento',
+                closeButton: true
+            },
+            success: (response) => {
+                this._restoreLink();
+                if (response.status == 200) {
+                    alert({
+                        icon: "success",
+                        title: "Descuento eliminado",
+                        text: response.message,
+                        btn1: true
+                    });
+                    this.refreshOrderDetails(id);
+                } else {
+                    alert({
+                        icon: "error",
+                        text: response.message,
+                        btn1: true
+                    });
+                }
+            }
+        });
+    }
+
+    async editDiscount(id) {
+        const discountInfo = await useFetch({
+            url: this._pedidosLink,
+            data: { opc: "getDiscount", id: id }
+        });
+
+        const data = discountInfo.data || {};
+        const totalPay = parseFloat(data.total_pay) || 0;
+
+        this._switchToPedidos();
+        this.createModalForm({
+            id: 'formEditDiscount',
+            data: { opc: 'editDiscount', id: id },
+            bootbox: {
+                title: '<i class="icon-pencil text-yellow-400"></i> Editar Descuento',
+                size: 'medium'
+            },
+            autofill: {
+                discount: data.discount,
+                info_discount: data.info_discount
+            },
+            json: [
+                {
+                    opc: "div",
+                    id: "infoActual",
+                    class: "col-12 mb-3",
+                    html: `
+                        <div class="bg-[#334155] p-3 rounded-lg">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-gray-400">Total del pedido:</span>
+                                <span class="text-white font-semibold">${formatPrice(totalPay)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Descuento actual:</span>
+                                <span class="text-red-400 font-semibold">-${formatPrice(data.discount)}</span>
+                            </div>
+                        </div>
+                    `
+                },
+                {
+                    opc: "input-group",
+                    id: "discount",
+                    lbl: "Nuevo monto del descuento",
+                    icon: 'icon-dollar',
+                    tipo: "cifra",
+                    class: "col-12 mb-3",
+                    placeholder: "$ 0.00",
+                    required: true,
+                    onkeyup: `app.calculateDiscounted(${totalPay})`
+                },
+                {
+                    opc: "input",
+                    id: "info_discount",
+                    lbl: "Motivo del cambio",
+                    class: "col-12 mb-3",
+                    placeholder: "Ej: AJUSTE DE PRECIO"
+                },
+                {
+                    opc: "div",
+                    id: "totalDescontado",
+                    class: 'col-12',
+                    html: `
+                        <div class="w-full mt-3 text-center bg-[#1E293B] p-4 rounded-lg">
+                            <p class="text-sm text-gray-400 font-medium mb-1">Total con Descuento</p>
+                            <p id="TotalConDescuento" class="text-2xl text-white font-bold">${formatPrice(totalPay - data.discount)}</p>
+                        </div>
+                    `
+                }
+            ],
+            success: (response) => {
+                this._restoreLink();
+                if (response.status == 200) {
+                    alert({
+                        icon: "success",
+                        title: "Descuento actualizado",
+                        text: response.message,
+                        btn1: true
+                    });
+                    this.refreshOrderDetails(id);
+                } else {
+                    alert({
+                        icon: "error",
+                        title: "Error",
+                        text: response.message,
+                        btn1: true
+                    });
+                }
+            }
+        });
+
+        this.calculateDiscounted(totalPay);
+    }
+
+    deleteDiscount(id) {
+        this._switchToPedidos();
+        this.swalQuestion({
+            opts: {
+                title: '¿Eliminar descuento?',
+                html: `¿Estás seguro de eliminar el descuento de este pedido?
+                <br><br>
+                <span class="text-yellow-500">El total del pedido volverá a su valor original.</span>`,
+                icon: 'warning'
+            },
+            data: { opc: 'deleteDiscount', id: id },
+            methods: {
+                request: (response) => {
+                    this._restoreLink();
+                    alert({
+                        icon: 'success',
+                        title: 'Descuento eliminado',
+                        text: response.message,
+                        btn1: true
+                    });
+                    this.refreshOrderDetails(id);
+                }
+            }
+        });
+    }
+
+    // =============================================
+    // Migrado desde app.js - Imprimir Pedido
+    // =============================================
+
+    async printOrder(id) {
+        const pos = await useFetch({
+            url: this._pedidosLink,
+            data: { opc: "getOrderDetails", id: id }
+        });
+
+        const modal = bootbox.dialog({
+            closeButton: true,
+            title: `<div class="flex items-center gap-2 text-white text-lg font-semibold">
+                        <i class="icon-print text-blue-400 text-xl"></i>
+                        Imprimir
+                    </div>`,
+            message: `
+                <div class="p-2">
+                    <div id="containerPrintOrder"></div>
+                </div>
+            `
+        });
+
+        // Usa CatalogProduct (pedidos-catalogo.js) para generar el ticket
+        const printer = new CatalogProduct(this._pedidosLink, 'root');
+        printer.ticketPasteleria({
+            parent: 'containerPrintOrder',
+            data: {
+                head: pos.data.order,
+                products: pos.data.products,
+                paymentMethods: pos.data.paymentMethods || [],
+                clausules: pos.data.clausules || []
+            }
+        });
+    }
+
+    // =============================================
+    // Migrado desde app.js - Historial de Pagos
+    // =============================================
+
     async historyPay(id) {
-        const data = await useFetch({ url: '../ctrl/ctrl-pedidos.php', data: { opc: 'initHistoryPay', id } });
+        this._switchToPedidos();
+        const data = await useFetch({
+            url: this._pedidosLink,
+            data: { opc: 'initHistoryPay', id }
+        });
         const order = data.order;
 
         bootbox.dialog({
@@ -1006,8 +1397,18 @@ class App extends Templates {
             theme: 'dark',
             class: '',
             json: [
-                { id: 'payment', tab: 'Registrar Pago', icon: 'icon-plus-circled', active: true },
-                { id: 'listPayment', tab: 'Historial de Pagos', icon: 'icon-list', onClick: () => { } },
+                {
+                    id: 'payment',
+                    tab: 'Registrar Pago',
+                    icon: 'icon-plus-circled',
+                    active: true
+                },
+                {
+                    id: 'listPayment',
+                    tab: 'Historial de Pagos',
+                    icon: 'icon-list',
+                    onClick: () => { }
+                },
             ]
         });
 
@@ -1119,6 +1520,7 @@ class App extends Templates {
                     });
 
                     this.lsPay(id);
+                    this.refreshOrderDetails(id);
                     this.renderResumenPagos(data.details);
 
                     const order = data.order;
@@ -1136,6 +1538,7 @@ class App extends Templates {
                         $("#description").val("");
                         app.updateTotal();
                     }
+
                 } else {
                     alert({
                         icon: "error",
@@ -1160,6 +1563,7 @@ class App extends Templates {
         const clean = raw.replace(/[^\d.-]/g, "");
         const amount = parseFloat(clean);
 
+        this._switchToPedidos();
         this.swalQuestion({
             opts: {
                 title: "¿Confirmar eliminación?",
@@ -1176,12 +1580,12 @@ class App extends Templates {
                         this.lsPay(idFolio);
 
                         const order = data.order;
-                        const discount = order.discount ?? 0;
-
                         this.totalPay = order.total_pay;
                         this.totalPaid = order.total_paid;
-
                         this.addPayment(order, idFolio);
+
+                        // Refrescar detalles del pedido en el modal
+                        this.refreshOrderDetails(idFolio);
 
                         alert({
                             icon: "success",
@@ -1189,6 +1593,7 @@ class App extends Templates {
                             timer: 2000
                         });
                     } else {
+                        this._restoreLink();
                         alert({ icon: "error", text: res.message });
                     }
                 }
@@ -1197,8 +1602,9 @@ class App extends Templates {
     }
 
     async lsPay(id) {
+        this._switchToPedidos();
         const response = await useFetch({
-            url: '../ctrl/ctrl-pedidos.php',
+            url: this._pedidosLink,
             data: { opc: 'listPayment', id: id }
         });
 
@@ -1225,7 +1631,7 @@ class App extends Templates {
                 id: "tableOrder",
                 theme: 'dark',
                 center: [1, , 3, 6, 7],
-                right: [4,],
+                right: [4],
                 f_size: 11,
                 extends: true,
             },

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta 2 - Cards de accion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../src/css/fontello.css">
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        body { background: #111928; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- ============================================================
+         PROPUESTA 2: CARDS DE ACCION
+         - Botones tipo mini-card con icono arriba y texto abajo
+         - Grid de 3 columnas
+         - Hover effects con elevacion y borde acentuado
+         - Fondo semi-transparente
+         ============================================================ -->
+
+    <!-- Simula el panel izquierdo del modal (w-full lg:w-1/3) -->
+    <div class="w-full max-w-sm space-y-3">
+
+        <!-- ====== INICIO: Cards de accion (ESTE ES EL COMPONENTE) ====== -->
+        <div class="grid grid-cols-3 gap-2">
+            <button type="button"
+                class="group flex flex-col items-center justify-center gap-1.5 bg-green-600 hover:bg-green-500 rounded-lg p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-900/30 active:scale-95">
+                <i class="icon-dollar text-xl text-white transition-colors duration-200"></i>
+                <span class="text-[10px] font-bold text-white transition-colors duration-200">Pagar</span>
+            </button>
+
+            <button type="button"
+                class="group flex flex-col items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-900/30 active:scale-95">
+                <i class="icon-print text-xl text-white transition-colors duration-200"></i>
+                <span class="text-[10px] font-bold text-white transition-colors duration-200">Imprimir</span>
+            </button>
+
+            <button type="button"
+                class="group flex flex-col items-center justify-center gap-1.5 bg-orange-600 hover:bg-orange-500 rounded-lg p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-orange-900/30 active:scale-95">
+                <i class="icon-tag text-xl text-white transition-colors duration-200"></i>
+                <span class="text-[10px] font-bold text-white transition-colors duration-200">Descuento</span>
+            </button>
+        </div>
+        <!-- ====== FIN: Cards de accion ====== -->
+
+        <!-- Card: Informacion del Pedido (contexto visual) -->
+        <div class="bg-[#2C3E50] rounded-lg p-3">
+            <h3 class="text-white font-semibold text-base mb-2 flex items-center">
+                <i class="icon-info text-blue-400 mr-2 text-sm"></i>
+                Informacion del Pedido
+            </h3>
+            <div class="space-y-1.5">
+                <div class="flex items-start">
+                    <i class="icon-doc-text-1 text-gray-400 text-base mr-3 mt-0.5"></i>
+                    <div>
+                        <p class="text-gray-400 text-xs mb-0.5">Folio:</p>
+                        <p class="text-white font-semibold text-sm">PED-2026-0042</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <i class="icon-user text-gray-400 text-base mr-3 mt-0.5"></i>
+                    <div>
+                        <p class="text-gray-400 text-xs mb-0.5">Cliente:</p>
+                        <p class="text-white font-semibold text-sm">Maria Lopez</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <i class="icon-calendar text-gray-400 text-base mr-3 mt-0.5"></i>
+                    <div>
+                        <p class="text-gray-400 text-xs mb-0.5">Fecha de entrega:</p>
+                        <p class="text-white font-semibold text-sm">15/04/2026</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
+                    <div>
+                        <p class="text-gray-400 text-xs mb-0.5">Hora:</p>
+                        <p class="text-white font-semibold text-sm">14:30</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card: Resumen de pago (contexto visual) -->
+        <div class="bg-[#2C3E50] rounded-lg p-3">
+            <h3 class="text-white font-semibold text-base mb-2 flex items-center">
+                <i class="icon-dollar text-green-400 mr-2 text-sm"></i>
+                Resumen de pago
+            </h3>
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400 text-sm">Subtotal:</span>
+                    <span class="text-white font-bold text-sm">$1,250.00</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400 text-sm">Pagado:</span>
+                    <span class="text-green-400 font-bold text-sm">$500.00</span>
+                </div>
+                <div class="border-t border-gray-600 my-1.5"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400 text-sm">Saldo:</span>
+                    <span class="text-red-400 font-bold text-sm">$750.00</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

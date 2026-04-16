@@ -24,7 +24,7 @@ $(async () => {
           udn          = dailyClosure.subsidiary_id;
           openShift    = req.open_shift || { has_open_shift: false };
           app          = new App(api, 'root');
-          custom       = new CustomOrder(api_custom, 'root'); 
+          custom       = new CustomOrder(api_custom, 'root');
           normal       = new CatalogProduct(api_catalogo, 'root');
           cierre       = new Cierre(apiCierre);
 

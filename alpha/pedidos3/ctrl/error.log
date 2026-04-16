@@ -1,0 +1,483 @@
+[ 2026-03-18 10:46:53 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT o.*, c.name AS client_name, c.phone AS client_phone,
+                   c.email AS client_email, c.address AS client_address
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_clients c ON o.client_id = c.id
+            WHERE o.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'c.address' in 'field list'
+
+
+[ 2026-03-18 10:40:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT o.*, c.name AS client_name, c.phone AS client_phone,
+                   c.email AS client_email, c.address AS client_address
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_clients c ON o.client_id = c.id
+            WHERE o.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'c.address' in 'field list'
+
+
+[ 2026-03-18 10:40:21 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT o.*, c.name AS client_name, c.phone AS client_phone,
+                   c.email AS client_email, c.address AS client_address
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_clients c ON o.client_id = c.id
+            WHERE o.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'c.address' in 'field list'
+
+
+[ 2026-03-18 10:39:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT o.*, c.name AS client_name, c.phone AS client_phone,
+                   c.email AS client_email, c.address AS client_address
+            FROM fayxzvov_reginas.`order` o
+            LEFT JOIN fayxzvov_reginas.order_clients c ON o.client_id = c.id
+            WHERE o.id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'c.address' in 'field list'
+
+
+[ 2026-03-17 11:27:27 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-17 11:27:25 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-17 11:27:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-17 11:27:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-17 11:27:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  SELECT MAX(id) as id FROM fayxzvov_reginas.cash_shift
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.cash_shift (subsidiary_id, employee_id, shift_name, opened_at, opening_amount, status, active) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-03-16 10:29:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-GA5LPCM$
+[ INFO ] ::  
+            SELECT cs.*, u.fullname AS employee_name
+            FROM fayxzvov_reginas.cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.cash_shift' doesn't exist
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.`order`
+            SET daily_closure_id = ?
+            WHERE DATE(date_creation) = ?
+            AND subsidiaries_id = ?
+            AND (daily_closure_id IS NULL OR daily_closure_id = 0)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`order`, CONSTRAINT `order_ibfk_5` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 23:06:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.`order`
+            SET daily_closure_id = ?
+            WHERE DATE(date_creation) = ?
+            AND subsidiaries_id = ?
+            AND (daily_closure_id IS NULL OR daily_closure_id = 0)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`order`, CONSTRAINT `order_ibfk_5` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.`order`
+            SET daily_closure_id = ?
+            WHERE DATE(date_creation) = ?
+            AND subsidiaries_id = ?
+            AND (daily_closure_id IS NULL OR daily_closure_id = 0)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`order`, CONSTRAINT `order_ibfk_5` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_status_proccess (daily_closure_id, status_process_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_status_proccess`, CONSTRAINT `fk_closure_status_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE RESTRI)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-28 21:20:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.closure_payment (daily_closure_id, payment_method_id, amount) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`closure_payment`, CONSTRAINT `fk_closure_payment_daily_closure` FOREIGN KEY (`daily_closure_id`) REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-02-27 10:50:55 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-30 10:48:39 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-30 10:45:44 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-29 13:16:32 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-29 09:41:57 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-29 09:40:51 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-19 14:50:31 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-19 14:30:56 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+
+[ 2026-01-19 12:54:19 ]
+[ UNIX_USR ] :: fayxzvov
+[ WINDOWS_USR ] :: %USERNAME%
+[ INFO ] ::  
+            SELECT id 
+            FROM fayxzvov_reginas.order_modifier 
+            WHERE LOWER(name) = LOWER(?) 
+            AND id != ? 
+            AND active = 1 
+            AND subsidiaries_id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'WHERE'
+
+

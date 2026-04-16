@@ -13,7 +13,8 @@ class ctrl extends MPedidos{
 
     function init(){
 
-        $order = $this ->getOrderID([$_POST['id']])[0];
+        $orderResult = $this->getOrderID([$_POST['id']]);
+        $order = is_array($orderResult) && !empty($orderResult) ? $orderResult[0] : null;
 
         $orderProducts = $this->getOrderById([$_POST['id']]);
         if (!is_array($orderProducts)) {
@@ -28,7 +29,7 @@ class ctrl extends MPedidos{
             'products'   => $this->lsProductos([1, $_SESSION['SUB']]),
             'id'         => $_POST['id'],
             'list'       => $orderProducts,
-            'order'      => $order,
+            'order'      => $order ?? ['id' => $_POST['id']],
             'payments'   => $payments,
             'total_paid' => $totalPaid
         ];
@@ -87,12 +88,10 @@ class ctrl extends MPedidos{
     // Products.
     function lsProducto() {
         $__row = [];
-        // $ls = $this->lsModifierByID([$_POST['id']]);
         if ($_POST['id'] == 0) {
-             $ls = $this->lsProductos([1,4]);
+             $ls = $this->lsProductos([1, $_SESSION['SUB']]);
         }else{
-
-            $ls = $this->listProductsById([$_POST['id']]);
+            $ls = $this->listProductsById([$_POST['id'], $_SESSION['SUB']]);
         }
 
         foreach ($ls as $key) {

@@ -1111,7 +1111,7 @@ class CatalogProduct extends Pos {
             id: "tabsPedido",
             theme: "dark",
             type: 'short',
-            content: { class: "h-[calc(100vh-200px)] overflow-hidden" },
+            content: { class: "h-[calc(100vh-200px)] overflow-y-auto" },
             json: [
                 {
                     id: "pedido",
@@ -1173,7 +1173,7 @@ class CatalogProduct extends Pos {
 
         const pos = await useFetch({ url: this._link, data: { opc: "init", id: idFolio } });
 
-        if (!pos || !pos.order) {
+        if (!pos) {
             console.error("Error: No se pudo cargar la información del catálogo", pos);
             $("#productGrid").html(`
                 <div class="col-span-full text-center text-gray-400 py-10">
@@ -1184,8 +1184,8 @@ class CatalogProduct extends Pos {
             return;
         }
 
-        this.name_client = pos.order.name ?? '';
-        this.discount = pos.order.discount ?? '';
+        this.name_client = pos.order?.name ?? '';
+        this.discount = pos.order?.discount ?? '';
         this.payments = pos.payments ?? [];
         this.total_paid = pos.total_paid ?? 0;
 
@@ -2030,7 +2030,7 @@ class CatalogProduct extends Pos {
             ],
             success: (response) => {
                 if (response.status == 200) {
-                    alert({ icon: "success", text: response.message, btn1: true, btn1Text: "Ok" });
+                    alert({ icon: "success", text: response.message, timer: 1500 });
                     app.render();
                 } else {
                     alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });

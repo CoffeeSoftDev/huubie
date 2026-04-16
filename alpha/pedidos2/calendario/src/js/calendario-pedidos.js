@@ -135,15 +135,13 @@ class App extends Templates {
                             </div>
                         </div>
                     </div>
-
-                    ${this.isAdmin ? `
+                    
                     <div class="flex flex-col gap-1 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm w-fit">
                         <label for="subsidiaryFilter" class="text-xs font-medium text-purple-700">Sucursal:</label>
                         <select id="subsidiaryFilter" class="text-xs border border-purple-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:border-purple-400" style="min-width: 180px;">
                             <option value="0">Todas las sucursales</option>
                         </select>
                     </div>
-                    ` : ''}
 
                     <div class="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                         <p class="flex items-center">
@@ -172,10 +170,10 @@ class App extends Templates {
     }
 
     initSubsidiaryFilter() {
-        if (!this.isAdmin) return;
+        // if (!this.isAdmin) return;
 
         const $select = $('#subsidiaryFilter');
-        
+
         this.subsidiaries.forEach(sub => {
             $select.append(`<option value="${sub.id}">${sub.valor}</option>`);
         });
@@ -277,7 +275,8 @@ class App extends Templates {
             return;
         }
 
-        const subsidiaryId = this.isAdmin ? ($('#subsidiaryFilter').val() || 0) : 0;
+        // const subsidiaryId = this.isAdmin ? ($('#subsidiaryFilter').val() || 0) : 0;
+        const subsidiaryId = $('#subsidiaryFilter').val() || 0;
 
         let data = await useFetch({
             url: this._link,
@@ -327,7 +326,7 @@ class App extends Templates {
         let envio_domicilio = arg.event.extendedProps.type == 'Envío a Domicilio' ? true : false;
         let entregado = arg.event.extendedProps.delivery == 'Entregado' ? true : false;
         let paraProducir = arg.event.extendedProps.delivery == 'Para Producir' ? true : false;
-        
+
         // Si es para producir, usar emoji de pastel, sino usar el emoji según tipo de entrega
         let emoji = paraProducir ? "🎂" : (envio_domicilio ? "🚚" : "🏠");
 
@@ -361,7 +360,7 @@ class App extends Templates {
         badgeEl.classList.add("mt-1.5");
 
         let badgeClass = "bg-orange-100 text-orange-700 border-1 border-orange-300";
-        
+
         if (entregado) {
             badgeClass = "bg-green-100 text-green-700 border-1 border-green-300";
         } else if (paraProducir) {
@@ -476,7 +475,7 @@ class App extends Templates {
         }
     }
 
-   
+
 
     // Show Order.
 
@@ -611,6 +610,12 @@ class App extends Templates {
     detailsCard(orderData) {
         return `
             <div class="space-y-3">
+                <button type="button"
+                    class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                    onclick="app.openHistoryPay('${orderData.id}')">
+                    <i class="icon-money text-base"></i>
+                    Gestión de Pagos
+                </button>
                 ${this.infoOrder(orderData)}
                 ${this.infoSales(orderData)}
             </div>
@@ -956,6 +961,338 @@ class App extends Templates {
                 </div>
             </div>
         `;
+    }
+
+    // Payments
+
+    openHistoryPay(id) {
+        // Cerrar el modal de detalles antes de abrir gestión de pagos
+        const detailsModal = $('.order-details-enhanced-modal');
+        if (detailsModal.length) {
+            detailsModal.one('hidden.bs.modal', () => {
+                this.historyPay(id);
+            });
+            detailsModal.modal('hide');
+        } else {
+            this.historyPay(id);
+        }
+    }
+
+    async historyPay(id) {
+        const data = await useFetch({ url: '../ctrl/ctrl-pedidos.php', data: { opc: 'initHistoryPay', id } });
+        const order = data.order;
+
+        bootbox.dialog({
+            title: `
+                <div class="flex items-center gap-3">
+                    <div>
+                        <h2 class="text-lg font-semibold text-white">Gestión de Pagos</h2>
+                        <p class="text-sm text-gray-400">
+                            <i class="icon-doc-text-1"></i> Folio: ${order.folio} |
+                            <i class="icon-calendar-1"></i> Creado: ${order.formatted_date_order || order.date_order}
+                        </p>
+                    </div>
+                </div>
+            `,
+            id: 'modalAdvance',
+            closeButton: true,
+            message: '<div id="containerChat"></div>'
+        });
+
+        $('#modalAdvance .modal-dialog').css('max-width', '600px');
+
+        this.tabLayout({
+            parent: 'containerChat',
+            theme: 'dark',
+            class: '',
+            json: [
+                { id: 'payment', tab: 'Registrar Pago', icon: 'icon-plus-circled', active: true },
+                { id: 'listPayment', tab: 'Historial de Pagos', icon: 'icon-list', onClick: () => { } },
+            ]
+        });
+
+        $('#container-listPayment').html(`
+            <div id="container-info-payment"></div>
+            <div id="container-methodPay"></div>
+        `);
+
+        this.addPayment(order, id);
+        this.renderResumenPagos(data.details);
+        this.lsPay(id);
+    }
+
+    async addPayment(order, id) {
+        this.totalPay = order.total_pay;
+        this.totalPaid = order.total_paid;
+        this.discount = order.discount ?? 0;
+
+        const saldoOriginal = order.total_pay;
+        const discount = order.discount ?? 0;
+        const saldoRestante = order.total_pay - discount - order.total_paid;
+        const isPaidInFull = saldoRestante <= 0;
+
+        $("#container-payment").html(`
+            <div class="flex justify-center items-start">
+                <div class="w-full">
+                    <form id="form-payment" novalidate></form>
+                </div>
+            </div>
+        `);
+
+        this.createForm({
+            id: "formRegisterPayment",
+            parent: "form-payment",
+            data: {
+                opc: "addPayment",
+                total: order.total_pay,
+                saldo: saldoRestante,
+                id: id
+            },
+            json: [
+                {
+                    opc: "div",
+                    id: "Amount",
+                    class: "col-12",
+                    html: `
+                    <div id="dueAmount" class="p-4 rounded-xl ${isPaidInFull ? 'bg-green-900/30 border border-green-500' : 'bg-[#1E293B]'} text-white text-center">
+                        <p class="text-sm opacity-80">${isPaidInFull ? 'Pedido pagado completamente' : 'Monto restante a pagar'}</p>
+                        <p id="SaldoEvent" class="text-2xl font-bold mt-1">
+                            ${formatPrice(saldoRestante)}
+                        </p>
+                        ${discount > 0 ? `
+                            <div class="mt-2 pt-2 border-t border-gray-600">
+                                <p class="text-xs text-gray-400">Total original: <span class="line-through">${formatPrice(saldoOriginal)}</span></p>
+                                <p class="text-xs text-green-400"><i class="icon-tag"></i> Descuento aplicado: -${formatPrice(discount)}</p>
+                            </div>
+                        ` : ''}
+                        ${isPaidInFull ? '<i class="icon-ok-circled text-green-400 text-2xl mt-2"></i>' : ''}
+                    </div>`
+                },
+                {
+                    opc: "input",
+                    type: "number",
+                    id: "advanced_pay",
+                    lbl: "Importe",
+                    class: "col-12 mb-3",
+                    placeholder: "0.00",
+                    required: true,
+                    min: 0,
+                    onkeyup: "app.updateTotal()",
+                    disabled: isPaidInFull
+                },
+                {
+                    opc: "select",
+                    id: "method_pay_id",
+                    lbl: "Método de pago",
+                    class: "col-12 mb-3",
+                    data: [
+                        { id: "1", valor: "Efectivo" },
+                        { id: "2", valor: "Tarjeta" },
+                        { id: "3", valor: "Transferencia" }
+                    ],
+                    required: true,
+                    disabled: isPaidInFull
+                },
+                {
+                    opc: "textarea",
+                    id: "description",
+                    lbl: "Observación",
+                    class: "col-12 mb-3",
+                    disabled: isPaidInFull
+                },
+                {
+                    opc: "btn-submit",
+                    id: "btnSuccess",
+                    class: "col-12",
+                    text: isPaidInFull ? "Pedido Pagado" : "Registrar Pago",
+                    disabled: isPaidInFull
+                }
+            ],
+            success: async (response) => {
+                if (response.status === 200) {
+                    const data = response.data;
+
+                    alert({
+                        icon: "success",
+                        text: "Pago registrado correctamente",
+                        timer: 1000
+                    });
+
+                    this.lsPay(id);
+                    this.renderResumenPagos(data.details);
+
+                    const order = data.order;
+                    const discount = order.discount ?? 0;
+                    const restante2 = order.total_pay - discount - order.total_paid;
+                    this.totalPay = order.total_pay;
+                    this.totalPaid = order.total_paid;
+                    this.discount = discount;
+
+                    if (restante2 <= 0) {
+                        this.addPayment(order, id);
+                    } else {
+                        $("#SaldoEvent").text(formatPrice(restante2));
+                        $("#advanced_pay").val("");
+                        $("#description").val("");
+                        app.updateTotal();
+                    }
+                } else {
+                    alert({
+                        icon: "error",
+                        text: response.message,
+                        btn1: true,
+                        btn1Text: "Ok"
+                    });
+                }
+            }
+        });
+
+        if (isPaidInFull) {
+            setTimeout(() => {
+                $("#advanced_pay, #method_pay_id, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            }, 100);
+        }
+    }
+
+    deletePay(id, idFolio) {
+        const row = event.target.closest("tr");
+        const raw = row.cells[2].textContent;
+        const clean = raw.replace(/[^\d.-]/g, "");
+        const amount = parseFloat(clean);
+
+        this.swalQuestion({
+            opts: {
+                title: "¿Confirmar eliminación?",
+                text: `Se eliminará el pago de ${formatPrice(amount)} de forma permanente.`,
+                icon: "warning"
+            },
+            data: { opc: "deletePay", id: idFolio, amount: amount, idPay: id },
+            methods: {
+                success: (res) => {
+                    const data = res.initHistoryPay;
+
+                    if (res.status === 200) {
+                        this.renderResumenPagos(data.details);
+                        this.lsPay(idFolio);
+
+                        const order = data.order;
+                        const discount = order.discount ?? 0;
+
+                        this.totalPay = order.total_pay;
+                        this.totalPaid = order.total_paid;
+
+                        this.addPayment(order, idFolio);
+
+                        alert({
+                            icon: "success",
+                            text: "Pago eliminado correctamente. Saldo actualizado.",
+                            timer: 2000
+                        });
+                    } else {
+                        alert({ icon: "error", text: res.message });
+                    }
+                }
+            }
+        });
+    }
+
+    async lsPay(id) {
+        const response = await useFetch({
+            url: '../ctrl/ctrl-pedidos.php',
+            data: { opc: 'listPayment', id: id }
+        });
+
+        if (!response.row || response.row.length === 0) {
+            $("#container-methodPay").html(`
+                <div class="flex flex-col items-center justify-center py-12 text-center">
+                    <div class="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                        <i class="icon-money text-gray-400 text-3xl"></i>
+                    </div>
+                    <p class="text-gray-400 text-lg font-semibold mb-2">Aún no se ha realizado ningún abono</p>
+                    <p class="text-gray-500 text-sm">Los pagos registrados aparecerán aquí</p>
+                </div>
+            `);
+            return;
+        }
+
+        this.createTable({
+            parent: "container-methodPay",
+            idFilterBar: "filterBarEventos",
+            data: { opc: 'listPayment', id: id },
+            conf: { datatable: false, pag: 8 },
+            coffeesoft: true,
+            attr: {
+                id: "tableOrder",
+                theme: 'dark',
+                center: [1, , 3, 6, 7],
+                right: [4,],
+                f_size: 11,
+                extends: true,
+            },
+        });
+    }
+
+    renderResumenPagos(totales) {
+        const totalPagado = totales?.pagado ?? 0;
+        const discount = totales?.discount ?? 0;
+        const totalEvento = totales?.total ?? 0;
+
+        const totalConDescuento = totalEvento - discount;
+        const restante = totalConDescuento - totalPagado;
+
+        const fmt = (n) => n.toLocaleString('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+            minimumFractionDigits: 2
+        });
+
+        let originalHTML = `<p class="text-lg font-bold text-blue-900" id="totalEvento">${formatPrice(totalEvento)}</p>`;
+
+        if (discount > 0) {
+            originalHTML = `
+            <p class="text-lg font-bold text-blue-900" id="totalEvento">${fmt(totalConDescuento)}</p>
+            <p class="text-sm text-gray-400 line-through -mt-1">${fmt(totalEvento)}</p>
+            <p class="text-sm text-blue-700 mt-1">
+                <i class="icon-tag"></i> Descuento:
+                <span class="font-semibold">${fmt(discount)}</span>
+            </p>
+        `;
+        }
+
+        $('#container-info-payment').html(`
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="bg-green-100 p-4 rounded-lg text-center shadow">
+                <p class="text-sm text-green-700">Total Pagado</p>
+                <p class="text-lg font-bold text-green-900" id="totalPagado">${fmt(totalPagado)}</p>
+            </div>
+            <div class="bg-blue-100 p-4 rounded-lg text-center shadow">
+                <p class="text-sm text-blue-700">Total</p>
+                ${originalHTML}
+            </div>
+            <div class="bg-red-100 p-4 rounded-lg text-center shadow">
+                <p class="text-sm text-red-700">Restante</p>
+                <p class="text-lg font-bold text-red-900" id="totalRestante">${fmt(restante)}</p>
+            </div>
+        </div>
+    `);
+    }
+
+    updateTotal(total, totalPaid) {
+        const val = parseFloat($("#advanced_pay").val()) || 0;
+        const t = typeof total === 'number' ? total : (this.totalPay || 0);
+        const tp = typeof totalPaid === 'number' ? totalPaid : (this.totalPaid || 0);
+        const d = this.discount || 0;
+        const restante = (t - d - (tp || 0)) - val;
+        const btn = $("#btnSuccess");
+        const display = $("#SaldoEvent");
+        if (display && display.length) {
+            display.text(formatPrice(restante < 0 ? 0 : restante));
+        }
+        if (restante < 0) {
+            btn.prop("disabled", true).addClass("opacity-50 cursor-not-allowed");
+        } else {
+            btn.prop("disabled", false).removeClass("opacity-50 cursor-not-allowed");
+        }
     }
 
     previewImage(imageUrl, imageName = 'Imagen') {

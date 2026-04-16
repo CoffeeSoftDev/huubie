@@ -2,7 +2,7 @@ let api = 'ctrl/ctrl-pedidos.php';
 let api_catalogo = 'ctrl/ctrl-pedidos-catalogo.php';
 let api_custom = 'ctrl/ctrl-pedidos-personalizado.php';
 
-let normal, app, custom; //Clases.
+let normal, app, custom, cierre; //Clases.
 let idFolio, sub_name;
 let categories, estado, clients;
 
@@ -21,17 +21,19 @@ $(async () => {
           sub_name     = req.subsidiaries_name;
           subsidiaries = req.sucursales;
           dailyClosure = req.daily_closure || { is_closed: false };
+          udn          = dailyClosure.subsidiary_id;
           openShift    = req.open_shift || { has_open_shift: false };
           app          = new App(api, 'root');
-          custom       = new CustomOrder(api_custom, 'root');
+          custom       = new CustomOrder(api_custom, 'root'); 
           normal       = new CatalogProduct(api_catalogo, 'root');
+          cierre       = new Cierre(apiCierre);
 
     app.render();
 
 
 
     setInterval(() => {
-        app.actualizarFechaHora({ label: sub_name });
+        app.actualizarFechaHora({ label: app.getSubsidiaryLabel() });
     }, 60000);
 });
 
@@ -45,8 +47,8 @@ class App extends Templates {
         this.layout();
         this.createFilterBar();
         this.ls();
-        this.actualizarFechaHora({ label: sub_name });
-        // this.updateDailyClosureStatus();
+        this.actualizarFechaHora({ label: this.getSubsidiaryLabel() });
+        this.updateDailyClosureStatus();
     }
 
     layout() {
@@ -54,10 +56,10 @@ class App extends Templates {
             parent: "root",
             id: this.PROJECT_NAME,
             class: 'flex mx-2  p-2 ',
-            heightPreset: 'viewport',
+            heightPreset: 'full',
             card: {
                 filterBar: { class: 'w-full ', id: 'filterBar' },
-                container: { class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3', id: 'container' + this.PROJECT_NAME }
+                container: { class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
             }
         });
 
@@ -131,72 +133,12 @@ class App extends Templates {
                 opc: "button",
                 className: "w-100",
                 class: "col-12 col-md-3 col-lg-2",
-                color_btn: "warning",
-                id: "btnPOS",
-                text: "Punto de Venta",
-                icon: "icon-basket",
-                onClick: () => {
-                    window.location.href = '../pedidos/pos.php'
-                }
-            },
-            {
-                opc: "button",
-                className: "w-100",
-                class: "col-12 col-md-3 col-lg-2",
                 color_btn: "secondary",
                 id: "btnCalendario",
                 text: "Calendario",
                 icon: "icon-calendar",
                 onClick: () => {
                     window.location.href = '../pedidos/calendario/index.php'
-                }
-            },
-            {
-                opc: "button",
-                className: "w-100",
-                class: "col-12 col-md-3 col-lg-2",
-                color_btn: "info",
-                id: "btnInventario",
-                text: "Inventario",
-                icon: "icon-box",
-                onClick: () => {
-                    window.location.href = '../pedidos/inventario.php'
-                }
-            },
-            {
-                opc: "button",
-                className: "w-100",
-                class: "col-12 col-md-3 col-lg-2",
-                color_btn: "danger",
-                id: "btnReportes",
-                text: "Reportes",
-                icon: "icon-chart-bar",
-                onClick: () => {
-                    window.location.href = '../pedidos/reportes.php'
-                }
-            },
-            {
-                opc: "button",
-                className: "w-100",
-                class: "col-12 col-md-3 col-lg-2",
-                color_btn: "warning",
-                id: "btnCocina",
-                text: "Cocina (KDS)",
-                icon: "icon-food",
-                onClick: () => {
-                    window.location.href = '../pedidos/cocina.php'
-                }
-            },
-            {
-                opc: "button",
-                className: "w-100",
-                class: "col-12 col-md-3 col-lg-2",
-                color_btn: "secondary",
-                id: "btnComplementos",
-                text: "Complementos",
-                icon: "icon-cog",
-                onClick: () => {
-                    window.location.href = '../pedidos/complementos.php'
                 }
             }
         );
@@ -207,25 +149,34 @@ class App extends Templates {
             data: filterBar
         });
 
+        // Inicializar select con la sucursal activa del usuario
+        if (rol == 1 && dailyClosure.subsidiary_id) {
+            $('#subsidiaries_id').val(dailyClosure.subsidiary_id);
+        }
+
+        const savedRange = JSON.parse(localStorage.getItem('pedidos3_calendar_range') || 'null');
+        const startDate = savedRange ? moment(savedRange.fi) : moment().startOf("month");
+        const endDate = savedRange ? moment(savedRange.ff) : moment().endOf("month");
+
         dataPicker({
             parent: "calendar",
             rangepicker: {
-                startDate: moment().startOf("month"), // Inicia con el primer día del mes actual
-                endDate: moment().endOf("month"), // Finaliza con el último día del mes actual
+                startDate: startDate,
+                endDate: endDate,
                 showDropdowns: true,
                 ranges: {
                     "Hoy": [moment(), moment()],
                     "Ayer": [moment().subtract(1, "days"), moment().subtract(1, "days")],
-                 
                     "Semana actual": [moment().startOf("week"), moment().endOf("week")],
                     "Mes actual": [moment().startOf("month"), moment().endOf("month")],
-                    // "Próxima semana": [moment().add(1, "week").startOf("week"), moment().add(1, "week").endOf("week")],
-                    // "Próximo mes": [moment().add(1, "month").startOf("month"), moment().add(1, "month").endOf("month")],
                     "Mes anterior": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")],
-                    
                 },
             },
             onSelect: (start, end) => {
+                localStorage.setItem('pedidos3_calendar_range', JSON.stringify({
+                    fi: start.format('YYYY-MM-DD'),
+                    ff: end.format('YYYY-MM-DD')
+                }));
                 this.ls();
             },
         });
@@ -246,8 +197,24 @@ class App extends Templates {
         let opts = Object.assign({}, opciones, options);
         let fechaFormateada = fecha.toLocaleString("es-ES", opts);
 
+        const isOldShift = openShift.has_open_shift && openShift.opened_at && !moment(openShift.opened_at).isSame(moment(), 'day');
+
+        const shiftTime = openShift.has_open_shift && openShift.opened_at
+            ? moment(openShift.opened_at).format('h:mm A')
+            : '';
+        const showShiftInHeader = openShift.has_open_shift && openShift.opened_at && !isOldShift;
+        const borderClass = showShiftInHeader ? 'border-b-2 border-green-500/30' : 'border-b border-gray-300';
+
+        const shiftInfo = showShiftInHeader
+            ? `<span class="inline-flex items-center gap-1.5 text-[11px] text-gray-500">
+                <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                Turno desde las ${shiftTime}
+               </span>
+               <span class="text-gray-700">|</span>`
+            : '';
+
         let div = $("<div>", {
-            class: "flex justify-between border-b border-gray-300 mt-2 mb-3",
+            class: `flex justify-between ${borderClass} mt-2 mb-3`,
         }).append(
 
             $("<label>", {
@@ -255,13 +222,22 @@ class App extends Templates {
                 class: "text-xs font-medium text-gray-600 text-left flex-1",
                 css: { 'font-size': '1rem', 'align-items': 'center', 'display': 'flex' }
             }),
-            $("<label>", {
-                text: fechaFormateada,
-                class: "text-uppercase text-end font-semibold mb-2",
+            $("<div>", {
+                class: "flex items-center gap-3",
+                html: `${shiftInfo}<span class="text-uppercase font-semibold mb-2">${fechaFormateada}</span>`
             })
         );
 
         $(`#${opts.parent}`).html(div);
+    }
+
+    getSubsidiaryLabel() {
+        if (rol != 1) return sub_name;
+        const selected = $('#subsidiaries_id');
+        if (!selected.length || selected.val() === '0') return sub_name;
+        const selectedName = selected.find('option:selected').text();
+        const isOwnSubsidiary = selected.val() == udn;
+        return isOwnSubsidiary ? `${selectedName} (Mi sucursal)` : selectedName;
     }
 
     async onSubsidiaryChange() {
@@ -271,9 +247,12 @@ class App extends Templates {
 
     async checkAndUpdateDailyClosure() {
         let subsidiaries_id = rol == 1 ? $('#subsidiaries_id').val() : null;
-        
+
         if (subsidiaries_id === '0') {
+            openShift = { has_open_shift: true };
+            dailyClosure = { is_closed: false };
             this.enableNewOrderButton();
+            this.actualizarFechaHora({ label: 'Todas las sucursales' });
             return;
         }
 
@@ -283,27 +262,75 @@ class App extends Templates {
         });
 
         dailyClosure = request || { is_closed: false };
+
+        if (request.open_shift) {
+            openShift = request.open_shift;
+        } else {
+            openShift = { has_open_shift: false };
+        }
+
         this.updateDailyClosureStatus();
+        this.actualizarFechaHora({ label: this.getSubsidiaryLabel() });
     }
 
     updateDailyClosureStatus() {
         const btn = $('#btnNuevoPedido');
-        
+
+        // Limpiar todas las alertas previas antes de evaluar el nuevo estado
+        $('#dailyClosureAlert, #shiftAlert, #shiftOldAlert').remove();
+
         if (dailyClosure.is_closed) {
             btn.prop('disabled', true)
                .removeClass('btn-primary')
                .addClass('btn-secondary opacity-50 cursor-not-allowed')
                .attr('title', 'Ya se realizó el cierre del día');
-            
+
             if ($('#dailyClosureAlert').length === 0) {
                 const alertHtml = `
-                    <div id="dailyClosureAlert" class="bg-yellow-900/50 border border-yellow-600 text-yellow-200 px-4 py-2 rounded-lg mb-3 flex items-center gap-2">
-                        <i class="icon-lock text-yellow-400"></i>
-                        <span>
-                            <strong>Cierre del día realizado.</strong> 
-                            No se pueden crear nuevos pedidos para hoy.
-                            ${dailyClosure.closed_by ? `<br><small class="text-yellow-400">Cerrado por: ${dailyClosure.closed_by}</small>` : ''}
-                        </span>
+                    <div id="dailyClosureAlert" class="flex items-center gap-2 mb-3 pl-1">
+                        <span class="w-2 h-2 bg-red-400 rounded-full flex-shrink-0"></span>
+                        <p class="text-[11px] text-gray-400">
+                            Día cerrado <span class="text-gray-600">—</span> <span class="text-gray-500">${dailyClosure.closed_by || ''}${dailyClosure.closed_at ? ', ' + moment(dailyClosure.closed_at).format('hh:mm A') : ''}</span>
+                        </p>
+                    </div>
+                `;
+                $('#containerHours').after(alertHtml);
+            }
+        } else if (!openShift.has_open_shift) {
+            btn.prop('disabled', true)
+               .removeClass('btn-primary')
+               .addClass('btn-secondary opacity-50 cursor-not-allowed')
+               .attr('title', 'Debes abrir un turno de caja');
+
+            if ($('#shiftAlert').length === 0) {
+                const alertHtml = `
+                    <div id="shiftAlert" class="flex items-center gap-2 mb-3 pl-1">
+                        <span class="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse flex-shrink-0"></span>
+                        <p class="text-[11px] text-gray-500">
+                            Sin turno abierto —
+                            <a href="javascript:void(0)" onclick="app.printDailyClose()" class="text-amber-400/80 hover:text-amber-300 underline underline-offset-2">abrir turno</a>
+                            en "Cierre del día" para crear pedidos
+                        </p>
+                    </div>
+                `;
+                $('#containerHours').after(alertHtml);
+            }
+        } else if (openShift.has_open_shift && openShift.opened_at && !moment(openShift.opened_at).isSame(moment(), 'day')) {
+            const shiftDate = moment(openShift.opened_at).locale('es').format('DD/MMM/YYYY');
+            btn.prop('disabled', true)
+               .removeClass('btn-primary')
+               .addClass('btn-secondary opacity-50 cursor-not-allowed')
+               .attr('title', 'Existe un turno abierto de otro día');
+
+            if ($('#shiftOldAlert').length === 0) {
+                const alertHtml = `
+                    <div id="shiftOldAlert" class="flex items-center gap-2 mb-3 pl-1">
+                        <span class="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse flex-shrink-0"></span>
+                        <p class="text-[11px] text-gray-500">
+                            Turno del <span class="text-amber-400/70">${shiftDate}</span> sin cerrar —
+                            <a href="javascript:void(0)" onclick="app.printDailyClose()" class="text-amber-400/80 hover:text-amber-300 underline underline-offset-2">cerrar turno</a>
+                            para crear nuevos pedidos
+                        </p>
                     </div>
                 `;
                 $('#containerHours').after(alertHtml);
@@ -319,8 +346,10 @@ class App extends Templates {
             .removeClass('btn-secondary opacity-50 cursor-not-allowed')
             .addClass('btn-primary')
             .attr('title', '');
-        
+
         $('#dailyClosureAlert').remove();
+        $('#shiftAlert').remove();
+        $('#shiftOldAlert').remove();
     }
 
     showTypePedido() {
@@ -339,6 +368,16 @@ class App extends Templates {
                 icon: "warning",
                 title: "Sin turno abierto",
                 text: "Debes abrir un turno de caja antes de crear pedidos. Ve a 'Cierre del día' para abrir turno.",
+                btn1: true,
+                btn1Text: "Entendido"
+            });
+            return;
+        }
+        if (openShift.has_open_shift && openShift.opened_at && !moment(openShift.opened_at).isSame(moment(), 'day')) {
+            alert({
+                icon: "warning",
+                title: "Turno pendiente de otro día",
+                text: "Existe un turno abierto que no corresponde al día de hoy. Debes cerrarlo antes de continuar.",
                 btn1: true,
                 btn1Text: "Entendido"
             });
@@ -363,11 +402,21 @@ class App extends Templates {
             attr: {
                 id: `tb${this.PROJECT_NAME}`,
                 theme: 'dark',
-                center: [1, 2, 7, 8, 9, 10, 11],
+                center: [1, 2,7, 8, 9, 10, 11, 12],
                 extends: true,
                 f_size:12,
             },
         });
+
+        this.injectShiftPulseStyle();
+    }
+
+    injectShiftPulseStyle() {
+        if ($('#shiftPulseStyle').length) return;
+        $('<style id="shiftPulseStyle">').text(
+            `.shift-pulse { animation: shiftPulse 3s ease-in-out infinite; }` +
+            `@keyframes shiftPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`
+        ).appendTo('head');
     }
 
     addOrder() {
@@ -1060,9 +1109,10 @@ class App extends Templates {
             html: `
                 <div class="flex flex-col gap-1 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm w-full">
                     <label for="subsidiaries_id" class="text-sm font-medium text-white">Sucursal:</label>
-                    <select id="subsidiaries_id" name="subsidiaries_id" class="w-full text-xs border border-purple-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:border-purple-400">
-                        ${subsidiaries.map(sub => `<option value="${sub.id}">${sub.valor}</option>`).join('')}
+                    <select id="subsidiaries_id" name="subsidiaries_id" class="w-full text-xs border border-purple-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:border-purple-400" onchange="app.validateOrderSubsidiary()">
+                        ${subsidiaries.map(sub => `<option value="${sub.id}" ${dailyClosure.subsidiary_id == sub.id ? 'selected' : ''}>${sub.valor}</option>`).join('')}
                     </select>
+                    <div id="orderSubsidiaryAlert"></div>
                 </div>
             `
         });
@@ -1191,11 +1241,50 @@ class App extends Templates {
        });
 
        if (response.status === 200) {
-           clients = response.data; // Actualiza la variable global
-           console.log(clients)
+           clients = response.data;
        }
    }
 
+    async validateOrderSubsidiary() {
+        const subsidiaries_id = $('#formPedido #subsidiaries_id').val();
+        const btn = $('#btnGuardarPedido');
+        const alertDiv = $('#orderSubsidiaryAlert');
+
+        const response = await useFetch({
+            url: this._link,
+            data: { opc: "checkDailyClosure", subsidiaries_id: subsidiaries_id }
+        });
+
+        const shift = response.open_shift || { has_open_shift: false };
+        const isClosed = response.is_closed || false;
+        const isOldShift = shift.has_open_shift && shift.opened_at && !moment(shift.opened_at).isSame(moment(), 'day');
+
+        if (isClosed) {
+            btn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
+            alertDiv.html(`
+                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-yellow-900/40 border border-yellow-600/50 rounded text-[11px] text-yellow-300">
+                    <i class="icon-lock"></i> Cierre del día realizado en esta sucursal
+                </div>
+            `);
+        } else if (!shift.has_open_shift) {
+            btn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
+            alertDiv.html(`
+                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-amber-900/40 border border-amber-600/50 rounded text-[11px] text-amber-300">
+                    <i class="icon-attention"></i> Sin turno abierto en esta sucursal
+                </div>
+            `);
+        } else if (isOldShift) {
+            btn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
+            alertDiv.html(`
+                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-amber-900/40 border border-amber-600/50 rounded text-[11px] text-amber-300">
+                    <i class="icon-attention"></i> Turno pendiente de otro día sin cerrar
+                </div>
+            `);
+        } else {
+            btn.prop('disabled', false).removeClass('btn-secondary opacity-50 cursor-not-allowed').addClass('btn-primary');
+            alertDiv.html('');
+        }
+    }
 
 
     // Payments.
@@ -2314,14 +2403,14 @@ class App extends Templates {
     // =============================================
 
     printDailyClose() {
-        this.reportMode = 'detailed';
+        this.reportMode = 'summary';
         this._selectedShiftId = null;
 
         const subsidiarySelect = rol == 1 ? `
-            <div class="mb-4">
+            <div class="mb-3">
                 <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
                 <select id="subsidiariesDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.onDailyCloseFilterChange()">
-                    ${subsidiaries.map(s => `<option value="${s.id}">${s.valor}</option>`).join('')}
+                    ${subsidiaries.map(s => `<option value="${s.id}" ${dailyClosure.subsidiary_id == s.id ? 'selected' : ''}>${s.valor}</option>`).join('')}
                 </select>
             </div>
         ` : '';
@@ -2333,13 +2422,14 @@ class App extends Templates {
                     ${subsidiarySelect}
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar fecha</label>
-                        <div id="calendarDailyClose"></div>
+                        <input type="text" id="calendarDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm cursor-pointer" readonly placeholder="Seleccionar fecha" />
                     </div>
+                    <div id="openShiftsAlert" class="hidden"></div>
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Modo de reporte</label>
                         <div class="flex rounded-lg overflow-hidden border border-gray-600">
-                            <button id="btnModeDetailed" class="flex-1 py-2 text-sm font-semibold bg-purple-600 text-white" onclick="app.toggleReportMode('detailed')">Detallado</button>
-                            <button id="btnModeSummary" class="flex-1 py-2 text-sm font-semibold bg-[#1a2332] text-gray-300 hover:bg-gray-700" onclick="app.toggleReportMode('summary')">Resumido</button>
+                            <button id="btnModeSummary" class="flex-1 py-2 text-sm font-semibold bg-purple-600 text-white" onclick="app.toggleReportMode('summary')">Resumido</button>
+                            <button id="btnModeDetailed" class="flex-1 py-2 text-sm font-semibold bg-[#1a2332] text-gray-300 hover:bg-gray-700" onclick="app.toggleReportMode('detailed')">Detallado</button>
                         </div>
                     </div>
                     <div>
@@ -2353,10 +2443,15 @@ class App extends Templates {
                             <i class="icon-plus"></i> Abrir Turno
                         </button>
                         <button id="btnCloseShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.closeShift()">
-                            <i class="icon-lock"></i> Cerrar Caja
+                            <i class="icon-lock"></i> Cerrar Turno
                         </button>
                         <button id="btnPrintTicket" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
                             <i class="icon-print"></i> Imprimir Ticket
+                        </button>
+                    </div>
+                    <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
+                        <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
+                            <i class="icon-check"></i> Cerrar Dia
                         </button>
                     </div>
                 </div>
@@ -2373,7 +2468,7 @@ class App extends Templates {
             </div>
         `;
 
-        bootbox.dialog({
+        const dialog = bootbox.dialog({
             title: `
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
@@ -2382,94 +2477,26 @@ class App extends Templates {
                     <span class="text-lg font-bold text-white">Cierre del Día</span>
                 </div>`,
             message: modalContent,
-            // className: 'modal-ticket-close',
             size:'large',
             closeButton: true
         });
 
-        // Aplicar ancho personalizado al modal
-        $('.modal-ticket-close .modal-dialog').css('max-width', '650px');
-
-        let filterBarData = [];
-
-        // Select de sucursal solo para admin
-        if (rol == 1) {
-            filterBarData.push({
-                opc: "select",
-                id: "subsidiariesDailyClose",
-                lbl: "Sucursal:",
-                class: "col-sm-2 mb-2",
-                onchange: "app.viewDailyClose()",
-                data: subsidiaries
+        dialog.on('shown.bs.modal', () => {
+            dataPicker({
+                parent: "calendarDailyClose",
+                type: 'simple',
+                rangeDefault: {
+                    singleDatePicker: true,
+                    showDropdowns: true,
+                    autoApply: true,
+                    startDate: moment(),
+                    locale: { format: 'YYYY-MM-DD' }
+                },
+                onSelect: () => this.onDailyCloseFilterChange(),
             });
-        }
 
-        filterBarData.push(
-            {
-                opc: "input-calendar",
-                id: "calendarDailyClose",
-                lbl: "Seleccionar fecha:",
-                class: "col-sm-3 mb-2"
-            },
-            {
-                opc: "select",
-                id: "sel",
-                lbl: "Seleccionar turno:",
-                class: "col-sm-3 mb-2",
-                data: [
-                    { id: '0', valor: '--Cerrar turno --' },
-                    { id: '0', valor: '2026-15-03 07:03 PM' },
-                ]
-            },
-           
-          
-
-            {
-                opc: "button",
-                id: "btnSaveDailyClose",
-                text: " Cerrar",
-                class: "col-sm-2",
-                className: "opacity-50 w-100 cursor-not-allowed",
-                color_btn: "secondary",
-                icon: "icon-lock",
-                disabled: true,
-                onClick: () => {
-                    if (!$('#btnSaveDailyClose').prop('disabled')) {
-                        this.saveDailyClose();
-                    }
-                }
-            },
-            {
-                opc: "button",
-                id: "btnPrintTicket",
-                // text: "Imprimir",
-                class: "col-sm-2",
-                className: "opacity-50 w-100 cursor-not-allowed",
-                color_btn: "primary",
-                icon: "icon-print",
-                disabled: true,
-                onClick: () => {
-                    if (!$('#btnPrintTicket').prop('disabled')) {
-                        this.printDailyCloseTicket();
-                    }
-                }
-            }
-        );
-
-        this.createfilterBar({
-            parent: 'filterBarDailyClose',
-            data: filterBarData
+            this.loadShifts();
         });
-
-        dataPicker({
-            parent: "calendarDailyClose",
-            type: 'simple',
-            startDate: moment(),
-            locale: { format: 'YYYY-MM-DD' },
-            onSelect: () => this.onDailyCloseFilterChange(),
-        });
-
-        this.loadShifts();
     }
 
     onDailyCloseFilterChange() {
@@ -2477,30 +2504,82 @@ class App extends Templates {
     }
 
     async loadShifts() {
-        let rangePicker = getDataRangePicker("calendarDailyClose");
-        let date = rangePicker.fi;
+        let rangePicker     = getDataRangePicker("calendarDailyClose");
+        let date            = rangePicker.fi;
         let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
 
-        const response = await useFetch({
-            url: this._link,
-            data: { opc: "getShiftsByDate", date: date, subsidiaries_id: subsidiaries_id }
-        });
+        // Limpiar badge de cierre (opcion C) y restaurar boton Cerrar Dia
+        $('.closure-badge').remove();
+        const wrapper = $('.closure-wrapper');
+        if (wrapper.length) {
+            const label = wrapper.find('label');
+            label.removeClass('!mb-0').addClass('mb-1');
+            wrapper.replaceWith(label);
+        }
+        $('#calendarDailyClose').removeClass('!border-green-600/50');
+        let btnArea = $('#btnCerrarDia').parent();
+        if (!$('#btnCerrarDia').length) {
+            btnArea = $('#btnReabrirDia').parent();
+            btnArea.html(`
+                <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
+                    <i class="icon-check"></i> Cerrar Dia
+                </button>
+            `);
+        }
+
+        const [response, openRes] = await Promise.all([
+            useFetch({ url: this._link, data: { opc: "getShiftsByDate", date: date, subsidiaries_id: subsidiaries_id } }),
+            useFetch({ url: this._link, data: { opc: "getOpenShifts", subsidiaries_id: subsidiaries_id } })
+        ]);
 
         const shifts = response.shifts || [];
+        const today = moment().format('YYYY-MM-DD');
+        const allOpenShifts = openRes.shifts || [];
+        const openShifts = allOpenShifts.filter(s => !moment(s.opened_at).isSame(today, 'day'));
+        const hasAnyOpenShift = allOpenShifts.length > 0;
         const select = $('#shiftSelector');
         select.html('<option value="">-- Cerrar turno --</option>');
 
-        let hasOpenShift = false;
-
         shifts.forEach(s => {
             const time = moment(s.opened_at).format('YYYY-MM-DD hh:mm A');
-            const badge = s.status === 'open' ? ' [ABIERTO]' : '';
+            const badge = s.status === 'open' ? ' [ABIERTO]' : ' [CERRADO]';
             select.append(`<option value="${s.id}" data-status="${s.status}">${time}${badge}</option>`);
-            if (s.status === 'open') hasOpenShift = true;
         });
 
-        // Mostrar/ocultar botón abrir turno
-        if (hasOpenShift) {
+        // Mostrar turnos abiertos pendientes
+        const alertContainer = $('#openShiftsAlert');
+        if (openShifts.length > 0) {
+            const shiftItems = openShifts.map(s => {
+                const date = moment(s.opened_at).format('DD/MM/YYYY');
+                const time = moment(s.opened_at).format('hh:mm A');
+                const name = s.shift_name || time;
+                return `
+                    <div class="flex items-center justify-between py-1.5 px-2 bg-[#1a2332] rounded-md cursor-pointer hover:bg-[#243044] transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
+                            <span class="text-xs text-gray-300">${name}</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500">${date}</span>
+                    </div>
+                `;
+            }).join('');
+
+            alertContainer.html(`
+                <div class="bg-orange-900/30 border border-orange-600/50 rounded-lg p-3">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="icon-attention text-orange-400 text-sm"></i>
+                        <span class="text-xs font-bold text-orange-400 uppercase">Turnos sin cerrar (${openShifts.length})</span>
+                    </div>
+                    <div class="space-y-1">${shiftItems}</div>
+                </div>
+            `).removeClass('hidden');
+
+        } else {
+            alertContainer.addClass('hidden').html('');
+        }
+
+        // Deshabilitar abrir turno si hay cualquier turno abierto (hoy u otros días)
+        if (hasAnyOpenShift) {
             $('#btnOpenShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').removeClass('hover:bg-green-700');
         } else {
             $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
@@ -2521,6 +2600,32 @@ class App extends Templates {
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
         }
+
+        // Habilitar botón Cerrar Día solo si hay al menos un turno cerrado
+        const hasClosedShifts = shifts.some(s => s.status === 'closed');
+        if (hasClosedShifts) {
+            $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        } else {
+            $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        }
+
+        const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiaries_id } });
+        if (closureCheck.status === 200 && closureCheck.closure) {
+            cierre.loadClosedView(date, subsidiaries_id);
+        } else if (date === moment().format('YYYY-MM-DD')) {
+            // Sincronizar estado de la pantalla principal si hoy no hay cierre activo
+            dailyClosure = { is_closed: false, subsidiary_id: subsidiaries_id || udn };
+            this.updateDailyClosureStatus();
+        }
+    }
+
+    async selectOpenShift(shiftId, date) {
+        const picker = $('#calendarDailyClose').data('daterangepicker');
+        const momentDate = moment(date);
+        picker.setStartDate(momentDate);
+        picker.setEndDate(momentDate);
+        await this.loadShifts();
+        $('#shiftSelector').val(shiftId).trigger('change');
     }
 
     async viewShiftPreview() {
@@ -2598,9 +2703,10 @@ class App extends Templates {
         if (isDetailed && orders.length > 0) {
             const orderRows = orders.map(o => `
                 <div class="flex justify-between items-center">
-                    <div class="italic">Venta Folio #${o.id}</div>
+                    <div class="italic">${o.folio || 'Folio #' + o.id}</div>
                     <div>${formatPrice(o.total_pay)}</div>
                 </div>
+                <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
             `).join('');
 
             detailedSection = `
@@ -2618,8 +2724,10 @@ class App extends Templates {
                     <!-- Header -->
                     <div class="flex flex-col items-center mb-3">
                         ${logo ? `<div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
-                            <img src="https://huubie.com.mx/alpha${logo}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
-                        </div>` : ''}
+                            <img src="/alpha${logo}" alt="" onerror="this.parentElement.outerHTML='<div style=\\'width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;\\'><span style=\\'color:white;font-size:24px;font-weight:bold;\\'>${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span></div>'" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                        </div>` : `<div style="width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;" class="mb-1">
+                            <span style="color:white;font-size:24px;font-weight:bold;">${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span>
+                        </div>`}
                         <h1 class="text-sm font-bold uppercase">${subsidiaryName}</h1>
                         <div class="text-xs font-semibold">PEDIDOS DE PASTELERÍA</div>
                         <div class="text-xs text-gray-600">Cierre Operativo</div>
@@ -2629,6 +2737,8 @@ class App extends Templates {
                     <!-- Info -->
                     <div class="text-xs space-y-0.5 mb-2">
                         <div class="flex justify-between"><span>Fecha:</span><span>${fecha}</span></div>
+                        <div class="flex justify-between"><span>Apertura:</span><span>${moment(shift.opened_at).format('hh:mm A')}</span></div>
+                        <div class="flex justify-between"><span>Inicio de caja:</span><span>${formatPrice(shift.opening_amount || 0)}</span></div>
                         <div class="flex justify-between"><span>Turno:</span><span>${turnoLabel}</span></div>
                         <div class="flex justify-between"><span>Sucursal:</span><span>${subsidiaryName}</span></div>
                     </div>
@@ -2665,6 +2775,15 @@ class App extends Templates {
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">NÚMERO DE PEDIDOS:</div>
                             <div class="font-bold">${d.total_orders || 0}</div>
+                        </div>
+                        <div class="mt-2"></div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">PAGADOS:</div>
+                            <div>${(d.total_orders || 0) - (d.quotation_count || 0) - (d.cancelled_count || 0) - (d.pending_count || 0)}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">PENDIENTES:</div>
+                            <div>${d.pending_count || 0}</div>
                         </div>
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">COTIZACIONES:</div>
@@ -2709,60 +2828,61 @@ class App extends Templates {
 
     openShift() {
         let subsidiaries_id = rol == 1 ? ($('#subsidiariesDailyClose').val() || null) : null;
+        const subName = rol == 1
+            ? $('#subsidiariesDailyClose option:selected').text()
+            : sub_name;
 
-        Swal.fire({
+        bootbox.dialog({
             title: 'Abrir Turno de Caja',
-            html: `
-                <div class="text-left space-y-3">
-                    <div>
-                        <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
-                        <input id="swalShiftName" class="swal2-input" style="background:#374151;border:1px solid #4b5563;color:#fff;border-radius:6px;padding:8px 12px;font-size:14px;width:100%;margin:0;" placeholder="Ej: Matutino, Vespertino">
+            message: `
+                <div class="space-y-3">
+                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <i class="icon-home text-purple-400"></i>
+                        <span class="text-sm font-medium text-purple-300">${subName}</span>
                     </div>
+                    <!-- <div>
+                        <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
+                        <input id="shiftName" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="Ej: Matutino, Vespertino">
+                    </div> -->
                     <div>
                         <label class="text-sm font-medium text-gray-300 block mb-1">Fondo de caja inicial</label>
-                        <input id="swalOpeningAmount" type="number" class="swal2-input" style="background:#374151;border:1px solid #4b5563;color:#fff;border-radius:6px;padding:8px 12px;font-size:14px;width:100%;margin:0;" placeholder="0.00" min="0" step="0.01">
+                        <input id="openingAmount" type="number" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="0.00" min="0" step="0.01">
                     </div>
                 </div>
             `,
-            showCancelButton: true,
-            confirmButtonText: 'Abrir Turno',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#10b981',
-            customClass: {
-                container: 'swal-over-bootbox',
-                popup: 'bg-[#1F2A37] text-white rounded-lg',
-            },
-            didOpen: () => {
-                // Asegurar que SweetAlert quede encima de bootbox (z-index 1055)
-                const container = document.querySelector('.swal-over-bootbox');
-                if (container) container.style.zIndex = '9999';
-            },
-            preConfirm: () => {
-                return {
-                    shift_name: document.getElementById('swalShiftName').value.trim(),
-                    opening_amount: parseFloat(document.getElementById('swalOpeningAmount').value) || 0
-                };
-            }
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                const response = await useFetch({
-                    url: this._link,
-                    data: {
-                        opc: "openShift",
-                        shift_name: result.value.shift_name,
-                        opening_amount: result.value.opening_amount,
-                        subsidiaries_id: subsidiaries_id
+            closeButton: true,
+            buttons: {
+                cancel: {
+                    label: 'Cancelar',
+                    className: 'btn-secondary'
+                },
+                confirm: {
+                    label: 'Abrir Turno',
+                    className: 'btn-success',
+                    callback: async () => {
+                        const shift_name = ($('#shiftName').val() || '').trim();
+                        const opening_amount = parseFloat($('#openingAmount').val()) || 0;
+
+                        const response = await useFetch({
+                            url: this._link,
+                            data: {
+                                opc: "openShift",
+                                shift_name: shift_name,
+                                opening_amount: opening_amount,
+                                subsidiaries_id: subsidiaries_id
+                            }
+                        });
+
+                        if (response.status === 200) {
+                            alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
+                            this.loadShifts();
+                            openShift = { has_open_shift: true, shift_id: response.shift_id, shift_name: shift_name || null, opened_at: new Date().toISOString() };
+                            this.updateDailyClosureStatus();
+                            this.actualizarFechaHora({ label: sub_name });
+                        } else {
+                            alert({ icon: "error", title: "Error", text: response.message, btn1: true });
+                        }
                     }
-                });
-
-                if (response.status === 200) {
-                    alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
-                    this.loadShifts();
-
-                    // Actualizar variable global
-                    openShift = { has_open_shift: true, shift_id: response.shift_id };
-                } else {
-                    alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }
             }
         });
@@ -2805,6 +2925,8 @@ class App extends Templates {
 
                     // Actualizar variable global
                     openShift = { has_open_shift: false };
+                    this.updateDailyClosureStatus();
+                    this.actualizarFechaHora({ label: sub_name });
                 } else {
                     alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }

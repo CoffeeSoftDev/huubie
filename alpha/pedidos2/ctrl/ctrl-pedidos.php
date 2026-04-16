@@ -38,19 +38,29 @@ class Pedidos extends MPedidos{
     }
 
     function checkDailyClosure() {
-        $subsidiaries_id = isset($_POST['subsidiaries_id']) && $_POST['subsidiaries_id'] != '0' 
-            ? $_POST['subsidiaries_id'] 
+        $subsidiaries_id = isset($_POST['subsidiaries_id']) && $_POST['subsidiaries_id'] != '0'
+            ? $_POST['subsidiaries_id']
             : $_SESSION['SUB'];
-        
+
         $today = date('Y-m-d');
         $closure = $this->getDailyClosureByDate([$today, $subsidiaries_id]);
-        
+
+        // Verificar turno abierto para la sucursal seleccionada
+        $openShift = $this->getOpenShiftBySubsidiary([$subsidiaries_id]);
+
         return [
             'is_closed'      => !empty($closure),
             'closure_id'     => $closure['id'] ?? null,
             'closed_by'      => $closure['closed_by_name'] ?? null,
             'closed_at'      => $closure['created_at'] ?? null,
-            'subsidiary_id'  => $subsidiaries_id
+            'subsidiary_id'  => $subsidiaries_id,
+            'open_shift'     => $openShift ? [
+                'has_open_shift' => true,
+                'shift_id'       => $openShift['id'],
+                'opened_at'      => $openShift['opened_at'],
+                'shift_name'     => $openShift['shift_name'],
+                'employee_name'  => $openShift['employee_name']
+            ] : ['has_open_shift' => false]
         ];
     }
 
@@ -126,6 +136,10 @@ class Pedidos extends MPedidos{
             $subsidiaries_id = $sessionSub;
         }
       
+        $currentSubForShift = ($subsidiaries_id && $subsidiaries_id != '0') ? $subsidiaries_id : $sessionSub;
+        $currentShift = $this->getOpenShiftBySubsidiary([$currentSubForShift]);
+        $currentShiftId = $currentShift ? $currentShift['id'] : null;
+
         $orders   = $this->getOrders([
 
             'fi'              => $_POST['fi'] ?? '',
@@ -160,12 +174,14 @@ class Pedidos extends MPedidos{
 
             $Folio   = formatSucursal($Sucursal['name'], $Sucursal['sucursal'], $order['id']);
 
-
-            // list.
+            $isCurrentShift = $currentShiftId && $order['cash_shift_id'] == $currentShiftId;
+            $shiftDot = $isCurrentShift
+                ? "<span class='inline-block w-1.5 h-1.5 bg-green-400 rounded-full shift-pulse mr-1.5'></span>"
+                : "<span class='inline-block w-1.5 h-1.5 bg-gray-500 rounded-full mr-1.5'></span>";
 
             $rows[] = [
                 'id'       => $order['id'],
-                'folio'    => $Folio,
+                'folio'    => ['html' => "<span class='flex items-center'>{$shiftDot}{$Folio}</span>"],
                 'Creación' => formatSpanishDate($order['date_creation']),
 
                 'Cliente' => [
@@ -254,6 +270,10 @@ class Pedidos extends MPedidos{
 
        
 
+        // Vincular al turno abierto si existe
+        $openShift = $this->getOpenShiftBySubsidiary([$subsidiaries_id]);
+        $cash_shift_id = $openShift ? $openShift['id'] : null;
+
         $data = $this->util->sql([
             'note'            => $_POST['note'],
             'date_birthday'   => $_POST['date_birthday'],
@@ -264,8 +284,8 @@ class Pedidos extends MPedidos{
             'client_id'       => $client['id'],
             'status'          => 1,
             'type_id'         => 1,
-            'subsidiaries_id' => $subsidiaries_id ,
-
+            'subsidiaries_id' => $subsidiaries_id,
+            'cash_shift_id'   => $cash_shift_id,
         ]);
 
         $insert = $this->createOrder($data);
@@ -526,10 +546,7 @@ class Pedidos extends MPedidos{
             'total_pay'     => $total_pay,
             'type_id'       => $type_id,
             'status'        => $type_id,
-            
-            'date_creation' => date('Y-m-d'),
             'id'            => $id
-
           ], 1);
 
         $insert = $this->registerPayment($values);
@@ -1576,7 +1593,7 @@ class Pedidos extends MPedidos{
         $subsidiary_id = $shift['subsidiary_id'];
 
         // Calcular métricas del turno
-        $metrics = $this->getShiftSalesMetrics([$opened_at, $closed_at, $subsidiary_id]);
+        $metrics = $this->getShiftSalesMetrics([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
 
         $total_sales    = floatval($metrics['total_sales']);
         $cash_sales     = floatval($metrics['cash_sales']);
@@ -1649,6 +1666,21 @@ class Pedidos extends MPedidos{
         ];
     }
 
+    function getOpenShifts() {
+        if ($_SESSION['ROLID'] == 1) {
+            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        } else {
+            $subsidiaries_id = $_SESSION['SUB'];
+        }
+
+        $shifts = $this->getAllOpenShiftsBySubsidiary([$subsidiaries_id]);
+
+        return [
+            'status' => 200,
+            'shifts' => is_array($shifts) ? $shifts : []
+        ];
+    }
+
     function getShiftMetrics() {
         $shift_id = $_POST['shift_id'];
         $shift = $this->getCashShiftById($shift_id);
@@ -1664,7 +1696,17 @@ class Pedidos extends MPedidos{
         $subsidiary_name = ($subsidiary && isset($subsidiary['name'])) ? $subsidiary['name'] : 'Sucursal';
 
         if ($shift['status'] === 'closed') {
-            // Retornar datos guardados
+            // Obtener conteos de status guardados
+            $statusCounts = $this->getShiftStatusCounts([$shift_id]);
+            $quotation_count = 0; $pending_count = 0; $cancelled_count = 0;
+            foreach ($statusCounts as $sc) {
+                switch ($sc['status_process_id']) {
+                    case 1: $quotation_count = intval($sc['amount']); break;
+                    case 2: $pending_count   = intval($sc['amount']); break;
+                    case 4: $cancelled_count = intval($sc['amount']); break;
+                }
+            }
+
             return [
                 'status'          => 200,
                 'shift'           => $shift,
@@ -1672,13 +1714,13 @@ class Pedidos extends MPedidos{
                 'logo'            => $_SESSION['LOGO'],
                 'data' => [
                     'total_sales'     => $shift['total_sales'],
-                    'cash_sales'      => $shift['total_cash'],
-                    'card_sales'      => $shift['total_card'],
-                    'transfer_sales'  => $shift['total_transfer'],
+                    'cash_sales'      => $shift['cash'],
+                    'card_sales'      => $shift['card'],
+                    'transfer_sales'  => $shift['transfer'],
                     'total_orders'    => $shift['total_orders'],
-                    'quotation_count' => 0,
-                    'pending_count'   => 0,
-                    'cancelled_count' => 0
+                    'quotation_count' => $quotation_count,
+                    'pending_count'   => $pending_count,
+                    'cancelled_count' => $cancelled_count
                 ]
             ];
         }
@@ -1686,7 +1728,7 @@ class Pedidos extends MPedidos{
         // Turno abierto: calcular en tiempo real
         $opened_at = $shift['opened_at'];
         $now = date('Y-m-d H:i:s');
-        $metrics = $this->getShiftSalesMetrics([$opened_at, $now, $subsidiary_id]);
+        $metrics = $this->getShiftSalesMetrics([$shift_id, $opened_at, $now, $subsidiary_id]);
 
         return [
             'status'          => 200,
@@ -1709,7 +1751,7 @@ class Pedidos extends MPedidos{
         $closed_at = $shift['status'] === 'closed' ? $shift['closed_at'] : date('Y-m-d H:i:s');
         $subsidiary_id = $shift['subsidiary_id'];
 
-        $orders = $this->getShiftDetailedOrders([$opened_at, $closed_at, $subsidiary_id]);
+        $orders = $this->getShiftDetailedOrders([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
 
         return [
             'status' => 200,
@@ -2051,7 +2093,7 @@ function dropdownOrder($id, $status, $discount = 0) {
             ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
         ];
 
-        if ($owner == 1) {
+        if ($rolId == 1 || $owner == 1) {
             $options[] = ['Eliminar', 'icon-trash', "{$instancia}.deleteOrder({$id})"];
         }
     }
