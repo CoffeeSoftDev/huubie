@@ -80,6 +80,45 @@ class ctrlCalendario extends MCalendarioPedidos{
         }
         return $event;
     }
+
+    function updateDeliveryStatus() {
+        $status = 500;
+        $message = 'Error al actualizar el estado de entrega';
+        
+        $id           = $_POST['id'] ?? null;
+        $is_delivered = $_POST['is_delivered'] ?? null;
+        
+        if (!$id || !isset($is_delivered)) {
+            return [
+                'status' => 400,
+                'message' => 'Parámetros incompletos'
+            ];
+        }
+        
+        $order = $this->getOrderID([$id]);
+        
+            
+        $update = $this->updateOrderDeliveryStatus([
+            'id' => $id,
+            'is_delivered' => $is_delivered
+        ]);
+        
+        if ($update) {
+            $status     = 200;
+            $statusText = $is_delivered == 1 ? 'entregado' : 'no entregado';
+            $message    = "El pedido fue marcado como {$statusText}";
+        }
+        
+        return [
+            'status' => $status,
+            'message' => $message,
+            'order'   => $order,
+            'data' => [
+                'id' => $id,
+                'is_delivered' => $is_delivered
+            ]
+        ];
+    }
 }
 
 $obj    = new ctrlCalendario();

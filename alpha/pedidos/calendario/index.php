@@ -97,6 +97,79 @@
         * {
             scrollbar-width: none !important;
         }
+
+        /* 🔮 Glassmorphism púrpura — cristal real */
+        .glass-purple-btn {
+            background: linear-gradient(
+                135deg,
+                rgba(168, 85, 247, 0.25) 0%,
+                rgba(136, 2, 194, 0.15) 50%,
+                rgba(88, 28, 135, 0.22) 100%
+            );
+            backdrop-filter: blur(18px) saturate(180%);
+            -webkit-backdrop-filter: blur(18px) saturate(180%);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow:
+                0 8px 32px rgba(88, 28, 135, 0.35),
+                0 2px 8px rgba(0, 0, 0, 0.25),
+                inset 0 1px 1px rgba(255, 255, 255, 0.35),
+                inset 0 -1px 1px rgba(255, 255, 255, 0.08);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+            isolation: isolate;
+        }
+
+        .glass-purple-btn:hover {
+            transform: translateY(-1px);
+            box-shadow:
+                0 8px 20px rgba(136, 2, 194, 0.45),
+                0 4px 12px rgba(0, 0, 0, 0.3),
+                inset 0 1px 1px rgba(255, 255, 255, 0.5),
+                inset 0 -1px 1px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Reflejo superior (highlight tipo vidrio) */
+        .glass-purple-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.22) 0%,
+                rgba(255, 255, 255, 0.05) 60%,
+                transparent 100%
+            );
+            border-radius: 20px 20px 50% 50% / 20px 20px 100% 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Brillo diagonal sutil */
+        .glass-purple-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                120deg,
+                transparent 0%,
+                transparent 40%,
+                rgba(255, 255, 255, 0.15) 50%,
+                transparent 60%,
+                transparent 100%
+            );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glass-purple-btn > * {
+            position: relative;
+            z-index: 2;
+        }
     </style>
 
 </head>

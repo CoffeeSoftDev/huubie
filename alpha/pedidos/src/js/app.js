@@ -1989,6 +1989,13 @@ class App extends Templates {
                             <p class="text-white font-semibold text-sm">${orderData.time_order || 'N/A'}</p>
                         </div>
                     </div>
+                    <div class="flex items-start">
+                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">Estado de entrega:</p>
+                            <p class="text-white font-semibold text-sm">${orderData.delivery_status || 'N/A'}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;

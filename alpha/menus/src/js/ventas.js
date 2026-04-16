@@ -32,6 +32,13 @@ $(async () => {
             enlace: "/alpha/pedidos-reportes/",
             padding: ""
         });
+        // tarjetas.push({
+        //     titulo: "Inventario",
+        //     descripcion: "Administra tu inventario de productos.",
+        //     imagen: "/alpha/src/img/inventario.svg",
+        //     enlace: "/alpha/inventario/",
+        //     padding: ""
+        // });
         tarjetas.push({
             titulo: "Configuración",
             descripcion: "Agrega usuarios y sucursales.",
