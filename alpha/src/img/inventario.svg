@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
+  
+  <!-- Caja trasera (arriba-izquierda) -->
+  <rect x="60" y="200" width="200" height="160" rx="12" fill="#76a9fa" opacity="0.5"/>
+  <!-- Línea horizontal caja trasera -->
+  <line x1="60" y1="240" x2="260" y2="240" stroke="#5b93f0" stroke-width="3" opacity="0.5"/>
+  <!-- Etiqueta caja trasera -->
+  <rect x="130" y="270" width="60" height="8" rx="4" fill="#ffffff" opacity="0.25"/>
+  <rect x="130" y="286" width="40" height="8" rx="4" fill="#ffffff" opacity="0.25"/>
+
+  <!-- Caja trasera derecha -->
+  <rect x="250" y="170" width="200" height="160" rx="12" fill="#76a9fa" opacity="0.45"/>
+  <!-- Línea horizontal -->
+  <line x1="250" y1="210" x2="450" y2="210" stroke="#5b93f0" stroke-width="3" opacity="0.45"/>
+  <!-- Etiqueta -->
+  <rect x="320" y="240" width="60" height="8" rx="4" fill="#ffffff" opacity="0.25"/>
+  <rect x="320" y="256" width="40" height="8" rx="4" fill="#ffffff" opacity="0.25"/>
+
+  <!-- Caja principal frontal -->
+  <rect x="120" y="300" width="260" height="170" rx="14" fill="#76a9fa"/>
+  <!-- Sombra superior de la caja (tapa) -->
+  <rect x="120" y="300" width="260" height="45" rx="14" fill="#6b9ef5"/>
+  <rect x="120" y="331" width="260" height="14" fill="#6b9ef5"/>
+  <!-- Línea de cierre de la tapa -->
+  <line x1="120" y1="345" x2="380" y2="345" stroke="#5b93f0" stroke-width="3"/>
+  <!-- Solapas de la tapa -->
+  <path d="M200 300 L250 280 L300 300" stroke="#5b93f0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Etiqueta frontal -->
+  <rect x="200" y="380" width="100" height="14" rx="5" fill="#ffffff" opacity="0.35"/>
+  <rect x="210" y="402" width="80" height="10" rx="5" fill="#ffffff" opacity="0.25"/>
+  <rect x="220" y="420" width="60" height="10" rx="5" fill="#ffffff" opacity="0.25"/>
+
+  <!-- Clipboard/portapapeles -->
+  <rect x="56" y="40" width="160" height="200" rx="14" fill="#76a9fa"/>
+  <!-- Clip superior -->
+  <rect x="108" y="28" width="56" height="30" rx="8" fill="#5b93f0"/>
+  <rect x="118" y="22" width="36" height="18" rx="6" fill="#4a82e0"/>
+  <!-- Contenido del clipboard -->
+  <!-- Checkbox 1 -->
+  <rect x="82" y="80" width="18" height="18" rx="4" stroke="#ffffff" stroke-width="2.5" fill="none" opacity="0.7"/>
+  <polyline points="86,90 90,95 100,83" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+  <rect x="112" y="84" width="80" height="8" rx="4" fill="#ffffff" opacity="0.45"/>
+  
+  <!-- Checkbox 2 -->
+  <rect x="82" y="114" width="18" height="18" rx="4" stroke="#ffffff" stroke-width="2.5" fill="none" opacity="0.7"/>
+  <polyline points="86,124 90,129 100,117" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+  <rect x="112" y="118" width="70" height="8" rx="4" fill="#ffffff" opacity="0.45"/>
+  
+  <!-- Checkbox 3 -->
+  <rect x="82" y="148" width="18" height="18" rx="4" stroke="#ffffff" stroke-width="2.5" fill="none" opacity="0.7"/>
+  <rect x="112" y="152" width="76" height="8" rx="4" fill="#ffffff" opacity="0.45"/>
+  
+  <!-- Checkbox 4 -->
+  <rect x="82" y="182" width="18" height="18" rx="4" stroke="#ffffff" stroke-width="2.5" fill="none" opacity="0.7"/>
+  <rect x="112" y="186" width="60" height="8" rx="4" fill="#ffffff" opacity="0.45"/>
+
+  <!-- Lupa de búsqueda (esquina inferior derecha) -->
+  <circle cx="420" cy="100" r="40" stroke="#76a9fa" stroke-width="12" fill="none"/>
+  <line x1="448" y1="128" x2="478" y2="158" stroke="#76a9fa" stroke-width="12" stroke-linecap="round"/>
+  
+</svg>

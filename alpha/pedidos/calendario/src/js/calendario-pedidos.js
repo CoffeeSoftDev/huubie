@@ -544,20 +544,30 @@ class App extends Templates {
             container.html(`
                 <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
                     <div class="lg:sticky lg:top-4">
-                        <div class="grid grid-cols-3 gap-2 mb-3">
-                            <button onclick="app.historyPay(${orderId})"
-                                class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                <i class="icon-dollar text-xs"></i> Pagar
+                        ${(orderData.is_delivered != '2') && (orderData.status != '3' && orderData.status != '4' && orderData.status != '1') ? `
+                            <div class="grid grid-cols-3 gap-2 mb-3">
+                                <button onclick="app.historyPay(${orderId})"
+                                    class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                                    <i class="icon-dollar text-xs"></i> Pagar
+                                </button>
+                                <button onclick="app.printOrder(${orderId})"
+                                    class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                                    <i class="icon-print text-xs"></i> Imprimir
+                                </button>
+                                <button onclick="app.addDiscount(${orderId})"
+                                    class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                                    <i class="icon-percent text-xs"></i> Descuento
+                                </button>
+                            </div>
+                        ` : ''}
+                        ${(orderData.is_delivered == '0' || orderData.is_delivered == null ) && (orderData.status != '4' && orderData.status != '1') ? `
+                            <button onclick="app.handleDeliveryClick(${orderId}, ${orderData.is_delivered || 0}, '${orderData.folio || ''}')"
+                                    class="w-full mb-3 flex items-center justify-center gap-1.5
+                                        text-white text-[11px] font-medium px-2 py-2 rounded-md
+                                        glass-purple-btn">
+                                Entregar productos
                             </button>
-                            <button onclick="app.printOrder(${orderId})"
-                                class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                <i class="icon-print text-xs"></i> Imprimir
-                            </button>
-                            <button onclick="app.addDiscount(${orderId})"
-                                class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                <i class="icon-percent text-xs"></i> Descuento
-                            </button>
-                        </div>
+                        ` : ''}
                         ${this.detailsCard(orderData)}
                     </div>
                 </div>
@@ -632,6 +642,75 @@ class App extends Templates {
         `;
     }
 
+    handleDeliveryClick(orderId, currentStatus, folio) {
+        Swal.fire({
+            title: '📦 Actualizar estado de entrega',
+            html: `<p class="mb-3">Selecciona el estado del pedido <strong>${folio}</strong></p>`,
+            icon: 'question',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: '✓ Entregado',
+            denyButtonText: '🎂 Para producir',
+            cancelButtonText: '✗ No entregado',
+            confirmButtonColor: '#10b981',
+            denyButtonColor: '#db2777',
+            cancelButtonColor: '#ef4444',
+            reverseButtons: false,
+            customClass: {
+                popup: 'bg-[#1F2A37] text-white rounded-lg shadow-lg px-2',
+                title: 'text-2xl font-semibold',
+                content: 'text-gray-300',
+                confirmButton: 'bg-[#10b981] hover:bg-[#0E9E6E] text-white py-2 px-4 rounded',
+                denyButton: 'bg-[#db2777] hover:bg-[#be185d] text-white py-2 px-4 rounded',
+                cancelButton: 'bg-[#ef4444] hover:bg-[#dc2626] text-white py-2 px-4 rounded',
+            }
+        }).then(async (result) => {
+            let newStatus = null;
+
+            if (result.isConfirmed) {
+                newStatus = 1; // Entregado
+            } else if (result.isDenied) {
+                newStatus = 2; // Para producir
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                newStatus = 0; // No entregado
+            }
+
+            if (newStatus !== null) {
+                const response = await useFetch({
+                    url: this._link,
+                    data: {
+                        opc: 'updateDeliveryStatus',
+                        id: orderId,
+                        is_delivered: newStatus
+                    }
+                });
+
+                if (response.status == 200) {
+                    // Cierra el modal de detalles del pedido
+                    $('.order-details-enhanced-modal').modal('hide');
+                     alert({
+                        icon: 'success',
+                        title: 'Estado actualizado',
+                        text: response.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    // Recarga el calendario para reflejar el cambio
+                    this.createCalendar();
+                   
+                } else {
+                    alert({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message,
+                        btn1: true,
+                        btn1Text: 'Ok'
+                    });
+                }
+            }
+        });
+    }
+
     infoOrder(orderData) {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
@@ -672,9 +751,33 @@ class App extends Templates {
                             <p class="text-white font-semibold text-sm">${orderData.time_order || 'N/A'}</p>
                         </div>
                     </div>
+                    <div class="flex items-start">
+                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">Estado de entrega:</p>
+                            ${this.statusDelivery(orderData.is_delivered)}
+                        </div>
+                    </div>
+
                 </div>
             </div>
         `;
+    }
+
+    statusDelivery(is_delivered) {
+        if (is_delivered == '1') {
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-green-600 text-green-600 inline-block">
+                        <i class="icon-ok mr-1"></i> Entregado
+                    </span>`;
+        } else if (is_delivered == '2') {
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-purple-600 text-purple-600 inline-block">
+                        <i class="icon-cake mr-1"></i> Para Producir
+                    </span>`;
+        } else {
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-red-600 text-red-600 inline-block">
+                        <i class="icon-cancel mr-1"></i> No entregado
+                    </span>`;
+        }
     }
 
     infoSales(orderData) {
