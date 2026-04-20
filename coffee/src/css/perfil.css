@@ -1,0 +1,57 @@
+#content__perfil {
+  width: 200px;
+  height: 200px;
+  position: relative;
+  margin: 0 auto;
+  border-radius: 50%;
+  /* overflow: hidden; */
+  cursor: pointer;
+}
+
+#content__perfil img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+#content__perfil span {
+  border-radius: 50%;
+  background-color: var(--disabled6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  font-size: 1.5rem;
+  color: aliceblue;
+  display: none;
+  transition: all 0.5s ease;
+}
+
+#content__perfil:hover span {
+  display: flex;
+}
+
+#content__perfil p {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  bottom: 15px;
+  right: 20px;
+  margin: 0;
+  border-radius: 50%;
+  background-color: var(--info);
+  color: aliceblue;
+  font-size: 0.8rem;
+}
+
+#content__perfil:hover p {
+  display: none;
+}

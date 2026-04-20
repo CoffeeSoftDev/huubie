@@ -1,0 +1,154 @@
+.table {
+    width: 100% !important;
+    font-family: Calibri;
+    border-radius: 5px;
+}
+
+.table th {
+    font-weight: bold;
+    text-align: center !important;
+    text-transform: uppercase;
+    vertical-align: middle;
+    background-color: var(--aliceblue_other);
+    color: var(--primary);
+}
+
+.table td {
+    color: black;
+    font-size: 16px;
+    vertical-align: middle;
+}
+
+table a {
+    color: black;
+    text-decoration: none;
+}
+.active > .page-link,
+.page-link.active {
+    color: var(--aliceblue);
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* -- Tabla auxiliar para reporte -- */
+.tb-bordered {
+    border: 1px solid #dee2e6;
+}
+
+.tb tbody tr > td,
+.tb tbody tr > th,
+.tb tfoot tr > td,
+.tb tfoot tr > th,
+.tb thead tr > td,
+.tb thead tr > th {
+    border: 1px solid #dee2e6;
+    vertical-align: middle;
+}
+
+.tb > thead > tr > th,
+.tb > tbody > tr > th,
+.tb > tfoot > tr > th,
+.tb > thead > tr > td,
+.tb > tbody > tr > td,
+.table > tfoot > tr > td {
+    padding: 5px;
+    line-height: 1.42857143;
+    /* border-top: 1px solid #ecf0f1; */
+}
+.tb {
+    font-family: Calibri;
+    border-radius: 5px;
+    width: 100%;
+    max-width: 100%;
+    border-color: #dee2e6;
+}
+
+.tb > thead {
+    vertical-align: bottom;
+}
+
+.tb th {
+    font-weight: bold;
+    text-align: center !important;
+    text-transform: uppercase;
+    background-color: #ebebeb;
+    color: #003360;
+}
+
+.tb-xtra-condensed > thead > tr > th,
+.tb-xtra-condensed > tbody > tr > th,
+.tb-xtra-condensed > tfoot > tr > th,
+.tb-xtra-condensed > thead > tr > td,
+.tb-xtra-condensed > tbody > tr > td,
+.tb-xtra-condensed > tfoot > tr > td {
+    padding: 1.2px;
+    /* font-size: 1rem; */
+    font-weight: 500;
+}
+
+input.cell {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    /* border: none; */
+    /* line-height: 1 !important; */
+    background-color: transparent;
+}
+
+input.cell:focus {
+    /* box-shadow: 0 0 0 0.25rem rgba(46, 45, 45, 0.05); */
+    /* box-shadow: none !important;
+    */
+    outline: none;
+}
+
+/* td {margin: 0 !important; padding: 0 !important;} */
+
+.table-xs {
+  font-size: 10px; /* Reduce el tamaño de fuente */
+}
+
+.table-xs th,
+.table-xs td {
+  padding: 0.25rem; /* Reduce el padding para hacer la tabla más compacta */
+}
+
+.table-xs th {
+  font-weight: 700; /* Mantén el texto en negrita para los encabezados */
+  text-align: center; /* Alinea los encabezados al centro */
+}
+
+.table-xs tbody tr td {
+  vertical-align: middle; /* Centra verticalmente el contenido de las celdas */
+}
+
+.table-xs thead th {
+  background-color: #007bff; /* Color de fondo para los encabezados */
+  color: #fff; /* Color de texto para los encabezados */
+  border-bottom: 2px solid #dee2e6; /* Bordes para los encabezados */
+}
+
+.table-xs.table-bordered th,
+.table-xs.table-bordered td {
+  border: 1px solid #dee2e6; /* Bordes para las celdas de la tabla */
+}
+
+
+.tb-report > thead > tr > th,
+.tb-report > tbody > tr > th,
+.tb-report > tfoot > tr > th,
+.tb-report > thead > tr > td,
+.tb-report > tbody > tr > td,
+.tb-report > tfoot > tr > td {
+    padding: 3px;
+    line-height: 1.42857143;
+    border-top: 1px solid #000000;
+    font-weight: bold;
+}
+
+.tb-report {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 21px;
+}
