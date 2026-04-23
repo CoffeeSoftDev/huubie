@@ -2423,7 +2423,7 @@ class App extends Templates {
         ` : '';
 
         const modalContent = `
-            <div class="flex flex-col lg:flex-row gap-4" style="min-height: 450px;">
+            <div class="flex flex-col lg:flex-row gap-4" style="min-height: 480px;">
                 <!-- Sidebar -->
                 <div class="w-full lg:w-[280px] flex-shrink-0 space-y-4">
                     ${subsidiarySelect}
@@ -2463,12 +2463,14 @@ class App extends Templates {
                     </div>
                 </div>
                 <!-- Ticket Preview -->
-                <div class="flex-1 bg-[#151d2a] rounded-lg p-4 overflow-y-auto" style="max-height: 70vh;">
-                    <p class="text-xs text-gray-500 mb-2">Vista previa de impresión</p>
-                    <div id="ticketContainer">
-                        <div class="text-center text-gray-400 py-16">
-                            <i class="icon-doc-text text-5xl mb-4"></i>
-                            <p class="mt-4">Selecciona un turno para ver el ticket</p>
+                <div class="flex-1 relative">
+                    <div id="ticketPreview" class="absolute inset-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
+                        <p class="text-xs text-gray-500 mb-2">Vista previa de impresión</p>
+                        <div id="ticketContainer">
+                            <div class="text-center text-gray-400 py-16">
+                                <i class="icon-doc-text text-5xl mb-4"></i>
+                                <p class="mt-4">Selecciona un turno para ver el ticket</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2696,7 +2698,7 @@ class App extends Templates {
         const isDetailed = this.reportMode === 'detailed';
 
         const fecha = moment(shift.opened_at).format('DD/MM/YYYY');
-        const turnoLabel = shift.shift_name || moment(shift.opened_at).format('hh:mm A');
+
         const isClosed = shift.status === 'closed';
 
         const closedBadge = isClosed
@@ -2708,6 +2710,7 @@ class App extends Templates {
         // Desglose de ventas (modo detallado)
         let detailedSection = '';
         if (isDetailed && orders.length > 0) {
+            const ordersTotal = orders.reduce((sum, o) => sum + parseFloat(o.total_pay || 0), 0);
             const orderRows = orders.map(o => `
                 <div class="flex justify-between items-center">
                     <div class="italic">${o.folio || 'Folio #' + o.id}</div>
@@ -2719,6 +2722,10 @@ class App extends Templates {
             detailedSection = `
                 <div class="font-semibold mt-2 mb-1">DESGLOSE DE VENTAS</div>
                 ${orderRows}
+                <div class="flex justify-between items-center font-bold border-t border-dashed pt-1 mt-1">
+                    <div>TOTAL VENTAS</div>
+                    <div>${formatPrice(ordersTotal)}</div>
+                </div>
                 <hr class="border-dashed border-t my-1" />
             `;
         }
@@ -2746,7 +2753,6 @@ class App extends Templates {
                         <div class="flex justify-between"><span>Fecha:</span><span>${fecha}</span></div>
                         <div class="flex justify-between"><span>Apertura:</span><span>${moment(shift.opened_at).format('hh:mm A')}</span></div>
                         <div class="flex justify-between"><span>Inicio de caja:</span><span>${formatPrice(shift.opening_amount || 0)}</span></div>
-                        <div class="flex justify-between"><span>Turno:</span><span>${turnoLabel}</span></div>
                         <div class="flex justify-between"><span>Sucursal:</span><span>${subsidiaryName}</span></div>
                     </div>
 
@@ -2759,46 +2765,46 @@ class App extends Templates {
                         <!-- Formas de pago -->
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">EFECTIVO:</div>
-                            <div>${formatPrice(d.cash_sales)}</div>
+                            <div>${parseFloat(d.cash_sales || 0) ? formatPrice(d.cash_sales) : '-'}</div>
                         </div>
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">TARJETA:</div>
-                            <div>${formatPrice(d.card_sales)}</div>
+                            <div>${parseFloat(d.card_sales || 0) ? formatPrice(d.card_sales) : '-'}</div>
                         </div>
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">TRANSFERENCIA:</div>
-                            <div>${formatPrice(d.transfer_sales)}</div>
+                            <div>${parseFloat(d.transfer_sales || 0) ? formatPrice(d.transfer_sales) : '-'}</div>
                         </div>
 
                         <hr class="border-dashed border-t my-1" />
 
                         <div class="flex justify-between items-center font-bold">
                             <div>TOTAL CAJA:</div>
-                            <div class="text-sm">${formatPrice(totalPayments)}</div>
+                            <div class="text-sm">${totalPayments ? formatPrice(totalPayments) : '-'}</div>
                         </div>
 
                         <hr class="border-dashed border-t my-1" />
 
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">NÚMERO DE PEDIDOS:</div>
-                            <div class="font-bold">${d.total_orders || 0}</div>
+                            <div class="font-bold">${parseInt(d.total_orders) || '-'}</div>
                         </div>
                         <div class="mt-2"></div>
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">PAGADOS:</div>
-                            <div>${(d.total_orders || 0) - (d.quotation_count || 0) - (d.cancelled_count || 0) - (d.pending_count || 0)}</div>
+                            <div>${((d.total_orders || 0) - (d.quotation_count || 0) - (d.cancelled_count || 0) - (d.pending_count || 0)) || '-'}</div>
                         </div>
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">PENDIENTES:</div>
-                            <div>${d.pending_count || 0}</div>
+                            <div>${d.pending_count || '-'}</div>
                         </div>
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">COTIZACIONES:</div>
-                            <div>${d.quotation_count || 0}</div>
+                            <div>${d.quotation_count || '-'}</div>
                         </div>
                         <div class="flex justify-between items-center">
                             <div class="font-semibold">CANCELADOS:</div>
-                            <div>${d.cancelled_count || 0}</div>
+                            <div>${d.cancelled_count || '-'}</div>
                         </div>
                     </div>
 

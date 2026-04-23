@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Clásico v2 - Huubie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        huubie: {
+                            main: '#1F2A37',
+                            card: '#111827',
+                            input: '#283143',
+                            border: '#374151',
+                            primary: '#3B82F6',
+                            success: '#10B981',
+                            warning: '#F59E0B',
+                            danger: '#EF4444',
+                            purple: '#8B5CF6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@coffee-icons/css/coffee-icons.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --bg-main: #1F2A37;
+            --bg-card: #111827;
+            --bg-input: #283143;
+            --bg-hover: rgba(255,255,255,0.05);
+            --text-primary: #F9FAFB;
+            --text-secondary: #9CA3AF;
+            --border-color: #374151;
+            --accent: #3B82F6;
+        }
+
+        html:not(.dark) {
+            --bg-main: #F3F4F6;
+            --bg-card: #FFFFFF;
+            --bg-input: #E5E7EB;
+            --bg-hover: rgba(0,0,0,0.03);
+            --text-primary: #111827;
+            --text-secondary: #6B7280;
+            --border-color: #D1D5DB;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .scrollbar-custom::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .scrollbar-custom::-webkit-scrollbar-track {
+            background: var(--bg-input);
+            border-radius: 3px;
+        }
+        .scrollbar-custom::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        .product-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .product-card:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.15);
+        }
+
+        .category-btn {
+            transition: all 0.2s ease;
+        }
+        .category-btn.active {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            border-color: transparent;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .toast {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .modal-overlay {
+            backdrop-filter: blur(4px);
+        }
+
+        .shortcut-badge {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body class="bg-huubie-main text-white h-screen overflow-hidden dark">
+
+<!-- Header Superior -->
+<header class="h-16 bg-huubie-card border-b border-huubie-border flex items-center justify-between px-6 shadow-sm">
+    <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <i class="icon-birthday text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-white">Huubie POS</h1>
+                <p class="text-xs text-gray-400">Sistema de Pedidos</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex items-center gap-6">
+        <!-- Info Orden -->
+        <div class="flex items-center gap-4 bg-huubie-input px-4 py-2 rounded-lg border border-huubie-border">
+            <div class="flex flex-col">
+                <span class="text-xs text-gray-400">Orden</span>
+                <span class="text-sm font-semibold text-blue-400">#P-00368</span>
+            </div>
+            <div class="w-px h-8 bg-huubie-border"></div>
+            <div class="flex flex-col">
+                <span class="text-xs text-gray-400">Cliente</span>
+                <span class="text-sm font-medium text-white">Sara Urbina Coss</span>
+            </div>
+        </div>
+
+        <!-- Toggle Theme -->
+        <button id="themeToggle" class="p-2 rounded-lg bg-huubie-input border border-huubie-border hover:bg-huubie-border transition-colors" title="Toggle tema (F12)">
+            <i class="icon-sun text-yellow-400 text-lg dark-block"></i>
+            <i class="icon-moon text-blue-400 text-lg hidden dark:hidden"></i>
+        </button>
+
+        <!-- Settings -->
+        <button class="p-2 rounded-lg bg-huubie-input border border-huubie-border hover:bg-huubie-border transition-colors" title="Configuración">
+            <i class="icon-settings text-gray-400"></i>
+        </button>
+
+        <!-- User -->
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center font-semibold text-sm">
+                SU
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Contenedor Principal -->
+<div class="flex h-[calc(100vh-64px)]">
+
+    <!-- Panel Izquierdo - Catálogo -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-huubie-main">
+
+        <!-- Barra de Búsqueda y Filtros -->
+        <div class="p-4 border-b border-huubie-border bg-huubie-card">
+            <div class="flex items-center gap-4">
+                <div class="relative flex-1 max-w-xl">
+                    <input type="text"
+                           id="searchProduct"
+                           placeholder="Buscar productos... (F2)"
+                           class="pl-11 pr-12 py-3 rounded-xl border border-huubie-border bg-huubie-input text-white w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all">
+                    <i class="icon-search absolute left-4 top-3.5 text-gray-400"></i>
+                    <kbd class="shortcut-badge absolute right-3 top-3.5">F2</kbd>
+                </div>
+                <button class="btn-primary text-white font-semibold px-5 py-3 rounded-xl text-sm flex items-center gap-2 shadow-lg">
+                    <i class="icon-cake"></i>
+                    <span>Armar Pastel</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs de Categorías -->
+        <div class="px-4 py-3 border-b border-huubie-border bg-huubie-main">
+            <div class="flex items-center gap-2 overflow-x-auto scrollbar-custom">
+                <button class="category-btn active text-white px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-2 shadow-md">
+                    <i class="icon-cake text-blue-300"></i>
+                    <span>Chocolate</span>
+                    <span class="bg-white/20 px-2 py-0.5 rounded-full text-[10px]">12</span>
+                </button>
+                <button class="category-btn bg-huubie-input text-gray-300 hover:bg-huubie-border px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-2 border border-huubie-border">
+                    <span class="text-lg">🍓</span>
+                    <span>Frutas</span>
+                    <span class="bg-white/10 px-2 py-0.5 rounded-full text-[10px]">8</span>
+                </button>
+                <button class="category-btn bg-huubie-input text-gray-300 hover:bg-huubie-border px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-2 border border-huubie-border">
+                    <span class="text-lg">🧀</span>
+                    <span>Queso</span>
+                    <span class="bg-white/10 px-2 py-0.5 rounded-full text-[10px]">6</span>
+                </button>
+                <button class="category-btn bg-huubie-input text-gray-300 hover:bg-huubie-border px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-2 border border-huubie-border">
+                    <span class="text-lg">🍰</span>
+                    <span>Merengue</span>
+                    <span class="bg-white/10 px-2 py-0.5 rounded-full text-[10px]">5</span>
+                </button>
+                <button class="category-btn bg-huubie-input text-gray-300 hover:bg-huubie-border px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-2 border border-huubie-border">
+                    <span class="text-lg">👁️</span>
+                    <span>Todos</span>
+                </button>
+                <div class="w-px h-6 bg-huubie-border mx-2"></div>
+                <button class="category-btn bg-huubie-input text-gray-300 hover:bg-huubie-border px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-2 border border-huubie-border">
+                    <i class="icon-star text-yellow-400"></i>
+                    <span>Populares</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Grid de Productos -->
+        <div class="flex-1 overflow-auto p-4 scrollbar-custom">
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+
+                <!-- Producto 1 - Popular -->
+                <div class="product-card bg-huubie-card border border-huubie-border rounded-2xl shadow-lg overflow-hidden cursor-pointer group">
+                    <div class="relative h-32 bg-gradient-to-br from-gray-800 to-gray-900">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas%20Pasteler%C3%ADa/4/pedidos/6cb9caee.jpg"
+                             alt="Patel Tradicional"
+                             class="object-cover h-full w-full group-hover:scale-110 transition-transform duration-300">
+                        <div class="absolute top-2 left-2">
+                            <span class="bg-yellow-500/90 text-black text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                                <i class="icon-star"></i> POPULAR
+                            </span>
+                        </div>
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="bg-white/20 backdrop-blur-sm p-1.5 rounded-lg hover:bg-white/30 transition-colors">
+                                <i class="icon-heart text-white text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="text-white text-sm font-semibold truncate">Patel Tradicional de Mantequilla</h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-blue-400 font-bold text-base">$460.00</p>
+                            <span class="text-[10px] text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">En stock</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-[10px] text-gray-500">8 pz</span>
+                            <button class="btn-primary text-white rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1">
+                                <i class="icon-plus"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 2 -->
+                <div class="product-card bg-huubie-card border border-huubie-border rounded-2xl shadow-lg overflow-hidden cursor-pointer group">
+                    <div class="relative h-32 bg-gradient-to-br from-pink-800 to-pink-900">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas%20Pasteler%C3%ADa/4/pedidos/5af93929.jpg"
+                             alt="Tres Leches Manjar"
+                             class="object-cover h-full w-full group-hover:scale-110 transition-transform duration-300">
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="bg-white/20 backdrop-blur-sm p-1.5 rounded-lg hover:bg-white/30 transition-colors">
+                                <i class="icon-heart text-white text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="text-white text-sm font-semibold truncate">Tres Leches Manjar</h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-blue-400 font-bold text-base">$240.00</p>
+                            <span class="text-[10px] text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">En stock</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-[10px] text-gray-500">1 pz</span>
+                            <button class="btn-primary text-white rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1">
+                                <i class="icon-plus"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 3 -->
+                <div class="product-card bg-huubie-card border border-huubie-border rounded-2xl shadow-lg overflow-hidden cursor-pointer group">
+                    <div class="relative h-32 bg-gradient-to-br from-amber-800 to-amber-900">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas%20Pasteler%C3%ADa/4/pedidos/c8eaaed0.jpg"
+                             alt="Tres Leches Manjar 12"
+                             class="object-cover h-full w-full group-hover:scale-110 transition-transform duration-300">
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="bg-white/20 backdrop-blur-sm p-1.5 rounded-lg hover:bg-white/30 transition-colors">
+                                <i class="icon-heart text-white text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="text-white text-sm font-semibold truncate">Tres Leches Manjar 12pz</h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-blue-400 font-bold text-base">$360.00</p>
+                            <span class="text-[10px] text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">En stock</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-[10px] text-gray-500">12 pz</span>
+                            <button class="btn-primary text-white rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1">
+                                <i class="icon-plus"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 4 -->
+                <div class="product-card bg-huubie-card border border-huubie-border rounded-2xl shadow-lg overflow-hidden cursor-pointer group">
+                    <div class="relative h-32 bg-gradient-to-br from-orange-800 to-orange-900">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas%20Pasteler%C3%ADa/4/pedidos/c901a40c.jpg"
+                             alt="Tres Leches Manjar 18"
+                             class="object-cover h-full w-full group-hover:scale-110 transition-transform duration-300">
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="bg-white/20 backdrop-blur-sm p-1.5 rounded-lg hover:bg-white/30 transition-colors">
+                                <i class="icon-heart text-white text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="text-white text-sm font-semibold truncate">Tres Leches Manjar 18pz</h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-blue-400 font-bold text-base">$480.00</p>
+                            <span class="text-[10px] text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded-full">Bajo stock</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-[10px] text-gray-500">18 pz</span>
+                            <button class="btn-primary text-white rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1">
+                                <i class="icon-plus"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 5 -->
+                <div class="product-card bg-huubie-card border border-huubie-border rounded-2xl shadow-lg overflow-hidden cursor-pointer group">
+                    <div class="relative h-32 bg-gradient-to-br from-amber-700 to-amber-800">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas%20Pasteler%C3%ADa/4/pedidos/eb7b0087.jpg"
+                             alt="Tres Leches Moka"
+                             class="object-cover h-full w-full group-hover:scale-110 transition-transform duration-300">
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="bg-white/20 backdrop-blur-sm p-1.5 rounded-lg hover:bg-white/30 transition-colors">
+                                <i class="icon-heart text-white text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="text-white text-sm font-semibold truncate">Tres Leches Moka</h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-blue-400 font-bold text-base">$240.00</p>
+                            <span class="text-[10px] text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">En stock</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-[10px] text-gray-500">1 pz</span>
+                            <button class="btn-primary text-white rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1">
+                                <i class="icon-plus"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 6 - Personalizado -->
+                <div class="product-card bg-huubie-card border border-huubie-border rounded-2xl shadow-lg overflow-hidden cursor-pointer group">
+                    <div class="relative h-32 bg-gradient-to-br from-purple-800 to-purple-900 flex items-center justify-center">
+                        <i class="icon-cake text-4xl text-purple-400"></i>
+                        <div class="absolute top-2 left-2">
+                            <span class="bg-purple-500/90 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                                <i class="icon-magic"></i> PERSONALIZADO
+                            </span>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="text-white text-sm font-semibold truncate">Pastel Personalizado</h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-blue-400 font-bold text-base">$935.00</p>
+                            <span class="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">30 pz</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-[10px] text-gray-500">Desde</span>
+                            <button class="btn-primary text-white rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1">
+                                <i class="icon-magic"></i> Crear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 7 -->
+                <div class="product-card bg-huubie-card border border-huubie-border rounded-2xl shadow-lg overflow-hidden cursor-pointer group">
+                    <div class="relative h-32 bg-gradient-to-br from-red-800 to-red-900">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas%20Pasteler%C3%ADa/4/pedidos/tarta-fresa.jpg"
+                             alt="Tarta de Fresa"
+                             class="object-cover h-full w-full group-hover:scale-110 transition-transform duration-300">
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="bg-white/20 backdrop-blur-sm p-1.5 rounded-lg hover:bg-white/30 transition-colors">
+                                <i class="icon-heart text-white text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="text-white text-sm font-semibold truncate">Tarta de Fresa</h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-blue-400 font-bold text-base">$320.00</p>
+                            <span class="text-[10px] text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">En stock</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-[10px] text-gray-500">6 pz</span>
+                            <button class="btn-primary text-white rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1">
+                                <i class="icon-plus"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 8 - Agotado -->
+                <div class="product-card bg-huubie-card border border-huubie-border rounded-2xl shadow-lg overflow-hidden cursor-pointer group opacity-60">
+                    <div class="relative h-32 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+                        <i class="icon-birthday text-4xl text-gray-500"></i>
+                        <div class="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span class="bg-red-500/90 text-white text-xs font-bold px-3 py-1.5 rounded-full">AGOTADO</span>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="text-white text-sm font-semibold truncate">Red Velvet Especial</h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-gray-500 font-bold text-base">$420.00</p>
+                            <span class="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Sin stock</span>
+                        </div>
+                        <div class="mt-2">
+                            <button class="w-full bg-gray-700 text-gray-400 rounded-lg px-3 py-1.5 text-xs font-medium cursor-not-allowed">
+                                Agotado
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Derecho - Orden Actual -->
+    <div class="w-[28rem] flex flex-col border-l border-huubie-border bg-huubie-card shadow-2xl">
+
+        <!-- Header del Panel -->
+        <div class="p-4 border-b border-huubie-border flex justify-between items-center">
+            <div>
+                <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-bold text-white">Orden Actual</h2>
+                    <span class="bg-blue-500/20 text-blue-400 text-xs font-bold px-2 py-0.5 rounded-full">#P-00368</span>
+                </div>
+                <p class="text-sm text-gray-400 mt-1"><i class="icon-user-1 mr-1"></i> Sara Urbina Coss</p>
+            </div>
+            <button class="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded-lg transition-colors" title="Limpiar orden (ESC)">
+                <i class="icon-trash"></i>
+            </button>
+        </div>
+
+        <!-- Lista de Productos -->
+        <div class="flex-1 overflow-auto p-3 space-y-2 scrollbar-custom">
+
+            <!-- Item 1 -->
+            <div class="group bg-huubie-input border border-huubie-border rounded-xl p-3 hover:border-blue-500/50 transition-all cursor-pointer">
+                <div class="flex justify-between items-start gap-3">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <p class="text-white font-semibold text-sm">Patel Tradicional de Mantequilla</p>
+                            <span class="bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded">8pz</span>
+                        </div>
+                        <p class="text-blue-400 font-bold text-sm mt-1">$460.00</p>
+                        <p class="text-gray-400 text-xs italic mt-1 line-clamp-1">
+                            <i class="icon-message mr-1"></i>¡Feliz Cumpleaños Mamá!
+                        </p>
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
+                        <div class="flex items-center gap-1 bg-huubie-card rounded-lg border border-huubie-border p-1">
+                            <button class="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                                <i class="icon-minus text-xs"></i>
+                            </button>
+                            <span class="text-white font-semibold text-sm w-8 text-center">1</span>
+                            <button class="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                                <i class="icon-plus text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button class="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-colors" title="Editar">
+                                <i class="icon-pencil text-xs"></i>
+                            </button>
+                            <button class="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors" title="Eliminar">
+                                <i class="icon-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-huubie-border flex justify-between items-center">
+                    <span class="text-xs text-gray-400">Subtotal</span>
+                    <span class="text-white font-semibold text-sm">$460.00</span>
+                </div>
+            </div>
+
+            <!-- Item 2 -->
+            <div class="group bg-huubie-input border border-huubie-border rounded-xl p-3 hover:border-blue-500/50 transition-all cursor-pointer">
+                <div class="flex justify-between items-start gap-3">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <p class="text-white font-semibold text-sm">Tres Leches Manjar</p>
+                        </div>
+                        <p class="text-blue-400 font-bold text-sm mt-1">$240.00</p>
+                        <p class="text-gray-400 text-xs mt-1 line-clamp-1">
+                            <i class="icon-info mr-1"></i>Sin nueces, extra crema
+                        </p>
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
+                        <div class="flex items-center gap-1 bg-huubie-card rounded-lg border border-huubie-border p-1">
+                            <button class="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                                <i class="icon-minus text-xs"></i>
+                            </button>
+                            <span class="text-white font-semibold text-sm w-8 text-center">2</span>
+                            <button class="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                                <i class="icon-plus text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button class="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-colors" title="Editar">
+                                <i class="icon-pencil text-xs"></i>
+                            </button>
+                            <button class="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors" title="Eliminar">
+                                <i class="icon-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-huubie-border flex justify-between items-center">
+                    <span class="text-xs text-gray-400">Subtotal</span>
+                    <span class="text-white font-semibold text-sm">$480.00</span>
+                </div>
+            </div>
+
+            <!-- Item 3 - Personalizado -->
+            <div class="group bg-huubie-input border border-huubie-border rounded-xl p-3 hover:border-purple-500/50 transition-all cursor-pointer">
+                <div class="flex justify-between items-start gap-3">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <p class="text-white font-semibold text-sm">Pastel Personalizado 30pz</p>
+                            <span class="bg-purple-500/20 text-purple-400 text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                <i class="icon-magic"></i> Personalizado
+                            </span>
+                        </div>
+                        <p class="text-blue-400 font-bold text-sm mt-1">$935.00</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-gray-400 text-xs flex items-center gap-1">
+                                <i class="icon-camera"></i> 2 fotos
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
+                        <div class="flex items-center gap-1 bg-huubie-card rounded-lg border border-huubie-border p-1">
+                            <button class="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                                <i class="icon-minus text-xs"></i>
+                            </button>
+                            <span class="text-white font-semibold text-sm w-8 text-center">1</span>
+                            <button class="w-7 h-7 flex items-center justify-center rounded-md bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                                <i class="icon-plus text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button class="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-colors" title="Editar">
+                                <i class="icon-pencil text-xs"></i>
+                            </button>
+                            <button class="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors" title="Eliminar">
+                                <i class="icon-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-huubie-border flex justify-between items-center">
+                    <span class="text-xs text-gray-400">Subtotal</span>
+                    <span class="text-white font-semibold text-sm">$935.00</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer con Totales y Botones -->
+        <div class="px-4 py-3 border-t border-huubie-border bg-gradient-to-t from-huubie-card to-huubie-input">
+            <!-- Resumen de Totales -->
+            <div class="space-y-2 mb-3">
+                <div class="flex justify-between text-xs">
+                    <span class="text-gray-400">Subtotal</span>
+                    <span class="text-white font-medium">$1,875.00</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-gray-400">IVA (16%)</span>
+                    <span class="text-white font-medium">$300.00</span>
+                </div>
+                <div class="flex justify-between text-xs hidden" id="discountRow">
+                    <span class="text-gray-400">Descuento</span>
+                    <span class="text-yellow-400 font-medium">-$0.00</span>
+                </div>
+                <div class="border-t border-dashed border-gray-600 pt-2 mt-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-white">Total</span>
+                        <span class="text-2xl font-bold text-blue-400">$2,175.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Métodos de Pago -->
+            <div class="grid grid-cols-4 gap-2 mb-3">
+                <button class="flex flex-col items-center justify-center p-2 rounded-lg bg-huubie-card border border-huubie-border hover:border-green-500/50 hover:bg-green-500/10 transition-all">
+                    <i class="icon-money text-green-400 text-lg mb-1"></i>
+                    <span class="text-[10px] text-gray-400">Efectivo</span>
+                </button>
+                <button class="flex flex-col items-center justify-center p-2 rounded-lg bg-huubie-card border border-huubie-border hover:border-blue-500/50 hover:bg-blue-500/10 transition-all">
+                    <i class="icon-card text-blue-400 text-lg mb-1"></i>
+                    <span class="text-[10px] text-gray-400">Tarjeta</span>
+                </button>
+                <button class="flex flex-col items-center justify-center p-2 rounded-lg bg-huubie-card border border-huubie-border hover:border-purple-500/50 hover:bg-purple-500/10 transition-all">
+                    <i class="icon-wifi text-purple-400 text-lg mb-1"></i>
+                    <span class="text-[10px] text-gray-400">Transferencia</span>
+                </button>
+                <button class="flex flex-col items-center justify-center p-2 rounded-lg bg-huubie-card border border-huubie-border hover:border-orange-500/50 hover:bg-orange-500/10 transition-all">
+                    <i class="icon-mobile text-orange-400 text-lg mb-1"></i>
+                    <span class="text-[10px] text-gray-400">Otro</span>
+                </button>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="grid grid-cols-3 gap-2">
+                <button class="flex items-center justify-center gap-2 border border-gray-600 text-white rounded-xl px-3 py-3 text-xs font-medium hover:bg-gray-700 transition-all">
+                    <i class="icon-printer"></i>
+                    <span>Imprimir</span>
+                </button>
+                <button class="btn-primary text-white rounded-xl px-3 py-3 text-xs font-bold flex items-center justify-center gap-2 shadow-lg col-span-2">
+                    <i class="icon-check-circle"></i>
+                    <span>Terminar Orden</span>
+                    <kbd class="shortcut-badge text-white/70">F10</kbd>
+                </button>
+            </div>
+
+            <!-- Atajos de Teclado -->
+            <div class="mt-3 pt-2 border-t border-huubie-border flex items-center justify-center gap-4 text-[10px] text-gray-500">
+                <span class="flex items-center gap-1"><kbd class="shortcut-badge">F2</kbd> Buscar</span>
+                <span class="flex items-center gap-1"><kbd class="shortcut-badge">ESC</kbd> Limpiar</span>
+                <span class="flex items-center gap-1"><kbd class="shortcut-badge">F10</kbd> Cobrar</span>
+                <span class="flex items-center gap-1"><kbd class="shortcut-badge">F12</kbd> Tema</span>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Modal de Producto -->
+<div id="productModal" class="fixed inset-0 modal-overlay bg-black/60 hidden items-center justify-center z-50">
+    <div class="bg-huubie-card border border-huubie-border rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-auto">
+        <div class="p-6 border-b border-huubie-border flex justify-between items-center">
+            <h3 class="text-xl font-bold text-white">Detalles del Producto</h3>
+            <button class="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-huubie-input transition-colors" onclick="closeProductModal()">
+                <i class="icon-x"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-2 gap-6">
+                <div class="relative h-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden">
+                    <img src="https://huubie.com.mx/alpha_files/Reginas%20Pasteler%C3%ADa/4/pedidos/6cb9caee.jpg"
+                         alt="Producto"
+                         class="object-cover h-full w-full">
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="text-lg font-bold text-white">Patel Tradicional de Mantequilla</h4>
+                        <p class="text-blue-400 font-bold text-2xl mt-2">$460.00</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full">En stock</span>
+                        <span class="bg-blue-500/20 text-blue-400 text-xs px-2 py-1 rounded-full">8 piezas</span>
+                    </div>
+                    <div>
+                        <p class="text-gray-400 text-sm">Delicioso pastel tradicional con cobertura de mantequilla. Perfecto para celebraciones familiares.</p>
+                    </div>
+                    <div class="pt-4">
+                        <label class="text-sm text-gray-400 block mb-2">Cantidad</label>
+                        <div class="flex items-center gap-2">
+                            <button class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                                <i class="icon-minus"></i>
+                            </button>
+                            <input type="number" value="1" min="1"
+                                   class="w-16 text-center bg-huubie-input border border-huubie-border rounded-lg text-white py-2 focus:outline-none focus:border-blue-500">
+                            <button class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                                <i class="icon-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t border-huubie-border flex justify-end gap-3">
+            <button class="px-6 py-2.5 rounded-xl border border-gray-600 text-white hover:bg-gray-700 transition-colors" onclick="closeProductModal()">
+                Cancelar
+            </button>
+            <button class="btn-primary text-white rounded-xl px-6 py-2.5 font-semibold flex items-center gap-2">
+                <i class="icon-plus"></i>
+                Agregar a la orden
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notifications Container -->
+<div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+<script>
+    // Toggle Dark/Light Theme
+    const themeToggle = document.getElementById('themeToggle');
+    const html = document.documentElement;
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('pos-theme') || 'dark';
+    if (savedTheme === 'light') {
+        html.classList.remove('dark');
+    }
+
+    themeToggle.addEventListener('click', () => {
+        html.classList.toggle('dark');
+        localStorage.setItem('pos-theme', html.classList.contains('dark') ? 'dark' : 'light');
+    });
+
+    // Category buttons
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.category-btn').forEach(b => {
+                b.classList.remove('active');
+                b.classList.add('bg-huubie-input', 'text-gray-300');
+            });
+            this.classList.remove('bg-huubie-input', 'text-gray-300');
+            this.classList.add('active', 'text-white');
+        });
+    });
+
+    // Product cards click - open modal
+    document.querySelectorAll('.product-card').forEach(card => {
+        card.addEventListener('click', function() {
+            document.getElementById('productModal').classList.remove('hidden');
+            document.getElementById('productModal').classList.add('flex');
+        });
+    });
+
+    function closeProductModal() {
+        document.getElementById('productModal').classList.add('hidden');
+        document.getElementById('productModal').classList.remove('flex');
+    }
+
+    // Close modal on overlay click
+    document.getElementById('productModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeProductModal();
+        }
+    });
+
+    // Toast notification function
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border ${
+            type === 'success' ? 'bg-green-500/20 border-green-500 text-green-400' :
+            type === 'error' ? 'bg-red-500/20 border-red-500 text-red-400' :
+            'bg-blue-500/20 border-blue-500 text-blue-400'
+        }`;
+        toast.innerHTML = `
+            <i class="icon-${type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'}"></i>
+            <span class="text-sm font-medium">${message}</span>
+        `;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'F2') {
+            e.preventDefault();
+            document.getElementById('searchProduct').focus();
+        }
+        if (e.key === 'Escape') {
+            closeProductModal();
+        }
+        if (e.key === 'F12') {
+            e.preventDefault();
+            themeToggle.click();
+        }
+    });
+
+    // Demo toast on load
+    setTimeout(() => {
+        showToast('POS Clásico v2 cargado exitosamente', 'success');
+    }, 500);
+</script>
+
+</body>
+</html>

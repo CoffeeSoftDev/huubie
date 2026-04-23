@@ -1317,7 +1317,7 @@ class MPedidos extends CRUD {
             SELECT dc.*, u.fullname AS closed_by_name
             FROM {$this->bd}daily_closure dc
             LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
-            WHERE DATE(dc.created_at) = ? AND dc.subsidiary_id = ? AND dc.active = 1
+            WHERE DATE(dc.created_at) = ? AND dc.subsidiary_id = ? AND dc.status = 0 AND dc.active = 1
             LIMIT 1
         ";
         $result = $this->_Read($query, $array);

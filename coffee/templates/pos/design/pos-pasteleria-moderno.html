@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Pastelería - Moderno</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        [data-theme="dark"] {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --bg-input: #1e293b;
+            --bg-header: #1e293b;
+            --bg-sidebar: #0f172a;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-base: #334155;
+            --accent: #8b5cf6;
+            --accent-hover: #7c3aed;
+            --btn-primary: #3b82f6;
+            --btn-success: #10b981;
+            --btn-danger: #ef4444;
+        }
+        [data-theme="light"] {
+            --bg-main: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f8fafc;
+            --bg-input: #f8fafc;
+            --bg-header: #ffffff;
+            --bg-sidebar: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --border-base: #e2e8f0;
+            --accent: #8b5cf6;
+            --accent-hover: #7c3aed;
+            --btn-primary: #3b82f6;
+            --btn-success: #10b981;
+            --btn-danger: #ef4444;
+        }
+        body { background: var(--bg-main); color: var(--text-primary); }
+        .card { background: var(--bg-card); border: 1px solid var(--border-base); }
+        .card-hover:hover { background: var(--bg-card-hover); border-color: var(--accent); }
+        .input-base { background: var(--bg-input); border: 1px solid var(--border-base); color: var(--text-primary); }
+        .input-base:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1); }
+        .btn-primary { background: var(--btn-primary); color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: var(--btn-success); color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-ghost { background: transparent; color: var(--text-secondary); }
+        .btn-ghost:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+        /* Badges de Categoría */
+        .badge-cat { font-size: 10px; padding: 3px 10px; border-radius: 9999px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-chocolate { background: linear-gradient(135deg, rgba(139, 69, 19, 0.3), rgba(180, 83, 9, 0.2)); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.3); }
+        .badge-frutas { background: linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(244, 114, 182, 0.2)); color: #f472b6; border: 1px solid rgba(244, 114, 182, 0.3); }
+        .badge-queso { background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(74, 222, 128, 0.2)); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
+        .badge-merengue { background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(96, 165, 250, 0.2)); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
+        .badge-clasico { background: linear-gradient(135deg, rgba(148, 163, 184, 0.3), rgba(156, 163, 175, 0.2)); color: #9ca3af; border: 1px solid rgba(156, 163, 175, 0.3); }
+
+        /* Pestañas Modernas */
+        .tab-modern {
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .tab-modern:hover { background: var(--bg-card-hover); }
+        .tab-modern.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Producto Card Moderno */
+        .product-modern {
+            background: var(--bg-card);
+            border: 1px solid var(--border-base);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        .product-modern:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        .product-image {
+            height: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .product-image::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.4));
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: var(--border-base); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        /* Estado Vacío */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--bg-card-hover), var(--bg-card));
+            border: 2px dashed var(--border-base);
+        }
+
+        /* Animación de entrada */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in { animation: slideIn 0.3s ease-out; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+    <!-- Header -->
+    <header class="h-16 flex items-center justify-between px-6 border-b" style="border-color: var(--border-base); background: var(--bg-header);">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover));">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 2a6 6 0 00-6 6v3.583l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.583V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold">🎂 Pastelería POS</h1>
+                <p class="text-xs" style="color: var(--text-secondary);">Sistema de pedidos</p>
+            </div>
+        </div>
+
+        <!-- Buscador -->
+        <div class="flex-1 max-w-lg mx-8">
+            <div class="relative">
+                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-secondary);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input type="text" placeholder="Buscar pastel por nombre o ingrediente..."
+                    class="input-base w-full pl-12 pr-4 py-3 rounded-xl text-sm" style="border-radius: 14px;">
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button onclick="toggleTheme()" class="w-10 h-10 rounded-xl flex items-center justify-center transition-colors" style="background: var(--bg-card); border: 1px solid var(--border-base);">
+                <svg id="theme-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+            </button>
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6);">
+                <span class="text-sm font-bold">CS</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Pestañas de Categorías -->
+    <div class="h-auto py-4 px-6 border-b" style="border-color: var(--border-base); background: var(--bg-main);">
+        <div class="flex items-center gap-3">
+            <button class="tab-modern active">✨ Todos</button>
+            <button class="tab-modern">🍫 Chocolate</button>
+            <button class="tab-modern">🍓 Frutas</button>
+            <button class="tab-modern">🧀 Queso</button>
+            <button class="tab-modern">☁️ Merengue</button>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Catálogo (Izquierda) -->
+        <div class="flex-1 p-6 overflow-y-auto">
+            <div class="grid grid-cols-2 xl:grid-cols-3 gap-5">
+                <!-- Selva Negra -->
+                <div class="product-modern animate-in">
+                    <div class="product-image" style="background: linear-gradient(135deg, #451a03 0%, #78350f 50%, #1f1f1f 100%);">
+                        <span class="text-6xl relative z-10">🎂</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="badge-cat badge-chocolate">Chocolate</span>
+                        </div>
+                        <h3 class="font-bold text-base mb-1">Selva Negra</h3>
+                        <p class="text-xs mb-3" style="color: var(--text-secondary);">Bizcocho de chocolate, cereza y crema batida</p>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-2xl font-bold" style="color: var(--btn-primary);">$180</span>
+                                <span class="text-xs ml-1" style="color: var(--text-secondary);">MXN</span>
+                            </div>
+                            <button class="w-10 h-10 rounded-xl flex items-center justify-center transition-all" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover));">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tres Leches -->
+                <div class="product-modern animate-in" style="animation-delay: 50ms;">
+                    <div class="product-image" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fcd34d 100%);">
+                        <span class="text-6xl relative z-10">🥛</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="badge-cat badge-clasico">Clásico</span>
+                        </div>
+                        <h3 class="font-bold text-base mb-1">Tres Leches</h3>
+                        <p class="text-xs mb-3" style="color: var(--text-secondary);">Leche evaporada, condensada y crema</p>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-2xl font-bold" style="color: var(--btn-primary);">$150</span>
+                                <span class="text-xs ml-1" style="color: var(--text-secondary);">MXN</span>
+                            </div>
+                            <button class="w-10 h-10 rounded-xl flex items-center justify-center transition-all" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover));">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Queso con Fresa -->
+                <div class="product-modern animate-in" style="animation-delay: 100ms;">
+                    <div class="product-image" style="background: linear-gradient(135deg, #fecaca 0%, #fca5a5 50%, #f87171 100%);">
+                        <span class="text-6xl relative z-10">🍰</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="badge-cat badge-queso">Queso</span>
+                            <span class="badge-cat badge-frutas">Fresa</span>
+                        </div>
+                        <h3 class="font-bold text-base mb-1">Queso con Fresa</h3>
+                        <p class="text-xs mb-3" style="color: var(--text-secondary);">Cheesecake cremoso con fresas frescas</p>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-2xl font-bold" style="color: var(--btn-primary);">$220</span>
+                                <span class="text-xs ml-1" style="color: var(--text-secondary);">MXN</span>
+                            </div>
+                            <button class="w-10 h-10 rounded-xl flex items-center justify-center transition-all" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover));">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Merengue Italiano -->
+                <div class="product-modern animate-in" style="animation-delay: 150ms;">
+                    <div class="product-image" style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%);">
+                        <span class="text-6xl relative z-10">☁️</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="badge-cat badge-merengue">Merengue</span>
+                        </div>
+                        <h3 class="font-bold text-base mb-1">Merengue Italiano</h3>
+                        <p class="text-xs mb-3" style="color: var(--text-secondary);">Merengue suave y esponjoso</p>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-2xl font-bold" style="color: var(--btn-primary);">$200</span>
+                                <span class="text-xs ml-1" style="color: var(--text-secondary);">MXN</span>
+                            </div>
+                            <button class="w-10 h-10 rounded-xl flex items-center justify-center transition-all" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover));">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Red Velvet -->
+                <div class="product-modern animate-in" style="animation-delay: 200ms;">
+                    <div class="product-image" style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #b91c1c 100%);">
+                        <span class="text-6xl relative z-10">🔴</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="badge-cat badge-chocolate">Chocolate</span>
+                        </div>
+                        <h3 class="font-bold text-base mb-1">Red Velvet</h3>
+                        <p class="text-xs mb-3" style="color: var(--text-secondary);">Terrciopelo rojo con cream cheese</p>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-2xl font-bold" style="color: var(--btn-primary);">$190</span>
+                                <span class="text-xs ml-1" style="color: var(--text-secondary);">MXN</span>
+                            </div>
+                            <button class="w-10 h-10 rounded-xl flex items-center justify-center transition-all" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover));">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chocolate Belga -->
+                <div class="product-modern animate-in" style="animation-delay: 250ms;">
+                    <div class="product-image" style="background: linear-gradient(135deg, #451a03 0%, #78350f 50%, #92400e 100%);">
+                        <span class="text-6xl relative z-10">🍫</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="badge-cat badge-chocolate">Premium</span>
+                        </div>
+                        <h3 class="font-bold text-base mb-1">Chocolate Belga</h3>
+                        <p class="text-xs mb-3" style="color: var(--text-secondary);">Chocolate belga premium 70% cacao</p>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-2xl font-bold" style="color: var(--btn-primary);">$250</span>
+                                <span class="text-xs ml-1" style="color: var(--text-secondary);">MXN</span>
+                            </div>
+                            <button class="w-10 h-10 rounded-xl flex items-center justify-center transition-all" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover));">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Orden (Derecha) -->
+        <div class="w-[440px] border-l flex flex-col" style="border-color: var(--border-base); background: var(--bg-card);">
+            <!-- Header de Orden -->
+            <div class="h-16 flex items-center justify-between px-5 border-b" style="border-color: var(--border-base);">
+                <div>
+                    <h2 class="font-bold text-lg">Orden Actual</h2>
+                    <p class="text-xs" style="color: var(--text-secondary);">3 items agregados</p>
+                </div>
+                <span class="px-3 py-1.5 rounded-full text-xs font-semibold" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2)); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">#ORD-2026-001</span>
+            </div>
+
+            <!-- Lista de Items -->
+            <div class="flex-1 overflow-y-auto p-5 space-y-3">
+                <!-- Item 1: Selva Negra -->
+                <div class="card rounded-xl p-4 animate-in">
+                    <div class="flex items-start gap-3">
+                        <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background: linear-gradient(135deg, #451a03, #78350f);">
+                            <span class="text-xl">🎂</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between mb-1">
+                                <div>
+                                    <h4 class="font-semibold text-sm">Selva Negra</h4>
+                                    <p class="text-xs" style="color: var(--text-secondary);">$180.00 c/u</p>
+                                </div>
+                                <button class="text-red-400 hover:text-red-300 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center gap-1">
+                                    <button class="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold transition-colors" style="background: var(--bg-input); border: 1px solid var(--border-base); color: var(--text-primary);">−</button>
+                                    <span class="text-sm font-semibold w-8 text-center">2</span>
+                                    <button class="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold transition-colors" style="background: var(--accent); color: #fff;">+</button>
+                                </div>
+                                <span class="font-bold text-lg" style="color: var(--btn-primary);">$360</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item 2: Queso con Fresa -->
+                <div class="card rounded-xl p-4 animate-in">
+                    <div class="flex items-start gap-3">
+                        <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background: linear-gradient(135deg, #fecaca, #fca5a5);">
+                            <span class="text-xl">🍰</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between mb-1">
+                                <div>
+                                    <h4 class="font-semibold text-sm">Queso con Fresa</h4>
+                                    <p class="text-xs" style="color: var(--text-secondary);">$220.00 c/u</p>
+                                </div>
+                                <button class="text-red-400 hover:text-red-300 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center gap-1">
+                                    <button class="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold transition-colors" style="background: var(--bg-input); border: 1px solid var(--border-base); color: var(--text-primary);">−</button>
+                                    <span class="text-sm font-semibold w-8 text-center">1</span>
+                                    <button class="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold transition-colors" style="background: var(--accent); color: #fff;">+</button>
+                                </div>
+                                <span class="font-bold text-lg" style="color: var(--btn-primary);">$220</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item 3: Tres Leches -->
+                <div class="card rounded-xl p-4 animate-in">
+                    <div class="flex items-start gap-3">
+                        <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background: linear-gradient(135deg, #fef3c7, #fde68a);">
+                            <span class="text-xl">🥛</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between mb-1">
+                                <div>
+                                    <h4 class="font-semibold text-sm">Tres Leches</h4>
+                                    <p class="text-xs" style="color: var(--text-secondary);">$150.00 c/u</p>
+                                </div>
+                                <button class="text-red-400 hover:text-red-300 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center gap-1">
+                                    <button class="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold transition-colors" style="background: var(--bg-input); border: 1px solid var(--border-base); color: var(--text-primary);">−</button>
+                                    <span class="text-sm font-semibold w-8 text-center">1</span>
+                                    <button class="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold transition-colors" style="background: var(--accent); color: #fff;">+</button>
+                                </div>
+                                <span class="font-bold text-lg" style="color: var(--btn-primary);">$150</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer con Totales y Botones -->
+            <div class="border-t p-5 space-y-4" style="border-color: var(--border-base); background: var(--bg-sidebar);">
+                <div class="space-y-2.5">
+                    <div class="flex justify-between text-sm">
+                        <span style="color: var(--text-secondary);">Subtotal</span>
+                        <span class="font-medium">$730.00</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span style="color: var(--text-secondary);">IVA (16%)</span>
+                        <span class="font-medium">$116.80</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-3 border-t" style="border-color: var(--border-base);">
+                        <span class="text-base font-semibold">Total</span>
+                        <span class="text-2xl font-bold" style="color: var(--btn-primary);">$846.80</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button class="btn-ghost py-3 rounded-xl text-sm font-semibold border transition-all" style="border-color: var(--border-base);">
+                        <div class="flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                            </svg>
+                            Imprimir
+                        </div>
+                    </button>
+                    <button class="btn-success py-3 rounded-xl text-sm font-semibold transition-all shadow-lg" style="box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);">
+                        Terminar Orden
+                    </button>
+                </div>
+                <button class="w-full btn-ghost py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2" style="border: 1px dashed var(--border-base);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    Salir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        }
+
+        // Cargar tema guardado
+        const saved = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', saved);
+    </script>
+</body>
+</html>

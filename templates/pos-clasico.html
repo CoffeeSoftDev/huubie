@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Clásico - Huubie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@coffee-icons/css/coffee-icons.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-[#1F2A37] text-white h-screen overflow-hidden">
+
+<!-- Header Superior -->
+<header class="h-14 bg-[#111827] border-b border-gray-700 flex items-center justify-between px-4">
+    <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+            <i class="icon-birthday text-white"></i>
+        </div>
+        <h1 class="text-lg font-bold text-white">Huubie POS</h1>
+    </div>
+    <div class="flex items-center gap-4">
+        <span class="text-sm text-gray-400">Orden #P-00368</span>
+        <span class="text-sm text-gray-400">|</span>
+        <span class="text-sm text-blue-400">Sara Urbina Coss</span>
+    </div>
+</header>
+
+<!-- Contenedor Principal -->
+<div class="flex h-[calc(100vh-56px)]">
+
+    <!-- Panel Izquierdo - Catálogo -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-[#1F2A37]">
+
+        <!-- Barra de Búsqueda -->
+        <div class="p-4 border-b border-gray-700">
+            <div class="flex items-center gap-3">
+                <div class="relative flex-1 max-w-md">
+                    <input type="text"
+                           id="searchProduct"
+                           placeholder="Buscar productos..."
+                           class="pl-10 py-2 pr-3 rounded-md border border-gray-700 bg-[#111827] text-white w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <i class="icon-search absolute left-3 top-2.5 text-gray-400"></i>
+                </div>
+                <button class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md whitespace-nowrap transition-colors duration-200 text-sm">
+                    ¡Arma tu pastel! 🎂
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs de Categorías -->
+        <div class="px-4 py-3 border-b border-gray-700">
+            <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+                <button class="tab-btn bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 border border-transparent">
+                    <i class="icon-cake"></i>
+                    <span>Chocolate</span>
+                </button>
+                <button class="tab-btn bg-[#283143] text-white px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 border border-gray-600 hover:bg-white/10">
+                    <span>🍓</span>
+                    <span>Frutas</span>
+                </button>
+                <button class="tab-btn bg-[#283143] text-white px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 border border-gray-600 hover:bg-white/10">
+                    <span>🧀</span>
+                    <span>Queso</span>
+                </button>
+                <button class="tab-btn bg-[#283143] text-white px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 border border-gray-600 hover:bg-white/10">
+                    <span>🍰</span>
+                    <span>Merengue</span>
+                </button>
+                <button class="tab-btn bg-[#283143] text-white px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 border border-gray-600 hover:bg-white/10">
+                    <span>👁️</span>
+                    <span>Todos</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Grid de Productos -->
+        <div class="flex-1 overflow-auto p-4">
+            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+
+                <!-- Producto 1 -->
+                <div class="bg-[#111827] border border-gray-700 rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200">
+                    <div class="bg-gray-800 h-28 flex items-center justify-center">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas Pastelería/4/pedidos/6cb9caee.jpg"
+                             alt="Patel Tradicional"
+                             class="object-cover h-full w-full">
+                    </div>
+                    <div class="p-2">
+                        <h3 class="text-white text-sm font-medium truncate">Patel Tradicional de Mantequilla</h3>
+                        <p class="text-blue-300 font-semibold text-sm mt-1">$460.00</p>
+                        <div class="text-right mt-1">
+                            <button class="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded px-2 py-1 text-xs">
+                                <i class="icon-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 2 -->
+                <div class="bg-[#111827] border border-gray-700 rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200">
+                    <div class="bg-gray-800 h-28 flex items-center justify-center">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas Pastelería/4/pedidos/5af93929.jpg"
+                             alt="Tres Leches Manjar"
+                             class="object-cover h-full w-full">
+                    </div>
+                    <div class="p-2">
+                        <h3 class="text-white text-sm font-medium truncate">Tres Leches Manjar</h3>
+                        <p class="text-blue-300 font-semibold text-sm mt-1">$240.00</p>
+                        <div class="text-right mt-1">
+                            <button class="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded px-2 py-1 text-xs">
+                                <i class="icon-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 3 -->
+                <div class="bg-[#111827] border border-gray-700 rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200">
+                    <div class="bg-gray-800 h-28 flex items-center justify-center">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas Pastelería/4/pedidos/c8eaaed0.jpg"
+                             alt="Tres Leches Manjar 12"
+                             class="object-cover h-full w-full">
+                    </div>
+                    <div class="p-2">
+                        <h3 class="text-white text-sm font-medium truncate">Tres Leches Manjar 12pz</h3>
+                        <p class="text-blue-300 font-semibold text-sm mt-1">$360.00</p>
+                        <div class="text-right mt-1">
+                            <button class="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded px-2 py-1 text-xs">
+                                <i class="icon-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 4 -->
+                <div class="bg-[#111827] border border-gray-700 rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200">
+                    <div class="bg-gray-800 h-28 flex items-center justify-center">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas Pastelería/4/pedidos/c901a40c.jpg"
+                             alt="Tres Leches Manjar 18"
+                             class="object-cover h-full w-full">
+                    </div>
+                    <div class="p-2">
+                        <h3 class="text-white text-sm font-medium truncate">Tres Leches Manjar 18pz</h3>
+                        <p class="text-blue-300 font-semibold text-sm mt-1">$480.00</p>
+                        <div class="text-right mt-1">
+                            <button class="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded px-2 py-1 text-xs">
+                                <i class="icon-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 5 -->
+                <div class="bg-[#111827] border border-gray-700 rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200">
+                    <div class="bg-gray-800 h-28 flex items-center justify-center">
+                        <img src="https://huubie.com.mx/alpha_files/Reginas Pastelería/4/pedidos/eb7b0087.jpg"
+                             alt="Tres Leches Moka"
+                             class="object-cover h-full w-full">
+                    </div>
+                    <div class="p-2">
+                        <h3 class="text-white text-sm font-medium truncate">Tres Leches Moka</h3>
+                        <p class="text-blue-300 font-semibold text-sm mt-1">$240.00</p>
+                        <div class="text-right mt-1">
+                            <button class="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded px-2 py-1 text-xs">
+                                <i class="icon-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Producto 6 - Sin imagen -->
+                <div class="bg-[#111827] border border-gray-700 rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200">
+                    <div class="bg-gray-800 h-28 flex items-center justify-center">
+                        <i class="icon-birthday text-3xl text-gray-500"></i>
+                    </div>
+                    <div class="p-2">
+                        <h3 class="text-white text-sm font-medium truncate">Pastel Personalizado</h3>
+                        <p class="text-blue-300 font-semibold text-sm mt-1">$935.00</p>
+                        <div class="text-right mt-1">
+                            <button class="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded px-2 py-1 text-xs">
+                                <i class="icon-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Derecho - Orden Actual -->
+    <div class="w-[25rem] max-w-full flex flex-col border-l border-gray-700 bg-[#1F2A37]">
+
+        <!-- Header del Panel -->
+        <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+            <div class="flex flex-col">
+                <h2 class="text-lg font-semibold text-white">Orden Actual #P-00368</h2>
+                <h3 class="text-sm text-gray-400"><i class="icon-user-1"></i> Sara Urbina Coss</h3>
+            </div>
+            <button class="text-red-400 border border-[#C53030] px-2 py-1 rounded hover:bg-red-700 text-sm">
+                🗑 Limpiar
+            </button>
+        </div>
+
+        <!-- Lista de Productos -->
+        <div class="flex-1 overflow-auto p-3 space-y-3">
+
+            <!-- Item 1 -->
+            <div class="flex justify-between items-center bg-[#1E293B] border border-gray-700 rounded-xl p-3 shadow-sm">
+                <div class="flex-1 space-y-1">
+                    <p class="text-white font-medium text-sm">Patel Tradicional de Mantequilla</p>
+                    <p class="text-blue-300 font-semibold text-sm">$460.00</p>
+                    <p class="text-gray-300 text-xs italic">Dedicatoria: ¡Feliz Cumpleaños Mamá!</p>
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                    <div class="flex items-center gap-2">
+                        <button class="bg-gray-700 text-white rounded px-2 hover:bg-gray-600">−</button>
+                        <input type="number" value="1" min="1"
+                               class="text-white bg-transparent border border-gray-600 rounded text-center w-12 focus:outline-none focus:border-blue-500 text-sm">
+                        <button class="bg-gray-700 text-white rounded px-2 hover:bg-gray-600">+</button>
+                        <button class="text-blue-400 hover:text-blue-600">
+                            <i class="icon-pencil"></i>
+                        </button>
+                        <button class="text-gray-400 hover:text-red-400">
+                            <i class="icon-trash"></i>
+                        </button>
+                    </div>
+                    <p class="text-gray-300 text-sm">Total: $460.00</p>
+                </div>
+            </div>
+
+            <!-- Item 2 -->
+            <div class="flex justify-between items-center bg-[#1E293B] border border-gray-700 rounded-xl p-3 shadow-sm">
+                <div class="flex-1 space-y-1">
+                    <p class="text-white font-medium text-sm">Tres Leches Manjar</p>
+                    <p class="text-blue-300 font-semibold text-sm">$240.00</p>
+                    <p class="text-gray-300 text-xs">Detalles: Sin nueces, extra crema</p>
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                    <div class="flex items-center gap-2">
+                        <button class="bg-gray-700 text-white rounded px-2 hover:bg-gray-600">−</button>
+                        <input type="number" value="2" min="1"
+                               class="text-white bg-transparent border border-gray-600 rounded text-center w-12 focus:outline-none focus:border-blue-500 text-sm">
+                        <button class="bg-gray-700 text-white rounded px-2 hover:bg-gray-600">+</button>
+                        <button class="text-blue-400 hover:text-blue-600">
+                            <i class="icon-pencil"></i>
+                        </button>
+                        <button class="text-gray-400 hover:text-red-400">
+                            <i class="icon-trash"></i>
+                        </button>
+                    </div>
+                    <p class="text-gray-300 text-sm">Total: $480.00</p>
+                </div>
+            </div>
+
+            <!-- Item 3 - Personalizado -->
+            <div class="flex justify-between items-center bg-[#1E293B] border border-gray-700 rounded-xl p-3 shadow-sm">
+                <div class="flex-1 space-y-1">
+                    <p class="text-white font-medium text-sm">Pastel Personalizado 30pz</p>
+                    <p class="text-blue-300 font-semibold text-sm">$935.00</p>
+                    <span class="inline-flex items-center text-xs font-bold text-purple-400">
+                        <i class="icon-cake mr-1"></i> Personalizado
+                    </span>
+                    <p class="text-gray-400 text-xs">
+                        <i class="icon-camera"></i> 2 fotos adjuntas
+                    </p>
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                    <div class="flex items-center gap-2">
+                        <button class="bg-gray-700 text-white rounded px-2 hover:bg-gray-600">−</button>
+                        <input type="number" value="1" min="1"
+                               class="text-white bg-transparent border border-gray-600 rounded text-center w-12 focus:outline-none focus:border-blue-500 text-sm">
+                        <button class="bg-gray-700 text-white rounded px-2 hover:bg-gray-600">+</button>
+                        <button class="text-blue-400 hover:text-blue-600">
+                            <i class="icon-pencil"></i>
+                        </button>
+                        <button class="text-gray-400 hover:text-red-400">
+                            <i class="icon-trash"></i>
+                        </button>
+                    </div>
+                    <p class="text-gray-300 text-sm">Total: $935.00</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer con Totales y Botones -->
+        <div class="px-3 py-2 border-t border-gray-700 bg-[#333D4C]">
+            <div class="space-y-1 text-xs text-gray-300">
+                <div class="flex items-center gap-1 mb-1">
+                    <span class="text-green-400 text-sm">$</span>
+                    <span class="text-white font-semibold italic text-sm">Resumen de pago</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span id="subtotal" class="text-white">$1,875.00</span>
+                </div>
+                <div class="flex justify-between hidden" id="discountRow">
+                    <span>Descuento:</span>
+                    <span id="discountAmount" class="text-yellow-400">-$0.00</span>
+                </div>
+                <div class="flex justify-between hidden" id="pagadoRow">
+                    <span>Pagado:</span>
+                    <span id="pagado" class="text-green-400">$0.00</span>
+                </div>
+                <div class="flex justify-between pt-1 mt-1 border-t border-gray-600">
+                    <span class="font-semibold">Saldo:</span>
+                    <span id="saldo" class="text-red-500 font-bold">$1,875.00</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 mt-2">
+                <button class="border border-gray-600 text-white rounded px-2 py-1.5 text-xs hover:bg-gray-700 transition-colors">
+                    🖨 Imprimir
+                </button>
+                <button class="bg-blue-700 text-white rounded px-2 py-1.5 text-xs hover:bg-blue-800 transition-colors">
+                    Terminar
+                </button>
+                <button class="bg-red-700 text-white rounded px-2 py-1.5 text-xs hover:bg-red-800 transition-colors">
+                    Salir
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
