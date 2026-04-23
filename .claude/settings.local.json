@@ -47,7 +47,12 @@
       "Bash(mv mdl/mdl-pedidos-catalogo.php mdl/mdl-catalogo.php)",
       "Bash(mv mdl/mdl-pedidos-personalizado.php mdl/mdl-personalizado.php)",
       "Bash(mv src/js/pedidos-catalogo.js src/js/catalogo.js)",
-      "Bash(jq --version)"
+      "Bash(jq --version)",
+      "Read(//c/Users/SomxDev/.claude/agents/**)",
+      "Read(//c/Users/SomxDev/.claude/commands/**)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }
