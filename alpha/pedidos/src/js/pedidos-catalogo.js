@@ -1950,7 +1950,7 @@ class CatalogProduct extends Pos {
         const req      = await useFetch({ url: api, data: { opc: "getPayment", id: idFolio } });
         const response = req.order;
 
-    
+
         if (req.total_paid) {
 
             discount       = parseFloat(response.discount) || 0;
@@ -2037,6 +2037,7 @@ class CatalogProduct extends Pos {
                 }
             }
         });
+
         const $btn = $("#btnSuccess");
         const originalHandlers = $._data($btn[0], "events")?.click?.map(e => e.handler) || [];
         $btn.off("click");
@@ -2209,7 +2210,6 @@ class CatalogProduct extends Pos {
             if (btnOk) btnOk.disabled = false;
         }
     }
-
 
     // Products.
     showProductDetails(productId, options = {}) {

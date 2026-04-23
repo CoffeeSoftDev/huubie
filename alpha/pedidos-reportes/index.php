@@ -27,7 +27,7 @@
     <script src="<?=PATH_BASE?>src/plugins/bootbox.min.js"></script>
     <script src="<?=PATH_BASE?>src/js/complementos.js"></script>
     <script src="<?=PATH_BASE?>src/js/plugins.js?t=<?php echo time(); ?>"></script>
-    <script src="<?=PATH_BASE?>src/js/coffeSoft.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_BASE?>src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
 
     <link rel="stylesheet" href="<?=PATH_BASE?>src/plugins/datatables/1.13.6/css/dataTables.bootstrap5.min.css">
 

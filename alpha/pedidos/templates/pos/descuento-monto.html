@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicar Descuento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f1723; font-family: 'Inter', system-ui, sans-serif; color: #fff; }
+        .tab-btn { transition: all 0.15s; }
+        .tab-btn.active { background: #1a2332; color: #fff; border-color: #7c3aed; }
+        .input-mono { font-family: 'Roboto Mono', 'Consolas', monospace; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Modal de Descuento -->
+    <div class="w-full max-w-md">
+
+        <!-- Header -->
+        <div class="flex items-center gap-2 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-white">Aplicar Descuento</h2>
+                <p class="text-xs text-gray-400">Selecciona el tipo de descuento a aplicar</p>
+            </div>
+        </div>
+
+        <!-- Card Principal -->
+        <div class="bg-[#141d2b] border border-gray-800 rounded-2xl p-5 space-y-5">
+
+            <!-- Tabs de Tipo de Descuento -->
+            <div class="flex gap-2">
+                <button class="tab-btn active flex-1 py-2.5 px-4 rounded-lg text-sm font-bold border border-gray-700 bg-[#1a2332] text-gray-300" onclick="cambiarTab('monto')">
+                    💰 Monto fijo
+                </button>
+                <button class="tab-btn flex-1 py-2.5 px-4 rounded-lg text-sm font-bold border border-gray-700 bg-[#1a2332] text-gray-300" onclick="cambiarTab('porcentaje')">
+                    📊 Porcentaje
+                </button>
+            </div>
+
+            <!-- Resumen de la orden -->
+            <div class="bg-[#1a2332] rounded-xl p-4 border border-gray-700">
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-400">Subtotal</span>
+                        <span class="text-white font-semibold" id="lblSubtotal">$2,500.00</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-400">Descuento</span>
+                        <span class="text-emerald-400 font-semibold" id="lblDescuento">-$0.00</span>
+                    </div>
+                    <div class="border-t border-gray-700 pt-2 flex justify-between">
+                        <span class="text-sm font-bold text-white">Total a pagar</span>
+                        <span class="text-lg font-extrabold text-green-400" id="lblTotal">$2,500.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel: Descuento por Monto -->
+            <div id="panelMonto" class="space-y-3">
+                <label class="text-sm font-semibold text-gray-300">Monto del descuento</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">$</span>
+                    <input type="number"
+                           id="inputMonto"
+                           min="0"
+                           step="0.01"
+                           placeholder="0.00"
+                           class="w-full bg-[#1a2332] border border-gray-700 rounded-lg py-3 pl-8 pr-4 text-lg text-white font-bold input-mono focus:outline-none focus:border-emerald-500"
+                           oninput="actualizarMonto(this.value)">
+                </div>
+                <p class="text-[10px] text-gray-500">Monto máximo permitido: <span class="text-emerald-400 font-semibold" id="lblMaximoMonto">$2,500.00</span></p>
+            </div>
+
+            <!-- Panel: Descuento por Porcentaje -->
+            <div id="panelPorcentaje" class="hidden space-y-3">
+                <label class="text-sm font-semibold text-gray-300">Porcentaje de descuento</label>
+                <div class="relative">
+                    <input type="number"
+                           id="inputPorcentaje"
+                           min="0"
+                           max="100"
+                           step="0.5"
+                           placeholder="0"
+                           class="w-full bg-[#1a2332] border border-gray-700 rounded-lg py-3 pl-4 pr-8 text-lg text-white font-bold input-mono focus:outline-none focus:border-purple-500"
+                           oninput="actualizarPorcentaje(this.value)">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">%</span>
+                </div>
+                <p class="text-[10px] text-gray-500">Porcentaje máximo: <span class="text-purple-400 font-semibold">100%</span></p>
+            </div>
+
+            <!-- Información adicional -->
+            <div class="bg-blue-600/10 border border-blue-500/30 rounded-xl p-3">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <p class="text-[10px] text-blue-400/80" id="lblInfoTitulo">Equivalente a</p>
+                        <p class="text-sm font-bold text-blue-400" id="lblInfoValor">0% del subtotal</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ahorro -->
+            <div class="bg-green-600/10 border border-green-500/30 rounded-xl p-3">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                    <div>
+                        <p class="text-[10px] text-green-400/80">Ahorro con este descuento</p>
+                        <p class="text-sm font-bold text-green-400" id="lblAhorro">$0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta de monto máximo -->
+            <div id="alertaMaximo" class="hidden bg-orange-600/10 border border-orange-500/30 rounded-xl p-3">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                    <p class="text-xs text-orange-400">El monto ingresado excede el subtotal. Se ajustará automáticamente.</p>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="flex gap-2 pt-2">
+                <button class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-[#1a2332] border border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white transition-all" onclick="cancelar()">
+                    Cancelar
+                </button>
+                <button class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-600/20 hover:from-emerald-500 hover:to-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed" id="btnAplicar" disabled onclick="aplicarDescuento()">
+                    Aplicar Descuento
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Configuración inicial
+        let subtotal = 2500.00; // Este valor debe venir del backend
+        let tabActual = 'monto';
+        let montoActual = 0;
+        let porcentajeActual = 0;
+        let descuentoActual = 0;
+
+        // Formateador de moneda
+        function formatPrice(value) {
+            return '$' + parseFloat(value || 0).toFixed(2);
+        }
+
+        // Cambiar entre tabs
+        function cambiarTab(tab) {
+            tabActual = tab;
+
+            // Actualizar tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Mostrar/ocultar paneles
+            if (tab === 'monto') {
+                document.getElementById('panelMonto').classList.remove('hidden');
+                document.getElementById('panelPorcentaje').classList.add('hidden');
+                document.getElementById('lblInfoTitulo').textContent = 'Equivalente a';
+                actualizarDesdeMonto();
+            } else {
+                document.getElementById('panelMonto').classList.add('hidden');
+                document.getElementById('panelPorcentaje').classList.remove('hidden');
+                document.getElementById('lblInfoTitulo').textContent = 'Monto del descuento';
+                actualizarDesdePorcentaje();
+            }
+        }
+
+        // Actualizar desde input de monto
+        function actualizarMonto(valor) {
+            montoActual = parseFloat(valor) || 0;
+            porcentajeActual = (montoActual / subtotal) * 100;
+            actualizarDesdeMonto();
+        }
+
+        // Actualizar UI cuando cambia monto
+        function actualizarDesdeMonto() {
+            // Validar monto máximo
+            if (montoActual > subtotal) {
+                document.getElementById('alertaMaximo').classList.remove('hidden');
+                montoActual = subtotal;
+            } else {
+                document.getElementById('alertaMaximo').classList.add('hidden');
+            }
+
+            descuentoActual = montoActual;
+            actualizarUI();
+
+            document.getElementById('lblInfoValor').textContent = porcentajeActual.toFixed(1) + '% del subtotal';
+        }
+
+        // Actualizar desde input de porcentaje
+        function actualizarPorcentaje(valor) {
+            porcentajeActual = parseFloat(valor) || 0;
+            montoActual = subtotal * (porcentajeActual / 100);
+            actualizarDesdePorcentaje();
+        }
+
+        // Actualizar UI cuando cambia porcentaje
+        function actualizarDesdePorcentaje() {
+            descuentoActual = montoActual;
+            actualizarUI();
+
+            document.getElementById('lblInfoValor').textContent = formatPrice(montoActual);
+        }
+
+        // Actualizar interfaz común
+        function actualizarUI() {
+            const total = subtotal - descuentoActual;
+
+            document.getElementById('lblDescuento').textContent = '-' + formatPrice(descuentoActual);
+            document.getElementById('lblTotal').textContent = formatPrice(total);
+            document.getElementById('lblAhorro').textContent = formatPrice(descuentoActual);
+
+            // Habilitar/deshabilitar botón
+            document.getElementById('btnAplicar').disabled = descuentoActual <= 0;
+        }
+
+        // Aplicar descuento
+        function aplicarDescuento() {
+            const resultado = {
+                tipo: tabActual,
+                monto: montoActual,
+                porcentaje: porcentajeActual,
+                descuento: descuentoActual,
+                total: subtotal - descuentoActual
+            };
+
+            console.log('Aplicando descuento:', resultado);
+            // Aquí iría la lógica para cerrar el modal y aplicar
+        }
+
+        // Cancelar
+        function cancelar() {
+            console.log('Cancelando descuento');
+        }
+
+        // Inicializar
+        document.getElementById('lblMaximoMonto').textContent = formatPrice(subtotal);
+        document.getElementById('lblSubtotal').textContent = formatPrice(subtotal);
+        actualizarUI();
+    </script>
+</body>
+</html>

@@ -1,11 +1,4 @@
-// update version 1.3
-
-/*
- actualizacion de infoCards
- actualizacion de createLayout
- actualizacion de coffeTable3
- actualizacion de crete Table
-*/
+// Coffeesoft rev. 1.0.0 
 
 class Complements {
 
@@ -21,7 +14,7 @@ class Complements {
             if (source.hasOwnProperty(key)) {
                 // Verificar si el valor es un objeto y si el target tiene la misma propiedad
                 if (typeof source[key] === 'object' && source[key] !== null) {
-                    // Si el target no tiene la propiedad o no es un objeto, inicializarla como un objeto vacÃ­o
+                    // Si el target no tiene la propiedad o no es un objeto
                     if (!target[key] || typeof target[key] !== 'object') {
                         target[key] = {};
                     }
@@ -52,7 +45,7 @@ class Complements {
         let opts = options != undefined ? options : defaults;
 
         const $ul = $("<ul>", { class: "dropdown-menu", "aria-labelledby": "dropdownMenu" });
-        //Hago una iteraciÃ³n sobre el array de etiquetas li
+        //Hago una iteraciÃƒÂ³n sobre el array de etiquetas li
         opts.forEach((m) => {
             let html = m.icon != "" ? `<i class="text-info ${m.icon}"></i>` : "<i class='icon-minus'></i>";
             html += m.text != "" ? m.text : "";
@@ -73,10 +66,10 @@ class Complements {
             html: '<i class="icon-dot-3 text-info"></i>',
         });
 
-        //Se puede hacer un return aquÃ­ y retorna el objeto jQuery
+        //Se puede hacer un return aquÃƒÂ­ y retorna el objeto jQuery
         const $container = $("<div>", { class: "dropdown" });
         $container.append($button, $ul);
-        //Yo hago el return aquÃ­ porque convierto el objeto a un string.
+        //Yo hago el return aquÃƒÂ­ porque convierto el objeto a un string.
         return $container.prop("outerHTML");
     }
 
@@ -87,19 +80,19 @@ class Complements {
             method: 'POST',
             data: { opc: 'ls' },
             url: this._link, // La URL debe ser especificada en las opciones
-            success: () => { } // FunciÃ³n vacÃ­a por defecto
+            success: () => { } // FunciÃƒÂ³n vacÃƒÂ­a por defecto
         };
 
         // Mezclar los valores predeterminados con las opciones proporcionadas
         let opts = Object.assign({}, defaults, options);
 
-        // Validar que la URL estÃ© definida
+        // Validar que la URL estÃƒÂ© definida
         if (!opts.url) {
             console.error('URL es obligatoria.');
             return;
         }
 
-        // Realizar la peticiÃ³n fetch
+        // Realizar la peticiÃƒÂ³n fetch
         fetch(opts.url, {
             method: opts.method,
             headers: {
@@ -109,300 +102,14 @@ class Complements {
         })
             .then((response) => response.json())
             .then((data) => {
-                // Llamar a la funciÃ³n success si se proporciona
+                // Llamar a la funciÃƒÂ³n success si se proporciona
                 if (typeof opts.success === 'function') {
                     opts.success(data);
                 }
             })
             .catch((error) => {
-                console.error('Error en la peticiÃ³n:', error);
+                console.error('Error en la peticiÃƒÂ³n:', error);
             });
-    }
-
-    createExcel(options) {
-        const defaults = {
-            parent: "root",
-            tableId: "myTable",
-            fileName: "export",
-            onSuccess: () => { },
-            onError: () => { }
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        const rgbToHex = (rgb) => {
-            if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return null;
-            const match = rgb.match(/\d+/g);
-            if (!match) return null;
-            return match.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('').toUpperCase();
-        };
-
-        const getColorFromElement = (element) => {
-            const classList = element.className;
-
-            const colorMap = {
-                'bg-green-50': 'E8F5E9', 'bg-green-100': 'C6EFCE', 'bg-green-200': 'A5D6A7', 'bg-green-300': '81C784', 'bg-green': '00B050',
-                'bg-blue-50': 'E3F2FD', 'bg-blue-100': 'BDD7EE', 'bg-blue-200': '90CAF9', 'bg-blue-300': '64B5F6', 'bg-blue': '4472C4',
-                'bg-yellow-50': 'FFFDE7', 'bg-yellow-100': 'FFE699', 'bg-yellow-200': 'FFF59D', 'bg-yellow-300': 'FFF176', 'bg-yellow': 'FFC000',
-                'bg-red-50': 'FFEBEE', 'bg-red-100': 'FFC7CE', 'bg-red-200': 'EF9A9A', 'bg-red-300': 'E57373', 'bg-red': 'FF0000',
-                'bg-gray-50': 'F9FAFB', 'bg-gray-100': 'F3F4F6', 'bg-gray-200': 'E5E7EB', 'bg-gray-300': 'D1D5DB', 'bg-gray': '808080',
-                'bg-purple-50': 'F3E5F5', 'bg-purple-100': 'E4DFEC', 'bg-purple-200': 'CE93D8', 'bg-purple-300': 'BA68C8', 'bg-purple': '7030A0',
-                'bg-orange-50': 'FFF3E0', 'bg-orange-100': 'FFD9B3', 'bg-orange-200': 'FFCC80', 'bg-orange-300': 'FFB74D', 'bg-orange': 'FF6600',
-                'bg-pink-50': 'FCE4EC', 'bg-pink-100': 'F8BBD0', 'bg-pink-200': 'F48FB1', 'bg-pink-300': 'F06292', 'bg-pink': 'E91E63',
-                'bg-indigo-50': 'E8EAF6', 'bg-indigo-100': 'C5CAE9', 'bg-indigo-200': '9FA8DA', 'bg-indigo-300': '7986CB', 'bg-indigo': '3F51B5',
-                'bg-teal-50': 'E0F2F1', 'bg-teal-100': 'B2DFDB', 'bg-teal-200': '80CBC4', 'bg-teal-300': '4DB6AC', 'bg-teal': '009688',
-                'bg-[#283341]': '283341', 'bg-[#1F2A37]': '1F2A37'
-            };
-
-            // Ordenar por longitud descendente para matchear primero la clase mas especifica
-            // (ej: 'bg-gray-200' antes que 'bg-gray', evita que shades caigan en la base oscura)
-            const sortedEntries = Object.entries(colorMap).sort((a, b) => b[0].length - a[0].length);
-            for (const [className, color] of sortedEntries) {
-                if (classList.includes(className)) return color;
-            }
-
-            const bgColor = window.getComputedStyle(element).backgroundColor;
-            return rgbToHex(bgColor);
-        };
-
-        const getTextColor = (element) => {
-            const classList = element.className;
-
-            if (classList.includes('text-white')) return 'FFFFFF';
-            if (classList.includes('text-red')) return 'FF0000';
-            if (classList.includes('text-green')) return '00FF00';
-            if (classList.includes('text-blue')) return '0000FF';
-
-            const color = window.getComputedStyle(element).color;
-            return rgbToHex(color) || '000000';
-        };
-
-        const exportTable = async () => {
-            alert({
-                icon: "info",
-                title: "Exportando...",
-                text: "Generando archivo Excel, por favor espera.",
-                btn1: false
-            });
-
-            const table = document.getElementById(opts.tableId);
-
-            if (!table) {
-                alert({
-                    icon: "error",
-                    title: "Error",
-                    text: "No se encontró la tabla para exportar.",
-                    btn1: true,
-                    btn1Text: "Ok"
-                });
-                opts.onError('Table not found');
-                return;
-            }
-
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('Datos');
-
-            const rows = table.querySelectorAll('tr');
-            const excelData = [];
-
-            const parseCurrency = (text) => {
-                if (typeof text !== 'string') return null;
-                // Normaliza espacios no rompibles y todos los whitespace
-                const trimmed = text.replace(/\u00a0/g, ' ').trim();
-                if (!trimmed) return null;
-                // Debe contener el simbolo $ y al menos un digito
-                if (!/\$/.test(trimmed) || !/\d/.test(trimmed)) return null;
-                // Acepta: $1,500.00 | $ 1,500.00 | -$1,500.00 | $-1,500.00 | ($1,500.00)
-                const currencyRegex = /^\(?\s*-?\s*\$\s*-?\s*\d{1,3}(?:,\d{3})*(?:\.\d+)?\s*\)?$|^\(?\s*-?\s*\$\s*-?\s*\d+(?:\.\d+)?\s*\)?$/;
-                if (!currencyRegex.test(trimmed)) return null;
-                const isNegative = /^\(.*\)$/.test(trimmed) || /-/.test(trimmed);
-                const cleaned = trimmed.replace(/[^\d.]/g, '');
-                if (cleaned === '' || isNaN(cleaned)) return null;
-                const num = parseFloat(cleaned);
-                return isNegative ? -num : num;
-            };
-
-            rows.forEach((row) => {
-                const cells = row.querySelectorAll('th, td');
-                const rowData = [];
-                const rowStyles = [];
-
-                cells.forEach((cell) => {
-                    const text = (cell.innerText || cell.textContent || '').trim();
-                    const isHeader = cell.tagName === 'TH';
-                    const numericValue = isHeader ? null : parseCurrency(text);
-                    const isCurrency = numericValue !== null;
-
-                    rowData.push(isCurrency ? numericValue : text);
-
-                    const bgColor = getColorFromElement(cell);
-                    const textColor = getTextColor(cell);
-                    const isBold = cell.classList.contains('font-bold') ||
-                        cell.classList.contains('fw-bold') ||
-                        isHeader;
-                    const textAlign = cell.classList.contains('text-center') ? 'center' :
-                        cell.classList.contains('text-right') || cell.classList.contains('text-end') ? 'right' : 'left';
-
-                    rowStyles.push({
-                        bgColor,
-                        textColor,
-                        isBold,
-                        textAlign,
-                        isHeader,
-                        isCurrency
-                    });
-                });
-
-                excelData.push({ data: rowData, styles: rowStyles });
-            });
-
-            excelData.forEach((rowInfo) => {
-                const excelRow = worksheet.addRow(rowInfo.data);
-
-                excelRow.eachCell((cell, colNumber) => {
-                    const style = rowInfo.styles[colNumber - 1];
-
-                    cell.font = {
-                        bold: style.isBold,
-                        color: { argb: 'FF' + style.textColor },
-                        size: style.isHeader ? 12 : 11,
-                        name: 'Calibri'
-                    };
-
-                    if (style.bgColor) {
-                        cell.fill = {
-                            type: 'pattern',
-                            pattern: 'solid',
-                            fgColor: { argb: 'FF' + style.bgColor }
-                        };
-                    }
-
-                    if (style.isCurrency) {
-                        cell.numFmt = '"$"#,##0.00';
-                    }
-
-                    const cellText = cell.value != null ? cell.value.toString() : '';
-                    cell.alignment = {
-                        horizontal: style.isCurrency ? 'right' : style.textAlign,
-                        vertical: 'middle',
-                        wrapText: cellText.includes('\n')
-                    };
-
-                    cell.border = {
-                        top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
-                        left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
-                        bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
-                        right: { style: 'thin', color: { argb: 'FFD0D0D0' } }
-                    };
-                });
-
-                let maxLines = 1;
-                excelRow.eachCell((cell) => {
-                    const lines = cell.value ? cell.value.toString().split('\n').length : 1;
-                    maxLines = Math.max(maxLines, lines);
-                });
-                excelRow.height = maxLines > 1 ? maxLines * 15 : 20;
-            });
-
-            worksheet.columns.forEach((column) => {
-                let maxLength = 10;
-                column.eachCell({ includeEmpty: true }, (cell) => {
-                    const cellLength = cell.value ? cell.value.toString().length : 0;
-                    maxLength = Math.max(maxLength, cellLength);
-                });
-                column.width = Math.min(maxLength + 3, 50);
-            });
-
-            const finalFileName = `${opts.fileName}.xlsx`;
-
-            const buffer = await workbook.xlsx.writeBuffer();
-            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-            if (window.showSaveFilePicker) {
-                try {
-                    const handle = await window.showSaveFilePicker({
-                        suggestedName: finalFileName,
-                        types: [{
-                            description: 'Archivo Excel',
-                            accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
-                        }]
-                    });
-
-                    const writable = await handle.createWritable();
-                    await writable.write(blob);
-                    await writable.close();
-
-                    opts.onSuccess(finalFileName);
-                } catch (err) {
-                    if (err.name !== 'AbortError') {
-                        console.error('Error al guardar:', err);
-                        alert({
-                            icon: "error",
-                            title: "Error",
-                            text: "No se pudo guardar el archivo.",
-                            btn1: true,
-                            btn1Text: "Ok"
-                        });
-                        opts.onError(err);
-                    }
-                }
-            } else {
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = finalFileName;
-                link.click();
-                URL.revokeObjectURL(link.href);
-
-                opts.onSuccess(finalFileName);
-            }
-        };
-
-        exportTable();
-    }
-
-    loader(options = {}) {
-        const opts = Object.assign({ parent: '', text: '', size: 'xs', type: 'quantum' }, options);
-        const sizes = { xs: 10, sm: 14, md: 24, lg: 36 };
-        const s = sizes[opts.size] || 10;
-        const fontSize = s < 14 ? 12 : 14;
-
-        const keyframes = {
-            aurora: `@keyframes coffeeiaAurora{0%{border-radius:50%;transform:scale(1) rotate(0deg);background:linear-gradient(135deg,#ec4899,#3b82f6)}25%{background:linear-gradient(135deg,#8b5cf6,#a855f7)}50%{border-radius:40% 60% 60% 40%/60% 40% 60% 40%;transform:scale(1.05) rotate(180deg);background:linear-gradient(135deg,#6366f1,#8b5cf6)}75%{background:linear-gradient(135deg,#d946ef,#ec4899)}100%{border-radius:50%;transform:scale(1) rotate(360deg);background:linear-gradient(135deg,#ec4899,#3b82f6)}}`,
-            nebula: `@keyframes coffeeiaNebula{0%{border-radius:60% 40% 30% 70%/60% 30% 70% 40%;background:linear-gradient(135deg,#3b82f6,#8b5cf6)}33%{background:linear-gradient(135deg,#ec4899,#d946ef)}50%{border-radius:30% 60% 70% 40%/50% 60% 30% 60%}66%{background:linear-gradient(135deg,#a855f7,#6366f1)}100%{border-radius:60% 40% 30% 70%/60% 30% 70% 40%;background:linear-gradient(135deg,#3b82f6,#8b5cf6)}}`,
-            crystal: `@keyframes coffeeiaCrystal{0%{border-radius:50%;transform:rotate(0deg);background:linear-gradient(135deg,#6366f1,#3b82f6)}50%{border-radius:45% 55% 60% 40%/55% 40% 60% 45%;transform:rotate(180deg);background:linear-gradient(135deg,#8b5cf6,#ec4899)}100%{border-radius:50%;transform:rotate(360deg);background:linear-gradient(135deg,#6366f1,#3b82f6)}}`,
-            quantum: `@keyframes coffeeiaQuantum{0%{border-radius:50%;transform:translate(0,0);background:#ec4899}25%{background:#3b82f6}50%{border-radius:40% 60% 50% 50%;transform:translate(1px,-1px);background:#8b5cf6}75%{background:#a855f7}100%{border-radius:50%;transform:translate(0,0);background:#ec4899}}`
-        };
-
-        const animations = {
-            aurora: 'coffeeiaAurora 2s ease-in-out infinite',
-            nebula: 'coffeeiaNebula 2.5s ease-in-out infinite',
-            crystal: 'coffeeiaCrystal 3s ease-in-out infinite',
-            quantum: 'coffeeiaQuantum 2s steps(8) infinite'
-        };
-
-        if (!document.getElementById('coffeeia-loader-css')) {
-            const style = document.createElement('style');
-            style.id = 'coffeeia-loader-css';
-            style.textContent = Object.values(keyframes).join('');
-            document.head.appendChild(style);
-        }
-
-        const animation = animations[opts.type] || animations.nebula;
-        const textHtml = opts.text ? `<span style="color:#374151;font-weight:500;font-size:${fontSize}px">${opts.text}</span>` : '';
-
-        const html = `
-            <div class="coffeeia-loader" style="display:inline-flex;align-items:center;gap:8px">
-                <div style="width:${s}px;height:${s}px;border-radius:50%;animation:${animation}"></div>
-                ${textHtml}
-            </div>
-        `;
-
-        if (opts.parent) {
-            const target = opts.parent.startsWith('#') || opts.parent.startsWith('.') ? opts.parent : '#' + opts.parent;
-            $(target).append(html);
-        }
-
-        return html;
     }
 
 }
@@ -412,70 +119,6 @@ class Components extends Complements {
 
     constructor(link, div_modulo) {
         super(link, div_modulo);
-    }
-
-
-
-    detailCard(options = {}) {
-        const defaults = {
-            parent: "body",
-            title: "",
-            subtitle: "",
-            class: "space-y-2",
-            data: [],
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        const isCols2 = opts.class.includes("cols-2");
-        let contentClass = isCols2
-            ? `grid grid-cols-2 ${opts.class.replace("cols-2", "")}`
-            : `flex flex-col ${opts.class}`;
-
-        let infoHtml = `<div class="${contentClass}">`;
-
-        opts.data.forEach(item => {
-            if (item.type === "div") {
-                infoHtml += `<div class="${item.class || ''}">${item.html || ''}</div>`;
-            } else if (item.type === "status") {
-                infoHtml += `
-                <div class="flex items-center mb-1">
-                    <span class="text-gray-400 font-medium flex items-center text-base">
-                        ${item.icon ? `<i class="${item.icon} mr-2"></i>` : ""}
-                        ${item.text}:
-                    </span>
-                    <span class="ml-2 px-3 py-1 rounded-full text-xs font-bold ${item.color || "bg-gray-500"}">${item.value}</span>
-                </div>
-            `;
-            } else if (item.type === "observacion") {
-                infoHtml += `
-                <div class="col-span-2 mt-2">
-                    <label class="text-gray-400 font-medium text-base mb-1 block">${item.text || "Observación"}:</label>
-                    <div class="bg-[#28324c] rounded p-3 text-gray-300 min-h-[80px]">${item.value || ""}</div>
-                </div>
-            `;
-            } else {
-                infoHtml += `
-                <div class="flex items-center mb-1">
-                    <span class="text-gray-400 font-medium flex items-center text-base">
-                        ${item.icon ? `<i class="${item.icon} mr-2"></i>` : ""}
-                        ${item.text}:
-                    </span>
-                    <span class="ml-2 font-semibold text-white text-base">${item.value}</span>
-                </div>
-            `;
-            }
-        });
-
-        infoHtml += `</div>`;
-
-        const html = `
-        <div class="text-white rounded-xl p-3 min-w-[320px]">
-            ${infoHtml}
-        </div>
-    `;
-
-        $(`#${opts.parent}`).html(html);
     }
 
     createItemCard(options) {
@@ -501,18 +144,18 @@ class Components extends Complements {
 
         let opts = Object.assign({}, defaults, options);
 
-        // 📜 Título principal del grupo de tarjetas
+        // ðŸ“œ TÃ­tulo principal del grupo de tarjetas
         let title = $('<h3>', {
             class: 'text-lg font-semibold text-white mb-2 px-4',
             text: opts.title || ''
         });
 
-        // 📜 Contenedor principal del grid de tarjetas
+        // ðŸ“œ Contenedor principal del grid de tarjetas
         let container = $('<div>', {
             class: 'w-full flex gap-4 justify-start p-4'
         });
 
-        // 🔄 Generar cada tarjeta a partir de la data
+        // ðŸ”„ Generar cada tarjeta a partir de la data
         opts.json.forEach(item => {
             let imgContent = '';
 
@@ -531,8 +174,8 @@ class Components extends Complements {
                 `<div class="group w-50 h-[200px] bg-[#333D4C] rounded-lg shadow-lg overflow-hidden p-4 flex flex-col justify-between cursor-pointer transition-all hover:shadow-xl hover:scale-105">
                   ${imgContent}
                 <div class="flex-grow flex flex-col justify-center">
-                    <h2 class="text-lg font-semibold text-white font-[Poppins] group-hover:text-blue-400">${item.titulo}</h2>
-                    ${item.descripcion ? `<p class="text-gray-400 font-[Poppins]">${item.descripcion}</p>` : ""}
+                    <h2 class="text-lg font-semibold text-white group-hover:text-blue-400">${item.titulo}</h2>
+                    ${item.descripcion ? `<p class="text-gray-400 ">${item.descripcion}</p>` : ""}
                 </div>
             </div>`
             ).click(() => {
@@ -548,7 +191,7 @@ class Components extends Complements {
             container.append(card);
         });
 
-        // 🎯 Insertar el grid en el DOM
+        // ðŸŽ¯ Insertar el grid en el DOM
         $('#' + opts.parent).append(title, container);
     }
 
@@ -562,18 +205,19 @@ class Components extends Complements {
             title: "",
             text: " ",
             icon: "warning",
-            scrollbarPadding: false,
+
             showCancelButton: true,
             confirmButtonText: "Aceptar",
             cancelButtonText: "Cancelar",
             ...options.opts,
             customClass: {
+                popup: "bg-[#1F2A37] text-white rounded-lg shadow-lg",
                 title: "text-2xl font-semibold",
                 content: "text-gray-300",
                 confirmButton:
                     "bg-[#1C64F2] hover:bg-[#0E9E6E] text-white py-2 px-4 rounded",
                 cancelButton:
-                    "bg-[#111928] text-white border border-gray-500 py-2 px-4 rounded hover:bg-[#111928]",
+                    "bg-transparent text-white border border-gray-500 py-2 px-4 rounded hover:bg-[#111928]",
             },
         };
 
@@ -614,7 +258,7 @@ class Components extends Complements {
                             window[opts.fn]();
 
                         } else if (opts.methods) {
-                            // Obtener las llaves de los mÃ©todos
+                            // Obtener las llaves de los mÃƒÂ©todos
                             let methodKeys = Object.keys(opts.methods);
                             methodKeys.forEach((key) => {
                                 const method = opts.methods[key];
@@ -647,7 +291,6 @@ class Components extends Complements {
 
             parent: 'lsTable',
             coffeesoft: false,
-            fn_coffeesoft: 'createCoffeTable3',
 
             conf: {
                 datatable: true,
@@ -660,58 +303,88 @@ class Components extends Complements {
                 send: (data) => { }
             }
 
+
         };
 
+        // configurations.
         const dataConfig = Object.assign(defaults.conf, options.conf);
+
+
         let opts = Object.assign(defaults, options);
-        if (dataConfig.datatable && opts.coffeesoft) opts.scrollable = false;
         const idFilter = options.idFilterBar ? options.idFilterBar : '';
 
-        if (idFilter) {
+        if (idFilter) { // se activo la validacion por filtro
 
             const sendData = { tipo: 'text', opc: 'ls', ...options.data };
+            var extendsAjax = null; // extender la funcion ajax
 
-            $(`#${idFilter}`).validar_contenedor(sendData, async (datos) => {
 
-                if (dataConfig.beforeSend) $(`#${options.parent}`).Loading();
+            $(`#${idFilter}`).validar_contenedor(sendData, (datos) => {
 
-                const data = await useFetch({ url: this._link, data: datos });
+                // console.log('opts', dataConfig);
 
-                if (!options.extends) {
+                let beforeSend = (dataConfig.beforeSend) ? '#' + options.parent : '';
 
-                    let attr_table_filter = {
-                        data: data,
-                        f_size: '14',
-                        id: 'tbSearch'
-                    };
+                extendsAjax = fn_ajax(datos, this._link, beforeSend);
 
-                    attr_table_filter = Object.assign(attr_table_filter, opts.attr);
 
-                    opts.methods.send(data);
+                if (!options.extends) { // si la variable extends no esta definida se ejectuta de forma normal
 
-                    if (opts.success)
-                        opts.success(data);
 
-                    if (opts.coffeesoft) {
+                    extendsAjax.then((data) => {
 
-                        attr_table_filter.parent = opts.parent;
-                        if (dataConfig.datatable) attr_table_filter.scrollable = false;
-                        this[opts.fn_coffeesoft](attr_table_filter);
 
-                    } else {
+                        let attr_table_filter = {
+                            data: data,
+                            f_size: '14',
+                            id: 'tbSearch'
+                        };
 
-                        $('#' + options.parent).rpt_json_table2(attr_table_filter);
-                    }
+                        attr_table_filter = Object.assign(attr_table_filter, opts.attr);
 
-                    if (dataConfig.datatable) {
-                        window[dataConfig.fn_datatable]('#' + attr_table_filter.id, dataConfig.pag, dataConfig.filterColumns);
-                    }
+                        opts.methods.send(data);
 
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                        if (opts.success)
+                            opts.success(data);
+
+
+                        if (opts.coffeesoft) {
+
+                            attr_table_filter.parent = opts.parent;
+
+                            this.createCoffeTable(attr_table_filter);
+
+                        } else {
+
+                            $('#' + options.parent).rpt_json_table2(attr_table_filter);
+                        }
+
+                        if (dataConfig.datatable) {
+                            window[dataConfig.fn_datatable]('#' + attr_table_filter.id, dataConfig.pag);
+                        }
+
+
+
+
+
+
+                    });
+
 
                 }
 
+
             });
+
+            if (opts.extends) {
+                return extendsAjax;
+            }
+
+
+
+
+
+
 
         } else {
 
@@ -720,22 +393,33 @@ class Components extends Complements {
                 ...opts.data
             };
 
-            $(`#${opts.parent}`).Loading();
 
-            useFetch({ url: this._link, data: sendData }).then((data) => {
 
-                if (!opts.extends) {
+            extendsAjax = fn_ajax(sendData, this._link, '#' + opts.parent);
+
+
+            if (!opts.extends) { // si la variable extends no esta definida se ejectuta de forma normal
+
+
+                extendsAjax.then((data) => {
 
                     opts.methods.send(data);
+
                     this.processData(data, opts, dataConfig);
 
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-                }
+                });
 
-            });
+
+            }
+
+
 
         }
+
+
+
+
 
     }
 
@@ -779,7 +463,7 @@ class Components extends Complements {
         const jsonForm = options.json || formulario;
         // Fusionar opciones con valores por defecto
         const opts = Object.assign(defaults, options);
-        opts.methods = Object.assign({}, defaults.methods, options.methods);  // Asegurar que los mÃ©todos personalizados se fusionen correctamente
+        opts.methods = Object.assign({}, defaults.methods, options.methods);  // Asegurar que los mÃƒÂ©todos personalizados se fusionen correctamente
 
         $('#' + opts.parent)[opts.plugin]({ data: jsonForm, class: opts.class, type: 'default', id: opts.id, Element: opts.type });
 
@@ -794,7 +478,7 @@ class Components extends Complements {
                 if ($element.length > 0) {
                     // Establecer valor dependiendo del tipo de elemento
                     if ($element.is('select')) {
-                        // Seleccionar la opciÃ³n correcta en el select
+                        // Seleccionar la opciÃƒÂ³n correcta en el select
                         $element.val(opts.autofill[frm]).trigger('change');
                     } else {
                         // Para otros elementos como input o textarea
@@ -908,7 +592,7 @@ class Components extends Complements {
             const htmlElements = item.opc ? item.opc : item.element;
             switch (htmlElements) {
                 case "input":
-                    // Agregar clase de alineaciÃ³n segÃºn el tipo de `item`
+                    // Agregar clase de alineaciÃƒÂ³n segÃƒÂºn el tipo de `item`
                     if (item.tipo === "cifra" || item.tipo === "numero") {
                         attr.class += " text-end";
                     }
@@ -983,7 +667,7 @@ class Components extends Complements {
                     opts.forEach((dropdownItem) => {
                         const $li = $("<li>");
 
-                        // Construir el contenido dinÃ¡mico con Ã­conos y texto
+                        // Construir el contenido dinÃƒÂ¡mico con ÃƒÂ­conos y texto
                         let html = dropdownItem.icon && dropdownItem.icon !== ""
                             ? `<i class="text-info ${dropdownItem.icon}"></i>`
                             : "<i class='icon-minus'></i>";
@@ -995,7 +679,7 @@ class Components extends Complements {
                             class: "dropdown-item",
                             id: dropdownItem.id,
                             href: dropdownItem.href || "#",
-                            html: html, // Usar el HTML construido con Ã­conos y texto
+                            html: html, // Usar el HTML construido con ÃƒÂ­conos y texto
                         });
 
                         if (dropdownItem.onClick) {
@@ -1023,7 +707,7 @@ class Components extends Complements {
 
     ModalForm(options) {
 
-        // ConfiguraciÃ³n para formularios.
+        // ConfiguraciÃƒÂ³n para formularios.
         const idFormulario = options.id ? options.id : 'modalForm';
         const components = options.components
             ? options.components
@@ -1147,7 +831,7 @@ class Components extends Complements {
                     let formData = new FormData($('#' + conf.id)[0]);
                     const datos = {};
                     formData.forEach((value, key) => (datos[key] = value));
-                    // Agregar datos dinÃ¡micos
+                    // Agregar datos dinÃƒÂ¡micos
                     const dynamicData = {};
                     if (conf.dynamicValues)
                         Object.keys(conf.dynamicValues).forEach((key) => {
@@ -1212,7 +896,7 @@ class Components extends Complements {
                 if ($element.length > 0) {
                     // Establecer valor dependiendo del tipo de elemento
                     if ($element.is('select')) {
-                        // Seleccionar la opciÃ³n correcta en el select
+                        // Seleccionar la opciÃƒÂ³n correcta en el select
                         $element.val(conf.autofill[frm]).trigger('change');
                     } else {
                         // Para otros elementos como input o textarea
@@ -1277,7 +961,7 @@ class Components extends Complements {
         //         });
 
         //         // fetch(this._link, {
-        //         //     method: 'POST', // MÃ©todo HTTP
+        //         //     method: 'POST', // MÃƒÂ©todo HTTP
         //         //     body: datos, // FormData como cuerpo de la solicitud
 
         //         // }).then(response => { }).then(data => {
@@ -1622,7 +1306,7 @@ class Components extends Complements {
 
     createTableForm2(options) {
 
-        // 📜 ** Definición de configuración por defecto **
+        // ðŸ“œ ** DefiniciÃ³n de configuraciÃ³n por defecto **
 
         let defaults = {
             id: options.id || 'root', // Identificador de referencia
@@ -1653,7 +1337,7 @@ class Components extends Complements {
                 json: [
                     { opc: "input", lbl: "Nombre", id: "nombre", class: "col-12", tipo: "texto", required: true },
                     {
-                        opc: "select", lbl: "Categoría", id: "categoria", class: "col-12", data: [
+                        opc: "select", lbl: "CategorÃ­a", id: "categoria", class: "col-12", data: [
 
                             { id: "1", valor: "Platillo" },
                             { id: "2", valor: "Bebida" },
@@ -1678,7 +1362,7 @@ class Components extends Complements {
         let opts = this.ObjectMerge(defaults, options);
         let opts_table = Object.assign({}, defaults.table, options.table);
 
-        // 🔵 Corrección del error en la asignación de `success`
+        // ðŸ”µ CorrecciÃ³n del error en la asignaciÃ³n de `success`
         opts.form.success = (data) => {
             this.createTable(opts_table);
             opts.success(data);
@@ -1686,7 +1370,7 @@ class Components extends Complements {
 
         };
 
-        // 📜 **Funciones para abrir y cerrar el formulario**
+        // ðŸ“œ **Funciones para abrir y cerrar el formulario**
         const OpenForm = (form, tb, btn) => {
             $(tb).removeClass("col-md-12").addClass("col-md-8");
             $(form).parent().removeClass("d-none");
@@ -1700,7 +1384,7 @@ class Components extends Complements {
         };
 
 
-        // 🔵 **Generación del Layout sin usar primaryLayout**
+        // ðŸ”µ **GeneraciÃ³n del Layout sin usar primaryLayout**
 
 
         let layout = `
@@ -1741,7 +1425,7 @@ class Components extends Complements {
 
         $("#" + opts.parent).append(layout);
 
-        // 📜 **Asignar eventos después de agregar el layout**
+        // ðŸ“œ **Asignar eventos despuÃ©s de agregar el layout**
         $("#btnClose").on("click", function () {
             closeForm(`#${opts.form.id}`, "#layoutTable", "#addRecetasSub");
         });
@@ -1758,7 +1442,7 @@ class Components extends Complements {
     createTableForm(options) {
         let name = options.id ? options.id : 'tableForm';
 
-        // 📜 ** Definición de configuración por defecto **
+        // ðŸ“œ ** DefiniciÃ³n de configuraciÃ³n por defecto **
 
 
         let defaults = {
@@ -1806,7 +1490,7 @@ class Components extends Complements {
         let opts = this.ObjectMerge(defaults, options);
         let opts_table = Object.assign({}, defaults.table, options.table);
 
-        // 🔵 Corrección del error en la asignación de `success`
+        // ðŸ”µ CorrecciÃ³n del error en la asignaciÃ³n de `success`
         opts.form.success = (data) => {
             this.createTable(opts_table);
             opts.success(data);
@@ -1814,7 +1498,7 @@ class Components extends Complements {
 
         };
 
-        // 📜 **Funciones para abrir y cerrar el formulario**
+        // ðŸ“œ **Funciones para abrir y cerrar el formulario**
         const OpenForm = (form, tb, btn) => {
             $(tb).removeClass("col-md-12").addClass("col-md-8");
             $(form).parent().removeClass("d-none");
@@ -1828,7 +1512,7 @@ class Components extends Complements {
         };
 
 
-        // 🔵 **Generación del Layout sin usar primaryLayout**
+        // ðŸ”µ **GeneraciÃ³n del Layout sin usar primaryLayout**
 
 
         let layout = `
@@ -1861,7 +1545,7 @@ class Components extends Complements {
 
         $("#" + opts.parent).append(layout);
 
-        // 📜 **Asignar eventos después de agregar el layout**
+        // ðŸ“œ **Asignar eventos despuÃ©s de agregar el layout**
         $("#btnClose").on("click", function () {
             closeForm(`#${opts.id}`, "#layoutTable", "#addRecetasSub");
         });
@@ -1894,63 +1578,39 @@ class Components extends Complements {
             onEdit: () => { },
             onDelete: () => { },
             extends: true,
-            f_size: 12,
+            f_size: 14,
             includeColumnForA: false,
             border_table: "border border-gray-300",
-            border_row: "border-t border-gray-300",
+            border_row: "border-t border-gray-200",
             color_row_alt: "bg-gray-100",
-            striped: false,
-            hover: false,
-            hoverColor: 'hover:bg-gray-100 '
+            striped: false
         };
 
         if (options.theme === 'dark') {
             defaults.dark = true;
             defaults.color_th = "bg-[#374151] text-gray-300";
-            defaults.color_row = "bg-[#283341]";
+            defaults.color_row = "bg-[#283341]  ";
             defaults.color_group = "bg-[#334155] text-white";
             defaults.class = "w-full table-auto text-sm text-gray-300";
             defaults.border_table = "";
             defaults.border_row = "border-t border-gray-700";
             defaults.color_row_alt = "bg-[#111827]";
-        }
-        else if (options.theme === 'corporativo') {
+        } else if (options.theme === 'corporativo') {
             defaults.color_th = "bg-[#003360] text-white";
-            defaults.color_row = "";
-            defaults.color_group = "bg-gray-100 ";
-            defaults.class = "w-full text-sm ";
-            defaults.border_table = "border rounded-lg  border-gray-300";
+            defaults.color_row = "bg-white ";
+            defaults.color_group = "bg-[#D0E3FF] ";
+            defaults.class = "w-full table-auto text-sm ";
+            defaults.border_table = "border border-gray-300";
             defaults.border_row = "border-t border-gray-300";
-            defaults.color_row_alt = "bg-gray-100";
-        }
-
-        else if (options.theme === 'light') {
+            defaults.color_row_alt = "bg-gray-200";
+        } else {
             defaults.color_th = "bg-gray-100 text-gray-600";
-            defaults.color_row = "";
-            defaults.color_group = "bg-gray-100 ";
-            defaults.class = "w-full text-sm ";
-            defaults.border_table = "border rounded-lg border-gray-300";
-            defaults.border_row = "border-t border-gray-300";
-            defaults.color_row_alt = "bg-gray-50";
-        }
-
-        else if (options.theme === 'shadcdn') {
-            defaults.color_th = "bg-[#111827] text-white";
-            defaults.color_row = "bg-white text-[#111827]";
-            defaults.color_group = "bg-[#F1F5F9]";
-            defaults.class = "w-full table-auto text-sm";
-            defaults.border_table = "border rounded-md border-[#CBD5E1]";
-            defaults.border_row = "border-t border-[#E2E8F0]";
-            defaults.color_row_alt = "bg-[#F8FAFC]";
-        }
-        else {
-            defaults.color_th = "bg-[#F2F5F9] text-[#003360]";
             defaults.color_row = "bg-white hover:bg-gray-600";
             defaults.color_group = "bg-gray-200";
             defaults.class = "w-full table-auto text-sm text-gray-800";
-            defaults.border_table = "border rounded-lg  border-gray-300";
+            defaults.border_table = "border border-gray-300";
             defaults.border_row = "border-t border-gray-200";
-            defaults.color_row_alt = "bg-gray-50";
+            defaults.color_row_alt = "bg-gray-100";
         }
 
         const opts = Object.assign({}, defaults, options);
@@ -1960,14 +1620,14 @@ class Components extends Complements {
 
         if (opts.title) {
             const titleRow = $(`
-            <div class="flex flex-col py-2 ">
-                <span class="text-lg font-semibold ${opts.dark ? 'text-gray-100' : 'text-gray-800'}">${opts.title}</span>
+            <div class="flex flex-col px-4 py-3  border-b ${opts.dark ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-white'}">
+                <h2 class="text-base font-semibold ${opts.dark ? 'text-gray-100' : 'text-gray-800'}">${opts.title}</h2>
                 ${opts.subtitle ? `<p class="text-sm ${opts.dark ? 'text-gray-400' : 'text-gray-600'} mt-1">${opts.subtitle}</p>` : ''}
             </div>`);
             container.append(titleRow);
         }
 
-        const table = $("<table>", { id: opts.id, class: ` border-separate border-spacing-0 ${opts.border_table} ${opts.class}` });
+        const table = $("<table>", { id: opts.id, class: `border-separate border-spacing-0  ${opts.border_table} ${opts.class}` });
         const thead = $("<thead>");
 
         if (opts.data.thead) {
@@ -1990,7 +1650,6 @@ class Components extends Complements {
                         }
                     });
                     thead.append(headerRow);
-
                 } else {
                     columnHeaders.forEach(columnGroup => {
                         const headerGroup = $("<tr>");
@@ -2025,67 +1684,15 @@ class Components extends Complements {
         }
 
         table.append(thead);
-        const tbody = $("<tbody>");
+        const tbody = $("<tbody>", { class: '' });
 
         opts.data.row.forEach((data, i) => {
-
-            // 🚩 Detectamos fila de agrupación horizontal
-            if (data.colgroup) {
-                const isCustom = typeof data.colgroup === 'object' && data.colgroup.class;
-                const colspan = opts.data.thead?.length || Object.keys(data).length - 2; // exclude id, colgroup
-                const labelKey = Object.keys(data).find(key => !['id', 'colgroup'].includes(key));
-                const labelText = data[labelKey] || "";
-                const paddingClass = isCustom ? "" : (labelText ? " py-2 " : " py-1 ");
-                const colgroupColor = isCustom ? data.colgroup.class : opts.color_group;
-                const content = isCustom ? "" : labelText;
-                const tdClass = isCustom
-                    ? `h-[2px] ${colgroupColor}`
-                    : `px-3 ${paddingClass} font-semibold lowercase capitalize ${opts.border_row} ${colgroupColor}`;
-
-                const colgroupRow = $("<tr>").append(
-                    $("<td>", {
-                        colspan: colspan,
-                        class: tdClass,
-                        html: content
-                    })
-                );
-
-                tbody.append(colgroupRow);
-                return; // Salta esta iteración
-            }
-
-
-
-            let bg_grupo = "";
-
-            if (data.opc) {
-                if (data.opc == 1) {
-                    bg_grupo = opts.color_group + " font-bold";
-                } else if (data.opc == 2) {
-                    bg_grupo = opts.color_group + " text-primary fw-bold ";
-                }
-            }
-
-
-
-            let colorBg = bg_grupo || (opts.striped && i % 2 === 0 ? opts.color_row_alt : opts.color_row);
-
-            let hoverClass = "";
-            if (opts.hover && !bg_grupo) {
-                if (opts.hoverColor) {
-                    hoverClass = opts.hoverColor;
-                } else {
-                    hoverClass = opts.theme === 'dark' ? 'hover:bg-[#334155]' : 'hover:bg-gray-50';
-                }
-            }
-
+            const colorBg = opts.striped && i % 2 === 0 ? opts.color_row_alt : opts.color_row;
             delete data.opc;
 
             const tr = $("<tr>", {
-                class: `${hoverClass}`,
+                class: ``,
             });
-
-
 
             Object.keys(data).forEach((key, colIndex) => {
                 if (["btn", "a", "dropdown", "id"].includes(key)) return;
@@ -2098,16 +1705,16 @@ class Components extends Complements {
                 let cellAttributes = {
                     id: `${key}_${data.id}`,
                     style: `font-size:${opts.f_size}px;`,
-                    class: `${align} ${opts.border_row} px-2 py-2 truncate ${colorBg} `,
+                    class: `${align} ${opts.border_row} px-3 py-2 truncate ${colorBg}`,
                     html: tdText
                 };
 
 
 
-                // Si opts.extends está activo y data[key] es objeto, sobrescribe atributos
+                // Si opts.extends estÃ¡ activo y data[key] es objeto, sobrescribe atributos
                 if (opts.extends && typeof data[key] === 'object' && data[key] !== null) {
                     cellAttributes = Object.assign(cellAttributes, data[key]);
-                    cellAttributes.class += `${align} px-2 py-2 ${opts.border_row} ${colorBg} `;
+                    cellAttributes.class += ` ${opts.border_row} ${colorBg}`;
                 }
 
                 tr.append($("<td>", cellAttributes));
@@ -2116,46 +1723,46 @@ class Components extends Complements {
             let actions = '';
 
             if (data.a?.length) {
-                actions = $("<td>", { class: `px-2 py-2 text-center ${colorBg} ${opts.border_row}` });
-                const actionsWrapper = $("<div>", { class: "flex justify-end items-center" });
+                actions = $("<td>", { class: `px-3 py-2  w-15 relative text-end justify-end items-center ${colorBg} ${opts.border_row}` });
                 data.a.forEach(atributos => {
+
                     const button_a = $("<a>", atributos);
-                    actionsWrapper.append(button_a);
+                    actions.append(button_a);
                 });
-                actions.append(actionsWrapper);
                 tr.append(actions);
             }
 
             if (data.dropdown) {
-                actions = $("<td>", { class: `px-2 py-2 relative justify-center items-center ${colorBg} ${opts.border_row}` });
+                actions = $("<td>", {
+                    class: `px-2 py-2 w-10 relative justify-center items-center ${colorBg} ${opts.border_row}`
+                });
 
                 const wrapper = $("<div>", {
                     class: "relative"
                 });
 
                 const btn = $("<button>", {
-                    class: "icon-dot-3 text-gray-600 hover:text-blue-600",
+                    class: "icon-dot-3 text-gray-200 hover:text-gray-600",
                     click: function (e) {
                         e.stopPropagation();
-                        $("ul.dropdown-menu").hide(); // cerrar todos los menús antes
-
-                        $(this).next("ul").toggle();
+                        $("ul.dropdown-menu").hide(); // cerrar todos los menÃºs antes
+                        $(this).next("ul").toggle();  // abrir solo el actual
                     }
                 });
 
                 const menu = $("<ul>", {
-                    class: "dropdown-menu absolute top-full right-0 mt-2 w-44 z-10 bg-white border rounded-md shadow-md hidden"
+                    class: "dropdown-menu absolute top-full right-0 mt-2 w-44 z-10 bg-[#1F2A37] border rounded-md shadow-md hidden"
                 });
 
                 data.dropdown.forEach((item) =>
                     menu.append(`
-                    <li><a onclick="${item.onclick}"text-left class="block px-4 py-2 text-sm hover:bg-gray-100 text-gray-800">
-                    <i class="${item.icon} "></i> ${item.text}</a></li>`)
+                        <li>
+                            <a onclick="${item.onclick}" class="block px-4 py-2 text-sm hover:bg-[#283341] text-gray-200 text-left">
+                                <i class="${item.icon}"></i> ${item.text}
+                            </a>
+                        </li>
+                    `)
                 );
-
-
-
-
 
                 wrapper.append(btn, menu);
                 actions.append(wrapper);
@@ -2182,568 +1789,7 @@ class Components extends Complements {
         `).appendTo("head");
     }
 
-    createCoffeTable2(options) {
-        const defaults = {
-            theme: 'light',
-            subtitle: null,
-            dark: false,
-            parent: "root",
-            id: "coffeeSoftGridTable2",
-            title: null,
-            data: { thead: [], row: [] },
-            center: [],
-            right: [],
-            fixed: [],
-            selectable: false,
-            folding: false,
-            collapsed: false,
-            emptyMessage: "No se encontraron registros",
-            emptyIcon: "icon-calendar-1",
-            color_th: "bg-[#003360] text-gray-100",
-            color_row: "",
-            color_group: "bg-gray-200",
-            class: "w-full table-auto text-sm text-gray-800",
-            extends: true,
-            f_size: 12,
-            border_table: "",
-            border_row: "border-t border-gray-300",
-            color_row_alt: "bg-gray-100",
-            striped: false,
-            hover: false,
-            bordered: false,
-        };
-
-        if (options.theme === 'corporativo') {
-            defaults.color_th = "bg-[#003360] text-white";
-            defaults.color_row = "";
-            defaults.color_group = "bg-gray-100";
-            defaults.class = "w-full text-sm";
-            defaults.border_table = "rounded-lg";
-            defaults.border_row = "border-t border-gray-300";
-            defaults.color_row_alt = "bg-gray-100";
-        }
-
-        if (options.theme === 'dark') {
-            defaults.dark = true;
-            defaults.color_th = "bg-[#374151] text-gray-300";
-            defaults.color_row = "bg-[#283341]";
-            defaults.color_group = "bg-[#334155] text-white";
-            defaults.class = "w-full text-sm text-gray-300";
-            defaults.border_table = "";
-            defaults.border_row = "border-t border-gray-700";
-            defaults.color_row_alt = "bg-[#111827]";
-        }
-
-        const opts = Object.assign({}, defaults, options);
-
-        const container = $("<div>", { class: "rounded-lg h-full" });
-
-        if (opts.title) {
-            const titleRow = $(`
-            <div class="flex flex-col py-2">
-                <span class="text-lg font-semibold ${opts.dark ? 'text-gray-100' : 'text-gray-800'}">${opts.title}</span>
-                ${opts.subtitle ? `<p class="text-sm ${opts.dark ? 'text-gray-400' : 'text-gray-600'} mt-1">${opts.subtitle}</p>` : ''}
-            </div>`);
-            container.append(titleRow);
-        }
-
-        if (!opts.data.row || opts.data.row.length === 0) {
-            const emptyState = $(`
-                <div class="flex flex-col items-center justify-center py-12 px-4 rounded-lg">
-                    <i class="${opts.emptyIcon} text-4xl text-gray-400 mb-3"></i>
-                    <p class="text-base font-medium text-gray-500">${opts.emptyMessage}</p>
-                    <p class="text-sm text-gray-400 mt-1">Intenta ajustar los filtros de búsqueda</p>
-                </div>
-            `);
-            container.append(emptyState);
-            $(`#${opts.parent}`).html(container);
-            return;
-        }
-
-        const tableWrapper = $("<div>", {
-            class: "overflow-x-auto relative rounded-lg border border-gray-300",
-            css: {
-                maxWidth: "100%",
-                borderRadius: "0.5rem",
-                overflow: "auto",
-                position: "relative"
-            }
-        });
-
-        const table = $("<table>", {
-            id: opts.id,
-            class: `border-separate border-spacing-0 ${opts.border_table} ${opts.class}`,
-            css: {
-                borderCollapse: "separate",
-                borderSpacing: "0",
-                position: "relative"
-            }
-        });
-
-        const thead = $("<thead>");
-        const fixedStyles = [];
-        let leftOffset = 0;
-        let colIdx = 0;
-
-        const borderColor = opts.dark ? 'border-gray-700' : 'border-gray-100';
-        const borderedClass = opts.bordered ? `border ${borderColor}` : '';
-
-        // Generar thead desde opts.data.thead si existe, sino desde las claves del primer row
-        if (opts.data.thead && opts.data.thead.length > 0) {
-            if (opts.extends) {
-                const columnHeaders = opts.data.thead;
-                if (Array.isArray(columnHeaders)) {
-                    const headerRow = $('<tr>');
-                    columnHeaders.forEach((column, idx) => {
-                        colIdx = idx + 1;
-                        const isFixed = opts.fixed.includes(colIdx);
-
-                        if (typeof column === 'string') {
-                            let thClass = `text-center px-3 py-2 ${opts.color_th} capitalize font-semibold ${borderedClass}`;
-                            if (isFixed) {
-                                thClass += ` sticky z-20 border-r border-gray-300`;
-                                fixedStyles.push({ col: colIdx, left: leftOffset });
-                                leftOffset += 150;
-                            }
-                            headerRow.append($("<th>", {
-                                class: thClass,
-                                style: `font-size:${opts.f_size}px;`,
-                                'data-col': colIdx
-                            }).html(column));
-                        } else {
-                            const complexHeaderRow = $('<tr>');
-                            Object.keys(column).forEach(key => {
-                                const cell = (typeof column[key] === 'object')
-                                    ? $('<th>', column[key])
-                                    : $('<th>', { text: column[key], class: `text-center ${opts.color_th}` });
-                                complexHeaderRow.append(cell);
-                            });
-                            thead.append(complexHeaderRow);
-                        }
-                    });
-                    thead.append(headerRow);
-                }
-            } else {
-                const simpleHeaderRow = $('<tr>');
-                opts.data.thead.forEach((header, idx) => {
-                    colIdx = idx + 1;
-                    const isFixed = opts.fixed.includes(colIdx);
-                    let thClass = `text-center px-3 py-2 capitalize ${opts.color_th} font-semibold ${borderedClass}`;
-                    if (isFixed) {
-                        thClass += ` sticky z-20 border-r border-gray-300`;
-                        fixedStyles.push({ col: colIdx, left: leftOffset });
-                        leftOffset += 150;
-                    }
-                    simpleHeaderRow.append($("<th>", {
-                        class: thClass,
-                        style: `font-size:${opts.f_size}px;`,
-                        'data-col': colIdx
-                    }).html(header));
-                });
-                thead.append(simpleHeaderRow);
-            }
-        } else {
-            // Auto-generar thead desde las claves del primer row (excluyendo colgroup rows)
-            const firstDataRow = opts.data.row.find(r => !r.colgroup);
-            if (firstDataRow) {
-                const autoHeaderRow = $("<tr>");
-                for (let clave in firstDataRow) {
-                    if (["btn", "a", "dropdown", "id", "opc", "colgroup"].includes(clave)) continue;
-
-                    colIdx++;
-
-                    const isFixed = opts.fixed.includes(colIdx);
-                    let displayClave = clave;
-                    let thClass = `px-2 py-2 ${opts.color_th} capitalize text-center font-semibold ${borderedClass}`;
-
-                    if (isFixed) {
-                        thClass += ` sticky z-20 border-r border-gray-300`;
-                        fixedStyles.push({ col: colIdx, left: leftOffset });
-                        leftOffset += 150;
-                    }
-
-                    autoHeaderRow.append($("<th>", {
-                        class: thClass,
-                        style: `font-size:${opts.f_size}px;`,
-                        'data-col': colIdx
-                    }).html(displayClave));
-                }
-                thead.append(autoHeaderRow);
-            }
-        }
-
-        table.append(thead);
-
-        // Calcular el número total de columnas para colspan
-        const totalCols = colIdx;
-
-        const tbody = $("<tbody>");
-        let currentGroupId = null;
-        let groupIndex = 0;
-
-        opts.data.row.forEach((data, i) => {
-            // 🚩 Detectamos fila de agrupación horizontal (colgroup)
-            if (data.colgroup) {
-                const isCustom = typeof data.colgroup === 'object' && data.colgroup.class;
-                const colspan = totalCols || opts.data.thead?.length || Object.keys(data).filter(k => !['id', 'colgroup'].includes(k)).length;
-                const labelKey = Object.keys(data).find(key => !['id', 'colgroup'].includes(key));
-                const labelText = data[labelKey] || "";
-                const paddingClass = isCustom ? "" : (labelText ? " py-2 " : " py-1 ");
-                const colgroupColor = isCustom ? data.colgroup.class : opts.color_group;
-                const content = isCustom ? "" : labelText;
-                const tdClass = isCustom
-                    ? `h-[2px] ${colgroupColor}`
-                    : `px-3 ${paddingClass} font-semibold lowercase capitalize ${opts.border_row} ${colgroupColor}`;
-
-                const colgroupRow = $("<tr>").append(
-                    $("<td>", {
-                        colspan: colspan,
-                        class: tdClass,
-                        html: content
-                    })
-                );
-
-                tbody.append(colgroupRow);
-                return;
-            }
-
-            let bg_grupo = "";
-            let isGroupRow = false;
-
-            if (data.opc) {
-                if (data.opc == 1) {
-                    bg_grupo = opts.color_group + " capitalize font-semibold ";
-                    isGroupRow = true;
-                    groupIndex++;
-                    currentGroupId = `group_${opts.id}_${groupIndex}`;
-                }
-            }
-
-            let colorBg = bg_grupo || (opts.striped && i % 2 === 0 ? opts.color_row_alt : opts.color_row);
-
-            if (opts.hover && !bg_grupo) {
-                colorBg += opts.theme === 'dark' ? ' hover:bg-[#334155]' : ' hover:bg-gray-50';
-            }
-
-            const originalOpc = data.opc;
-            delete data.opc;
-
-            const tr = $("<tr>");
-
-            if (originalOpc) {
-                tr.attr('data-opc', originalOpc);
-            }
-
-            if (opts.folding && isGroupRow) {
-                tr.attr('data-group-header', currentGroupId);
-                tr.attr('data-collapsed', opts.collapsed ? 'true' : 'false');
-            } else if (opts.folding && currentGroupId && originalOpc != 2) {
-                tr.attr('data-group-member', currentGroupId);
-                if (opts.collapsed) {
-                    tr.addClass('hidden');
-                }
-            }
-
-            let colIdx = 0;
-            let isFirstCell = true;
-
-            Object.keys(data).forEach((key) => {
-                if (["btn", "a", "dropdown", "id"].includes(key)) return;
-
-                colIdx++;
-
-                const align = opts.center.includes(colIdx) ? "text-center" : opts.right.includes(colIdx) ? "text-right" : "text-left";
-                const isFixed = opts.fixed.includes(colIdx);
-                const fixedInfo = fixedStyles.find(f => f.col === colIdx);
-
-                let tdText = data[key];
-
-                if (opts.folding && isGroupRow && isFirstCell && originalOpc == 1) {
-                    const iconClass = opts.collapsed ? 'icon-right-open' : 'icon-down-open';
-                    tdText = `<span class="folding-icon select-none mr-2 inline-block transition-transform duration-200"><i class="${iconClass}"></i></span>${tdText}`;
-                    isFirstCell = false;
-                } else if (isFirstCell) {
-                    isFirstCell = false;
-                }
-
-                let cellClass = ` ${align} ${opts.border_row} px-2 py-2 truncate ${colorBg} `;
-
-                if (opts.bordered) {
-                    cellClass += ` border ${borderColor} `;
-                }
-
-                if (opts.folding && isGroupRow && colIdx === 1 && originalOpc == 1) {
-                    cellClass += ` cursor-pointer select-none `;
-                }
-
-                if (isFixed && fixedInfo) {
-                    cellClass += ` sticky z-10 border-r border-gray-300 `;
-                    if (!colorBg && !bg_grupo) {
-                        cellClass += opts.theme === 'dark' ? ' bg-[#1E293B] ' : ' bg-gray-100 ';
-                    }
-                }
-
-                let cellAttributes = {
-                    id: `${key}_${data.id}`,
-                    style: `font-size:${opts.f_size}px;${isFixed && fixedInfo ? `left:${fixedInfo.left}px;` : ''}`,
-                    class: cellClass,
-                    html: tdText,
-                    'data-col': colIdx,
-                    'data-row': i
-                };
-
-                if (opts.folding && isGroupRow && colIdx === 1 && originalOpc == 1) {
-                    cellAttributes['data-folding-trigger'] = currentGroupId;
-                }
-
-                if (opts.selectable) {
-                    cellAttributes.tabindex = 0;
-                }
-
-                if (opts.extends && typeof data[key] === 'object' && data[key] !== null) {
-                    const originalDataCol = colIdx;
-                    const originalDataRow = i;
-                    const originalTabindex = cellAttributes.tabindex;
-
-                    const customData = data[key];
-
-                    if (customData.html !== undefined) {
-                        cellAttributes.html = customData.html;
-                    }
-                    if (customData.class !== undefined) {
-                        cellAttributes.class = `${cellAttributes.class} ${customData.class}`;
-                    }
-
-                    cellAttributes['data-col'] = originalDataCol;
-                    cellAttributes['data-row'] = originalDataRow;
-
-                    if (opts.selectable) {
-                        cellAttributes.tabindex = originalTabindex;
-                    }
-
-                    if (isFixed && fixedInfo) {
-                        cellAttributes.class += ` sticky z-10 border-r border-gray-300 `;
-                        cellAttributes.style = `font-size:${opts.f_size}px;left:${fixedInfo.left}px;`;
-
-                        const hasCustomBg = customData.class && /bg-\[.*?\]|bg-\w+-\d+|bg-\w+/.test(customData.class);
-                        if (!hasCustomBg && !colorBg && !bg_grupo) {
-                            cellAttributes.class += opts.theme === 'dark' ? ' bg-[#1E293B] ' : ' bg-gray-100 ';
-                        }
-                    }
-
-                    if (opts.folding && isGroupRow && colIdx === 1 && originalOpc == 1) {
-                        const iconClass = opts.collapsed ? 'icon-right-open' : 'icon-down-open';
-                        cellAttributes.html = `<span class="folding-icon select-none mr-2 inline-block transition-transform duration-200"><i class="${iconClass}"></i></span>${cellAttributes.html}`;
-                        cellAttributes['data-folding-trigger'] = currentGroupId;
-                        cellAttributes.class += ` cursor-pointer select-none`;
-                    }
-                }
-
-                tr.append($("<td>", cellAttributes));
-            });
-
-            // Botones de acción 'a'
-            if (data.a?.length) {
-                const actions = $("<td>", { class: `px-2 py-2 text-center align-middle ${colorBg} ${opts.border_row}` });
-                data.a.forEach(atributos => {
-                    const button_a = $("<a>", atributos);
-                    actions.append(button_a);
-                });
-                tr.append(actions);
-            }
-
-            tbody.append(tr);
-        });
-
-        table.append(tbody);
-        tableWrapper.append(table);
-        container.append(tableWrapper);
-        $(`#${opts.parent}`).html(container);
-
-
-
-
-
-        if (opts.fixed.length > 0) {
-            const bgHeader = opts.theme === 'dark' ? '#374151' : opts.theme === 'corporativo' ? '#003360' : '#003360';
-            const bgDefault = opts.theme === 'dark' ? '#283341' : '#F3F4F6';
-
-            let fixedCSS = `
-                #${opts.id} {
-                    position: relative; 
-                }
-                #${opts.id} th[data-col], 
-                #${opts.id} td[data-col] { 
-                    min-width: 150px; 
-                    max-width: 150px;
-                    width: 150px;
-                }
-            `;
-
-            fixedStyles.forEach(({ col, left }) => {
-                fixedCSS += `
-                    #${opts.id} th[data-col="${col}"],
-                    #${opts.id} td[data-col="${col}"] {
-                        position: sticky !important;
-                        left: ${left}px !important;
-                        z-index: 10 !important;
-                        min-width: 150px !important;
-                        max-width: 150px !important;
-                        width: 150px !important;
-                    }
-                    #${opts.id} th[data-col="${col}"] {
-                        z-index: 20 !important;
-                        background-color: ${bgHeader} !important;
-                    }
-                `;
-            });
-
-            const bgGroup = opts.theme === 'dark' ? '#334155' : '#E5E7EB';
-
-            $(`#${opts.id} td[data-col]`).each(function () {
-                const $cell = $(this);
-                const colNum = $cell.attr('data-col');
-                const $row = $cell.closest('tr');
-                const rowOpc = $row.attr('data-opc');
-
-                if (opts.fixed.includes(parseInt(colNum))) {
-                    const cellClasses = $cell.attr('class') || '';
-                    const hasBgClass = /bg-\[.*?\]|bg-\w+-\d+|bg-\w+/.test(cellClasses);
-
-                    if (hasBgClass) {
-                        const computedBg = window.getComputedStyle($cell[0]).backgroundColor;
-                        if (computedBg && computedBg !== 'rgba(0, 0, 0, 0)') {
-                            fixedCSS += `
-                                #${opts.id} tr[data-row="${$cell.attr('data-row')}"] td[data-col="${colNum}"] {
-                                    background-color: ${computedBg} !important;
-                                }
-                            `;
-                        }
-                    } else {
-                        const bgColor = (rowOpc == '1' || rowOpc == '2') ? bgGroup : bgDefault;
-                        fixedCSS += `
-                            #${opts.id} tr[data-row="${$cell.attr('data-row')}"] td[data-col="${colNum}"] {
-                                background-color: ${bgColor} !important;
-                            }
-                        `;
-                    }
-                }
-            });
-
-            $("<style>").text(fixedCSS).appendTo("head");
-        }
-
-        if (opts.selectable) {
-            const focusColor = opts.theme === 'dark' ? 'ring-blue-500' : 'ring-blue-400';
-            const focusCSS = `
-                #${opts.id} td[tabindex]:focus {
-                    outline: none;
-                    box-shadow: inset 0 0 0 2px ${opts.theme === 'dark' ? '#3B82F6' : '#60A5FA'};
-                    position: relative;
-                    z-index: 5;
-                }
-            `;
-            $("<style>").text(focusCSS).appendTo("head");
-
-            $(`#${opts.id}`).on('keydown', 'td[tabindex]', function (e) {
-                const $current = $(this);
-                const currentRow = parseInt($current.attr('data-row'));
-                const currentCol = parseInt($current.attr('data-col'));
-                let $next = null;
-
-                switch (e.key) {
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        $next = $(`#${opts.id} td[data-row="${currentRow - 1}"][data-col="${currentCol}"]`);
-                        break;
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        $next = $(`#${opts.id} td[data-row="${currentRow + 1}"][data-col="${currentCol}"]`);
-                        break;
-                    case 'ArrowLeft':
-                        e.preventDefault();
-                        $next = $(`#${opts.id} td[data-row="${currentRow}"][data-col="${currentCol - 1}"]`);
-                        break;
-                    case 'ArrowRight':
-                        e.preventDefault();
-                        $next = $(`#${opts.id} td[data-row="${currentRow}"][data-col="${currentCol + 1}"]`);
-                        break;
-                    case 'Enter':
-                        e.preventDefault();
-                        $next = $(`#${opts.id} td[data-row="${currentRow + 1}"][data-col="${currentCol}"]`);
-                        break;
-                    case 'Tab':
-                        e.preventDefault();
-                        if (e.shiftKey) {
-                            $next = $current.prev('td[tabindex]');
-                            if ($next.length === 0) {
-                                $next = $current.parent().prev('tr').find('td[tabindex]:last');
-                            }
-                        } else {
-                            $next = $current.next('td[tabindex]');
-                            if ($next.length === 0) {
-                                $next = $current.parent().next('tr').find('td[tabindex]:first');
-                            }
-                        }
-                        break;
-                }
-
-                if ($next && $next.length > 0) {
-                    $next.focus();
-                    $next[0].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-                }
-            });
-        }
-
-        if (opts.folding) {
-            $(`#${opts.id}`).on('click', 'td[data-folding-trigger]', function (e) {
-                e.stopPropagation();
-                const groupId = $(this).attr('data-folding-trigger');
-                const $headerRow = $(`#${opts.id} tr[data-group-header="${groupId}"]`);
-                const isCollapsed = $headerRow.attr('data-collapsed') === 'true';
-                const $members = $(`#${opts.id} tr[data-group-member="${groupId}"]`);
-                const $icon = $(this).find('.folding-icon i');
-
-                if (isCollapsed) {
-                    $members.removeClass('hidden');
-                    $headerRow.attr('data-collapsed', 'false');
-                    $icon.removeClass('icon-right-open').addClass('icon-down-open');
-                } else {
-                    $members.addClass('hidden');
-                    $headerRow.attr('data-collapsed', 'true');
-                    $icon.removeClass('icon-down-open').addClass('icon-right-open');
-                }
-            });
-        }
-
-        $("<style>").text(`
-        #${opts.id} {
-            border-collapse: separate !important;
-            border-spacing: 0 !important;
-        }
-        #${opts.id} thead tr:first-child th:first-child {
-            border-top-left-radius: 0.5rem !important;
-        }
-        #${opts.id} thead tr:first-child th:last-child {
-            border-top-right-radius: 0.5rem !important;
-        }
-        #${opts.id} tbody tr:last-child td:first-child {
-            border-bottom-left-radius: 0.5rem !important;
-        }
-        #${opts.id} tbody tr:last-child td:last-child {
-            border-bottom-right-radius: 0.5rem !important;
-        }
-        `).appendTo("head");
-    }
-
-    /**
-     * createCoffeTable3 - Versión con bordes tradicionales y primera columna flexible
-     * Diferencias con v2:
-     * - Bordes completos estilo tabla tradicional (border-collapse: collapse)
-     * - Primera columna fixed con ancho automático (no fijo de 200px)
-     * - Columnas fixed subsecuentes mantienen 200px
-     */
-    createCoffeTable3(options) {
+    createCoffeeTable3(options) {
         const defaults = {
             theme: 'light',
             subtitle: null,
@@ -2760,7 +1806,7 @@ class Components extends Complements {
             selectable: false,
             folding: false,
             collapsed: false,
-            scrollable: true,
+            scrollable: false,
             emptyMessage: "No se encontraron registros",
             emptyIcon: "icon-calendar-1",
             color_th: "bg-[#003360] text-gray-100",
@@ -2807,7 +1853,7 @@ class Components extends Complements {
             defaults.color_group = "bg-[#334155] text-white";
             defaults.class = "w-full text-sm text-gray-300";
             defaults.border_table = "";
-            defaults.border_row = "border-b border-gray-700";
+            defaults.border_row = "border-t border-gray-700";
             defaults.color_row_alt = "bg-[#111827]";
         }
 
@@ -2844,7 +1890,7 @@ class Components extends Complements {
                 <div class="flex flex-col items-center justify-center py-12 px-4 rounded-lg">
                     <i class="${opts.emptyIcon} text-4xl text-gray-400 mb-3"></i>
                     <p class="text-base font-medium text-gray-500">${opts.emptyMessage}</p>
-                    <p class="text-sm text-gray-400 mt-1">Intenta ajustar los filtros de búsqueda</p>
+                    <p class="text-sm text-gray-400 mt-1">Intenta ajustar los filtros de bÃºsqueda</p>
                 </div>
             `);
             container.append(emptyState);
@@ -2966,7 +2012,7 @@ class Components extends Complements {
 
         table.append(thead);
 
-        // Calcular el número total de columnas para colspan
+        // Calcular el nÃºmero total de columnas para colspan
         const totalCols = colIdx;
 
         const tbody = $("<tbody>");
@@ -2974,7 +2020,7 @@ class Components extends Complements {
         let groupIndex = 0;
 
         opts.data.row.forEach((data, i) => {
-            // 🚩 Detectamos fila de agrupación horizontal (colgroup)
+            // ðŸš© Detectamos fila de agrupaciÃ³n horizontal (colgroup)
             if (data.colgroup) {
                 const isCustom = typeof data.colgroup === 'object' && data.colgroup.class;
                 const colspan = totalCols || opts.data.thead?.length || Object.keys(data).filter(k => !['id', 'colgroup'].includes(k)).length;
@@ -3153,7 +2199,7 @@ class Components extends Complements {
                 tr.append($("<td>", cellAttributes));
             });
 
-            // Botones de acción 'a'
+            // Botones de acciÃ³n 'a'
             if (data.a) {
                 const actions = $("<td>", {
                     class: `px-3 py-2 text-center align-middle whitespace-nowrap ${colorBg} ${opts.border_row}`,
@@ -3254,8 +2300,8 @@ class Components extends Complements {
 
 
         if (opts.fixed.length > 0) {
-            const bgHeader = opts.theme === 'dark' ? '#374151' : opts.theme === 'corporativo' ? '#003360' : '#003360';
-            const bgDefault = opts.theme === 'dark' ? '#283341' : '#F3F4F6';
+            const bgHeader = opts.theme === 'dark' ? '#0F172A' : opts.theme === 'corporativo' ? '#003360' : '#003360';
+            const bgDefault = opts.theme === 'dark' ? '#1E293B' : '#F3F4F6';
 
             let fixedCSS = `
                 #${opts.id} {
@@ -3301,10 +2347,10 @@ class Components extends Complements {
             const extractBgColor = (classStr) => {
                 const arbitraryMatch = classStr.match(/bg-\[([^\]]+)\]/);
                 if (arbitraryMatch) return arbitraryMatch[1];
-                
+
                 const standardMatch = classStr.match(/bg-((?:green|blue|red|yellow|gray|purple|orange|white|black)(?:-\d+)?)/);
                 if (standardMatch) return tailwindColors[standardMatch[1]] || null;
-                
+
                 return null;
             };
 
@@ -3470,17 +2516,15 @@ class Components extends Complements {
         const defaults = {
             parent: "root",
             id: "tabComponent",
-            type: "large", // 'short' | 'large' | 'button'
+            type: "large", // 'short' | 'large'
             theme: "light", // 'dark' | 'light'
             class: "",
-            showBorder:true,
             tab: {
-                size: 'px-3 py-1',
+                size: 'px-3 py-2',
             },
             content: { class: '', id: '' },
             renderContainer: true,
-            tab_container: { class: '' },
-            onChange: null,
+
             json: [
                 { id: "TAB1", tab: "TAB1", icon: "", active: true, onClick: () => { } },
                 { id: "TAB2", tab: "TAB2", icon: "", onClick: () => { } },
@@ -3491,136 +2535,51 @@ class Components extends Complements {
 
         const themes = {
             dark: {
-                base: "bg-gray-900 text-white",
+                base: "bg-[#19232D] text-white",
                 active: "bg-blue-600 text-white",
-                inactive: "text-gray-300 hover:bg-gray-700",
-                iconActive: "text-blue-400"
+                inactive: "text-gray-300 hover:bg-gray-700"
             },
             light: {
                 base: "bg-gray-200 text-black",
                 active: "bg-white text-black",
-                inactive: "text-gray-600 hover:bg-white",
-                iconActive: "text-blue-600"
-            },
-            button: {
-                base: "bg-gray-100  p-1 rounded-lg inline-flex shadow-blue-500/50",
-                active: "bg-blue-600 text-white",
-                inactive: " text-gray-600 hover:bg-gray-50",
-                iconActive: "text-white"
+                inactive: "text-gray-600 hover:bg-white"
             }
         };
 
         const sizes = {
-            large: "rounded-lg flex gap-1 px-1 py-1 w-full text-sm overflow-x-auto",
-            short: "rounded-lg flex gap-1 px-1 py-1 text-sm overflow-x-auto",
-            button: "gap-1 overflow-x-auto flex-nowrap"
+            large: "rounded-lg flex gap-1 px-1 py-1 w-full text-sm ",
+            short: "rounded-lg flex  gap-1 p-1  px-1 py-1 text-sm "
         };
-
-        const scrollbarThinCSS = `
-            <style>
-                #${opts.id}::-webkit-scrollbar { height: 2px; }
-                #${opts.id}::-webkit-scrollbar-track { background: transparent; }
-                #${opts.id}::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
-                #${opts.id}::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
-            </style>
-        `;
-        $('head').append(scrollbarThinCSS);
-
-        const themeStyle = themes[opts.type] || themes[opts.theme];
-        const sizeStyle = sizes[opts.type] || sizes['large'];
 
         const container = $("<div>", {
             id: opts.id,
-            class: `${themeStyle.base} ${sizeStyle} ${opts.class}`,
-            css: {
-                'scrollbar-width': 'thin',
-                'scrollbar-color': '#d1d5db transparent'
-            }
+            class: `${themes[opts.theme].base} ${sizes[opts.type]} ${opts.class}`
         });
+
+        const equalWidth = opts.type === "short" ? `` : `flex-1`;
 
         opts.json.forEach(tab => {
             const isActive = tab.active || false;
 
-            const buttonClass = opts.type === 'button'
-                ? `transition-all duration-200 text-sm md:text-sm font-medium rounded-md px-4 md:px-4 py-2.5 md:py-2 whitespace-nowrap flex-shrink-0
-                   ${isActive ? themeStyle.active : themeStyle.inactive}`
-                : `transition text-sm md:text-sm font-medium rounded px-3 md:px-3 py-2.5 md:py-2 whitespace-nowrap flex-shrink-0
-                   ${isActive ? themeStyle.active : themeStyle.inactive}`;
-
-            let iconHtml = '';
-            const iconColorClass = isActive ? (tab.iconColor || themeStyle.iconActive || '') : 'text-gray-800';
-            let baseIconClasses = '';
-            
-            if (tab.lucideIcon) {
-                baseIconClasses = 'w-4 h-4 md:w-4 md:h-4 inline-block mr-2 md:mr-2';
-                iconHtml = `<i data-lucide="${tab.lucideIcon}" class="${baseIconClasses} ${iconColorClass}" data-base-classes="${baseIconClasses}"></i>`;
-            } else if (tab.icon) {
-                baseIconClasses = `${tab.icon} mr-2 md:mr-2 text-sm md:text-sm`;
-                iconHtml = `<i class='${baseIconClasses} ${iconColorClass}' data-base-classes="${baseIconClasses}"></i>`;
-            }
-
             const tabButton = $("<button>", {
                 id: `tab-${tab.id}`,
-                name: `${tab.id}`,
-                html: iconHtml + tab.tab,
-                class: buttonClass,
+                html: tab.icon ? `<i class='${tab.icon} mr-2 h-4 w-4'></i>${tab.tab}` : tab.tab,
+                class: `${opts.type === "short" ? "" : "flex-1"} flex items-center justify-center gap-2 ${opts.tab.size} rounded-lg text-sm font-medium transition
+                 data-[state=active]:${themes[opts.theme].active} ${themes[opts.theme].inactive}`,
                 "data-state": isActive ? "active" : "inactive",
-                "data-icon-color": tab.iconColor || '',
                 click: () => {
                     $(`#${opts.id} button`).each(function () {
-                        $(this).attr("data-state", "inactive")
-                            .removeClass(themeStyle.active)
-                            .addClass(themeStyle.inactive);
-                        
-                        const $icon = $(this).find('i, svg');
-                        if ($icon.length) {
-                            const baseClasses = $icon.data('base-classes') || '';
-                            const currentIconColor = $(this).data('icon-color');
-                            if (currentIconColor) {
-                                const colorClasses = currentIconColor.split(' ');
-                                colorClasses.forEach(cls => $icon.removeClass(cls));
-                            }
-                            if (themeStyle.iconActive) {
-                                $icon.removeClass(themeStyle.iconActive);
-                            }
-                            $icon.removeClass('text-gray-800 text-blue-600 text-blue-400 text-white').addClass('text-gray-800');
-                        }
+                        $(this).attr("data-state", "inactive").removeClass(themes[opts.theme].active).addClass(themes[opts.theme].inactive);
                     });
 
-                    tabButton.attr("data-state", "active")
-                        .removeClass(themeStyle.inactive)
-                        .addClass(themeStyle.active);
-
-                    setTimeout(() => {
-                        if (typeof lucide !== 'undefined') {
-                            lucide.createIcons();
-                        }
-
-                        const $activeIcon = tabButton.find('i, svg');
-                        if ($activeIcon.length) {
-                            const iconColor = tabButton.data('icon-color');
-                            $activeIcon.removeClass('text-gray-800');
-                            if (iconColor) {
-                                const colorClasses = iconColor.split(' ');
-                                colorClasses.forEach(cls => $activeIcon.addClass(cls));
-                            } else if (themeStyle.iconActive) {
-                                $activeIcon.addClass(themeStyle.iconActive);
-                            }
-                        }
-                    }, 10);
+                    tabButton.attr("data-state", "active").removeClass(themes[opts.theme].inactive).addClass(themes[opts.theme].active);
 
                     if (opts.renderContainer) {
                         $(`#content-${opts.id} > div`).addClass("hidden");
                         $(`#container-${tab.id}`).removeClass("hidden");
                     }
 
-                    if (typeof opts.onChange === "function") {
-                        opts.onChange(tab.id, tab);
-                    }
-
-                    if (typeof tab.onClick === "function") {
-                        tab.onClick(tab.id);
-                    }
+                    if (typeof tab.onClick === "function") tab.onClick(tab.id);
                 }
             });
 
@@ -3629,23 +2588,16 @@ class Components extends Complements {
 
         $(`#${opts.parent}`).html(container);
 
-        setTimeout(() => {
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        }, 50);
-
         if (opts.renderContainer) {
             const contentContainer = $("<div>", {
                 id: `content-${opts.id}`,
-                class: `mt-2 h-screens ${opts.content.class}`,
+                class: `mt-2 ${opts.content.class}`,
             });
 
             opts.json.forEach(tab => {
-                const borderClass = opts.showBorder ? 'border p-3' : '';
                 const contentView = $("<div>", {
                     id: `container-${tab.id}`,
-                    class: `hidden  ${borderClass} ${tab.class ?? ''} rounded-lg`,
+                    class: `hidden  p-3 h-full rounded-lg`,
                     html: tab.content || ""
                 });
                 contentContainer.append(contentView);
@@ -3668,21 +2620,21 @@ class Components extends Complements {
             logoFull: "https://erp-varoch.com/ERP24/src/img/logos/logo_row_wh.png",
             logoMini: "https://erp-varoch.com/ERP24/src/img/logos/logo_icon_wh.png",
             user: {
-                name: "Rosy Dev",
+                name: "Sergio Osorio",
                 photo: "https://huubie.com.mx/alpha/src/img/perfil/fotoUser26_20250803_120920.png",
                 onProfile: () => redireccion('perfil/perfil.php'),
                 onLogout: () => cerrar_sesion()
             },
             apps: [
                 { icon: "icon-calculator", name: "Contabilidad", color: "text-indigo-400" },
-                { icon: "icon-gmail", name: "Inventario", color: "text-red-600" },
+                { icon: "icon-box", name: "Inventario", color: "text-blue-600" },
                 { icon: "icon-cart", name: "Ventas", color: "text-green-600" },
                 { icon: "icon-bag", name: "Compras", color: "text-yellow-600" },
                 { icon: "icon-users", name: "Recursos", color: "text-pink-600" },
                 { icon: "icon-chart", name: "Reportes", color: "text-purple-600" },
-                { icon: "icon-dollar", name: "POS", color: "text-orange-600" },
-                { icon: "icon-industry", name: "Producción", color: "text-purple-600" },
-                { icon: "icon-cog", name: "Configuración", color: "text-gray-600" }
+                { icon: "icon-handshake", name: "CRM", color: "text-red-600" },
+                { icon: "icon-industry", name: "ProducciÃ³n", color: "text-orange-600" },
+                { icon: "icon-cog", name: "ConfiguraciÃ³n", color: "text-gray-600" }
             ]
         };
 
@@ -3691,13 +2643,13 @@ class Components extends Complements {
         // ===== THEME: Huubie Dark =====
         const isDark = String(opts.theme).toLowerCase() === "dark";
         const colors = {
-            navbar: isDark ? "bg-[#1F2A37] text-white" : "bg-[#0A2B4B] text-white", // Huubie dark / Light azul prof.
-            dropdownBg: isDark ? "bg-[#1F2A37] text-white" : "bg-white text-gray-800",
-            hoverText: isDark ? "hover:text-blue-300" : "hover:text-blue-200",
-            userHover: isDark ? "" : "hover:bg-blue-100",
-            userBg: isDark ? "bg-[#1F2A37]" : "bg-white",
-            border: isDark ? "border border-gray-700" : "border border-gray-200",
-            chipBg: isDark ? "bg-gray-700" : "bg-gray-100"
+            navbar: isDark ? "bg-[#5C3DA9] text-white" : "bg-[#5C3DA9] text-white", // Huubie dark slate-900 / Light azul prof.
+            dropdownBg: isDark ? "bg-[#1E293B] text-white" : "bg-white text-gray-800",
+            hoverText: isDark ? "hover:text-blue-400" : "hover:text-blue-200",
+            userHover: isDark ? "hover:bg-slate-700" : "hover:bg-blue-100",
+            userBg: isDark ? "bg-[#1E293B]" : "bg-white",
+            border: isDark ? "border border-slate-600" : "border border-gray-200",
+            chipBg: isDark ? "bg-slate-700" : "bg-gray-100"
         };
 
         // NAVBAR
@@ -3707,18 +2659,9 @@ class Components extends Complements {
         });
 
         const left = $("<div>", { class: "flex items-center gap-4" }).append(
-            $("<button>", {
+            $("<span>", {
                 id: "btnSidebar",
-                class: "text-white hover:text-blue-400 transition-colors duration-200 p-2 rounded focus:outline-none",
-                html: `<i class="icon-menu text-2xl"></i>`,
-                click: () => {
-                    if (typeof opts.onToggle === "function") {
-                        opts.onToggle(); // Evento externo personalizado
-                    } else {
-                        // Comportamiento por defecto: toggle de clase .active
-                        $("#sidebar").toggleClass("active");
-                    }
-                }
+                html: `<i class="icon-menu text-2xl cursor-pointer ${colors.hoverText}"></i>`
             }),
             $("<img>", {
                 src: opts.logoFull,
@@ -3742,7 +2685,7 @@ class Components extends Complements {
             }
         });
 
-        // USER (click para abrir menú)
+        // USER (click para abrir menÃº)
         const user = $("<div>", {
             class: "flex items-center gap-2 ml-4 cursor-pointer relative",
             id: "userDropdown"
@@ -3767,7 +2710,7 @@ class Components extends Complements {
                 $("<li>", { class: `my-1 ${colors.border}` }),
                 $("<li>", {
                     class: `px-3 py-2 rounded ${colors.userHover} cursor-pointer flex items-center gap-2`,
-                    html: `<i class="icon-off"></i><span>Cerrar sesión</span>`,
+                    html: `<i class="icon-off"></i><span>Cerrar sesiÃ³n</span>`,
                     click: opts.user.onLogout
                 })
             )
@@ -3786,8 +2729,8 @@ class Components extends Complements {
             class: `hidden fixed top-16 right-4 w-[320px] ${colors.dropdownBg} rounded-lg ${colors.border} shadow p-4 z-50`
         }).append(
             $("<div>", { class: "mb-3 flex items-center justify-between" }).append(
-                $("<h3>", { class: "text-sm font-semibold", text: "Módulos ERP" }),
-                $("<span>", { class: `text-[10px] px-2 py-1 rounded ${colors.chipBg} opacity-80`, text: "" })
+                $("<h3>", { class: "text-sm font-semibold", text: "MÃ³dulos ERP" }),
+                $("<span>", { class: `text-[10px] px-2 py-1 rounded ${colors.chipBg} opacity-80`, text: "Huubie UI" })
             ),
             $("<div>", { class: "grid grid-cols-3 gap-3" }).append(
                 ...opts.apps.map(app =>
@@ -3823,89 +2766,15 @@ class Components extends Complements {
         });
     }
 
-    sideBar(options) {
-        const defaults = {
-            parent: "body",
-            id: "sidebar",
-            theme: "light",
-            groups: [
-                {
-                    name: "Administración",
-                    icon: "icon-cog",
-                    items: [
-                        { name: "Usuarios", icon: "icon-user", onClick: () => alert("Usuarios") },
-                        { name: "Roles", icon: "icon-key", onClick: () => alert("Roles") }
-                    ]
-                },
-                {
-                    name: "Ventas",
-                    icon: "icon-cart",
-                    items: [
-                        { name: "Pedidos", icon: "icon-file-text", onClick: () => alert("Pedidos") },
-                        { name: "Clientes", icon: "icon-users", onClick: () => alert("Clientes") }
-                    ]
-                }
-            ]
-        };
-
-        const opts = Object.assign({}, defaults, options);
-        const isDark = opts.theme === "dark";
-
-        const colors = {
-            bg: isDark ? "bg-[#1F2A37]" : "bg-white",
-            text: isDark ? "text-white" : "text-gray-800",
-            hover: isDark ? "hover:bg-[#1E3A5F]" : "hover:bg-gray-100",
-            border: isDark ? "border-gray-700" : "border-gray-200"
-        };
-
-        const container = $("<aside>", {
-            id: opts.id,
-            class: `${colors.bg} ${colors.text} w-64 h-[calc(100vh-56px)] fixed top-[56px] left-0 z-30 shadow-lg transition-transform duration-300 transform -translate-x-full`
-        });
-
-        const content = $("<div>", { class: "p-4 space-y-4" });
-
-        opts.groups.forEach(group => {
-            const groupContainer = $("<div>", { class: "space-y-2" });
-
-            const groupTitle = $("<h3>", {
-                class: "uppercase text-xs font-bold opacity-70",
-                html: `<i class="${group.icon} mr-1"></i>${group.name}`
-            });
-
-            const itemList = $("<ul>", { class: "ml-2 space-y-1" });
-
-            group.items.forEach(item => {
-                itemList.append(
-                    $("<li>", {
-                        class: `flex items-center gap-2 px-2 py-1 rounded cursor-pointer ${colors.hover}`,
-                        html: `<i class="${item.icon} text-sm"></i> <span>${item.name}</span>`,
-                        click: item.onClick
-                    })
-                );
-            });
-
-            groupContainer.append(groupTitle, itemList);
-            content.append(groupContainer);
-        });
-
-        container.append(content);
-        $(`${opts.parent}`).append(container);
-
-        // 🧩 Toggle sidebar y root layout
-        $(document).on("click", "#btnSidebar", () => {
-            $("#sidebar").toggleClass("-translate-x-full");
-            $("#root").toggleClass("ml-64 transition-all duration-300");
-        });
-    }
-
+    // Graficos.
     dashboardComponent(options) {
         const defaults = {
             parent: "root",
             id: "dashboardComponent",
-            title: "📊 Huubie · Dashboard de Eventos",
-            subtitle: "Resumen mensual · Cotizaciones · Pagados · Cancelados",
+            title: "ðŸ“Š Huubie Â· Dashboard de Eventos",
+            subtitle: "Resumen mensual Â· Cotizaciones Â· Pagados Â· Cancelados",
             json: [
+                { type: "card", id: "infoCards", class: '' },
                 { type: "grafico", id: "barChartContainer", title: "Eventos por sucursal" },
                 { type: "tabla", id: "tableSucursal", title: "Tabla de sucursales" },
                 { type: "grafico", id: "donutChartContainer", title: "Ventas vs Entrada de dinero" },
@@ -3917,50 +2786,57 @@ class Components extends Complements {
         const opts = Object.assign(defaults, options);
 
         const container = $(`
-        <div id="${opts.id}" class="w-full ">
+        <div id="${opts.id}" class="w-full bg-[#111928] text-white">
             <!-- Header -->
-            <div class="p-6 border-b border-gray-200 ">
-                <div class=" mx-auto">
-                    <h1 class="text-2xl font-bold text-[#103B60]">${opts.title}</h1>
-                    <p class="text-sm text-gray-600">${opts.subtitle}</p>
+            <header class="bg-[#0F172A] p-6 border-b border-[#1E293B] ">
+                <div class="max-w-7xl mx-auto">
+                    <h1 class="text-2xl font-semibold text-white">${opts.title}</h1>
+                    <p class="text-sm text-slate-300">${opts.subtitle}</p>
                 </div>
-            </div>
+            </header>
 
             <!-- FilterBar -->
-            <div id="filterBarDashboard" class=" mx-auto px-4 py-4">
+            <div id="filterBarDashboard" class="max-w-7xl mx-auto px-4 py-4  ">
           
             </div>
 
-             <section id="cardDashboard" class=" mx-auto px-4 py-4">
+             <section id="cardDashboard" class="max-w-7xl mx-auto px-4 py-4 ">
               
             </section>
 
             <!-- Content -->
-            <section id="content-${opts.id}" class=" mx-auto px-4 py-6 grid gap-6 lg:grid-cols-2"></section>
+            <section id="content-${opts.id}" class="max-w-7xl mx-auto px-4 py-6 grid gap-6 lg:grid-cols-2"></section>
         </div>`);
 
         // Renderizar contenedores desde JSON
         opts.json.forEach(item => {
             let block = $("<div>", {
                 id: item.id,
-                class: "bg-white p-4 rounded-xl shadow-md border border-gray-200 min-h-[200px]"
+                class: "bg-slate-800 p-4 rounded-xl shadow min-h-[200px]"
             });
 
             if (item.title) {
+                // Emojis por defecto segÃºn el tipo
                 const defaultEmojis = {
-                    'grafico': '📊',
-                    'tabla': '�',
-                    'doc': '�',
-                    'filterBar': '🔍'
+                    'grafico': 'ðŸ“Š',
+                    'tabla': 'ðŸ“‹',
+                    'doc': 'ðŸ“„',
+                    'filterBar': 'ðŸ”'
                 };
 
+                // Usar emoji personalizado o por defecto
                 const emoji = item.emoji || defaultEmojis[item.type] || '';
+
+                // Usar icono si estÃ¡ definido
                 const iconHtml = item.icon ? `<i class="${item.icon}"></i> ` : '';
+
+                // Construir el tÃ­tulo con emoji e icono
                 const titleContent = `${emoji} ${iconHtml}${item.title}`;
 
-                block.prepend(`<h3 class="text-sm font-semibold text-gray-800 mb-3">${titleContent}</h3>`);
+                block.prepend(`<h3 class="text-sm font-semibold mb-3">${titleContent}</h3>`);
             }
 
+            // Procesar contenido personalizado antes de agregar el bloque
             if (item.content && Array.isArray(item.content)) {
                 item.content.forEach(contentItem => {
                     const element = $(`<${contentItem.type}>`, {
@@ -3969,16 +2845,19 @@ class Components extends Complements {
                         text: contentItem.text || ''
                     });
 
+                    // Agregar atributos adicionales si existen
                     if (contentItem.attributes) {
                         Object.keys(contentItem.attributes).forEach(attr => {
                             element.attr(attr, contentItem.attributes[attr]);
                         });
                     }
 
+                    // Agregar HTML interno si existe
                     if (contentItem.html) {
                         element.html(contentItem.html);
                     }
 
+                    // Agregar el contenido directamente al bloque
                     block.append(element);
                 });
             }
@@ -3989,12 +2868,366 @@ class Components extends Complements {
         $(`#${opts.parent}`).html(container);
     }
 
+    cardsDashboard(options) {
+        const defaults = {
+            parent: "root",
+            id: "infoCardKPI",
+            class: "",
+            theme: "light", // light | dark
+            json: [],
+            data: {
+                value: "0",
+                description: "",
+                color: "text-gray-800"
+            },
+            onClick: () => { }
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const isDark = opts.theme === "dark";
+
+        const cardBase = isDark
+            ? "bg-[#1F2A37] text-white rounded-xl shadow"
+            : "bg-white text-gray-800 rounded-xl shadow";
+
+        const titleColor = isDark ? "text-gray-300" : "text-gray-600";
+        const descColor = isDark ? "text-gray-400" : "text-gray-500";
+
+        const renderCard = (card, i = "") => {
+            const box = $("<div>", {
+                id: `${opts.id}_${i}`,
+                class: `${cardBase} p-4`
+            });
+
+            const title = $("<p>", {
+                class: `text-sm ${titleColor}`,
+                text: card.title
+            });
+
+            const value = $("<p>", {
+                id: card.id || "",
+                class: `text-2xl font-bold ${card.data?.color || "text-white"}`,
+                text: card.data?.value
+            });
+
+            const description = $("<p>", {
+                class: `text-xs mt-1 ${card.data?.color || descColor}`,
+                text: card.data?.description
+            });
+
+            box.append(title, value, description);
+            return box;
+        };
+
+        const container = $("<div>", {
+            id: opts.id,
+            class: `grid grid-cols-2 md:grid-cols-4 gap-4 ${opts.class}`
+        });
+
+        if (opts.json.length > 0) {
+            opts.json.forEach((item, i) => {
+                container.append(renderCard(item, i));
+            });
+        } else {
+            container.append(renderCard(opts));
+        }
+
+        $(`#${opts.parent}`).html(container);
+    }
+
+    barChart(options) {
+        const defaults = {
+            parent: "containerChequePro",
+            id: "chart",
+            title: "",
+            class: "border p-4 rounded-xl",
+            data: {},
+            json: [],
+            onShow: () => { },
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        // ðŸ”¹ Eliminar instancia previa de Chart.js si existe
+        if (!window._charts) window._charts = {};
+        if (window._charts[opts.id]) {
+            window._charts[opts.id].destroy();
+            delete window._charts[opts.id];
+        }
+
+        // ðŸ”¹ Crear nuevo contenedor
+        const newContainer = $("<div>", {
+            id: opts.id + "-container",
+            class: opts.class
+        });
+
+        const title = $("<h2>", {
+            class: "text-lg font-bold mb-3",
+            text: opts.title
+        });
+
+        const canvas = $("<canvas>", {
+            id: opts.id,
+            class: "w-full h-[150px]"
+        });
+
+        newContainer.append(title, canvas);
+
+        // ðŸ”¹ Si el contenedor ya existe â†’ reemplazar, si no â†’ append
+        const existing = $("#" + opts.id + "-container");
+        if (existing.length) {
+            existing.replaceWith(newContainer);
+        } else {
+            $("#" + opts.parent).append(newContainer);
+        }
+
+        // ðŸ”¹ Crear grÃ¡fico
+        const ctx = document.getElementById(opts.id).getContext("2d");
+        window._charts[opts.id] = new Chart(ctx, {
+            type: "bar",
+            data: opts.data,
+            options: {
+                responsive: true,
+                aspectRatio: 3,
+                plugins: {
+                    legend: { position: "bottom" },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.dataset.label}: ${formatPrice(ctx.parsed.y)}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: (v) => formatPrice(v) }
+                    }
+                }
+            }
+        });
+    }
+
+
+    linearChart(options) {
+        const defaults = {
+            parent: "containerLineChart",
+            id: "linearChart",
+            title: "",
+            class: "border p-3 rounded-xl",
+            data: {},   // <- puede contener { labels: [], datasets: [], tooltip: [] }
+            json: [],
+            onShow: () => { },
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const container = $("<div>", { class: opts.class });
+        const title = $("<h2>", {
+            class: "text-lg font-bold mb-2",
+            text: opts.title
+        });
+        const canvas = $("<canvas>", {
+            id: opts.id,
+            class: "w-full h-[150px]"
+        });
+
+        container.append(title, canvas);
+        $('#' + opts.parent).append(container);
+
+        const ctx = document.getElementById(opts.id).getContext("2d");
+        if (!window._charts) window._charts = {};
+        if (window._charts[opts.id]) {
+            window._charts[opts.id].destroy();
+        }
+
+        window._charts[opts.id] = new Chart(ctx, {
+            type: "line",
+            data: opts.data,
+            options: {
+                responsive: true,
+                aspectRatio: 3,
+                plugins: {
+                    legend: { position: "bottom" },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => {
+                                const index = items[0].dataIndex;
+                                const tooltips = opts.data.tooltip || opts.data.labels;
+                                return tooltips[index];
+                            },
+                            label: (ctx) => `${ctx.dataset.label}: ${formatPrice(ctx.parsed.y)}`
+                        }
+                    },
+                    datalabels: {
+                        display: true,
+                        align: 'top',
+                        anchor: 'end',
+                        color: '#1E3A8A',
+                        font: {
+                            weight: 'bold',
+                            size: 12
+                        },
+                        formatter: (value) => value
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (v) => v
+                        }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels]
+        });
+    }
+
+    payChart(options) {
+        const defaults = {
+            parent: "containerPayChart",
+            id: "payChart",
+            title: "",
+            class: "border p-3 rounded-xl",
+            data: {},
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const container = $("<div>", { class: opts.class });
+        const title = $("<h2>", {
+            class: "text-lg font-bold mb-2",
+            text: opts.title
+        });
+        const canvas = $("<canvas>", {
+            id: opts.id,
+            class: "w-full h-[200px]"
+        });
+
+        container.append(title, canvas);
+        $("#" + opts.parent).append(container);
+
+        const ctx = document.getElementById(opts.id).getContext("2d");
+        if (!window._charts) window._charts = {};
+        if (window._charts[opts.id]) {
+            window._charts[opts.id].destroy();
+        }
+
+        window._charts[opts.id] = new Chart(ctx, {
+            type: "doughnut",
+            data: opts.data,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: "bottom" },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.label}: ${formatPrice(ctx.parsed)}`
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    createTimelineChat(options) {
+        let defaults = {
+            parent: "",
+            id: "historial",
+            data: [],
+            success: () => { console.log('addLine') },
+            input_id: "iptHistorial",
+            class: "p-3 bg-gray-900 text-white rounded-lg h-[500px] overflow-y-auto",
+            user_photo: "https://w7.pngwing.com/pngs/81/570/png-transparent-profile-logo-computer-icons-user-user-blue-heroes-logo-thumbnail.png",
+            icons: {
+                payment: "ðŸ’µ",
+                comment: "ðŸ’¬",
+                event: "ðŸ“…",
+                default: "ðŸ”¹"
+            }
+        };
+
+        let opts = Object.assign(defaults, options);
+
+        $('#' + opts.parent).empty();
+
+        let historialContainer = $('<div>', { class: opts.class + " flex flex-col h-full", id: opts.id });
+
+        // ðŸ“œ **Contenedor de lÃ­nea de tiempo**
+        let timeline = $('<div>', { class: "relative flex flex-col gap-4 flex-grow overflow-y-auto p-3" });
+
+        // ðŸ“œ **Generar los elementos del historial**
+        opts.data.forEach((item, index) => {
+            let entry = $('<div>', { class: "flex items-start gap-3 relative" });
+
+            // ðŸ”µ **Seleccionar el icono basado en el `type`**
+            let iconType = opts.icons[item.type] || opts.icons.default;
+
+            // ðŸ”µ **Columna de iconos y lÃ­neas**
+            let iconContainer = $('<div>', { class: "flex flex-col items-center relative" }).append(
+                // Icono del evento
+                $('<div>', {
+                    class: "w-8 h-8 flex items-center justify-center bg-gray-700 text-white rounded-full",
+                    html: iconType
+                }),
+                // ðŸ“ LÃ­nea de tiempo (solo si no es el Ãºltimo elemento)
+                index !== opts.data.length - 1
+                    ? $('<div>', { class: "w-[2px] min-h-[28px] bg-gray-600 flex-1 mt-2" })
+                    : ""
+            );
+            // ðŸ“ **Fila con tÃ­tulo y fecha alineados**
+            let titleRow = $('<div>', { class: "flex justify-between items-center w-full" }).append(
+                $('<span>', { class: "font-semibold text-gray-200", text: item.valor }), // TÃ­tulo
+                $('<small>', { class: "text-gray-400 text-xs", text: item.date }) // Fecha
+            );
+
+            // ðŸ‘¤ **Nombre del responsable**
+            let authorRow = $('<div>', { class: "text-gray-400 text-xs mt-1 italic" }).text(`Realizado por: ${item.author || 'Desconocido'}`);
+
+            // ðŸ’¬ **Mensaje o descripciÃ³n del evento**
+            let details = $('<div>', { class: "text-sm bg-gray-800 p-2 rounded-md shadow-md w-full" })
+                .append(titleRow)
+                .append(authorRow);
+
+
+            if (item.message) {
+                let messageBox = $('<div>', { class: " text-gray-300 text-xs p-2 rounded-md mt-1", text: item.message });
+                details.append(messageBox);
+            }
+
+            entry.append(iconContainer, details);
+            timeline.append(entry);
+        });
+
+        historialContainer.append(timeline);
+
+        // ðŸ“ **Barra de entrada de mensaje (oscura)**
+        let messageBar = $('<div>', { class: "bg-gray-800 rounded-lg flex items-center p-2 border-t border-gray-700 mt-auto" }).append(
+            $('<input>', {
+                id: opts.input_id,
+                class: "w-full px-3 py-2 border-none outline-none bg-gray-700 text-white placeholder-gray-400 text-sm",
+                placeholder: "Escribe aquÃ­..."
+            }),
+            $('<button>', {
+                class: "bg-blue-700 hover:bg-blue-600 text-white p-2 rounded-sm ml-2 flex items-center justify-center transition",
+                click: opts.success
+            }).append(
+                $('<i>', { class: "icon-direction-outline" }) // Icono de envÃ­o
+            )
+        );
+
+        historialContainer.append(messageBar);
+
+        // Renderizar el componente
+        $('#' + opts.parent).empty().append(historialContainer);
+    }
+
     createTitleModal(options = {}) {
         const defaults = {
             parent: "root",
             class: "",
             icon: "icon-trophy",
-            lucideIcon: "",
             title: "",
             subtitle: "",
             color: "bg-purple-600",
@@ -4002,540 +3235,27 @@ class Components extends Complements {
 
         const opts = Object.assign({}, defaults, options);
 
-        const iconHtml = opts.lucideIcon
-            ? `<i data-lucide="${opts.lucideIcon}" class="text-xl"></i>`
-            : `<i class="${opts.icon} text-xl"></i>`;
 
         const card = $(`
         <div class="flex items-center space-x-3  ${opts.class}">
-            <div class="w-10 h-10 ${opts.color} rounded text-white flex items-center justify-center flex-shrink-0">
-                ${iconHtml}
+            <div class="w-12 h-12 ${opts.color} rounded flex items-center justify-center flex-shrink-0">
+                <i class="${opts.icon} text-white text-xl"></i>
             </div>
             <div class="flex-1 min-w-0 flex flex-col justify-center">
-                <h3 class="text-lg font-bold mb-0 leading-tight">${opts.title}</h3>
+                <h3 class="text-lg font-bold text-white mb-0 leading-tight">${opts.title}</h3>
                 <p class="text-xs text-gray-400 mb-0 mt-1">${opts.subtitle}</p>
             </div>
-        </div>`);
-
-        if (opts.lucideIcon && typeof lucide !== 'undefined') {
-            setTimeout(() => {
-                lucide.createIcons();
-            }, 100);
-        }
+        </div>
+    `);
 
         return card;
     }
 
-    infoCard(options) {
-        const defaults = {
-            parent: "root",
-            id: "infoCardKPI",
-            class: "",
-            theme: "light",
-            style: "default",
-            coffeesoft:false,
-            borderColor: "border-[#8CC63F]",
-            cols: 4,
-            json: []
-        };
-        const opts = Object.assign({}, defaults, options);
 
-        const renderCard = (card, i = "") => {
-            if (opts.style === "file") {
-                let box = '';
-                if (!opts.coffeesoft) {
-                    box = $("<div>", {
-                        id: `${opts.id}_${i}`,
-                        class: `${card.bgColor || ""} border ${card.borderColor || opts.borderColor} rounded-lg p-3`
-                    });
-                } else {
-                    box = $("<div>", {
-                        id: `${opts.id}_${i}`,
-                        class: `${card.bgColor || ""} border-2 group hover:${card.borderColor} rounded-lg p-3`
-                    });
-                }
 
-                let colorHover = (card.borderColor || "").replace(/^border-/, "");
 
-                const titleRow = $("<div>", {
-                    class: "flex items-center justify-between mb-1"
-                }).append(
-                    $("<p>", {
-                        class: "text-sm text-gray-500",
-                        text: card.title
-                    })
-                );
 
-                if (card.onClick) {
-                    const btnHoverClass = opts.coffeesoft && colorHover
-                        ? `group-hover:bg-${colorHover} group-hover:text-white`
-                        : "";
-                    const detailBtn = $("<button>", {
-                        type: "button",
-                        class: `text-xs text-gray-600 bg-gray-100 rounded-full px-2.5 py-0.5 transition-colors ${btnHoverClass}`,
-                        text: "Ver detalle"
-                    }).on('click', (e) => {
-                        e.stopPropagation();
-                        card.onClick();
-                    });
-                    titleRow.append(detailBtn);
-                }
 
-                const subtitleElement = card.subtitle
-                    ? $("<p>", {
-                        class: "text-xs text-gray-400 mb-2",
-                        text: card.subtitle
-                    })
-                    : null;
-
-                const valueContainer = $("<div>", {
-                    class: "flex items-center justify-end"
-                }).append(
-                    $("<span>", {
-                        id: card.id || "",
-                        class: `text-xl font-bold ${card.data?.color || "text-gray-700"}`,
-                        text: card.data?.value
-                    })
-                );
-
-                box.append(titleRow);
-                if (subtitleElement) box.append(subtitleElement);
-                box.append(valueContainer);
-
-                return box;
-            }
-        };
-
-        const gridColsMap = { 4: "md:grid-cols-4", 5: "md:grid-cols-5", 6: "md:grid-cols-6" };
-        const gridCols = gridColsMap[opts.cols] || "md:grid-cols-4";
-        const container = $("<div>", {
-            id: opts.id,
-            class: `grid grid-cols-2 ${gridCols} gap-3 ${opts.class}`
-        });
-
-        opts.json.forEach((item, i) => container.append(renderCard(item, i)));
-
-        $(`#${opts.parent}`).html(container);
-    }
-
-    summaryCard(options) {
-        const defaults = {
-            parent: "root",
-            id: "summaryCard",
-            title: "Título",
-            subtitle: "",
-            icon: "",
-            iconBg: "bg-violet-200",
-            iconColor: "text-violet-600",
-            class: "",
-            items: [],
-            total: { label: "Total", value: 0, color: "text-green-900" }
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        let itemsHtml = opts.items.map(item => `
-            <div class="flex justify-between mb-2">
-                <span class="text-gray-800 text-base text-sm">${item.label}</span>
-                <span class="font-semibold ${item.color || 'text-gray-900'} text-sm">${formatPrice(item.value)}</span>
-            </div>
-        `).join('');
-
-        const iconHtml = opts.icon ? `
-            <div class="w-10 h-10 ${opts.iconBg} rounded-lg flex items-center justify-center">
-                <i class="${opts.icon} ${opts.iconColor} text-xl"></i>
-            </div>
-        ` : '';
-
-        const subtitleHtml = opts.subtitle ? `<p class="text-gray-600 font-semibold text-sm">${opts.subtitle}</p>` : '';
-
-        const html = `
-            <div id="${opts.id}" class="${opts.class}">
-                <div class="flex items-center gap-3 mb-3 px-2">
-                    ${iconHtml}
-                    <div>
-                        <h5 class="text-gray-900 font-bold text-lg">${opts.title}</h5>
-                        ${subtitleHtml}
-                    </div>
-                </div>
-                <div class=" border border-gray-300 rounded-lg p-3">
-                    ${itemsHtml}
-                    <hr class="my-2 border-gray-400">
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold text-gray-900 text-sm">${opts.total.label}</span>
-                        <span class="font-bold ${opts.total.color} text-sm">${formatPrice(opts.total.value)}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        $(`#${opts.parent}`).html(html);
-    }
-
-    coffeeLoader(options = {}) {
-        const defaults = {
-            parent: "root",
-            id: "coffeeLoader",
-            class: "",
-            text: "Cargando",
-            size: 44,
-            py: 20
-        };
-
-        const opts = Object.assign({}, defaults, options);
-        const styleId = 'coffeeLoaderStyles';
-
-        if (!document.getElementById(styleId)) {
-            const style = $('<style>', { id: styleId }).text(`
-                @keyframes cs-heartbeat {
-                    0%   { transform: scale(1); background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 0 0 0 rgba(99,102,241,.4); }
-                    14%  { transform: scale(1.25); }
-                    28%  { transform: scale(1); }
-                    42%  { transform: scale(1.15); background: linear-gradient(135deg, #ec4899, #d946ef); }
-                    70%  { transform: scale(1); box-shadow: 0 0 0 16px rgba(99,102,241,0); background: linear-gradient(135deg, #6366f1, #8b5cf6); }
-                    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99,102,241,0); }
-                }
-                @keyframes cs-dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
-                .cs-heart { border-radius: 50%; animation: cs-heartbeat 1.5s ease-in-out infinite; }
-                .cs-dots::after { content: ''; animation: cs-dots 1.5s steps(4, end) infinite; }
-            `);
-            $('head').append(style);
-        }
-
-        const container = $('<div>', {
-            id: opts.id,
-            class: `flex flex-col items-center justify-center gap-5 ${opts.class}`,
-            style: `padding-top: ${opts.py}px; padding-bottom: ${opts.py}px;`
-        });
-
-        const heart = $('<div>', {
-            class: 'cs-heart',
-            style: `width: ${opts.size}px; height: ${opts.size}px;`
-        });
-
-        const label = $('<p>', {
-            class: 'text-sm font-medium text-gray-400 tracking-wide cs-dots',
-            text: opts.text
-        });
-
-        container.append(heart, label);
-        $(`#${opts.parent}`).html(container);
-    }
-
-    createNavbar(options) {
-        const defaults = {
-            parent: "body",
-            id: "cs-navbar",
-            logo: "ERP",
-            logoSuffix: "-GV",
-            userName: "",
-            height: 50,
-            apps: [],
-            onToggleSidebar: () => {
-                $("#sidebar").toggleClass("active");
-                $("#main__content").toggleClass("active");
-            },
-            onProfile: () => {},
-            onLogout: () => {}
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        let userName = opts.userName || (typeof getCookies === 'function' ? getCookies().USR : 'Usuario');
-        try { userName = decodeURIComponent(userName); } catch (e) {}
-
-        const navbar = $("<header>", {
-            id: opts.id,
-            class: "cs-navbar"
-        });
-
-        const section = $("<div>", { class: "cs-navbar__section" });
-
-        const toggleBtn = $("<button>", {
-            class: "cs-navbar__toggle",
-            html: '<i data-lucide="menu" style="width:18px;height:18px"></i>'
-        });
-        toggleBtn.on("click", opts.onToggleSidebar);
-
-        const logo = $("<div>", {
-            class: "cs-navbar__logo",
-            html: `${opts.logo}<span>${opts.logoSuffix}</span>`
-        });
-
-        section.append(toggleBtn, logo);
-
-        const nav = $("<div>", { class: "cs-navbar__nav" });
-
-        const launcherBtn = $("<div>", {
-            id: "cs-launcherBtn",
-            class: "cs-navbar__item",
-            html: '<i data-lucide="layout-grid" style="width:18px;height:18px"></i>'
-        });
-        launcherBtn.on("click", function (e) {
-            e.stopPropagation();
-            $("#cs-appsLauncher").toggleClass("cs-navbar__launcher--active");
-            userDropdown.removeClass("cs-navbar__dropdown--active");
-        });
-
-        nav.append(launcherBtn);
-
-        const divider = $("<div>", { class: "cs-navbar__divider" });
-
-        const userContainer = $("<div>", { class: "cs-navbar__user" });
-
-        const avatarContent = $("<div>", {
-            class: "cs-navbar__avatar",
-            html: '<i data-lucide="user" style="width:16px;height:16px"></i>'
-        });
-
-        const nameSpan = $("<span>", { class: "cs-navbar__name", text: userName });
-        const chevron = $("<i>", {
-            "data-lucide": "chevron-down",
-            style: "width:14px;height:14px;color:#64748b"
-        });
-
-        userContainer.append(avatarContent, nameSpan, chevron);
-
-        const userDropdown = $("<ul>", { class: "cs-navbar__dropdown" });
-
-        const profileItem = $("<li>", {
-            class: "cs-navbar__dropdown-item",
-            html: '<i data-lucide="user" style="width:14px;height:14px"></i> Mi perfil'
-        });
-        profileItem.on("click", opts.onProfile);
-
-        const dividerItem = $("<li>", { class: "cs-navbar__dropdown-divider" });
-
-        const logoutItem = $("<li>", {
-            class: "cs-navbar__dropdown-item cs-navbar__dropdown-item--danger",
-            html: '<i data-lucide="log-out" style="width:14px;height:14px"></i> Cerrar sesion'
-        });
-        logoutItem.on("click", opts.onLogout);
-
-        userDropdown.append(profileItem, dividerItem, logoutItem);
-
-        const userWrapper = $("<div>", { class: "cs-navbar__user-wrapper" });
-        userWrapper.append(userContainer, userDropdown);
-
-        userContainer.on("click", function (e) {
-            e.stopPropagation();
-            userDropdown.toggleClass("cs-navbar__dropdown--active");
-            $("#cs-appsLauncher").removeClass("cs-navbar__launcher--active");
-        });
-
-        const launcher = $("<div>", {
-            id: "cs-appsLauncher",
-            class: "cs-navbar__launcher"
-        });
-
-        const launcherHeader = $("<div>", {
-            class: "cs-navbar__launcher-header",
-            html: '<span>Modulos ERP</span>'
-        });
-
-        const launcherGrid = $("<div>", { class: "cs-navbar__launcher-grid" });
-
-        const iconColors = {
-            "icon-calculator": "#818cf8", "icon-users": "#f472b6", "icon-landmark": "#34d399",
-            "icon-clipboard-check": "#fbbf24", "icon-calendar-days": "#22d3ee", "icon-flask-conical": "#c084fc",
-            "icon-palette": "#fb923c", "icon-cart": "#4ade80", "icon-bag": "#facc15", "icon-chart": "#a78bfa",
-            "icon-dollar": "#fb923c", "icon-industry": "#a78bfa", "icon-cog": "#94a3b8", "icon-gmail": "#ef4444"
-        };
-
-        opts.apps.forEach(app => {
-            const color = app.color || iconColors[app.icon] || "#94a3b8";
-            // Soporta tanto "icon-xxx" (clase) como "xxx" (nombre lucide directo)
-            const lucideName = (app.icon || "").replace(/^icon-/, "");
-            const iconEl = $("<i>", {
-                "data-lucide": lucideName,
-                style: "width:22px;height:22px"
-            });
-            const appBtn = $("<button>", {
-                class: "cs-navbar__launcher-app",
-                type: "button"
-            }).append(
-                $("<div>", { class: "cs-navbar__launcher-icon", style: `color:${color}` })
-                    .append(iconEl),
-                $("<span>", { text: app.name })
-            );
-            if (app.onClick) appBtn.on("click", app.onClick);
-            if (app.href) appBtn.on("click", () => { window.location.href = app.href; });
-            launcherGrid.append(appBtn);
-        });
-
-        launcher.append(launcherHeader, launcherGrid);
-
-        $(document).on("click.csNavbar", function (e) {
-            if (!$(e.target).closest("#cs-launcherBtn").length && !$(e.target).closest("#cs-appsLauncher").length) {
-                $("#cs-appsLauncher").removeClass("cs-navbar__launcher--active");
-            }
-            if (!$(e.target).closest(".cs-navbar__user-wrapper").length) {
-                userDropdown.removeClass("cs-navbar__dropdown--active");
-            }
-        });
-
-        nav.append(divider, userWrapper);
-        navbar.append(section, nav);
-
-        if (opts.parent === "body") {
-            $("body").prepend(navbar);
-            $("body").append(launcher);
-        } else {
-            $(`#${opts.parent}`).html(navbar);
-            $(`#${opts.parent}`).append(launcher);
-        }
-
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    }
-
-    /**
-     * coffeeStyledTable - Tabla estilizada Huubie dark/light
-     * Diseño limpio con avatares, badges, colores en montos y botonera de acciones.
-     *
-     * @param {Object} options
-     * @param {string} options.parent - ID del contenedor padre
-     * @param {string} options.id - ID de la tabla
-     * @param {string} [options.theme='dark'] - 'dark' | 'light'
-     * @param {string} [options.title] - Título principal
-     * @param {string} [options.subtitle] - Subtítulo o estado
-     * @param {string} [options.statusIcon] - 'ok' | 'error' | 'warning' | 'pending'
-     * @param {Array}  options.thead - Headers: [{ key, label, align, width }]
-     * @param {Array}  options.rows - Filas de datos (cada fila es un objeto con keys del thead)
-     * @param {Array}  [options.summary] - KPIs arriba: [{ label, value }]
-     * @param {Array}  [options.actions] - Botones pie: [{ text, color, icon, onClick }]
-     * @param {Function} [options.cellRenderer] - fn(key, value, row) => html custom por celda
-     */
-    coffeeStyledTable(options = {}) {
-        const isDark = (options.theme || 'dark') === 'dark';
-
-        const colors = isDark ? {
-            bg:         'bg-[#111928]',
-            headerBg:   'bg-[#141d2b]',
-            inputBg:    'bg-[#1a2332]',
-            rowHover:   'hover:bg-[#1a2332]',
-            border:     'border-gray-800',
-            thText:     'text-gray-500',
-            cellText:   'text-gray-300',
-            titleText:  'text-white',
-            subtitleText:'text-gray-400',
-            divider:    'divide-gray-800/50'
-        } : {
-            bg:         'bg-white',
-            headerBg:   'bg-gray-50',
-            inputBg:    'bg-gray-100',
-            rowHover:   'hover:bg-gray-50',
-            border:     'border-gray-200',
-            thText:     'text-gray-500',
-            cellText:   'text-gray-600',
-            titleText:  'text-gray-900',
-            subtitleText:'text-gray-500',
-            divider:    'divide-gray-200'
-        };
-
-        const opts = Object.assign({
-            parent: 'root',
-            id: 'coffeeStyledTable',
-            theme: 'dark',
-            title: null,
-            subtitle: null,
-            statusIcon: null,
-            thead: [],
-            rows: [],
-            summary: [],
-            actions: [],
-            cellRenderer: null,
-            minWidth: '900px'
-        }, options);
-
-        const $wrap = $('<div>', { class: 'flex flex-col h-full' });
-
-        // — Title bar
-        if (opts.title) {
-            const statusIcons = {
-                ok:      `<div class="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg></div>`,
-                error:   `<div class="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg></div>`,
-                warning: `<div class="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92z" clip-rule="evenodd"/></svg></div>`,
-                pending: `<div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>`
-            };
-            const iconHtml = opts.statusIcon && statusIcons[opts.statusIcon] ? statusIcons[opts.statusIcon] : '';
-            $wrap.append(`
-                <div class="flex items-center justify-between px-5 py-3 ${colors.headerBg} border-b ${colors.border}">
-                    <div class="flex items-center gap-3">
-                        <h2 class="text-lg font-bold ${colors.titleText}">${opts.title}${opts.subtitle ? ` <span class="${colors.subtitleText} font-normal">— ${opts.subtitle}</span>` : ''}</h2>
-                        ${iconHtml}
-                    </div>
-                </div>
-            `);
-        }
-
-        // — Summary bar (KPIs)
-        if (opts.summary.length > 0) {
-            const kpis = opts.summary.map(s => `
-                <div class="text-right">
-                    <p class="text-[10px] ${colors.thText} uppercase tracking-wider">${s.label}</p>
-                    <p class="text-sm font-bold ${s.color || colors.titleText}">${s.value}</p>
-                </div>
-            `).join('');
-            $wrap.append(`<div class="flex items-center justify-end gap-6 px-5 py-3 ${colors.headerBg} border-b ${colors.border}">${kpis}</div>`);
-        }
-
-        // — Table
-        const alignClass = (align) => {
-            if (align === 'right') return 'text-right';
-            if (align === 'center') return 'text-center';
-            return 'text-left';
-        };
-
-        let thHtml = opts.thead.map(h =>
-            `<th class="${alignClass(h.align)} py-3 px-3 font-medium" ${h.width ? `style="width:${h.width}"` : ''}>${h.label}</th>`
-        ).join('');
-
-        let tbodyHtml = '';
-        opts.rows.forEach(row => {
-            let cells = opts.thead.map(h => {
-                let val = row[h.key] !== undefined ? row[h.key] : '';
-                if (opts.cellRenderer) {
-                    const custom = opts.cellRenderer(h.key, val, row);
-                    if (custom !== undefined && custom !== null) val = custom;
-                }
-                const align = alignClass(h.align);
-                return `<td class="py-3 px-3 ${align} text-xs ${colors.cellText}">${val}</td>`;
-            }).join('');
-            tbodyHtml += `<tr class="${colors.rowHover} transition-colors">${cells}</tr>`;
-        });
-
-        $wrap.append(`
-            <div class="flex-1 overflow-auto scrollbar-thin">
-                <table id="${opts.id}" class="w-full" style="min-width:${opts.minWidth}">
-                    <thead class="sticky top-0 ${colors.bg} z-10">
-                        <tr class="text-[9px] ${colors.thText} uppercase tracking-wider border-b ${colors.border}">${thHtml}</tr>
-                    </thead>
-                    <tbody class="divide-y ${colors.divider}">${tbodyHtml}</tbody>
-                </table>
-            </div>
-        `);
-
-        // — Action buttons footer
-        if (opts.actions.length > 0) {
-            const btnColors = {
-                primary: 'bg-[#1c64f2] hover:bg-blue-500',
-                purple:  'bg-[#7c3aed] hover:bg-purple-500',
-                success: 'bg-[#3fc189] hover:bg-green-500',
-                danger:  'bg-[#ea0234] hover:bg-red-500',
-                warning: 'bg-amber-500 hover:bg-amber-400',
-                secondary:'bg-gray-600 hover:bg-gray-500'
-            };
-            const btns = opts.actions.map(a => {
-                const bg = btnColors[a.color] || btnColors.primary;
-                return `<button class="px-4 py-2 rounded-lg ${bg} text-white text-xs font-semibold flex items-center gap-1.5" ${a.onClick ? `onclick="${a.onClick}"` : ''}>${a.icon || ''}${a.text}</button>`;
-            }).join('');
-            $wrap.append(`<div class="flex items-center justify-end gap-2 px-5 py-3 ${colors.headerBg} border-t ${colors.border}">${btns}</div>`);
-        }
-
-        $(`#${opts.parent}`).html('').append($wrap);
-    }
 
 }
 
@@ -4622,80 +3342,6 @@ class Templates extends Components {
 
     }
 
-    createLayout(options = {}) {
-        const defaults = {
-            design: true,
-            content: this._div_modulo,
-            parent: '',
-            clean: false,
-            data: { id: "rptFormat", class: "col-12" },
-        };
-
-        const opts = Object.assign({}, defaults, options);
-        const lineClass = opts.design ? ' border rounded ' : '';
-
-        const div = $("<div>", {
-            class: opts.data.class,
-            id: opts.data.id,
-        });
-
-        const row = opts.data.container ? opts.data.container : opts.data.elements;
-
-        row.forEach(item => {
-            let div_cont;
-
-            switch (item.type) {
-
-                case 'div':
-
-                    div_cont = $("<div>", {
-                        class: (item.class ? item.class : 'row') + ' ' + lineClass,
-                        id: item.id,
-                    });
-
-                    if (item.children) {
-                        item.children.forEach(child => {
-                            child.class = (child.class ? child.class + ' ' : '') + lineClass;
-
-                            if (child.type) {
-
-                                div_cont.append($(`<${child.type}>`, child));
-
-                            } else {
-
-                                div_cont.append($("<div>", child));
-                            }
-
-                        });
-                    }
-
-                    div.append(div_cont);
-
-                    break;
-
-                default:
-
-                    const { type, ...attr } = item;
-
-
-                    div_cont = $("<" + item.type + ">", attr);
-
-                    div.append(div_cont);
-                    break;
-            }
-        });
-
-        if (opts.clean)
-            $("#" + opts.content ? opts.content : opts.parent).empty();
-
-        if (!opts.parent) {
-            $("#" + opts.content).html(div);
-        } else {
-            $("#" + opts.parent).html(div);
-        }
-
-    }
-
     createPlantilla(options) {
 
         let json_components = {
@@ -4731,7 +3377,7 @@ class Templates extends Components {
 
     splitLayout(options) {
         let name = options.id ? options.id : 'splitLayout';
-        // ConfiguraciÃ³n por defecto
+        // ConfiguraciÃƒÂ³n por defecto
         let defaults = {
             id: name,
             parent: this._div_modulo,
@@ -4785,7 +3431,7 @@ class Templates extends Components {
                 },
                 {
                     type: 'div',
-                    ...opts.footer, // Pie de pÃ¡gina
+                    ...opts.footer, // Pie de pÃƒÂ¡gina
                 },
             ],
         };
@@ -4801,21 +3447,41 @@ class Templates extends Components {
     primaryLayout(options) {
         const name = options.id ? options.id : 'primaryLayout';
 
+        // ðŸŽ¯ Presets de altura para diferentes layouts
+        const heightPresets = {
+            'full': 'min-h-screen',
+            'viewport': 'h-[calc(100vh-120px)]',
+            'compact': 'h-[calc(100vh-200px)]',
+            'auto': 'h-auto'
+        };
+
+        // Determinar la altura basada en el preset o usar la clase personalizada
+        const heightClass = options.heightPreset
+            ? heightPresets[options.heightPreset] || heightPresets['viewport']
+            : (options.class?.includes('h-') ? '' : heightPresets['viewport']);
+
         let defaults = {
             id: name,
             parent: this._div_modulo,
-            class: "d-flex mx-2 my-2 h-100",
+            class: `d-flex mx-2 my-2 ${heightClass}`,
+            heightPreset: 'viewport', // Default preset
             card: {
                 name: "singleLayout",
                 class: "flex flex-col col-12",
                 filterBar: { class: 'w-full my-3 ', id: 'filterBar' + name },
-                container: { class: 'w-full my-3  rounded-lg h-[calc(100vh-20rem)] ', id: 'container' + name }
+                container: { class: 'w-full my-3 bg-[#1F2A37] rounded-lg h-[calc(100vh-20rem)] overflow-auto ', id: 'container' + name }
             }
         };
 
 
         // Mezclar opciones con valores predeterminados
         const opts = this.ObjectMerge(defaults, options);
+
+        // ðŸ”§ Aplicar preset de altura si no se especifica clase personalizada
+        if (opts.heightPreset && !opts.class.includes('h-')) {
+            const presetHeight = heightPresets[opts.heightPreset] || heightPresets['viewport'];
+            opts.class = opts.class.replace(/h-\S+/g, '').trim() + ` ${presetHeight}`;
+        }
 
 
         this.createPlantilla({
@@ -4950,6 +3616,7 @@ class Templates extends Components {
         $(`#${opts.parent}`).simple_json_tab({ data: opts.json });
     }
 
+
 }
 
 
@@ -4968,14 +3635,14 @@ async function useFetch(options = {}) {
     // Mezclar los valores predeterminados con las opciones proporcionadas
     let opts = Object.assign({}, defaults, options);
 
-    // Validar que la URL estÃ© definida
+    // Validar que la URL estÃƒÂ© definida
     if (!opts.url) {
         console.error('URL es obligatoria.');
         return null;
     }
 
     try {
-        // Realizar la peticiÃ³n fetch
+        // Realizar la peticiÃƒÂ³n fetch
         let response = await fetch(opts.url, {
             method: opts.method,
             headers: {
@@ -4987,15 +3654,15 @@ async function useFetch(options = {}) {
         // Procesar la respuesta como JSON
         let data = await response.json();
 
-        // Si se proporciona el mÃ©todo success, lo ejecutamos con los datos obtenidos
+        // Si se proporciona el mÃƒÂ©todo success, lo ejecutamos con los datos obtenidos
         if (typeof opts.success === 'function') {
             opts.success(data);
         }
 
-        // Retornar los datos por si se quieren usar fuera de la funciÃ³n success
+        // Retornar los datos por si se quieren usar fuera de la funciÃƒÂ³n success
         return data;
     } catch (error) {
-        console.error('Error en la petición:', error);
+        console.error('Error en la peticiÃ³n:', error);
         return null;
     }
 }
@@ -5017,4 +3684,3 @@ function formDataToJson(formData) {
     });
     return obj;
 }
-

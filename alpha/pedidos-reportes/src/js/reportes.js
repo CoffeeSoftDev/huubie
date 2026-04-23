@@ -23,7 +23,8 @@ class AppReportes extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = "Reportes";
-        this.currentTab = 'corte';
+        this.currentTab   = 'corte';
+        this.dateMode     = 'single';
     }
 
     render() {
@@ -60,6 +61,14 @@ class AppReportes extends Templates {
                     }
                 },
                 {
+                    id: "turnos",
+                    tab: "Corte de Caja X",
+                    onClick: () => {
+                        this.currentTab = 'turnos';
+                        this.lsShifts();
+                    }
+                },
+                {
                     id: "daily",
                     tab: "Ticket Diario",
                     onClick: () => {
@@ -75,14 +84,7 @@ class AppReportes extends Templates {
                         this.lsTickets();
                     }
                 },
-                {
-                    id: "turnos",
-                    tab: "Corte de Caja X",
-                    onClick: () => {
-                        this.currentTab = 'turnos';
-                        this.lsShifts();
-                    }
-                },
+               
             ]
         });
 
@@ -108,6 +110,17 @@ class AppReportes extends Templates {
 
         filterBar.push(
             {
+                opc: "select",
+                id: "dateMode" + this.PROJECT_NAME,
+                lbl: "Modo de consulta:",
+                class: "col-12 col-md-3 col-lg-2",
+                onchange: "appReportes.toggleDateMode()",
+                data: [
+                    { id: "single", valor: "Dia unico" },
+                    { id: "range", valor: "Rango de fechas" }
+                ]
+            },
+            {
                 opc: "input-calendar",
                 class: "col-12 col-md-3 col-lg-2",
                 id: "calendar" + this.PROJECT_NAME,
@@ -130,8 +143,35 @@ class AppReportes extends Templates {
             data: filterBar
         });
 
+        $(`#dateMode${this.PROJECT_NAME}`).val(this.dateMode);
+        this._renderDatePicker();
+    }
+
+    _renderDatePicker() {
+        const parentId = "calendar" + this.PROJECT_NAME;
+
+        $(`#${parentId}`).empty();
+
+        if (this.dateMode === 'single') {
+            dataPicker({
+                parent: parentId,
+                type: 'simple',
+                rangeDefault: {
+                    startDate: moment(),
+                    singleDatePicker: true,
+                    showDropdowns: true,
+                    autoApply: true,
+                    maxDate: moment(),
+                    locale: { format: "DD-MM-YYYY" }
+                },
+                onSelect: () => this.refreshCurrentTab()
+            });
+            return;
+        }
+
         dataPicker({
-            parent: "calendar" + this.PROJECT_NAME,
+            parent: parentId,
+            type: 'all',
             rangepicker: {
                 startDate: moment().startOf("day"),
                 endDate: moment().endOf("day"),
@@ -152,6 +192,12 @@ class AppReportes extends Templates {
         });
     }
 
+    toggleDateMode() {
+        this.dateMode = $(`#dateMode${this.PROJECT_NAME}`).val();
+        this._renderDatePicker();
+        this.refreshCurrentTab();
+    }
+
     refreshCurrentTab() {
         switch (this.currentTab) {
             case 'corte':   this.lsCorte(); break;
@@ -165,9 +211,12 @@ class AppReportes extends Templates {
         let rangePicker = getDataRangePicker("calendar" + this.PROJECT_NAME);
         let sub_id = $(`#filterBar${this.PROJECT_NAME} #subsidiaries_id`).val() || '0';
 
+        let fi = rangePicker.fi;
+        let ff = this.dateMode === 'single' ? rangePicker.fi : rangePicker.ff;
+
         return {
-            fi: rangePicker.fi,
-            ff: rangePicker.ff,
+            fi: fi,
+            ff: ff,
             sub_id: sub_id
         };
     }
@@ -192,7 +241,7 @@ class AppReportes extends Templates {
         if (sucursales.length > 0) {
             let found = sucursales.find(x => x.id == params.sub_id);
             if (found) subName = found.valor;
-        }
+        }1
 
         let now = moment().format('DD/MM/YYYY hh:mm A');
 
@@ -205,7 +254,7 @@ class AppReportes extends Templates {
                     </div>
                     <div style="text-align:right;display:flex;align-items:flex-start;gap:12px">
                         <div>
-                            <div class="meta">Periodo: <span>${params.fi} al ${params.ff}</span></div>
+                            <div class="meta">${this.dateMode === 'single' ? 'Dia' : 'Periodo'}: <span>${this.dateMode === 'single' ? params.fi : `${params.fi} al ${params.ff}`}</span></div>
                             <div class="meta">Generado: <span>${now}</span></div>
                         </div>
                         <button onclick="window.print()" class="btn-print">Imprimir</button>
@@ -964,7 +1013,7 @@ class AppReportes extends Templates {
             </head>
             <body>
                 <h2>DETALLE DE TICKETS</h2>
-                <p class="info">Sucursal: ${subName} | Periodo: ${params.fi} al ${params.ff}</p>
+                <p class="info">Sucursal: ${subName} | ${params.fi === params.ff ? `Dia: ${params.fi}` : `Periodo: ${params.fi} al ${params.ff}`}</p>
                 <table>
                     <thead>
                         <tr>
@@ -1049,7 +1098,7 @@ class AppReportes extends Templates {
             </head>
             <body>
                 <h2>**** CORTE DE CAJA ****</h2>
-                <p class="info">Sucursal: ${subName} | Periodo: ${params.fi} al ${params.ff}</p>
+                <p class="info">Sucursal: ${subName} | ${params.fi === params.ff ? `Dia: ${params.fi}` : `Periodo: ${params.fi} al ${params.ff}`}</p>
                 <table>
                     <thead>
                         <tr>
