@@ -37,7 +37,17 @@
     <div id="menu-sidebar"></div>
     <div id="mainContainer"
         class="w-full h-[calc(100vh-3rem)]  bg-[#111928] mt-5 pt-5 transition-all duration-500  text-white p-6 flex flex-col md:flex-row gap-x-4">
-        <div id="grid-card" class="w-full grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        <div id="grid-card"
+     class="
+        w-full 
+        grid 
+        grid-cols-1 
+        sm:grid-cols-2 
+        lg:grid-cols-3 
+        xl:grid-cols-4 
+        gap-4
+     ">
+</div>
     </div>
     <script src="<?= PATH_BASE ?>access/src/js/session.js?t=<?= time(); ?>"></script>
     <script src="<?=PATH_MENU?>src/js/navbar.js"></script>

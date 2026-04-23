@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Administrador del Sistema - Preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #111928; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
+    /* Tab active */
+    .tab-btn { transition: all .2s ease; }
+    .tab-btn.active { background: #1E40AF; color: #fff; border-color: #3B82F6; }
+    .tab-btn:not(.active):hover { background: #374151; }
+
+    /* Badge avatar */
+    .avatar-circle {
+        width: 36px; height: 36px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.8rem; font-weight: 700; color: #fff;
+    }
+
+    /* Card hover */
+    .module-card { transition: all .2s ease; border: 1px solid #374151; }
+    .module-card:hover { border-color: #3B82F6; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(59,130,246,.12); }
+
+    /* Toggle switch */
+    .toggle-track { width: 40px; height: 22px; border-radius: 11px; position: relative; cursor: pointer; transition: background .2s; }
+    .toggle-track.on { background: #22C55E; }
+    .toggle-track.off { background: #4B5563; }
+    .toggle-dot { width: 18px; height: 18px; border-radius: 50%; background: #fff; position: absolute; top: 2px; transition: left .2s; }
+    .toggle-track.on .toggle-dot { left: 20px; }
+    .toggle-track.off .toggle-dot { left: 2px; }
+
+    /* Permission chip */
+    .perm-chip { transition: all .15s ease; cursor: pointer; }
+    .perm-chip:hover { transform: scale(1.05); }
+    .perm-chip.granted { background: rgba(34,197,94,.15); color: #4ADE80; border-color: rgba(34,197,94,.3); }
+    .perm-chip.denied  { background: rgba(107,114,128,.15); color: #9CA3AF; border-color: rgba(107,114,128,.3); }
+
+    /* Status dots */
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .status-dot.active { background: #22C55E; box-shadow: 0 0 6px rgba(34,197,94,.5); }
+    .status-dot.inactive { background: #EF4444; }
+</style>
+</head>
+<body class="bg-[#111928] min-h-screen text-gray-200 p-6">
+
+<!-- ===================== HEADER ===================== -->
+<div class="max-w-[1400px] mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-white flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">
+                    <i data-lucide="settings" class="w-5 h-5 text-blue-400"></i>
+                </div>
+                Administrador del Sistema
+            </h1>
+            <p class="text-gray-400 mt-1">Gestiona empresas, clientes, modulos, permisos y usuarios administradores</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500">fayxzvov_admin</span>
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold">SA</div>
+        </div>
+    </div>
+
+    <!-- ===================== STATS ===================== -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-[#1F2A37] rounded-xl p-4 border border-[#374151]">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wider">Empresas</p>
+                    <p class="text-2xl font-bold text-white mt-1">12</p>
+                    <p class="text-xs text-green-400 mt-1">+2 este mes</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <i data-lucide="building-2" class="w-6 h-6 text-blue-400"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-[#1F2A37] rounded-xl p-4 border border-[#374151]">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wider">Clientes</p>
+                    <p class="text-2xl font-bold text-white mt-1">8</p>
+                    <p class="text-xs text-green-400 mt-1">+1 este mes</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <i data-lucide="contact" class="w-6 h-6 text-emerald-400"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-[#1F2A37] rounded-xl p-4 border border-[#374151]">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wider">Modulos</p>
+                    <p class="text-2xl font-bold text-white mt-1">15</p>
+                    <p class="text-xs text-gray-500 mt-1">6 activos promedio</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                    <i data-lucide="layout-dashboard" class="w-6 h-6 text-purple-400"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-[#1F2A37] rounded-xl p-4 border border-[#374151]">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wider">Usuarios Admin</p>
+                    <p class="text-2xl font-bold text-white mt-1">5</p>
+                    <p class="text-xs text-blue-400 mt-1">3 activos ahora</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <i data-lucide="shield-check" class="w-6 h-6 text-amber-400"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== TABS ===================== -->
+    <div class="bg-[#1F2A37] rounded-xl border border-[#374151] min-h-[600px]">
+        <div class="flex items-center gap-2 p-4 border-b border-[#374151] overflow-x-auto">
+            <button class="tab-btn active flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-transparent" onclick="showTab('empresas')">
+                <i data-lucide="building-2" class="w-4 h-4"></i> Empresas
+            </button>
+            <button class="tab-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-400 border border-transparent" onclick="showTab('clientes')">
+                <i data-lucide="contact" class="w-4 h-4"></i> Clientes
+            </button>
+            <button class="tab-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-400 border border-transparent" onclick="showTab('modulos')">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Modulos
+            </button>
+            <button class="tab-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-400 border border-transparent" onclick="showTab('accesos')">
+                <i data-lucide="lock" class="w-4 h-4"></i> Accesos
+            </button>
+            <button class="tab-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-400 border border-transparent" onclick="showTab('usuarios')">
+                <i data-lucide="shield-check" class="w-4 h-4"></i> Usuarios Admin
+            </button>
+        </div>
+
+        <!-- =================== TAB: EMPRESAS =================== -->
+        <div id="tab-empresas" class="tab-content p-4">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <select class="bg-[#111928] border border-[#374151] text-gray-300 text-sm rounded-lg px-3 py-2">
+                        <option>Activos</option>
+                        <option>Inactivos</option>
+                    </select>
+                    <input type="text" placeholder="Buscar empresa..." class="bg-[#111928] border border-[#374151] text-gray-300 text-sm rounded-lg px-3 py-2 w-64">
+                </div>
+                <button class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Nueva Empresa
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-xs text-gray-400 uppercase tracking-wider border-b border-[#374151]">
+                            <th class="pb-3 px-3">Empresa</th>
+                            <th class="pb-3 px-3">RFC</th>
+                            <th class="pb-3 px-3">Ubicacion</th>
+                            <th class="pb-3 px-3">Cliente</th>
+                            <th class="pb-3 px-3">Base de datos</th>
+                            <th class="pb-3 px-3">Modulos</th>
+                            <th class="pb-3 px-3">Estado</th>
+                            <th class="pb-3 px-3 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#374151]/50">
+                        <tr class="hover:bg-[#111928]/50 transition">
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="avatar-circle bg-gradient-to-br from-blue-400 to-blue-600">FC</div>
+                                    <div>
+                                        <div class="text-white font-medium">FERRETERIA CENTRAL S.A.</div>
+                                        <div class="text-xs text-gray-500">ID: 1</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-gray-300">FCE210301AB1</td>
+                            <td class="py-3 px-3 text-gray-400">CDMX, Mexico</td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/15 text-emerald-400">Juan Perez</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-cyan-500/15 text-cyan-400">ferreteria_central</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-500/15 text-purple-400">5 modulos</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot active"></span>
+                                    <span class="text-green-400 text-xs">Activo</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30" title="Editar">
+                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-green-500/15 hover:bg-green-500/25 text-green-400 border border-green-500/30" title="Modulos">
+                                        <i data-lucide="link" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30" title="Desactivar">
+                                        <i data-lucide="toggle-right" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-[#111928]/50 transition">
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="avatar-circle bg-gradient-to-br from-emerald-400 to-emerald-600">TM</div>
+                                    <div>
+                                        <div class="text-white font-medium">TEXTILES MODERNOS S.A.</div>
+                                        <div class="text-xs text-gray-500">ID: 2</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-gray-300">TMO190512CD3</td>
+                            <td class="py-3 px-3 text-gray-400">Guadalajara, Jalisco</td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/15 text-emerald-400">Maria Lopez</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-cyan-500/15 text-cyan-400">textiles_mod</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-500/15 text-purple-400">3 modulos</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot active"></span>
+                                    <span class="text-green-400 text-xs">Activo</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-green-500/15 hover:bg-green-500/25 text-green-400 border border-green-500/30">
+                                        <i data-lucide="link" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                        <i data-lucide="toggle-right" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-[#111928]/50 transition">
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="avatar-circle bg-gradient-to-br from-purple-400 to-purple-600">AC</div>
+                                    <div>
+                                        <div class="text-white font-medium">ALIMENTOS COSTA S.A.</div>
+                                        <div class="text-xs text-gray-500">ID: 3</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-gray-300">ACO200815EF5</td>
+                            <td class="py-3 px-3 text-gray-400">Monterrey, N.L.</td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/15 text-emerald-400">Carlos Ruiz</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-cyan-500/15 text-cyan-400">alimentos_costa</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-500/15 text-purple-400">7 modulos</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot active"></span>
+                                    <span class="text-green-400 text-xs">Activo</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-green-500/15 hover:bg-green-500/25 text-green-400 border border-green-500/30">
+                                        <i data-lucide="link" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                        <i data-lucide="toggle-right" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- =================== TAB: CLIENTES =================== -->
+        <div id="tab-clientes" class="tab-content p-4 hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <select class="bg-[#111928] border border-[#374151] text-gray-300 text-sm rounded-lg px-3 py-2">
+                        <option>Activos</option>
+                        <option>Inactivos</option>
+                    </select>
+                    <input type="text" placeholder="Buscar cliente..." class="bg-[#111928] border border-[#374151] text-gray-300 text-sm rounded-lg px-3 py-2 w-64">
+                </div>
+                <button class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Cliente
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Client Card 1 -->
+                <div class="bg-[#111928] rounded-xl p-4 border border-[#374151] hover:border-blue-500/30 transition">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="avatar-circle bg-gradient-to-br from-blue-400 to-blue-600">JP</div>
+                            <div>
+                                <div class="text-white font-semibold">Juan Perez Lopez</div>
+                                <div class="text-xs text-gray-500">Cliente #1</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="status-dot active"></span>
+                            <span class="text-green-400 text-xs">Activo</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-blue-500/15 text-blue-400">3 empresas</span>
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-purple-500/15 text-purple-400">2 usuarios</span>
+                    </div>
+                    <div class="flex items-center gap-1 pt-3 border-t border-[#374151]">
+                        <button class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                            <i data-lucide="pencil" class="w-3 h-3"></i> Editar
+                        </button>
+                        <button class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                            <i data-lucide="toggle-right" class="w-3 h-3"></i> Desactivar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Client Card 2 -->
+                <div class="bg-[#111928] rounded-xl p-4 border border-[#374151] hover:border-blue-500/30 transition">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="avatar-circle bg-gradient-to-br from-emerald-400 to-emerald-600">ML</div>
+                            <div>
+                                <div class="text-white font-semibold">Maria Lopez Garcia</div>
+                                <div class="text-xs text-gray-500">Cliente #2</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="status-dot active"></span>
+                            <span class="text-green-400 text-xs">Activo</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-blue-500/15 text-blue-400">2 empresas</span>
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-purple-500/15 text-purple-400">1 usuario</span>
+                    </div>
+                    <div class="flex items-center gap-1 pt-3 border-t border-[#374151]">
+                        <button class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                            <i data-lucide="pencil" class="w-3 h-3"></i> Editar
+                        </button>
+                        <button class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                            <i data-lucide="toggle-right" class="w-3 h-3"></i> Desactivar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Client Card 3 -->
+                <div class="bg-[#111928] rounded-xl p-4 border border-[#374151] hover:border-blue-500/30 transition">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="avatar-circle bg-gradient-to-br from-purple-400 to-purple-600">CR</div>
+                            <div>
+                                <div class="text-white font-semibold">Carlos Ruiz Mendez</div>
+                                <div class="text-xs text-gray-500">Cliente #3</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="status-dot active"></span>
+                            <span class="text-green-400 text-xs">Activo</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-blue-500/15 text-blue-400">1 empresa</span>
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-purple-500/15 text-purple-400">1 usuario</span>
+                    </div>
+                    <div class="flex items-center gap-1 pt-3 border-t border-[#374151]">
+                        <button class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                            <i data-lucide="pencil" class="w-3 h-3"></i> Editar
+                        </button>
+                        <button class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                            <i data-lucide="toggle-right" class="w-3 h-3"></i> Desactivar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =================== TAB: MODULOS =================== -->
+        <div id="tab-modulos" class="tab-content p-4 hidden">
+            <div class="flex items-center justify-between mb-4">
+                <input type="text" placeholder="Buscar modulo..." class="bg-[#111928] border border-[#374151] text-gray-300 text-sm rounded-lg px-3 py-2 w-64">
+                <button class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Modulo
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="module-card bg-[#111928] rounded-xl p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-blue-500/15 flex items-center justify-center">
+                            <i data-lucide="shopping-cart" class="w-5 h-5 text-blue-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-white font-semibold">Ventas</div>
+                            <div class="text-xs text-gray-500">ventas</div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Modulo de punto de venta, cotizaciones y facturacion</p>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-cyan-500/15 text-cyan-400">coffee/ventas</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-3 border-t border-[#374151]">
+                        <span class="text-xs text-gray-500">Vinculado a 8 empresas</span>
+                        <div class="ml-auto flex gap-1">
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                <i data-lucide="pencil" class="w-3 h-3"></i>
+                            </button>
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="module-card bg-[#111928] rounded-xl p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                            <i data-lucide="package" class="w-5 h-5 text-emerald-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-white font-semibold">Inventario</div>
+                            <div class="text-xs text-gray-500">inventario</div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Control de almacen, entradas, salidas y traspasos</p>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-cyan-500/15 text-cyan-400">coffee/inventario</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-3 border-t border-[#374151]">
+                        <span class="text-xs text-gray-500">Vinculado a 6 empresas</span>
+                        <div class="ml-auto flex gap-1">
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                <i data-lucide="pencil" class="w-3 h-3"></i>
+                            </button>
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="module-card bg-[#111928] rounded-xl p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                            <i data-lucide="users" class="w-5 h-5 text-amber-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-white font-semibold">RRHH</div>
+                            <div class="text-xs text-gray-500">rrhh</div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Recursos humanos, nominas, asistencias y expedientes</p>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-cyan-500/15 text-cyan-400">coffee/rrhh</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-3 border-t border-[#374151]">
+                        <span class="text-xs text-gray-500">Vinculado a 4 empresas</span>
+                        <div class="ml-auto flex gap-1">
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                <i data-lucide="pencil" class="w-3 h-3"></i>
+                            </button>
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="module-card bg-[#111928] rounded-xl p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-rose-500/15 flex items-center justify-center">
+                            <i data-lucide="wallet" class="w-5 h-5 text-rose-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-white font-semibold">Finanzas</div>
+                            <div class="text-xs text-gray-500">finanzas</div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Cuentas por cobrar, por pagar, bancos y flujo de caja</p>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-cyan-500/15 text-cyan-400">coffee/finanzas</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-3 border-t border-[#374151]">
+                        <span class="text-xs text-gray-500">Vinculado a 5 empresas</span>
+                        <div class="ml-auto flex gap-1">
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                <i data-lucide="pencil" class="w-3 h-3"></i>
+                            </button>
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="module-card bg-[#111928] rounded-xl p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-500/15 flex items-center justify-center">
+                            <i data-lucide="file-text" class="w-5 h-5 text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-white font-semibold">Pedidos</div>
+                            <div class="text-xs text-gray-500">pedidos</div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Gestion de pedidos, ordenes de compra y seguimiento</p>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-cyan-500/15 text-cyan-400">coffee/pedidos</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-3 border-t border-[#374151]">
+                        <span class="text-xs text-gray-500">Vinculado a 3 empresas</span>
+                        <div class="ml-auto flex gap-1">
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                <i data-lucide="pencil" class="w-3 h-3"></i>
+                            </button>
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="module-card bg-[#111928] rounded-xl p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-teal-500/15 flex items-center justify-center">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5 text-teal-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-white font-semibold">Reportes</div>
+                            <div class="text-xs text-gray-500">reportes</div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Dashboard, graficas, exportaciones y KPIs del negocio</p>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-cyan-500/15 text-cyan-400">coffee/reportes</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-3 border-t border-[#374151]">
+                        <span class="text-xs text-gray-500">Vinculado a 10 empresas</span>
+                        <div class="ml-auto flex gap-1">
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                <i data-lucide="pencil" class="w-3 h-3"></i>
+                            </button>
+                            <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =================== TAB: ACCESOS =================== -->
+        <div id="tab-accesos" class="tab-content p-4 hidden">
+            <div class="mb-4">
+                <h3 class="text-lg font-semibold text-white mb-1">Control de Accesos por Empresa</h3>
+                <p class="text-sm text-gray-400">Selecciona una empresa para administrar los modulos a los que tiene acceso</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <!-- Left: Company selector -->
+                <div class="bg-[#111928] rounded-xl border border-[#374151] p-4">
+                    <div class="mb-3">
+                        <input type="text" placeholder="Filtrar empresas..." class="w-full bg-[#1F2A37] border border-[#374151] text-gray-300 text-sm rounded-lg px-3 py-2">
+                    </div>
+                    <div class="space-y-1 max-h-[400px] overflow-y-auto">
+                        <div class="flex items-center gap-3 p-3 rounded-lg bg-blue-600/15 border border-blue-500/30 cursor-pointer">
+                            <div class="avatar-circle bg-gradient-to-br from-blue-400 to-blue-600 text-xs" style="width:32px;height:32px;">FC</div>
+                            <div>
+                                <div class="text-white text-sm font-medium">FERRETERIA CENTRAL</div>
+                                <div class="text-xs text-gray-500">5 modulos activos</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-[#1F2A37] cursor-pointer transition">
+                            <div class="avatar-circle bg-gradient-to-br from-emerald-400 to-emerald-600 text-xs" style="width:32px;height:32px;">TM</div>
+                            <div>
+                                <div class="text-gray-300 text-sm font-medium">TEXTILES MODERNOS</div>
+                                <div class="text-xs text-gray-500">3 modulos activos</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-[#1F2A37] cursor-pointer transition">
+                            <div class="avatar-circle bg-gradient-to-br from-purple-400 to-purple-600 text-xs" style="width:32px;height:32px;">AC</div>
+                            <div>
+                                <div class="text-gray-300 text-sm font-medium">ALIMENTOS COSTA</div>
+                                <div class="text-xs text-gray-500">7 modulos activos</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Module permissions -->
+                <div class="lg:col-span-2 bg-[#111928] rounded-xl border border-[#374151] p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h4 class="text-white font-semibold">FERRETERIA CENTRAL S.A.</h4>
+                            <p class="text-xs text-gray-500">Modulos vinculados y permisos de acceso</p>
+                        </div>
+                        <button class="flex items-center gap-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 text-sm font-medium px-3 py-1.5 rounded-lg border border-green-500/30 transition">
+                            <i data-lucide="link" class="w-3.5 h-3.5"></i> Vincular modulo
+                        </button>
+                    </div>
+
+                    <div class="space-y-3">
+                        <!-- Module access row -->
+                        <div class="bg-[#1F2A37] rounded-lg p-4 border border-[#374151]">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
+                                        <i data-lucide="shopping-cart" class="w-4 h-4 text-blue-400"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-white text-sm font-medium">Ventas</div>
+                                        <div class="text-xs text-gray-500">coffee/ventas</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="toggle-track on"><div class="toggle-dot"></div></div>
+                                    <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                        <i data-lucide="unlink" class="w-3 h-3"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="perm-chip granted inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="eye" class="w-3 h-3"></i> Ver
+                                </span>
+                                <span class="perm-chip granted inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="plus" class="w-3 h-3"></i> Crear
+                                </span>
+                                <span class="perm-chip granted inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="pencil" class="w-3 h-3"></i> Editar
+                                </span>
+                                <span class="perm-chip denied inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar
+                                </span>
+                                <span class="perm-chip granted inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="download" class="w-3 h-3"></i> Exportar
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="bg-[#1F2A37] rounded-lg p-4 border border-[#374151]">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                                        <i data-lucide="package" class="w-4 h-4 text-emerald-400"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-white text-sm font-medium">Inventario</div>
+                                        <div class="text-xs text-gray-500">coffee/inventario</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="toggle-track on"><div class="toggle-dot"></div></div>
+                                    <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                        <i data-lucide="unlink" class="w-3 h-3"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="perm-chip granted inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="eye" class="w-3 h-3"></i> Ver
+                                </span>
+                                <span class="perm-chip granted inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="plus" class="w-3 h-3"></i> Crear
+                                </span>
+                                <span class="perm-chip granted inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="pencil" class="w-3 h-3"></i> Editar
+                                </span>
+                                <span class="perm-chip granted inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar
+                                </span>
+                                <span class="perm-chip denied inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="download" class="w-3 h-3"></i> Exportar
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="bg-[#1F2A37] rounded-lg p-4 border border-[#374151]">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-rose-500/15 flex items-center justify-center">
+                                        <i data-lucide="wallet" class="w-4 h-4 text-rose-400"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-white text-sm font-medium">Finanzas</div>
+                                        <div class="text-xs text-gray-500">coffee/finanzas</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="toggle-track off"><div class="toggle-dot"></div></div>
+                                    <button class="inline-flex items-center px-2 py-1 text-xs rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                        <i data-lucide="unlink" class="w-3 h-3"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="perm-chip denied inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="eye" class="w-3 h-3"></i> Ver
+                                </span>
+                                <span class="perm-chip denied inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="plus" class="w-3 h-3"></i> Crear
+                                </span>
+                                <span class="perm-chip denied inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="pencil" class="w-3 h-3"></i> Editar
+                                </span>
+                                <span class="perm-chip denied inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar
+                                </span>
+                                <span class="perm-chip denied inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border">
+                                    <i data-lucide="download" class="w-3 h-3"></i> Exportar
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =================== TAB: USUARIOS ADMIN =================== -->
+        <div id="tab-usuarios" class="tab-content p-4 hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <select class="bg-[#111928] border border-[#374151] text-gray-300 text-sm rounded-lg px-3 py-2">
+                        <option>Activos</option>
+                        <option>Inactivos</option>
+                    </select>
+                    <input type="text" placeholder="Buscar usuario..." class="bg-[#111928] border border-[#374151] text-gray-300 text-sm rounded-lg px-3 py-2 w-64">
+                </div>
+                <button class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Usuario
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-xs text-gray-400 uppercase tracking-wider border-b border-[#374151]">
+                            <th class="pb-3 px-3">Usuario</th>
+                            <th class="pb-3 px-3">Cliente</th>
+                            <th class="pb-3 px-3">Base de datos</th>
+                            <th class="pb-3 px-3">Rol</th>
+                            <th class="pb-3 px-3">Sesion</th>
+                            <th class="pb-3 px-3">Estado</th>
+                            <th class="pb-3 px-3 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#374151]/50">
+                        <tr class="hover:bg-[#111928]/50 transition">
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="avatar-circle bg-gradient-to-br from-blue-400 to-blue-600">SA</div>
+                                    <div>
+                                        <div class="text-white font-medium">superadmin</div>
+                                        <div class="text-xs text-gray-500">ID: 1</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-gray-300">Juan Perez</td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-cyan-500/15 text-cyan-400">ferreteria_central</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                    <i data-lucide="crown" class="w-3 h-3 mr-1"></i> Super Admin
+                                </span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot active"></span>
+                                    <span class="text-xs text-gray-400">En linea</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot active"></span>
+                                    <span class="text-green-400 text-xs">Activo</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-purple-500/15 hover:bg-purple-500/25 text-purple-400 border border-purple-500/30" title="Permisos">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                        <i data-lucide="toggle-right" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-[#111928]/50 transition">
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="avatar-circle bg-gradient-to-br from-emerald-400 to-emerald-600">AG</div>
+                                    <div>
+                                        <div class="text-white font-medium">admin_gdl</div>
+                                        <div class="text-xs text-gray-500">ID: 2</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-gray-300">Maria Lopez</td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-cyan-500/15 text-cyan-400">textiles_mod</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                    <i data-lucide="shield-check" class="w-3 h-3 mr-1"></i> Admin
+                                </span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot inactive"></span>
+                                    <span class="text-xs text-gray-400">Hace 2h</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot active"></span>
+                                    <span class="text-green-400 text-xs">Activo</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-purple-500/15 hover:bg-purple-500/25 text-purple-400 border border-purple-500/30">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                        <i data-lucide="toggle-right" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-[#111928]/50 transition">
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="avatar-circle bg-gradient-to-br from-purple-400 to-purple-600">OV</div>
+                                    <div>
+                                        <div class="text-white font-medium">operador_ventas</div>
+                                        <div class="text-xs text-gray-500">ID: 3</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-gray-300">Carlos Ruiz</td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-cyan-500/15 text-cyan-400">alimentos_costa</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-gray-500/15 text-gray-400 border border-gray-500/30">
+                                    <i data-lucide="user" class="w-3 h-3 mr-1"></i> Operador
+                                </span>
+                            </td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot active"></span>
+                                    <span class="text-xs text-gray-400">En linea</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot active"></span>
+                                    <span class="text-green-400 text-xs">Activo</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-purple-500/15 hover:bg-purple-500/25 text-purple-400 border border-purple-500/30">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button class="inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30">
+                                        <i data-lucide="toggle-right" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- User permissions detail (expanded view concept) -->
+            <div class="mt-6 bg-[#111928] rounded-xl border border-[#374151] p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="avatar-circle bg-gradient-to-br from-emerald-400 to-emerald-600">AG</div>
+                        <div>
+                            <div class="text-white font-semibold">Permisos de admin_gdl</div>
+                            <div class="text-xs text-gray-500">Configurar que puede ver y hacer este usuario en el sistema</div>
+                        </div>
+                    </div>
+                    <button class="text-sm text-blue-400 hover:text-blue-300 transition">Guardar cambios</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="bg-[#1F2A37] rounded-lg p-3 border border-[#374151]">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-white text-sm font-medium">Ventas</span>
+                            <div class="toggle-track on" style="width:34px;height:18px;"><div class="toggle-dot" style="width:14px;height:14px;top:2px;"></div></div>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            <span class="perm-chip granted inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Ver</span>
+                            <span class="perm-chip granted inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Crear</span>
+                            <span class="perm-chip granted inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Editar</span>
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Eliminar</span>
+                        </div>
+                    </div>
+                    <div class="bg-[#1F2A37] rounded-lg p-3 border border-[#374151]">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-white text-sm font-medium">Inventario</span>
+                            <div class="toggle-track on" style="width:34px;height:18px;"><div class="toggle-dot" style="width:14px;height:14px;top:2px;"></div></div>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            <span class="perm-chip granted inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Ver</span>
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Crear</span>
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Editar</span>
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Eliminar</span>
+                        </div>
+                    </div>
+                    <div class="bg-[#1F2A37] rounded-lg p-3 border border-[#374151]">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-white text-sm font-medium">RRHH</span>
+                            <div class="toggle-track off" style="width:34px;height:18px;"><div class="toggle-dot" style="width:14px;height:14px;top:2px;"></div></div>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Ver</span>
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Crear</span>
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Editar</span>
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Eliminar</span>
+                        </div>
+                    </div>
+                    <div class="bg-[#1F2A37] rounded-lg p-3 border border-[#374151]">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-white text-sm font-medium">Finanzas</span>
+                            <div class="toggle-track on" style="width:34px;height:18px;"><div class="toggle-dot" style="width:14px;height:14px;top:2px;"></div></div>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            <span class="perm-chip granted inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Ver</span>
+                            <span class="perm-chip granted inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Crear</span>
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Editar</span>
+                            <span class="perm-chip denied inline-flex items-center px-2 py-0.5 text-xs rounded-full border">Eliminar</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end tabs container -->
+</div><!-- end max-w -->
+
+<script>
+    lucide.createIcons();
+
+    function showTab(name) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.classList.add('text-gray-400');
+        });
+
+        document.getElementById('tab-' + name).classList.remove('hidden');
+        event.currentTarget.classList.add('active');
+        event.currentTarget.classList.remove('text-gray-400');
+
+        lucide.createIcons();
+    }
+</script>
+
+</body>
+</html>

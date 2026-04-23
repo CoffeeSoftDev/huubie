@@ -5,52 +5,54 @@
  actualizacion de createLayout
  actualizacion de coffeTable3
  actualizacion de crete Table
+ createCoffeeForm
+ update table.
 */
 
 const CF_REGEX = {
-    texto:        /^[a-zA-ZÀ-ÖØ-öø-ÿ\s]+$/,
-    texto_clean:  /[^a-zA-ZÀ-ÖØ-öø-ÿ\s]+/g,
-    numero:       /^\d+$/,
+    texto: /^[a-zA-ZÀ-ÖØ-öø-ÿ\s]+$/,
+    texto_clean: /[^a-zA-ZÀ-ÖØ-öø-ÿ\s]+/g,
+    numero: /^\d+$/,
     numero_clean: /[^0-9]/g,
-    cifra:        /^-?\d+(\.\d+)?$/,
-    email:        /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/,
-    tel:          /^[0-9+\-() ]+$/,
-    tel_clean:    /[^0-9+\-() ]/g,
+    cifra: /^-?\d+(\.\d+)?$/,
+    email: /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/,
+    tel: /^[0-9+\-() ]+$/,
+    tel_clean: /[^0-9+\-() ]/g,
 };
 
 const CF_CSS = {
-    input:      'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700',
-    select:     'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
-    textarea:   'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
-    label:      'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
-    error:      'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
+    input: 'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700',
+    select: 'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
+    textarea: 'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
+    label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
+    error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
     btnPrimary: 'tw-btn w-full rounded-lg bg-[#003360]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#003360] active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnInfo:    'tw-btn w-full rounded-lg bg-[#0078D7]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#0078D7] active:bg-[#0078D7] focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnInfo: 'tw-btn w-full rounded-lg bg-[#0078D7]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#0078D7] active:bg-[#0078D7] focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnSuccess: 'tw-btn w-full rounded-lg bg-[#7aab20]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#7aab20] active:bg-[#7aab20] focus:outline-none focus:ring-2 focus:ring-[#7aab20] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnDanger:  'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnDanger: 'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnWarning: 'tw-btn w-full rounded-lg bg-[#FFC107] px-4 py-2 text-sm font-semibold text-[#003360] hover:bg-[#FFC107]/80 active:bg-[#FFC107]/80 focus:outline-none focus:ring-2 focus:ring-[#FFC107] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnOutline: 'tw-btn w-full rounded-lg border border-[#003360] bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-[#003360] dark:text-gray-200 hover:bg-[#003360] hover:text-white active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnSecondary: 'tw-btn w-full rounded-lg bg-gray-500 dark:bg-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600 dark:hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnLight:     'tw-btn w-full rounded-lg bg-gray-100 dark:bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 dark:hover:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnDark:      'tw-btn w-full rounded-lg bg-gray-800 dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 dark:hover:bg-black active:bg-black focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnLink:      'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',
-    radio:      'w-4 h-4 text-[#003360] border-gray-300 dark:border-gray-600 focus:ring-[#003360] accent-[#003360]',
-    checkbox:   'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#003360] focus:ring-[#003360] accent-[#003360]',
-    file:       'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#e6eef5] dark:file:bg-[#0a2540] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#003360] dark:file:text-[#7bafe6] hover:file:bg-[#cddfee] dark:hover:file:bg-[#0f3358]',
+    btnLight: 'tw-btn w-full rounded-lg bg-gray-100 dark:bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 dark:hover:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnDark: 'tw-btn w-full rounded-lg bg-gray-800 dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 dark:hover:bg-black active:bg-black focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnLink: 'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',
+    radio: 'w-4 h-4 text-[#003360] border-gray-300 dark:border-gray-600 focus:ring-[#003360] accent-[#003360]',
+    checkbox: 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#003360] focus:ring-[#003360] accent-[#003360]',
+    file: 'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#e6eef5] dark:file:bg-[#0a2540] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#003360] dark:file:text-[#7bafe6] hover:file:bg-[#cddfee] dark:hover:file:bg-[#0f3358]',
     groupAddon: 'inline-flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
 };
 
 const CF_BTN_COLORS = {
-    primary:   'btnPrimary',
+    primary: 'btnPrimary',
     secondary: 'btnSecondary',
-    success:   'btnSuccess',
-    danger:    'btnDanger',
-    warning:   'btnWarning',
-    info:      'btnInfo',
-    light:     'btnLight',
-    dark:      'btnDark',
-    link:      'btnLink',
-    outline:   'btnOutline',
+    success: 'btnSuccess',
+    danger: 'btnDanger',
+    warning: 'btnWarning',
+    info: 'btnInfo',
+    light: 'btnLight',
+    dark: 'btnDark',
+    link: 'btnLink',
+    outline: 'btnOutline',
 };
 
 class Complements {
@@ -607,10 +609,10 @@ class Components extends Complements {
             theme: 'light',
             card: false,
             showRequired: true,
-            onSave: () => {},
-            onAdd: () => {},
-            onUpdate: () => {},
-            onDelete: () => {},
+            onSave: () => { },
+            onAdd: () => { },
+            onUpdate: () => { },
+            onDelete: () => { },
         };
 
         const opts = Object.assign({}, defaults, options);
@@ -3308,8 +3310,8 @@ class Components extends Complements {
 
 
         if (opts.fixed.length > 0) {
-            const bgHeader = opts.theme === 'dark' ? '#0F172A' : opts.theme === 'corporativo' ? '#003360' : '#003360';
-            const bgDefault = opts.theme === 'dark' ? '#1E293B' : '#F3F4F6';
+            const bgHeader = opts.theme === 'dark' ? '#374151' : opts.theme === 'corporativo' ? '#003360' : '#003360';
+            const bgDefault = opts.theme === 'dark' ? '#283341' : '#F3F4F6';
 
             let fixedCSS = `
                 #${opts.id} { 
@@ -3545,12 +3547,12 @@ class Components extends Complements {
 
         if (options.theme === 'dark') {
             defaults.dark = true;
-            defaults.color_th = "bg-[#0F172A] text-white";
-            defaults.color_row = "bg-[#1E293B] text-white";
+            defaults.color_th = "bg-[#374151] text-gray-300";
+            defaults.color_row = "bg-[#283341]";
             defaults.color_group = "bg-[#334155] text-white";
-            defaults.class = "w-full text-sm text-white";
+            defaults.class = "w-full table-auto text-sm text-gray-300";
             defaults.border_table = "";
-            defaults.border_row = "border-b border-gray-600";
+            defaults.border_row = "border-t border-gray-700";
             defaults.color_row_alt = "bg-[#111827]";
         }
 
@@ -3565,6 +3567,10 @@ class Components extends Complements {
         }
 
         const opts = Object.assign({}, defaults, options);
+
+        if (!('scrollable' in options)) {
+            opts.scrollable = opts.fixed.length > 0;
+        }
 
         const getFixedWidth = (col) => {
             if (typeof opts.fixedWidth === 'object') return opts.fixedWidth[col] || 200;
@@ -3997,8 +4003,8 @@ class Components extends Complements {
 
 
         if (opts.fixed.length > 0) {
-            const bgHeader = opts.theme === 'dark' ? '#0F172A' : opts.theme === 'corporativo' ? '#003360' : '#003360';
-            const bgDefault = opts.theme === 'dark' ? '#1E293B' : '#F3F4F6';
+            const bgHeader = opts.theme === 'dark' ? '#374151' : opts.theme === 'corporativo' ? '#003360' : '#003360';
+            const bgDefault = opts.theme === 'dark' ? '#283341' : '#F3F4F6';
 
             let fixedCSS = `
                 #${opts.id} {
@@ -4044,10 +4050,10 @@ class Components extends Complements {
             const extractBgColor = (classStr) => {
                 const arbitraryMatch = classStr.match(/bg-\[([^\]]+)\]/);
                 if (arbitraryMatch) return arbitraryMatch[1];
-                
+
                 const standardMatch = classStr.match(/bg-((?:green|blue|red|yellow|gray|purple|orange|white|black)(?:-\d+)?)/);
                 if (standardMatch) return tailwindColors[standardMatch[1]] || null;
-                
+
                 return null;
             };
 
@@ -4216,7 +4222,7 @@ class Components extends Complements {
             type: "large", // 'short' | 'large' | 'button'
             theme: "light", // 'dark' | 'light'
             class: "",
-            showBorder:true,
+            showBorder: true,
             tab: {
                 size: 'px-3 py-1',
             },
@@ -4237,7 +4243,7 @@ class Components extends Complements {
                 base: "bg-gray-900 text-white",
                 active: "bg-blue-600 text-white",
                 inactive: "text-gray-300 hover:bg-gray-700",
-                iconActive: "text-blue-400"
+                iconActive: "text-white"
             },
             light: {
                 base: "bg-gray-200 text-black",
@@ -4291,9 +4297,10 @@ class Components extends Complements {
                    ${isActive ? themeStyle.active : themeStyle.inactive}`;
 
             let iconHtml = '';
-            const iconColorClass = isActive ? (tab.iconColor || themeStyle.iconActive || '') : 'text-gray-800';
+            const inactiveIconColor = opts.theme === 'dark' ? 'text-gray-400' : 'text-gray-800';
+            const iconColorClass = isActive ? (tab.iconColor || themeStyle.iconActive || '') : inactiveIconColor;
             let baseIconClasses = '';
-            
+
             if (tab.lucideIcon) {
                 baseIconClasses = 'w-4 h-4 md:w-4 md:h-4 inline-block mr-2 md:mr-2';
                 iconHtml = `<i data-lucide="${tab.lucideIcon}" class="${baseIconClasses} ${iconColorClass}" data-base-classes="${baseIconClasses}"></i>`;
@@ -4314,7 +4321,7 @@ class Components extends Complements {
                         $(this).attr("data-state", "inactive")
                             .removeClass(themeStyle.active)
                             .addClass(themeStyle.inactive);
-                        
+
                         const $icon = $(this).find('i, svg');
                         if ($icon.length) {
                             const baseClasses = $icon.data('base-classes') || '';
@@ -4326,7 +4333,7 @@ class Components extends Complements {
                             if (themeStyle.iconActive) {
                                 $icon.removeClass(themeStyle.iconActive);
                             }
-                            $icon.removeClass('text-gray-800 text-blue-600 text-blue-400 text-white').addClass('text-gray-800');
+                            $icon.removeClass('text-gray-800 text-gray-400 text-blue-600 text-blue-400 text-white').addClass(opts.theme === 'dark' ? 'text-gray-400' : 'text-gray-800');
                         }
                     });
 
@@ -4342,7 +4349,7 @@ class Components extends Complements {
                         const $activeIcon = tabButton.find('i, svg');
                         if ($activeIcon.length) {
                             const iconColor = tabButton.data('icon-color');
-                            $activeIcon.removeClass('text-gray-800');
+                            $activeIcon.removeClass('text-gray-800 text-gray-400');
                             if (iconColor) {
                                 const colorClasses = iconColor.split(' ');
                                 colorClasses.forEach(cls => $activeIcon.addClass(cls));
@@ -4776,7 +4783,7 @@ class Components extends Complements {
             class: "",
             theme: "light",
             style: "default",
-            coffeesoft:false,
+            coffeesoft: false,
             borderColor: "border-[#8CC63F]",
             cols: 4,
             json: []
@@ -4978,14 +4985,14 @@ class Components extends Complements {
                 $("#sidebar").toggleClass("active");
                 $("#main__content").toggleClass("active");
             },
-            onProfile: () => {},
-            onLogout: () => {}
+            onProfile: () => { },
+            onLogout: () => { }
         };
 
         const opts = Object.assign({}, defaults, options);
 
         let userName = opts.userName || (typeof getCookies === 'function' ? getCookies().USR : 'Usuario');
-        try { userName = decodeURIComponent(userName); } catch (e) {}
+        try { userName = decodeURIComponent(userName); } catch (e) { }
 
         const navbar = $("<header>", {
             id: opts.id,

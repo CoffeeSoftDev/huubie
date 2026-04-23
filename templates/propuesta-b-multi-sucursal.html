@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta B - Multi Sucursal (Tag Input)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-[#0f1117] min-h-screen flex items-center justify-center p-4">
+
+    <!-- Modal -->
+    <div class="w-full max-w-2xl bg-[#1a1d27] rounded-xl border border-white/10 shadow-2xl">
+
+        <!-- Header -->
+        <div class="px-6 pt-6 pb-4 border-b border-white/10">
+            <h2 class="text-white text-lg font-bold">Editar Usuario</h2>
+            <p class="text-gray-400 text-sm mt-1">Selecciona las sucursales donde opera este usuario</p>
+        </div>
+
+        <!-- Body -->
+        <div class="px-6 py-5 space-y-5">
+
+            <!-- Row: Rol + Nombre -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-gray-300 text-sm font-medium mb-1.5 block">Rol</label>
+                    <select class="w-full bg-[#0f1117] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30">
+                        <option>Administrador</option>
+                        <option>Cajero</option>
+                        <option>Vendedor</option>
+                        <option>Lectura</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-gray-300 text-sm font-medium mb-1.5 block">Nombre completo</label>
+                    <input type="text" value="Sergio Os" class="w-full bg-[#0f1117] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30">
+                </div>
+            </div>
+
+            <!-- Row: Email + Password -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-white text-sm font-bold mb-1.5 block">Usuario (correo)</label>
+                    <input type="email" value="sergio@marini.com" class="w-full bg-[#0f1117] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30">
+                </div>
+                <div>
+                    <label class="text-white text-sm font-bold mb-1.5 block">Contrase&ntilde;a</label>
+                    <div class="relative">
+                        <input type="password" placeholder="Dejar vacio para mantener" class="w-full bg-[#0f1117] border border-white/10 rounded-lg px-3 pr-10 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30">
+                        <button class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sucursales asignadas (Tag Input) -->
+            <div>
+                <label class="text-gray-300 text-sm font-medium mb-1.5 block">Sucursales asignadas</label>
+                <div class="flex flex-wrap items-center gap-2 bg-[#0f1117] border border-white/10 rounded-lg px-3 py-2.5 min-h-[42px] focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/30 transition-colors">
+
+                    <!-- Tag asignada -->
+                    <span class="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 text-sm font-medium text-white bg-blue-600 rounded-full cursor-default" data-id="1">
+                        Marinni Centro
+                        <button class="w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </span>
+
+                    <!-- Tag asignada -->
+                    <span class="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 text-sm font-medium text-white bg-blue-600 rounded-full cursor-default" data-id="2">
+                        Club Campestre
+                        <button class="w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </span>
+
+                    <!-- Tag asignada -->
+                    <span class="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 text-sm font-medium text-white bg-blue-600 rounded-full cursor-default" data-id="4">
+                        Reginas guadalupe
+                        <button class="w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </span>
+
+                    <!-- Disponible (texto clickeable) -->
+                    <span class="text-gray-500 text-sm cursor-pointer hover:text-gray-300 transition-colors" data-id="18">Altozano</span>
+                    <span class="text-gray-500 text-sm cursor-pointer hover:text-gray-300 transition-colors" data-id="21">Club campestre tap</span>
+                    <span class="text-gray-500 text-sm cursor-pointer hover:text-gray-300 transition-colors" data-id="22">Regina's cuarta</span>
+                    <span class="text-gray-500 text-sm cursor-pointer hover:text-gray-300 transition-colors" data-id="25">Reginas kafeto</span>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-white/10 flex items-center justify-between">
+            <span class="text-gray-500 text-xs">El usuario podra cambiar de sucursal al iniciar sesion</span>
+            <div class="flex gap-3">
+                <button class="px-4 py-2 text-sm font-medium text-gray-300 bg-[#0f1117] border border-white/10 rounded-lg hover:bg-white/5 transition-colors">
+                    Cancelar
+                </button>
+                <button class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

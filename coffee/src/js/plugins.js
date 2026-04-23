@@ -1,13 +1,9 @@
-/*
- update: 1.0.1
-
-  remove class of default
-*/
 $.fn.simple_json_tab = function (options) {
     txt = "";
 
     var defaults = {
         data: [],
+        class: 'd-flex mx-2 my-2 h-100 mt-5 p-4',
         id: "myTab",
     };
 
@@ -16,7 +12,7 @@ $.fn.simple_json_tab = function (options) {
 
     // Creamos el contenedor
     var div = $("<div>", {
-        class: " ",
+        class: opts.class,
     });
 
     var ul = $("<ul>", {
@@ -29,6 +25,7 @@ $.fn.simple_json_tab = function (options) {
     });
 
     for (const x of opts.data) {
+
         active = "";
         tab_active = "";
         if (x.active) {
@@ -37,21 +34,20 @@ $.fn.simple_json_tab = function (options) {
         }
 
         var li = $("<li>", {
-            class: "nav-item",
+            class: "nav-item " + x.class,
         });
 
-
-        const navLink = $('<a>', {
+        const navLink = $("<a>", {
             class: "nav-link " + active,
             id: x.id + "-tab",
             "data-bs-toggle": "tab",
             href: "#" + x.id,
-            text: x.tab
+            text: x.tab,
         });
 
         // Solo asignar el evento si x.onClick está definido
-        if (typeof x.onClick === 'function') {
-            navLink.on('click', x.onClick);
+        if (typeof x.onClick === "function") {
+            navLink.on("click", x.onClick);
         }
 
         li.append(navLink);
@@ -89,22 +85,21 @@ $.fn.simple_json_tab = function (options) {
 };
 
 $.fn.content_json_form = function (options) {
-
     var defaults = {
         data: [],
 
-        class: "row align-items-end ",
+        class: "row ",
         type: "btn",
 
         icon: "icon-dollar",
-        id: 'jsonForm',
-        prefijo: '',
+        id: "jsonForm",
+        prefijo: "",
 
-        Element: 'div',
+        Element: "div",
 
         color: "primary",
         color_btn: "outline-primary",
-        color_default: 'primary',
+        color_default: "primary",
         text_btn: "Aceptar",
         fn: "EnviarDatos()",
         id_btn: "btnAceptar",
@@ -116,37 +111,33 @@ $.fn.content_json_form = function (options) {
     // Creamos el contenedor
     var div = $("<div>", {
         class: opts.class,
-        id: opts.id
+        id: opts.id,
     });
-
 
     for (const x of opts.data) {
         let div_col = "col-sm-4 mt-1";
 
-        if (x.class)
-            div_col = x.class;
-
+        if (x.class) div_col = x.class;
 
         var div_hijo = $("<div>", {
             class: div_col,
         });
 
         // Etiqueta del componente
-        if (x.showLabel !== false) {
+        // if (x.lbl) {
             div_hijo.append(
-                $('<label>', {
-                    class: "font-semibold mb-1  ",
+                $("<label>", {
+                    class: "",
                     html: x.lbl,
                 })
             );
-        }
+        // }
 
         /*-- Crear elementos para los formularios --*/
 
         var required = x.required === false ? false : true;
         let aux_name = x.name ? x.name : x.id;
-        let className = '';
-
+        let className = "";
 
         var attr_default = {
             id: opts.prefijo + x.id,
@@ -160,27 +151,25 @@ $.fn.content_json_form = function (options) {
         };
 
         switch (x.opc) {
-
-            case 'code':
+            case "code":
                 div_hijo.empty();
 
                 let code = JSON.stringify(x.json, null, 2);
 
-                div_hijo.addClass('code-viewer ');
-                let pre = $('<pre>').text(code);
+                div_hijo.addClass("code-viewer ");
+                let pre = $("<pre>").text(code);
 
                 div_hijo.append(pre);
                 break;
 
-            case 'radio':
-
+            case "radio":
                 // div_hijo.empty();
 
                 let idx = x.id;
-                className = x.className ? x.className : 'form-check-input ';
+                className = x.className ? x.className : "form-check-input ";
 
-                let rd = $('<input>', {
-                    type: 'radio',
+                let rd = $("<input>", {
+                    type: "radio",
                     class: className,
                     name: x.name ? x.name : id,
                     value: x.value,
@@ -190,64 +179,58 @@ $.fn.content_json_form = function (options) {
                     id: idx,
                 });
 
-                var lbl = $('<label>', {
-                    class: 'px-2 form-check-label fw-bold',
+                var lbl = $("<label>", {
+                    class: "px-2  form-check-label font-semibold",
                     text: x.text ? x.text : x.valor,
                     for: idx,
                 });
-
 
                 div_hijo.append(rd, lbl);
 
                 break;
 
-            case 'checkbox':
+            case "checkbox":
                 div_hijo.empty();
                 let id = x.id;
 
-                div_hijo.attr('for', id);
+                div_hijo.attr("for", id);
 
+                className = x.className ? x.className : "form-check-input ";
+                let classLabel = x.classLabel
+                    ? x.classLabel
+                    : "form-check-label fw-semibold";
 
-                className = x.className ? x.className : 'form-check-input ';
-                let classLabel = x.classLabel ? x.classLabel : 'form-check-label fw-semibold';
-
-
-                let radio = $('<input>', {
-                    type: 'checkbox',
+                let radio = $("<input>", {
+                    type: "checkbox",
                     class: className,
-                    onChange: x.onchange + '()',
+                    onChange: x.onchange + "()",
                     name: x.name ? x.name : id,
                     value: true,
-                    id: id
+                    id: id,
                 });
 
-                let label = $('<label>', {
+                let label = $("<label>", {
                     class: classLabel,
                     text: x.text ? x.text : x.valor,
                     for: id,
                 });
 
-
                 div_hijo.append(radio, label);
-
-
-
 
                 // div_hijo.append(check_group);
                 break;
 
-
             case "list-group":
-                let divGroup = $('<div>', { class: 'list-group ' });
+                let divGroup = $("<div>", { class: "list-group " });
 
                 x.data.forEach((item) => {
-
-                    let a = $('<a>', { class: 'list-item pointer' });
-                    let icons = $('<span>', { class: 'text-muted icon ' + item.ico });
+                    let a = $("<a>", { class: "list-item pointer" });
+                    let icons = $("<span>", { class: "text-muted icon " + item.ico });
                     icons.prepend(item.text);
 
-
-                    let spans = $('<span>', { class: 'badge badge-bordered badge-primary' });
+                    let spans = $("<span>", {
+                        class: "badge badge-bordered badge-primary",
+                    });
                     spans.prepend(item.notifications);
 
                     a.append(icons, spans);
@@ -255,9 +238,7 @@ $.fn.content_json_form = function (options) {
                     divGroup.append(a);
                 });
 
-
                 div_hijo.append(divGroup);
-
 
                 break;
 
@@ -269,15 +250,15 @@ $.fn.content_json_form = function (options) {
 
                 // asignar atributos al input:
                 let attr_ipt = {
-                    class: `form-control input-sm ${align}   `,
+                    class: `form-control input-sm ${align}  bg-[#1F2A37]`,
                     type: x.type,
 
-                    onkeyup: x.onkeyup ? x.onkeyup : '',
+                    onkeyup: x.onkeyup ? x.onkeyup : "",
                 };
 
                 attr_ipt = Object.assign(attr_default, attr_ipt);
 
-                div_hijo.append($('<input>', attr_ipt));
+                div_hijo.append($("<input>", attr_ipt));
 
                 break;
 
@@ -290,8 +271,7 @@ $.fn.content_json_form = function (options) {
                 // El valor es de tipo numero o cifra
 
                 let val_type = "text";
-                if (x.type)
-                    val_type = x.type;
+                if (x.type) val_type = x.type;
 
                 if (x.tipo == "cifra" || x.tipo == "numero") {
                     align = "text-end";
@@ -311,18 +291,16 @@ $.fn.content_json_form = function (options) {
                 //   console.log(">> " + x.attr);
 
                 let atributos_ipt = {
-                    class: `form-control input-sm ${align}`,
+                    class: `form-control input-sm ${align}  bg-[#1F2A37]`,
                     cat: x.cat,
                     readonly: x.readonly,
                     type: val_type,
                     onKeyUp: x.onkeyup,
-
                 };
 
                 atributos_ipt = Object.assign(attr_default, atributos_ipt);
 
-                inputGroup.append($('<input >', atributos_ipt));
-
+                inputGroup.append($("<input >", atributos_ipt));
 
                 if (x.tipo != "cifra") {
                     var iconSpan = $("<span>", {
@@ -343,7 +321,7 @@ $.fn.content_json_form = function (options) {
             case "textarea":
                 div_hijo.append(
                     $("<textarea>", {
-                        class: `form-control resize`,
+                        class: `form-control bg-[#1F2A37] resize`,
                         id: x.id,
                         tipo: x.tipo,
                         name: x.id,
@@ -351,12 +329,11 @@ $.fn.content_json_form = function (options) {
                         placeholder: x.placeholder,
                         cols: x.cols,
                         rows: x.rows,
-                        required: x.required || false
+                        required: x.required || false,
                     })
                 );
 
                 break;
-
 
             case "input-file-btn":
                 div_hijo.append(
@@ -381,7 +358,7 @@ $.fn.content_json_form = function (options) {
                 let ipt_file = $("<input>", {
                     class: `hide`,
                     type: "file",
-                    accept: '.xlsx, .xls',
+                    accept: ".xlsx, .xls",
                     id: x.id,
                     onchange: x.fn,
                 });
@@ -408,11 +385,11 @@ $.fn.content_json_form = function (options) {
                     color = opts.color_default;
                 }
 
-                let icon = (x.icon) ? `<i class="${x.icon}"></i>` : '';
-                var text = x.text ? x.text : '';
+                let icon = x.icon ? `<i class="${x.icon}"></i>` : "";
+                var text = x.text ? x.text : "";
 
                 var _btn = $("<button>", {
-                    class: `btn btn-${color} w-100`,
+                    class: `btn btn-${color} w-100 mt-4`,
                     html: `${icon}  ${text} `,
                     type: "button",
                     id: x.id,
@@ -420,7 +397,7 @@ $.fn.content_json_form = function (options) {
                 });
                 div_hijo.append(_btn);
 
-            break;
+                break;
 
             case "btn-submit":
                 if (x.color_btn) {
@@ -439,36 +416,30 @@ $.fn.content_json_form = function (options) {
                 div_hijo.append(_btn);
 
                 break;
-            case 'button':
-
+            case "button":
                 if (x.color_btn) {
                     color = x.color_btn;
                 } else {
                     color = opts.color_default;
                 }
 
-                var i = (x.icon) ? `<i class="${x.icon}"></i>` : '';
-                var text = x.text ? x.text : '';
+                var i = x.icon ? `<i class="${x.icon}"></i>` : "";
+                var text = x.text ? x.text : "";
 
-                className = `btn btn-${color} `;
+                className = `mt-4 btn btn-${color} `;
 
                 let buttonEvents = {
-                    onclick: x.fn
+                    onclick: x.fn,
                 };
 
-                if (x.onClick)
-                    buttonEvents = { click: x.onClick }
+                if (x.onClick) buttonEvents = { click: x.onClick };
 
-
-
-
-                var button = $('<button>', {
-                    class: className + (x.className ? x.className : ''),
+                var button = $("<button>", {
+                    class: className + (x.className ? x.className : ""),
                     html: `${i} ${text} `,
                     id: x.id,
                     ...buttonEvents,
-                    type: 'button'
-
+                    type: "button",
                 });
 
                 // var _btn = $("<button>", {
@@ -479,20 +450,16 @@ $.fn.content_json_form = function (options) {
 
                 div_hijo.append(button);
 
-
                 break;
-
 
             case "select":
                 var select = $(`<select>`, {
-                    class: "form-select input-sm",
+                    class: "form-select input-sm  bg-[#1F2A37]",
                     id: x.id,
                     name: x.id,
                     required: false,
-
                     onchange: x.onchange,
                     placeholder: x.placeholder,
-
                 });
 
                 if (x.selected) {
@@ -538,7 +505,6 @@ $.fn.content_json_form = function (options) {
                 );
 
                 inputGroup.append(
-
                     $("<span>", {
                         class: "input-group-text",
                     }).append(
@@ -551,27 +517,26 @@ $.fn.content_json_form = function (options) {
                 div_hijo.append(inputGroup);
                 break;
 
-            case 'btn-select':
+            case "btn-select":
+                const iptGroup = $("<div>", { class: "input-group" });
 
-                const iptGroup = $('<div>', { class: 'input-group' });
-
-                const btnGroup = $('<a>', {
-                    class: 'btn btn-primary',
+                const btnGroup = $("<a>", {
+                    class: "btn btn-primary",
                     text: x.text,
-                    onclick: x.fn
+                    onclick: x.fn,
                 });
 
-                const icons = $('<i>', { class: x.icon });
+                const icons = $("<i>", { class: x.icon });
                 btnGroup.append(icons);
 
                 // select
 
-                var iptSelect = $('<select>', {
+                var iptSelect = $("<select>", {
                     class: "form-control input-sm",
                     id: x.id,
                     name: x.id,
                     required: required,
-                    onchange: x.onchange
+                    onchange: x.onchange,
                 });
 
                 if (x.selected) {
@@ -596,39 +561,26 @@ $.fn.content_json_form = function (options) {
                     );
                 });
 
-
-
-
                 iptGroup.append(iptSelect);
                 iptGroup.append(btnGroup);
 
-
                 div_hijo.append(iptGroup);
-
-
 
                 break;
 
             default:
-
-
-                const { class: _, ...xWithoutClass } = x;
-                div_hijo.append($('<' + x.opc + '>', xWithoutClass));
+                div_hijo.append($("<" + x.opc + ">", x));
                 break;
-
-
         }
         /* vaciar el contenido */
         div.append(div_hijo);
     }
 
-
     // Crear botón para envio:
 
     if (opts.type == "btn") {
-
         var div_btn = $("<div>", {
-            class: 'mt-3 col-12 d-flex justify-content-center',
+            class: "mt-3 col-12 d-flex justify-content-center",
         });
 
         var btn_submit = $("<button>", {
@@ -640,14 +592,9 @@ $.fn.content_json_form = function (options) {
 
         div_btn.append(btn_submit);
         div.append(div_btn);
-
     }
 
-
-
-
     $(this).append(div);
-
 };
 
 $.fn.validar_contenedor = function (options, callback) {
@@ -1045,9 +992,6 @@ $.fn.validation_form = function (options, callback) {
                 }
             } else if (opts.tipo === "json") {
                 if (typeof callback === "function") {
-                    // form.find(':submit').prop('disabled', true);
-
-                    for (const x of formData) console.log(x);
                     callback(formData);
                 }
             }
@@ -1055,10 +999,8 @@ $.fn.validation_form = function (options, callback) {
     });
 };
 
-
 // Llenar un select
-$.fn.createSelect2 = function (options) {
-
+$.fn.option_select = function (options) {
     const SELECT = this;
 
     if (SELECT.hasClass("select2-hidden-accessible")) SELECT.select2("destroy");
@@ -1071,31 +1013,30 @@ $.fn.createSelect2 = function (options) {
         group: false,
         father: false,
         tags: false,
-        allowClear: false
     };
 
+    // Carga opciones por defecto
     let opts = $.extend(defaults, options);
 
     if (opts.data == null) {
         let optionsArray = [];
         SELECT.find("option").each(function () {
-            if ($(this).val() == 0)
-                opts.placeholder = $(this).text();
-            else
-                optionsArray.push({ id: $(this).val(), valor: $(this).text() });
+            if ($(this).val() == 0) opts.placeholder = $(this).text();
+            else optionsArray.push({ id: $(this).val(), valor: $(this).text() });
         });
         opts.data = optionsArray;
     }
-
 
     SELECT.html("");
 
     if (opts.placeholder !== "") {
         if (opts.select2) SELECT.html("<option></option>");
 
-        if (!opts.select2) SELECT.html(`<option value="0" hidden selected>${opts.placeholder}</option>`);
+        if (!opts.select2)
+            SELECT.html(
+                `<option value="0" hidden selected>${opts.placeholder}</option>`
+            );
     }
-
 
     $.each(opts.data, function (index, item) {
         SELECT.append(
@@ -1129,7 +1070,6 @@ $.fn.createSelect2 = function (options) {
                 theme: "bootstrap-5",
                 placeholder: opts.placeholder,
                 tags: opts.tags,
-                allowClear: opts.allowClear
             });
         } else {
             let modalParent = $(".bootbox");
@@ -1140,7 +1080,6 @@ $.fn.createSelect2 = function (options) {
                 placeholder: opts.placeholder,
                 tags: opts.tags,
                 dropdownParent: modalParent,
-                allowClear: opts.allowClear
             });
         }
     }
@@ -1149,6 +1088,7 @@ $.fn.createSelect2 = function (options) {
 $.fn.rpt_json_table2 = function (options) {
     return new Promise((resolve, reject) => {
         var defaults = {
+
             data: [],
             id: "simple-table",
             right: [],
@@ -1159,23 +1099,24 @@ $.fn.rpt_json_table2 = function (options) {
             select: [],
             /* Colores en la tabla */
             color_col: [],
-            color_th: "bg-default",
+            color_th: "px-6 py-3 text-start text-xs text-center bg-gray-800 font-medium text-gray-400 uppercase dark:text-gray-300",
             color_group: "bg-default",
             color: "bg-warning-1",
             /* Reportes & configuracion */
             frm_head: "",
             frm_foot: "",
             title_th: "",
-            // headerTable:'',
             f_size: 14,
             font_size: 12,
             parametric: false,
-            class: "table table-bordered table-sm mt-2",
+            class: " min-w-full  bg-[#313D4F]",
             folding: false,
             extends: false
         };
 
         var opts = $.fn.extend(defaults, options);
+
+
 
         tabla = $("<table>", {
             class: opts.class,
@@ -1316,12 +1257,15 @@ $.fn.rpt_json_table2 = function (options) {
 
         var r = opts.right;
         var c = opts.color_col;
-        var ct = opts.center;
+        let ct = opts.center;
         var iptx = opts.ipt;
         var select = opts.select;
 
+
+        let array_center = opts.center;
+
         /*-- Imprime las filas de la tabla y el cuerpo --*/
-        tbody = $("<tbody>");
+        tbody = $("<tbody>", { class: 'divide-y divide-gray-200 dark:divide-neutral-700' });
 
         for (const x of opts.data.row) {
             idRow = x.id;
@@ -1341,7 +1285,7 @@ $.fn.rpt_json_table2 = function (options) {
             for (let col = 1; col < dimension - 1; col++) {
                 // Variables de posicionamiento & color
                 right = "";
-                color = "";
+                let color = "";
                 center = "";
 
                 bg_grupo = "";
@@ -1364,7 +1308,9 @@ $.fn.rpt_json_table2 = function (options) {
                         }
                     }
 
+
                     for (let j = 0; j < ct.length; j++) {
+
                         if (ct[j] == col) {
                             center = "text-center";
                         }
@@ -1404,14 +1350,532 @@ $.fn.rpt_json_table2 = function (options) {
 
                                     let onChangeipt = z.fn ? z.fn : '';
 
-                                    tdText = `<input
+                                    tdText = `<input 
                                   type   ="${ipt_type}"
-                                  value  = "${z.value}"
+                                  value  = "${z.value}"  
                                   id     = "${z.id}"
                                   name   = "${z.name}"
                                   onkeyUp = "${onChangeipt}"
                                   ${disabled}
                                   class=" form-control input-sm text-primary cellx fw-bold text-end" />`;
+                                }
+                            }
+                        } //end recorrido input
+                    }
+
+                    /*ESTE SELECT ES POR CULPA DE ROSA */
+
+                    for (let b = 0; b < select.length; b++) {
+                        if (select[b] == col) {
+                            let data_select = obj[col];
+
+                            if (typeof data_select === "string") {
+                                tdText = `<input class="form-control " value="${data_select}" />`;
+                            } else {
+                                for (const z of data_select) {
+                                    tdText = `<select class="form-control input-sm">`;
+                                    tdText += `<option id="" value="0" hidden selected > - Seleccionar - </option>`;
+
+                                    $.each(z.data, function (index, item) {
+                                        tdText += `<option value="${item.id}" >  ${item.valor}</option>`;
+                                    });
+
+                                    tdText += `</select>`;
+                                }
+                            }
+                        } //end recorrido input
+                    }
+                    //
+
+                    if (obj[col] != "btn") {
+
+
+
+                        let attr_td = {
+                            id: indices[col] + '_' + x.id,
+                            style: 'font-size:' + opts.f_size + 'px',
+                            class: `${right} ${center} ${bg_grupo}  px-2 py-3 whitespace-nowrap text-xs bg-[#313D4F]  text-gray-300 dark:text-neutral-200`,
+                            html: tdText
+                        };
+
+
+
+                        if (opts.extends) {
+
+                            if (typeof obj[col] === 'object') {
+                                attr_td = Object.assign(attr_td, obj[col]);
+                            }
+
+
+                        }
+
+                        td.append($('<td>', attr_td));
+
+
+                        //   td.append(`<td id="${indices[col]}_${x.id}"
+                        //   style="" 
+                        //   class=""> 
+                        //   ${tdText}  </td>`);
+                    }
+
+
+                }//end agrupar 
+                else {
+
+                    td.append($('<td>', {
+                        class: opts.color_group,
+                        colspan: arreglo_th.length,
+                        html: obj[col]
+                    }));
+                }
+
+
+            } //endfor
+
+            /* Agregar botÃ³n  */
+
+            if (x.btn != null) {
+                td_btn = $("<td> ", {
+                    class: `text-center ${bg_grupo} `,
+                });
+
+
+                for (const y of x.btn) {
+                    let text = '';
+                    if (y.text) {
+                        text = y.text;
+                    }
+
+                    btn_col = $(" <button>", {
+                        class: `btn btn-outline-${y.color} btn-sm me-1`,
+                        onclick: `${y.fn}(${x.id})`,
+                        html: `<i class="${y.icon}"></i>  ${text} `,
+                    });
+
+                    td_btn.append(btn_col);
+                }
+
+                td.append(td_btn);
+            }
+
+            //crear boton personalizado
+
+            if (x.dropdown != null) {
+
+
+                td_btn = $("<td> ", {
+                    class: `text-center ${bg_grupo} bg-[#313D4F]`,
+                });
+
+                var $button = $("<button>", {
+                    class: "btn bg-[#313D4F] text-white btn-sm ",
+                    id: "dropdownMenu" + x.id,
+                    type: "button",
+                    "data-bs-toggle": "dropdown",
+                    "aria-expanded": "false",
+                    html: `<i class="icon-dot-3 text-white"></i>`,
+
+                });
+
+                var $ul = $("<ul>", { class: "dropdown-menu absolute z-[1050]" });
+
+                x.dropdown.forEach((dropdownItem) => {
+                    const $li = $("<li>");
+
+                    // Construir el contenido dinÃ¡mico con Ã­conos y texto
+                    let html = dropdownItem.icon && dropdownItem.icon !== ""
+                        ? `<i class="text-white ${dropdownItem.icon}"></i>`
+                        : "<i class='icon-minus'></i>";
+
+                    html += dropdownItem.text && dropdownItem.text !== ""
+                        ? ` ${dropdownItem.text}`
+                        : "";
+
+                    const $a = $("<a>", {
+                        class: "dropdown-item",
+                        id: dropdownItem.id,
+                        href: dropdownItem.href || "#",
+                        html: html,
+                        onclick: dropdownItem.onclick
+                    });
+
+                    $li.append($a);
+
+                    $ul.append($li);
+                });
+
+
+                td_btn.append($button, $ul);
+
+                td.append(td_btn);
+            }
+
+            if (x.a != null) {
+                td_btn = $("<td> ", {
+                    class: `text-center ${bg_grupo}`,
+                });
+                for (const p of x.a) {
+                    let btn_col = $(" <a>", p);
+                    td_btn.append(btn_col);
+                }
+                td.append(td_btn);
+            }
+
+
+            /* Agregar botÃ³n personalizado  */
+            if (x.btn_personalizado != null) {
+
+                td_btn = $("<td> ", {
+                    class: `text-center ${bg_grupo}`,
+                });
+
+                for (const p of x.btn_personalizado) {
+                    p.text ? (text = p.text) : (text = "");
+
+                    btn_col = $(" <button>", {
+                        class: `btn btn-outline-${p.color} btn-sm me-1`,
+                        id: (p.id_btn) ? p.id_btn : p.id,
+                        estado: p.estado,
+                        onclick: `${p.fn}`,
+                        html: `<i class="${p.icon}"></i>  ${text}`,
+                    });
+
+                    td_btn.append(btn_col);
+                }
+                td.append(td_btn);
+            }
+
+            tbody.append(td);
+        }
+
+        // opts.data.row.forEach((row) => {
+        //   console.log(row);
+        //   for (const key in row) {
+        //     if (key != 'btn') console.error(key);
+        //   }
+        // });
+
+        tabla.append(thead);
+        tabla.append(tbody);
+
+        div_table = $("<div>", {
+            class: " rounded-t-lg text-gray-400  h-full table-responsive",
+        });
+
+        div_table.append(tabla);
+
+        /* --  Contenedor para Reporte  -- */
+
+        div = $("<div>", { class: 'h-full' });
+
+        const header = opts.data.head ? createDocsHead(opts.data.head) : '';
+
+
+
+        if (opts.header) {
+
+            let header = $('<div>', {
+                class: opts.header.class ? opts.header.class : 'line',
+                id: opts.header.id ? opts.header.id : 'table-header'
+            });
+
+            div.append(header);
+
+        }
+
+        div.append(opts.data.frm_head);
+        div.append(header);
+        div.append(div_table);
+        div.append(opts.data.frm_foot);
+
+        $(this).html(div);
+
+        //   return this;
+        resolve();
+    });
+};
+
+$.fn.rpt_json_table3 = function (options) {
+    return new Promise((resolve, reject) => {
+        var defaults = {
+            data: [],
+            id: "simple-table",
+            right: [],
+            center: [],
+
+            /* input */
+            ipt: [],
+            select: [],
+            /* Colores en la tabla */
+            color_col: [],
+            color_th: "bg-default",
+            color_group: "bg-default",
+            color: "bg-warning-1",
+            /* Reportes & configuracion */
+            frm_head: "",
+            frm_foot: "",
+            title_th: "",
+            f_size: 14,
+            font_size: 12,
+            parametric: false,
+            class: "table table-bordered table-sm mt-2",
+            folding: false,
+            extends: false
+        };
+
+        var opts = $.fn.extend(defaults, options);
+
+        tabla = $("<table>", {
+            class: opts.class,
+            id: opts.id,
+        });
+
+        /* Imprimir titulo de tabla */
+        arreglo_th = opts.data.thead;
+
+        title = opts.title_th;
+        thead = $("<thead>");
+
+        if (title) {
+            th = $("<tr>");
+            col_size = arreglo_th.length;
+            th.append(`<th colspan="${col_size}" > ${title}  </th>`);
+            thead.append(th);
+        }
+
+        // Imprime las columnas de la tabla
+
+        if (opts.data.thead) {
+            // si la variable th recibe datos crea las columnas
+            if (opts.extends) {
+
+                const ths = opts.data.thead;
+
+                if (Array.isArray(ths)) {
+
+
+
+                    var thClean = null;
+                    var rowtr = null;
+                    var colth = null;
+
+
+
+                    var headerRow = $('<tr>');
+                    var headerCell = null;
+
+
+                    ths.forEach(element => {
+
+
+                        if (typeof element === 'string') {
+
+                            headerCell = $('<th>', { text: element, class: `text-center ${opts.color_th}` });
+                            headerRow.append(headerCell);
+
+                        } else {
+
+                            rowtr = $('<tr>');
+                            Object.keys(element).forEach(key => {
+
+
+                                var cell = $('<th>', { text: element[key], class: `text-center ${opts.color_th}` });
+
+                                if (typeof element[key] === 'object') {
+                                    cell = $('<th>', element[key]);
+                                }
+
+                                rowtr.append(cell);
+                            });
+                            thead.append(rowtr);
+                        }
+
+
+
+
+                    }); // end row
+
+                    thead.append(headerRow);
+
+
+
+
+                } else {
+
+
+                    ths.forEach(element => {
+                        th = $("<tr>");
+                        var col_th;
+                        Object.keys(element).forEach(key => {
+                            if (typeof element[key] === 'object') {
+                                col_th = $('<th>', element[key]);
+                            } else {
+                                col_th = $('<th>', { 'text': key });
+                            }
+                            th.append(col_th);
+                        });
+                        thead.append(th);
+                    });
+
+                }
+
+
+            } else {
+
+                let newTh = $('<tr>');
+
+
+
+                for (const k of arreglo_th) {
+                    newTh.append(`<th class="text-center ${opts.color_th}"> ${k}  </th>`);
+                }
+
+
+                thead.append(newTh);
+
+            }
+
+
+
+
+
+
+        } else {
+            th = $("<tr>");
+
+            for (var clave in opts.data.row[0]) {
+                clave = (clave == 'btn' || clave == 'btn_personalizado' || clave == 'a' || clave == 'dropdown') ? '' : clave;
+                if (clave != "opc" && clave != "id")
+                    th.append(
+                        $("<th>", {
+                            class: `${opts.color_th}`,
+                            style: `font-size:${opts.f_size}px;`
+                        }).html(clave)
+                    );
+            }
+
+            thead.append(th);
+        }
+
+
+
+        // Variables de posicionamiento & color
+
+        var r = opts.right;
+        var c = opts.color_col;
+        var ct = opts.center;
+        var iptx = opts.ipt;
+        var select = opts.select;
+
+        /*-- Imprime las filas de la tabla y el cuerpo --*/
+        tbody = $("<tbody>");
+
+        for (const x of opts.data.row) {
+            idRow = x.id;
+            const obj = Object.values(x);
+            let dimension = obj.length;
+
+            let cols_conf = 1;
+            if (x.btn != null)
+                cols_conf = 2;
+
+            let last = dimension - cols_conf;
+
+            /*-- Crear el elemento folding   -- */
+
+            fold = "";
+            class_fold = "";
+            ico_group = '';
+
+            if (opts.folding == true) {
+
+                if (obj[last] == 1) {
+                    fold = `unfold(${idRow})`;
+                    class_fold = "pointer fw-bold ";
+                    ico_group = '<i class="icon-right-dir"></i>';
+                } else {
+                    class_fold = `unfold${idRow} d-none`;
+                }
+            }
+
+
+            td = $("<tr>", { class: class_fold, onclick: fold });
+
+            // Recorrido por columnas
+            for (let col = 1; col < dimension - 1; col++) {
+                // Variables de posicionamiento & color
+                right = "";
+                color = "";
+                center = "";
+
+                bg_grupo = "";
+
+                if (!x.colgroup) {
+
+                    if (x.opc) {
+                        if (x.opc == 1) {
+                            bg_grupo = opts.color_group + " fw-bold ";
+                        } else if (x.opc == 2) {
+                            bg_grupo = opts.color_group + " text-primary fw-bold ";
+                        }
+
+
+                    }
+
+                    for (let $i = 0; $i < r.length; $i++) {
+                        if (r[$i] == col) {
+                            right = "text-right text-end";
+                        }
+                    }
+
+                    for (let j = 0; j < ct.length; j++) {
+                        if (ct[j] == col) {
+                            center = " text-center ";
+                        }
+                    }
+
+                    let indices = Object.keys(x);
+
+                    // Determina si esta habilitada el grupo
+                    if (x.opc != 1 && x.opc != 2) {
+                        for (let k = 0; k < c.length; k++) {
+                            if (c[k] == col) {
+                                bg_grupo = opts.color;
+                            }
+                        }
+                    }
+
+                    let tdText = obj[col];
+
+                    /* --  --*/
+
+                    for (let a = 0; a < iptx.length; a++) {
+                        if (iptx[a] == col) {
+                            let data_ipt = obj[col];
+
+                            ipt_type = "text";
+
+                            if (typeof data_ipt === "string") {
+                                tdText = `<input disabled type="${ipt_type}" class="form-control input-sm cellx text-end" value="${data_ipt}" />`;
+
+                            } else {
+                                for (const z of data_ipt) {
+                                    let disabled = '';
+
+                                    if (z.disabled) {
+                                        disabled = `disabled = ${z.disabled}`;
+                                    }
+
+                                    let onChangeipt = z.fn ? z.fn : '';
+
+                                    tdText = `<input 
+                                    type   ="${ipt_type}"
+                                    value  = "${z.value}"  
+                                    id     = "${z.id}"
+                                    name   = "${z.name}"
+                                    onkeyUp = "${onChangeipt}"
+                                    ${disabled}
+                                    class=" form-control input-sm text-primary cellx fw-bold text-end" />`;
                                 }
                             }
                         } //end recorrido input
@@ -1465,11 +1929,14 @@ $.fn.rpt_json_table2 = function (options) {
                         td.append($('<td>', attr_td));
 
 
-
+                        //   td.append(`<td id="${indices[col]}_${x.id}"
+                        //   style="" 
+                        //   class=""> 
+                        //   ${tdText}  </td>`);
                     }
 
 
-                }//end agrupar
+                }//end agrupar 
                 else {
 
                     td.append($('<td>', {
@@ -1508,9 +1975,11 @@ $.fn.rpt_json_table2 = function (options) {
                 td.append(td_btn);
             }
 
-            //crear boton personalizado
+            //crear boton personalizado 
 
             if (x.dropdown != null) {
+
+                let colorButtonDropdown = 'outline-primary';
 
 
                 td_btn = $("<td> ", {
@@ -1518,12 +1987,12 @@ $.fn.rpt_json_table2 = function (options) {
                 });
 
                 var $button = $("<button>", {
-                    class: "btn btn-outline-primary btn-sm ",
+                    class: `btn btn-${colorButtonDropdown} btn-sm`,
                     id: "dropdownMenu" + x.id,
                     type: "button",
                     "data-bs-toggle": "dropdown",
                     "aria-expanded": "false",
-                    html: `<i class="icon-dot-3 text-info"></i>`,
+                    html: `<i class="icon-dot-3 text-primary"></i>`,
 
                 });
 
@@ -1534,7 +2003,7 @@ $.fn.rpt_json_table2 = function (options) {
 
                     // Construir el contenido dinámico con íconos y texto
                     let html = dropdownItem.icon && dropdownItem.icon !== ""
-                        ? `<i class="text-info ${dropdownItem.icon}"></i>`
+                        ? `<i class="text-primary ${dropdownItem.icon}"></i>`
                         : "<i class='icon-minus'></i>";
 
                     html += dropdownItem.text && dropdownItem.text !== ""
@@ -1608,12 +2077,7 @@ $.fn.rpt_json_table2 = function (options) {
             tbody.append(td);
         }
 
-        // opts.data.row.forEach((row) => {
-        //   console.log(row);
-        //   for (const key in row) {
-        //     if (key != 'btn') console.error(key);
-        //   }
-        // });
+
 
         tabla.append(thead);
         tabla.append(tbody);
@@ -1631,18 +2095,6 @@ $.fn.rpt_json_table2 = function (options) {
         const header = opts.data.head ? createDocsHead(opts.data.head) : '';
 
 
-
-        if (opts.header) {
-
-            let header = $('<div>', {
-                class: opts.header.class ? opts.header.class : 'line',
-                id: opts.header.id ? opts.header.id : 'table-header'
-            });
-
-            div.append(header);
-
-        }
-
         div.append(opts.data.frm_head);
         div.append(header);
         div.append(div_table);
@@ -1654,6 +2106,7 @@ $.fn.rpt_json_table2 = function (options) {
         resolve();
     });
 };
+
 
 $.fn.Loading = function (options) {
     var defaults = {
@@ -1671,7 +2124,7 @@ $.fn.Loading = function (options) {
             load = `<div class="d-flex align-items-center justify-content-center" style="min-height:300px;">
                     <h3 class="text-success">
                         <i class="icon-spin5 animate-spin"></i>
-
+                      
                        CARGANDO...
                     </h3>
                 </div>`;
@@ -1690,81 +2143,72 @@ $.fn.Loading = function (options) {
     $(this).html("" + load);
 };
 
-
-
 // funciones auxiliares.
 function dataPicker(options) {
-
     let defaults = {
-        parent: 'iptCalendar',
+        parent: "iptCalendar",
 
-        type: 'all',
+        type: "all",
 
         rangepicker: {
-
             startDate: moment().startOf("month"),
             endDate: moment(),
 
             showDropdowns: true,
-            "autoApply": true,
+            autoApply: true,
 
             locale: {
                 format: "DD-MM-YYYY",
             },
 
             ranges: {
-
                 Ayer: [moment().subtract(1, "days"), moment().subtract(1, "days")],
                 Antier: [moment().subtract(2, "days"), moment().subtract(2, "days")],
                 "Mes actual": [moment().startOf("month"), moment()],
-                "Mes anterior": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")],
+                "Mes anterior": [
+                    moment().subtract(1, "month").startOf("month"),
+                    moment().subtract(1, "month").endOf("month"),
+                ],
             },
 
             function(start, end) {
-
                 onDateRange(start, end);
-
-            }
-
+            },
         },
 
         rangeDefault: {
             singleDatePicker: true,
             showDropdowns: true,
-            "autoApply": true,
+            autoApply: true,
 
             locale: {
                 format: "DD-MM-YYYY",
-            }
-
+            },
         },
 
         onSelect: (start, end) => {
-            console.log(`Seleccionado: ${start.format("YYYY-MM-DD")} - ${end.format("YYYY-MM-DD")}`);
-
-        }
-
+            console.log(
+                `Seleccionado: ${start.format("YYYY-MM-DD")} - ${end.format(
+                    "YYYY-MM-DD"
+                )}`
+            );
+        },
     };
 
-
     let onDateRange = (start, end) => {
-
         console.log(start, end);
-
-    }
-
+    };
 
     const settings = { ...defaults, ...options };
     // Configurar el comportamiento según el tipo
-    if (settings.type === 'all') {
+    if (settings.type === "all") {
         $("#" + settings.parent).daterangepicker(
             settings.rangepicker,
             function (start, end) {
-
                 settings.onSelect(start, end);
             }
         );
-    } else if (settings.type === 'simple') {
+    } else if (settings.type === "simple") {
         $("#" + settings.parent).daterangepicker(
             settings.rangeDefault,
             function (start, end) {
@@ -1781,112 +2225,75 @@ function dataPicker(options) {
 
     //     $("#" + settings.parent).daterangepicker(settings.rangeDefault);
     // }
-
-
-
-
 }
 
 function getDataRangePicker(idInput) {
-    const fi = $("#" + idInput).data("daterangepicker").startDate.format("YYYY-MM-DD");
-    const ff = $("#" + idInput).data("daterangepicker").endDate.format("YYYY-MM-DD");
+    const fi = $("#" + idInput)
+        .data("daterangepicker")
+        .startDate.format("YYYY-MM-DD");
+    const ff = $("#" + idInput)
+        .data("daterangepicker")
+        .endDate.format("YYYY-MM-DD");
 
     return { fi, ff };
 }
 
-function simple_data_table(table, no = 10) {
+function simple_data_table(table, no) {
     $(table).DataTable({
         pageLength: no,
         destroy: true,
         searching: true,
+        bLengthChange: false,
         bFilter: false,
         order: [],
-        lengthChange: true,
-
         bInfo: true,
-        "oLanguage": {
-            "sSearch": "Buscar:",
-            "sLengthMenu": "Mostrar _MENU_ registros",
-            "sInfo": "Mostrando del (_START_ al _END_) de un total de _TOTAL_ registros",
-            "sInfoEmpty": "Mostrando del 0 al 0 de un total de 0 registros",
-            "sLoadingRecords": "Por favor espere - cargando...",
-            "oPaginate": {
-                "sFirst": "Primero",
-                "sLast": "'Último",
-                "sNext": "Siguiente",
-                "sPrevious": "Anterior"
-            }
-        }
+        oLanguage: {
+            sSearch: "Buscar:",
+            sInfo:
+                "Mostrando del (_START_ al _END_) de un total de _TOTAL_ registros",
+            sInfoEmpty: "Mostrando del 0 al 0 de un total de 0 registros",
+            sLoadingRecords: "Por favor espere - cargando...",
+            oPaginate: {
+                sFirst: "Primero",
+                sLast: "'Último",
+                sNext: "Siguiente",
+                sPrevious: "Anterior",
+            },
+        },
     });
-    $(table).closest('.dataTables_wrapper').find('.row.dt-row').css('overflow-x', 'auto');
-    getPageDataTable(table)
+    // }, 200);
+    getPageDataTable(table);
 }
 
-function filter_data_table(table, no, filterColumns = []) {
-    if (!filterColumns || !filterColumns.length) {
-        simple_data_table(table, no);
-        return;
-    }
-
+function simple_data_table_filter(table, no) {
     $(table).DataTable({
-        pageLength: no,
+        pageLength: 10, // Número inicial de registros por página
         destroy: true,
         searching: true,
+        lengthChange: true, // ✅ Mostrar el combo para seleccionar cuántas filas mostrar
+        filter: true,       // ✅ Activar el filtro de búsqueda
         order: [],
-        bInfo: true,
-        lengthChange: true,
-
-        "oLanguage": {
-            "sSearch": "Buscar:",
-            "sLengthMenu": "Mostrar _MENU_ registros",
-            "sInfo": "Mostrando del (_START_ al _END_) de un total de _TOTAL_ registros",
-            "sInfoEmpty": "Mostrando del 0 al 0 de un total de 0 registros",
-            "sLoadingRecords": "Por favor espere - cargando...",
-            "oPaginate": {
-                "sFirst": "Primero",
-                "sLast": "Último",
-                "sNext": "Siguiente",
-                "sPrevious": "Anterior"
-            }
+        info: true,
+        language: {
+            search: "Buscar:",
+            info: "Mostrando del (_START_ al _END_) de un total de _TOTAL_ registros",
+            infoEmpty: "Mostrando del 0 al 0 de un total de 0 registros",
+            loadingRecords: "Por favor espere - cargando...",
+            paginate: {
+                first: "Primero",
+                last: "Último",
+                next: "Siguiente",
+                previous: "Anterior"
+            },
+            lengthMenu: "Mostrar _MENU_ registros por página", // 📝 Etiqueta del combo
         },
-        initComplete: function () {
-            var api = this.api();
-            var wrapper = $(api.table().container());
-            var leftCol = wrapper.find('.dataTables_filter').parent().prev();
-
-            var selectGroup = $('<div style="display:flex;align-items:center;gap:8px;padding-top:4px;"></div>');
-
-            filterColumns.forEach(function (colIdx) {
-                var column = api.column(colIdx);
-                var headerText = $(column.header()).text().trim();
-                var select = $('<select class="form-select form-select-sm" style="width:auto;"></select>');
-                select.append('<option value="">' + headerText + ': Todos</option>');
-
-                column.data().unique().sort().each(function (val) {
-                    var text = $('<div>').html(val).text().trim();
-                    if (text !== '') {
-                        select.append('<option value="' + text + '">' + text + '</option>');
-                    }
-                });
-
-                select.on('change', function () {
-                    var val = $.fn.dataTable.util.escapeRegex($(this).val());
-                    column.search(val ? '^' + val + '$' : '', true, false).draw();
-                });
-
-                selectGroup.append(select);
-            });
-
-            leftCol.append(selectGroup);
-
-            wrapper.find('.row.dt-row').css('overflow-x', 'auto');
-        }
     });
+
     getPageDataTable(table);
 }
 
 function getPageDataTable(tableId) {
-    const tablePage = tableId.replace('#', '');
+    const tablePage = tableId.replace("#", "");
     const storageKey = `${tablePage}_page`;
     const table = $(`${tableId}`).DataTable();
 
@@ -1902,8 +2309,7 @@ function getPageDataTable(tableId) {
         sessionStorage.setItem(storageKey, currentPage); // Guardar en sessionStorage
     });
 }
-
-function fn_ajax(datos, url, div = '') {
+function fn_ajax(datos, url, div = "") {
     return new Promise(function (resolve, reject) {
         $.ajax({
             type: "POST",
@@ -1918,14 +2324,21 @@ function fn_ajax(datos, url, div = '') {
                 resolve(data);
             },
             error: function (xhr, status, error) {
-                swal_error(xhr, status, error);
+                console.error("url: ", url);
+                console.error("status: ", status);
+                console.error("error: ", error);
+
+                if (xhr.responseText === "")
+                    console.error("No se obtuvo respuesta del servidor.");
+                else console.error(xhr);
             },
         });
     });
 }
 
 function formatPrice(amount, locale = 'es-MX', currency = 'MXN') {
-    if (!amount || Math.abs(parseFloat(amount)) < 0.01) {
+    // Verificar si el monto es null, undefined o 0
+    if (!amount) {
         return '-';
     }
     return new Intl.NumberFormat(locale, {
@@ -1933,4 +2346,3 @@ function formatPrice(amount, locale = 'es-MX', currency = 'MXN') {
         currency: currency
     }).format(amount);
 }
-

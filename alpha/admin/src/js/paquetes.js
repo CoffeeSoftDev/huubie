@@ -1,4 +1,3 @@
-// vibe coding
 let app;
 const api = "/alpha/admin/ctrl/ctrl-paquetes.php";
 

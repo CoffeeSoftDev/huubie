@@ -444,6 +444,9 @@ class Pedidos extends MPedidos{
             
             // Obtener sucursal para el folio
             $sucursal = $this->getSucursalByID([$subsidiaries_id]);
+            if (!$sucursal) {
+                $sucursal = ['name' => '', 'sucursal' => 'SIN SUCURSAL'];
+            }
             $folio = formatSucursal($sucursal['name'], $sucursal['sucursal'], $orderData['id']);
             
             // Calcular totales
@@ -2177,10 +2180,14 @@ function renderDeliveryStatus($order) {
 
 
 
-function formatSucursal($compania, $sucursal, $numero = null){
+function formatSucursal($compania, $sucursal=null, $numero = null){
 
     $letraCompania = strtoupper(substr(trim($compania), 0, 1));
-    $letraSucursal = strtoupper(substr(trim($sucursal), 0, 1));
+    if ($sucursal === null) {
+        $letraSucursal = 'X';
+    } else {
+        $letraSucursal = strtoupper(substr(trim($sucursal), 0, 1));
+    }
 
     $number = $numero ?? rand(1, 99);
 

@@ -79,5 +79,45 @@ class MCalendarioPedidos extends CRUD {
         ORDER BY name";
         return $this->_Read($query, $array);
     }
+
+    function getOrderID($array){
+        $sql = "
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order
+        FROM
+            {$this->bd}order
+        INNER JOIN {$this->bd}order_clients ON order.client_id = order_clients.id
+
+        WHERE order.id = ?
+
+        ";
+        return $this->_Read($sql,$array);
+    }
+
+    function updateOrderDeliveryStatus($data) {
+        return $this->_Update([
+            'table'  => "{$this->bd}order",
+            'values' => 'is_delivered = ?',
+            'where'  => 'id = ?',
+            'data'   => [
+                $data['is_delivered'],
+                $data['id']
+            ]
+        ]);
+    }
 }
 ?>
