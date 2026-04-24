@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar Pago</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://rawcdn.githack.com/SomxS/Grupo-Varoch/refs/heads/main/src/css/fontello.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f1723; font-family: 'Inter', system-ui, sans-serif; color: #fff; }
+        .tab-btn { transition: all 0.15s; }
+        .tab-btn.active { background: #1E293B; color: #fff; border-color: #2563eb; }
+        .metodo-btn { transition: all 0.15s; }
+        .metodo-btn.active { border-color: #2563eb; color: #60a5fa; background: rgba(37,99,235,0.1); }
+        .input-mono { font-family: 'Roboto Mono', 'Consolas', monospace; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md">
+
+        <!-- Header -->
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">
+                <i class="icon-dollar text-blue-400 text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-white">Registrar Pago</h2>
+                <p class="text-xs text-gray-400">Folio <span id="lblFolio" class="text-blue-400 font-semibold">#0000</span></p>
+            </div>
+        </div>
+
+        <!-- Card principal -->
+        <div class="bg-[#141d2b] border border-slate-800 rounded-2xl p-5 space-y-4">
+
+            <!-- Resumen financiero (cardPay) -->
+            <div id="dueAmount" class="p-4 rounded-xl bg-[#1E293B] text-white space-y-3 border border-slate-700 shadow-sm">
+
+                <!-- Sin abono previo: vista simple -->
+                <div id="vistaSimple">
+                    <div id="rowDescuentoSimple" class="hidden text-center mb-1">
+                        <p class="text-sm opacity-80">Subtotal</p>
+                        <p class="text-lg font-semibold text-gray-400 line-through" id="lblSubtotalTachado">$0.00</p>
+                        <p class="text-sm text-green-400 mb-1" id="lblDescuentoSimple">Descuento: -$0.00</p>
+                    </div>
+                    <p class="text-sm opacity-80 text-center">Monto a pagar</p>
+                    <p id="SaldoEvent" class="text-3xl font-bold mt-1 text-center">$0.00</p>
+                </div>
+
+                <!-- Con abono previo: vista detallada -->
+                <div id="vistaDetallada" class="hidden space-y-3">
+                    <div id="rowDescuentoDetalle" class="hidden">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-semibold">Subtotal</span>
+                            <span class="text-gray-400 line-through" id="lblSubtotalDetalle">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-semibold text-green-400">Descuento</span>
+                            <span class="text-green-400 font-bold" id="lblDescuentoDetalle">-$0.00</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-semibold">Total de la venta</span>
+                        <span class="text-white font-bold text-lg" id="lblTotalVenta">$0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-blue-900/30 p-2 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <i class="icon-check text-blue-400"></i>
+                            <span class="text-sm font-semibold text-blue-300">Abono registrado</span>
+                        </div>
+                        <span class="text-blue-400 font-bold" id="lblAbonoPrevio">$0.00</span>
+                    </div>
+                    <hr class="border-slate-600">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-semibold">Restante</span>
+                        <span id="SaldoEvent" class="text-white font-bold text-lg">$0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toggle: Dejar abono -->
+            <div class="flex items-center justify-between text-white p-3 rounded-lg border border-gray-700 bg-[#1F2937]">
+                <div class="flex items-center gap-2">
+                    <i id="iconAnticipo" class="icon-minus-square text-gray-400 transition-colors duration-200"></i>
+                    <label id="labelAnticipo" class="text-sm cursor-pointer" for="toggleAnticipo">Dejar abono</label>
+                </div>
+                <label class="inline-flex items-center cursor-pointer relative">
+                    <input type="checkbox" id="toggleAnticipo" class="sr-only peer" onchange="toggleExtraFields()">
+                    <div class="w-11 h-6 bg-gray-700 peer-checked:bg-blue-600 rounded-full transition-colors duration-300"></div>
+                    <div class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
+                </label>
+            </div>
+
+            <!-- Importe del abono (oculto por defecto) -->
+            <div id="wrapAdvancedPay" class="hidden space-y-3">
+
+                <!-- Tabs monto / porcentaje -->
+                <div class="flex gap-2">
+                    <button class="tab-btn active flex-1 py-2 px-3 rounded-lg text-xs font-bold border border-gray-700 bg-[#1E293B] text-gray-300"
+                            onclick="cambiarTab('monto', this)">
+                        💰 Monto fijo
+                    </button>
+                    <button class="tab-btn flex-1 py-2 px-3 rounded-lg text-xs font-bold border border-gray-700 bg-[#1E293B] text-gray-300"
+                            onclick="cambiarTab('porcentaje', this)">
+                        📊 Porcentaje
+                    </button>
+                </div>
+
+                <!-- Panel monto -->
+                <div id="panelMonto" class="space-y-1">
+                    <label class="text-xs font-semibold text-gray-400">Importe</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                        <input type="number"
+                               id="advanced_pay"
+                               min="0"
+                               step="0.01"
+                               placeholder="0.00"
+                               class="w-full bg-[#1E293B] border border-gray-700 rounded-lg py-3 pl-8 pr-4 text-lg text-white font-bold input-mono focus:outline-none focus:border-blue-500"
+                               oninput="updateTotal()">
+                    </div>
+                    <p class="text-[10px] text-gray-500">Máximo: <span class="text-blue-400 font-semibold" id="lblMaxMonto">$0.00</span></p>
+                </div>
+
+                <!-- Panel porcentaje -->
+                <div id="panelPorcentaje" class="hidden space-y-1">
+                    <label class="text-xs font-semibold text-gray-400">Porcentaje del abono</label>
+                    <div class="relative">
+                        <input type="number"
+                               id="inputPorcentaje"
+                               min="0"
+                               max="100"
+                               step="0.5"
+                               placeholder="0"
+                               class="w-full bg-[#1E293B] border border-gray-700 rounded-lg py-3 pl-4 pr-8 text-lg text-white font-bold input-mono focus:outline-none focus:border-purple-500"
+                               oninput="actualizarDesdePorcentaje(this.value)">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">%</span>
+                    </div>
+                    <p class="text-[10px] text-gray-500">Equivale a: <span class="text-purple-400 font-semibold" id="lblEquivalente">$0.00</span></p>
+                </div>
+
+                <!-- Alerta excede -->
+                <div id="alertaExcede" class="hidden bg-orange-600/10 border border-orange-500/30 rounded-xl p-3">
+                    <div class="flex items-center gap-2">
+                        <i class="icon-attention text-orange-400 flex-shrink-0"></i>
+                        <p class="text-xs text-orange-400">El importe excede el saldo restante. Se ajustará automáticamente.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Método de pago (oculto por defecto) -->
+            <div id="wrapMethodPay" class="hidden space-y-2">
+                <label class="text-xs font-semibold text-gray-400">Método de pago del anticipo</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="metodo-btn py-2.5 px-2 rounded-lg text-xs font-bold border border-gray-700 bg-[#1E293B] text-gray-300"
+                            onclick="seleccionarMetodo(1, this)">
+                        <i class="icon-money text-sm block mb-0.5"></i> Efectivo
+                    </button>
+                    <button class="metodo-btn py-2.5 px-2 rounded-lg text-xs font-bold border border-gray-700 bg-[#1E293B] text-gray-300"
+                            onclick="seleccionarMetodo(2, this)">
+                        <i class="icon-credit-card text-sm block mb-0.5"></i> Tarjeta
+                    </button>
+                    <button class="metodo-btn py-2.5 px-2 rounded-lg text-xs font-bold border border-gray-700 bg-[#1E293B] text-gray-300"
+                            onclick="seleccionarMetodo(3, this)">
+                        <i class="icon-bank text-sm block mb-0.5"></i> Transferencia
+                    </button>
+                </div>
+                <input type="hidden" id="method_pay_id" value="">
+            </div>
+
+            <!-- Estado cotización (sin abono) -->
+            <div id="estadoCotizacion" class="bg-yellow-600/10 border border-yellow-500/30 rounded-xl p-3">
+                <div class="flex items-center gap-2">
+                    <i class="icon-doc-text text-yellow-400 flex-shrink-0"></i>
+                    <div>
+                        <p class="text-[10px] text-yellow-400/80">Sin abono registrado</p>
+                        <p class="text-xs font-bold text-yellow-400">El pedido se guardará como cotización</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex gap-2 pt-1">
+                <button id="btnExit"
+                        class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-[#1E293B] border border-gray-700 text-gray-300 hover:bg-slate-700 hover:text-white transition-all"
+                        onclick="cancelar()">
+                    Cancelar
+                </button>
+                <button id="btnSuccess"
+                        class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-600/20 hover:from-blue-500 hover:to-blue-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        onclick="confirmarPago()">
+                    <i class="icon-ok mr-1"></i> Confirmar
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ── Estado global ────────────────────────────────────────────────────────
+        let totalOriginal = 0;
+        let totalPaid     = 0;
+        let discount      = 0;
+        let saldoRestante = 0;
+        let tabActual     = 'monto';
+        let methodPayId   = null;
+
+        // ── Inicializar con datos del backend ────────────────────────────────────
+        function init(data) {
+            totalOriginal = parseFloat(data.total)      || 0;
+            discount      = parseFloat(data.discount)   || 0;
+            totalPaid     = parseFloat(data.total_paid) || 0;
+            saldoRestante = totalOriginal - totalPaid;
+
+            document.getElementById('lblFolio').textContent    = '#' + (data.folio || '0000');
+            document.getElementById('lblMaxMonto').textContent = formatPrice(saldoRestante);
+
+            if (totalPaid > 0) {
+                // Vista detallada (hay abono previo)
+                document.getElementById('vistaSimple').classList.add('hidden');
+                document.getElementById('vistaDetallada').classList.remove('hidden');
+
+                document.getElementById('lblTotalVenta').textContent = formatPrice(totalOriginal);
+                document.getElementById('lblAbonoPrevio').textContent = formatPrice(totalPaid);
+                document.getElementById('SaldoEvent').textContent = formatPrice(saldoRestante);
+
+                if (discount > 0) {
+                    const subtotal = totalOriginal + discount;
+                    document.getElementById('rowDescuentoDetalle').classList.remove('hidden');
+                    document.getElementById('lblSubtotalDetalle').textContent  = formatPrice(subtotal);
+                    document.getElementById('lblDescuentoDetalle').textContent = '-' + formatPrice(discount);
+                }
+            } else {
+                // Vista simple
+                document.getElementById('SaldoEvent').textContent = formatPrice(saldoRestante);
+
+                if (discount > 0) {
+                    const subtotal = totalOriginal + discount;
+                    document.getElementById('rowDescuentoSimple').classList.remove('hidden');
+                    document.getElementById('lblSubtotalTachado').textContent = formatPrice(subtotal);
+                    document.getElementById('lblDescuentoSimple').textContent = 'Descuento: -' + formatPrice(discount);
+                }
+            }
+        }
+
+        // ── toggleExtraFields (replica pedidos-catalogo) ─────────────────────────
+        function toggleExtraFields() {
+            const show = document.getElementById('toggleAnticipo')?.checked;
+
+            const wrapPay    = document.getElementById('wrapAdvancedPay');
+            const wrapMethod = document.getElementById('wrapMethodPay');
+            const cotizacion = document.getElementById('estadoCotizacion');
+            const icon       = document.getElementById('iconAnticipo');
+            const label      = document.getElementById('labelAnticipo');
+            const btnOk      = document.getElementById('btnSuccess');
+
+            if (show) {
+                wrapPay?.classList.remove('hidden');
+                wrapMethod?.classList.remove('hidden');
+                cotizacion?.classList.add('hidden');
+
+                if (icon)  icon.className  = 'icon-check-square text-blue-400 transition-colors duration-200';
+                if (label) label.textContent = 'Abono seleccionado';
+
+                const anticipo = parseFloat(document.getElementById('advanced_pay')?.value) || 0;
+                if (btnOk) btnOk.disabled = anticipo <= 0;
+            } else {
+                wrapPay?.classList.add('hidden');
+                wrapMethod?.classList.add('hidden');
+                cotizacion?.classList.remove('hidden');
+
+                if (icon)  icon.className  = 'icon-minus-square text-gray-400 transition-colors duration-200';
+                if (label) label.textContent = 'Dejar abono';
+
+                if (btnOk) btnOk.disabled = false;
+
+                resetAbono();
+            }
+        }
+
+        // ── updateTotal (replica pedidos-catalogo) ───────────────────────────────
+        function updateTotal() {
+            const input   = document.getElementById('advanced_pay');
+            const display = document.getElementById('SaldoEvent');
+            const btnOk   = document.getElementById('btnSuccess');
+
+            if (!input || !display) return;
+
+            let anticipo = parseFloat(input.value) || 0;
+            let restante = saldoRestante - anticipo;
+
+            if (anticipo > saldoRestante) {
+                anticipo     = saldoRestante;
+                input.value  = anticipo.toFixed(2);
+                restante     = 0;
+                document.getElementById('alertaExcede').classList.remove('hidden');
+            } else {
+                document.getElementById('alertaExcede').classList.add('hidden');
+            }
+
+            display.textContent = formatPrice(restante);
+
+            if (btnOk) btnOk.disabled = anticipo <= 0;
+        }
+
+        // ── Tabs monto / porcentaje ──────────────────────────────────────────────
+        function cambiarTab(tab, btn) {
+            tabActual = tab;
+
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            document.getElementById('panelMonto').classList.toggle('hidden', tab !== 'monto');
+            document.getElementById('panelPorcentaje').classList.toggle('hidden', tab !== 'porcentaje');
+
+            resetAbono();
+        }
+
+        // ── Actualizar desde porcentaje ──────────────────────────────────────────
+        function actualizarDesdePorcentaje(valor) {
+            const pct    = Math.min(parseFloat(valor) || 0, 100);
+            const monto  = saldoRestante * (pct / 100);
+
+            document.getElementById('advanced_pay').value      = monto.toFixed(2);
+            document.getElementById('lblEquivalente').textContent = formatPrice(monto);
+
+            updateTotal();
+        }
+
+        // ── Seleccionar método de pago ───────────────────────────────────────────
+        function seleccionarMetodo(id, btn) {
+            methodPayId = id;
+            document.getElementById('method_pay_id').value = id;
+
+            document.querySelectorAll('.metodo-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        // ── Reset abono ──────────────────────────────────────────────────────────
+        function resetAbono() {
+            const inputMonto = document.getElementById('advanced_pay');
+            const inputPct   = document.getElementById('inputPorcentaje');
+
+            if (inputMonto) inputMonto.value = '';
+            if (inputPct)   inputPct.value   = '';
+
+            document.getElementById('alertaExcede').classList.add('hidden');
+            document.getElementById('SaldoEvent').textContent = formatPrice(saldoRestante);
+            document.getElementById('lblEquivalente').textContent = '$0.00';
+
+            methodPayId = null;
+            document.querySelectorAll('.metodo-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('method_pay_id').value = '';
+        }
+
+        // ── Confirmar pago ───────────────────────────────────────────────────────
+        function confirmarPago() {
+            const abonoActivo = document.getElementById('toggleAnticipo').checked;
+            const abono       = parseFloat(document.getElementById('advanced_pay')?.value) || 0;
+
+            if (abonoActivo && abono > 0 && !methodPayId) {
+                alert('Selecciona un método de pago.');
+                return;
+            }
+
+            const resultado = {
+                opc         : 'addPayment',
+                total       : totalOriginal,
+                discount    : discount,
+                total_paid  : totalPaid,
+                saldo       : saldoRestante,
+                advanced_pay: abonoActivo ? abono : 0,
+                method_pay_id: methodPayId,
+                esCotizacion: !abonoActivo || abono <= 0
+            };
+
+            console.log('Pago confirmado:', resultado);
+            // → useFetch({ url: api, data: resultado })
+        }
+
+        // ── Cancelar ─────────────────────────────────────────────────────────────
+        function cancelar() {
+            console.log('Cancelado');
+        }
+
+        // ── Formato moneda ───────────────────────────────────────────────────────
+        function formatPrice(value) {
+            return '$' + parseFloat(value || 0).toLocaleString('es-MX', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // ── Demo ─────────────────────────────────────────────────────────────────
+        init({
+            folio      : '1042',
+            total      : 3200.00,
+            discount   : 200.00,
+            total_paid : 500.00
+        });
+    </script>
+</body>
+</html>

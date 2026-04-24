@@ -381,10 +381,11 @@ class ctrl extends MPedidos{
         $message = 'No se pudo registrar el pago';
 
         $id         = $_POST['id'];
-        $pay        = floatval($_POST['advanced_pay']);
-        $total_pay  = floatval($_POST['total']);
-        $saldo      = floatval($_POST['saldo']);
+        $pay        = floatval($_POST['advanced_pay'] ?? 0);
+        $total_pay  = floatval($_POST['total'] ?? 0);
+        $saldo      = floatval($_POST['saldo'] ?? 0);
         $total_paid = floatval($_POST['total_paid'] ?? 0);
+        $discount   = floatval($_POST['discount'] ?? 0);
 
         if ($total_paid > 0) {
             $type_id = 2; // Ya tiene abonos previos, mantener como abono parcial
@@ -398,6 +399,7 @@ class ctrl extends MPedidos{
 
         $post = [
             'total_pay'     => $total_pay,
+            'discount'      => $discount,
             'type_id'       => $type_id,
             'status'        => $type_id,
             'date_creation' => date('Y-m-d'),
@@ -414,7 +416,7 @@ class ctrl extends MPedidos{
                 'pay'           => $pay,
                 'date_pay'      => date('Y-m-d H:i:s'),
                 'type'          => 2,
-                'method_pay_id' => $_POST['method_pay_id'],
+                'method_pay_id' => $_POST['method_pay_id'] ?? null,
                 'order_id'      => $id,
             ];
 

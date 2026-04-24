@@ -3342,6 +3342,80 @@ class Templates extends Components {
 
     }
 
+    createLayout(options = {}) {
+        const defaults = {
+            design: true,
+            content: this._div_modulo,
+            parent: '',
+            clean: false,
+            data: { id: "rptFormat", class: "col-12" },
+        };
+
+        const opts = Object.assign({}, defaults, options);
+        const lineClass = opts.design ? ' border rounded ' : '';
+
+        const div = $("<div>", {
+            class: opts.data.class,
+            id: opts.data.id,
+        });
+
+        const row = opts.data.container ? opts.data.container : opts.data.elements;
+
+        row.forEach(item => {
+            let div_cont;
+
+            switch (item.type) {
+
+                case 'div':
+
+                    div_cont = $("<div>", {
+                        class: (item.class ? item.class : 'row') + ' ' + lineClass,
+                        id: item.id,
+                    });
+
+                    if (item.children) {
+                        item.children.forEach(child => {
+                            child.class = (child.class ? child.class + ' ' : '') + lineClass;
+
+                            if (child.type) {
+
+                                div_cont.append($(`<${child.type}>`, child));
+
+                            } else {
+
+                                div_cont.append($("<div>", child));
+                            }
+
+                        });
+                    }
+
+                    div.append(div_cont);
+
+                    break;
+
+                default:
+
+                    const { type, ...attr } = item;
+
+
+                    div_cont = $("<" + item.type + ">", attr);
+
+                    div.append(div_cont);
+                    break;
+            }
+        });
+
+        if (opts.clean)
+            $("#" + opts.content ? opts.content : opts.parent).empty();
+
+        if (!opts.parent) {
+            $("#" + opts.content).html(div);
+        } else {
+            $("#" + opts.parent).html(div);
+        }
+
+    }
+
     createPlantilla(options) {
 
         let json_components = {

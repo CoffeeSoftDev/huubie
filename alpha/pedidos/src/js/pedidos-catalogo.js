@@ -1086,7 +1086,7 @@ class CatalogProduct extends Pos {
         this.primaryLayout({
             parent: "root",
             id: this.PROJECT_NAME,
-            class: "flex mx-2 my-2 p-2",
+            class: "flex mx-2 ",
             heightPreset: 'viewport', // Usa el preset estándar
             card: {
                 filterBar: {
@@ -1944,89 +1944,195 @@ class CatalogProduct extends Pos {
 
     // payment.
 
+    _lucide(name, cls = "w-4 h-4") {
+        const paths = {
+            'dollar-sign'   : '<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+            'banknote'      : '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+            'credit-card'   : '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+            'arrow-exchange': '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+            'check'         : '<path d="M20 6 9 17l-5-5"/>',
+            'square-check'  : '<path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+            'square-minus'  : '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/>',
+            'triangle-alert': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+            'file-text'     : '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/>',
+            'percent'       : '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+            'piggy-bank'    : '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><path d="M16 11h.01"/>'
+        };
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}">${paths[name] || ''}</svg>`;
+    }
+
     async addPayment() {
 
-        let saldo, saldoOriginal, total, total_paid, saldo_restante, discount;
+        let saldoOriginal, total, total_paid, saldo_restante, discount, subtotal;
         const req      = await useFetch({ url: api, data: { opc: "getPayment", id: idFolio } });
         const response = req.order;
-
 
         if (req.total_paid) {
 
             discount       = parseFloat(response.discount) || 0;
-            saldo          = formatPrice(response.total_pay);
-            saldoOriginal  = response.total_pay;
-            total          = response.total_pay - discount;
-            total_paid     = req.total_paid;
+            saldoOriginal  = parseFloat(response.total_pay) || 0;
+            subtotal       = saldoOriginal;
+            total          = saldoOriginal - discount;
+            total_paid     = parseFloat(req.total_paid) || 0;
             saldo_restante = total - total_paid;
 
         } else {
             const totalText = $('#subtotal').text();
-            saldo = totalText;
-            saldoOriginal = totalText.replace(/[^0-9.-]+/g, "") || "0";
-            discount = parseFloat($('#discountAmount').text().replace(/[^0-9.-]+/g, "")) || 0;
-            total = parseFloat(saldoOriginal) || 0;
-            total = total - discount;
-            total_paid = 0;
-            saldo_restante = total - total_paid;
+            saldoOriginal   = parseFloat(totalText.replace(/[^0-9.-]+/g, "")) || 0;
+            discount        = parseFloat($('#discountAmount').text().replace(/[^0-9.-]+/g, "")) || 0;
+            subtotal        = saldoOriginal;
+            total           = saldoOriginal - discount;
+            total_paid      = 0;
+            saldo_restante  = total - total_paid;
         }
+
+        this._paymentState = {
+            subtotal      : subtotal,
+            total         : total,
+            total_paid    : total_paid,
+            discount      : discount,
+            saldo_restante: saldo_restante,
+            tabDescuento  : 'monto',
+            methodPayId   : null
+        };
+
+        const lucide = (n, c) => this._lucide(n, c);
 
         this.createModalForm({
             id: "modalRegisterPayment",
             bootbox: {
                 title: `
                 <div class="flex items-center gap-2 text-white text-lg font-semibold">
-                    <i class="icon-dollar text-blue-400 text-xl"></i>
+                    <span class="text-violet-400">${lucide('dollar-sign', 'w-5 h-5')}</span>
                     Registrar Pago
                 </div>`,
                 id: "registerPaymentModal",
                 size: "medium"
             },
-            data: { opc: 'addPayment', total: total, saldo: saldo_restante, id: idFolio, discount: discount, total_paid: total_paid },
+            data: {
+                opc: 'addPayment',
+                id : idFolio
+            },
             json: [
-                this.cardPay(total, total_paid, discount),
                 {
                     opc  : "div",
-                    id   : "anticipoSwitch",
-                    class: "col-12 mb-2",
-                    html: `
-                    <div class = "flex items-center justify-between text-white p-3 rounded-lg border border-gray-700 bg-[#1F2937]">
-                        <div   class = "flex items-center gap-2">
-                            <i     id    = "iconAnticipo" class  = "icon-minus-square text-gray-400 transition-colors duration-200"></i>
-                            <label id    = "labelAnticipo" class = "text-sm">Dejar abono</label>
+                    id   : "paymentModalContent",
+                    class: "col-12",
+                    html : `
+                    <div class="space-y-3">
+                        <input type="hidden" id="hdn_total" name="total" value="${total}">
+                        <input type="hidden" id="hdn_saldo" name="saldo" value="${saldo_restante}">
+                        <input type="hidden" id="hdn_discount" name="discount" value="${discount}">
+                        <input type="hidden" id="hdn_total_paid" name="total_paid" value="${total_paid}">
+
+                        ${this.cardPay(total, total_paid, discount)}
+
+                        <div id="anticipoSwitch" class="flex items-center justify-between text-white p-3 rounded-lg bg-[#1F2937]">
+                            <div class="flex items-center gap-2">
+                                <span id="iconAnticipo" class="text-gray-400 transition-colors duration-200">${lucide('square-minus', 'w-5 h-5')}</span>
+                                <label id="labelAnticipo" class="text-sm cursor-pointer" for="toggleAnticipo">Dejar abono</label>
+                            </div>
+                            <label class="inline-flex items-center cursor-pointer relative">
+                                <input type="checkbox" id="toggleAnticipo" class="sr-only peer" onchange="normal.toggleExtraFields()">
+                                <div class="w-11 h-6 bg-gray-700 peer-checked:bg-violet-600 rounded-full transition-colors duration-300"></div>
+                                <div class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
+                            </label>
                         </div>
 
-                        <label class = "inline-flex items-center cursor-pointer relative">
-                        <input type  = "checkbox" id = "toggleAnticipo" class = "sr-only peer" onchange = "normal.toggleExtraFields()">
-                        <div   class = "w-11 h-6 bg-gray-700 peer-checked:bg-blue-600 rounded-full transition-colors duration-300"></div>
-                        <div   class = "absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
-                        </label>
+                        <div id="wrapAdvancedPay" class="hidden js-wrap-advanced-pay space-y-2">
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-400">Importe del abono</label>
+                                <div class="relative">
+                                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                                    <input type="number" id="advanced_pay" name="advanced_pay" min="0" step="0.01" placeholder="0.00"
+                                           class="w-full bg-[#1E293B] border border-gray-700 rounded-lg py-2 pl-8 pr-4 text-lg text-white font-bold focus:outline-none focus:border-violet-500"
+                                           oninput="normal.updateTotal()">
+                                </div>
+                                <p class="text-[10px] text-gray-500">Máximo: <span class="text-violet-400 font-semibold" id="lblMaxMonto">${formatPrice(saldo_restante)}</span></p>
+                            </div>
+
+                            <div id="alertaExcede" class="hidden bg-orange-600/10 rounded-xl p-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-orange-400 flex-shrink-0">${lucide('triangle-alert', 'w-4 h-4')}</span>
+                                    <p class="text-xs text-orange-400">El importe excede el saldo restante. Se ajustará automáticamente.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="wrapMethodPay" class="hidden js-wrap-method-pay space-y-2">
+                            <label class="text-xs font-semibold text-gray-400">Método de pago</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button type="button" class="metodo-pay-btn py-3 px-2 rounded-lg text-xs font-bold bg-[#1E293B] text-gray-300 border border-gray-700 hover:border-violet-500 transition-all flex flex-col items-center gap-1"
+                                        onclick="normal.seleccionarMetodo(1, this)">
+                                    ${lucide('banknote', 'w-5 h-5')}
+                                    <span>Efectivo</span>
+                                </button>
+                                <button type="button" class="metodo-pay-btn py-3 px-2 rounded-lg text-xs font-bold bg-[#1E293B] text-gray-300 border border-gray-700 hover:border-violet-500 transition-all flex flex-col items-center gap-1"
+                                        onclick="normal.seleccionarMetodo(2, this)">
+                                    ${lucide('credit-card', 'w-5 h-5')}
+                                    <span>Tarjeta</span>
+                                </button>
+                                <button type="button" class="metodo-pay-btn py-3 px-2 rounded-lg text-xs font-bold bg-[#1E293B] text-gray-300 border border-gray-700 hover:border-violet-500 transition-all flex flex-col items-center gap-1"
+                                        onclick="normal.seleccionarMetodo(3, this)">
+                                    ${lucide('arrow-exchange', 'w-5 h-5')}
+                                    <span>Transfer.</span>
+                                </button>
+                            </div>
+                            <input type="hidden" id="method_pay_id" name="method_pay_id" value="">
+                        </div>
+
+                        <div id="discountSwitch" class="js-discount-switch flex items-center justify-between text-white p-3 rounded-lg bg-[#1F2937]">
+                            <div class="flex items-center gap-2">
+                                <span id="iconDiscount" class="text-gray-400 transition-colors duration-200">${lucide('square-minus', 'w-5 h-5')}</span>
+                                <label id="labelDiscount" class="text-sm cursor-pointer" for="toggleDiscount">Aplicar descuento</label>
+                            </div>
+                            <label class="inline-flex items-center cursor-pointer relative">
+                                <input type="checkbox" id="toggleDiscount" class="sr-only peer" onchange="normal.toggleDiscount()">
+                                <div class="w-11 h-6 bg-gray-700 peer-checked:bg-green-600 rounded-full transition-colors duration-300"></div>
+                                <div class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
+                            </label>
+                        </div>
+
+                        <div id="wrapDiscount" class="hidden js-wrap-discount space-y-2">
+                            <div class="flex gap-2">
+                                <button type="button" id="tabDescuentoMonto" class="tab-descuento-btn active flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-[#1E293B] !text-white border !border-green-500 flex items-center justify-center gap-1"
+                                        onclick="normal.cambiarTabDescuento('monto', this)">
+                                    ${lucide('dollar-sign', 'w-4 h-4')}
+                                    <span>Monto fijo</span>
+                                </button>
+                                <button type="button" id="tabDescuentoPorcentaje" class="tab-descuento-btn flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-[#1E293B] text-gray-300 border border-gray-700 flex items-center justify-center gap-1"
+                                        onclick="normal.cambiarTabDescuento('porcentaje', this)">
+                                    ${lucide('percent', 'w-4 h-4')}
+                                    <span>Porcentaje</span>
+                                </button>
+                            </div>
+
+                            <div id="panelDescuentoMonto" class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-400">Monto del descuento</label>
+                                <div class="relative">
+                                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                                    <input type="number" id="discount_amount" min="0" step="0.01" placeholder="0.00"
+                                           class="w-full bg-[#1E293B] border border-gray-700 rounded-lg py-2 pl-8 pr-4 text-lg text-white font-bold focus:outline-none focus:border-green-500"
+                                           oninput="normal.actualizarDescuento()">
+                                </div>
+                                <p class="text-[10px] text-gray-500">Máximo: <span class="text-green-400 font-semibold" id="lblMaxDescuento">${formatPrice(subtotal)}</span></p>
+                            </div>
+
+                            <div id="panelDescuentoPorcentaje" class="hidden space-y-1">
+                                <label class="text-xs font-semibold text-gray-400">Porcentaje del descuento</label>
+                                <div class="relative">
+                                    <input type="number" id="inputDescuentoPorcentaje" min="0" max="100" step="0.5" placeholder="0"
+                                           class="w-full bg-[#1E293B] border border-gray-700 rounded-lg py-2 pl-4 pr-8 text-lg text-white font-bold focus:outline-none focus:border-green-500"
+                                           oninput="normal.actualizarDescuentoDesdePorcentaje(this.value)">
+                                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">%</span>
+                                </div>
+                                <p class="text-[10px] text-gray-500">Equivale a: <span class="text-green-400 font-semibold" id="lblDescuentoEquivalente">${formatPrice(0)}</span></p>
+                            </div>
+                        </div>
+
                     </div>
-                     `
-                },
-                {
-                    opc        : "input",
-                    type       : "number",
-                    id         : "advanced_pay",
-                    lbl        : "Importe",
-                    class      : "col-12 mb-3 hidden",
-                    placeholder: "$ 0",
-                    required   : false,
-                    min        : 0,
-                    onkeyup    : 'normal.updateTotal(' + total + ', ' + (total_paid || 0) + ')'
-                },
-                {
-                    opc: "select",
-                    id: "method_pay_id",
-                    lbl: "Método de pago del anticipo",
-                    class: "col-12 mb-3 hidden",
-                    data: [
-                        { id: "1", valor: "Efectivo" },
-                        { id: "2", valor: "Tarjeta" },
-                        { id: "3", valor: "Transferencia" }
-                    ],
-                    required: true
-                },
+                    `
+                }
             ],
             success: (response) => {
                 if (response.status == 200) {
@@ -2038,12 +2144,37 @@ class CatalogProduct extends Pos {
             }
         });
 
-        const $btn = $("#btnSuccess");
+        $(".js-wrap-advanced-pay").addClass("hidden");
+        $(".js-wrap-method-pay").addClass("hidden");
+        $(".js-wrap-discount").addClass("hidden");
+
+        const $btn             = $("#btnSuccess");
         const originalHandlers = $._data($btn[0], "events")?.click?.map(e => e.handler) || [];
+
         $btn.off("click");
-        $btn.on("click", function () {
-            const abono = parseFloat($("#advanced_pay").val()) || 0;
-            if (abono <= 0 && total_paid <= 0) {
+        $btn.on("click", () => {
+            const abonoActivo = $("#toggleAnticipo").is(":checked");
+            const abono       = parseFloat($("#advanced_pay").val()) || 0;
+            const methodId    = $("#method_pay_id").val();
+            const state       = this._paymentState;
+
+            if (abonoActivo && abono > 0 && !methodId) {
+                alert({
+                    icon: "warning",
+                    title: "Método de pago requerido",
+                    text: "Selecciona un método de pago para registrar el abono.",
+                    btn1: true,
+                    btn1Text: "Ok"
+                });
+                return;
+            }
+
+            $("#hdn_total").val(state.total);
+            $("#hdn_saldo").val(state.saldo_restante);
+            $("#hdn_discount").val(state.discount);
+            $("#hdn_total_paid").val(state.total_paid);
+
+            if (abono <= 0 && state.total_paid <= 0) {
                 alert({
                     icon: "question",
                     title: "Sin abono",
@@ -2060,154 +2191,270 @@ class CatalogProduct extends Pos {
             }
         });
 
-        $btn.addClass("text-white");
-        $("#btnExit").addClass("text-white");
     }
 
     cardPay(total, total_paid = 0, discount = 0) {
         const restante = total - total_paid;
         const subtotal = total + discount;
+        const hasAbono = total_paid > 0;
 
-        // Si no hay abonos previos, solo se muestra el monto restante
-        if (!total_paid || total_paid <= 0) {
-            return {
-                opc: "div",
-                id: "Amount",
-                class: "col-12 mb-2",
-                html: `
-                <div id="dueAmount" class="p-4 rounded-xl bg-[#1E293B] text-white text-center">
-                    ${discount > 0 ? `
-                    <p class="text-sm opacity-80">Subtotal</p>
-                    <p class="text-lg font-semibold text-gray-400 line-through">${formatPrice(subtotal)}</p>
-                    <p class="text-sm text-green-400 mb-2">Descuento: -${formatPrice(discount)}</p>
-                    ` : ''}
-                    <p class="text-sm opacity-80">Monto a pagar</p>
-                    <p id="SaldoEvent" class="text-3xl font-bold mt-1">
-                        ${formatPrice(restante)}
-                    </p>
-                </div>
+        return `
+            <div id="dueAmount" class="p-4 rounded-xl bg-[#1E293B] text-white space-y-3 border border-slate-700 shadow-sm">
 
-            `
-            };
-        }
-
-        // Si hay abono previo, mostrar resumen completo
-        return {
-            opc: "div",
-            id: "Amount",
-            class: "col-12 mb-2",
-            html: `
-           <div id="dueAmount" class="p-4 rounded-xl bg-[#1E293B] text-white space-y-4 border border-slate-800 shadow-sm">
-
-                ${discount > 0 ? `
-                <!-- Subtotal -->
-                <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold">Subtotal</span>
-                    <div class="text-right text-gray-400 line-through">
-                        ${formatPrice(subtotal)}
+                <div id="vistaSimple" class="${hasAbono ? 'hidden' : ''}">
+                    <div id="rowDescuentoSimple" class="${discount > 0 ? '' : 'hidden'} text-center mb-1">
+                        <p class="text-sm opacity-80">Subtotal</p>
+                        <p class="text-lg font-semibold text-gray-400 line-through" id="lblSubtotalTachado">${formatPrice(subtotal)}</p>
+                        <p class="text-sm text-green-400 mb-1" id="lblDescuentoSimple">Descuento: -${formatPrice(discount)}</p>
                     </div>
+                    <p class="text-sm opacity-80 text-center">Monto a pagar</p>
+                    <p id="SaldoEventSimple" class="text-3xl font-bold mt-1 text-center">${formatPrice(restante)}</p>
                 </div>
 
-                <!-- Descuento -->
-                <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold text-green-400">Descuento</span>
-                    <div class="text-right text-green-400 font-bold">
-                        -${formatPrice(discount)}
+                <div id="vistaDetallada" class="${hasAbono ? '' : 'hidden'} space-y-3">
+                    <div id="rowDescuentoDetalle" class="${discount > 0 ? '' : 'hidden'}">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-semibold">Subtotal</span>
+                            <span class="text-gray-400 line-through" id="lblSubtotalDetalle">${formatPrice(subtotal)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-semibold text-green-400">Descuento</span>
+                            <span class="text-green-400 font-bold" id="lblDescuentoDetalle">-${formatPrice(discount)}</span>
+                        </div>
                     </div>
-                </div>
-                ` : ''}
-
-                <!-- Total de la venta -->
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-2">
+                    <div class="flex justify-between items-center">
                         <span class="text-sm font-semibold">Total de la venta</span>
+                        <span class="text-white font-bold text-lg" id="lblTotalVenta">${formatPrice(total)}</span>
                     </div>
-                    <div class="text-right text-white font-bold text-lg">
-                        ${formatPrice(total)}
+                    <div class="flex justify-between items-center bg-blue-900/30 p-2 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <i class="icon-check text-blue-400"></i>
+                            <span class="text-sm font-semibold text-blue-300">Abono registrado</span>
+                        </div>
+                        <span class="text-blue-400 font-bold" id="lblAbonoPrevio">${formatPrice(total_paid)}</span>
                     </div>
-                </div>
-
-                <!-- Abono previo -->
-                <div class="flex justify-between items-center bg-blue-900/30 p-2 rounded-lg">
-                    <div class="flex items-center gap-2">
-                        <i class="icon-check text-blue-400"></i>
-                        <span class="text-sm font-semibold text-blue-300">Abono registrado</span>
-                    </div>
-                    <div class="text-right text-blue-400 font-bold">
-                        ${formatPrice(total_paid)}
-                    </div>
-                </div>
-
-                <hr class="border-slate-600">
-
-                <!-- Monto restante -->
-                <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold">Restante</span>
-                    <div id="SaldoEvent" class="text-right text-white font-bold text-md">
-                        ${formatPrice(restante)}
+                    <hr class="border-slate-600">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-semibold">Restante</span>
+                        <span id="SaldoEvent" class="text-white font-bold text-lg">${formatPrice(restante)}</span>
                     </div>
                 </div>
             </div>
-
-        `
-        };
+        `;
     }
 
-    updateTotal(totalOriginal, totalPaid = 0) {
-        const input = document.getElementById("advanced_pay");
-        const display = document.getElementById("SaldoEvent");
-        const btnOk = document.getElementById("btnSuccess");
-        const btnExit = document.getElementById("btnExit");
+    renderResumenFinanciero() {
+        const s = this._paymentState;
+        if (!s) return;
 
-        if (!input || !display) return;
+        const subtotal = s.subtotal;
+        const total    = s.total;
+        const restante = s.saldo_restante;
+        const hasAbono = s.total_paid > 0;
 
-        let anticipo = parseFloat(input.value) || 0;
-        let restante = totalOriginal - totalPaid - anticipo;
+        $("#vistaSimple").toggleClass("hidden", hasAbono);
+        $("#vistaDetallada").toggleClass("hidden", !hasAbono);
 
-        // Validación: no permitir que anticipo exceda el monto disponible
-        if (anticipo + totalPaid > totalOriginal) {
-            anticipo = totalOriginal - totalPaid;
-            input.value = anticipo.toFixed(2);
-            restante = 0;
+        if (hasAbono) {
+            $("#rowDescuentoDetalle").toggleClass("hidden", s.discount <= 0);
+            $("#lblSubtotalDetalle").text(formatPrice(subtotal));
+            $("#lblDescuentoDetalle").text("-" + formatPrice(s.discount));
+            $("#lblTotalVenta").text(formatPrice(total));
+            $("#lblAbonoPrevio").text(formatPrice(s.total_paid));
+            $("#SaldoEvent").text(formatPrice(restante));
+        } else {
+            $("#rowDescuentoSimple").toggleClass("hidden", s.discount <= 0);
+            $("#lblSubtotalTachado").text(formatPrice(subtotal));
+            $("#lblDescuentoSimple").text("Descuento: -" + formatPrice(s.discount));
+            $("#SaldoEventSimple").text(formatPrice(restante));
         }
 
-        display.textContent = `$${restante.toFixed(2)}`;
+        $("#lblMaxMonto").text(formatPrice(restante));
+    }
 
-        // Activar o desactivar botones según el valor del anticipo
-        const isValid = anticipo > 0;
+    updateTotal() {
+        const input  = document.getElementById("advanced_pay");
+        const btnOk  = document.getElementById("btnSuccess");
+        const alerta = document.getElementById("alertaExcede");
+        const state  = this._paymentState;
 
-        if (btnOk) btnOk.disabled = !isValid;
-        if (btnExit) btnExit.disabled = !isValid;
+        if (!input || !state) return;
+
+        let anticipo = parseFloat(input.value) || 0;
+        let restante = state.saldo_restante - anticipo;
+
+        if (anticipo > state.saldo_restante) {
+            anticipo    = state.saldo_restante;
+            input.value = anticipo.toFixed(2);
+            restante    = 0;
+            alerta?.classList.remove("hidden");
+        } else {
+            alerta?.classList.add("hidden");
+        }
+
+        const hasAbono = state.total_paid > 0;
+        if (hasAbono) {
+            $("#SaldoEvent").text(formatPrice(restante));
+        } else {
+            $("#SaldoEventSimple").text(formatPrice(restante));
+        }
+
+        const abonoActivo = $("#toggleAnticipo").is(":checked");
+        if (btnOk) btnOk.disabled = abonoActivo && anticipo <= 0;
+    }
+
+    seleccionarMetodo(id, btn) {
+        if (this._paymentState) this._paymentState.methodPayId = id;
+        $("#method_pay_id").val(id);
+
+        document.querySelectorAll(".metodo-pay-btn").forEach(b => {
+            b.classList.remove("active", "!border-violet-500", "!text-violet-400", "!bg-violet-500/10");
+            b.classList.add("border-gray-700", "text-gray-300");
+        });
+        btn.classList.add("active", "!border-violet-500", "!text-violet-400", "!bg-violet-500/10");
+        btn.classList.remove("border-gray-700", "text-gray-300");
+    }
+
+    resetAbono() {
+        const state = this._paymentState;
+
+        $("#advanced_pay").val("");
+        $("#alertaExcede").addClass("hidden");
+
+        if (state) {
+            const restante = state.saldo_restante;
+            if (state.total_paid > 0) {
+                $("#SaldoEvent").text(formatPrice(restante));
+            } else {
+                $("#SaldoEventSimple").text(formatPrice(restante));
+            }
+        }
+
+        const abonoActivo = $("#toggleAnticipo").is(":checked");
+        const btnOk       = document.getElementById("btnSuccess");
+        if (btnOk) btnOk.disabled = abonoActivo;
+    }
+
+    toggleDiscount() {
+        const show  = $("#toggleDiscount").is(":checked");
+        const icon  = document.getElementById("iconDiscount");
+        const label = document.getElementById("labelDiscount");
+
+        if (show) {
+            $(".js-wrap-discount").removeClass("hidden");
+            if (icon) {
+                icon.className = "text-green-400 transition-colors duration-200";
+                icon.innerHTML = this._lucide('square-check', 'w-5 h-5');
+            }
+            if (label) label.textContent = "Descuento activo";
+        } else {
+            $(".js-wrap-discount").addClass("hidden");
+            if (icon) {
+                icon.className = "text-gray-400 transition-colors duration-200";
+                icon.innerHTML = this._lucide('square-minus', 'w-5 h-5');
+            }
+            if (label) label.textContent = "Aplicar descuento";
+
+            $("#discount_amount").val("");
+            $("#inputDescuentoPorcentaje").val("");
+            $("#lblDescuentoEquivalente").text(formatPrice(0));
+
+            this.applyDiscount(0);
+        }
+    }
+
+    cambiarTabDescuento(tab, btn) {
+        if (this._paymentState) this._paymentState.tabDescuento = tab;
+
+        document.querySelectorAll(".tab-descuento-btn").forEach(b => {
+            b.classList.remove("active", "!border-green-500", "!text-white");
+            b.classList.add("border-gray-700", "text-gray-300");
+        });
+        btn.classList.add("active", "!border-green-500", "!text-white");
+        btn.classList.remove("border-gray-700", "text-gray-300");
+
+        document.getElementById("panelDescuentoMonto").classList.toggle("hidden", tab !== "monto");
+        document.getElementById("panelDescuentoPorcentaje").classList.toggle("hidden", tab !== "porcentaje");
+
+        $("#discount_amount").val("");
+        $("#inputDescuentoPorcentaje").val("");
+        $("#lblDescuentoEquivalente").text(formatPrice(0));
+        this.applyDiscount(0);
+    }
+
+    actualizarDescuento() {
+        const state = this._paymentState;
+        if (!state) return;
+
+        let monto = parseFloat($("#discount_amount").val()) || 0;
+
+        if (monto > state.subtotal) {
+            monto = state.subtotal;
+            $("#discount_amount").val(monto.toFixed(2));
+        }
+
+        this.applyDiscount(monto);
+    }
+
+    actualizarDescuentoDesdePorcentaje(valor) {
+        const state = this._paymentState;
+        if (!state) return;
+
+        const pct   = Math.min(parseFloat(valor) || 0, 100);
+        const monto = state.subtotal * (pct / 100);
+
+        $("#lblDescuentoEquivalente").text(formatPrice(monto));
+        this.applyDiscount(monto);
+    }
+
+    applyDiscount(monto) {
+        const state = this._paymentState;
+        if (!state) return;
+
+        state.discount       = monto;
+        state.total          = state.subtotal - monto;
+        state.saldo_restante = state.total - state.total_paid;
+
+        const inputAbono = parseFloat($("#advanced_pay").val()) || 0;
+        if (inputAbono > state.saldo_restante) {
+            $("#advanced_pay").val(state.saldo_restante.toFixed(2));
+        }
+
+        this.renderResumenFinanciero();
+        this.updateTotal();
     }
 
     toggleExtraFields() {
-        const show = document.getElementById("toggleAnticipo")?.checked;
-
-        const advancedPay = document.getElementById("advanced_pay")?.parentElement;
-        const advancedPayInput = document.getElementById("advanced_pay");
-        const methodPay = document.getElementById("method_pay_id")?.parentElement;
-        const btnOk = document.getElementById("btnSuccess");
-
-        const icon = document.getElementById("iconAnticipo");
-        const label = document.getElementById("labelAnticipo");
+        const show           = $("#toggleAnticipo").is(":checked");
+        const icon           = document.getElementById("iconAnticipo");
+        const label          = document.getElementById("labelAnticipo");
+        const btnOk          = document.getElementById("btnSuccess");
 
         if (show) {
-            advancedPay?.classList.remove("hidden");
-            methodPay?.classList.remove("hidden");
+            $(".js-wrap-advanced-pay").removeClass("hidden");
+            $(".js-wrap-method-pay").removeClass("hidden");
 
-            if (icon) icon.className = "icon-check-square text-blue-400 transition-colors duration-200";
-            if (label) label.textContent = "Abono selecionado";
+            if (icon) {
+                icon.className = "text-violet-400 transition-colors duration-200";
+                icon.innerHTML = this._lucide('square-check', 'w-5 h-5');
+            }
+            if (label) label.textContent = "Abono seleccionado";
 
-            const anticipo = parseFloat(advancedPayInput?.value) || 0;
+            const anticipo = parseFloat($("#advanced_pay").val()) || 0;
             if (btnOk) btnOk.disabled = anticipo <= 0;
         } else {
-            advancedPay?.classList.add("hidden");
-            methodPay?.classList.add("hidden");
+            $(".js-wrap-advanced-pay").addClass("hidden");
+            $(".js-wrap-method-pay").addClass("hidden");
 
-            if (icon) icon.className = "icon-minus-square text-gray-400 transition-colors duration-200";
+            if (icon) {
+                icon.className = "text-gray-400 transition-colors duration-200";
+                icon.innerHTML = this._lucide('square-minus', 'w-5 h-5');
+            }
             if (label) label.textContent = "Dejar abono";
 
             if (btnOk) btnOk.disabled = false;
+
+            this.resetAbono();
         }
     }
 
