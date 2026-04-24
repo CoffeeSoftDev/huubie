@@ -315,6 +315,238 @@ class ctrl extends MReportes {
         ];
     }
 
+    function lsShiftsWithTickets() {
+        if ($_SESSION['ROLID'] != 1) {
+            return ['status' => 403, 'message' => 'No tienes permisos'];
+        }
+
+        $fi     = $_POST['fi'];
+        $ff     = $_POST['ff'];
+        $sub_id = $_POST['sub_id'];
+
+        $shifts          = $this->listShifts([$sub_id, $sub_id, $fi, $ff]);
+        $ticketsInRange  = $this->listTickets([$fi, $ff, $sub_id, $sub_id]);
+
+        $__row = [];
+
+        $totalImporte       = 0;
+        $totalDescuento     = 0;
+        $totalEfectivo      = 0;
+        $totalTarjeta       = 0;
+        $totalTransferencia = 0;
+        $totalTickets       = 0;
+
+        $ticketsByShift = [];
+        $orphanTickets  = [];
+
+        if (is_array($ticketsInRange)) {
+            foreach ($ticketsInRange as $ticket) {
+                $shiftKey = $ticket['cash_shift_id'];
+                if ($shiftKey) {
+                    $ticketsByShift[$shiftKey][] = $ticket;
+                } else {
+                    $orphanTickets[] = $ticket;
+                }
+            }
+        }
+
+        $shiftIndex = 0;
+        if (is_array($shifts)) {
+            foreach ($shifts as $shift) {
+                $shiftIndex++;
+                $shiftId       = $shift['id'];
+                $shiftTickets  = isset($ticketsByShift[$shiftId]) ? $ticketsByShift[$shiftId] : [];
+
+                $shiftDescuento     = 0;
+                $shiftImporte       = 0;
+                $shiftEfectivo      = 0;
+                $shiftTarjeta       = 0;
+                $shiftTransferencia = 0;
+
+                foreach ($shiftTickets as $ticket) {
+                    $shiftDescuento     += floatval($ticket['descuento_importe']);
+                    $shiftImporte       += floatval($ticket['importe']);
+                    $shiftEfectivo      += floatval($ticket['efectivo']);
+                    $shiftTarjeta       += floatval($ticket['tarjeta']);
+                    $shiftTransferencia += floatval($ticket['transferencia']);
+                }
+
+                $responsable = $shift['employee_name'] ? $shift['employee_name'] : 'Sin asignar';
+                $apertura    = formatSpanishDate($shift['opened_at']);
+                $cierre      = $shift['closed_at'] ? formatSpanishDate($shift['closed_at']) : 'Abierto';
+                $ticketCount = count($shiftTickets);
+
+                $__row[] = [
+                    'id'            => 'shift_' . $shiftId,
+                    'Folio'         => '<i class="icon-clock"></i> Turno #' . $shiftIndex . ' - ' . $responsable,
+                    'Fecha'         => $apertura . ' / ' . $cierre,
+                    'Cuenta'        => [
+                        'html'  => $ticketCount . ' ticket' . ($ticketCount === 1 ? '' : 's'),
+                        'class' => 'text-center'
+                    ],
+                    'Descuento'     => [
+                        'html'  => evaluar($shiftDescuento),
+                        'class' => 'text-end'
+                    ],
+                    'Importe'       => [
+                        'html'  => evaluar($shiftImporte),
+                        'class' => 'text-end font-bold'
+                    ],
+                    'Efectivo'      => [
+                        'html'  => evaluar($shiftEfectivo),
+                        'class' => 'text-end'
+                    ],
+                    'Tarjeta'       => [
+                        'html'  => evaluar($shiftTarjeta),
+                        'class' => 'text-end'
+                    ],
+                    'Transferencia' => [
+                        'html'  => evaluar($shiftTransferencia),
+                        'class' => 'text-end'
+                    ],
+                    'opc'           => 1,
+                    'color_group'   => 'bg-[#1E3A5F] text-white'
+                ];
+
+                foreach ($shiftTickets as $ticket) {
+                    $totalImporte       += floatval($ticket['importe']);
+                    $totalDescuento     += floatval($ticket['descuento_importe']);
+                    $totalEfectivo      += floatval($ticket['efectivo']);
+                    $totalTarjeta       += floatval($ticket['tarjeta']);
+                    $totalTransferencia += floatval($ticket['transferencia']);
+                    $totalTickets++;
+
+                    $__row[] = [
+                        'id'            => $ticket['folio_cuenta'],
+                        'Folio'         => str_pad($ticket['folio_cuenta'], 8, '0', STR_PAD_LEFT),
+                        'Fecha'         => formatSpanishDate($ticket['fecha']),
+                        'Cuenta'        => $ticket['cuenta'],
+                        'Descuento'     => [
+                            'html'  => evaluar($ticket['descuento_importe']),
+                            'class' => 'text-end'
+                        ],
+                        'Importe'       => [
+                            'html'  => evaluar($ticket['importe']),
+                            'class' => 'text-end bg-[#283341] font-bold'
+                        ],
+                        'Efectivo'      => [
+                            'html'  => evaluar($ticket['efectivo']),
+                            'class' => 'text-end'
+                        ],
+                        'Tarjeta'       => [
+                            'html'  => evaluar($ticket['tarjeta']),
+                            'class' => 'text-end'
+                        ],
+                        'Transferencia' => [
+                            'html'  => evaluar($ticket['transferencia']),
+                            'class' => 'text-end'
+                        ],
+                        'opc'           => 0
+                    ];
+                }
+            }
+        }
+
+        if (!empty($orphanTickets)) {
+            $orphanDescuento     = 0;
+            $orphanImporte       = 0;
+            $orphanEfectivo      = 0;
+            $orphanTarjeta       = 0;
+            $orphanTransferencia = 0;
+
+            foreach ($orphanTickets as $ticket) {
+                $orphanDescuento     += floatval($ticket['descuento_importe']);
+                $orphanImporte       += floatval($ticket['importe']);
+                $orphanEfectivo      += floatval($ticket['efectivo']);
+                $orphanTarjeta       += floatval($ticket['tarjeta']);
+                $orphanTransferencia += floatval($ticket['transferencia']);
+            }
+
+            $orphanCount = count($orphanTickets);
+
+            $__row[] = [
+                'id'            => 'shift_sin_turno',
+                'Folio'         => '<i class="icon-attention"></i> Sin turno asignado',
+                'Fecha'         => '-',
+                'Cuenta'        => [
+                    'html'  => $orphanCount . ' ticket' . ($orphanCount === 1 ? '' : 's'),
+                    'class' => 'text-center'
+                ],
+                'Descuento'     => [
+                    'html'  => evaluar($orphanDescuento),
+                    'class' => 'text-end'
+                ],
+                'Importe'       => [
+                    'html'  => evaluar($orphanImporte),
+                    'class' => 'text-end font-bold'
+                ],
+                'Efectivo'      => [
+                    'html'  => evaluar($orphanEfectivo),
+                    'class' => 'text-end'
+                ],
+                'Tarjeta'       => [
+                    'html'  => evaluar($orphanTarjeta),
+                    'class' => 'text-end'
+                ],
+                'Transferencia' => [
+                    'html'  => evaluar($orphanTransferencia),
+                    'class' => 'text-end'
+                ],
+                'opc'           => 1,
+                'color_group'   => 'bg-[#5F3A1E] text-white'
+            ];
+
+            foreach ($orphanTickets as $ticket) {
+                $totalImporte       += floatval($ticket['importe']);
+                $totalDescuento     += floatval($ticket['descuento_importe']);
+                $totalEfectivo      += floatval($ticket['efectivo']);
+                $totalTarjeta       += floatval($ticket['tarjeta']);
+                $totalTransferencia += floatval($ticket['transferencia']);
+                $totalTickets++;
+
+                $__row[] = [
+                    'id'            => $ticket['folio_cuenta'],
+                    'Folio'         => str_pad($ticket['folio_cuenta'], 8, '0', STR_PAD_LEFT),
+                    'Fecha'         => formatSpanishDate($ticket['fecha']),
+                    'Cuenta'        => $ticket['cuenta'],
+                    'Descuento'     => [
+                        'html'  => evaluar($ticket['descuento_importe']),
+                        'class' => 'text-end'
+                    ],
+                    'Importe'       => [
+                        'html'  => evaluar($ticket['importe']),
+                        'class' => 'text-end bg-[#283341] font-bold'
+                    ],
+                    'Efectivo'      => [
+                        'html'  => evaluar($ticket['efectivo']),
+                        'class' => 'text-end'
+                    ],
+                    'Tarjeta'       => [
+                        'html'  => evaluar($ticket['tarjeta']),
+                        'class' => 'text-end'
+                    ],
+                    'Transferencia' => [
+                        'html'  => evaluar($ticket['transferencia']),
+                        'class' => 'text-end'
+                    ],
+                    'opc'           => 0
+                ];
+            }
+        }
+
+        return [
+            'row'    => $__row,
+            'totals' => [
+                'importe'       => evaluar($totalImporte),
+                'descuento'     => evaluar($totalDescuento),
+                'efectivo'      => evaluar($totalEfectivo),
+                'tarjeta'       => evaluar($totalTarjeta),
+                'transferencia' => evaluar($totalTransferencia),
+                'total_tickets' => $totalTickets,
+            ]
+        ];
+    }
+
     function showShiftDetail() {
         if ($_SESSION['ROLID'] != 1) {
             return ['status' => 403, 'message' => 'No tienes permisos'];

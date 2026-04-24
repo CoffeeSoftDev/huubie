@@ -61,6 +61,14 @@ class AppReportes extends Templates {
                     }
                 },
                 {
+                    id: "tickets",
+                    tab: "Detalle de Tickets",
+                    onClick: () => {
+                        this.currentTab = 'tickets';
+                        this.lsTickets();
+                    }
+                },
+                {
                     id: "turnos",
                     tab: "Corte de Caja X",
                     onClick: () => {
@@ -76,14 +84,7 @@ class AppReportes extends Templates {
                         this.lsDailyTickets();
                     }
                 },
-                {
-                    id: "tickets",
-                    tab: "Detalle de Tickets",
-                    onClick: () => {
-                        this.currentTab = 'tickets';
-                        this.lsTickets();
-                    }
-                },
+               
                
             ]
         });
@@ -685,7 +686,7 @@ class AppReportes extends Templates {
     _renderCorteDescuentos(c) {
         this._renderPdfSection('corte-descuentos', 'Descuentos y Cortesias', [
             { isSubTitle: true, label: 'Cortesias' },
-            { label: 'Total Cortesias',  value: '$0.00' },
+            { label: 'Total Cortesias',  value: '-' },
             { isSubTitle: true, label: 'Descuentos' },
             { label: 'Total Descuentos', value: c.importe_descuentos },
             { label: 'Total',            value: c.importe_descuentos, total: true },
@@ -790,67 +791,34 @@ class AppReportes extends Templates {
     async lsTickets() {
         let params = this.getFilterParams();
 
-        const shiftsData = await useFetch({ url: this._link, data: { opc: "lsShifts", ...params } });
-        const shiftsForFilter = shiftsData.row || [];
-
         const container = $(`#container-tickets`);
         container.empty();
+        container.html(`<div id="tickets-table-container"></div>`);
 
-        let shiftOptions = '<option value="all">Todos los turnos</option>';
-        shiftsForFilter.forEach((shift, idx) => {
-            shiftOptions += `<option value="${shift.id}">Turno #${idx + 1} — ${shift['Responsable']} (${shift['Apertura']} - ${shift['Cierre']})</option>`;
-        });
-
-        container.html(`
-            <div class="ticket-filter-bar" style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:#1F2A37;border:1px solid #374151;border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
-                <label style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Filtrar por turno:</label>
-                <select id="filterTurnoSelect" style="background:#283341;border:1px solid #374151;color:#E5E7EB;padding:6px 10px;border-radius:6px;font-size:12px;min-width:250px">
-                    ${shiftOptions}
-                </select>
-                <span id="filter-turno-count" style="font-size:11px;color:#9CA3AF;margin-left:auto"></span>
-            </div>
-            <div id="tickets-table-container"></div>
-        `);
-
-        $('#filterTurnoSelect').on('change', () => this._filterTicketsByShift());
         this._loadAllTickets(params);
     }
 
     async _loadAllTickets(params) {
-        const data = await useFetch({ url: this._link, data: { opc: "lsTickets", ...params } });
+        const data = await useFetch({ url: this._link, data: { opc: "lsShiftsWithTickets", ...params } });
         this._allTicketsData = data;
 
         this.createCoffeeTable3({
             parent: 'tickets-table-container',
             id: `tb${this.PROJECT_NAME}Tickets`,
             theme: 'dark',
-            title: 'Detalle de Tickets',
-            subtitle: '',
+            title: 'Detalle de Tickets por Turno',
+            subtitle: 'Haz clic en un turno para ver sus tickets',
             center: [3, 4],
             right: [5, 6, 7, 8, 9],
             extends: true,
             scrollable: false,
+            folding: true,
+            collapsed: true,
             data: data,
         });
 
         if (data.totals) {
             this.renderTotalsBar(data.totals, 'tickets-table-container');
-        }
-
-        simple_data_table(`#tb${this.PROJECT_NAME}Tickets`, 25);
-    }
-
-    _filterTicketsByShift() {
-        let shiftId = $('#filterTurnoSelect').val();
-        let params  = this.getFilterParams();
-
-        if (shiftId === 'all') {
-            this._loadAllTickets(params);
-            return;
-        }
-
-        if (this._allTicketsData && this._allTicketsData.row) {
-            this._loadAllTickets(params);
         }
     }
 
