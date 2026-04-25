@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Huubie Pedidos — Impresion Voucher</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+        background:#d1d5db;
+        font-family:'Courier New','Consolas',monospace;
+        color:#000;
+        min-height:100vh;
+        padding:30px 0 80px 0;
+        font-size:12px;
+        line-height:1.4;
+    }
+
+    /* ============ TOPBAR (no print) ============ */
+    .topbar {
+        position:sticky;
+        top:0;
+        z-index:50;
+        background:#0f172a;
+        color:#e5e7eb;
+        padding:10px 24px;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        font-family:'Inter',system-ui,sans-serif;
+        border-bottom:2px solid #1e293b;
+        margin:-30px 0 30px 0;
+        box-shadow:0 4px 12px rgba(0,0,0,.18);
+    }
+    .topbar .brand {
+        display:flex; align-items:center; gap:10px;
+        font-size:13px; font-weight:700;
+    }
+    .topbar .brand .logo {
+        width:28px; height:28px; border-radius:6px;
+        background:#7c3aed;
+        display:flex; align-items:center; justify-content:center;
+        font-size:11px; font-weight:800; color:#fff;
+    }
+    .topbar .info { font-size:11px; color:#94a3b8; }
+    .topbar .info b { color:#e5e7eb; }
+    .topbar .controls { display:flex; align-items:center; gap:10px; }
+    .topbar .seg {
+        display:flex; background:#1e293b; border:1px solid #334155;
+        border-radius:6px; padding:2px;
+    }
+    .topbar .seg button {
+        background:transparent; border:none; color:#94a3b8;
+        padding:5px 12px; font-size:11px; font-weight:600;
+        cursor:pointer; border-radius:4px;
+    }
+    .topbar .seg button.active {
+        background:#7c3aed; color:#fff;
+    }
+    .topbar .meta {
+        font-size:10px; color:#64748b;
+        font-family:'Courier New',monospace;
+    }
+
+    /* ============ PAGE / TICKET ============ */
+    .stack {
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        gap:30px;
+        padding:0 20px;
+    }
+
+    .ticket {
+        background:#fff;
+        color:#000;
+        padding:30px 38px;
+        box-shadow:0 6px 18px rgba(0,0,0,.18);
+        font-family:'Courier New','Consolas',monospace;
+        line-height:1.45;
+        white-space:pre;
+        position:relative;
+    }
+
+    /* MODO CARTA: 8.5x11 in (816x1056 px aprox) */
+    body.mode-carta .ticket {
+        width:780px;
+        min-height:1010px;
+        padding:50px 70px;
+        font-size:13px;
+    }
+
+    /* MODO TICKET: 80mm */
+    body.mode-ticket .ticket {
+        width:302px;            /* ~80mm */
+        min-height:auto;
+        padding:18px 16px;
+        font-size:11px;
+        line-height:1.35;
+    }
+
+    /* ============ TICKET INTERNALS ============ */
+    .center { text-align:center; }
+    .right  { text-align:right; }
+    .left   { text-align:left; }
+
+    .sep-double {
+        text-align:center;
+        letter-spacing:1px;
+        font-weight:bold;
+    }
+    .sep-single { text-align:center; letter-spacing:1px; }
+
+    .brand-block {
+        text-align:center;
+        margin-bottom:8px;
+    }
+    .brand-block .name {
+        font-size:18px;
+        font-weight:bold;
+        letter-spacing:3px;
+    }
+    body.mode-ticket .brand-block .name { font-size:15px; letter-spacing:2px; }
+    body.mode-carta  .brand-block .name { font-size:22px; letter-spacing:4px; }
+
+    .brand-block .sub {
+        font-size:10px;
+        margin-top:2px;
+    }
+
+    .folio-big {
+        text-align:center;
+        font-size:20px;
+        font-weight:bold;
+        letter-spacing:2px;
+        margin:6px 0 4px 0;
+        padding:6px 0;
+        border-top:1px dashed #000;
+        border-bottom:1px dashed #000;
+    }
+    body.mode-carta  .folio-big { font-size:26px; }
+    body.mode-ticket .folio-big { font-size:14px; letter-spacing:1px; }
+
+    .estado-tag {
+        text-align:center;
+        font-size:13px;
+        font-weight:bold;
+        letter-spacing:2px;
+        margin:8px 0;
+    }
+    body.mode-carta  .estado-tag { font-size:16px; }
+
+    .info-grid {
+        margin:8px 0;
+        font-size:11px;
+        white-space:pre;
+    }
+    body.mode-carta  .info-grid { font-size:13px; }
+
+    .info-line {
+        display:flex;
+        justify-content:space-between;
+        gap:6px;
+    }
+    .info-line .lbl { font-weight:bold; }
+    .info-line .val { text-align:right; }
+
+    .table-head, .table-row {
+        display:grid;
+        gap:6px;
+        font-size:11px;
+        font-family:'Courier New',monospace;
+    }
+    body.mode-carta .table-head, body.mode-carta .table-row { font-size:13px; gap:8px; }
+
+    /* TICKET 80mm: 4 cols compact */
+    body.mode-ticket .table-head,
+    body.mode-ticket .table-row {
+        grid-template-columns: 26px 1fr 50px 60px;
+        font-size:10px;
+    }
+    /* CARTA: 4 cols espaciosas */
+    body.mode-carta .table-head,
+    body.mode-carta .table-row {
+        grid-template-columns: 50px 1fr 100px 110px;
+    }
+
+    .table-head {
+        font-weight:bold;
+        text-transform:uppercase;
+        border-bottom:1px solid #000;
+        padding-bottom:3px;
+        margin-bottom:4px;
+    }
+    .table-row {
+        padding:2px 0;
+        align-items:start;
+    }
+    .table-row .col-prod {
+        white-space:normal;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
+    .table-row .col-cant { text-align:center; }
+    .table-row .col-pu, .table-row .col-imp { text-align:right; }
+
+    /* Dotted leaders en linea entre desc y precio (alternativa para 80mm tipo POS clasico) */
+    .ticket-line {
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-end;
+        gap:0;
+        font-size:11px;
+        padding:1px 0;
+    }
+    .ticket-line .desc { flex:0 0 auto; max-width:62%; white-space:normal; }
+    .ticket-line .dots {
+        flex:1 1 auto;
+        border-bottom:1px dotted #000;
+        margin:0 4px 4px 4px;
+        height:0;
+    }
+    .ticket-line .price {
+        flex:0 0 auto;
+        text-align:right;
+        font-variant-numeric:tabular-nums;
+        white-space:nowrap;
+    }
+    body.mode-carta .ticket-line { font-size:13px; }
+
+    .totals {
+        margin-top:8px;
+        font-size:11px;
+    }
+    body.mode-carta .totals { font-size:13px; }
+
+    .totals .row {
+        display:flex;
+        justify-content:space-between;
+        padding:2px 0;
+    }
+    .totals .row.bold { font-weight:bold; }
+
+    .total-big {
+        text-align:center;
+        font-weight:bold;
+        font-size:16px;
+        letter-spacing:2px;
+        padding:8px 0;
+        margin:10px 0;
+        border-top:2px solid #000;
+        border-bottom:2px solid #000;
+    }
+    body.mode-carta  .total-big { font-size:22px; padding:12px 0; }
+    body.mode-ticket .total-big { font-size:13px; letter-spacing:1px; padding:6px 0; }
+
+    .pagos-block {
+        margin-top:8px;
+        font-size:11px;
+    }
+    body.mode-carta .pagos-block { font-size:13px; }
+
+    /* Codigo de barras simulado */
+    .barcode {
+        margin:14px auto 6px;
+        height:40px;
+        display:flex;
+        align-items:flex-end;
+        justify-content:center;
+        gap:0;
+        background:#fff;
+    }
+    .barcode span {
+        display:inline-block;
+        background:#000;
+        height:100%;
+        margin-right:1px;
+    }
+    body.mode-carta .barcode { height:55px; }
+    body.mode-ticket .barcode { height:34px; }
+
+    .barcode-num {
+        text-align:center;
+        font-size:10px;
+        letter-spacing:3px;
+        margin-top:2px;
+    }
+    body.mode-carta .barcode-num { font-size:12px; letter-spacing:5px; }
+
+    .firma {
+        margin-top:24px;
+        text-align:center;
+    }
+    .firma .line {
+        display:inline-block;
+        border-top:1px solid #000;
+        padding-top:4px;
+        font-size:10px;
+        min-width:60%;
+    }
+    body.mode-carta .firma .line { font-size:12px; min-width:50%; }
+
+    .footer-legal {
+        margin-top:14px;
+        text-align:center;
+        font-size:9px;
+        line-height:1.4;
+        color:#000;
+    }
+    body.mode-carta .footer-legal { font-size:10px; }
+
+    .gracias {
+        text-align:center;
+        font-weight:bold;
+        font-size:13px;
+        letter-spacing:2px;
+        margin:10px 0 4px 0;
+    }
+    body.mode-carta .gracias { font-size:16px; letter-spacing:3px; }
+
+    /* Page break entre tickets en impresion */
+    .ticket + .ticket { /* fallback */ }
+
+    @media print {
+        @page {
+            size:auto;
+            margin:8mm;
+        }
+        body {
+            background:#fff !important;
+            padding:0;
+            margin:0;
+        }
+        body.mode-carta @page { size:Letter; margin:14mm; }
+        body.mode-ticket @page { size:80mm auto; margin:2mm; }
+
+        .topbar, .floating-print, .floating-mode { display:none !important; }
+        .stack { gap:0; padding:0; }
+        .ticket {
+            box-shadow:none !important;
+            page-break-after:always;
+            break-after:page;
+            margin:0 auto;
+            padding:6mm 8mm;
+        }
+        .ticket:last-child {
+            page-break-after:auto;
+            break-after:auto;
+        }
+        body.mode-carta .ticket {
+            width:100% !important;
+            max-width:none !important;
+            min-height:0 !important;
+            padding:8mm 12mm !important;
+        }
+        body.mode-ticket .ticket {
+            width:100% !important;
+            max-width:74mm !important;
+            padding:2mm 3mm !important;
+        }
+    }
+
+    /* ============ FLOATING BUTTONS ============ */
+    .floating-print {
+        position:fixed;
+        right:24px;
+        bottom:24px;
+        z-index:60;
+        background:#7c3aed;
+        color:#fff;
+        border:none;
+        border-radius:9999px;
+        padding:14px 22px;
+        font-family:'Inter',system-ui,sans-serif;
+        font-size:13px;
+        font-weight:700;
+        letter-spacing:.3px;
+        cursor:pointer;
+        box-shadow:0 8px 24px rgba(124,58,237,.45);
+        display:flex; align-items:center; gap:8px;
+        transition:.15s;
+    }
+    .floating-print:hover {
+        background:#6d28d9;
+        transform:translateY(-2px);
+        box-shadow:0 12px 28px rgba(124,58,237,.55);
+    }
+    .floating-print svg { width:18px; height:18px; }
+
+    .floating-mode {
+        position:fixed;
+        right:24px;
+        bottom:90px;
+        z-index:60;
+        background:#fff;
+        color:#0f172a;
+        border:1px solid #cbd5e1;
+        border-radius:9999px;
+        padding:8px 6px 8px 14px;
+        font-family:'Inter',system-ui,sans-serif;
+        font-size:11px;
+        font-weight:600;
+        display:flex; align-items:center; gap:6px;
+        box-shadow:0 6px 14px rgba(0,0,0,.12);
+    }
+    .floating-mode .pill {
+        display:inline-block;
+        padding:5px 10px;
+        border-radius:9999px;
+        cursor:pointer;
+        font-size:11px;
+        font-weight:700;
+    }
+    .floating-mode .pill.active {
+        background:#0f172a;
+        color:#fff;
+    }
+
+</style>
+</head>
+<body class="mode-carta">
+
+<!-- ============ TOPBAR (no print) ============ -->
+<div class="topbar">
+    <div class="brand">
+        <div class="logo">hb</div>
+        Huubie · Pedidos
+    </div>
+    <div class="info">
+        Impresion · Voucher detallado · <b>Sucursal Matriz Centro</b>
+        <span style="margin:0 8px;color:#475569">|</span>
+        Periodo: <b>22 - 24 Abril 2026</b>
+        <span style="margin:0 8px;color:#475569">|</span>
+        <b>4 pedidos</b>
+    </div>
+    <div class="controls">
+        <div class="seg" role="tablist">
+            <button id="btnCarta" class="active" onclick="setMode('carta')">CARTA 8.5x11</button>
+            <button id="btnTicket" onclick="setMode('ticket')">TICKET 80mm</button>
+        </div>
+        <span class="meta">v1.0 · CoffeeMagic</span>
+    </div>
+</div>
+
+<div class="stack">
+
+    <!-- ============ TICKET 1 — LIQUIDADO ============ -->
+    <div class="ticket">
+
+        <div class="brand-block">
+            <div class="name">HUUBIE</div>
+            <div class="sub">CoffeeSoft · Restaurante &amp; Cafeteria</div>
+            <div class="sub">Sucursal: MATRIZ CENTRO</div>
+            <div class="sub">RFC: HBE260101AAA · Av. Reforma 1234, CDMX</div>
+            <div class="sub">Tel: 55-1234-5678</div>
+        </div>
+
+        <div class="sep-double">==============================================</div>
+        <div class="center" style="font-size:11px;margin:4px 0">COMPROBANTE DE CONSUMO</div>
+        <div class="sep-double">==============================================</div>
+
+        <div class="folio-big">#TKT-001245</div>
+
+        <div class="estado-tag">[ LIQUIDADO ]</div>
+
+        <div class="sep-single">----------------------------------------------</div>
+
+        <div class="info-grid">
+            <div class="info-line"><span class="lbl">Fecha emision:</span><span class="val">24/04/2026 14:32:18</span></div>
+            <div class="info-line"><span class="lbl">Fecha cierre:</span><span class="val">24/04/2026 15:48:02</span></div>
+            <div class="info-line"><span class="lbl">Mesa / Cuenta:</span><span class="val">Mesa 5 / Marichal R.</span></div>
+            <div class="info-line"><span class="lbl">Comensales:</span><span class="val">4</span></div>
+            <div class="info-line"><span class="lbl">Mesero/Resp:</span><span class="val">Juan Marichal</span></div>
+            <div class="info-line"><span class="lbl">Turno:</span><span class="val">Vespertino</span></div>
+            <div class="info-line"><span class="lbl">Caja:</span><span class="val">CAJA-01</span></div>
+        </div>
+
+        <div class="sep-single">----------------------------------------------</div>
+
+        <div class="table-head">
+            <div class="col-cant">CANT</div>
+            <div class="col-prod">DESCRIPCION</div>
+            <div class="col-pu">P.UNIT</div>
+            <div class="col-imp">IMPORTE</div>
+        </div>
+
+        <div class="table-row"><div class="col-cant">2</div><div class="col-prod">Cafe Latte Vainilla 16oz</div><div class="col-pu">85.00</div><div class="col-imp">170.00</div></div>
+        <div class="table-row"><div class="col-cant">1</div><div class="col-prod">Capuccino Doble 12oz</div><div class="col-pu">75.00</div><div class="col-imp">75.00</div></div>
+        <div class="table-row"><div class="col-cant">1</div><div class="col-prod">Frappe Mocha Caramel</div><div class="col-pu">110.00</div><div class="col-imp">95.00</div></div>
+        <div class="table-row"><div class="col-cant">2</div><div class="col-prod">Sandwich Pollo Pesto</div><div class="col-pu">145.00</div><div class="col-imp">290.00</div></div>
+        <div class="table-row"><div class="col-cant">1</div><div class="col-prod">Ensalada Cesar con Pollo</div><div class="col-pu">165.00</div><div class="col-imp">165.00</div></div>
+        <div class="table-row"><div class="col-cant">3</div><div class="col-prod">Cheesecake Frutos Rojos</div><div class="col-pu">95.00</div><div class="col-imp">259.50</div></div>
+        <div class="table-row"><div class="col-cant">1</div><div class="col-prod">Brownie Helado</div><div class="col-pu">85.00</div><div class="col-imp">85.00</div></div>
+        <div class="table-row"><div class="col-cant">1</div><div class="col-prod">Te Verde Matcha</div><div class="col-pu">65.00</div><div class="col-imp">65.00</div></div>
+
+        <div class="sep-single" style="margin-top:6px">----------------------------------------------</div>
+
+        <div class="totals">
+            <div class="row"><span>Articulos:</span><span>12 unidades</span></div>
+            <div class="row"><span>Subtotal:</span><span>$ 1,245.00</span></div>
+            <div class="row"><span>Descuentos:</span><span>-$ 40.50</span></div>
+            <div class="row"><span>IVA (incluido):</span><span>$ 166.14</span></div>
+        </div>
+
+        <div class="total-big">*** TOTAL: $ 1,204.50 ***</div>
+
+        <div class="sep-double">==============================================</div>
+        <div class="center" style="font-weight:bold;font-size:11px;margin:4px 0">DESGLOSE DE PAGOS</div>
+        <div class="sep-double">==============================================</div>
+
+        <div class="pagos-block">
+            <div class="ticket-line"><span class="desc">EFECTIVO</span><span class="dots"></span><span class="price">$ 700.00</span></div>
+            <div class="ticket-line"><span class="desc">TARJETA ****4521</span><span class="dots"></span><span class="price">$ 545.50</span></div>
+            <div class="ticket-line"><span class="desc">TRANSFERENCIA</span><span class="dots"></span><span class="price">$ 0.00</span></div>
+            <div class="sep-single" style="margin-top:4px">----------------------------------------------</div>
+            <div class="ticket-line" style="font-weight:bold"><span class="desc">TOTAL PAGADO</span><span class="dots"></span><span class="price">$ 1,245.50</span></div>
+            <div class="ticket-line"><span class="desc">CAMBIO / SALDO A FAVOR</span><span class="dots"></span><span class="price">$ 41.00</span></div>
+            <div class="ticket-line" style="font-weight:bold"><span class="desc">SALDO PENDIENTE</span><span class="dots"></span><span class="price">$ 0.00</span></div>
+        </div>
+
+        <div class="sep-double" style="margin-top:8px">==============================================</div>
+
+        <div class="gracias">GRACIAS POR SU PREFERENCIA</div>
+        <div class="center" style="font-size:10px">Vuelva pronto · Comparta en redes #Huubie</div>
+
+        <div class="firma">
+            <div class="line">Firma del cliente</div>
+        </div>
+
+        <div class="barcode" id="bc1"></div>
+        <div class="barcode-num">TKT-001245-20260424</div>
+
+        <div class="footer-legal">
+            Este documento es un comprobante interno de consumo.<br>
+            No es factura. Para solicitar factura electronica visite<br>
+            <b>facturacion.huubie.mx</b> con el folio impreso, dentro<br>
+            de los 30 dias posteriores a la fecha de emision.<br>
+            Folio auditoria: AUD-2026-04-24-001245-Q7X9
+        </div>
+
+    </div>
+
+    <!-- ============ TICKET 2 — PARCIAL ============ -->
+    <div class="ticket">
+
+        <div class="brand-block">
+            <div class="name">HUUBIE</div>
+            <div class="sub">CoffeeSoft · Restaurante &amp; Cafeteria</div>
+            <div class="sub">Sucursal: MATRIZ CENTRO</div>
+            <div class="sub">RFC: HBE260101AAA · Av. Reforma 1234, CDMX</div>
+            <div class="sub">Tel: 55-1234-5678</div>
+        </div>
+
+        <div class="sep-double">==============================================</div>
+        <div class="center" style="font-size:11px;margin:4px 0">COMPROBANTE DE CONSUMO</div>
+        <div class="sep-double">==============================================</div>
+
+        <div class="folio-big">#TKT-001244</div>
+        <div class="estado-tag">[ PAGO PARCIAL ]</div>
+
+        <div class="sep-single">----------------------------------------------</div>
+
+        <div class="info-grid">
+            <div class="info-line"><span class="lbl">Fecha emision:</span><span class="val">24/04/2026 14:08:42</span></div>
+            <div class="info-line"><span class="lbl">Mesa / Cuenta:</span><span class="val">Mesa 12 / Garcia A.</span></div>
+            <div class="info-line"><span class="lbl">Comensales:</span><span class="val">2</span></div>
+            <div class="info-line"><span class="lbl">Mesero/Resp:</span><span class="val">Ana Lopez</span></div>
+            <div class="info-line"><span class="lbl">Turno:</span><span class="val">Vespertino</span></div>
+            <div class="info-line"><span class="lbl">Caja:</span><span class="val">CAJA-01</span></div>
+        </div>
+
+        <div class="sep-single">----------------------------------------------</div>
+
+        <div class="table-head">
+            <div class="col-cant">CANT</div>
+            <div class="col-prod">DESCRIPCION</div>
+            <div class="col-pu">P.UNIT</div>
+            <div class="col-imp">IMPORTE</div>
+        </div>
+
+        <div class="table-row"><div class="col-cant">2</div><div class="col-prod">Americano Grande 16oz</div><div class="col-pu">65.00</div><div class="col-imp">130.00</div></div>
+        <div class="table-row"><div class="col-cant">1</div><div class="col-prod">Pasta Alfredo con Pollo</div><div class="col-pu">220.00</div><div class="col-imp">220.00</div></div>
+        <div class="table-row"><div class="col-cant">1</div><div class="col-prod">Hamburguesa BBQ Doble</div><div class="col-pu">235.00</div><div class="col-imp">235.00</div></div>
+        <div class="table-row"><div class="col-cant">2</div><div class="col-prod">Limonada Mineral 600ml</div><div class="col-pu">55.00</div><div class="col-imp">110.00</div></div>
+        <div class="table-row"><div class="col-cant">1</div><div class="col-prod">Pay de Limon Casero</div><div class="col-pu">95.00</div><div class="col-imp">95.00</div></div>
+
+        <div class="sep-single" style="margin-top:6px">----------------------------------------------</div>
+
+        <div class="totals">
+            <div class="row"><span>Articulos:</span><span>7 unidades</span></div>
+            <div class="row"><span>Subtotal:</span><span>$ 890.00</span></div>
+            <div class="row"><span>Descuentos:</span><span>$ 0.00</span></div>
+            <div class="row"><span>IVA (incluido):</span><span>$ 122.76</span></div>
+        </div>
+
+        <div class="total-big">*** TOTAL: $ 890.00 ***</div>
+
+        <div class="sep-double">==============================================</div>
+        <div class="center" style="font-weight:bold;font-size:11px;margin:4px 0">DESGLOSE DE PAGOS</div>
+        <div class="sep-double">==============================================</div>
+
+        <div class="pagos-block">
+            <div class="ticket-line"><span class="desc">EFECTIVO (anticipo)</span><span class="dots"></span><span class="price">$ 500.00</span></div>
+            <div class="ticket-line"><span class="desc">TARJETA</span><span class="dots"></span><span class="price">$ 0.00</span></div>
+            <div class="ticket-line"><span class="desc">TRANSFERENCIA</span><span class="dots"></span><span class="price">$ 0.00</span></div>
+            <div class="sep-single" style="margin-top:4px">----------------------------------------------</div>
+            <div class="ticket-line" style="font-weight:bold"><span class="desc">TOTAL PAGADO</span><span class="dots"></span><span class="price">$ 500.00</span></div>
+            <div class="ticket-line" style="font-weight:bold"><span class="desc">SALDO PENDIENTE</span><span class="dots"></span><span class="price">$ 390.00</span></div>
+        </div>
+
+        <div class="sep-double" style="margin-top:8px">==============================================</div>
+
+        <div class="center" style="font-weight:bold;font-size:11px;margin:8px 0;letter-spacing:1px">
+            ** PEDIDO ABIERTO · SALDO POR COBRAR **
+        </div>
+
+        <div class="gracias">GRACIAS POR SU PREFERENCIA</div>
+        <div class="center" style="font-size:10px">Pase a caja para liquidar el pedido</div>
+
+        <div class="firma">
+            <div class="line">Firma del cliente</div>
+        </div>
+
+        <div class="barcode" id="bc2"></div>
+        <div class="barcode-num">TKT-001244-20260424</div>
+
+        <div class="footer-legal">
+            Este documento es un comprobante interno de consumo.<br>
+            No es factura. Para solicitar factura electronica visite<br>
+            <b>facturacion.huubie.mx</b> con el folio impreso, dentro<br>
+            de los 30 dias posteriores a la fecha de emision.<br>
+            Folio auditoria: AUD-2026-04-24-001244-K3M2
+        </div>
+
+    </div>
+
+    <!-- ============ TICKET 3 — CANCELADO ============ -->
+    <div class="ticket">
+
+        <div class="brand-block">
+            <div class="name">HUUBIE</div>
+            <div class="sub">CoffeeSoft · Restaurante &amp; Cafeteria</div>
+            <div class="sub">Sucursal: MATRIZ CENTRO</div>
+            <div class="sub">RFC: HBE260101AAA · Av. Reforma 1234, CDMX</div>
+            <div class="sub">Tel: 55-1234-5678</div>
+        </div>
+
+        <div class="sep-double">==============================================</div>
+        <div class="center" style="font-size:11px;margin:4px 0">COMPROBANTE DE CONSUMO</div>
+        <div class="sep-double">==============================================</div>
+
+        <div class="folio-big" style="text-decoration:line-through;text-decoration-thickness:2px">#TKT-001241</div>
+        <div class="estado-tag">[ CANCELADO ]</div>
+
+        <div class="sep-single">----------------------------------------------</div>
+
+        <div class="info-grid">
+            <div class="info-line"><span class="lbl">Fecha emision:</span><span class="val">24/04/2026 12:50:11</span></div>
+            <div class="info-line"><span class="lbl">Fecha cancelacion:</span><span class="val">24/04/2026 12:58:04</span></div>
+            <div class="info-line"><span class="lbl">Mesa / Cuenta:</span><span class="val">Mesa 8 / Mendoza L.</span></div>
+            <div class="info-line"><span class="lbl">Comensales:</span><span class="val">3</span></div>
+            <div class="info-line"><span class="lbl">Mesero/Resp:</span><span class="val">Ana Lopez</span></div>
+            <div class="info-line"><span class="lbl">Motivo:</span><span class="val">Cambio de mesa</span></div>
+            <div class="info-line"><span class="lbl">Autoriza:</span><span class="val">Rosy Marichal</span></div>
+        </div>
+
+        <div class="sep-single">----------------------------------------------</div>
+
+        <div class="table-head">
+            <div class="col-cant">CANT</div>
+            <div class="col-prod">DESCRIPCION</div>
+            <div class="col-pu">P.UNIT</div>
+            <div class="col-imp">IMPORTE</div>
+        </div>
+
+        <div class="table-row" style="text-decoration:line-through"><div class="col-cant">2</div><div class="col-prod">Cafe Americano</div><div class="col-pu">55.00</div><div class="col-imp">110.00</div></div>
+        <div class="table-row" style="text-decoration:line-through"><div class="col-cant">1</div><div class="col-prod">Sandwich Vegetariano</div><div class="col-pu">100.00</div><div class="col-imp">100.00</div></div>
+
+        <div class="sep-single" style="margin-top:6px">----------------------------------------------</div>
+
+        <div class="totals">
+            <div class="row"><span>Subtotal:</span><span style="text-decoration:line-through">$ 210.00</span></div>
+            <div class="row"><span>Descuentos:</span><span>$ 0.00</span></div>
+            <div class="row"><span>IVA:</span><span style="text-decoration:line-through">$ 28.96</span></div>
+        </div>
+
+        <div class="total-big" style="border-style:dashed">*** ANULADO: $ 0.00 ***</div>
+
+        <div class="sep-double">==============================================</div>
+        <div class="center" style="font-weight:bold;font-size:11px;margin:4px 0">DESGLOSE DE PAGOS</div>
+        <div class="sep-double">==============================================</div>
+
+        <div class="pagos-block">
+            <div class="ticket-line"><span class="desc">EFECTIVO</span><span class="dots"></span><span class="price">$ 0.00</span></div>
+            <div class="ticket-line"><span class="desc">TARJETA</span><span class="dots"></span><span class="price">$ 0.00</span></div>
+            <div class="ticket-line"><span class="desc">TRANSFERENCIA</span><span class="dots"></span><span class="price">$ 0.00</span></div>
+            <div class="sep-single" style="margin-top:4px">----------------------------------------------</div>
+            <div class="ticket-line" style="font-weight:bold"><span class="desc">TOTAL PAGADO</span><span class="dots"></span><span class="price">$ 0.00</span></div>
+            <div class="ticket-line" style="font-weight:bold"><span class="desc">SALDO</span><span class="dots"></span><span class="price">$ 0.00</span></div>
+        </div>
+
+        <div class="sep-double" style="margin-top:8px">==============================================</div>
+
+        <div class="center" style="font-weight:bold;font-size:11px;margin:8px 0;letter-spacing:1px">
+            ** TICKET ANULADO · NO VALIDO COMO COMPROBANTE **
+        </div>
+
+        <div class="firma">
+            <div class="line">Firma supervisor</div>
+        </div>
+
+        <div class="barcode" id="bc3"></div>
+        <div class="barcode-num">TKT-001241-CANCEL</div>
+
+        <div class="footer-legal">
+            Documento cancelado por el sistema. Conservar para auditoria.<br>
+            Pedido movido a folio nuevo TKT-001242 (mesa correcta).<br>
+            Folio auditoria: AUD-2026-04-24-001241-CXL
+        </div>
+
+    </div>
+
+    <!-- ============ TICKET 4 — COTIZACION ============ -->
+    <div class="ticket">
+
+        <div class="brand-block">
+            <div class="name">HUUBIE</div>
+            <div class="sub">CoffeeSoft · Restaurante &amp; Cafeteria</div>
+            <div class="sub">Sucursal: MATRIZ CENTRO</div>
+            <div class="sub">RFC: HBE260101AAA · Av. Reforma 1234, CDMX</div>
+            <div class="sub">Tel: 55-1234-5678</div>
+        </div>
+
+        <div class="sep-double">==============================================</div>
+        <div class="center" style="font-size:11px;margin:4px 0">COTIZACION DE EVENTO</div>
+        <div class="sep-double">==============================================</div>
+
+        <div class="folio-big">#TKT-001240</div>
+        <div class="estado-tag">[ COTIZACION ]</div>
+
+        <div class="sep-single">----------------------------------------------</div>
+
+        <div class="info-grid">
+            <div class="info-line"><span class="lbl">Fecha emision:</span><span class="val">24/04/2026 12:15:30</span></div>
+            <div class="info-line"><span class="lbl">Vigencia:</span><span class="val">15 dias naturales</span></div>
+            <div class="info-line"><span class="lbl">Cliente:</span><span class="val">Empresa CoffeeSoft</span></div>
+            <div class="info-line"><span class="lbl">Tipo:</span><span class="val">Evento corporativo</span></div>
+            <div class="info-line"><span class="lbl">Asistentes est:</span><span class="val">25 personas</span></div>
+            <div class="info-line"><span class="lbl">Resp comercial:</span><span class="val">Juan Marichal</span></div>
+        </div>
+
+        <div class="sep-single">----------------------------------------------</div>
+
+        <div class="table-head">
+            <div class="col-cant">CANT</div>
+            <div class="col-prod">DESCRIPCION</div>
+            <div class="col-pu">P.UNIT</div>
+            <div class="col-imp">IMPORTE</div>
+        </div>
+
+        <div class="table-row"><div class="col-cant">25</div><div class="col-prod">Coffee break paquete A</div><div class="col-pu">95.00</div><div class="col-imp">2,375.00</div></div>
+        <div class="table-row"><div class="col-cant">25</div><div class="col-prod">Snack mix gourmet</div><div class="col-pu">35.00</div><div class="col-imp">875.00</div></div>
+        <div class="table-row"><div class="col-cant">3</div><div class="col-prod">Termo barril cafe 1.5L</div><div class="col-pu">150.00</div><div class="col-imp">450.00</div></div>
+        <div class="table-row"><div class="col-cant">2</div><div class="col-prod">Servicio de meseros 4h</div><div class="col-pu">50.00</div><div class="col-imp">100.00</div></div>
+
+        <div class="sep-single" style="margin-top:6px">----------------------------------------------</div>
+
+        <div class="totals">
+            <div class="row"><span>Articulos:</span><span>22 productos</span></div>
+            <div class="row"><span>Subtotal:</span><span>$ 3,800.00</span></div>
+            <div class="row"><span>Descuento corp:</span><span>$ 0.00</span></div>
+            <div class="row"><span>IVA 16% (suma):</span><span>$ 608.00</span></div>
+        </div>
+
+        <div class="total-big">*** TOTAL: $ 4,408.00 ***</div>
+
+        <div class="sep-double">==============================================</div>
+        <div class="center" style="font-weight:bold;font-size:11px;margin:4px 0">CONDICIONES DE PAGO</div>
+        <div class="sep-double">==============================================</div>
+
+        <div class="pagos-block">
+            <div class="ticket-line"><span class="desc">Anticipo requerido (50%)</span><span class="dots"></span><span class="price">$ 2,204.00</span></div>
+            <div class="ticket-line"><span class="desc">Liquidacion al evento</span><span class="dots"></span><span class="price">$ 2,204.00</span></div>
+            <div class="sep-single" style="margin-top:4px">----------------------------------------------</div>
+            <div class="ticket-line" style="font-weight:bold"><span class="desc">TOTAL PROYECTO</span><span class="dots"></span><span class="price">$ 4,408.00</span></div>
+        </div>
+
+        <div class="sep-double" style="margin-top:8px">==============================================</div>
+
+        <div class="center" style="font-weight:bold;font-size:11px;margin:8px 0;letter-spacing:1px">
+            ** PROYECTO · NO ES VENTA REGISTRADA **
+        </div>
+
+        <div class="gracias">PROPUESTA COMERCIAL</div>
+        <div class="center" style="font-size:10px">Confirmar reservacion al menos 72h antes</div>
+
+        <div class="firma">
+            <div class="line">Firma de aceptacion cliente</div>
+        </div>
+
+        <div class="barcode" id="bc4"></div>
+        <div class="barcode-num">COT-001240-20260424</div>
+
+        <div class="footer-legal">
+            Documento informativo · No es factura ni comprobante de venta.<br>
+            Precios sujetos a cambios sin previo aviso despues de la vigencia.<br>
+            Para confirmar reservacion comuniquese con el responsable comercial.<br>
+            Folio auditoria: AUD-2026-04-24-001240-PRJ
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ============ FLOATING CONTROLS (no print) ============ -->
+<div class="floating-mode">
+    <span style="margin-right:4px;color:#475569">Modo:</span>
+    <span id="pillCarta" class="pill active" onclick="setMode('carta')">CARTA</span>
+    <span id="pillTicket" class="pill" onclick="setMode('ticket')">80mm</span>
+</div>
+
+<button class="floating-print" onclick="window.print()">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+    Imprimir todo
+</button>
+
+<script>
+    // ============ MODO CARTA / TICKET ============
+    function setMode(mode){
+        document.body.classList.remove('mode-carta','mode-ticket');
+        document.body.classList.add('mode-' + mode);
+        document.getElementById('btnCarta').classList.toggle('active', mode === 'carta');
+        document.getElementById('btnTicket').classList.toggle('active', mode === 'ticket');
+        document.getElementById('pillCarta').classList.toggle('active', mode === 'carta');
+        document.getElementById('pillTicket').classList.toggle('active', mode === 'ticket');
+        try { localStorage.setItem('huubie-print-mode', mode); } catch(e){}
+        // Re-render barcodes con anchos acordes
+        renderBarcodes();
+    }
+    (function(){
+        try {
+            var saved = localStorage.getItem('huubie-print-mode');
+            if (saved === 'ticket') setMode('ticket');
+            else setMode('carta');
+        } catch(e) { setMode('carta'); }
+    })();
+
+    // ============ BARCODES (lineas verticales pseudo-aleatorias) ============
+    function renderBarcodes(){
+        var ids = ['bc1','bc2','bc3','bc4'];
+        var seed = 9301;
+        ids.forEach(function(id, idx){
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.innerHTML = '';
+            var n = 60;
+            for (var i = 0; i < n; i++){
+                seed = (seed * 9301 + 49297) % 233280;
+                var rnd = seed / 233280;
+                var width = 1 + Math.floor(rnd * 3); // 1-3 px
+                var heightPct = 70 + Math.floor(rnd * 30); // 70-100%
+                var s = document.createElement('span');
+                s.style.width = width + 'px';
+                s.style.height = heightPct + '%';
+                el.appendChild(s);
+            }
+        });
+    }
+    renderBarcodes();
+</script>
+
+</body>
+</html>
