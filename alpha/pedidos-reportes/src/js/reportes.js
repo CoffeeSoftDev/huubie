@@ -222,6 +222,13 @@ class AppReportes extends Templates {
         };
     }
 
+    getSubName() {
+        let sub_id = $(`#filterBar${this.PROJECT_NAME} #subsidiaries_id`).val() || '0';
+        if (sub_id == '0') return 'Todas las sucursales';
+        let found = sucursales.find(x => x.id == sub_id);
+        return found ? found.valor : 'Todas las sucursales';
+    }
+
     // TAB: RESUMEN CORTE
     async lsCorte() {
         let params = this.getFilterParams();
@@ -238,11 +245,7 @@ class AppReportes extends Templates {
         const categorias = data.categorias || [];
         const shifts     = data.shifts || [];
 
-        let subName = 'Todas';
-        if (sucursales.length > 0) {
-            let found = sucursales.find(x => x.id == params.sub_id);
-            if (found) subName = found.valor;
-        }1
+        let subName = this.getSubName();
 
         let now = moment().format('DD/MM/YYYY hh:mm A');
 
@@ -807,13 +810,14 @@ class AppReportes extends Templates {
             id: `tb${this.PROJECT_NAME}Tickets`,
             theme: 'dark',
             title: 'Detalle de Tickets por Turno',
-            subtitle: 'Haz clic en un turno para ver sus tickets',
+            subtitle: `Sucursal: ${this.getSubName()} · Haz clic en un turno para ver sus tickets`,
             center: [3, 4],
-            right: [5, 6, 7, 8, 9],
+            right: [6, 7, 8, 9, 10],
             extends: true,
             scrollable: false,
             folding: true,
-            collapsed: true,
+            bordered:true,
+            // collapsed: true,
             data: data,
         });
 
@@ -880,7 +884,7 @@ class AppReportes extends Templates {
             id: `tb${this.PROJECT_NAME}Shifts`,
             theme: 'dark',
             title: 'Corte de Caja X',
-            subtitle: '',
+            subtitle: `Sucursal: ${this.getSubName()}`,
             center: [8, 9],
             right: [4, 5, 6, 7],
             extends: true,
@@ -901,7 +905,7 @@ class AppReportes extends Templates {
             id: `tb${this.PROJECT_NAME}Daily`,
             theme: 'dark',
             title: 'Ticket Diario',
-            subtitle: '',
+            subtitle: `Sucursal: ${this.getSubName()}`,
             center: [2],
             right: [3, 4, 5, 6, 7],
             extends: true,
@@ -919,11 +923,7 @@ class AppReportes extends Templates {
     // IMPRESION
     printReport() {
         let params = this.getFilterParams();
-        let subName = '';
-        if (sucursales.length > 0) {
-            let found = sucursales.find(s => s.id == params.sub_id);
-            subName = found ? found.valor : 'Todas';
-        }
+        let subName = this.getSubName();
 
         switch (this.currentTab) {
             case 'corte':   window.print(); break;

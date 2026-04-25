@@ -214,6 +214,19 @@ class MReportes extends CRUD {
         return $data;
     }
 
+    function getProductsByOrder($array) {
+        $query = "
+            SELECT
+                COALESCE(pr.name, oc.name, 'Sin producto') as nombre,
+                op.quantity
+            FROM {$this->bd}order_package op
+            LEFT JOIN {$this->bd}order_products pr ON pr.id = op.product_id
+            LEFT JOIN {$this->bd}order_custom oc ON oc.id = op.custom_id
+            WHERE op.pedidos_id = ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
     function getSubsidiariesByCompany($array) {
         $query = "
             SELECT id, name as valor

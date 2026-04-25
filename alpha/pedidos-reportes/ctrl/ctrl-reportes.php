@@ -384,6 +384,7 @@ class ctrl extends MReportes {
                         'html'  => $ticketCount . ' ticket' . ($ticketCount === 1 ? '' : 's'),
                         'class' => 'text-center'
                     ],
+                    'Producto'      => '',
                     'Descuento'     => [
                         'html'  => evaluar($shiftDescuento),
                         'class' => 'text-end'
@@ -405,7 +406,6 @@ class ctrl extends MReportes {
                         'class' => 'text-end'
                     ],
                     'opc'           => 1,
-                    'color_group'   => 'bg-[#1E3A5F] text-white'
                 ];
 
                 foreach ($shiftTickets as $ticket) {
@@ -416,11 +416,18 @@ class ctrl extends MReportes {
                     $totalTransferencia += floatval($ticket['transferencia']);
                     $totalTickets++;
 
+                    $productos = $this->getProductsByOrder([$ticket['folio_cuenta']]);
+                    $productoHtml = buildProductHtml($productos);
+
                     $__row[] = [
                         'id'            => $ticket['folio_cuenta'],
                         'Folio'         => str_pad($ticket['folio_cuenta'], 8, '0', STR_PAD_LEFT),
                         'Fecha'         => formatSpanishDate($ticket['fecha']),
                         'Cuenta'        => $ticket['cuenta'],
+                        'Producto'      => [
+                            'html'  => $productoHtml,
+                            'class' => 'text-start'
+                        ],
                         'Descuento'     => [
                             'html'  => evaluar($ticket['descuento_importe']),
                             'class' => 'text-end'
@@ -472,6 +479,7 @@ class ctrl extends MReportes {
                     'html'  => $orphanCount . ' ticket' . ($orphanCount === 1 ? '' : 's'),
                     'class' => 'text-center'
                 ],
+                'Producto'      => '',
                 'Descuento'     => [
                     'html'  => evaluar($orphanDescuento),
                     'class' => 'text-end'
@@ -504,11 +512,18 @@ class ctrl extends MReportes {
                 $totalTransferencia += floatval($ticket['transferencia']);
                 $totalTickets++;
 
+                $productos = $this->getProductsByOrder([$ticket['folio_cuenta']]);
+                $productoHtml = buildProductHtml($productos);
+
                 $__row[] = [
                     'id'            => $ticket['folio_cuenta'],
                     'Folio'         => str_pad($ticket['folio_cuenta'], 8, '0', STR_PAD_LEFT),
                     'Fecha'         => formatSpanishDate($ticket['fecha']),
                     'Cuenta'        => $ticket['cuenta'],
+                    'Producto'      => [
+                        'html'  => $productoHtml,
+                        'class' => 'text-start'
+                    ],
                     'Descuento'     => [
                         'html'  => evaluar($ticket['descuento_importe']),
                         'class' => 'text-end'
@@ -603,6 +618,19 @@ class ctrl extends MReportes {
 }
 
 // Complements
+function buildProductHtml($productos) {
+    if (!is_array($productos) || empty($productos)) return '<span class="text-gray-500 text-xs">Sin productos</span>';
+
+    $items = [];
+    foreach ($productos as $producto) {
+        $qty  = intval($producto['quantity']);
+        $name = $producto['nombre'];
+        $items[] = '<span class="text-xs">' . $qty . 'x ' . $name . '</span>';
+    }
+
+    return implode('<br>', $items);
+}
+
 function statusShift($status) {
     $statuses = [
         'open'   => ['bg' => 'bg-green-100', 'text' => 'text-green-700', 'label' => 'Abierto'],
