@@ -2662,12 +2662,14 @@ class App extends Templates {
 
         // Obtener órdenes si modo detallado
         let orders = [];
+        let externalPayments = [];
         if (this.reportMode === 'detailed') {
             const ordersRes = await useFetch({
                 url: this._link,
                 data: { opc: "getShiftOrders", shift_id: shiftId }
             });
-            orders = ordersRes.orders || [];
+            orders            = ordersRes.orders || [];
+            externalPayments  = ordersRes.external_payments || [];
         }
 
         this.ticketShiftClose({
@@ -2675,7 +2677,8 @@ class App extends Templates {
             shift: metricsRes.shift,
             subsidiary_name: metricsRes.subsidiary_name,
             logo: metricsRes.logo,
-            orders: orders
+            orders: orders,
+            externalPayments: externalPayments
         });
 
         // Habilitar botón imprimir
@@ -2708,26 +2711,66 @@ class App extends Templates {
             : `<div class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">EN CURSO</div>`;
 
         // Desglose de ventas (modo detallado)
+        const externalPayments = options.externalPayments || [];
         let detailedSection = '';
-        if (isDetailed && orders.length > 0) {
-            const ordersTotal = orders.reduce((sum, o) => sum + parseFloat(o.total_pay || 0), 0);
-            const orderRows = orders.map(o => `
-                <div class="flex justify-between items-center">
-                    <div class="italic">${o.folio || 'Folio #' + o.id}</div>
-                    <div>${formatPrice(o.total_pay)}</div>
-                </div>
-                <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
-            `).join('');
 
-            detailedSection = `
-                <div class="font-semibold mt-2 mb-1">DESGLOSE DE VENTAS</div>
-                ${orderRows}
-                <div class="flex justify-between items-center font-bold border-t border-dashed pt-1 mt-1">
-                    <div>TOTAL VENTAS</div>
-                    <div>${formatPrice(ordersTotal)}</div>
-                </div>
-                <hr class="border-dashed border-t my-1" />
-            `;
+        if (isDetailed) {
+            // Grupo 1: pedidos creados en este turno
+            if (orders.length > 0) {
+                const shiftTotal = orders.reduce((sum, o) => sum + parseFloat(o.total_pay || 0), 0);
+                const shiftPaid  = orders.reduce((sum, o) => sum + parseFloat(o.payment_real || 0), 0);
+
+                const orderRows = orders.map(o => `
+                    <div class="flex items-center">
+                        <div class="italic truncate flex-1">${o.folio || 'Folio #' + o.id}</div>
+                        <div class="text-right" style="width:72px">${formatPrice(o.total_pay)}</div>
+                        <div class="text-right text-green-700" style="width:72px">${formatPrice(o.payment_real)}</div>
+                    </div>
+                    <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
+                `).join('');
+
+                detailedSection += `
+                    <div class="font-semibold mt-2 mb-1">PEDIDOS DEL TURNO</div>
+                    <div class="flex text-[9px] text-gray-400 mb-0.5">
+                        <span class="flex-1">FOLIO</span>
+                        <span class="text-right" style="width:72px">TOTAL</span>
+                        <span class="text-right" style="width:72px">ABONO</span>
+                    </div>
+                    ${orderRows}
+                    <div class="flex justify-between items-center font-semibold border-t border-dashed pt-1 mt-1">
+                        <div>TOTAL PEDIDOS</div>
+                        <div>${formatPrice(shiftTotal)}</div>
+                    </div>
+                    <div class="flex justify-between items-center text-green-700">
+                        <div>COBRADO EN TURNO</div>
+                        <div>${formatPrice(shiftPaid)}</div>
+                    </div>
+                    <hr class="border-dashed border-t my-1" />
+                `;
+            }
+
+            // Grupo 2: abonos de pedidos de turnos anteriores
+            if (externalPayments.length > 0) {
+                const extTotal = externalPayments.reduce((sum, o) => sum + parseFloat(o.payment_real || 0), 0);
+
+                const extRows = externalPayments.map(o => `
+                    <div class="flex justify-between items-center">
+                        <div class="italic truncate" style="max-width:140px">${o.folio || 'Folio #' + o.id}</div>
+                        <div class="text-green-700">${formatPrice(o.payment_real)}</div>
+                    </div>
+                    <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
+                `).join('');
+
+                detailedSection += `
+                    <div class="font-semibold mt-2 mb-1">ABONOS DE PEDIDOS ANTERIORES</div>
+                    ${extRows}
+                    <div class="flex justify-between items-center font-semibold border-t border-dashed pt-1 mt-1 text-green-700">
+                        <div>TOTAL COBRADO</div>
+                        <div>${formatPrice(extTotal)}</div>
+                    </div>
+                    <hr class="border-dashed border-t my-1" />
+                `;
+            }
         }
 
         const totalPayments = parseFloat(d.cash_sales || 0) + parseFloat(d.card_sales || 0) + parseFloat(d.transfer_sales || 0);
@@ -2786,7 +2829,7 @@ class App extends Templates {
                         <hr class="border-dashed border-t my-1" />
 
                         <div class="flex justify-between items-center">
-                            <div class="font-semibold">NÚMERO DE PEDIDOS:</div>
+                            <div class="font-semibold">NÚMERO DE PEDIDOS DEL TURNO:</div>
                             <div class="font-bold">${parseInt(d.total_orders) || '-'}</div>
                         </div>
                         <div class="mt-2"></div>
