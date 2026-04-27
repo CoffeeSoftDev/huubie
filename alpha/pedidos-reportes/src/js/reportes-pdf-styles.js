@@ -219,6 +219,16 @@ class PdfStyles {
                     color: #6b7280;
                     letter-spacing: 0.5px;
                 }
+                .pdf-item-row td {
+                    font-size: 11px;
+                    color: #9ca3af;
+                }
+                .pdf-item-row {
+                    border-bottom: none;
+                }
+                .pdf-totals-bar.cols-8 {
+                    grid-template-columns: repeat(4, 1fr);
+                }
 
                 /* ===== PRINT: revierte a blanco ===== */
                 @media print {
@@ -316,6 +326,8 @@ class PdfStyles {
                     table.pdf-table .col-tarjeta { color: #2c3e50 !important; }
 
                     .pdf-footer { border-top-color: #bdc3c7 !important; color: #95a5a6 !important; }
+                    .pdf-item-row td { color: #7f8c8d !important; font-size: 11px !important; }
+                    .pdf-item-row { border-bottom: none !important; }
                 }
             </style>
         `);

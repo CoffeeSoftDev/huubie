@@ -188,6 +188,16 @@ class AppReportes extends Templates {
                 className: 'w-full',
                 icono: "icon-search",
                 onClick: () => this.refreshCurrentTab()
+            },
+            {
+                opc: "button",
+                class: "col-12 col-md-2 col-lg-1 advanced-filter",
+                color_btn: "secondary",
+                id: "btnPrintPedidos",
+                text: "Imprimir",
+                className: 'w-full',
+                icono: "icon-print",
+                onClick: () => this.printReport()
             }
         );
 
@@ -348,9 +358,10 @@ class AppReportes extends Templates {
         let subName = this.getSubName();
 
         switch (this.currentTab) {
-            case 'corte':   window.print(); break;
-            case 'tickets': ticketsReport.printTickets(params, subName); break;
-            default:        shiftsReport.printShifts(params, subName); break;
+            case 'corte':           window.print(); break;
+            case 'tickets':         ticketsReport.printTickets(params, subName); break;
+            case 'pedidos-detalle': orderDetailsReport.printPedidosDetalle(); break;
+            default:                shiftsReport.printShifts(params, subName); break;
         }
     }
 }
