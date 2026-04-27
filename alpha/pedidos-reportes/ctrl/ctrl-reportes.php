@@ -637,6 +637,7 @@ class ctrl extends MReportes {
         $__row = [];
 
         $totalImporte       = 0;
+        $totalBrutoSum      = 0;
         $totalDescuento     = 0;
         $totalAbono         = 0;
         $totalSaldo         = 0;
@@ -647,12 +648,14 @@ class ctrl extends MReportes {
 
         if (is_array($ls)) {
             foreach ($ls as $pedido) {
-                $total      = floatval($pedido['total_pay']);
+                $totalBruto = floatval($pedido['total_pay']);
                 $descuentoP = floatval($pedido['descuento_importe']);
+                $totalNeto  = $totalBruto - $descuentoP;
                 $abono      = floatval($pedido['abono']);
-                $saldo      = $total - $abono;
+                $saldo      = $totalNeto - $abono;
 
-                $totalImporte       += $total;
+                $totalImporte       += $totalNeto;
+                $totalBrutoSum      += $totalBruto;
                 $totalDescuento     += $descuentoP;
                 $totalAbono         += $abono;
                 $totalSaldo         += $saldo;
@@ -661,53 +664,89 @@ class ctrl extends MReportes {
                 $totalTransferencia += floatval($pedido['transferencia']);
                 $totalPedidos++;
 
-                $entrega = $pedido['date_order']
-                    ? formatSpanishDate($pedido['date_order']) . ' ' . $pedido['time_order']
-                    : '-';
+                $hoy = date('Y-m-d');
+                $entregaHtml  = '-';
+                $entregaClass = 'text-center text-gray-500';
+                if ($pedido['date_order']) {
+                    $fechaEntrega = $pedido['date_order'];
+                    $mesesAbrev = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    $dt = new DateTime($fechaEntrega);
+                    $fechaFormateada = $dt->format('d') . '/' . $mesesAbrev[intval($dt->format('m')) - 1] . '/' . $dt->format('Y');
 
-                $clienteHtml = '<div>' . $pedido['cuenta'] . '</div>'
-                    . '<div class="text-xs text-gray-500">' . $pedido['phone'] . '</div>';
+                    if ($fechaEntrega == $hoy) {
+                        $entregaHtml  = '<span class="text-[11px] px-2 py-[2px] rounded-full font-medium bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">Hoy</span>';
+                        $entregaClass = 'text-center';
+                    } elseif ($fechaEntrega < $hoy) {
+                        $entregaHtml  = '<span class="text-[11px] px-2 py-[2px] rounded-full font-medium bg-red-500/15 text-red-400 border border-red-500/30">Vencido</span>';
+                        $entregaClass = 'text-center';
+                    } else {
+                        $entregaHtml  = $fechaFormateada;
+                        $entregaClass = 'text-center';
+                    }
+                }
 
-                $saldoClass = $saldo > 0
-                    ? 'text-end text-red-400'
-                    : 'text-end text-gray-500';
+                $clienteHtml = '<div>' . $pedido['cuenta'] . '</div>';
+
+                $saldoHtml = $saldo > 0
+                    ? evaluar($saldo)
+                    : '<span class="text-gray-500">-</span>';
+
+                $abonoHtml = ($pedido['status'] == 1 || $abono <= 0)
+                    ? '<span class="text-gray-500">-</span>'
+                    : evaluar($abono);
+
+                if ($descuentoP > 0) {
+                    $totalHtml = "<div class='text-end'>"
+                        . "<p title='Con descuento aplicado' class='text-green-400 cursor-pointer font-semibold'>" . evaluar($totalNeto) . "</p>"
+                        . "<p class='line-through text-gray-500 text-[10px]'>" . evaluar($totalBruto) . "</p>"
+                        . "<p class='text-gray-500 text-[10px]'><i class='icon-tag'></i> Descuento: " . evaluar($descuentoP) . "</p>"
+                        . "</div>";
+                } else {
+                    $totalHtml = number_format($totalBruto, 2);
+                }
 
                 $__row[] = [
-                    'id'        => 'ped_' . $pedido['id'],
-                    'Folio'     => str_pad($pedido['id'], 8, '0', STR_PAD_LEFT),
-                    'Cliente'   => ['html' => $clienteHtml, 'class' => 'text-start'],
-                    'Fecha'     => formatSpanishDate($pedido['fecha_creacion']),
-                    'Abono'     => ['html' => evaluar($abono), 'class' => 'text-end text-green-400'],
-                    'Total'     => ['html' => evaluar($total), 'class' => 'text-end font-bold'],
-                    'Saldo'     => ['html' => evaluar($saldo), 'class' => $saldoClass],
-                    'Entrega'   => $entrega,
-                    'Estado'    => ['html' => renderStatusBadge($pedido['status']), 'class' => 'text-center'],
-                    'Entregado' => ['html' => renderDeliveryBadge($pedido['is_delivered'], $pedido['status']), 'class' => 'text-center'],
-                    'Tipo'      => ['html' => renderDeliveryTypeIcon($pedido['delivery_type']), 'class' => 'text-center'],
-                    'opc'       => 1
+                    'id'                => 'ped_' . $pedido['id'],
+                    'Folio'             => str_pad($pedido['id'], 8, '0', STR_PAD_LEFT),
+                    'Cliente'           => ['html' => $clienteHtml, 'class' => 'text-start'],
+                    'Fecha'             => formatSpanishDate($pedido['fecha_creacion']),
+                    'Total'             => ['html' => $totalHtml, 'class' => 'text-end bg-[#283341]'],
+                    'Abono'             => ['html' => $abonoHtml, 'class' => 'text-[#3FC189] text-end bg-[#283341]'],
+                    'Saldo'             => ['html' => $saldoHtml, 'class' => 'text-[#E05562] text-end bg-[#283341]'],
+                    'Fecha De Entrega'  => ['html' => $entregaHtml, 'class' => $entregaClass],
+                    'Estado'            => ['html' => renderStatusBadge($pedido['status']), 'class' => 'text-center'],
+                    'Entregado'         => ['html' => renderDeliveryBadge($pedido['is_delivered'], $pedido['status']), 'class' => 'text-center'],
+                    'Tipo'              => ['html' => renderDeliveryTypeIcon($pedido['delivery_type']), 'class' => 'text-center'],
+                    'opc'               => 1
                 ];
 
                 $items = $this->getPedidoItemsByOrder([$pedido['id']]);
-                if (is_array($items)) {
+                if (is_array($items) && count($items) > 0) {
+                    $itemsHtml = '<div class="pl-4 py-1">';
+                    $itemsTotal = 0;
                     foreach ($items as $item) {
-                        $itemHtml = $item['nombre']
-                            . ' <span class="text-gray-500">x' . intval($item['quantity']) . '</span>';
-
-                        $__row[] = [
-                            'id'        => 'ped_' . $pedido['id'] . '_item_' . $item['id'],
-                            'Folio'     => '',
-                            'Cliente'   => ['html' => $itemHtml, 'class' => 'text-start text-xs'],
-                            'Fecha'     => '',
-                            'Abono'     => '',
-                            'Total'     => ['html' => evaluar($item['subtotal']), 'class' => 'text-end text-xs'],
-                            'Saldo'     => '',
-                            'Entrega'   => '',
-                            'Estado'    => '',
-                            'Entregado' => '',
-                            'Tipo'      => '',
-                            'opc'       => 0
-                        ];
+                        $itemsHtml .= '<div>' . $item['nombre']
+                            . ' <span class="text-gray-400">x' . intval($item['quantity']) . '</span>'
+                            . ' <span class="text-gray-500 ml-2">' . evaluar($item['subtotal']) . '</span>'
+                            . '</div>';
+                        $itemsTotal += floatval($item['subtotal']);
                     }
+                    $itemsHtml .= '</div>';
+
+                    $__row[] = [
+                        'id'                => 'ped_' . $pedido['id'] . '_items',
+                        'Folio'             => '',
+                        'Cliente'           => ['html' => $itemsHtml, 'class' => 'text-start text-base'],
+                        'Fecha'             => '',
+                        'Total'             => ['html' => evaluar($itemsTotal), 'class' => 'text-end bg-[#283341]'],
+                        'Abono'             => '',
+                        'Saldo'             => '',
+                        'Fecha De Entrega'  => '',
+                        'Estado'            => '',
+                        'Entregado'         => '',
+                        'Tipo'              => '',
+                        'opc'               => 0
+                    ];
                 }
             }
         }
@@ -716,6 +755,8 @@ class ctrl extends MReportes {
             'row'    => $__row,
             'totals' => [
                 'importe'       => evaluar($totalImporte),
+                'bruto'         => evaluar($totalBrutoSum),
+                'neto'          => evaluar($totalImporte),
                 'descuento'     => evaluar($totalDescuento),
                 'abono'         => evaluar($totalAbono),
                 'saldo'         => evaluar($totalSaldo),

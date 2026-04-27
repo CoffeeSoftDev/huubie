@@ -229,6 +229,9 @@ class PdfStyles {
                 .pdf-totals-bar.cols-8 {
                     grid-template-columns: repeat(4, 1fr);
                 }
+                .pdf-totals-bar.cols-9 {
+                    grid-template-columns: repeat(3, 1fr);
+                }
 
                 /* ===== PRINT: revierte a blanco ===== */
                 @media print {

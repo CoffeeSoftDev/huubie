@@ -28,6 +28,7 @@ $(async () => {
     orderDetailsReport = new OrderDetailsReport(api, 'root');
 
     appReportes.render();
+    orderDetailsReport.render();
 });
 
 class AppReportes extends Templates {
@@ -154,32 +155,6 @@ class AppReportes extends Templates {
                 lbl: "Consultar fecha: ",
             },
             {
-                opc: "select",
-                id: "filtroEstado" + this.PROJECT_NAME,
-                lbl: "Estado:",
-                class: "col-12 col-md-2 col-lg-2 advanced-filter",
-                onchange: "appReportes.refreshCurrentTab()",
-                data: [
-                    { id: "0", valor: "Todos" },
-                    { id: "1", valor: "Cotización" },
-                    { id: "2", valor: "Pendiente" },
-                    { id: "3", valor: "Pagado" },
-                    { id: "4", valor: "Cancelado" }
-                ]
-            },
-            {
-                opc: "select",
-                id: "filtroDescuento" + this.PROJECT_NAME,
-                lbl: "Descuento:",
-                class: "col-12 col-md-2 col-lg-2 advanced-filter",
-                onchange: "appReportes.refreshCurrentTab()",
-                data: [
-                    { id: "todos", valor: "Todos" },
-                    { id: "con", valor: "Con descuento" },
-                    { id: "sin", valor: "Sin descuento" }
-                ]
-            },
-            {
                 opc: "button",
                 class: "col-12 col-md-2 col-lg-1",
                 color_btn: "primary",
@@ -283,8 +258,8 @@ class AppReportes extends Templates {
     getFilterParams() {
         let rangePicker = getDataRangePicker("calendar" + this.PROJECT_NAME);
         let sub_id    = $(`#filterBar${this.PROJECT_NAME} #subsidiaries_id`).val() || '0';
-        let estado    = $(`#filtroEstado${this.PROJECT_NAME}`).val() || '0';
-        let descuento = $(`#filtroDescuento${this.PROJECT_NAME}`).val() || 'todos';
+        let estado    = $(`#filtroEstadoPedidosDetalle`).val() || '0';
+        let descuento = $(`#filtroDescuentoPedidosDetalle`).val() || 'todos';
 
         let fi = rangePicker.fi;
         let ff = this.dateMode === 'single' ? rangePicker.fi : rangePicker.ff;

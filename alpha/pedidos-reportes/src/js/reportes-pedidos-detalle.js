@@ -2,14 +2,25 @@ class OrderDetailsReport extends AppReportes {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = "ReportesPedidosDetalle";
+        this._estadoVal    = '0';
+        this._descuentoVal = 'todos';
     }
 
     async render() {
-        let params = appReportes.getFilterParams();
-
         const container = $(`#container-pedidos-detalle`);
+
+        this._estadoVal    = $(`#filtroEstadoPedidosDetalle`).val()    || this._estadoVal;
+        this._descuentoVal = $(`#filtroDescuentoPedidosDetalle`).val() || this._descuentoVal;
+
         container.empty();
-        container.html(`<div id="pedidos-detalle-table-container"></div>`);
+        container.html(`
+            <div id="pedidos-detalle-filter-bar" class="mb-2"></div>
+            <div id="pedidos-detalle-table-container"></div>
+        `);
+
+        this.renderPedidosDetalleFilterBar();
+
+        let params = appReportes.getFilterParams();
 
         const data = await useFetch({ url: this._link, data: { opc: "lsPedidosDetalle", ...params } });
 
@@ -19,18 +30,57 @@ class OrderDetailsReport extends AppReportes {
             theme: 'dark',
             title: 'Detalles de Pedidos',
             subtitle: `Sucursal: ${appReportes.getSubName()} · Haz clic en un pedido para ver sus items`,
-            center: [8, 9, 10],
-            right: [4, 5, 6],
+            center: [9, 10, 11, 12],
+            right: [4, 5, 6, 7, 8],
             extends: true,
             scrollable: false,
             folding: true,
-            bordered: true,
+            collapsed:true,
+            color_group: 'bg-[#283341] text-gray-300',
+            // bordered: true,
             data: data,
         });
 
         if (data.totals) {
             this.renderPedidosTotalsBar(data.totals, 'pedidos-detalle-table-container');
         }
+    }
+
+    renderPedidosDetalleFilterBar() {
+        this.createfilterBar({
+            parent: 'pedidos-detalle-filter-bar',
+            data: [
+                {
+                    opc: "select",
+                    id: "filtroEstadoPedidosDetalle",
+                    lbl: "Estado:",
+                    class: "col-12 col-md-3 col-lg-2",
+                    onchange: "orderDetailsReport.render()",
+                    data: [
+                        { id: "0", valor: "Todos" },
+                        { id: "1", valor: "Cotización" },
+                        { id: "2", valor: "Pendiente" },
+                        { id: "3", valor: "Pagado" },
+                        { id: "4", valor: "Cancelado" }
+                    ]
+                },
+                {
+                    opc: "select",
+                    id: "filtroDescuentoPedidosDetalle",
+                    lbl: "Descuento:",
+                    class: "col-12 col-md-3 col-lg-2",
+                    onchange: "orderDetailsReport.render()",
+                    data: [
+                        { id: "todos", valor: "Todos" },
+                        { id: "con", valor: "Con descuento" },
+                        { id: "sin", valor: "Sin descuento" }
+                    ]
+                }
+            ]
+        });
+
+        $(`#filtroEstadoPedidosDetalle`).val(this._estadoVal);
+        $(`#filtroDescuentoPedidosDetalle`).val(this._descuentoVal);
     }
 
     renderPedidosTotalsBar(totals, parent) {
@@ -46,9 +96,21 @@ class OrderDetailsReport extends AppReportes {
                     </div>
                 </div>
                 <div class="col">
+                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #374151">
+                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Total Bruto</div>
+                        <div class="fw-bold text-white" style="font-size:15px">${totals.bruto}</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #FBBF24">
+                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Descuentos</div>
+                        <div class="fw-bold" style="font-size:15px;color:#FBBF24">${totals.descuento}</div>
+                    </div>
+                </div>
+                <div class="col">
                     <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #10B981">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Importe Total</div>
-                        <div class="fw-bold" style="font-size:15px;color:#34D399">${totals.importe}</div>
+                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Total Neto</div>
+                        <div class="fw-bold" style="font-size:15px;color:#34D399">${totals.neto}</div>
                     </div>
                 </div>
                 <div class="col">
@@ -81,12 +143,6 @@ class OrderDetailsReport extends AppReportes {
                         <div class="fw-bold text-warning" style="font-size:15px">${totals.transferencia}</div>
                     </div>
                 </div>
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #374151">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Descuentos</div>
-                        <div class="fw-bold text-danger" style="font-size:15px">${totals.descuento}</div>
-                    </div>
-                </div>
             </div>
         `;
 
@@ -102,13 +158,14 @@ class OrderDetailsReport extends AppReportes {
     _renderPdfTotalsBar(totals) {
         const items = [
             { label: 'Pedidos',        value: totals.total_pedidos },
-            { label: 'Importe Total',  value: totals.importe, highlight: true },
+            { label: 'Total Bruto',    value: totals.bruto },
+            { label: 'Descuentos',     value: totals.descuento },
+            { label: 'Total Neto',     value: totals.neto, highlight: true },
             { label: 'Abonado',        value: totals.abono },
             { label: 'Saldo',          value: totals.saldo },
             { label: 'Efectivo',       value: totals.efectivo },
             { label: 'Tarjeta',        value: totals.tarjeta },
             { label: 'Transferencia',  value: totals.transferencia },
-            { label: 'Descuentos',     value: totals.descuento },
         ];
 
         let html = items.map(i => `
@@ -126,19 +183,23 @@ class OrderDetailsReport extends AppReportes {
 
         rows.forEach(row => {
             if (row.opc === 1) {
-                let cliente  = row.Cliente && row.Cliente.html ? this._stripHtml(row.Cliente.html) : '';
-                let abono    = row.Abono && row.Abono.html ? this._stripHtml(row.Abono.html) : '';
-                let total    = row.Total && row.Total.html ? this._stripHtml(row.Total.html) : '';
-                let saldo    = row.Saldo && row.Saldo.html ? this._stripHtml(row.Saldo.html) : '';
-                let estado   = row.Estado && row.Estado.html ? this._stripHtml(row.Estado.html) : '';
+                let cliente   = row.Cliente && row.Cliente.html ? this._stripHtml(row.Cliente.html) : '';
+                let total     = row.Total && row.Total.html ? this._stripHtml(row.Total.html) : '';
+                let descuento = row.Descuento && row.Descuento.html ? this._stripHtml(row.Descuento.html) : '';
+                let totalNeto = row['Total Neto'] && row['Total Neto'].html ? this._stripHtml(row['Total Neto'].html) : '';
+                let abono     = row.Abono && row.Abono.html ? this._stripHtml(row.Abono.html) : '';
+                let saldo     = row.Saldo && row.Saldo.html ? this._stripHtml(row.Saldo.html) : '';
+                let estado    = row.Estado && row.Estado.html ? this._stripHtml(row.Estado.html) : '';
 
                 bodyHtml += `
                     <tr>
                         <td>${row.Folio}</td>
                         <td>${cliente}</td>
                         <td>${row.Fecha}</td>
-                        <td class="text-right">${abono}</td>
                         <td class="text-right">${total}</td>
+                        <td class="text-right">${descuento}</td>
+                        <td class="text-right">${totalNeto}</td>
+                        <td class="text-right">${abono}</td>
                         <td class="text-right">${saldo}</td>
                         <td>${row.Entrega}</td>
                         <td class="text-center">${estado}</td>
@@ -153,8 +214,10 @@ class OrderDetailsReport extends AppReportes {
                         <td></td>
                         <td>${itemName}</td>
                         <td></td>
-                        <td></td>
                         <td class="text-right">${itemTotal}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
                         <td></td>
                         <td></td>
                         <td></td>
@@ -170,8 +233,10 @@ class OrderDetailsReport extends AppReportes {
                         <th>Folio</th>
                         <th>Cliente</th>
                         <th>Fecha</th>
-                        <th class="text-right">Abono</th>
                         <th class="text-right">Total</th>
+                        <th class="text-right">Descuento</th>
+                        <th class="text-right">Total Neto</th>
+                        <th class="text-right">Abono</th>
                         <th class="text-right">Saldo</th>
                         <th>Entrega</th>
                         <th class="text-center">Estado</th>
@@ -223,7 +288,7 @@ class OrderDetailsReport extends AppReportes {
                     </div>
                 </div>
 
-                <div class="pdf-totals-bar cols-8" id="pedidos-pdf-totals-bar"></div>
+                <div class="pdf-totals-bar cols-9" id="pedidos-pdf-totals-bar"></div>
 
                 <div class="pdf-section" id="pedidos-pdf-table-section"></div>
 
