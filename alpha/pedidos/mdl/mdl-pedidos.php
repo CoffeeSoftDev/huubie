@@ -1471,16 +1471,17 @@ class MPedidos extends CRUD {
         $orders = $this->_Read($queryOrders, $params);
         $ordersData = is_array($orders) && !empty($orders) ? $orders[0] : ['total_orders' => 0, 'total_sales' => 0];
 
-        // 2. Pagos agrupados por metodo
-        $shiftConditionPo = "(po.cash_shift_id = ? OR (po.cash_shift_id IS NULL AND po.date_creation >= ? AND po.date_creation < ? AND po.subsidiaries_id = ?))";
+        // 2. Pagos reales recibidos durante el turno, agrupados por método
         $queryPayments = "
             SELECT pp.method_pay_id, SUM(pp.pay) as total_paid
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
-            WHERE {$shiftConditionPo} AND po.status != 4
+            WHERE pp.date_pay >= ? AND pp.date_pay <= ?
+            AND po.subsidiaries_id = ?
+            AND po.status != 4
             GROUP BY pp.method_pay_id
         ";
-        $payments = $this->_Read($queryPayments, $params);
+        $payments = $this->_Read($queryPayments, [$startDate, $endDate, $subsidiary_id]);
 
         $cash_sales = 0; $card_sales = 0; $transfer_sales = 0;
         if (is_array($payments)) {
@@ -1531,16 +1532,68 @@ class MPedidos extends CRUD {
         $endDate       = $array[2];
         $subsidiary_id = $array[3];
 
-        $query = "
-            SELECT o.id, o.total_pay, o.status, o.date_creation,
-                   c.name AS client_name
+        // Grupo 1: pedidos creados en este turno + lo que se cobró durante el turno
+        $query1 = "
+            SELECT
+                o.id,
+                o.total_pay,
+                COALESCE(
+                    SUM(CASE WHEN op.date_pay >= ? AND op.date_pay <= ? THEN op.pay ELSE 0 END),
+                    0
+                ) AS payment_real,
+                o.status,
+                o.date_creation,
+                c.name AS client_name
             FROM {$this->bd}`order` o
             LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
-            WHERE (o.cash_shift_id = ? OR (o.cash_shift_id IS NULL AND o.date_creation >= ? AND o.date_creation < ? AND o.subsidiaries_id = ?))
+            LEFT JOIN {$this->bd}order_payments op ON op.order_id = o.id
+            WHERE
+                (o.cash_shift_id = ?
+                OR (o.cash_shift_id IS NULL
+                        AND o.date_creation >= ?
+                        AND o.date_creation < ?
+                        AND o.subsidiaries_id = ?
+                ))
             AND o.status != 4
+            GROUP BY o.id, o.total_pay, o.status, o.date_creation, c.name
             ORDER BY o.date_creation ASC
         ";
-        return $this->_Read($query, [$shift_id, $startDate, $endDate, $subsidiary_id]);
+        $shiftOrders = $this->_Read($query1, [
+            $startDate, $endDate,
+            $shift_id,
+            $startDate, $endDate, $subsidiary_id
+        ]);
+
+        // Grupo 2: abonos recibidos en este turno para pedidos de turnos anteriores
+        $query2 = "
+            SELECT
+                o.id,
+                o.total_pay,
+                SUM(op.pay) AS payment_real,
+                o.status,
+                o.date_creation,
+                c.name AS client_name
+            FROM {$this->bd}order_payments op
+            JOIN {$this->bd}`order` o ON o.id = op.order_id
+            LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            WHERE op.date_pay >= ? AND op.date_pay <= ?
+            AND o.cash_shift_id IS NOT NULL
+            AND o.cash_shift_id != ?
+            AND o.subsidiaries_id = ?
+            AND o.status != 4
+            GROUP BY o.id, o.total_pay, o.status, o.date_creation, c.name
+            ORDER BY o.date_creation ASC
+        ";
+        $externalPayments = $this->_Read($query2, [
+            $startDate, $endDate,
+            $shift_id,
+            $subsidiary_id
+        ]);
+
+        return [
+            'shift_orders'      => is_array($shiftOrders) ? $shiftOrders : [],
+            'external_payments' => is_array($externalPayments) ? $externalPayments : []
+        ];
     }
 
     function createShiftPayment($array) {

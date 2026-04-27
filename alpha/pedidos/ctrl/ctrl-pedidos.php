@@ -140,14 +140,14 @@ class Pedidos extends MPedidos{
         $currentShift = $this->getOpenShiftBySubsidiary([$currentSubForShift]);
         $currentShiftId = $currentShift ? $currentShift['id'] : null;
 
-        $orders   = $this->getOrders([
+        $orders = $this->getOrders([
 
             'fi'              => $_POST['fi'] ?? '',
             'ff'              => $_POST['ff'] ?? '',
             'status'          => $_POST['status'],
             'subsidiaries_id' => $subsidiaries_id
 
-        ]);
+        ]) ?? [];
 
         foreach ($orders as $order) {
 
@@ -1750,15 +1750,16 @@ class Pedidos extends MPedidos{
             return ['status' => 404, 'message' => 'Turno no encontrado'];
         }
 
-        $opened_at = $shift['opened_at'];
-        $closed_at = $shift['status'] === 'closed' ? $shift['closed_at'] : date('Y-m-d H:i:s');
+        $opened_at     = $shift['opened_at'];
+        $closed_at     = $shift['status'] === 'closed' ? $shift['closed_at'] : date('Y-m-d H:i:s');
         $subsidiary_id = $shift['subsidiary_id'];
 
-        $orders = $this->getShiftDetailedOrders([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
+        $result = $this->getShiftDetailedOrders([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
 
         return [
-            'status' => 200,
-            'orders' => is_array($orders) ? $orders : []
+            'status'            => 200,
+            'orders'            => $result['shift_orders'],
+            'external_payments' => $result['external_payments']
         ];
     }
 
