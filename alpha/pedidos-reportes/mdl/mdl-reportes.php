@@ -227,6 +227,61 @@ class MReportes extends CRUD {
         return $this->_Read($query, $array);
     }
 
+    function listPedidosDetalle($array) {
+        $query = "
+            SELECT
+                o.id,
+                o.date_creation as fecha_creacion,
+                o.date_order,
+                o.time_order,
+                o.status,
+                o.is_delivered,
+                o.delivery_type,
+                o.cash_shift_id,
+                o.subsidiaries_id,
+                COALESCE(c.name, 'Sin cliente') as cuenta,
+                COALESCE(c.phone, '') as phone,
+                COALESCE(o.discount, 0) as descuento_importe,
+                COALESCE(o.total_pay, 0) as total_pay,
+                COALESCE(SUM(pp.pay), 0) as abono,
+                COALESCE(SUM(CASE WHEN pp.method_pay_id = 1 THEN pp.pay ELSE 0 END), 0) as efectivo,
+                COALESCE(SUM(CASE WHEN pp.method_pay_id = 2 THEN pp.pay ELSE 0 END), 0) as tarjeta,
+                COALESCE(SUM(CASE WHEN pp.method_pay_id = 3 THEN pp.pay ELSE 0 END), 0) as transferencia
+            FROM {$this->bd}`order` o
+            LEFT JOIN {$this->bd}order_clients c ON o.client_id = c.id
+            LEFT JOIN {$this->bd}order_payments pp ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) BETWEEN ? AND ?
+            AND (o.subsidiaries_id = ? OR ? = '0')
+            AND (o.status = ? OR ? = '0')
+            AND (
+                (? = 'con' AND o.discount > 0)
+                OR (? = 'sin' AND (o.discount = 0 OR o.discount IS NULL))
+                OR ? = 'todos'
+            )
+            GROUP BY o.id
+            ORDER BY o.id DESC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function getPedidoItemsByOrder($array) {
+        $query = "
+            SELECT
+                op.id,
+                op.quantity,
+                COALESCE(pr.name, oc.name, 'Sin producto') as nombre,
+                COALESCE(pr.price, oc.price, 0) as precio_unitario,
+                (op.quantity * COALESCE(pr.price, oc.price, 0)) as subtotal,
+                CASE WHEN op.custom_id IS NOT NULL THEN 1 ELSE 0 END as is_custom
+            FROM {$this->bd}order_package op
+            LEFT JOIN {$this->bd}order_products pr ON pr.id = op.product_id
+            LEFT JOIN {$this->bd}order_custom oc ON oc.id = op.custom_id
+            WHERE op.pedidos_id = ?
+            ORDER BY op.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
     function getSubsidiariesByCompany($array) {
         $query = "
             SELECT id, name as valor

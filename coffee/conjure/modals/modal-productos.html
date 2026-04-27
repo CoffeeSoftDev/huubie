@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Producto | Huubie POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        body {
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .input-pos {
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            color: #d1d5db;
+            width: 100%;
+            transition: all 0.15s ease;
+        }
+        .input-pos:focus {
+            outline: none;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+        }
+        .btn-primary {
+            background: #1c64f2;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover { background: #1947b8; }
+        .btn-secondary {
+            background: #374151;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .btn-secondary:hover { background: #4b5563; }
+        .product-option {
+            background: #1a2332;
+            border: 2px solid #374151;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .product-option:hover {
+            border-color: #4b5563;
+        }
+        .product-option.selected {
+            border-color: #7c3aed;
+            background: rgba(124, 58, 237, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-[#1F2A37] rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-800">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-6 border-b border-gray-800">
+            <div>
+                <h2 class="text-xl font-bold">Agregar Producto</h2>
+                <p class="text-sm text-gray-500">Orden #ORD-2026-001</p>
+            </div>
+            <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-800 transition">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6">
+            <!-- Search -->
+            <div class="mb-4">
+                <label class="block text-[11px] text-gray-500 mb-1">Buscar Producto</label>
+                <input type="text" class="input-pos" placeholder="Escribe para buscar...">
+            </div>
+
+            <!-- Product Grid -->
+            <div class="grid grid-cols-2 gap-3 mb-6 max-h-64 overflow-y-auto">
+                <div class="product-option" onclick="selectProduct(this)">
+                    <div class="text-3xl">☕</div>
+                    <div>
+                        <div class="font-medium text-sm">Café Americano</div>
+                        <div class="text-xs text-gray-500">$35.00</div>
+                    </div>
+                </div>
+                <div class="product-option" onclick="selectProduct(this)">
+                    <div class="text-3xl">🧋</div>
+                    <div>
+                        <div class="font-medium text-sm">Café con Leche</div>
+                        <div class="text-xs text-gray-500">$42.00</div>
+                    </div>
+                </div>
+                <div class="product-option" onclick="selectProduct(this)">
+                    <div class="text-3xl">🧊</div>
+                    <div>
+                        <div class="font-medium text-sm">Café Frío</div>
+                        <div class="text-xs text-gray-500">$45.00</div>
+                    </div>
+                </div>
+                <div class="product-option" onclick="selectProduct(this)">
+                    <div class="text-3xl">🍰</div>
+                    <div>
+                        <div class="font-medium text-sm">Pastel Chocolate</div>
+                        <div class="text-xs text-gray-500">$55.00</div>
+                    </div>
+                </div>
+                <div class="product-option" onclick="selectProduct(this)">
+                    <div class="text-3xl">🥐</div>
+                    <div>
+                        <div class="font-medium text-sm">Croissant</div>
+                        <div class="text-xs text-gray-500">$28.00</div>
+                    </div>
+                </div>
+                <div class="product-option" onclick="selectProduct(this)">
+                    <div class="text-3xl">🍵</div>
+                    <div>
+                        <div class="font-medium text-sm">Té Chai</div>
+                        <div class="text-xs text-gray-500">$38.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quantity -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div>
+                    <label class="block text-[11px] text-gray-500 mb-1">Cantidad</label>
+                    <input type="number" class="input-pos" value="1" min="1">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-gray-500 mb-1">Notas</label>
+                    <input type="text" class="input-pos" placeholder="Ej: Sin azúcar">
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3">
+                <button class="btn-secondary flex-1">Cancelar</button>
+                <button class="btn-primary flex-1">Agregar a la Orden</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function selectProduct(element) {
+            document.querySelectorAll('.product-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            element.classList.add('selected');
+        }
+    </script>
+</body>
+</html>

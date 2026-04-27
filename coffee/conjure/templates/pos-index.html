@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS - Punto de Venta | Huubie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .input-pos {
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            color: #d1d5db;
+            width: 100%;
+            transition: all 0.15s ease;
+        }
+        .input-pos:focus {
+            outline: none;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+        }
+        .card-product {
+            background: #1F2A37;
+            border: 1px solid rgba(55, 65, 81, 0.6);
+            border-radius: 12px;
+            padding: 1rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .card-product:hover {
+            border-color: #7c3aed;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+        .card-product:active {
+            transform: scale(0.98);
+        }
+        .badge-status {
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-weight: 500;
+        }
+        .badge-disponible { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-bajo { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-agotado { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .btn-primary {
+            background: #1c64f2;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover { background: #1947b8; }
+        .btn-success {
+            background: #059669;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .btn-success:hover { background: #047857; }
+        .cart-item {
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .cart-item:hover {
+            border-color: #4b5563;
+        }
+    </style>
+</head>
+<body class="bg-[#111928] text-white min-h-screen">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-56 bg-[#0f172a] border-r border-gray-800 flex flex-col">
+            <div class="p-4 border-b border-gray-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                        </svg>
+                    </div>
+                    <span class="font-bold text-lg">Huubie</span>
+                </div>
+            </div>
+            <nav class="flex-1 p-4 space-y-1">
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-purple-600/20 text-purple-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 3.666V19a1 1 0 01-1 1h-2a1 1 0 01-1-1V8.666M9 7a1 1 0 011-1h4a1 1 0 011 1m-6 0V4a1 1 0 011-1h2a1 1 0 011 1v3.666"/>
+                    </svg>
+                    <span class="text-sm font-medium">Punto de Venta</span>
+                </a>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H5L5 9z"/>
+                    </svg>
+                    <span class="text-sm font-medium">Productos</span>
+                </a>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <span class="text-sm font-medium">Ventas</span>
+                </a>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    <span class="text-sm font-medium">Corte de Caja</span>
+                </a>
+            </nav>
+            <div class="p-4 border-t border-gray-800">
+                <div class="flex items-center gap-3 px-3 py-2">
+                    <div class="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center">
+                        <span class="text-sm font-medium">AD</span>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium">Admin</p>
+                        <p class="text-xs text-gray-500">admin@huubie.com</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-[#141d2b] border-b border-gray-800 p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-xl font-bold">Punto de Venta</h1>
+                        <p class="text-sm text-gray-500">Realiza ventas y cobra a tus clientes</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="relative">
+                            <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text" placeholder="Buscar producto..." class="input-pos pl-10 w-80">
+                        </div>
+                        <button class="p-2 text-gray-400 hover:text-white transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="flex-1 flex overflow-hidden">
+                <!-- Products Grid -->
+                <div class="flex-1 p-6 overflow-y-auto">
+                    <!-- Categories -->
+                    <div class="flex gap-2 mb-6">
+                        <button class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium">Todos</button>
+                        <button class="px-4 py-2 bg-[#1F2A37] text-gray-400 hover:text-white rounded-lg text-sm font-medium transition">Bebidas</button>
+                        <button class="px-4 py-2 bg-[#1F2A37] text-gray-400 hover:text-white rounded-lg text-sm font-medium transition">Alimentos</button>
+                        <button class="px-4 py-2 bg-[#1F2A37] text-gray-400 hover:text-white rounded-lg text-sm font-medium transition">Postres</button>
+                        <button class="px-4 py-2 bg-[#1F2A37] text-gray-400 hover:text-white rounded-lg text-sm font-medium transition">Extras</button>
+                    </div>
+
+                    <!-- Products -->
+                    <div class="grid grid-cols-4 gap-4">
+                        <div class="card-product">
+                            <div class="aspect-square bg-gray-700 rounded-lg mb-3 flex items-center justify-center">
+                                <span class="text-4xl">☕</span>
+                            </div>
+                            <h3 class="font-medium text-sm mb-1">Café Americano</h3>
+                            <p class="text-lg font-bold text-purple-400">$35.00</p>
+                            <div class="mt-2">
+                                <span class="badge-status badge-disponible">Disponible</span>
+                            </div>
+                        </div>
+                        <div class="card-product">
+                            <div class="aspect-square bg-gray-700 rounded-lg mb-3 flex items-center justify-center">
+                                <span class="text-4xl">🧋</span>
+                            </div>
+                            <h3 class="font-medium text-sm mb-1">Café con Leche</h3>
+                            <p class="text-lg font-bold text-purple-400">$42.00</p>
+                            <div class="mt-2">
+                                <span class="badge-status badge-disponible">Disponible</span>
+                            </div>
+                        </div>
+                        <div class="card-product">
+                            <div class="aspect-square bg-gray-700 rounded-lg mb-3 flex items-center justify-center">
+                                <span class="text-4xl">🧊</span>
+                            </div>
+                            <h3 class="font-medium text-sm mb-1">Café Frío</h3>
+                            <p class="text-lg font-bold text-purple-400">$45.00</p>
+                            <div class="mt-2">
+                                <span class="badge-status badge-bajo">Bajo stock</span>
+                            </div>
+                        </div>
+                        <div class="card-product">
+                            <div class="aspect-square bg-gray-700 rounded-lg mb-3 flex items-center justify-center">
+                                <span class="text-4xl">🍰</span>
+                            </div>
+                            <h3 class="font-medium text-sm mb-1">Pastel Chocolate</h3>
+                            <p class="text-lg font-bold text-purple-400">$55.00</p>
+                            <div class="mt-2">
+                                <span class="badge-status badge-disponible">Disponible</span>
+                            </div>
+                        </div>
+                        <div class="card-product">
+                            <div class="aspect-square bg-gray-700 rounded-lg mb-3 flex items-center justify-center">
+                                <span class="text-4xl">🥐</span>
+                            </div>
+                            <h3 class="font-medium text-sm mb-1">Croissant</h3>
+                            <p class="text-lg font-bold text-purple-400">$28.00</p>
+                            <div class="mt-2">
+                                <span class="badge-status badge-disponible">Disponible</span>
+                            </div>
+                        </div>
+                        <div class="card-product">
+                            <div class="aspect-square bg-gray-700 rounded-lg mb-3 flex items-center justify-center">
+                                <span class="text-4xl">🧁</span>
+                            </div>
+                            <h3 class="font-medium text-sm mb-1">Muffin</h3>
+                            <p class="text-lg font-bold text-purple-400">$32.00</p>
+                            <div class="mt-2">
+                                <span class="badge-status badge-agotado">Agotado</span>
+                            </div>
+                        </div>
+                        <div class="card-product">
+                            <div class="aspect-square bg-gray-700 rounded-lg mb-3 flex items-center justify-center">
+                                <span class="text-4xl">🍵</span>
+                            </div>
+                            <h3 class="font-medium text-sm mb-1">Té Chai</h3>
+                            <p class="text-lg font-bold text-purple-400">$38.00</p>
+                            <div class="mt-2">
+                                <span class="badge-status badge-disponible">Disponible</span>
+                            </div>
+                        </div>
+                        <div class="card-product">
+                            <div class="aspect-square bg-gray-700 rounded-lg mb-3 flex items-center justify-center">
+                                <span class="text-4xl">🥤</span>
+                            </div>
+                            <h3 class="font-medium text-sm mb-1">Smoothie</h3>
+                            <p class="text-lg font-bold text-purple-400">$52.00</p>
+                            <div class="mt-2">
+                                <span class="badge-status badge-disponible">Disponible</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cart Panel -->
+                <div class="w-96 bg-[#1F2A37] border-l border-gray-800 flex flex-col">
+                    <div class="p-4 border-b border-gray-800">
+                        <h2 class="font-bold text-lg">Orden Actual</h2>
+                        <p class="text-sm text-gray-500">#ORD-2026-001</p>
+                    </div>
+
+                    <!-- Cart Items -->
+                    <div class="flex-1 p-4 overflow-y-auto">
+                        <div class="cart-item">
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 class="font-medium text-sm">Café Americano</h4>
+                                    <p class="text-xs text-gray-500">Chico</p>
+                                </div>
+                                <span class="text-purple-400 font-medium">$35.00</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button class="w-7 h-7 flex items-center justify-center bg-gray-700 rounded hover:bg-gray-600 transition">-</button>
+                                <span class="text-sm">2</span>
+                                <button class="w-7 h-7 flex items-center justify-center bg-gray-700 rounded hover:bg-gray-600 transition">+</button>
+                                <span class="text-sm text-gray-500 ml-auto">x $35.00</span>
+                                <span class="font-medium ml-2">$70.00</span>
+                            </div>
+                        </div>
+                        <div class="cart-item">
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 class="font-medium text-sm">Pastel Chocolate</h4>
+                                    <p class="text-xs text-gray-500">Rebanada</p>
+                                </div>
+                                <span class="text-purple-400 font-medium">$55.00</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button class="w-7 h-7 flex items-center justify-center bg-gray-700 rounded hover:bg-gray-600 transition">-</button>
+                                <span class="text-sm">1</span>
+                                <button class="w-7 h-7 flex items-center justify-center bg-gray-700 rounded hover:bg-gray-600 transition">+</button>
+                                <span class="text-sm text-gray-500 ml-auto">x $55.00</span>
+                                <span class="font-medium ml-2">$55.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="p-4 border-t border-gray-800 space-y-3">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">Subtotal</span>
+                            <span>$125.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">IVA (16%)</span>
+                            <span>$20.00</span>
+                        </div>
+                        <div class="flex justify-between text-lg font-bold pt-3 border-t border-gray-700">
+                            <span>Total</span>
+                            <span class="text-purple-400">$145.00</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 pt-2">
+                            <button class="btn-primary text-center">Cancelar</button>
+                            <button class="btn-success text-center">Cobrar</button>
+                        </div>
+
+                        <div class="flex gap-2 pt-2">
+                            <button class="flex-1 py-2 bg-[#1a2332] border border-gray-700 rounded-lg text-sm hover:border-purple-600 transition">
+                                🖨️ Imprimir
+                            </button>
+                            <button class="flex-1 py-2 bg-[#1a2332] border border-gray-700 rounded-lg text-sm hover:border-purple-600 transition">
+                                📋 Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Theme toggle
+        const themeToggle = () => {
+            const html = document.documentElement;
+            const isDark = html.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        };
+    </script>
+</body>
+</html>

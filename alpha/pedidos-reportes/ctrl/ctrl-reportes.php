@@ -615,6 +615,117 @@ class ctrl extends MReportes {
             'tickets' => $__row,
         ];
     }
+
+    function lsPedidosDetalle() {
+        if ($_SESSION['ROLID'] != 1) {
+            return ['status' => 403, 'message' => 'No tienes permisos'];
+        }
+
+        $fi        = $_POST['fi'];
+        $ff        = $_POST['ff'];
+        $sub_id    = $_POST['sub_id'];
+        $estado    = $_POST['estado'];
+        $descuento = $_POST['descuento'];
+
+        $ls = $this->listPedidosDetalle([
+            $fi, $ff,
+            $sub_id, $sub_id,
+            $estado, $estado,
+            $descuento, $descuento, $descuento
+        ]);
+
+        $__row = [];
+
+        $totalImporte       = 0;
+        $totalDescuento     = 0;
+        $totalAbono         = 0;
+        $totalSaldo         = 0;
+        $totalEfectivo      = 0;
+        $totalTarjeta       = 0;
+        $totalTransferencia = 0;
+        $totalPedidos       = 0;
+
+        if (is_array($ls)) {
+            foreach ($ls as $pedido) {
+                $total      = floatval($pedido['total_pay']);
+                $descuentoP = floatval($pedido['descuento_importe']);
+                $abono      = floatval($pedido['abono']);
+                $saldo      = $total - $abono;
+
+                $totalImporte       += $total;
+                $totalDescuento     += $descuentoP;
+                $totalAbono         += $abono;
+                $totalSaldo         += $saldo;
+                $totalEfectivo      += floatval($pedido['efectivo']);
+                $totalTarjeta       += floatval($pedido['tarjeta']);
+                $totalTransferencia += floatval($pedido['transferencia']);
+                $totalPedidos++;
+
+                $entrega = $pedido['date_order']
+                    ? formatSpanishDate($pedido['date_order']) . ' ' . $pedido['time_order']
+                    : '-';
+
+                $clienteHtml = '<div>' . $pedido['cuenta'] . '</div>'
+                    . '<div class="text-xs text-gray-500">' . $pedido['phone'] . '</div>';
+
+                $saldoClass = $saldo > 0
+                    ? 'text-end text-red-400'
+                    : 'text-end text-gray-500';
+
+                $__row[] = [
+                    'id'        => 'ped_' . $pedido['id'],
+                    'Folio'     => str_pad($pedido['id'], 8, '0', STR_PAD_LEFT),
+                    'Cliente'   => ['html' => $clienteHtml, 'class' => 'text-start'],
+                    'Fecha'     => formatSpanishDate($pedido['fecha_creacion']),
+                    'Abono'     => ['html' => evaluar($abono), 'class' => 'text-end text-green-400'],
+                    'Total'     => ['html' => evaluar($total), 'class' => 'text-end font-bold'],
+                    'Saldo'     => ['html' => evaluar($saldo), 'class' => $saldoClass],
+                    'Entrega'   => $entrega,
+                    'Estado'    => ['html' => renderStatusBadge($pedido['status']), 'class' => 'text-center'],
+                    'Entregado' => ['html' => renderDeliveryBadge($pedido['is_delivered'], $pedido['status']), 'class' => 'text-center'],
+                    'Tipo'      => ['html' => renderDeliveryTypeIcon($pedido['delivery_type']), 'class' => 'text-center'],
+                    'opc'       => 1
+                ];
+
+                $items = $this->getPedidoItemsByOrder([$pedido['id']]);
+                if (is_array($items)) {
+                    foreach ($items as $item) {
+                        $itemHtml = $item['nombre']
+                            . ' <span class="text-gray-500">x' . intval($item['quantity']) . '</span>';
+
+                        $__row[] = [
+                            'id'        => 'ped_' . $pedido['id'] . '_item_' . $item['id'],
+                            'Folio'     => '',
+                            'Cliente'   => ['html' => $itemHtml, 'class' => 'text-start text-xs'],
+                            'Fecha'     => '',
+                            'Abono'     => '',
+                            'Total'     => ['html' => evaluar($item['subtotal']), 'class' => 'text-end text-xs'],
+                            'Saldo'     => '',
+                            'Entrega'   => '',
+                            'Estado'    => '',
+                            'Entregado' => '',
+                            'Tipo'      => '',
+                            'opc'       => 0
+                        ];
+                    }
+                }
+            }
+        }
+
+        return [
+            'row'    => $__row,
+            'totals' => [
+                'importe'       => evaluar($totalImporte),
+                'descuento'     => evaluar($totalDescuento),
+                'abono'         => evaluar($totalAbono),
+                'saldo'         => evaluar($totalSaldo),
+                'efectivo'      => evaluar($totalEfectivo),
+                'tarjeta'       => evaluar($totalTarjeta),
+                'transferencia' => evaluar($totalTransferencia),
+                'total_pedidos' => $totalPedidos,
+            ]
+        ];
+    }
 }
 
 // Complements
@@ -639,6 +750,40 @@ function statusShift($status) {
 
     $style = $statuses[$status] ?? ['bg' => 'bg-gray-100', 'text' => 'text-gray-700', 'label' => 'Desconocido'];
     return '<span class="px-2 py-1 rounded text-xs font-bold ' . $style['bg'] . ' ' . $style['text'] . '">' . $style['label'] . '</span>';
+}
+
+function renderStatusBadge($status) {
+    $map = [
+        1 => ['label' => 'COTIZACIÓN', 'class' => 'bg-blue-500/15 text-blue-400 border border-blue-500/30'],
+        2 => ['label' => 'PENDIENTE',  'class' => 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'],
+        3 => ['label' => 'PAGADO',     'class' => 'bg-green-500/15 text-green-400 border border-green-500/30'],
+        4 => ['label' => 'CANCELADO',  'class' => 'bg-red-500/15 text-red-400 border border-red-500/30'],
+    ];
+
+    $style = isset($map[$status]) ? $map[$status] : ['label' => 'N/A', 'class' => 'bg-gray-500/15 text-gray-400 border border-gray-500/30'];
+    return '<span class="text-[11px] px-2 py-[2px] rounded-full font-medium ' . $style['class'] . '">' . $style['label'] . '</span>';
+}
+
+function renderDeliveryBadge($is_delivered, $status) {
+    if ($status == 1) {
+        return '<span class="text-xs text-gray-400">No aplica</span>';
+    }
+
+    $map = [
+        0 => ['label' => 'No entregado',  'class' => 'bg-red-500/15 text-red-400 border border-red-500/30'],
+        1 => ['label' => 'Entregado',     'class' => 'bg-green-500/15 text-green-400 border border-green-500/30'],
+        2 => ['label' => 'Para producir', 'class' => 'bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/30'],
+    ];
+
+    $style = isset($map[$is_delivered]) ? $map[$is_delivered] : ['label' => 'N/A', 'class' => 'bg-gray-500/15 text-gray-400 border border-gray-500/30'];
+    return '<span class="text-[11px] px-2 py-[2px] rounded-full font-medium ' . $style['class'] . '">' . $style['label'] . '</span>';
+}
+
+function renderDeliveryTypeIcon($delivery_type) {
+    if ($delivery_type == 1) {
+        return '<i class="icon-motorcycle text-amber-500" title="Domicilio"></i>';
+    }
+    return '<i class="icon-home text-gray-300" title="Local"></i>';
 }
 
 $obj = new ctrl();

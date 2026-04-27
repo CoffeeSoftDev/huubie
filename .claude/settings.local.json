@@ -54,5 +54,6 @@
       "Bash(git add *)",
       "Bash(git commit *)"
     ]
-  }
+  },
+  "spinnerTipsEnabled": false
 }

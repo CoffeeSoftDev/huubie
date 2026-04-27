@@ -72,7 +72,13 @@
         <div style="background-color:#111827;" class="w-full max-w-full overflow-x-auto" id="root"></div>
     </div>
 
+    <script src="src/js/reportes-pdf-styles.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/reportes.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/reportes-corte.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/reportes-tickets.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/reportes-turnos.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/reportes-daily.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/reportes-pedidos-detalle.js?t=<?php echo time(); ?>"></script>
 
 </body>
 </html>
