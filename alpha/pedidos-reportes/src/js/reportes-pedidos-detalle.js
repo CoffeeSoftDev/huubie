@@ -2,30 +2,42 @@ class OrderDetailsReport extends AppReportes {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = "ReportesPedidosDetalle";
-        this._estadoVal    = '2';
-        this._descuentoVal = 'todos';
+
+        this._estadoVal     = '2';
+        this._descuentoVal  = 'todos';
+        this._dateModeLocal = 'range';
+        this._fiLocal       = moment().startOf('month').format('YYYY-MM-DD');
+        this._ffLocal       = moment().format('YYYY-MM-DD');
     }
 
-    async render() {
+    render() {
+        this.layoutPedidosDetalle();
+        this.filterBarPedidosDetalle();
+        this.lsPedidosDetalle();
+    }
+
+    layoutPedidosDetalle() {
         const container = $(`#container-pedidos-detalle`);
 
+        container.empty();
+        container.append(
+            $("<div>", { id: 'pedidos-detalle-filter-bar', class: "mb-2" }),
+            $("<div>", { id: 'pedidos-detalle-table-container' })
+        );
+    }
+
+    async lsPedidosDetalle() {
         this._estadoVal    = $(`#filtroEstadoPedidosDetalle`).val()    || this._estadoVal;
         this._descuentoVal = $(`#filtroDescuentoPedidosDetalle`).val() || this._descuentoVal;
 
-        container.empty();
-        container.html(`
-            <div id="pedidos-detalle-filter-bar" class="mb-2"></div>
-            <div id="pedidos-detalle-table-container"></div>
-        `);
+        const params = this.getFilterParams();
 
-        this.renderPedidosDetalleFilterBar();
-
-        let params = appReportes.getFilterParams();
+        this._renderLoader('pedidos-detalle-table-container');
 
         const data = await useFetch({ url: this._link, data: { opc: "lsPedidosDetalle", ...params } });
 
         this.createCoffeeTable3({
-            parent: `pedidos-detalle-table-container`,
+            parent: 'pedidos-detalle-table-container',
             id:     `tb${this.PROJECT_NAME}`,
             theme:  'dark',
 
@@ -44,22 +56,46 @@ class OrderDetailsReport extends AppReportes {
             data: data,
         });
 
-       
+        simple_data_table(`#tb${this.PROJECT_NAME}`, 20);
 
-        // if (data.totals) {
-        //     this.renderPedidosTotalsBar(data.totals, 'pedidos-detalle-table-container');
-        // }
+        if (data.totals) {
+            this.renderPedidosTotalsBar(data.totals, 'pedidos-detalle-table-container');
+        }
     }
 
- 
+    _renderLoader(parentId) {
+        const wrapper = $("<div>", { class: "flex flex-col items-center justify-center py-16" });
+        const spinner = $("<div>", { class: "w-10 h-10 border-4 border-gray-600 border-t-blue-400 rounded-full animate-spin mb-4" });
+        const text    = $("<p>", { class: "text-gray-400 text-sm", text: "Cargando datos..." });
 
-    renderPedidosDetalleFilterBar() {
+        wrapper.append(spinner, text);
+        $(`#${parentId}`).html(wrapper);
+    }
+
+    filterBarPedidosDetalle() {
         this.createfilterBar({
             parent: 'pedidos-detalle-filter-bar',
             data: [
                 {
                     opc: "select",
-                    id: "filtroEstadoPedidosDetalle",
+                    id: 'dateModePedidosDetalle',
+                    lbl: "Modo de consulta:",
+                    class: "col-12 col-md-3 col-lg-2",
+                    onchange: "orderDetailsReport.toggleDateModeLocal()",
+                    data: [
+                        { id: "single", valor: "Dia unico" },
+                        { id: "range",  valor: "Rango de fechas" }
+                    ]
+                },
+                {
+                    opc: "input-calendar",
+                    id: 'calendarPedidosDetalle',
+                    lbl: "Consultar fecha: ",
+                    class: "col-12 col-md-3 col-lg-2",
+                },
+                {
+                    opc: "select",
+                    id: 'filtroEstadoPedidosDetalle',
                     lbl: "Estado:",
                     class: "col-12 col-md-3 col-lg-2",
                     onchange: "orderDetailsReport.render()",
@@ -73,96 +109,244 @@ class OrderDetailsReport extends AppReportes {
                 },
                 {
                     opc: "select",
-                    id: "filtroDescuentoPedidosDetalle",
-                    lbl: "Descuento:",
+                    id: 'filtroDescuentoPedidosDetalle',
+                    lbl: "Filtrar por:",
                     class: "col-12 col-md-3 col-lg-2",
                     onchange: "orderDetailsReport.render()",
                     data: [
-                        { id: "todos", valor: "Todos" },
-                        { id: "con", valor: "Con descuento" },
-                        { id: "sin", valor: "Sin descuento" }
+                        { id: "todos", valor: "Sin filtro" },
+                        { id: "con",   valor: "Con descuento" },
+                        { id: "sin",   valor: "Sin descuento" }
                     ]
                 },
-                {
-                    opc: "button",
-                    id: "btnPrintPedidosDetalle",
-                    text: "Imprimir",
-                    class: "col-12 col-md-2 col-lg-2",
-                    icono: "icon-print",
-                    color_btn: "primary",
-                    onClick: () => this.printPedidosDetalle()
-                }
             ]
         });
 
+        $(`#dateModePedidosDetalle`).val(this._dateModeLocal);
         $(`#filtroEstadoPedidosDetalle`).val(this._estadoVal);
         $(`#filtroDescuentoPedidosDetalle`).val(this._descuentoVal);
+
+        this._renderDatePickerLocal();
+    }
+
+    _renderDatePickerLocal() {
+        const parentId = 'calendarPedidosDetalle';
+
+        $(`#${parentId}`).empty();
+
+        if (this._dateModeLocal === 'single') {
+            dataPicker({
+                parent: parentId,
+                type: 'simple',
+                rangeDefault: {
+                    startDate: moment(this._ffLocal),
+                    singleDatePicker: true,
+                    showDropdowns: true,
+                    autoApply: true,
+                    maxDate: moment(),
+                    locale: { format: "DD-MM-YYYY" }
+                },
+                onSelect: (start, end) => {
+                    this._fiLocal = start.format('YYYY-MM-DD');
+                    this._ffLocal = end.format('YYYY-MM-DD');
+                    this.render();
+                }
+            });
+            return;
+        }
+
+        dataPicker({
+            parent: parentId,
+            type: 'all',
+            rangepicker: {
+                startDate: moment(this._fiLocal),
+                endDate:   moment(this._ffLocal),
+                showDropdowns: true,
+                autoApply: true,
+                locale: { format: "DD-MM-YYYY" },
+                ranges: {
+                    'Hoy': [moment().startOf("day"), moment().endOf("day")],
+                    'Ayer': [moment().subtract(1, "day").startOf("day"), moment().subtract(1, "day").endOf("day")],
+                    'Semana actual': [moment().startOf("week"), moment()],
+                    'Semana anterior': [moment().subtract(1, "week").startOf("week"), moment().subtract(1, "week").endOf("week")],
+                    'Mes actual': [moment().startOf("month"), moment()],
+                    'Mes anterior': [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")],
+                    'Personalizar': [moment().startOf("month"), moment()],
+                },
+            },
+            onSelect: (start, end) => {
+                this._fiLocal = start.format('YYYY-MM-DD');
+                this._ffLocal = end.format('YYYY-MM-DD');
+                this.render();
+            }
+        });
+    }
+
+    toggleDateModeLocal() {
+        this._dateModeLocal = $(`#dateModePedidosDetalle`).val();
+
+        if (this._dateModeLocal === 'single') {
+            this._fiLocal = moment().format('YYYY-MM-DD');
+            this._ffLocal = moment().format('YYYY-MM-DD');
+        } else {
+            this._fiLocal = moment().startOf('month').format('YYYY-MM-DD');
+            this._ffLocal = moment().format('YYYY-MM-DD');
+        }
+
+        this._renderDatePickerLocal();
+        this.render();
+    }
+
+    getFilterParams() {
+        let rangePicker = getDataRangePicker('calendarPedidosDetalle');
+        let sub_id    = $(`#filterBar${appReportes.PROJECT_NAME} #subsidiaries_id`).val() || '0';
+        let estado    = $(`#filtroEstadoPedidosDetalle`).val() || '0';
+        let descuento = $(`#filtroDescuentoPedidosDetalle`).val() || 'todos';
+
+        let fi = rangePicker.fi;
+        let ff = this._dateModeLocal === 'single' ? rangePicker.fi : rangePicker.ff;
+
+        this._fiLocal = fi;
+        this._ffLocal = ff;
+
+        return {
+            fi: fi,
+            ff: ff,
+            sub_id: sub_id,
+            estado: estado,
+            descuento: descuento
+        };
     }
 
     renderPedidosTotalsBar(totals, parent) {
-        let existingBar = $(`#totalsBarReportesPedidosDetalle`);
-        if (existingBar.length) existingBar.remove();
+        const wrapperId = `totalsBar${this.PROJECT_NAME}`;
+        $(`#${wrapperId}`).remove();
 
-        let html = `
-            <div id="totalsBarReportesPedidosDetalle" class="row g-2 mb-3 mt-2">
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #374151">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Pedidos</div>
-                        <div class="fw-bold text-white" style="font-size:15px">${totals.total_pedidos}</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #374151">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Total Bruto</div>
-                        <div class="fw-bold text-white" style="font-size:15px">${totals.bruto}</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #FBBF24">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Descuentos</div>
-                        <div class="fw-bold" style="font-size:15px;color:#FBBF24">${totals.descuento}</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #10B981">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Total Neto</div>
-                        <div class="fw-bold" style="font-size:15px;color:#34D399">${totals.neto}</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #34D399">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Abonado</div>
-                        <div class="fw-bold" style="font-size:15px;color:#34D399">${totals.abono}</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #F87171">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Saldo</div>
-                        <div class="fw-bold" style="font-size:15px;color:#F87171">${totals.saldo}</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #374151">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Efectivo</div>
-                        <div class="fw-bold text-info" style="font-size:15px">${totals.efectivo}</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #374151">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Tarjeta</div>
-                        <div class="fw-bold" style="font-size:15px;color:#A78BFA">${totals.tarjeta}</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 rounded text-center" style="background:#283341;border:1px solid #374151">
-                        <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">Transferencia</div>
-                        <div class="fw-bold text-warning" style="font-size:15px">${totals.transferencia}</div>
-                    </div>
-                </div>
-            </div>
-        `;
+        $(`#${parent}`).prepend(`<div id="${wrapperId}" class="mb-3 mt-2"></div>`);
 
-        $(`#${parent}`).prepend(html);
+        const json = [
+            { title: "Pedidos",       data: { value: totals.total_pedidos, color: "text-white" } },
+            { title: "Total Bruto",   data: { value: totals.bruto,         color: "text-white" } },
+            { title: "Descuentos",    data: { value: totals.descuento,     color: "text-[#FBBF24]" } },
+            { title: "Total Neto",    data: { value: totals.neto,          color: "text-[#34D399]" } },
+            { title: "Abonado",       data: { value: totals.abono,         color: "text-[#34D399]" } },
+            { title: "Saldo",         data: { value: totals.saldo,         color: "text-[#F87171]" } },
+            { title: "Efectivo",      data: { value: totals.efectivo,      color: "text-info" } },
+            { title: "Tarjeta",       data: { value: totals.tarjeta,       color: "text-[#A78BFA]" } },
+            { title: "Transferencia", data: { value: totals.transferencia, color: "text-warning" } },
+        ];
+
+        this.coffeeCards({
+            parent: wrapperId,
+            id:     `kpi${this.PROJECT_NAME}`,
+            theme:  "dark",
+            class:  "grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-2",
+            json:   json
+        });
+    }
+
+
+    coffeeCards(options) {
+        const defaults = {
+            parent: "root",
+            id: "infoCardKPI",
+            class: "",
+            theme: "light", // light | dark
+            json: [],
+            data: {
+                value: "0",
+                description: "",
+                color: "text-gray-800"
+            },
+            onClick: () => { }
+        };
+
+        const opts = Object.assign({}, defaults, options);
+        const isDark = opts.theme === "dark";
+
+        const chipMap = {
+            "text-white":     "bg-gray-500/20 text-gray-400",
+            "text-[#FBBF24]": "bg-yellow-500/20 text-yellow-400",
+            "text-[#34D399]": "bg-green-500/20 text-green-400",
+            "text-info":      "bg-blue-500/20 text-blue-400",
+            "text-[#A78BFA]": "bg-purple-500/20 text-purple-400",
+            "text-warning":   "bg-orange-500/20 text-orange-400",
+            "text-[#F87171]": "bg-red-500/20 text-red-400"
+        };
+
+        const bgMap = {
+            "text-white":     "!bg-gray-500/20 !border-gray-500/40",
+            "text-[#FBBF24]": "!bg-yellow-500/20 !border-yellow-500/40",
+            "text-[#34D399]": "!bg-green-500/20 !border-green-500/40",
+            "text-info":      "!bg-blue-500/20 !border-blue-500/40",
+            "text-[#A78BFA]": "!bg-purple-500/20 !border-purple-500/40",
+            "text-warning":   "!bg-orange-500/20 !border-orange-500/40",
+            "text-[#F87171]": "!bg-red-500/20 !border-red-500/40"
+        };
+
+        const cardBase = isDark
+            ? "bg-[#1F2A37] border border-gray-700/60 rounded-xl"
+            : "bg-white border border-[#e5e7eb] rounded-xl";
+
+        const valuePrimary = isDark ? "text-white" : "text-[#111928]";
+        const titlePrimary = isDark ? "text-white" : "text-[#111928]";
+
+        const renderCard = (card, i = "") => {
+            const colorKey  = card.data?.color || valuePrimary;
+            const chipClass = chipMap[colorKey] || chipMap["text-white"];
+            const bgClass   = bgMap[colorKey]   || bgMap["text-white"];
+
+            const box = $("<div>", {
+                id: `${opts.id}_${i}`,
+                class: `${cardBase} ${bgClass} p-3`
+            });
+
+            const topRow = $("<div>", { class: "flex items-start justify-between mb-1 gap-2" });
+
+            const value = $("<p>", {
+                id: card.id || "",
+                class: `text-xl lg:text-2xl font-bold tabular-nums tracking-tight truncate ${valuePrimary}`,
+                text: card.data?.value
+            });
+
+            const chip = $("<span>", {
+                class: `w-2 h-2 rounded-full mt-2 flex-shrink-0 !${chipClass}`
+            });
+
+            topRow.append(value, chip);
+
+            const title = $("<p>", {
+                class: `text-xs font-semibold truncate ${titlePrimary}`,
+                text: card.title
+            });
+
+            box.append(topRow, title);
+
+            if (card.data?.description) {
+                const description = $("<p>", {
+                    class: `text-[10px] text-gray-500 truncate mt-0.5`,
+                    text: card.data.description
+                });
+                box.append(description);
+            }
+
+            return box;
+        };
+
+        const container = $("<div>", {
+            id: opts.id,
+            class: `grid grid-cols-2 md:grid-cols-4 gap-4 ${opts.class}`
+        });
+
+        if (opts.json.length > 0) {
+            opts.json.forEach((item, i) => {
+                container.append(renderCard(item, i));
+            });
+        } else {
+            container.append(renderCard(opts));
+        }
+
+        $(`#${opts.parent}`).html(container);
     }
 
     _stripHtml(html) {
@@ -266,7 +450,7 @@ class OrderDetailsReport extends AppReportes {
     }
 
     async printPedidosDetalle() {
-        let params  = appReportes.getFilterParams();
+        let params  = this.getFilterParams();
         let subName = appReportes.getSubName();
 
         const data = await useFetch({ url: this._link, data: { opc: "lsPedidosDetalle", ...params } });
@@ -297,7 +481,7 @@ class OrderDetailsReport extends AppReportes {
                     </div>
                     <div style="text-align:right;display:flex;align-items:flex-start;gap:12px">
                         <div>
-                            <div class="meta">${appReportes.dateMode === 'single' ? 'Dia' : 'Periodo'}: <span>${appReportes.dateMode === 'single' ? params.fi : `${params.fi} al ${params.ff}`}</span></div>
+                            <div class="meta">${this._dateModeLocal === 'single' ? 'Dia' : 'Periodo'}: <span>${this._dateModeLocal === 'single' ? params.fi : `${params.fi} al ${params.ff}`}</span></div>
                             <div class="meta">Generado: <span>${now}</span></div>
                         </div>
                         <button onclick="window.print()" class="btn-print">Imprimir</button>

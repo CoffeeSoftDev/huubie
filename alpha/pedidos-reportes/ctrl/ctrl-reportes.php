@@ -856,45 +856,74 @@ function statusShift($status) {
     return '<span class="px-2 py-1 rounded text-xs font-bold ' . $style['bg'] . ' ' . $style['text'] . '">' . $style['label'] . '</span>';
 }
 
-function status($idEstado) {
-    $map = [
-        1 => ['label' => 'COTIZACIÓN', 'class' => 'bg-blue-500/15 text-blue-400 border border-blue-500/30'],
-        2 => ['label' => 'PENDIENTE',  'class' => 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'],
-        3 => ['label' => 'PAGADO',     'class' => 'bg-green-500/15 text-green-400 border border-green-500/30'],
-        4 => ['label' => 'CANCELADO',  'class' => 'bg-red-500/15 text-red-400 border border-red-500/30'],
-    ];
+function status($idEstado){
+    switch ($idEstado) {
+        case 1:
+            return '<span class="bg-[#9EBBDB] w-32 text-[#2A55A3] text-[10px] font-semibold mr-2 px-3 py-1 rounded">COTIZACIÓN</span>';
+        case 2:
+            return '<span class="bg-[#633112] w-32 text-[#F2C215] text-[10px] font-semibold mr-2 px-3 py-1 rounded">PENDIENTE</span>';
+        case 3:
+            return '<span class="bg-[#014737] w-32 text-[#3FC189] text-[10px] font-semibold mr-2 px-3 py-1 rounded">PAGADO</span>';
+        case 4:
+            return '<span class="bg-[#572A34] w-32 text-[#E05562] text-[10px] font-semibold mr-2 px-3 py-1 rounded">CANCELADO</span>';
 
-    $style = $map[$idEstado] ?? ['label' => 'N/A', 'class' => 'bg-gray-500/15 text-gray-400 border border-gray-500/30'];
-
-    return '<span class="text-[11px] px-[10px] py-[2px] rounded-full font-medium ' . $style['class'] . '">' . $style['label'] . '</span>';
+    }
 }
 
 function renderDeliveryStatus($order) {
-    $status      = $order['idStatus'] ?? $order['status'];
+    $orderId     = $order['id'];
+    $status      = $order['idStatus'];
     $isDelivered = isset($order['is_delivered']) ? intval($order['is_delivered']) : 0;
+    $folio       = $order['folio'] ?? '';
 
     if ($status == 1) {
-        return '<span class="text-[11px] text-gray-400">No aplica</span>';
+        return '<span text="text-gray-400">No aplica</span>';
     }
 
-    $map = [
-        0 => ['label' => 'No entregado',  'icon' => 'icon-cancel',   'class' => 'bg-red-500/15 text-red-400 border border-red-500/30'],
-        1 => ['label' => 'Entregado',     'icon' => 'icon-ok',       'class' => 'bg-green-500/15 text-green-400 border border-green-500/30'],
-        2 => ['label' => 'Para producir', 'icon' => 'icon-birthday', 'class' => 'bg-pink-500/15 text-pink-400 border border-pink-500/30'],
-    ];
+    // Estados: 0 = No entregado, 1 = Entregado, 2 = Para producir
+    switch ($isDelivered) {
+        case 1:
+            $bgColor = 'bg-[#014737]';
+            $textColor = 'text-[#3FC189]';
+            $icon = 'icon-ok';
+            $text = 'Entregado';
+            break;
+        case 2:
+            $bgColor = 'bg-[#831843]';
+            $textColor = 'text-[#f472b6]';
+            $icon = 'icon-birthday';
+            $text = 'Para producir';
+            break;
+        default:
+            $bgColor = 'bg-[#572A34]';
+            $textColor = 'text-[#E05562]';
+            $icon = 'icon-cancela';
+            $text = 'No entregado';
+            break;
+    }
 
-    $style = $map[$isDelivered] ?? ['label' => 'N/A', 'icon' => 'icon-help', 'class' => 'bg-gray-500/15 text-gray-400 border border-gray-500/30'];
+    $clickable = $status != 4;
+    $cursorClass = $clickable ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-60';
+    $onclick = $clickable ? "onclick=\"app.handleDeliveryClick({$orderId}, {$isDelivered}, '{$folio}')\"" : '';
 
-    return '<span class="inline-flex items-center gap-1 text-[11px] px-[10px] py-[2px] rounded-full font-medium ' . $style['class'] . '"><i class="' . $style['icon'] . '"></i> ' . $style['label'] . '</span>';
+    return "<span
+                class=\"{$bgColor} w-32 {$textColor} text-[10px] font-semibold mr-2 px-2 py-1 rounded {$cursorClass}\"
+                {$onclick}
+                data-order-id=\"{$orderId}\"
+                data-delivered=\"{$isDelivered}\">
+                <i class=\"{$icon}\"></i> {$text}
+            </span>";
 }
+
 
 function renderDeliveryType($deliveryType) {
     $deliveryType = $deliveryType ?? 'local';
-
+    
     if ($deliveryType == 1) {
         return '<i class="icon-motorcycle text-amber-500 text-xl" title="Entrega a domicilio"></i>';
+    } else {
+        return '<i class="icon-home text-gray-300 text-xl" title="Entrega local"></i>';
     }
-    return '<i class="icon-home text-gray-300 text-xl" title="Entrega local"></i>';
 }
 
 function formatSucursal($compania, $sucursal = null, $numero = null) {

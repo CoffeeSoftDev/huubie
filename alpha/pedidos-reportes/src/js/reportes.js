@@ -42,8 +42,9 @@ class AppReportes extends Templates {
     render() {
         this.layout();
         this.createFilterBar();
-        this._toggleAdvancedFilters(false);
-        summaryReport.render();
+        this._toggleAdvancedFilters(true);
+        this._toggleGlobalDateFilters(false);
+        this.currentTab = 'pedidos-detalle';
     }
 
     layout() {
@@ -71,12 +72,24 @@ class AppReportes extends Templates {
             type: "short",
             json: [
                 {
+                    id: "pedidos-detalle",
+                    tab: "Detalles de Pedidos",
+                    active: true,
+                    onClick: () => {
+                        this.currentTab = 'pedidos-detalle';
+                        this._toggleAdvancedFilters(true);
+                        this._toggleGlobalDateFilters(false);
+                        orderDetailsReport.render();
+                    }
+                },
+                {
                     id: "corte",
                     tab: "Resumen Corte",
-                 
+
                     onClick: () => {
                         this.currentTab = 'corte';
                         this._toggleAdvancedFilters(false);
+                        this._toggleGlobalDateFilters(true);
                         summaryReport.render();
                     }
                 },
@@ -86,20 +99,12 @@ class AppReportes extends Templates {
                     onClick: () => {
                         this.currentTab = 'tickets';
                         this._toggleAdvancedFilters(false);
+                        this._toggleGlobalDateFilters(true);
                         ticketsReport.render();
                     }
                 },
                
-                {
-                    id: "pedidos-detalle",
-                    tab: "Detalles de Pedidos",
-                    active: true,
-                    onClick: () => {
-                        this.currentTab = 'pedidos-detalle';
-                        this._toggleAdvancedFilters(true);
-                        orderDetailsReport.render();
-                    }
-                },
+             
 
                 // {
                 //     id: "turnos",
@@ -197,6 +202,22 @@ class AppReportes extends Templates {
             $filters.show();
         } else {
             $filters.hide();
+        }
+    }
+
+    _toggleGlobalDateFilters(visible) {
+        const $dateMode = $(`#filterBar${this.PROJECT_NAME} #dateMode${this.PROJECT_NAME}`).closest('[class*="col-"]');
+        const $calendar = $(`#filterBar${this.PROJECT_NAME} #calendar${this.PROJECT_NAME}`).closest('[class*="col-"]');
+        const $btnBuscar = $(`#filterBar${this.PROJECT_NAME} #btnBuscar`).closest('[class*="col-"]');
+
+        if (visible) {
+            $dateMode.show();
+            $calendar.show();
+            $btnBuscar.show();
+        } else {
+            $dateMode.hide();
+            $calendar.hide();
+            $btnBuscar.hide();
         }
     }
 
