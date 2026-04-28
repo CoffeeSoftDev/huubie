@@ -2,7 +2,7 @@ class OrderDetailsReport extends AppReportes {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = "ReportesPedidosDetalle";
-        this._estadoVal    = '0';
+        this._estadoVal    = '2';
         this._descuentoVal = 'todos';
     }
 
@@ -25,26 +25,33 @@ class OrderDetailsReport extends AppReportes {
         const data = await useFetch({ url: this._link, data: { opc: "lsPedidosDetalle", ...params } });
 
         this.createCoffeeTable3({
-            parent: 'pedidos-detalle-table-container',
-            id: `tbReportesPedidosDetalle`,
-            theme: 'dark',
-            title: 'Detalles de Pedidos',
-            subtitle: `Sucursal: ${appReportes.getSubName()} · Haz clic en un pedido para ver sus items`,
-            center: [9, 10, 11, 12],
-            right: [4, 5, 6, 7, 8],
-            extends: true,
+            parent: `pedidos-detalle-table-container`,
+            id:     `tb${this.PROJECT_NAME}`,
+            theme:  'dark',
+
+            center: [1, 6, 7, 8, 9],
+            right:  [3, 4, 5],
+
+            extends:    true,
+            f_size:     12,
             scrollable: false,
-            folding: true,
-            collapsed:true,
-            color_group: 'bg-[#283341] text-gray-300',
-            // bordered: true,
+            hover:      true,
+
+            folding:     true,
+            collapsed:   true,
+            color_group: 'bg-[#2D3A4A] text-gray-300 !py-1',
+
             data: data,
         });
 
-        if (data.totals) {
-            this.renderPedidosTotalsBar(data.totals, 'pedidos-detalle-table-container');
-        }
+       
+
+        // if (data.totals) {
+        //     this.renderPedidosTotalsBar(data.totals, 'pedidos-detalle-table-container');
+        // }
     }
+
+ 
 
     renderPedidosDetalleFilterBar() {
         this.createfilterBar({
@@ -75,6 +82,15 @@ class OrderDetailsReport extends AppReportes {
                         { id: "con", valor: "Con descuento" },
                         { id: "sin", valor: "Sin descuento" }
                     ]
+                },
+                {
+                    opc: "button",
+                    id: "btnPrintPedidosDetalle",
+                    text: "Imprimir",
+                    class: "col-12 col-md-2 col-lg-2",
+                    icono: "icon-print",
+                    color_btn: "primary",
+                    onClick: () => this.printPedidosDetalle()
                 }
             ]
         });

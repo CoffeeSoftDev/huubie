@@ -634,6 +634,13 @@ class ctrl extends MReportes {
             $descuento, $descuento, $descuento
         ]);
 
+        // Detectar turno abierto solo cuando hay sucursal especifica
+        $currentShiftId = null;
+        if ($sub_id && $sub_id != '0') {
+            $currentShift   = $this->getOpenShiftBySubsidiary([$sub_id]);
+            $currentShiftId = $currentShift ? $currentShift['id'] : null;
+        }
+
         $__row = [];
 
         $totalImporte       = 0;
@@ -648,11 +655,12 @@ class ctrl extends MReportes {
 
         if (is_array($ls)) {
             foreach ($ls as $pedido) {
-                $totalBruto = floatval($pedido['total_pay']);
-                $descuentoP = floatval($pedido['descuento_importe']);
-                $totalNeto  = $totalBruto - $descuentoP;
-                $abono      = floatval($pedido['abono']);
-                $saldo      = $totalNeto - $abono;
+                $totalBruto  = floatval($pedido['total_pay']);
+                $descuentoP  = floatval($pedido['descuento_importe']);
+                $totalNeto   = $totalBruto - $descuentoP;
+                $abono       = floatval($pedido['abono']);
+                $saldo       = $totalNeto - $abono;
+                $hasDiscount = $descuentoP > 0;
 
                 $totalImporte       += $totalNeto;
                 $totalBrutoSum      += $totalBruto;
@@ -664,88 +672,125 @@ class ctrl extends MReportes {
                 $totalTransferencia += floatval($pedido['transferencia']);
                 $totalPedidos++;
 
-                $hoy = date('Y-m-d');
-                $entregaHtml  = '-';
-                $entregaClass = 'text-center text-gray-500';
-                if ($pedido['date_order']) {
-                    $fechaEntrega = $pedido['date_order'];
-                    $mesesAbrev = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                    $dt = new DateTime($fechaEntrega);
-                    $fechaFormateada = $dt->format('d') . '/' . $mesesAbrev[intval($dt->format('m')) - 1] . '/' . $dt->format('Y');
+                $discountReason = $pedido['discount_reason'] ?? '';
 
-                    if ($fechaEntrega == $hoy) {
-                        $entregaHtml  = '<span class="text-[11px] px-2 py-[2px] rounded-full font-medium bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">Hoy</span>';
-                        $entregaClass = 'text-center';
-                    } elseif ($fechaEntrega < $hoy) {
-                        $entregaHtml  = '<span class="text-[11px] px-2 py-[2px] rounded-full font-medium bg-red-500/15 text-red-400 border border-red-500/30">Vencido</span>';
-                        $entregaClass = 'text-center';
-                    } else {
-                        $entregaHtml  = $fechaFormateada;
-                        $entregaClass = 'text-center';
-                    }
-                }
+                $htmlTotal = $hasDiscount
+                    ? "<div class='text-end'>
+                            <p title='Con descuento aplicado' class='text-green-400 cursor-pointer font-semibold'>" . evaluar($totalNeto) . "</p>
+                            <p class='line-through text-gray-500 text-[10px]'>" . evaluar($totalBruto) . "</p>
+                        </div>"
+                    : evaluar($totalBruto);
 
-                $clienteHtml = '<div>' . $pedido['cuenta'] . '</div>';
+                $folio = formatSucursal(
+                    $pedido['company_name'] ?? '',
+                    $pedido['sucursal'] ?? '',
+                    $pedido['id']
+                );
 
-                $saldoHtml = $saldo > 0
-                    ? evaluar($saldo)
-                    : '<span class="text-gray-500">-</span>';
-
-                $abonoHtml = ($pedido['status'] == 1 || $abono <= 0)
-                    ? '<span class="text-gray-500">-</span>'
-                    : evaluar($abono);
-
-                if ($descuentoP > 0) {
-                    $totalHtml = "<div class='text-end'>"
-                        . "<p title='Con descuento aplicado' class='text-green-400 cursor-pointer font-semibold'>" . evaluar($totalNeto) . "</p>"
-                        . "<p class='line-through text-gray-500 text-[10px]'>" . evaluar($totalBruto) . "</p>"
-                        . "<p class='text-gray-500 text-[10px]'><i class='icon-tag'></i> Descuento: " . evaluar($descuentoP) . "</p>"
-                        . "</div>";
-                } else {
-                    $totalHtml = number_format($totalBruto, 2);
-                }
+                $isCurrentShift = $currentShiftId && $pedido['cash_shift_id'] == $currentShiftId;
+                $shiftDot = $isCurrentShift
+                    ? "<span class='inline-block w-1.5 h-1.5 bg-green-400 rounded-full shift-pulse mr-1.5'></span>"
+                    : "<span class='inline-block w-1.5 h-1.5 bg-gray-500 rounded-full mr-1.5'></span>";
 
                 $__row[] = [
-                    'id'                => 'ped_' . $pedido['id'],
-                    'Folio'             => str_pad($pedido['id'], 8, '0', STR_PAD_LEFT),
-                    'Cliente'           => ['html' => $clienteHtml, 'class' => 'text-start'],
-                    'Fecha'             => formatSpanishDate($pedido['fecha_creacion']),
-                    'Total'             => ['html' => $totalHtml, 'class' => 'text-end bg-[#283341]'],
-                    'Abono'             => ['html' => $abonoHtml, 'class' => 'text-[#3FC189] text-end bg-[#283341]'],
-                    'Saldo'             => ['html' => $saldoHtml, 'class' => 'text-[#E05562] text-end bg-[#283341]'],
-                    'Fecha De Entrega'  => ['html' => $entregaHtml, 'class' => $entregaClass],
-                    'Estado'            => ['html' => renderStatusBadge($pedido['status']), 'class' => 'text-center'],
-                    'Entregado'         => ['html' => renderDeliveryBadge($pedido['is_delivered'], $pedido['status']), 'class' => 'text-center'],
-                    'Tipo'              => ['html' => renderDeliveryTypeIcon($pedido['delivery_type']), 'class' => 'text-center'],
-                    'opc'               => 1
+                    'id'       => $pedido['id'],
+                    'Creación' => formatSpanishDate($pedido['fecha_creacion']),
+
+                    'Cliente' => [
+                        'html' => "
+                            <p class='text-gray-300'>{$pedido['cuenta']}</p>
+                            <p class='text-gray-500 text-[10px]'>{$shiftDot}{$folio}</p>
+                        "
+                    ],
+                    'Abono' => [
+                        'html'  => evaluar($abono),
+                        'class' => 'text-[#3FC189] text-end bg-[#283341]'
+                    ],
+
+                    'Total' => [
+                        'html'  => $htmlTotal,
+                        'class' => 'text-end bg-[#283341]'
+                    ],
+
+                    'Saldo' => [
+                        'html'  => evaluar($saldo),
+                        'class' => 'text-[#E05562] text-end bg-[#283341]'
+                    ],
+
+                    'Entrega' => formatDeliveryDateTime($pedido['date_order'], $pedido['time_order']),
+                    'Estado'           => status($pedido['status']),
+
+                    'Entregado' => [
+                        'html'  => renderDeliveryStatus(array_merge($pedido, ['idStatus' => $pedido['status'], 'folio' => $folio])),
+                        'class' => 'text-center'
+                    ],
+
+                    'Tipo' => [
+                        'html'  => renderDeliveryType($pedido['delivery_type']),
+                        'class' => 'text-center'
+                    ],
+
+                    'opc' => 1
                 ];
 
                 $items = $this->getPedidoItemsByOrder([$pedido['id']]);
-                if (is_array($items) && count($items) > 0) {
-                    $itemsHtml = '<div class="pl-4 py-1">';
+                $payments = $this->listPaymentsByOrder([$pedido['id']]);
+
+                if ((is_array($items) && count($items) > 0) || (is_array($payments) && count($payments) > 0) || $hasDiscount) {
+                    $itemsHtml = '';
                     $itemsTotal = 0;
-                    foreach ($items as $item) {
-                        $itemsHtml .= '<div>' . $item['nombre']
-                            . ' <span class="text-gray-400">x' . intval($item['quantity']) . '</span>'
-                            . ' <span class="text-gray-500 ml-2">' . evaluar($item['subtotal']) . '</span>'
-                            . '</div>';
-                        $itemsTotal += floatval($item['subtotal']);
+
+                    if (is_array($items) && count($items) > 0) {
+                        $itemsHtml = '<div class="pl-4 py-1">';
+                        foreach ($items as $item) {
+                            $itemsHtml .= '<div>' . $item['nombre']
+                                . ' <span class="text-gray-400">x' . intval($item['quantity']) . '</span>'
+                                . ' <span class="text-gray-500 ml-2">' . evaluar($item['subtotal']) . '</span>'
+                                . '</div>';
+                            $itemsTotal += floatval($item['subtotal']);
+                        }
+                        $itemsHtml .= '</div>';
                     }
-                    $itemsHtml .= '</div>';
+
+                    $paymentsHtml = '';
+                    if (is_array($payments) && count($payments) > 0) {
+                        $paymentsHtml = '<div class="py-1 space-y-1">';
+                        foreach ($payments as $payment) {
+                            $paymentsHtml .= '<div class="flex justify-between text-[10px]">'
+                                . '<span class="text-gray-400">' . formatDeliveryDateTime($payment['date_pay'], '') . '</span>'
+                                . '<span class="text-gray-300 ml-2">' . $payment['method_pay'] . '</span>'
+                                . '<span class="text-[#3FC189] ml-2">' . evaluar($payment['pay']) . '</span>'
+                                . '</div>';
+                        }
+                        $paymentsHtml .= '</div>';
+                    }
+
+                    $subTotalHtml = '';
+                    if ($itemsTotal > 0) {
+                        $subTotalHtml = "<div class='text-end'>"
+                            . "<p>" . evaluar($itemsTotal) . "</p>";
+                        if ($hasDiscount) {
+                            $subTotalHtml .= "<p class='text-[10px]'><i class='icon-tag'></i> -" . evaluar($descuentoP) . "</p>";
+                            if ($discountReason) {
+                                $subTotalHtml .= "<p class='text-yellow-500 text-[10px]'><i class='icon-info'></i> " . $discountReason . "</p>";
+                            }
+                            $subTotalHtml .= "<p class='text-green-400 font-semibold border-t border-gray-600 mt-1 pt-1'>" . evaluar($totalNeto) . "</p>";
+                        }
+                        $subTotalHtml .= "</div>";
+                    }
 
                     $__row[] = [
-                        'id'                => 'ped_' . $pedido['id'] . '_items',
-                        'Folio'             => '',
-                        'Cliente'           => ['html' => $itemsHtml, 'class' => 'text-start text-base'],
-                        'Fecha'             => '',
-                        'Total'             => ['html' => evaluar($itemsTotal), 'class' => 'text-end bg-[#283341]'],
-                        'Abono'             => '',
-                        'Saldo'             => '',
-                        'Fecha De Entrega'  => '',
-                        'Estado'            => '',
-                        'Entregado'         => '',
-                        'Tipo'              => '',
-                        'opc'               => 0
+                        'id'               => 'ped_' . $pedido['id'] . '_items',
+                        'Creación'         => '',
+                        'Cliente'          => $itemsHtml ? ['html' => $itemsHtml, 'class' => 'text-start text-base'] : '',
+                        'Abono'            => $paymentsHtml ? ['html' => $paymentsHtml, 'class' => 'bg-[#283341]'] : '',
+                        'Total'            => $subTotalHtml ? ['html' => $subTotalHtml, 'class' => 'text-end bg-[#283340]'] : '',
+                        'Saldo'            => '',
+                        'Entrega'          => '',
+                        'Estado'           => '',
+                        'Entregado'        => '',
+                        'Tipo'             => '',
+                        'opc'              => 0
                     ];
                 }
             }
@@ -770,6 +815,24 @@ class ctrl extends MReportes {
 }
 
 // Complements
+function formatDeliveryDateTime($date, $time) {
+    $meses = [1=>'enero',2=>'febrero',3=>'marzo',4=>'abril',5=>'mayo',6=>'junio',7=>'julio',8=>'agosto',9=>'septiembre',10=>'octubre',11=>'noviembre',12=>'diciembre'];
+
+    if (empty($date)) return '';
+
+    $ts  = strtotime($date);
+    $dia = date('d', $ts);
+    $mes = $meses[intval(date('m', $ts))];
+    $anio = date('Y', $ts);
+
+    $hora = '';
+    if (!empty($time)) {
+        $hora = ' ' . date('g:i A', strtotime($time));
+    }
+
+    return "{$dia}/{$mes}/{$anio}{$hora}";
+}
+
 function buildProductHtml($productos) {
     if (!is_array($productos) || empty($productos)) return '<span class="text-gray-500 text-xs">Sin productos</span>';
 
@@ -793,7 +856,7 @@ function statusShift($status) {
     return '<span class="px-2 py-1 rounded text-xs font-bold ' . $style['bg'] . ' ' . $style['text'] . '">' . $style['label'] . '</span>';
 }
 
-function renderStatusBadge($status) {
+function status($idEstado) {
     $map = [
         1 => ['label' => 'COTIZACIÓN', 'class' => 'bg-blue-500/15 text-blue-400 border border-blue-500/30'],
         2 => ['label' => 'PENDIENTE',  'class' => 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'],
@@ -801,30 +864,47 @@ function renderStatusBadge($status) {
         4 => ['label' => 'CANCELADO',  'class' => 'bg-red-500/15 text-red-400 border border-red-500/30'],
     ];
 
-    $style = isset($map[$status]) ? $map[$status] : ['label' => 'N/A', 'class' => 'bg-gray-500/15 text-gray-400 border border-gray-500/30'];
-    return '<span class="text-[11px] px-2 py-[2px] rounded-full font-medium ' . $style['class'] . '">' . $style['label'] . '</span>';
+    $style = $map[$idEstado] ?? ['label' => 'N/A', 'class' => 'bg-gray-500/15 text-gray-400 border border-gray-500/30'];
+
+    return '<span class="text-[11px] px-[10px] py-[2px] rounded-full font-medium ' . $style['class'] . '">' . $style['label'] . '</span>';
 }
 
-function renderDeliveryBadge($is_delivered, $status) {
+function renderDeliveryStatus($order) {
+    $status      = $order['idStatus'] ?? $order['status'];
+    $isDelivered = isset($order['is_delivered']) ? intval($order['is_delivered']) : 0;
+
     if ($status == 1) {
-        return '<span class="text-xs text-gray-400">No aplica</span>';
+        return '<span class="text-[11px] text-gray-400">No aplica</span>';
     }
 
     $map = [
-        0 => ['label' => 'No entregado',  'class' => 'bg-red-500/15 text-red-400 border border-red-500/30'],
-        1 => ['label' => 'Entregado',     'class' => 'bg-green-500/15 text-green-400 border border-green-500/30'],
-        2 => ['label' => 'Para producir', 'class' => 'bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/30'],
+        0 => ['label' => 'No entregado',  'icon' => 'icon-cancel',   'class' => 'bg-red-500/15 text-red-400 border border-red-500/30'],
+        1 => ['label' => 'Entregado',     'icon' => 'icon-ok',       'class' => 'bg-green-500/15 text-green-400 border border-green-500/30'],
+        2 => ['label' => 'Para producir', 'icon' => 'icon-birthday', 'class' => 'bg-pink-500/15 text-pink-400 border border-pink-500/30'],
     ];
 
-    $style = isset($map[$is_delivered]) ? $map[$is_delivered] : ['label' => 'N/A', 'class' => 'bg-gray-500/15 text-gray-400 border border-gray-500/30'];
-    return '<span class="text-[11px] px-2 py-[2px] rounded-full font-medium ' . $style['class'] . '">' . $style['label'] . '</span>';
+    $style = $map[$isDelivered] ?? ['label' => 'N/A', 'icon' => 'icon-help', 'class' => 'bg-gray-500/15 text-gray-400 border border-gray-500/30'];
+
+    return '<span class="inline-flex items-center gap-1 text-[11px] px-[10px] py-[2px] rounded-full font-medium ' . $style['class'] . '"><i class="' . $style['icon'] . '"></i> ' . $style['label'] . '</span>';
 }
 
-function renderDeliveryTypeIcon($delivery_type) {
-    if ($delivery_type == 1) {
-        return '<i class="icon-motorcycle text-amber-500" title="Domicilio"></i>';
+function renderDeliveryType($deliveryType) {
+    $deliveryType = $deliveryType ?? 'local';
+
+    if ($deliveryType == 1) {
+        return '<i class="icon-motorcycle text-amber-500 text-xl" title="Entrega a domicilio"></i>';
     }
-    return '<i class="icon-home text-gray-300" title="Local"></i>';
+    return '<i class="icon-home text-gray-300 text-xl" title="Entrega local"></i>';
+}
+
+function formatSucursal($compania, $sucursal = null, $numero = null) {
+    $letraCompania = strtoupper(substr(trim($compania), 0, 1));
+    $letraSucursal = $sucursal === null ? 'X' : strtoupper(substr(trim($sucursal), 0, 1));
+
+    $number          = $numero ?? rand(1, 99);
+    $formattedNumber = str_pad($number, 2, '0', STR_PAD_LEFT);
+
+    return 'P-' . $letraCompania . $letraSucursal . '-' . $formattedNumber;
 }
 
 $obj = new ctrl();

@@ -242,7 +242,10 @@ class MReportes extends CRUD {
                 COALESCE(c.name, 'Sin cliente') as cuenta,
                 COALESCE(c.phone, '') as phone,
                 COALESCE(o.discount, 0) as descuento_importe,
+                COALESCE(o.info_discount, '') as discount_reason,
                 COALESCE(o.total_pay, 0) as total_pay,
+                COALESCE(comp.social_name, '') as company_name,
+                COALESCE(s.name, '') as sucursal,
                 COALESCE(SUM(pp.pay), 0) as abono,
                 COALESCE(SUM(CASE WHEN pp.method_pay_id = 1 THEN pp.pay ELSE 0 END), 0) as efectivo,
                 COALESCE(SUM(CASE WHEN pp.method_pay_id = 2 THEN pp.pay ELSE 0 END), 0) as tarjeta,
@@ -250,6 +253,8 @@ class MReportes extends CRUD {
             FROM {$this->bd}`order` o
             LEFT JOIN {$this->bd}order_clients c ON o.client_id = c.id
             LEFT JOIN {$this->bd}order_payments pp ON pp.order_id = o.id
+            LEFT JOIN fayxzvov_alpha.subsidiaries s ON s.id = o.subsidiaries_id
+            LEFT JOIN fayxzvov_admin.companies comp ON comp.id = s.companies_id
             WHERE DATE(o.date_creation) BETWEEN ? AND ?
             AND (o.subsidiaries_id = ? OR ? = '0')
             AND (o.status = ? OR ? = '0')
@@ -262,6 +267,18 @@ class MReportes extends CRUD {
             ORDER BY o.id DESC
         ";
         return $this->_Read($query, $array);
+    }
+
+    function getOpenShiftBySubsidiary($array) {
+        $query = "
+            SELECT cs.*, u.fullname AS employee_name
+            FROM {$this->bd}cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
     }
 
     function getPedidoItemsByOrder($array) {
@@ -288,6 +305,21 @@ class MReportes extends CRUD {
             FROM {$this->bdAlpha}subsidiaries
             WHERE companies_id = ?
             ORDER BY name
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function listPaymentsByOrder($array) {
+        $query = "
+            SELECT
+                op.id,
+                op.date_pay,
+                op.pay,
+                mp.method_pay
+            FROM {$this->bd}order_payments op
+            INNER JOIN {$this->bd}method_pay mp ON op.method_pay_id = mp.id
+            WHERE op.order_id = ?
+            ORDER BY op.id ASC
         ";
         return $this->_Read($query, $array);
     }

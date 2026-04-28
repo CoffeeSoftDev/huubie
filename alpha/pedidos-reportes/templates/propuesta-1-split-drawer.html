@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huubie - Reporte Pedidos Detalle | Propuesta 1: Split Panel + Drawer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; height:100vh; overflow:hidden; }
+
+        /* Scrollbar */
+        .scrollbar-thin::-webkit-scrollbar { width:6px; height:6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background:#4b5563; }
+
+        /* Inputs */
+        .input-base { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:7px 12px; font-size:12px; color:#d1d5db; transition:.15s; }
+        .input-base:focus { outline:none; border-color:#7c3aed; box-shadow:0 0 0 2px rgba(124,58,237,.15); }
+        .input-base::placeholder { color:#6b7280; }
+
+        /* Badges */
+        .badge-base { display:inline-flex; align-items:center; padding:3px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; letter-spacing:.5px; }
+        .badge-liquidado { background:rgba(63,193,137,.15); color:#3fc189; border-color:rgba(63,193,137,.35); }
+        .badge-pendiente { background:rgba(251,191,36,.15); color:#fbbf24; border-color:rgba(251,191,36,.3); }
+        .badge-parcial { background:rgba(59,130,246,.15); color:#60a5fa; border-color:rgba(59,130,246,.35); }
+        .badge-cancelado { background:rgba(234,2,52,.15); color:#f87171; border-color:rgba(234,2,52,.35); }
+        .badge-cotizacion { background:rgba(156,163,175,.15); color:#9ca3af; border-color:rgba(156,163,175,.3); }
+
+        /* Pedido Row en lista */
+        .pedido-item {
+            background:#1F2A37;
+            border:1px solid rgba(55,65,81,.6);
+            border-left:3px solid transparent;
+            border-radius:8px;
+            padding:12px 14px;
+            cursor:pointer;
+            transition:.15s;
+        }
+        .pedido-item:hover { border-color:rgba(124,58,237,.4); background:#222e3d; }
+        .pedido-item.selected {
+            border-left-color:#7c3aed;
+            background:#283648;
+            box-shadow:0 4px 14px rgba(124,58,237,.18);
+        }
+        .pedido-item .folio { font-family:'Consolas','Courier New',monospace; font-weight:700; color:#f3f4f6; font-size:13px; }
+        .pedido-item .meta { font-size:10px; color:#9ca3af; }
+        .pedido-item .importe { font-family:'Consolas','Courier New',monospace; font-weight:700; color:#dbeafe; font-size:14px; }
+
+        /* Drawer Panel (derecha) */
+        .drawer-panel {
+            background:#1a2332;
+            border-left:1px solid #374151;
+            box-shadow:-8px 0 24px rgba(0,0,0,.4);
+        }
+
+        /* Secciones tipo PDF */
+        .pdf-section { border:1px solid #374151; border-radius:8px; overflow:hidden; background:#1f2937; margin-bottom:16px; }
+        .pdf-section-title {
+            background:linear-gradient(180deg,#2d3748 0%,#252d3a 100%);
+            padding:10px 14px;
+            font-size:11px;
+            font-weight:700;
+            text-transform:uppercase;
+            letter-spacing:1.2px;
+            color:#9ca3af;
+            border-bottom:1px solid #374151;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+        }
+        .pdf-section-body { padding:14px; }
+
+        /* Tablas */
+        table.pdf-table { width:100%; border-collapse:collapse; font-size:12px; }
+        table.pdf-table thead th {
+            background:linear-gradient(180deg,#2d3748 0%,#252d3a 100%);
+            color:#9ca3af; font-size:10px; font-weight:700;
+            text-transform:uppercase; letter-spacing:.8px;
+            padding:8px 10px; text-align:left;
+            border-bottom:1px solid #374151;
+        }
+        table.pdf-table tbody tr { border-bottom:1px solid #2d3748; transition:.12s; }
+        table.pdf-table tbody tr:nth-child(even) { background:#242937; }
+        table.pdf-table tbody tr:hover { background:#2c3445; }
+        table.pdf-table tbody td { padding:8px 10px; color:#e5e7eb; font-family:'Consolas','Courier New',monospace; }
+        table.pdf-table .text-right { text-align:right; }
+        table.pdf-table .text-center { text-align:center; }
+        table.pdf-table .col-highlight { font-weight:700; color:#f3f4f6; background:#242937; }
+
+        /* Tiles de pagos */
+        .pago-tile { padding:12px; background:#242937; border:1px solid #374151; border-radius:8px; border-top:3px solid #4b5563; }
+        .pago-tile .label { font-size:9px; color:#9ca3af; text-transform:uppercase; letter-spacing:.8px; font-weight:600; margin-bottom:4px; }
+        .pago-tile .value { font-size:16px; font-weight:700; color:#f3f4f6; font-family:'Consolas','Courier New',monospace; }
+        .pago-tile.efectivo { border-top-color:#10b981; }
+        .pago-tile.tarjeta { border-top-color:#3b82f6; }
+        .pago-tile.transfer { border-top-color:#8b5cf6; }
+        .pago-tile.descuento { border-top-color:#f59e0b; }
+        .pago-tile.total { background:#1e3a5f; border-color:#1e3a5f; border-top-color:#3b82f6; }
+        .pago-tile.total .label { color:#93c5fd; }
+        .pago-tile.total .value { color:#dbeafe; }
+        .pago-tile.saldo { background:#3f1d1d; border-color:#7f1d1d; border-top-color:#ef4444; }
+        .pago-tile.saldo .label { color:#fecaca; }
+        .pago-tile.saldo .value { color:#fee2e2; }
+
+        /* KV cells */
+        .kv-cell { margin-bottom:8px; }
+        .kv-cell .kv-label { font-size:10px; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; font-weight:600; margin-bottom:4px; }
+        .kv-cell .kv-value { font-size:13px; color:#e5e7eb; font-weight:500; font-family:'Consolas','Courier New',monospace; }
+
+        /* Botones de accion */
+        .btn-action {
+            padding:8px 14px;
+            border-radius:8px;
+            font-size:12px;
+            font-weight:600;
+            transition:.15s;
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+        }
+        .btn-primary { background:#7c3aed; color:#fff; }
+        .btn-primary:hover { background:#6d28d9; }
+        .btn-secondary { background:transparent; border:1px solid #374151; color:#9ca3af; }
+        .btn-secondary:hover { background:#1f2937; color:#fff; }
+        .btn-ghost { background:transparent; color:#9ca3af; }
+        .btn-ghost:hover { background:#1f2937; color:#fff; }
+
+        /* Drawer slide-in animation */
+        .drawer-content {
+            transition:transform .3s ease-out;
+        }
+
+        /* LIGHT THEME */
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] aside, body[data-theme="light"] header, body[data-theme="light"] .bg-\[\#141d2b\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f9fafb !important; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .input-base { background:#f9fafb !important; border-color:#e5e7eb !important; color:#111928 !important; }
+        body[data-theme="light"] .pedido-item { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .pedido-item.selected { background:#f5f3ff !important; }
+        body[data-theme="light"] .pdf-section { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .pdf-section-title { background:#f9fafb !important; color:#6b7280 !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] table.pdf-table thead th { background:#f9fafb !important; color:#6b7280 !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] table.pdf-table tbody tr { border-color:#f0f2f5 !important; }
+        body[data-theme="light"] table.pdf-table tbody tr:nth-child(even) { background:#fafbfc !important; }
+        body[data-theme="light"] table.pdf-table tbody td { color:#1f2937 !important; }
+        body[data-theme="light"] .pago-tile { background:#f9fafb !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .pago-tile .label { color:#6b7280 !important; }
+        body[data-theme="light"] .pago-tile .value { color:#1f2937 !important; }
+        body[data-theme="light"] .kv-cell .kv-label { color:#9ca3af !important; }
+        body[data-theme="light"] .kv-cell .kv-value { color:#1f2937 !important; }
+    </style>
+</head>
+<body class="flex">
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="w-56 bg-[#0f172a] border-r border-gray-800 flex flex-col flex-shrink-0 h-screen">
+        <div class="px-4 py-4 border-b border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-xs">hb</div>
+            <span class="font-bold text-sm">Huubie</span>
+        </div>
+        <nav class="flex-1 overflow-y-auto scrollbar-thin py-3 px-2">
+            <a href="#" class="sidebar-item">Inicio</a>
+            <div class="sidebar-item">Pedidos</div>
+            <div class="mt-1 space-y-0.5">
+                <a href="#" class="sidebar-item sidebar-sub">Resumen</a>
+                <a href="#" class="sidebar-item sidebar-sub active">Detalle Pedidos</a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="flex-1 flex flex-col min-w-0 h-screen">
+        <!-- Header -->
+        <header class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <h1 class="text-lg font-bold">Reporte de Pedidos - Detalle</h1>
+                <span class="px-3 py-1 rounded-full bg-purple-600/20 text-purple-300 text-[11px] font-semibold">Propuesta 1: Split + Drawer</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+                    <button onclick="setTheme('light')" class="px-3 py-1 text-[11px] text-gray-400 rounded">Claro</button>
+                    <button onclick="setTheme('dark')" class="px-3 py-1 text-[11px] text-gray-400 rounded">Oscuro</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Filtros -->
+        <div class="px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs text-gray-400 font-semibold mr-1">Filtrar por:</span>
+                <input type="date" value="2026-04-01" class="input-base w-36">
+                <span class="text-gray-500 text-xs">→</span>
+                <input type="date" value="2026-04-24" class="input-base w-36">
+                <select class="input-base w-40">
+                    <option>Todas las sucursales</option>
+                    <option selected>Matriz · Centro</option>
+                </select>
+                <select class="input-base w-36">
+                    <option>Todos los estados</option>
+                    <option selected>Liquidado</option>
+                    <option>Pendiente</option>
+                    <option>Parcial</option>
+                </select>
+                <select class="input-base w-40">
+                    <option>Todos</option>
+                    <option>Con descuento</option>
+                    <option selected>Sin descuento</option>
+                </select>
+                <button class="btn-action btn-primary">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    Buscar
+                </button>
+            </div>
+        </div>
+
+        <!-- Totales globales -->
+        <div class="px-6 py-3 bg-[#0f172a] border-b border-gray-800 flex-shrink-0">
+            <div class="grid grid-cols-8 gap-3">
+                <div class="pago-tile">
+                    <div class="label">Pedidos</div>
+                    <div class="value">24</div>
+                </div>
+                <div class="pago-tile">
+                    <div class="label">Total Bruto</div>
+                    <div class="value">$18,877.50</div>
+                </div>
+                <div class="pago-tile descuento">
+                    <div class="label">Descuentos</div>
+                    <div class="value" style="color:#fbbf24">-$425.00</div>
+                </div>
+                <div class="pago-tile total">
+                    <div class="label">Total Neto</div>
+                    <div class="value">$18,452.50</div>
+                </div>
+                <div class="pago-tile efectivo">
+                    <div class="label">Efectivo</div>
+                    <div class="value">$9,820.00</div>
+                </div>
+                <div class="pago-tile tarjeta">
+                    <div class="label">Tarjeta</div>
+                    <div class="value">$7,632.50</div>
+                </div>
+                <div class="pago-tile transfer">
+                    <div class="label">Transferencia</div>
+                    <div class="value">$1,000.00</div>
+                </div>
+                <div class="pago-tile">
+                    <div class="label">Saldo</div>
+                    <div class="value">$0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ SPLIT BODY ============ -->
+        <div class="flex-1 flex min-h-0 overflow-hidden">
+
+            <!-- IZQUIERDA: Lista de pedidos (45%) -->
+            <section class="w-[45%] border-r border-gray-800 flex flex-col min-h-0 bg-[#141d2b]/40">
+                <div class="px-5 py-3 flex items-center justify-between border-b border-gray-800 flex-shrink-0">
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-sm font-bold">Pedidos</span>
+                        <span class="text-[11px] text-gray-500">8 resultados</span>
+                    </div>
+                    <select class="input-base text-[11px] py-1">
+                        <option>Mas recientes</option>
+                        <option>Importe (mayor)</option>
+                    </select>
+                </div>
+
+                <div class="flex-1 overflow-y-auto scrollbar-thin px-4 py-3 space-y-2">
+                    <!-- Pedido seleccionado -->
+                    <div class="pedido-item selected" onclick="selectPedido(this, 'TKT-001245')">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="folio">#TKT-001245</span>
+                            <span class="badge-base badge-liquidado">LIQUIDADO</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="meta">24 Abr 2026 · 14:32</span>
+                            <span class="importe">$1,245.50</span>
+                        </div>
+                        <div class="meta mt-1">
+                            <span class="text-gray-300">Marichal, R.</span> ·
+                            <span title="Con descuento de $40.50" class="text-yellow-400 cursor-help">🏷️ Desc.</span> ·
+                            <span title="2 pagos realizados" class="text-green-400 cursor-help">💰 2 abonos</span>
+                        </div>
+                    </div>
+
+                    <!-- Pedido 2 -->
+                    <div class="pedido-item" onclick="selectPedido(this, 'TKT-001244')">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="folio">#TKT-001244</span>
+                            <span class="badge-base badge-parcial">PARCIAL</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="meta">24 Abr 2026 · 14:08</span>
+                            <span class="importe">$890.00</span>
+                        </div>
+                        <div class="meta mt-1">
+                            <span class="text-gray-300">Garcia, A.</span> ·
+                            <span class="text-red-400">Saldo: $390.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Pedido 3 -->
+                    <div class="pedido-item" onclick="selectPedido(this, 'TKT-001243')">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="folio">#TKT-001243</span>
+                            <span class="badge-base badge-pendiente">PENDIENTE</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="meta">24 Abr 2026 · 13:45</span>
+                            <span class="importe">$345.00</span>
+                        </div>
+                        <div class="meta mt-1">
+                            <span class="text-gray-300">Lopez, M.</span>
+                        </div>
+                    </div>
+
+                    <!-- Pedido 4 -->
+                    <div class="pedido-item" onclick="selectPedido(this, 'TKT-001242')">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="folio">#TKT-001242</span>
+                            <span class="badge-base badge-liquidado">LIQUIDADO</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="meta">24 Abr 2026 · 13:12</span>
+                            <span class="importe">$520.75</span>
+                        </div>
+                        <div class="meta mt-1">
+                            <span class="text-gray-300">Ramirez, C.</span> · Para llevar
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DERECHA: Panel de detalle (55%) -->
+            <section class="flex-1 drawer-panel flex flex-col min-h-0 overflow-hidden">
+                <!-- Header del pedido seleccionado -->
+                <div class="px-6 py-4 border-b border-gray-800 flex items-start justify-between flex-shrink-0">
+                    <div>
+                        <div class="flex items-center gap-3 mb-1">
+                            <h2 class="text-xl font-bold" style="font-family:'Consolas',monospace">#TKT-001245</h2>
+                            <span class="badge-base badge-liquidado">LIQUIDADO</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500">
+                            Creado: <span class="text-gray-300">24/04/2026 14:32:18</span> ·
+                            Mesa 5 · 4 comensales ·
+                            Resp: <span class="text-gray-300">Juan Marichal</span>
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="btn-action btn-secondary">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                            Imprimir
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenido scrollable -->
+                <div class="flex-1 overflow-y-auto scrollbar-thin px-6 py-4">
+
+                    <!-- Resumen financiero rapido -->
+                    <div class="grid grid-cols-4 gap-3 mb-4">
+                        <div class="pago-tile total">
+                            <div class="label">Total Pedido</div>
+                            <div class="value">$1,204.50</div>
+                        </div>
+                        <div class="pago-tile descuento">
+                            <div class="label">Descuentos</div>
+                            <div class="value" style="color:#fbbf24">-$40.50</div>
+                        </div>
+                        <div class="pago-tile total">
+                            <div class="label">Pagado</div>
+                            <div class="value" style="color:#3fc189">$1,245.50</div>
+                        </div>
+                        <div class="pago-tile saldo">
+                            <div class="label">Saldo</div>
+                            <div class="value">$0.00</div>
+                        </div>
+                    </div>
+
+                    <!-- Productos -->
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">
+                            <span>📦 Productos Consumidos</span>
+                            <span class="text-[10px] text-gray-500 normal-case">8 productos · 12 unidades</span>
+                        </div>
+                        <div class="pdf-section-body" style="padding:0">
+                            <table class="pdf-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center" style="width:50px">Cant.</th>
+                                        <th>Producto</th>
+                                        <th>Categoria</th>
+                                        <th class="text-right">P.Unit</th>
+                                        <th class="text-right" style="width:90px">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="text-center">2</td>
+                                        <td style="font-family:'Inter',sans-serif">Cafe Latte Vainilla 16oz</td>
+                                        <td style="font-family:'Inter',sans-serif;color:#9ca3af">Bebidas</td>
+                                        <td class="text-right">85.00</td>
+                                        <td class="text-right col-highlight">170.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-center">1</td>
+                                        <td style="font-family:'Inter',sans-serif">Capuccino Doble 12oz</td>
+                                        <td style="font-family:'Inter',sans-serif;color:#9ca3af">Bebidas</td>
+                                        <td class="text-right">75.00</td>
+                                        <td class="text-right col-highlight">75.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-center">1</td>
+                                        <td style="font-family:'Inter',sans-serif">Frappe Mocha Caramel</td>
+                                        <td style="font-family:'Inter',sans-serif;color:#9ca3af">Frappes</td>
+                                        <td class="text-right">110.00</td>
+                                        <td class="text-right col-highlight" style="color:#fbbf24">95.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-center">2</td>
+                                        <td style="font-family:'Inter',sans-serif">Sandwich Pollo Pesto</td>
+                                        <td style="font-family:'Inter',sans-serif;color:#9ca3af">Comida</td>
+                                        <td class="text-right">145.00</td>
+                                        <td class="text-right col-highlight">290.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-center">3</td>
+                                        <td style="font-family:'Inter',sans-serif">Cheesecake Frutos Rojos</td>
+                                        <td style="font-family:'Inter',sans-serif;color:#9ca3af">Postres</td>
+                                        <td class="text-right">95.00</td>
+                                        <td class="text-right col-highlight" style="color:#fbbf24">259.50</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Pagos / Abonos -->
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">
+                            <span>💰 Abonos / Pagos Realizados</span>
+                            <button onclick="toggleDrawer('drawer-abonos')" class="btn-action btn-ghost text-[10px]">
+                                Ver detalle completo
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </button>
+                        </div>
+                        <div class="pdf-section-body">
+                            <div class="grid grid-cols-3 gap-3 mb-3">
+                                <div class="pago-tile efectivo">
+                                    <div class="label">Efectivo</div>
+                                    <div class="value">$700.00</div>
+                                </div>
+                                <div class="pago-tile tarjeta">
+                                    <div class="label">Tarjeta</div>
+                                    <div class="value">$545.50</div>
+                                </div>
+                                <div class="pago-tile transfer">
+                                    <div class="label">Transferencia</div>
+                                    <div class="value">$0.00</div>
+                                </div>
+                            </div>
+                            <table class="pdf-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha / Hora</th>
+                                        <th>Metodo</th>
+                                        <th>Referencia</th>
+                                        <th class="text-right">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>24/04 15:46:12</td>
+                                        <td><span class="badge-base" style="background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.35)">EFECTIVO</span></td>
+                                        <td style="color:#9ca3af">--</td>
+                                        <td class="text-right col-highlight">700.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>24/04 15:48:02</td>
+                                        <td><span class="badge-base" style="background:rgba(59,130,246,.15);color:#60a5fa;border-color:rgba(59,130,246,.35)">TARJETA</span></td>
+                                        <td>****4521</td>
+                                        <td class="text-right col-highlight">545.50</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Descuentos -->
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">
+                            <span>🏷️ Descuentos Aplicados</span>
+                            <button onclick="toggleDrawer('drawer-descuentos')" class="btn-action btn-ghost text-[10px]">
+                                Ver detalle
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </button>
+                        </div>
+                        <div class="pdf-section-body">
+                            <div class="flex items-center gap-4">
+                                <div class="flex-1">
+                                    <p class="text-[11px] text-gray-400 mb-1">Total descontado:</p>
+                                    <p class="text-2xl font-bold text-yellow-400">$40.50</p>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-[11px] text-gray-400 mb-1">Productos con descuento:</p>
+                                    <p class="text-lg font-semibold text-gray-300">2 de 8</p>
+                                </div>
+                            </div>
+                            <table class="pdf-table mt-3">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th class="text-right">Precio Orig.</th>
+                                        <th class="text-right">Descuento</th>
+                                        <th class="text-right">Precio Final</th>
+                                        <th>Autorizo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="font-family:'Inter',sans-serif">Frappe Mocha Caramel</td>
+                                        <td class="text-right">110.00</td>
+                                        <td class="text-right" style="color:#fbbf24">-$15.00</td>
+                                        <td class="text-right col-highlight">95.00</td>
+                                        <td style="font-family:'Inter',sans-serif;color:#9ca3af">Juan M.</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-family:'Inter',sans-serif">Cheesecake Frutos Rojos (x3)</td>
+                                        <td class="text-right">285.00</td>
+                                        <td class="text-right" style="color:#fbbf24">-$25.50</td>
+                                        <td class="text-right col-highlight">259.50</td>
+                                        <td style="font-family:'Inter',sans-serif;color:#9ca3af">Juan M.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- ============ DRAWER LATERAL (Abonos) ============ -->
+    <div id="drawer-abonos" class="fixed inset-y-0 right-0 w-[480px] drawer-panel transform translate-x-full transition-transform duration-300 ease-out z-50">
+        <div class="flex flex-col h-full">
+            <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-base">💰 Detalle de Abonos</h3>
+                    <p class="text-[11px] text-gray-500">#TKT-001245 · 2 pagos registrados</p>
+                </div>
+                <button onclick="toggleDrawer('drawer-abonos')" class="w-8 h-8 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto scrollbar-thin px-5 py-4 space-y-4">
+
+                <!-- Pago 1 -->
+                <div class="pdf-section">
+                    <div class="pdf-section-title">
+                        <span>Pago #1 · Efectivo</span>
+                        <span class="badge-base" style="background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.35)">EFECTIVO</span>
+                    </div>
+                    <div class="pdf-section-body space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="kv-cell">
+                                <p class="kv-label">Fecha</p>
+                                <p class="kv-value">24/04/2026</p>
+                            </div>
+                            <div class="kv-cell">
+                                <p class="kv-label">Hora</p>
+                                <p class="kv-value">15:46:12</p>
+                            </div>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Monto</p>
+                            <p class="kv-value text-2xl text-green-400 font-bold">$700.00</p>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Cobro realizado por</p>
+                            <p class="kv-value" style="font-family:'Inter',sans-serif">Juan Marichal</p>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Referencia / Observaciones</p>
+                            <p class="kv-value" style="font-family:'Inter',sans-serif;color:#9ca3af">Pago en efectivo sin cambio</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pago 2 -->
+                <div class="pdf-section">
+                    <div class="pdf-section-title">
+                        <span>Pago #2 · Tarjeta</span>
+                        <span class="badge-base" style="background:rgba(59,130,246,.15);color:#60a5fa;border-color:rgba(59,130,246,.35)">TARJETA</span>
+                    </div>
+                    <div class="pdf-section-body space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="kv-cell">
+                                <p class="kv-label">Fecha</p>
+                                <p class="kv-value">24/04/2026</p>
+                            </div>
+                            <div class="kv-cell">
+                                <p class="kv-label">Hora</p>
+                                <p class="kv-value">15:48:02</p>
+                            </div>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Monto</p>
+                            <p class="kv-value text-2xl text-blue-400 font-bold">$545.50</p>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Metodo de pago</p>
+                            <p class="kv-value" style="font-family:'Inter',sans-serif">Tarjeta de debito</p>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Referencia</p>
+                            <p class="kv-value" style="font-family:'Consolas',monospace">****4521</p>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Cobro realizado por</p>
+                            <p class="kv-value" style="font-family:'Inter',sans-serif">Juan Marichal</p>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Autorizacion</p>
+                            <p class="kv-value" style="font-family:'Consolas',monospace;color:#9ca3af">AUTH: 847521</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ DRAWER LATERAL (Descuentos) ============ -->
+    <div id="drawer-descuentos" class="fixed inset-y-0 right-0 w-[520px] drawer-panel transform translate-x-full transition-transform duration-300 ease-out z-50">
+        <div class="flex flex-col h-full">
+            <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-base">🏷️ Detalle de Descuentos</h3>
+                    <p class="text-[11px] text-gray-500">#TKT-001245 · $40.50 total descontado</p>
+                </div>
+                <button onclick="toggleDrawer('drawer-descuentos')" class="w-8 h-8 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto scrollbar-thin px-5 py-4 space-y-4">
+
+                <!-- Resumen -->
+                <div class="pago-tile total mb-4">
+                    <div class="label">Total Descuentos</div>
+                    <div class="value text-3xl" style="color:#fbbf24">$40.50</div>
+                </div>
+
+                <!-- Descuento 1 -->
+                <div class="pdf-section">
+                    <div class="pdf-section-title">
+                        <span>Descuento en Producto</span>
+                        <span class="text-[10px] text-yellow-400">-$15.00</span>
+                    </div>
+                    <div class="pdf-section-body space-y-3">
+                        <div class="kv-cell">
+                            <p class="kv-label">Producto</p>
+                            <p class="kv-value" style="font-family:'Inter',sans-serif">Frappe Mocha Caramel</p>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="kv-cell">
+                                <p class="kv-label">Precio Original</p>
+                                <p class="kv-value">$110.00</p>
+                            </div>
+                            <div class="kv-cell">
+                                <p class="kv-label">Descuento</p>
+                                <p class="kv-value text-yellow-400">-$15.00</p>
+                            </div>
+                            <div class="kv-cell">
+                                <p class="kv-label">Precio Final</p>
+                                <p class="kv-value text-green-400">$95.00</p>
+                            </div>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Motivo</p>
+                            <p class="kv-value" style="font-family:'Inter',sans-serif">Promocion del dia - Happy Hour (15:00-17:00)</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="kv-cell">
+                                <p class="kv-label">Autorizo</p>
+                                <p class="kv-value" style="font-family:'Inter',sans-serif">Juan Marichal</p>
+                            </div>
+                            <div class="kv-cell">
+                                <p class="kv-label">Fecha/Hora</p>
+                                <p class="kv-value">24/04 15:45:00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Descuento 2 -->
+                <div class="pdf-section">
+                    <div class="pdf-section-title">
+                        <span>Descuento en Producto</span>
+                        <span class="text-[10px] text-yellow-400">-$25.50</span>
+                    </div>
+                    <div class="pdf-section-body space-y-3">
+                        <div class="kv-cell">
+                            <p class="kv-label">Producto</p>
+                            <p class="kv-value" style="font-family:'Inter',sans-serif">Cheesecake Frutos Rojos (x3)</p>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="kv-cell">
+                                <p class="kv-label">Precio Original</p>
+                                <p class="kv-value">$285.00</p>
+                            </div>
+                            <div class="kv-cell">
+                                <p class="kv-label">Descuento</p>
+                                <p class="kv-value text-yellow-400">-$25.50</p>
+                            </div>
+                            <div class="kv-cell">
+                                <p class="kv-label">Precio Final</p>
+                                <p class="kv-value text-green-400">$259.50</p>
+                            </div>
+                        </div>
+                        <div class="kv-cell">
+                            <p class="kv-label">Motivo</p>
+                            <p class="kv-value" style="font-family:'Inter',sans-serif">Descuento por volumen (3+ unidades)</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="kv-cell">
+                                <p class="kv-label">Autorizo</p>
+                                <p class="kv-value" style="font-family:'Inter',sans-serif">Juan Marichal</p>
+                            </div>
+                            <div class="kv-cell">
+                                <p class="kv-label">Fecha/Hora</p>
+                                <p class="kv-value">24/04 15:46:00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function setTheme(theme) {
+            document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('huubie-theme', theme);
+        }
+
+        (function(){
+            const t = localStorage.getItem('huubie-theme') || 'dark';
+            document.body.setAttribute('data-theme', t);
+        })();
+
+        function selectPedido(element, folio) {
+            document.querySelectorAll('.pedido-item').forEach(i => i.classList.remove('selected'));
+            element.classList.add('selected');
+            // Aqui iria la logica para cargar los datos del pedido
+            console.log('Pedido seleccionado:', folio);
+        }
+
+        function toggleDrawer(drawerId) {
+            const drawer = document.getElementById(drawerId);
+            if (drawer.classList.contains('translate-x-full')) {
+                drawer.classList.remove('translate-x-full');
+            } else {
+                drawer.classList.add('translate-x-full');
+            }
+        }
+
+        // Cerrar drawers con ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('[id^="drawer-"]').forEach(d => {
+                    d.classList.add('translate-x-full');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -50,13 +50,19 @@ class AppReportes extends Templates {
         this.primaryLayout({
             parent: "root",
             id: this.PROJECT_NAME,
-            class: 'flex mx-2 p-2',
-            heightPreset: 'auto',
+            class: 'flex mx-2 ',
+            heightPreset: 'full',
             card: {
-                filterBar: { class: 'w-full', id: 'filterBar' + this.PROJECT_NAME },
-                container: { class: 'w-full my-2 bg-[#1F2A37] rounded p-3', id: 'container' + this.PROJECT_NAME }
+                filterBar: { class: 'w-full ', id: 'filterBar' },
+                container: { class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
             }
         });
+
+        // Filter bar.
+        $('#filterBar').html(`
+            <div id="filterBar${this.PROJECT_NAME}" class="w-full my-3 " ></div>
+            <div id="containerHours"></div>
+        `);
 
         this.tabLayout({
             parent: `container${this.PROJECT_NAME}`,

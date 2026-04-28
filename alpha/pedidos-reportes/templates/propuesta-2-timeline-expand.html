@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="es" class="bg-[#111928]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huubie - Reporte Pedidos Detalle | Propuesta 2: Timeline Expandible</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; }
+
+        /* Scrollbar */
+        .scrollbar-thin::-webkit-scrollbar { width:6px; height:6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background:#4b5563; }
+
+        /* Inputs */
+        .input-base { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:7px 12px; font-size:12px; color:#d1d5db; transition:.15s; }
+        .input-base:focus { outline:none; border-color:#7c3aed; box-shadow:0 0 0 2px rgba(124,58,237,.15); }
+        .input-base::placeholder { color:#6b7280; }
+
+        /* Badges */
+        .badge-base { display:inline-flex; align-items:center; padding:3px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; letter-spacing:.5px; }
+        .badge-liquidado { background:rgba(63,193,137,.15); color:#3fc189; border-color:rgba(63,193,137,.35); }
+        .badge-pendiente { background:rgba(251,191,36,.15); color:#fbbf24; border-color:rgba(251,191,36,.3); }
+        .badge-parcial { background:rgba(59,130,246,.15); color:#60a5fa; border-color:rgba(59,130,246,.35); }
+        .badge-cancelado { background:rgba(234,2,52,.15); color:#f87171; border-color:rgba(234,2,52,.35); }
+        .badge-cotizacion { background:rgba(156,163,175,.15); color:#9ca3af; border-color:rgba(156,163,175,.3); }
+
+        /* TIMELINE vertical */
+        .timeline-container {
+            position:relative;
+            padding-left:24px;
+        }
+        .timeline-container::before {
+            content:'';
+            position:absolute;
+            left:10px;
+            top:0;
+            bottom:0;
+            width:2px;
+            background:linear-gradient(180deg,#7c3aed 0%,#374151 100%);
+            border-radius:2px;
+        }
+
+        /* Dia en timeline */
+        .timeline-day {
+            position:relative;
+            margin-bottom:32px;
+            padding-left:20px;
+        }
+        .timeline-day::before {
+            content:'';
+            position:absolute;
+            left:-18px;
+            top:6px;
+            width:16px;
+            height:16px;
+            border-radius:50%;
+            background:#7c3aed;
+            border:3px solid #111928;
+            box-shadow:0 0 0 2px #7c3aed;
+            z-index:2;
+        }
+        .timeline-day-header {
+            display:flex;
+            align-items:center;
+            gap:12px;
+            margin-bottom:16px;
+            padding:10px 14px;
+            background:#1F2A37;
+            border:1px solid #374151;
+            border-radius:8px;
+        }
+        .timeline-day-header .day-label {
+            font-size:12px;
+            font-weight:700;
+            color:#f3f4f6;
+            text-transform:uppercase;
+            letter-spacing:.8px;
+        }
+        .timeline-day-header .day-meta {
+            font-size:11px;
+            color:#9ca3af;
+        }
+
+        /* Pedido Card Expandible */
+        .pedido-card {
+            background:#1F2A37;
+            border:1px solid #374151;
+            border-left:4px solid #4b5563;
+            border-radius:10px;
+            margin-bottom:12px;
+            overflow:hidden;
+            transition:all .2s ease;
+        }
+        .pedido-card:hover {
+            border-color:#4b5563;
+            box-shadow:0 4px 12px rgba(0,0,0,.3);
+        }
+        .pedido-card.liquidado { border-left-color:#3fc189; }
+        .pedido-card.pendiente { border-left-color:#fbbf24; }
+        .pedido-card.parcial { border-left-color:#60a5fa; }
+        .pedido-card.cancelado { border-left-color:#f87171; }
+        .pedido-card.cotizacion { border-left-color:#9ca3af; }
+
+        /* Header del pedido (click para expandir) */
+        .pedido-header {
+            padding:14px 16px;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            gap:16px;
+            transition:background .15s;
+        }
+        .pedido-header:hover {
+            background:#222e3d;
+        }
+        .pedido-header .time-badge {
+            background:#242937;
+            border:1px solid #374151;
+            border-radius:6px;
+            padding:6px 10px;
+            text-align:center;
+            min-width:70px;
+        }
+        .pedido-header .time-badge .time {
+            font-size:13px;
+            font-weight:700;
+            color:#f3f4f6;
+            font-family:'Consolas',monospace;
+        }
+        .pedido-header .time-badge .label {
+            font-size:9px;
+            color:#9ca3af;
+            text-transform:uppercase;
+        }
+        .pedido-header .info {
+            flex:1;
+            min-width:0;
+        }
+        .pedido-header .folio {
+            font-family:'Consolas',monospace;
+            font-weight:700;
+            color:#f3f4f6;
+            font-size:14px;
+        }
+        .pedido-header .meta {
+            font-size:11px;
+            color:#9ca3af;
+            margin-top:2px;
+        }
+        .pedido-header .meta .highlight {
+            color:#fbbf24;
+        }
+        .pedido-header .meta .abonos {
+            color:#3fc189;
+        }
+        .pedido-header .totals {
+            display:flex;
+            gap:12px;
+            align-items:center;
+        }
+        .pedido-header .totales-tile {
+            background:#242937;
+            border:1px solid #374151;
+            border-radius:6px;
+            padding:6px 12px;
+            text-align:center;
+            min-width:80px;
+        }
+        .pedido-header .totales-tile .lbl {
+            font-size:9px;
+            color:#9ca3af;
+            text-transform:uppercase;
+        }
+        .pedido-header .totales-tile .val {
+            font-size:14px;
+            font-weight:700;
+            color:#f3f4f6;
+            font-family:'Consolas',monospace;
+        }
+        .pedido-header .totales-tile.saldo .val { color:#f87171; }
+        .pedido-header .totales-tile.abono .val { color:#3fc189; }
+        .pedido-header .chevron {
+            width:32px;
+            height:32px;
+            border-radius:6px;
+            border:1px solid #374151;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:#9ca3af;
+            transition:all .2s;
+            flex-shrink:0;
+        }
+        .pedido-card.expanded .chevron {
+            transform:rotate(180deg);
+            background:#7c3aed;
+            border-color:#7c3aed;
+            color:#fff;
+        }
+
+        /* Contenido expandible */
+        .pedido-content {
+            max-height:0;
+            overflow:hidden;
+            transition:max-height .3s ease-out;
+            background:#1a2332;
+            border-top:1px solid #374151;
+        }
+        .pedido-card.expanded .pedido-content {
+            max-height:2000px;
+        }
+        .pedido-content-inner {
+            padding:16px;
+        }
+
+        /* Secciones internas */
+        .internal-section {
+            background:#1f2937;
+            border:1px solid #374151;
+            border-radius:8px;
+            margin-bottom:12px;
+            overflow:hidden;
+        }
+        .internal-section-header {
+            background:linear-gradient(180deg,#2d3748 0%,#252d3a 100%);
+            padding:10px 14px;
+            font-size:11px;
+            font-weight:700;
+            text-transform:uppercase;
+            letter-spacing:1px;
+            color:#9ca3af;
+            border-bottom:1px solid #374151;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+        }
+        .internal-section-body {
+            padding:12px 14px;
+        }
+
+        /* Tablas internas */
+        .mini-table {
+            width:100%;
+            border-collapse:collapse;
+            font-size:11px;
+        }
+        .mini-table th {
+            text-align:left;
+            padding:6px 8px;
+            color:#6b7280;
+            font-weight:600;
+            font-size:10px;
+            text-transform:uppercase;
+            border-bottom:1px solid #374151;
+        }
+        .mini-table td {
+            padding:8px;
+            color:#e5e7eb;
+            font-family:'Consolas',monospace;
+            border-bottom:1px solid #2d3748;
+        }
+        .mini-table tr:last-child td { border-bottom:none; }
+        .mini-table tr:nth-child(even) { background:#242937; }
+        .mini-table .text-right { text-align:right; }
+        .mini-table .text-center { text-align:center; }
+        .mini-table .highlight { color:#fbbf24; font-weight:700; }
+        .mini-table .success { color:#3fc189; font-weight:700; }
+        .mini-table .danger { color:#f87171; font-weight:700; }
+
+        /* Tiles pequenos */
+        .mini-tile {
+            background:#242937;
+            border:1px solid #374151;
+            border-radius:6px;
+            padding:8px 10px;
+            text-align:center;
+        }
+        .mini-tile .lbl { font-size:9px; color:#9ca3af; text-transform:uppercase; }
+        .mini-tile .val { font-size:13px; font-weight:700; color:#f3f4f6; font-family:'Consolas',monospace; margin-top:2px; }
+        .mini-tile.efectivo { border-top:2px solid #10b981; }
+        .mini-tile.tarjeta { border-top:2px solid #3b82f6; }
+        .mini-tile.transfer { border-top:2px solid #8b5cf6; }
+
+        /* Info grid */
+        .info-grid {
+            display:grid;
+            grid-template-columns:repeat(4, 1fr);
+            gap:12px;
+            margin-bottom:12px;
+        }
+        .info-item {
+            background:#242937;
+            border:1px solid #374151;
+            border-radius:6px;
+            padding:10px;
+        }
+        .info-item .label {
+            font-size:9px;
+            color:#9ca3af;
+            text-transform:uppercase;
+            margin-bottom:4px;
+        }
+        .info-item .value {
+            font-size:12px;
+            color:#e5e7eb;
+            font-weight:500;
+        }
+        .info-item .value strong { color:#f3f4f6; }
+
+        /* Botones de accion */
+        .btn-mini {
+            padding:6px 10px;
+            border-radius:6px;
+            font-size:11px;
+            font-weight:600;
+            transition:.15s;
+            display:inline-flex;
+            align-items:center;
+            gap:4px;
+            cursor:pointer;
+        }
+        .btn-mini.primary { background:#7c3aed; color:#fff; }
+        .btn-mini.primary:hover { background:#6d28d9; }
+        .btn-mini.ghost { background:transparent; color:#9ca3af; border:1px solid #374151; }
+        .btn-mini.ghost:hover { background:#1f2937; color:#fff; }
+
+        /* Icono de metodo de pago */
+        .payment-icon {
+            width:28px;
+            height:28px;
+            border-radius:6px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:14px;
+        }
+        .payment-icon.efectivo { background:rgba(16,185,129,.15); }
+        .payment-icon.tarjeta { background:rgba(59,130,246,.15); }
+        .payment-icon.transfer { background:rgba(139,92,246,.15); }
+
+        /* LIGHT THEME */
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] .bg-\[\#1F2A37\], body[data-theme="light"] .bg-\[\#1a2332\], body[data-theme="light"] .bg-\[\#1f2937\], body[data-theme="light"] .bg-\[\#242937\] { background:#ffffff !important; }
+        body[data-theme="light"] .border-gray-800, body[data-theme="light"] .border-gray-700 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300, body[data-theme="light"] .text-gray-400, body[data-theme="light"] .text-gray-500 { color:#374151 !important; }
+        body[data-theme="light"] .input-base { background:#f9fafb !important; border-color:#e5e7eb !important; color:#111928 !important; }
+        body[data-theme="light"] .pedido-card { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .pedido-header:hover { background:#f9fafb !important; }
+        body[data-theme="light"] .timeline-day-header { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .internal-section { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .internal-section-header { background:#f9fafb !important; color:#6b7280 !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .mini-table th { color:#6b7280 !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .mini-table td { color:#1f2937 !important; border-color:#f0f2f5 !important; }
+        body[data-theme="light"] .mini-table tr:nth-child(even) { background:#fafbfc !important; }
+        body[data-theme="light"] .mini-tile { background:#f9fafb !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .mini-tile .lbl { color:#6b7280 !important; }
+        body[data-theme="light"] .mini-tile .val { color:#1f2937 !important; }
+        body[data-theme="light"] .info-item { background:#f9fafb !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .info-item .label { color:#9ca3af !important; }
+        body[data-theme="light"] .info-item .value { color:#1f2937 !important; }
+    </style>
+</head>
+<body>
+    <!-- Header principal -->
+    <header class="px-6 py-4 bg-[#141d2b] border-b border-gray-800 sticky top-0 z-30">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-sm">hb</div>
+                <div>
+                    <h1 class="text-lg font-bold">Reporte de Pedidos - Detalle</h1>
+                    <p class="text-[11px] text-gray-500">Propuesta 2: Timeline Expandible · Matriz Centro</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+                    <button onclick="setTheme('light')" class="px-3 py-1.5 text-[11px] text-gray-400 rounded">Claro</button>
+                    <button onclick="setTheme('dark')" class="px-3 py-1.5 text-[11px] text-gray-400 rounded">Oscuro</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="flex items-center gap-2 mt-4 flex-wrap">
+            <span class="text-xs text-gray-400 font-semibold mr-1">📅 Periodo:</span>
+            <input type="date" value="2026-04-01" class="input-base w-36">
+            <span class="text-gray-500 text-xs">→</span>
+            <input type="date" value="2026-04-24" class="input-base w-36">
+            <select class="input-base w-40">
+                <option>Todas las sucursales</option>
+                <option selected>Matriz · Centro</option>
+            </select>
+            <select class="input-base w-36">
+                <option>Todos los estados</option>
+                <option selected>Liquidado</option>
+                <option>Pendiente</option>
+                <option>Parcial</option>
+            </select>
+            <select class="input-base w-40">
+                <option>Todos</option>
+                <option>Con descuento</option>
+                <option>Sin descuento</option>
+            </select>
+            <button class="btn-mini primary">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                Buscar
+            </button>
+        </div>
+    </header>
+
+    <!-- Totales globales -->
+    <div class="px-6 py-4 bg-[#0f172a] border-b border-gray-800">
+        <div class="grid grid-cols-8 gap-3">
+            <div class="mini-tile">
+                <div class="lbl">Pedidos</div>
+                <div class="val">24</div>
+            </div>
+            <div class="mini-tile">
+                <div class="lbl">Total Bruto</div>
+                <div class="val">$18,877.50</div>
+            </div>
+            <div class="mini-tile" style="border-top-color:#f59e0b">
+                <div class="lbl">Descuentos</div>
+                <div class="val" style="color:#fbbf24">-$425.00</div>
+            </div>
+            <div class="mini-tile" style="border-top-color:#3b82f6; background:#1e3a5f">
+                <div class="lbl">Total Neto</div>
+                <div class="val" style="color:#dbeafe">$18,452.50</div>
+            </div>
+            <div class="mini-tile efectivo">
+                <div class="lbl">Efectivo</div>
+                <div class="val">$9,820.00</div>
+            </div>
+            <div class="mini-tile tarjeta">
+                <div class="lbl">Tarjeta</div>
+                <div class="val">$7,632.50</div>
+            </div>
+            <div class="mini-tile transfer">
+                <div class="lbl">Transferencia</div>
+                <div class="val">$1,000.00</div>
+            </div>
+            <div class="mini-tile">
+                <div class="lbl">Saldo</div>
+                <div class="val" style="color:#3fc189">$0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ TIMELINE ============ -->
+    <div class="p-6 timeline-container">
+
+        <!-- ===== DIA 1 ===== -->
+        <div class="timeline-day">
+            <div class="timeline-day-header">
+                <div class="flex-1">
+                    <div class="day-label">Hoy · 24 de abril 2026</div>
+                    <div class="day-meta">Turno Vespertino · 8 pedidos · $5,968.50 total</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="badge-base" style="background:rgba(124,58,237,.15);color:#c4b5fd;border-color:rgba(124,58,237,.35)">EN CURSO</span>
+                </div>
+            </div>
+
+            <!-- ========== PEDIDO 1 (EXPANDIDO - CON DESCUENTO Y ABONOS) ========== -->
+            <div class="pedido-card liquidado expanded" id="pedido-1245">
+                <!-- Header (click para expandir/colapsar) -->
+                <div class="pedido-header" onclick="togglePedido('pedido-1245')">
+                    <div class="time-badge">
+                        <div class="time">14:32</div>
+                        <div class="label">Apertura</div>
+                    </div>
+                    <div class="info">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="folio">#TKT-001245</span>
+                            <span class="badge-base badge-liquidado">LIQUIDADO</span>
+                        </div>
+                        <div class="meta">
+                            Mesa 5 · 4 comensales ·
+                            <span class="highlight">🏷️ $40.50 desc</span> ·
+                            <span class="abonos">💰 2 pagos</span>
+                        </div>
+                    </div>
+                    <div class="totals">
+                        <div class="totales-tile">
+                            <div class="lbl">Total</div>
+                            <div class="val">$1,204.50</div>
+                        </div>
+                        <div class="totales-tile abono">
+                            <div class="lbl">Pagado</div>
+                            <div class="val">$1,245.50</div>
+                        </div>
+                        <div class="totales-tile saldo">
+                            <div class="lbl">Saldo</div>
+                            <div class="val">$0.00</div>
+                        </div>
+                    </div>
+                    <div class="chevron">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+
+                <!-- Contenido expandible -->
+                <div class="pedido-content">
+                    <div class="pedido-content-inner">
+
+                        <!-- Info basica -->
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="label">Cliente</div>
+                                <div class="value"><strong>Marichal, R.</strong></div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">Responsable</div>
+                                <div class="value">Juan Marichal</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">Sucursal</div>
+                                <div class="value">Matriz Centro</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">Turno</div>
+                                <div class="value">Vespertino · Cierre: 15:48</div>
+                            </div>
+                        </div>
+
+                        <!-- PRODUCTOS -->
+                        <div class="internal-section">
+                            <div class="internal-section-header">
+                                <span>📦 Productos Consumidos (8 productos, 12 unidades)</span>
+                            </div>
+                            <div class="internal-section-body" style="padding:0">
+                                <table class="mini-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center" style="width:50px">Cant.</th>
+                                            <th>Producto</th>
+                                            <th>Categoria</th>
+                                            <th class="text-right">P.Unit</th>
+                                            <th class="text-right">Desc.</th>
+                                            <th class="text-right">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-center">2</td>
+                                            <td style="font-family:'Inter',sans-serif">Cafe Latte Vainilla 16oz</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Bebidas</td>
+                                            <td class="text-right">85.00</td>
+                                            <td class="text-right" style="color:#9ca3af">0.00</td>
+                                            <td class="text-right success">170.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-center">1</td>
+                                            <td style="font-family:'Inter',sans-serif">Capuccino Doble 12oz</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Bebidas</td>
+                                            <td class="text-right">75.00</td>
+                                            <td class="text-right" style="color:#9ca3af">0.00</td>
+                                            <td class="text-right success">75.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-center">1</td>
+                                            <td style="font-family:'Inter',sans-serif">Frappe Mocha Caramel</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Frappes</td>
+                                            <td class="text-right">110.00</td>
+                                            <td class="text-right highlight">-15.00</td>
+                                            <td class="text-right success">95.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-center">2</td>
+                                            <td style="font-family:'Inter',sans-serif">Sandwich Pollo Pesto</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Comida</td>
+                                            <td class="text-right">145.00</td>
+                                            <td class="text-right" style="color:#9ca3af">0.00</td>
+                                            <td class="text-right success">290.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-center">3</td>
+                                            <td style="font-family:'Inter',sans-serif">Cheesecake Frutos Rojos</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Postres</td>
+                                            <td class="text-right">95.00</td>
+                                            <td class="text-right highlight">-25.50</td>
+                                            <td class="text-right success">259.50</td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style="background:#1e3a5f">
+                                            <td colspan="3" style="font-family:'Inter',sans-serif;color:#93c5fd;font-weight:700;text-transform:uppercase;font-size:10px">Total</td>
+                                            <td class="text-right" style="color:#9ca3af">--</td>
+                                            <td class="text-right highlight">-40.50</td>
+                                            <td class="text-right" style="color:#dbeafe;font-weight:800;font-size:13px">1,204.50</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- ABONOS / PAGOS -->
+                        <div class="internal-section">
+                            <div class="internal-section-header">
+                                <span>💰 Abonos / Pagos (2 registros)</span>
+                                <button class="btn-mini ghost" onclick="event.stopPropagation(); alert('Ver historial completo de pagos')">
+                                    Ver historial
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </button>
+                            </div>
+                            <div class="internal-section-body">
+                                <!-- Resumen tiles -->
+                                <div class="grid grid-cols-3 gap-3 mb-3">
+                                    <div class="mini-tile efectivo">
+                                        <div class="lbl">Efectivo</div>
+                                        <div class="val">$700.00</div>
+                                    </div>
+                                    <div class="mini-tile tarjeta">
+                                        <div class="lbl">Tarjeta</div>
+                                        <div class="val">$545.50</div>
+                                    </div>
+                                    <div class="mini-tile transfer">
+                                        <div class="lbl">Transferencia</div>
+                                        <div class="val">$0.00</div>
+                                    </div>
+                                </div>
+
+                                <!-- Tabla de pagos -->
+                                <table class="mini-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:140px">Fecha / Hora</th>
+                                            <th style="width:100px">Metodo</th>
+                                            <th>Referencia</th>
+                                            <th>Cobro por</th>
+                                            <th class="text-right" style="width:100px">Monto</th>
+                                            <th style="width:80px"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <div style="font-family:'Inter',sans-serif;color:#e5e7eb">24/04/2026</div>
+                                                <div style="font-size:10px;color:#9ca3af">15:46:12</div>
+                                            </td>
+                                            <td>
+                                                <div class="payment-icon efectivo">💵</div>
+                                                <div style="font-size:10px;color:#34d399;margin-top:2px">EFECTIVO</div>
+                                            </td>
+                                            <td style="color:#9ca3af">--</td>
+                                            <td style="font-family:'Inter',sans-serif">Juan Marichal</td>
+                                            <td class="text-right success">700.00</td>
+                                            <td>
+                                                <button class="btn-mini ghost" onclick="showPagoDetail(1)" title="Ver detalle">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div style="font-family:'Inter',sans-serif;color:#e5e7eb">24/04/2026</div>
+                                                <div style="font-size:10px;color:#9ca3af">15:48:02</div>
+                                            </td>
+                                            <td>
+                                                <div class="payment-icon tarjeta">💳</div>
+                                                <div style="font-size:10px;color:#60a5fa;margin-top:2px">TARJETA</div>
+                                            </td>
+                                            <td style="font-family:'Consolas',monospace;color:#9ca3af">****4521</td>
+                                            <td style="font-family:'Inter',sans-serif">Juan Marichal</td>
+                                            <td class="text-right success">545.50</td>
+                                            <td>
+                                                <button class="btn-mini ghost" onclick="showPagoDetail(2)" title="Ver detalle">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <!-- Detalle de pago (oculto por defecto, se muestra con click) -->
+                                <div id="pago-detail-1" class="internal-section" style="display:none; margin-top:12px;">
+                                    <div class="internal-section-header">
+                                        <span>Detalle del Pago #1</span>
+                                    </div>
+                                    <div class="internal-section-body">
+                                        <div class="info-grid" style="grid-template-columns:repeat(3, 1fr);">
+                                            <div class="info-item">
+                                                <div class="label">Fecha completa</div>
+                                                <div class="value">24/04/2026 15:46:12</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Metodo</div>
+                                                <div class="value">Efectivo</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Monto</div>
+                                                <div class="value success">$700.00</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Cobro por</div>
+                                                <div class="value">Juan Marichal</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Observaciones</div>
+                                                <div class="value" style="color:#9ca3af">Pago en efectivo sin cambio</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Turno</div>
+                                                <div class="value">#4521</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DESCUENTOS -->
+                        <div class="internal-section">
+                            <div class="internal-section-header">
+                                <span>🏷️ Descuentos Aplicados ($40.50 total)</span>
+                                <button class="btn-mini ghost" onclick="event.stopPropagation(); alert('Ver auditoria de descuentos')">
+                                    Auditoria
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </button>
+                            </div>
+                            <div class="internal-section-body">
+                                <!-- Resumen -->
+                                <div class="grid grid-cols-4 gap-3 mb-3">
+                                    <div class="mini-tile" style="border-top-color:#f59e0b">
+                                        <div class="lbl">Total Desc.</div>
+                                        <div class="val highlight">$40.50</div>
+                                    </div>
+                                    <div class="mini-tile">
+                                        <div class="lbl">Productos</div>
+                                        <div class="val">2 de 8</div>
+                                    </div>
+                                    <div class="mini-tile">
+                                        <div class="lbl">% Desc.</div>
+                                        <div class="val">3.25%</div>
+                                    </div>
+                                    <div class="mini-tile">
+                                        <div class="lbl">Autorizo</div>
+                                        <div class="value" style="font-size:11px">Juan M.</div>
+                                    </div>
+                                </div>
+
+                                <!-- Tabla de descuentos -->
+                                <table class="mini-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-right">Precio Orig.</th>
+                                            <th class="text-right">Desc.</th>
+                                            <th class="text-right">Precio Final</th>
+                                            <th>Motivo</th>
+                                            <th>Autorizo</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style="font-family:'Inter',sans-serif">
+                                                <div>Frappe Mocha Caramel</div>
+                                                <div style="font-size:10px;color:#9ca3af">1 unidad</div>
+                                            </td>
+                                            <td class="text-right">110.00</td>
+                                            <td class="text-right highlight">-$15.00</td>
+                                            <td class="text-right success">95.00</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">
+                                                <div>Happy Hour</div>
+                                                <div style="font-size:10px">15:00-17:00</div>
+                                            </td>
+                                            <td style="font-family:'Inter',sans-serif">Juan M.</td>
+                                            <td>
+                                                <button class="btn-mini ghost" onclick="showDescuentoDetail(1)" title="Ver detalle">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="font-family:'Inter',sans-serif">
+                                                <div>Cheesecake Frutos Rojos</div>
+                                                <div style="font-size:10px;color:#9ca3af">3 unidades</div>
+                                            </td>
+                                            <td class="text-right">285.00</td>
+                                            <td class="text-right highlight">-$25.50</td>
+                                            <td class="text-right success">259.50</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">
+                                                <div>Volumen (3+)</div>
+                                                <div style="font-size:10px">10% desc</div>
+                                            </td>
+                                            <td style="font-family:'Inter',sans-serif">Juan M.</td>
+                                            <td>
+                                                <button class="btn-mini ghost" onclick="showDescuentoDetail(2)" title="Ver detalle">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <!-- Detalle de descuento (oculto por defecto) -->
+                                <div id="descuento-detail-1" class="internal-section" style="display:none; margin-top:12px;">
+                                    <div class="internal-section-header">
+                                        <span>Detalle del Descuento</span>
+                                    </div>
+                                    <div class="internal-section-body">
+                                        <div class="info-grid" style="grid-template-columns:repeat(3, 1fr);">
+                                            <div class="info-item">
+                                                <div class="label">Producto</div>
+                                                <div class="value" style="font-family:'Inter',sans-serif">Frappe Mocha Caramel</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Precio Original</div>
+                                                <div class="value">$110.00</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Descuento</div>
+                                                <div class="value highlight">-$15.00</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Precio Final</div>
+                                                <div class="value success">$95.00</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Motivo</div>
+                                                <div class="value" style="font-family:'Inter',sans-serif">Promocion Happy Hour (15:00-17:00)</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="label">Autorizacion</div>
+                                                <div class="value" style="font-family:'Inter',sans-serif">
+                                                    <div>Juan Marichal</div>
+                                                    <div style="font-size:10px;color:#9ca3af">24/04 15:45:00</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== PEDIDO 2 (PARCIAL - SOLO ABONOS) ========== -->
+            <div class="pedido-card parcial" id="pedido-1244">
+                <div class="pedido-header" onclick="togglePedido('pedido-1244')">
+                    <div class="time-badge">
+                        <div class="time">14:08</div>
+                        <div class="label">Apertura</div>
+                    </div>
+                    <div class="info">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="folio">#TKT-001244</span>
+                            <span class="badge-base badge-parcial">PARCIAL</span>
+                        </div>
+                        <div class="meta">
+                            Mesa 12 · 2 comensales ·
+                            <span class="danger">Saldo pendiente: $390.00</span>
+                        </div>
+                    </div>
+                    <div class="totals">
+                        <div class="totales-tile">
+                            <div class="lbl">Total</div>
+                            <div class="val">$890.00</div>
+                        </div>
+                        <div class="totales-tile abono">
+                            <div class="lbl">Pagado</div>
+                            <div class="val">$500.00</div>
+                        </div>
+                        <div class="totales-tile saldo">
+                            <div class="lbl">Saldo</div>
+                            <div class="val">$390.00</div>
+                        </div>
+                    </div>
+                    <div class="chevron">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+                <div class="pedido-content">
+                    <div class="pedido-content-inner">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="label">Cliente</div>
+                                <div class="value"><strong>Garcia, A.</strong></div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">Responsable</div>
+                                <div class="value">Ana Lopez</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">Sucursal</div>
+                                <div class="value">Matriz Centro</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">Turno</div>
+                                <div class="value">Vespertino</div>
+                            </div>
+                        </div>
+
+                        <!-- Abonos (unico en este caso) -->
+                        <div class="internal-section">
+                            <div class="internal-section-header">
+                                <span>💰 Abonos Realizados (1 pago)</span>
+                            </div>
+                            <div class="internal-section-body">
+                                <div class="grid grid-cols-2 gap-3 mb-3">
+                                    <div class="mini-tile efectivo">
+                                        <div class="lbl">Efectivo</div>
+                                        <div class="val">$500.00</div>
+                                    </div>
+                                    <div class="mini-tile">
+                                        <div class="lbl">Saldo Pendiente</div>
+                                        <div class="val" style="color:#f87171">$390.00</div>
+                                    </div>
+                                </div>
+                                <table class="mini-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha / Hora</th>
+                                            <th>Metodo</th>
+                                            <th>Referencia</th>
+                                            <th>Cobro por</th>
+                                            <th class="text-right">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <div style="font-family:'Inter',sans-serif;color:#e5e7eb">24/04/2026</div>
+                                                <div style="font-size:10px;color:#9ca3af">14:15:00</div>
+                                            </td>
+                                            <td>
+                                                <div class="payment-icon efectivo">💵</div>
+                                                <div style="font-size:10px;color:#34d399;margin-top:2px">EFECTIVO</div>
+                                            </td>
+                                            <td style="color:#9ca3af">--</td>
+                                            <td style="font-family:'Inter',sans-serif">Ana Lopez</td>
+                                            <td class="text-right success">500.00</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Productos -->
+                        <div class="internal-section">
+                            <div class="internal-section-header">
+                                <span>📦 Productos (5 productos)</span>
+                            </div>
+                            <div class="internal-section-body" style="padding:0">
+                                <table class="mini-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center">Cant.</th>
+                                            <th>Producto</th>
+                                            <th>Categoria</th>
+                                            <th class="text-right">P.Unit</th>
+                                            <th class="text-right">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-center">2</td>
+                                            <td style="font-family:'Inter',sans-serif">Cafe Americano 12oz</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Bebidas</td>
+                                            <td class="text-right">65.00</td>
+                                            <td class="text-right success">130.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-center">1</td>
+                                            <td style="font-family:'Inter',sans-serif">Croissant Jamon Queso</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Comida</td>
+                                            <td class="text-right">85.00</td>
+                                            <td class="text-right success">85.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-center">2</td>
+                                            <td style="font-family:'Inter',sans-serif">Jugo Naranja Natural</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Bebidas</td>
+                                            <td class="text-right">55.00</td>
+                                            <td class="text-right success">110.00</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== PEDIDO 3 (PENDIENTE - SIN PAGOS) ========== -->
+            <div class="pedido-card pendiente" id="pedido-1243">
+                <div class="pedido-header" onclick="togglePedido('pedido-1243')">
+                    <div class="time-badge">
+                        <div class="time">13:45</div>
+                        <div class="label">Apertura</div>
+                    </div>
+                    <div class="info">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="folio">#TKT-001243</span>
+                            <span class="badge-base badge-pendiente">PENDIENTE</span>
+                        </div>
+                        <div class="meta">
+                            Mesa 3 · 1 comensal ·
+                            <span style="color:#9ca3af">Sin pagos registrados</span>
+                        </div>
+                    </div>
+                    <div class="totals">
+                        <div class="totales-tile">
+                            <div class="lbl">Total</div>
+                            <div class="val">$345.00</div>
+                        </div>
+                        <div class="totales-tile">
+                            <div class="lbl">Pagado</div>
+                            <div class="val" style="color:#9ca3af">$0.00</div>
+                        </div>
+                        <div class="totales-tile saldo">
+                            <div class="lbl">Saldo</div>
+                            <div class="val">$345.00</div>
+                        </div>
+                    </div>
+                    <div class="chevron">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+                <div class="pedido-content">
+                    <div class="pedido-content-inner">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="label">Cliente</div>
+                                <div class="value"><strong>Lopez, M.</strong></div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">Responsable</div>
+                                <div class="value">Juan Marichal</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">Sucursal</div>
+                                <div class="value">Matriz Centro</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">Estado</div>
+                                <div class="value" style="color:#fbbf24">Pendiente de pago</div>
+                            </div>
+                        </div>
+
+                        <div class="internal-section">
+                            <div class="internal-section-header">
+                                <span>📦 Productos (3 productos)</span>
+                            </div>
+                            <div class="internal-section-body" style="padding:0">
+                                <table class="mini-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center">Cant.</th>
+                                            <th>Producto</th>
+                                            <th>Categoria</th>
+                                            <th class="text-right">P.Unit</th>
+                                            <th class="text-right">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-center">1</td>
+                                            <td style="font-family:'Inter',sans-serif">Cafe Capuccino 12oz</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Bebidas</td>
+                                            <td class="text-right">75.00</td>
+                                            <td class="text-right success">75.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-center">1</td>
+                                            <td style="font-family:'Inter',sans-serif">Muffin Arandanos</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Postres</td>
+                                            <td class="text-right">85.00</td>
+                                            <td class="text-right success">85.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-center">1</td>
+                                            <td style="font-family:'Inter',sans-serif">Tostada Francesa</td>
+                                            <td style="font-family:'Inter',sans-serif;color:#9ca3af">Comida</td>
+                                            <td class="text-right">185.00</td>
+                                            <td class="text-right success">185.00</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ===== DIA 2 ===== -->
+        <div class="timeline-day">
+            <div class="timeline-day-header">
+                <div class="flex-1">
+                    <div class="day-label">Ayer · 23 de abril 2026</div>
+                    <div class="day-meta">2 turnos · 14 pedidos · $9,124.00 total</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="badge-base badge-liquidado">CERRADO</span>
+                </div>
+            </div>
+
+            <!-- Pedido ejemplo dia anterior -->
+            <div class="pedido-card liquidado" id="pedido-1237">
+                <div class="pedido-header" onclick="togglePedido('pedido-1237')">
+                    <div class="time-badge">
+                        <div class="time">21:08</div>
+                        <div class="label">Apertura</div>
+                    </div>
+                    <div class="info">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="folio">#TKT-001237</span>
+                            <span class="badge-base badge-liquidado">LIQUIDADO</span>
+                        </div>
+                        <div class="meta">
+                            Mesa 4 · 6 comensales
+                        </div>
+                    </div>
+                    <div class="totals">
+                        <div class="totales-tile">
+                            <div class="lbl">Total</div>
+                            <div class="val">$1,820.00</div>
+                        </div>
+                        <div class="totales-tile abono">
+                            <div class="lbl">Pagado</div>
+                            <div class="val">$1,820.00</div>
+                        </div>
+                        <div class="totales-tile">
+                            <div class="lbl">Saldo</div>
+                            <div class="val" style="color:#3fc189">$0.00</div>
+                        </div>
+                    </div>
+                    <div class="chevron">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+                <div class="pedido-content">
+                    <div class="pedido-content-inner">
+                        <p style="color:#9ca3af;text-align:center;padding:20px;">Contenido del pedido...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function setTheme(theme) {
+            document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('huubie-theme', theme);
+        }
+
+        (function(){
+            const t = localStorage.getItem('huubie-theme') || 'dark';
+            document.body.setAttribute('data-theme', t);
+        })();
+
+        function togglePedido(id) {
+            const card = document.getElementById(id);
+            card.classList.toggle('expanded');
+        }
+
+        function showPagoDetail(id) {
+            const detail = document.getElementById('pago-detail-' + id);
+            if (detail) {
+                detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function showDescuentoDetail(id) {
+            const detail = document.getElementById('descuento-detail-' + id);
+            if (detail) {
+                detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+    </script>
+</body>
+</html>
