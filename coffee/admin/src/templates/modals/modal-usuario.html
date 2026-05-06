@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal Usuario - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .input-modal {
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #d1d5db;
+            width: 100%;
+            transition: border-color .15s;
+        }
+        .input-modal:focus { outline: none; border-color: #7c3aed; }
+        .input-modal::placeholder { color: #6b7280; }
+        .badge-base {
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-weight: 500;
+        }
+        .chip-selectable {
+            cursor: pointer;
+            transition: .15s;
+        }
+        .chip-selectable.selected {
+            background: #1c64f2;
+            color: white;
+            border-color: #1c64f2;
+        }
+        .chip-selectable:not(.selected) {
+            background: #1a2332;
+            color: #9ca3af;
+            border-color: #374151;
+        }
+        .chip-selectable:not(.selected):hover {
+            border-color: #7c3aed;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-[#111928] text-white min-h-screen flex items-center justify-center p-6">
+    <!-- Backdrop simulado para demo -->
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-[#1F2A37] border border-gray-700 rounded-xl w-full max-w-[520px] mx-4 shadow-2xl">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+                <h3 class="text-sm font-bold flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    Nuevo Usuario
+                </h3>
+                <button onclick="window.close()" class="w-8 h-8 rounded-lg hover:bg-[#1a2332] flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-5 space-y-4">
+                <!-- Rol -->
+                <div class="space-y-1">
+                    <label class="text-[11px] text-gray-500 uppercase tracking-wider">Rol</label>
+                    <select class="input-modal">
+                        <option>Selecciona un rol</option>
+                        <option>Administrador</option>
+                        <option>Cajero</option>
+                        <option>Vendedor</option>
+                    </select>
+                </div>
+
+                <!-- Sucursales -->
+                <div class="space-y-1">
+                    <label class="text-[11px] text-gray-500 uppercase tracking-wider">Sucursales</label>
+                    <div class="flex flex-wrap gap-2 mt-1">
+                        <span class="badge-base chip-selectable selected">Centro</span>
+                        <span class="badge-base chip-selectable">Norte</span>
+                        <span class="badge-base chip-selectable">Sur</span>
+                        <span class="badge-base chip-selectable">Poniente</span>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mt-1">Haz clic para seleccionar/deseleccionar sucursales.</p>
+                </div>
+
+                <!-- Nombre + Correo -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[11px] text-gray-500 uppercase tracking-wider">Nombre completo</label>
+                        <input type="text" class="input-modal" placeholder="Ej. Juan Perez">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] text-gray-500 uppercase tracking-wider">Correo electronico</label>
+                        <input type="email" class="input-modal" placeholder="Ej. usuario@coffeesoft.com">
+                    </div>
+                </div>
+
+                <!-- Contrasena -->
+                <div class="space-y-1">
+                    <label class="text-[11px] text-gray-500 uppercase tracking-wider">Contrasena</label>
+                    <input type="password" class="input-modal" placeholder="Minimo 8 caracteres">
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-800">
+                <button onclick="window.close()" class="px-4 py-2 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-[#1a2332] transition-colors">Cancelar</button>
+                <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

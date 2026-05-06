@@ -77,6 +77,38 @@ class User extends MUser{
         ];
     }
 
+    function deletePhotoCompany() {
+        $status = 500;
+        $message = 'Error al eliminar el logo de la empresa';
+
+        $companyId = $_POST['id'];
+
+        $prevData = $this->getCompanyById($companyId);
+        if (!empty($prevData['logo'])) {
+            $oldFile = $_SERVER['DOCUMENT_ROOT'] . '/coffee' . $prevData['logo'];
+            if (file_exists($oldFile)) {
+                unlink($oldFile);
+            }
+        }
+
+        $data = [
+            'logo' => '',
+            'id'   => $companyId,
+        ];
+
+        $update = $this->updateCompany($this->util->sql($data, 1));
+
+        if ($update) {
+            $status = 200;
+            $message = 'Logo eliminado correctamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
+    }
+
     function editCompany() {
         $status = 500;
         $message = 'Error al editar la empresa';

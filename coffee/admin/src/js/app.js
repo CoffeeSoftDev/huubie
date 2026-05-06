@@ -125,26 +125,27 @@ class Company extends Templates {
     }
 
     async layoutCompanies() {
+        let self = this;
         let data = await useFetch({
             url: api,
             data: { opc: 'init' }
         });
 
         let companie = data.companies;
+        let logoSrc = companie.logo ? '..' + companie.logo + '?v=' + Date.now() : '';
+        let avatarContent = logoSrc
+            ? `<img src="${logoSrc}" alt="Logo de la empresa" class="w-full h-full object-cover" id="logo" />`
+            : `<i data-lucide="building-2" class="w-20 h-20 text-slate-400" id="logo"></i>`;
+
         $("#container-tab-company").html(`
             <div class="grid md:grid-cols-[180px_1fr] gap-8">
                 <div class=" rounded-lg md:p-6 lg:p-8">
                     <div class="flex flex-col items-center gap-4">
                         <div class="relative">
                             <div class="w-48 h-48 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center overflow-hidden">
-                                <img
-                                    src="https://huubie.com.mx/alpha/src/img/logo/huubie.svg"
-                                    alt="Foto de perfil"
-                                    class="w-full h-full object-cover"
-                                    id="logo"
-                                />
+                                ${avatarContent}
                             </div>
-                            <button class="absolute bottom-2 right-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 flex items-center justify-center" id="btnEditLogo">
+                            <button class="absolute top-1/2 right-0 translate-x-2 translate-y-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 flex items-center justify-center shadow-lg" id="btnEditLogo" title="Cambiar logo">
                                 <i class="icon-pencil text-white text-sm"></i>
                             </button>
                             <input type="file" accept="image/*" id="inputLogoUpload" class="hidden" />
@@ -157,9 +158,8 @@ class Company extends Templates {
             </div>
         `);
 
-        if (companie.id) {
-            let fotito = 'https://huubie.com.mx/alpha' + companie.logo;
-            $('#logo').attr('src', fotito);
+        if (!logoSrc && window.lucide) {
+            lucide.createIcons();
         }
 
         // Activar input file al hacer clic en el botón
@@ -173,7 +173,12 @@ class Company extends Templates {
             if (!file) return;
 
             let url = URL.createObjectURL(file);
-            $('#logo').attr('src', url);
+            let $logo = $('#logo');
+            if ($logo.is('img')) {
+                $logo.attr('src', url);
+            } else {
+                $logo.replaceWith(`<img src="${url}" alt="Logo de la empresa" class="w-full h-full object-cover" id="logo" />`);
+            }
 
             let formData = new FormData();
             formData.append('opc', 'editPhotoCompany');
