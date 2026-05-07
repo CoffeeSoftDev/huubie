@@ -137,17 +137,31 @@ class Company extends Templates {
             ? `<img src="${logoSrc}" alt="Logo de la empresa" class="w-full h-full object-cover" id="logo" />`
             : `<i data-lucide="building-2" class="w-20 h-20 text-slate-400" id="logo"></i>`;
 
+        let removeOverlay = logoSrc
+            ? `<button id="btnRemoveLogo" type="button" title="Quitar logo"
+                    onmouseenter="this.style.opacity='1'"
+                    onmouseleave="this.style.opacity='0'"
+                    style="background-color: rgba(71, 85, 105, 0.75); opacity: 0; transition: opacity 0.2s; border: 0; cursor: pointer; z-index: 10;"
+                    class="absolute inset-0 rounded-full flex items-center justify-center">
+                    <i class="icon-trash text-white" style="font-size: 2rem;"></i>
+                </button>`
+            : '';
+
         $("#container-tab-company").html(`
             <div class="grid md:grid-cols-[180px_1fr] gap-8">
                 <div class=" rounded-lg md:p-6 lg:p-8">
                     <div class="flex flex-col items-center gap-4">
                         <div class="relative">
-                            <div class="w-48 h-48 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center overflow-hidden">
+                            <div class="relative w-48 h-48 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center overflow-hidden">
                                 ${avatarContent}
+                                ${removeOverlay}
                             </div>
-                            <button class="absolute top-1/2 right-0 translate-x-2 translate-y-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 flex items-center justify-center shadow-lg" id="btnEditLogo" title="Cambiar logo">
+                            <button class="absolute top-1/2 right-0 translate-x-2 translate-y-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 
+                            
+                            flex items-center justify-center shadow-lg" id="btnEditLogo" title="Cambiar logo">
                                 <i class="icon-pencil text-white text-sm"></i>
                             </button>
+                            
                             <input type="file" accept="image/*" id="inputLogoUpload" class="hidden" />
                         </div>
                     </div>
@@ -165,6 +179,28 @@ class Company extends Templates {
         // Activar input file al hacer clic en el botón
         $('#btnEditLogo').on('click', function () {
             $('#inputLogoUpload').click();
+        });
+
+        // Quitar logo con confirmación
+        $('#btnRemoveLogo').on('click', function () {
+            self.swalQuestion({
+                opts: {
+                    title: '¿Quitar logo?',
+                    text: 'Se eliminará el logo actual de la empresa.',
+                    icon: 'warning',
+                },
+                data: { opc: 'deletePhotoCompany', id: companie.id },
+                methods: {
+                    send: (response) => {
+                        if (response.status == 200) {
+                            alert({ icon: "success", title: "Listo", text: response.message, btn1: true, btn1Text: "Ok" });
+                            self.layoutCompanies();
+                        } else {
+                            alert({ icon: "error", title: "Oops!...", text: response.message, btn1: true, btn1Text: "Ok" });
+                        }
+                    }
+                }
+            });
         });
 
         // Subir imagen y mostrar preview
