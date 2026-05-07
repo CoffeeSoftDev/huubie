@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Métricas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .card-demo {
+            background: #1F2A37;
+            border: 1px solid rgba(55,65,81,.6);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: .15s;
+        }
+        .card-demo:hover {
+            border-color: #7c3aed;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,.3);
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: .75rem;
+            padding: .5rem .75rem; border-radius: .5rem;
+            font-size: .875rem; color: #9ca3af;
+            transition: .15s;
+        }
+        .nav-item:hover { background: #1a2332; color: #fff; }
+        .nav-item.active { background: #1a2332; color: #fff; border-left: 2px solid #2563eb; }
+        .badge-base { font-size: 11px; padding: 2px 10px; border-radius: 9999px; font-weight: 500; }
+        .input-modal { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:8px 12px; font-size:12px; color:#d1d5db; width:100%; }
+        .input-modal:focus { outline:none; border-color:#7c3aed; }
+        .kpi-card {
+            background: #1F2A37;
+            border: 1px solid rgba(55,65,81,.6);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+    </style>
+</head>
+<body class="bg-[#111928] text-white min-h-screen">
+
+    <!-- Sidebar -->
+    <aside class="fixed left-0 top-0 h-full w-56 bg-[#0f172a] border-r border-gray-800 flex flex-col z-20">
+        <div class="h-16 flex items-center px-4 border-b border-gray-800">
+            <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center mr-3">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v18m-6-6h12m-6-6h12"/></svg>
+            </div>
+            <span class="font-bold text-sm">CoffeeSoft</span>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+            <a href="admin-hub-dark.html" class="nav-item">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                Dashboard
+            </a>
+            <a href="admin-usuarios-table-dark.html" class="nav-item">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                Usuarios
+            </a>
+            <a href="admin-metricas-dark.html" class="nav-item active">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Métricas
+            </a>
+        </nav>
+        <div class="p-3 border-t border-gray-800">
+            <div class="flex items-center gap-3 px-3 py-2">
+                <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold">JD</div>
+                <div class="text-xs">
+                    <div class="font-medium text-white">John Doe</div>
+                    <div class="text-gray-500">Superadmin</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Header -->
+    <header class="fixed top-0 left-56 right-0 h-16 bg-[#141d2b] border-b border-gray-800 flex items-center justify-between px-6 z-10">
+        <div>
+            <h1 class="text-lg font-bold">Métricas del Sistema</h1>
+            <p class="text-[11px] text-gray-500">Admin / Métricas</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-right hidden sm:block">
+                <div class="text-sm font-medium">John Doe</div>
+                <div class="text-[11px] text-gray-500">Superadmin</div>
+            </div>
+            <div class="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold">JD</div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="ml-56 pt-16 min-h-screen p-6">
+        <div class="max-w-6xl mx-auto">
+
+            <!-- KPIs -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                <div class="kpi-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] text-gray-500 uppercase tracking-wider">Total Usuarios</span>
+                        <span class="badge-base bg-blue-500/15 text-blue-400 border border-blue-500/30">+3 este mes</span>
+                    </div>
+                    <div class="text-2xl font-bold">50</div>
+                    <div class="text-[11px] text-gray-500 mt-1">48 activos / 2 inactivos</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] text-gray-500 uppercase tracking-wider">Sesiones hoy</span>
+                        <span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">+18%</span>
+                    </div>
+                    <div class="text-2xl font-bold">124</div>
+                    <div class="text-[11px] text-gray-500 mt-1">vs 105 ayer</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] text-gray-500 uppercase tracking-wider">Tareas pendientes</span>
+                        <span class="badge-base bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">3 urgentes</span>
+                    </div>
+                    <div class="text-2xl font-bold">12</div>
+                    <div class="text-[11px] text-gray-500 mt-1">Cláusulas + Perfiles</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] text-gray-500 uppercase tracking-wider">Uptime sistema</span>
+                        <span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">99.9%</span>
+                    </div>
+                    <div class="text-2xl font-bold">99.9%</div>
+                    <div class="text-[11px] text-gray-500 mt-1">Última caída: 14 días</div>
+                </div>
+            </section>
+
+            <!-- Charts / Content grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                <!-- Main chart placeholder -->
+                <div class="lg:col-span-2 card-demo">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold">Actividad de usuarios</h3>
+                        <select class="input-modal w-32">
+                            <option>Últimos 7 días</option>
+                            <option>Este mes</option>
+                            <option>Este año</option>
+                        </select>
+                    </div>
+                    <div class="h-64 w-full rounded-lg bg-[#111928] border border-gray-800 flex items-center justify-center">
+                        <div class="text-center">
+                            <svg class="w-10 h-10 text-gray-600 mx-auto mb-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                            <p class="text-xs text-gray-500">Gráfico de actividad (Chart.js placeholder)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Side list -->
+                <div class="card-demo">
+                    <h3 class="text-sm font-bold mb-4">Acceso reciente</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center text-xs font-bold">AL</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium truncate">Ana López</div>
+                                <div class="text-[11px] text-gray-500">Hace 5 min · Matriz CDMX</div>
+                            </div>
+                            <span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activo</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-purple-600/20 text-purple-400 flex items-center justify-center text-xs font-bold">CR</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium truncate">Carlos Ruiz</div>
+                                <div class="text-[11px] text-gray-500">Hace 22 min · Guadalajara</div>
+                            </div>
+                            <span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activo</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-orange-600/20 text-orange-400 flex items-center justify-center text-xs font-bold">MF</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium truncate">María Fernanda</div>
+                                <div class="text-[11px] text-gray-500">Hace 1 h · Monterrey</div>
+                            </div>
+                            <span class="badge-base bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">Pendiente</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-600/20 text-gray-400 flex items-center justify-center text-xs font-bold">LT</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium truncate">Luis Torres</div>
+                                <div class="text-[11px] text-gray-500">Hace 3 h · Matriz CDMX</div>
+                            </div>
+                            <span class="badge-base bg-red-500/15 text-red-400 border border-red-500/30">Inactivo</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="mt-6 border-t border-gray-800 pt-4 text-[11px] text-gray-500 flex items-center justify-between">
+                <span>© 2026 CoffeeSoft. Todos los derechos reservados.</span>
+                <span>Versión 2.4.0</span>
+            </footer>
+        </div>
+    </main>
+</body>
+</html>
