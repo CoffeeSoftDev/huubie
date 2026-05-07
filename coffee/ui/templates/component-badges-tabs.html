@@ -1,0 +1,113 @@
+<!-- ============================================================
+     Componentes: Badges + Tabs
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Badges y Tabs - UI Kit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>body{font-family:'Inter',sans-serif;}</style>
+</head>
+<body class="bg-[#111928] text-white p-8">
+
+  <div class="max-w-4xl mx-auto space-y-10">
+
+    <!-- Badges -->
+    <section class="space-y-4">
+      <h1 class="text-2xl font-bold">Badges</h1>
+      <div class="flex flex-wrap items-center gap-3 p-4 bg-[#1F2A37] rounded-lg">
+        <span class="cs-badge cs-badge-success">Aprobado</span>
+        <span class="cs-badge cs-badge-danger">Rechazado</span>
+        <span class="cs-badge cs-badge-warning">Pendiente</span>
+        <span class="cs-badge cs-badge-info">Info</span>
+        <span class="cs-badge cs-badge-purple">Admin</span>
+        <span class="cs-badge cs-badge-success">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Activo
+        </span>
+        <span class="cs-badge cs-badge-danger">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          Baja
+        </span>
+        <span class="cs-badge cs-badge-warning">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          Suspendido
+        </span>
+      </div>
+    </section>
+
+    <!-- Tabs (tabLayout) -->
+    <section class="space-y-4">
+      <h1 class="text-2xl font-bold">Tabs</h1>
+
+      <!-- Tabs cortos (type: short) -->
+      <div class="space-y-2">
+        <h2 class="text-lg font-semibold text-gray-300">Tabs cortos (type: short)</h2>
+        <div class="cs-tabs">
+          <button class="cs-tab active">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            Ingresos
+          </button>
+          <button class="cs-tab">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            Compras
+          </button>
+          <button class="cs-tab">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Reportes
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabs largos (type: large) -->
+      <div class="space-y-2 mt-6">
+        <h2 class="text-lg font-semibold text-gray-300">Tabs largos (type: large)</h2>
+        <div class="cs-tabs px-2 py-2">
+          <button class="cs-tab active px-6 py-2.5 text-base">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Usuarios
+          </button>
+          <button class="cs-tab px-6 py-2.5 text-base">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            Sucursales
+          </button>
+          <button class="cs-tab px-6 py-2.5 text-base">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Configuracion
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Callouts -->
+    <section class="space-y-4">
+      <h1 class="text-2xl font-bold">Callouts / Alertas</h1>
+      <div class="space-y-3">
+        <div class="cs-callout cs-callout-info">
+          <strong class="block text-sm mb-1">Informacion</strong>
+          <p class="text-sm text-gray-400">Este es un mensaje informativo para el usuario.</p>
+        </div>
+        <div class="cs-callout cs-callout-success">
+          <strong class="block text-sm mb-1">Exito</strong>
+          <p class="text-sm text-gray-400">La operacion se completo correctamente.</p>
+        </div>
+        <div class="cs-callout cs-callout-warning">
+          <strong class="block text-sm mb-1">Advertencia</strong>
+          <p class="text-sm text-gray-400">Revisa los datos antes de continuar.</p>
+        </div>
+        <div class="cs-callout cs-callout-danger">
+          <strong class="block text-sm mb-1">Error</strong>
+          <p class="text-sm text-gray-400">No se pudo completar la operacion. Intenta de nuevo.</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+</body>
+</html>

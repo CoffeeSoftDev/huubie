@@ -11,7 +11,7 @@ require_once '../mdl/mdl-paquetes.php';
 class ctrl extends mdl {
     // INFORMACIÓN DE PAQUETES
     function listPaquetes() {
-        $active = $_POST['estado-paquetes'];
+        $active = $_POST['estado-paquetes'] ?? '1';
         $data   = $this->getPaquetes([$active, $_SESSION['SUB']]);
         $rows   = [];
         
@@ -201,7 +201,7 @@ class ctrl extends mdl {
 
     // INFORMACIÓN DE PRODUCTOS
     function listProductos() {
-        $active = $_POST['estado_productos'];
+        $active = $_POST['estado_productos'] ?? '1';
         $data = $this->getProductos([$active, $_SESSION['SUB']]);
         $rows = [];
 
@@ -336,7 +336,7 @@ class ctrl extends mdl {
 
     // INFORMACIÓN DE CLASIFICACIONES
     function listClasificaciones () {
-        $active = $_POST['estado_clasificaciones'];
+        $active = $_POST['estado_clasificaciones'] ?? '1';
         $data = $this->getClasificaciones([$active, $_SESSION['SUB']]);
         $rows = [];
 

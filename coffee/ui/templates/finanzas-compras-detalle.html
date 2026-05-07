@@ -1,0 +1,215 @@
+<!-- ============================================================
+     Template: Finanzas - Compras Detalle (Panel Lateral)
+     Sistema: UI-Kit CoffeeSoft (Dark Theme Huubie)
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finanzas - Compras Detalle</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>
+    body{font-family:'Inter',sans-serif;}
+    .cs-badge-aprobado { background:rgba(63,193,137,0.15); color:#3FC189; border:1px solid rgba(63,193,137,0.35); }
+    .cs-badge-pendiente { background:rgba(251,191,36,0.15); color:#fbbf24; border:1px solid rgba(251,191,36,0.35); }
+  </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+  <!-- Layout Split: Tabla + Panel Lateral -->
+  <div class="flex-1 flex min-w-0 h-screen bg-[#111928]">
+    <!-- AREA PRINCIPAL -->
+    <div class="flex-1 flex flex-col min-w-0 bg-[#111928]">
+      <header class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+        <div class="flex items-center gap-3 flex-1 max-w-md">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="text" placeholder="Buscar..." class="bg-transparent text-sm text-gray-300 w-full focus:outline-none">
+        </div>
+        <div class="flex items-center gap-3">
+          <button class="text-xs text-gray-400 font-semibold flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Nueva Orden
+          </button>
+        </div>
+      </header>
+      <div class="px-6 py-4 bg-[#141d2b] border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <h1 class="text-lg font-bold text-white">Órdenes de Compra</h1>
+          <div class="cs-badge cs-badge-pendiente">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            May 2026
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM3 16a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM8.93 20.57l-2.15-2.15m0 0l-2.15-2.15m2.15 2.15l-2.15 2.15m2.15-2.15l2.15 2.15"></path></svg>
+          <span class="font-semibold">Filter By</span>
+        </div>
+        <select class="cs-select w-auto min-w-[120px] text-xs"><option>Todos los proveedores</option></select>
+        <select class="cs-select w-auto min-w-[120px] text-xs"><option>Todos los estados</option></select>
+        <button class="text-xs text-red-400 font-semibold hover:text-red-300 flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          Reset Filter
+        </button>
+        <div class="flex-1"></div>
+        <button class="text-xs text-gray-400 hover:text-white flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          Export
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto scrollbar-thin">
+        <table class="w-full">
+          <thead class="bg-[#141d2b] sticky top-0">
+            <tr class="border-b border-gray-800">
+              <th class="text-left text-xs text-gray-500 uppercase tracking-wider font-medium px-6 py-3">ID</th>
+              <th class="text-left text-xs text-gray-500 uppercase tracking-wider font-medium px-3 py-3">Fecha</th>
+              <th class="text-left text-xs text-gray-500 uppercase tracking-wider font-medium px-3 py-3">Proveedor</th>
+              <th class="text-left text-xs text-gray-500 uppercase tracking-wider font-medium px-3 py-3">Monto</th>
+              <th class="text-center text-xs text-gray-500 uppercase tracking-wider font-medium px-3 py-3">Ver</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-800/50">
+            <tr class="hover:bg-[#1a2332] bg-[#1a2332]/40 transition-colors cursor-pointer">
+              <td class="px-6 py-3 text-xs text-gray-300 font-medium">OC-001</td>
+              <td class="px-3 py-3 text-xs text-gray-300">07 May 2026</td>
+              <td class="px-3 py-3 text-xs text-gray-300">Tech Solutions S.A.</td>
+              <td class="px-3 py-3 text-xs font-semibold text-white">$2,500.00</td>
+              <td class="px-3 py-3 text-center">
+                <a href="#" class="text-gray-400 hover:text-purple-400">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </a>
+              </td>
+            </tr>
+            <tr class="hover:bg-[#1a2332] transition-colors cursor-pointer">
+              <td class="px-6 py-3 text-xs text-gray-300">OC-002</td>
+              <td class="px-3 py-3 text-xs text-gray-300">07 May 2026</td>
+              <td class="px-3 py-3 text-xs text-gray-300">Office Supplies Inc.</td>
+              <td class="px-3 py-3 text-xs font-semibold text-white">$450.00</td>
+              <td class="px-3 py-3 text-center">
+                <a href="#" class="text-gray-400 hover:text-purple-400">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </a>
+              </td>
+            </tr>
+            <tr class="hover:bg-[#1a2332] transition-colors cursor-pointer">
+              <td class="px-6 py-3 text-xs text-gray-300">OC-003</td>
+              <td class="px-3 py-3 text-xs text-gray-300">06 May 2026</td>
+              <td class="px-3 py-3 text-xs text-gray-300">Consultoría Legal</td>
+              <td class="px-3 py-3 text-xs font-semibold text-white">$1,800.00</td>
+              <td class="px-3 py-3 text-center">
+                <a href="#" class="text-gray-400 hover:text-purple-400">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </a>
+              </td>
+            </tr>
+            <tr class="hover:bg-[#1a2332] transition-colors cursor-pointer">
+              <td class="px-6 py-3 text-xs text-gray-300">OC-004</td>
+              <td class="px-3 py-3 text-xs text-gray-300">05 May 2026</td>
+              <td class="px-3 py-3 text-xs text-gray-300">Servicios Públicos</td>
+              <td class="px-3 py-3 text-xs font-semibold text-white">$280.00</td>
+              <td class="px-3 py-3 text-center">
+                <a href="#" class="text-gray-400 hover:text-purple-400">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </a>
+              </td>
+            </tr>
+            <tr class="hover:bg-[#1a2332] transition-colors cursor-pointer">
+              <td class="px-6 py-3 text-xs text-gray-300">OC-005</td>
+              <td class="px-3 py-3 text-xs text-gray-300">04 May 2026</td>
+              <td class="px-3 py-3 text-xs text-gray-300">Software Licencias</td>
+              <td class="px-3 py-3 text-xs font-semibold text-white">$950.00</td>
+              <td class="px-3 py-3 text-center">
+                <a href="#" class="text-gray-400 hover:text-purple-400">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-6 py-3 bg-[#141d2b] border-t border-gray-800 flex items-center justify-between text-xs text-gray-500 flex-shrink-0">
+        <span>Showing 1-05 of 32</span>
+        <div class="flex items-center gap-1">
+          <button class="w-7 h-7 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332] transition">←</button>
+          <button class="w-7 h-7 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332] transition">→</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL LATERAL DERECHO -->
+    <aside class="w-[420px] bg-[#1F2A37] border-l border-gray-800 flex flex-col h-screen flex-shrink-0 overflow-y-auto scrollbar-thin">
+      <div class="px-5 pt-5 pb-3 border-b border-gray-800">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-white">OC-001</h2>
+          <div class="flex items-center gap-1">
+            <button class="w-7 h-7 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332] hover:text-white transition">←</button>
+            <button class="w-7 h-7 rounded border border-gray-700 flex items-center justify-center text-gray-400 hover:bg-[#1a2332] hover:text-white transition">→</button>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 flex-wrap">
+          <div class="flex flex-col items-start gap-1">
+            <span class="cs-badge cs-badge-aprobado">Aprobado</span>
+            <span class="text-[10px] text-gray-500">07 may 2026 9:30am</span>
+          </div>
+          <div class="flex flex-col items-start gap-1">
+            <span class="cs-badge cs-badge-pendiente">Pendiente</span>
+            <span class="text-[10px] text-gray-500">07 may 2026 4:00pm</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex-1 px-5 py-4 space-y-5">
+        <div class="card-base p-4 bg-gradient-to-br from-[#7C3AED]/10 to-[#7152EC]/10">
+          <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Total Orden</p>
+          <p class="text-3xl font-bold text-white">$2,500.00</p>
+          <p class="text-[10px] text-gray-500 mt-1">Tech Solutions S.A.</p>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-white mb-3">Información</p>
+          <div class="grid grid-cols-2 gap-4">
+            <div><p class="text-[10px] text-gray-500 font-semibold uppercase">Proveedor</p><p class="text-sm text-gray-300 mt-1">Tech Solutions S.A.</p></div>
+            <div><p class="text-[10px] text-gray-500 font-semibold uppercase">Cuenta</p><p class="text-sm text-gray-300 mt-1">Gastos Operativos</p></div>
+            <div><p class="text-[10px] text-gray-500 font-semibold uppercase">Tipo Pago</p><p class="text-sm text-gray-300 mt-1">Transferencia</p></div>
+            <div><p class="text-[10px] text-gray-500 font-semibold uppercase">Fecha</p><p class="text-sm text-gray-300 mt-1">07 mayo 2026</p></div>
+          </div>
+        </div>
+        <div class="border-t border-gray-800 pt-4">
+          <p class="text-xs font-semibold text-white mb-3">Detalles</p>
+          <div class="space-y-2">
+            <div class="flex justify-between text-sm"><span class="text-gray-400">Software Licencias</span><span class="text-gray-300 font-medium">$2,000.00</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-400">Configuración</span><span class="text-gray-300 font-medium">$500.00</span></div>
+            <div class="flex justify-between text-sm border-t border-gray-800 pt-2"><span class="text-white font-semibold">Total</span><span class="text-white font-bold">$2,500.00</span></div>
+          </div>
+        </div>
+        <div class="border-t border-gray-800 pt-4">
+          <p class="text-xs font-semibold text-white mb-3">Adjuntos</p>
+          <button class="w-full flex items-center gap-3 p-2 rounded hover:bg-[#1a2332] transition">
+            <div class="w-8 h-8 bg-[#7C3AED]/20 text-[#7C3AED] rounded flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+            <div class="flex-1 text-left">
+              <p class="text-sm text-gray-300">orden_compra_TechSolutions.pdf</p>
+              <p class="text-[10px] text-gray-500">245 KB</p>
+            </div>
+          </button>
+        </div>
+      </div>
+      <div class="px-5 py-4 border-t border-gray-800">
+        <div class="flex items-center gap-3">
+          <button class="cs-btn cs-btn-outline flex-1 text-sm">Ver Orden</button>
+          <button class="cs-btn cs-btn-primary flex-1 text-sm">Imprimir</button>
+        </div>
+        <div class="mt-3 flex items-center gap-3">
+          <button class="cs-btn cs-btn-secondary flex-1 text-sm">Editar</button>
+          <button class="cs-btn cs-btn-danger flex-1 text-sm">Anular</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

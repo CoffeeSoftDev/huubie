@@ -1,0 +1,98 @@
+<!-- ============================================================
+     Template: Modal - Seleccionar Ingreso
+     Sistema: UI-Kit CoffeeSoft (Dark Theme Huubie)
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finanzas - Modal Seleccionar Ingreso</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>
+    body{font-family:'Inter',sans-serif;}
+  </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+  <!-- Botón para abrir modal (solo para demo) -->
+  <div class="min-h-screen flex items-center justify-center p-8">
+    <div class="text-center">
+      <h2 class="text-xl font-bold mb-4">Modal: Seleccionar Ingreso</h2>
+      <button onclick="document.getElementById('modalSelIngreso').classList.remove('hidden');document.getElementById('modalSelIngreso').classList.add('flex')" class="cs-btn cs-btn-primary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        Abrir Modal
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modalSelIngreso" class="hidden fixed inset-0 bg-black/60 z-40 items-center justify-center">
+    <div class="bg-[#1F2A37] rounded-2xl p-6 border border-gray-700 w-[520px] relative">
+      <button onclick="document.getElementById('modalSelIngreso').classList.add('hidden');document.getElementById('modalSelIngreso').classList.remove('flex')" class="absolute top-3 right-3 text-gray-400 hover:text-white transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+
+      <h3 class="text-base font-bold mb-4 text-white">Seleccionar Ingreso</h3>
+      <p class="text-xs text-gray-400 mb-4">Elija el tipo de ingreso que desea registrar</p>
+
+      <!-- Grid de opciones -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <button class="p-4 rounded-xl border border-gray-700 text-left text-sm text-gray-300 hover:border-[#7C3AED] hover:bg-[#7C3AED]/5 transition focus:outline-none focus:border-[#7C3AED] focus:bg-[#7C3AED]/5">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-[#3FC189]/20 text-[#3FC189] flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <span class="font-medium">Corte X</span>
+          </div>
+          <p class="text-xs text-gray-500">Corte diario del sistema</p>
+        </button>
+
+        <button class="p-4 rounded-xl border border-gray-700 text-left text-sm text-gray-300 hover:border-[#7C3AED] hover:bg-[#7C3AED]/5 transition focus:outline-none focus:border-[#7C3AED] focus:bg-[#7C3AED]/5">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-[#1C64F2]/20 text-[#1C64F2] flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2h7zm2 9H9V10h10z"></path></svg>
+            </div>
+            <span class="font-medium">Corte Y</span>
+          </div>
+          <p class="text-xs text-gray-500">Corte manual</p>
+        </button>
+
+        <button class="p-4 rounded-xl border border-gray-700 text-left text-sm text-gray-300 hover:border-[#7C3AED] hover:bg-[#7C3AED]/5 transition focus:outline-none focus:border-[#7C3AED] focus:bg-[#7C3AED]/5">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-[#EA0234]/20 text-[#EA0234] flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+            </div>
+            <span class="font-medium">Depósito</span>
+          </div>
+          <p class="text-xs text-gray-500">Depósito bancario</p>
+        </button>
+
+        <button class="p-4 rounded-xl border border-gray-700 text-left text-sm text-gray-300 hover:border-[#7C3AED] hover:bg-[#7C3AED]/5 transition focus:outline-none focus:border-[#7C3AED] focus:bg-[#7C3AED]/5">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-[#FBBF24]/20 text-[#FBBF24] flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2h7zm2 9H9V10h10z"></path></svg>
+            </div>
+            <span class="font-medium">Efectivo</span>
+          </div>
+          <p class="text-xs text-gray-500">Ingreso en efectivo</p>
+        </button>
+      </div>
+
+      <p class="text-[10px] text-gray-500 mb-4">* Archivos compatibles: XLS, CSV, PDF</p>
+
+      <!-- Botones de acción -->
+      <div class="flex justify-center">
+        <button class="cs-btn cs-btn-primary">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          Seleccionar
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

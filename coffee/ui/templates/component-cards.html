@@ -1,0 +1,116 @@
+<!-- ============================================================
+     Componentes: Cards (modulo, KPI, info)
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cards - UI Kit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>body{font-family:'Inter',sans-serif;}</style>
+</head>
+<body class="bg-[#111928] text-white p-8">
+
+  <div class="max-w-5xl mx-auto space-y-10">
+    <h1 class="text-2xl font-bold mb-6">Cards</h1>
+
+    <!-- Card de modulo (createItemCard) -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-semibold text-gray-300">Card de modulo (grid inicial)</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+        <!-- Card 1 -->
+        <div class="group h-[200px] bg-[#333D4C] rounded-lg shadow-lg overflow-hidden p-4
+                    flex flex-col justify-between cursor-pointer transition-all
+                    hover:shadow-xl hover:scale-105 hover:border hover:border-[#7C3AED]">
+          <div class="w-14 h-14 bg-[#233876] rounded-lg flex items-center justify-center
+                      group-hover:scale-110 transition-transform">
+            <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+          </div>
+          <div class="flex-grow flex flex-col justify-center">
+            <h3 class="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">Pedidos</h3>
+            <p class="text-gray-400 text-sm">Gestion de pedidos y ventas</p>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="group h-[200px] bg-[#333D4C] rounded-lg shadow-lg overflow-hidden p-4
+                    flex flex-col justify-between cursor-pointer transition-all
+                    hover:shadow-xl hover:scale-105 hover:border hover:border-[#7C3AED]">
+          <div class="w-14 h-14 bg-[#233876] rounded-lg flex items-center justify-center
+                      group-hover:scale-110 transition-transform">
+            <svg class="w-7 h-7 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div class="flex-grow flex flex-col justify-center">
+            <h3 class="text-lg font-semibold text-white group-hover:text-purple-400 transition-colors">Finanzas</h3>
+            <p class="text-gray-400 text-sm">Ingresos, egresos y reportes</p>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="group h-[200px] bg-[#333D4C] rounded-lg shadow-lg overflow-hidden p-4
+                    flex flex-col justify-between cursor-pointer transition-all
+                    hover:shadow-xl hover:scale-105 hover:border hover:border-[#7C3AED]">
+          <div class="w-14 h-14 bg-[#233876] rounded-lg flex items-center justify-center
+                      group-hover:scale-110 transition-transform">
+            <svg class="w-7 h-7 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          </div>
+          <div class="flex-grow flex flex-col justify-center">
+            <h3 class="text-lg font-semibold text-white group-hover:text-green-400 transition-colors">RRHH</h3>
+            <p class="text-gray-400 text-sm">Empleados y nomina</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- KPI Cards (infoCard / cardsDashboard) -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-semibold text-gray-300">KPI Cards (dashboard)</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+        <div class="cs-kpi-card">
+          <p class="cs-kpi-label">Ventas Totales</p>
+          <p class="cs-kpi-value text-pink-400">$128,450.00</p>
+        </div>
+
+        <div class="cs-kpi-card">
+          <p class="cs-kpi-label">Pendiente por Cobrar</p>
+          <p class="cs-kpi-value text-red-400">$34,200.00</p>
+        </div>
+
+        <div class="cs-kpi-card">
+          <p class="cs-kpi-label">Pedidos del Mes</p>
+          <p class="cs-kpi-value text-green-400">847</p>
+        </div>
+
+        <div class="cs-kpi-card">
+          <p class="cs-kpi-label">Clientes Nuevos</p>
+          <p class="cs-kpi-value text-blue-400">+124</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Card generica (contenedor) -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-semibold text-gray-300">Card generica (contenedor)</h2>
+      <div class="cs-card">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base font-semibold">Titulo de la seccion</h3>
+          <button class="cs-btn cs-btn-sm cs-btn-ghost">Ver todo</button>
+        </div>
+        <p class="text-gray-400 text-sm">
+          Contenido de la card. Puede incluir tablas, formularios, graficos o cualquier otro elemento.
+        </p>
+      </div>
+    </section>
+
+  </div>
+
+</body>
+</html>

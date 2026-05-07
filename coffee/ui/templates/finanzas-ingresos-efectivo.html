@@ -1,0 +1,140 @@
+<!-- ============================================================
+     Template: Finanzas - Nuevo Ingreso (Efectivo)
+     Sistema: UI-Kit CoffeeSoft (Dark Theme Huubie)
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finanzas - Nuevo Ingreso</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>
+    body{font-family:'Inter',sans-serif;}
+    .cs-badge-fecha { display:inline-flex; align-items:center; gap:6px; background:#7C3AED; color:#fff; padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600; }
+  </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+  <!-- Shell de pagina -->
+  <div id="mainContainer" class="w-full min-h-screen flex flex-col text-white mt-12 p-3 overflow-x-hidden">
+    <div id="root" class="w-full max-w-full overflow-x-auto" style="background-color:#111828;">
+
+      <!-- LAYOUT CANONICO -->
+      <div id="FinanzasIngresos" class="flex mx-2 h-[calc(100vh-120px)]">
+        <div class="w-full flex flex-col">
+
+          <!-- Filter bar -->
+          <div id="filterBar" class="w-full my-3">
+            <div id="filterBarFinanzasIngresos" class="w-full my-3">
+              <div class="flex flex-wrap items-center gap-3">
+                <select class="cs-select w-auto min-w-[160px]">
+                  <option>Todos los estados</option>
+                  <option>Aprobados</option>
+                  <option>Pendientes</option>
+                </select>
+                <input type="text" class="cs-input w-auto min-w-[200px]" placeholder="Buscar...">
+                <button class="cs-btn cs-btn-ghost">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+            </div>
+            <div id="containerHours"></div>
+          </div>
+
+          <!-- Contenedor principal -->
+          <div id="containerFinanzasIngresos" class="w-full my-2 bg-[#1F2A37] h-screen rounded-lg p-3 overflow-auto cs-scroll">
+
+            <!-- Formulario centrado -->
+            <div class="flex-1 flex items-center justify-center p-6">
+              <div class="cs-card w-full max-w-md">
+                <div class="flex items-center justify-between mb-6">
+                  <h2 class="text-lg font-bold text-white">Registrar Nuevo Ingreso</h2>
+                  <button class="text-gray-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                  </button>
+                </div>
+
+                <!-- Formulario -->
+                <form>
+                  <div class="space-y-4">
+                    <!-- Tipo de Ingreso -->
+                    <div>
+                      <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Tipo de Ingreso</label>
+                      <select class="cs-select w-full">
+                        <option>Seleccionar tipo</option>
+                        <option>Corte X</option>
+                        <option>Corte Y</option>
+                        <option>Depósito Bancario</option>
+                        <option>Efectivo</option>
+                        <option>Transferencia</option>
+                      </select>
+                    </div>
+
+                    <!-- Fecha -->
+                    <div>
+                      <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Fecha</label>
+                      <input type="date" class="cs-input w-full">
+                    </div>
+
+                    <!-- Monto -->
+                    <div>
+                      <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Monto</label>
+                      <div class="relative">
+                        <span class="absolute left-3 top-2.5 text-gray-500">$</span>
+                        <input type="number" class="cs-input w-full pl-7" placeholder="0.00" step="0.01">
+                      </div>
+                    </div>
+
+                    <!-- Cuenta -->
+                    <div>
+                      <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Cuenta Bancaria</label>
+                      <select class="cs-select w-full">
+                        <option>Cuenta principal - Bancamia</option>
+                        <option>Cuenta ahorros - Bancolombia</option>
+                        <option>Cuenta corriente - BBVA</option>
+                      </select>
+                    </div>
+
+                    <!-- Encargado -->
+                    <div>
+                      <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Encargado</label>
+                      <select class="cs-select w-full">
+                        <option>Juan Marichal</option>
+                        <option>Ana López</option>
+                        <option>Carlos Ruiz</option>
+                        <option>Pedro Gómez</option>
+                      </select>
+                    </div>
+
+                    <!-- Descripción -->
+                    <div>
+                      <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Descripción</label>
+                      <textarea class="cs-textarea w-full" rows="3" placeholder="Describir el ingreso..."></textarea>
+                    </div>
+                  </div>
+
+                  <!-- Botones -->
+                  <div class="flex items-center gap-3 mt-6">
+                    <button type="button" class="cs-btn cs-btn-outline flex-1">Cancelar</button>
+                    <button type="submit" class="cs-btn cs-btn-primary flex-1">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                      Guardar Ingreso
+                    </button>
+                  </div>
+                </form>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

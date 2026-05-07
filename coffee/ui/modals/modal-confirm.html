@@ -1,0 +1,66 @@
+<!-- ============================================================
+     Modal: Confirmacion (swalQuestion / bootbox.confirm)
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modal Confirmacion - UI Kit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>body{font-family:'Inter',sans-serif;}</style>
+</head>
+<body class="bg-[#111928] text-white p-8">
+
+  <!-- Backdrop -->
+  <div class="cs-modal-backdrop"></div>
+
+  <!-- Modal de confirmacion -->
+  <div class="cs-modal" style="max-width: 420px;">
+    <div class="cs-modal-body text-center py-8">
+      <!-- Icono -->
+      <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/15 flex items-center justify-center">
+        <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+
+      <h3 class="text-xl font-semibold mb-2">¿Eliminar usuario?</h3>
+      <p class="text-gray-400 text-sm mb-6">
+        Esta accion no se puede deshacer. El usuario <strong class="text-white">Juan Perez</strong> sera eliminado permanentemente.
+      </p>
+
+      <div class="flex justify-center gap-3">
+        <button class="cs-btn cs-btn-outline">Cancelar</button>
+        <button class="cs-btn cs-btn-danger">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Demo de variante: confirmacion de cambio de estado -->
+  <div class="mt-16">
+    <h2 class="text-lg font-semibold text-gray-300 mb-4">Variante: Cambio de estado</h2>
+    <div class="cs-modal" style="max-width: 420px; position: relative; transform: none; top: auto; left: auto;">
+      <div class="cs-modal-body text-center py-8">
+        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow-500/15 flex items-center justify-center">
+          <svg class="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-2">¿Cambiar estado?</h3>
+        <p class="text-gray-400 text-sm mb-6">
+          El usuario pasara a estado <strong class="text-yellow-400">Inactivo</strong>. No podra iniciar sesion hasta que se reactive.
+        </p>
+
+        <div class="flex justify-center gap-3">
+          <button class="cs-btn cs-btn-outline">Cancelar</button>
+          <button class="cs-btn cs-btn-warning">
+            Cambiar estado
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!-- ============================================================
+     Template: Finanzas - Modal de Formulario
+     Sistema: UI-Kit CoffeeSoft (Dark Theme Huubie)
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finanzas - Modal Formulario</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>
+    body{font-family:'Inter',sans-serif;}
+  </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+  <!-- Botón para abrir modal (solo para demo) -->
+  <div class="min-h-screen flex items-center justify-center p-8">
+    <div class="text-center">
+      <h2 class="text-xl font-bold mb-4">Modal: Nuevo Ingreso</h2>
+      <button onclick="document.getElementById('modalIngreso').classList.remove('hidden');document.getElementById('modalIngreso').classList.add('flex')" class="cs-btn cs-btn-primary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        Nuevo Ingreso
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modalIngreso" class="hidden fixed inset-0 bg-black/60 z-40 items-center justify-center">
+    <div class="bg-[#1F2A37] rounded-2xl p-6 border border-gray-700 w-[600px] relative max-h-[90vh] overflow-y-auto">
+      <button onclick="document.getElementById('modalIngreso').classList.add('hidden');document.getElementById('modalIngreso').classList.remove('flex')" class="absolute top-3 right-3 text-gray-400 hover:text-white transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+
+      <h3 class="text-lg font-bold mb-4 text-white">Registrar Nuevo Ingreso</h3>
+
+      <!-- Formulario -->
+      <form class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Tipo de Ingreso</label>
+            <select class="cs-select w-full">
+              <option>Seleccionar tipo</option>
+              <option>Corte X</option>
+              <option>Corte Y</option>
+              <option>Depósito</option>
+              <option>Efectivo</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Fecha</label>
+            <input type="date" class="cs-input w-full">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Cuenta Bancaria</label>
+          <select class="cs-select w-full">
+            <option>Cuenta principal - Bancamia</option>
+            <option>Cuenta ahorros - Bancolombia</option>
+            <option>Cuenta corriente - BBVA</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Encargado</label>
+          <select class="cs-select w-full">
+            <option>Juan Marichal</option>
+            <option>Ana López</option>
+            <option>Carlos Ruiz</option>
+            <option>Pedro Gómez</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Monto</label>
+            <div class="relative">
+              <span class="absolute left-3 top-2.5 text-gray-500">$</span>
+              <input type="number" class="cs-input w-full pl-7" placeholder="0.00" step="0.01">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Referencia</label>
+            <input type="text" class="cs-input w-full" placeholder="REF-XXXXX">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Observaciones</label>
+          <textarea class="cs-textarea w-full" rows="3" placeholder="Describir el ingreso..."></textarea>
+        </div>
+
+        <!-- Upload zona -->
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Comprobante</label>
+          <div class="border-2 border-dashed border-gray-700 rounded-lg p-4 text-center hover:border-[#7C3AED]/50 transition cursor-pointer">
+            <p class="text-xs text-gray-400">Arrastra archivo o <span class="text-[#7C3AED] cursor-pointer font-medium">selecciona</span></p>
+            <p class="text-[10px] text-gray-500 mt-1">PDF, XLS, JPG · Max 5MB</p>
+          </div>
+        </div>
+      </form>
+
+      <!-- Botones de acción -->
+      <div class="flex items-center gap-3 mt-6 pt-4 border-t border-gray-800">
+        <button onclick="document.getElementById('modalIngreso').classList.add('hidden');document.getElementById('modalIngreso').classList.remove('flex')" class="cs-btn cs-btn-outline flex-1">
+          Cancelar
+        </button>
+        <button onclick="document.getElementById('modalIngreso').classList.add('hidden');document.getElementById('modalIngreso').classList.remove('flex')" class="cs-btn cs-btn-primary flex-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          Guardar Ingreso
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

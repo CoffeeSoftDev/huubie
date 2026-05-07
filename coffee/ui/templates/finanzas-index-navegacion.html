@@ -1,0 +1,178 @@
+<!-- ============================================================
+     Template: Finanzas - Hub de Navegacion
+     Sistema: UI-Kit CoffeeSoft (Dark Theme Huubie)
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finanzas - Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>
+    body{font-family:'Inter',sans-serif;}
+    .cs-card-demo {
+      background-color: #1F2A37;
+      border: 1px solid rgba(55,65,81,0.6);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: 0.15s;
+      text-decoration: none;
+      display: block;
+    }
+    .cs-card-demo:hover {
+      border-color: #7C3AED;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body class="bg-[#111928] text-white p-8">
+
+  <!-- Hub Container -->
+  <div class="max-w-6xl mx-auto">
+    <!-- Header Hub -->
+    <header class="mb-8 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1C64F2] to-[#7152EC] flex items-center justify-center font-bold text-lg shadow-lg">
+          hb
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold">CoffeeSoft — Módulo Finanzas</h1>
+          <p class="text-sm text-gray-400 mt-1">
+            Demos estáticas · Fase 1 · Plantillas HTML con UI-Kit Dark
+          </p>
+        </div>
+      </div>
+      <div class="text-xs text-gray-500 hidden sm:block">
+        Tema: <span class="text-[#1C64F2] font-semibold">Oscuro (Huubie)</span>
+      </div>
+    </header>
+
+    <!-- Sección Ingresos -->
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Ingresos</h2>
+    <div class="grid grid-cols-3 gap-4 mb-8">
+      <a href="finanzas-ingresos.html" class="cs-card-demo">
+        <div class="w-10 h-10 rounded-lg bg-[#3FC189]/20 text-[#3FC189] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">Ingresos</h3>
+        <p class="text-xs text-gray-400">Tabla con filtros, paginación y badges de estado</p>
+        <p class="text-xs text-[#7C3AED] mt-3">finanzas-ingresos.html →</p>
+      </a>
+
+      <a href="finanzas-ingresos-detalle.html" class="cs-card-demo">
+        <div class="w-10 h-10 rounded-lg bg-[#7152EC]/20 text-[#7152EC] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">KPI & Dashboard</h3>
+        <p class="text-xs text-gray-400">Cards con KPIs, gráficos y métricas</p>
+        <p class="text-xs text-[#7C3AED] mt-3">finanzas-ingresos-detalle.html →</p>
+      </a>
+
+      <a href="finanzas-ingresos-efectivo.html" class="cs-card-demo">
+        <div class="w-10 h-10 rounded-lg bg-[#EA0234]/20 text-[#EA0234] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2h7zm2 9H9V10h10z"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">Nuevo Ingreso</h3>
+        <p class="text-xs text-gray-400">Formulario centrado para registrar ingresos</p>
+        <p class="text-xs text-[#7C3AED] mt-3">finanzas-ingresos-efectivo.html →</p>
+      </a>
+    </div>
+
+    <!-- Sección Egresos -->
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Egresos</h2>
+    <div class="grid grid-cols-3 gap-4 mb-8">
+      <a href="finanzas-egresos.html" class="cs-card-demo">
+        <div class="w-10 h-10 rounded-lg bg-[#EA0234]/20 text-[#EA0234] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-3a2 2 0 00-2-2h-2m-6 6a2 2 0 01-2-2V5a2 2 0 012-2h10a2 2 0 012 2v5a2 2 0 01-2 2h-2m-6 0h4m-4 4h4m-4 4h4m-4 4h4"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">Egresos</h3>
+        <p class="text-xs text-gray-400">Gestión de egresos con panel lateral</p>
+        <p class="text-xs text-[#7C3AED] mt-3">finanzas-egresos.html →</p>
+      </a>
+
+      <a href="finanzas-egresos-detalle.html" class="cs-card-demo">
+        <div class="w-10 h-10 rounded-lg bg-[#3FC189]/20 text-[#3FC189] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">Detalle Egreso</h3>
+        <p class="text-xs text-gray-400">Vista detalle con panel lateral</p>
+        <p class="text-xs text-[#7C3AED] mt-3">finanzas-egresos-detalle.html →</p>
+      </a>
+    </div>
+
+    <!-- Sección Compras -->
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Compras</h2>
+    <div class="grid grid-cols-3 gap-4 mb-8">
+      <a href="finanzas-compras.html" class="cs-card-demo">
+        <div class="w-10 h-10 rounded-lg bg-[#7152EC]/20 text-[#7152EC] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">Órdenes de Compra</h3>
+        <p class="text-xs text-gray-400">Gestión de compras y proveedores</p>
+        <p class="text-xs text-[#7C3AED] mt-3">finanzas-compras.html →</p>
+      </a>
+
+      <a href="finanzas-compras-detalle.html" class="cs-card-demo">
+        <div class="w-10 h-10 rounded-lg bg-[#EA0234]/20 text-[#EA0234] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">Detalle Compra</h3>
+        <p class="text-xs text-gray-400">Vista completa con panel lateral</p>
+        <p class="text-xs text-[#7C3AED] mt-3">finanzas-compras-detalle.html →</p>
+      </a>
+    </div>
+
+    <!-- Sección Módulos -->
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Módulos Financieros</h2>
+    <div class="grid grid-cols-3 gap-4 mb-8">
+      <a href="#" class="cs-card-demo opacity-60 cursor-not-allowed">
+        <div class="w-10 h-10 rounded-lg bg-[#76A9FA]/20 text-[#76A9FA] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">Bancos</h3>
+        <p class="text-xs text-gray-400">Movimientos bancarios y cuentas</p>
+        <p class="text-xs text-gray-500 mt-3">En desarrollo</p>
+      </a>
+
+      <a href="#" class="cs-card-demo opacity-60 cursor-not-allowed">
+        <div class="w-10 h-10 rounded-lg bg-[#FBBF24]/20 text-[#FBBF24] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">CxC / CxP</h3>
+        <p class="text-xs text-gray-400">Cuentas por cobrar y pagar</p>
+        <p class="text-xs text-gray-500 mt-3">En desarrollo</p>
+      </a>
+
+      <a href="#" class="cs-card-demo opacity-60 cursor-not-allowed">
+        <div class="w-10 h-10 rounded-lg bg-[#7C3AED]/20 text-[#7C3AED] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h-6m-9 0V3a2 2 0 012-2h4l2 2h4a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">Presupuestos</h3>
+        <p class="text-xs text-gray-400">Gestión de presupuestos y gastos</p>
+        <p class="text-xs text-gray-500 mt-3">En desarrollo</p>
+      </a>
+
+      <a href="#" class="cs-card-demo opacity-60 cursor-not-allowed">
+        <div class="w-10 h-10 rounded-lg bg-[#3FC189]/20 text-[#3FC189] flex items-center justify-center mb-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2h-5l-5 5H5"></path></svg>
+        </div>
+        <h3 class="text-sm font-bold mb-1">Cuentas</h3>
+        <p class="text-xs text-gray-400">Mantenimiento de cuentas</p>
+        <p class="text-xs text-gray-500 mt-3">En desarrollo</p>
+      </a>
+    </div>
+
+    <!-- Footer Hub -->
+    <footer class="text-center text-xs text-gray-500 pt-8 border-t border-gray-800">
+      <p>© 2026 CoffeeSoft, LLC. · Módulo Finanzas Fase 1</p>
+      <p class="mt-1">Conjuring with UI-Kit Dark Theme · Template generated by CoffeeMagic</p>
+    </footer>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!-- ============================================================
+     Template: Finanzas - Modal de Confirmación
+     Sistema: UI-Kit CoffeeSoft (Dark Theme Huubie)
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finanzas - Modal Confirmación</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>
+    body{font-family:'Inter',sans-serif;}
+  </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+  <!-- Botón para abrir modal (solo para demo) -->
+  <div class="min-h-screen flex items-center justify-center p-8">
+    <div class="text-center">
+      <h2 class="text-xl font-bold mb-4">Modal: Confirmación</h2>
+      <button onclick="document.getElementById('modalConfirm').classList.remove('hidden');document.getElementById('modalConfirm').classList.add('flex')" class="cs-btn cs-btn-danger">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+        Anular Ingreso
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modalConfirm" class="hidden fixed inset-0 bg-black/60 z-40 items-center justify-center">
+    <div class="bg-[#1F2A37] rounded-2xl p-6 border border-gray-700 w-[420px] relative">
+      <button onclick="document.getElementById('modalConfirm').classList.add('hidden');document.getElementById('modalConfirm').classList.remove('flex')" class="absolute top-3 right-3 text-gray-400 hover:text-white transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+
+      <div class="text-center py-4">
+        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-[#EA0234]/15 flex items-center justify-center">
+          <svg class="w-8 h-8 text-[#EA0234]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+        </div>
+        <h3 class="text-xl font-semibold mb-2 text-white">¿Anular Ingreso?</h3>
+        <p class="text-gray-400 text-sm mb-6">
+          Esta acción no se puede deshacer. El registro de ingreso <strong class="text-white">ING-00001</strong> será marcado como anulado y no aparecerá en los reportes.
+        </p>
+
+        <!-- Información del registro -->
+        <div class="bg-[#1a2332] rounded-lg p-4 mb-6 text-left">
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p class="text-[10px] text-gray-500 uppercase">ID</p>
+              <p class="text-white font-medium">ING-00001</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-gray-500 uppercase">Fecha</p>
+              <p class="text-white font-medium">07 May 2026</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-gray-500 uppercase">Monto</p>
+              <p class="text-[#3FC189] font-medium">$2,300.00</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-gray-500 uppercase">Estado</p>
+              <p class="text-white font-medium">Aprobado</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="flex items-center gap-3 justify-center">
+          <button onclick="document.getElementById('modalConfirm').classList.add('hidden');document.getElementById('modalConfirm').classList.remove('flex')" class="cs-btn cs-btn-outline px-6">
+            Cancelar
+          </button>
+          <button onclick="document.getElementById('modalConfirm').classList.add('hidden');document.getElementById('modalConfirm').classList.remove('flex')" class="cs-btn cs-btn-danger px-6">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            Anular
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -20,27 +20,44 @@ class Perfil extends Templates {
     }
 
     layout() {
-        this.primaryLayout({
-            parent: `root`,
-            id: this.PROJECT_NAME,
-            class: 'd-flex mx-2 my-2 h-100 mt-5 p-2',
-            card: {
-                filterBar: { class: 'w-full my-3', id: 'filterBar' + this.PROJECT_NAME },
-                container: { class: 'w-full my-3 bg-[#1F2A37] rounded-lg p-3', id: 'container' + this.PROJECT_NAME }
+        this.createLayout({
+            parent: 'root',
+            design: false,
+            data: {
+                id: this.PROJECT_NAME,
+                class: 'w-full min-h-screen p-4',
+                container: [
+                    {
+                        type: 'div',
+                        id: `container${this.PROJECT_NAME}`,
+                        class: 'w-full bg-[#1F2A37] rounded-lg p-3 min-h-screen',
+                        children: [
+                            {
+                                id: 'titlePerfil',
+                                class: 'px-4 pt-3 pb-3'
+                            },
+                            {
+                                id: `content${this.PROJECT_NAME}`,
+                                class: 'w-full p-3 '
+                            }
+                        ]
+                    }
+                ]
             }
         });
+
+        $("#titlePerfil").html(`
+            <h2 class="text-2xl font-semibold text-white">👤 Información Personal</h2>
+            <p class="text-gray-400">Tu información básica y datos de contacto.</p>
+        `);
+
         this.layoutPerfil();
     }
 
     layoutPerfil() {
-        let container = $('#container' + this.PROJECT_NAME);
+        let container = $('#content' + this.PROJECT_NAME);
 
         container.html(`
-            <div class="p-4 border-b border-slate-700/50">
-                <p class="text-white text-2xl font-bold">Información Personal</p>
-                <p class="text-slate-400 text-sm">Tu información básica y datos de contacto</p>
-            </div>
-
             <div class="p-4 space-y-8">
                 <div class="grid md:grid-cols-[250px_1fr] gap-8">
                     <div class="flex flex-col items-center gap-4">

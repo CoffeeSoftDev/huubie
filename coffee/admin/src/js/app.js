@@ -75,35 +75,29 @@ class App extends Templates {
             json: [
                 {
                     id: "tab-company",
-                    tab: "Empresa",
-                    lucideIcon: "building-2",
-                    iconColor: "text-white",
+                    tab: `<i data-lucide="building-2" class="w-4 h-4"></i> Empresa`,
                     active: true,
                     onClick: () => company.render()
                 },
                 {
                     id: "tab-usuarios",
-                    tab: "Usuarios",
-                    lucideIcon: "users",
-                    iconColor: "text-white",
+                    tab: `<i data-lucide="users" class="w-4 h-4"></i> Usuarios`,
                     onClick: () => usuarios.render()
                 },
                 {
                     id: "tab-sucursales",
-                    tab: "Sucursal",
-                    lucideIcon: "map-pin",
-                    iconColor: "text-white",
+                    tab: `<i data-lucide="map-pin" class="w-4 h-4"></i> Sucursal`,
                     onClick: () => sucursales.render()
                 },
                 {
                     id: "tab-clausules",
-                    tab: "Clausulas",
-                    lucideIcon: "file-text",
-                    iconColor: "text-white",
+                    tab: `<i data-lucide="file-text" class="w-4 h-4"></i> Clausulas`,
                     onClick: () => clausulas.ls()
                 },
             ],
         });
+
+        if (window.lucide) lucide.createIcons();
     }
 
     renderActiveTab() {
@@ -141,7 +135,7 @@ class Company extends Templates {
             ? `<button id="btnRemoveLogo" type="button" title="Quitar logo"
                     onmouseenter="this.style.opacity='1'"
                     onmouseleave="this.style.opacity='0'"
-                    style="background-color: rgba(71, 85, 105, 0.75); opacity: 0; transition: opacity 0.2s; border: 0; cursor: pointer; z-index: 10;"
+                    style="background-color: rgba(15, 23, 42, 0.85); opacity: 0; transition: opacity 0.2s; border: 0; cursor: pointer; z-index: 1;"
                     class="absolute inset-0 rounded-full flex items-center justify-center">
                     <i class="icon-trash text-white" style="font-size: 2rem;"></i>
                 </button>`
@@ -156,9 +150,9 @@ class Company extends Templates {
                                 ${avatarContent}
                                 ${removeOverlay}
                             </div>
-                            <button class="absolute top-1/2 right-0 translate-x-2 translate-y-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 
-                            
-                            flex items-center justify-center shadow-lg" id="btnEditLogo" title="Cambiar logo">
+                            <button class="absolute top-1/2 right-0 translate-x-2 translate-y-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800
+
+                            flex items-center justify-center shadow-lg" id="btnEditLogo" title="Cambiar logo" style="z-index: 20;">
                                 <i class="icon-pencil text-white text-sm"></i>
                             </button>
                             
