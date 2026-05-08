@@ -54,7 +54,8 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/coffee/ui/index.html\")",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "PowerShell(New-Item *)"
     ]
   },
   "spinnerTipsEnabled": false

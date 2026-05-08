@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tickets — Hub de Navegacion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../ui/css/ui-kit.css">
+    <style>
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; min-height: 100vh; }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <div class="mb-8">
+            <h1 class="text-2xl font-bold mb-2">Tickets — Consulta y Reportes</h1>
+            <p class="text-sm text-[#9CA3AF]">Modulo de consulta de tickets de venta con detalle, filtros y exportacion. Estilo SoftRestaurant adaptado a Huubie UI.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a href="tickets-consulta.html" class="group h-[200px] bg-[#333D4C] rounded-lg shadow-lg overflow-hidden p-4 flex flex-col justify-between cursor-pointer transition-all hover:shadow-xl hover:scale-105 hover:border hover:border-[#7C3AED]">
+                <div class="w-14 h-14 bg-[#233876] rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+                </div>
+                <div class="flex-grow flex flex-col justify-center">
+                    <h3 class="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">Consulta de Tickets</h3>
+                    <p class="text-gray-400 text-sm">Busqueda, filtros y detalle de tickets de venta por turno, fecha y metodo de pago.</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>
