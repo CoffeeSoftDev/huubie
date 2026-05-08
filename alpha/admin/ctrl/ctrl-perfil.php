@@ -19,7 +19,7 @@ class ctrl extends mdl {
             $message = 'Usuario encontrado';
 
             if (!empty($usuario['photo'])) {
-                $usuario['photo'] = 'https://huubie.com.mx/alpha' . $usuario['photo'];
+                $usuario['photo'] = '/alpha' . $usuario['photo'];
             }
 
             $data    = [
@@ -42,8 +42,36 @@ class ctrl extends mdl {
         return [
             'status'  => $status,
             'message' => $message,
-            'data'    => $data,
-            $usuario
+            'data'    => $data
+        ];
+    }
+
+    // ELIMINAR FOTO DE USUARIO
+    function deletePhotoUser() {
+        $idUser   = $_SESSION['USR'];
+        $status   = 500;
+        $message  = 'Error al eliminar la foto';
+
+        $prevData = $this->getUserById($idUser);
+
+        if (!empty($prevData['photo'])) {
+            $oldFile = $_SERVER['DOCUMENT_ROOT'] . '/alpha' . $prevData['photo'];
+            if (file_exists($oldFile)) {
+                unlink($oldFile);
+            }
+        }
+
+        $data   = ['photo' => '', 'id' => $idUser];
+        $update = $this->updateUser($this->util->sql($data, 1));
+
+        if ($update) {
+            $status  = 200;
+            $message = 'Foto eliminada correctamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
         ];
     }
 

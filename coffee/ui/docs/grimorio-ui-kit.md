@@ -288,13 +288,255 @@ Variantes: `cs-callout-info`, `cs-callout-success`, `cs-callout-warning`, `cs-ca
 </div>
 ```
 
+### 5.10 Toggle / Switch
+
+Componente custom para activar/desactivar estados.
+
+```html
+<div class="cs-toggle" onclick="this.querySelector('.cs-toggle-track').classList.toggle('active')">
+  <div class="cs-toggle-track">
+    <div class="cs-toggle-knob"></div>
+  </div>
+  <span class="text-sm text-gray-300">Activo</span>
+</div>
+```
+
+| Estado | Clase del track |
+|--------|-----------------|
+| Inactivo | `.cs-toggle-track` (bg `#374151`) |
+| Activo | `.cs-toggle-track.active` (bg `#7C3AED`) |
+
+### 5.11 Toast / Notificacion
+
+Alertas temporales flotantes. 4 variantes de color.
+
+```html
+<div class="cs-toast cs-toast-success">
+  <svg class="w-5 h-5 text-green-400 shrink-0" ...></svg>
+  <div>
+    <p class="text-sm font-medium text-white">Operacion exitosa</p>
+    <p class="text-xs text-gray-400 mt-0.5">El registro se guardo correctamente.</p>
+  </div>
+</div>
+```
+
+| Variante | Clase | Color de borde |
+|----------|-------|----------------|
+| Exito | `.cs-toast-success` | `rgba(63,193,137,0.3)` |
+| Advertencia | `.cs-toast-warning` | `rgba(251,191,36,0.3)` |
+| Error | `.cs-toast-danger` | `rgba(234,2,52,0.3)` |
+| Info | `.cs-toast-info` | `rgba(28,100,242,0.3)` |
+
+### 5.12 Input Groups
+
+Input con icono lateral, moneda, o boton de accion.
+
+```html
+<!-- Input con icono izquierdo -->
+<div class="relative">
+  <span class="cs-input-group-icon">
+    <svg class="w-4 h-4" ...></svg>
+  </span>
+  <input type="text" class="cs-input pl-10" placeholder="Buscar...">
+</div>
+
+<!-- Input moneda (alineacion derecha) -->
+<div>
+  <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Monto</label>
+  <input type="number" step="0.01" value="0.00" class="cs-input w-28 text-right font-semibold">
+</div>
+```
+
+### 5.13 Radio & Checkbox
+
+Estilizados con Tailwind. Siempre usar `accent-color` o clases de borde/fondo custom.
+
+```html
+<!-- Checkbox -->
+<div class="flex items-center gap-2">
+  <input type="checkbox" id="chk1" class="w-4 h-4 rounded border-gray-600 bg-[#1a2332] text-blue-600 focus:ring-blue-500">
+  <label for="chk1" class="text-sm text-gray-300">Opcion activa</label>
+</div>
+
+<!-- Radio -->
+<div class="flex items-center gap-2">
+  <input type="radio" name="radio-demo" class="w-4 h-4 border-gray-600 bg-[#1a2332] text-blue-600 focus:ring-blue-500">
+  <label class="text-sm text-gray-300">Opcion A</label>
+</div>
+```
+
+### 5.14 Button Groups
+
+Grupo de botones unidos horizontalmente.
+
+```html
+<div class="cs-btn-group">
+  <button class="cs-btn cs-btn-primary active">Todos</button>
+  <button class="cs-btn cs-btn-ghost">Activos</button>
+  <button class="cs-btn cs-btn-ghost">Inactivos</button>
+</div>
+```
+
+### 5.15 Avatar
+
+Iniciales, imagen o placeholder.
+
+```html
+<div class="cs-avatar cs-avatar-sm">JD</div>
+<div class="cs-avatar cs-avatar-md">JD</div>
+<div class="cs-avatar cs-avatar-lg">JD</div>
+<div class="cs-avatar cs-avatar-xl">
+  <img src="avatar.jpg" alt="Usuario">
+</div>
+```
+
+| Tamano | Clase | Dimension | Font-size |
+|--------|-------|-----------|-----------|
+| Small | `.cs-avatar-sm` | 24x24 | 10px |
+| Medium | `.cs-avatar-md` | 36x36 | 14px |
+| Large | `.cs-avatar-lg` | 48x48 | 18px |
+| Extra | `.cs-avatar-xl` | 80x80 | 24px |
+
+### 5.16 Paginacion
+
+Controles de paginacion con conteo "Showing X-Y of Z".
+
+```html
+<div class="flex items-center justify-between mt-4">
+  <p class="text-xs text-gray-500">Showing 1-10 of 47</p>
+  <div class="cs-pagination">
+    <button disabled><svg class="w-4 h-4" ...></svg></button>
+    <button class="active-page">1</button>
+    <button>2</button>
+    <button>3</button>
+    <button><svg class="w-4 h-4" ...></svg></button>
+  </div>
+</div>
+```
+
+### 5.17 Empty State
+
+Estado vacio con icono y CTA.
+
+```html
+<div class="cs-empty-state">
+  <svg class="w-12 h-12 text-gray-600 mb-4" ...></svg>
+  <p class="text-gray-400 text-sm">No se encontraron registros</p>
+  <button class="cs-btn cs-btn-primary cs-btn-sm mt-3">Crear nuevo</button>
+</div>
+```
+
+### 5.18 Progress / Loading
+
+Barras de progreso y spinners.
+
+```html
+<!-- Barra de progreso -->
+<div class="cs-progress">
+  <div class="cs-progress-bar" style="width: 65%"></div>
+</div>
+
+<!-- Spinner -->
+<div class="cs-spinner"></div>
+```
+
+| Variante de barra | Clase adicional |
+|-------------------|-----------------|
+| Primario | (default) |
+| Exito | `.success` |
+| Advertencia | `.warning` |
+| Peligro | `.danger` |
+
+### 5.19 Navbar
+
+Barra superior fija. Extraida de `alpha/layout/navbar.php`.
+
+```html
+<nav class="cs-navbar">
+  <div class="flex items-center gap-4">
+    <!-- Logo -->
+    <span class="text-xl font-bold tracking-wide text-white">
+      hb<span class="text-[#1C64F2]">&#9679;</span>
+    </span>
+    <button class="text-white text-2xl">&#9776;</button>
+  </div>
+  <div class="flex-1"></div>
+  <div class="flex items-center gap-4">
+    <!-- Grid icon -->
+    <button class="text-gray-400 hover:text-white transition">
+      <svg class="w-5 h-5" ...></svg>
+    </button>
+    <!-- Usuario -->
+    <button class="flex items-center gap-3">
+      <div class="cs-avatar cs-avatar-md">U</div>
+      <div class="hidden md:flex flex-col items-start leading-tight">
+        <span class="text-sm font-medium text-white">Admin Usuario</span>
+        <span class="text-xs text-green-400">EN LINEA</span>
+      </div>
+    </button>
+  </div>
+</nav>
+```
+
+**Dropdown de usuario:**
+```html
+<div class="absolute right-0 top-full mt-2 w-64 p-4 rounded-2xl shadow-lg
+            bg-[#1F2A37] border border-gray-700 text-white
+            opacity-0 scale-95 invisible transition-all duration-300">
+  <div class="flex flex-col items-center pb-2">
+    <div class="cs-avatar cs-avatar-xl mb-2">LU</div>
+    <h2 class="text-lg font-medium">Luis Garcia Valera</h2>
+  </div>
+  <div class="w-full text-center space-y-2 mt-4">
+    <p class="text-gray-300 font-bold text-sm">Configuracion</p>
+    <p class="text-gray-400 hover:text-white cursor-pointer text-sm">Mi Perfil</p>
+    <p class="text-gray-400 hover:text-white cursor-pointer text-sm">Cerrar Sesion</p>
+  </div>
+</div>
+```
+
+### 5.20 Sidebar
+
+Menu lateral con submenus expandibles. Extraido de `alpha/layout/sidebar.php`.
+
+```html
+<aside class="cs-sidebar">
+  <nav class="space-y-1 p-4">
+    <a href="#" class="cs-nav-link active">
+      <svg class="w-5 h-5" ...></svg>
+      Resumen
+    </a>
+    <div class="submenu">
+      <button class="cs-nav-link w-full justify-between" onclick="toggleSubmenu(this)">
+        <span class="flex items-center gap-3">
+          <svg class="w-5 h-5" ...></svg>
+          Acceso
+        </span>
+        <svg class="w-4 h-4 transition-transform" ...></svg>
+      </button>
+      <ul class="mt-1 pl-4 space-y-1 max-h-0 overflow-hidden transition-all duration-300">
+        <li><a href="#" class="cs-nav-link">Eventos</a></li>
+        <li><a href="#" class="cs-nav-link">Pedidos</a></li>
+      </ul>
+    </div>
+  </nav>
+</aside>
+```
+
+**Reglas del sidebar:**
+- Ancho fijo: `224px` (`w-56`)
+- Fondo: `#0f172a`
+- Submenus: animacion de `max-height` (`0px` a `scrollHeight`)
+- Flecha de submenu: rotacion `180deg` al abrir
+- Solo un submenu abierto a la vez
+
 ---
 
 ## 6. Reglas para CoffeeMagic
 
 1. **Siempre usar el tema oscuro.** Body: `bg-[#111928] text-white`.
 2. **Usar Inter como fuente.** Cargar desde Google Fonts.
-3. **Inputs, selects y textareas** deben usar `.cs-input`, `.cs-select`, `.cs-textarea` (definidos en `ui-kit.css`).
+3. **Inputs, selects y textareas** deben usar `.cs-input`, `.cs-select`, `.cs-textarea`.
 4. **Tablas** deben usar `.cs-table` y estar envueltas en `overflow-x-auto rounded-lg border border-gray-700`.
 5. **Botones** deben usar `.cs-btn` + variante. No usar colores Tailwind sueltos para botones principales.
 6. **Badges** deben usar `.cs-badge` + variante de estado.
@@ -304,10 +546,49 @@ Variantes: `cs-callout-info`, `cs-callout-success`, `cs-callout-warning`, `cs-ca
 10. **Cards de modulo** deben incluir hover con `hover:scale-105`, `hover:shadow-xl`, `hover:border-[#7C3AED]`.
 11. **KPI cards** deben usar `bg-[#1F2A37] rounded-xl shadow p-4`.
 12. **Layout canonico** debe seguir la estructura de `layout-primary.html`.
+13. **Navbar** fija: `cs-navbar` con logo, toggle sidebar, grid icon, avatar usuario.
+14. **Sidebar** fijo: `cs-sidebar` (`w-56`, `bg-[#0f172a]`) con `.cs-nav-link` y submenus expandibles.
+15. **Toggle/Switch** siempre usar `.cs-toggle-track` + `.cs-toggle-knob` con clase `.active`.
+16. **Toast/Notificaciones** usar `.cs-toast` + variante de color (`.cs-toast-success`, etc.).
+17. **Avatares** usar `.cs-avatar` + tamano (`.cs-avatar-sm`, `.cs-avatar-md`, `.cs-avatar-lg`, `.cs-avatar-xl`).
+18. **Paginacion** usar `.cs-pagination` con `.active-page` para la pagina actual.
+19. **Progress** usar `.cs-progress` + `.cs-progress-bar` con clase `.success`/`.warning`/`.danger` si aplica.
+20. **Button groups** usar `.cs-btn-group` para agrupar botones relacionados.
+21. **Empty state** usar `.cs-empty-state` para tablas/listas sin registros.
 
 ---
 
-## 7. Archivos de Referencia
+## 7. Clases CSS `.cs-*` Completas
+
+| Clase | Descripcion |
+|-------|-------------|
+| `.cs-bg-body` / `.cs-bg-card` / `.cs-bg-input` / `.cs-bg-hover` / `.cs-bg-header` / `.cs-bg-sidebar` / `.cs-bg-alt` / `.cs-bg-dash` | Utilidades de fondo |
+| `.cs-text-primary` / `.cs-text-secondary` / `.cs-text-muted` / `.cs-text-primary-accent` / `.cs-text-success` / `.cs-text-danger` / `.cs-text-warning` / `.cs-text-info` / `.cs-text-purple` | Utilidades de texto |
+| `.cs-card` / `.cs-card-hover` | Card contenedor |
+| `.cs-input` / `.cs-select` / `.cs-textarea` | Inputs de formulario |
+| `.cs-input-group` / `.cs-input-group-icon` | Input con icono |
+| `.cs-btn` / `.cs-btn-primary` / `.cs-btn-secondary` / `.cs-btn-success` / `.cs-btn-danger` / `.cs-btn-outline` / `.cs-btn-ghost` / `.cs-btn-sm` / `.cs-btn-lg` | Botones |
+| `.cs-btn-group` | Grupo de botones |
+| `.cs-badge` / `.cs-badge-success` / `.cs-badge-danger` / `.cs-badge-warning` / `.cs-badge-info` / `.cs-badge-purple` | Badges |
+| `.cs-table` | Tabla dark |
+| `.cs-tabs` / `.cs-tab` | Tabs |
+| `.cs-modal` / `.cs-modal-backdrop` / `.cs-modal-header` / `.cs-modal-body` / `.cs-modal-footer` / `.cs-modal-title` | Modales |
+| `.cs-dropdown-menu` | Dropdown de acciones |
+| `.cs-callout` / `.cs-callout-info` / `.cs-callout-success` / `.cs-callout-warning` / `.cs-callout-danger` | Callouts/Alertas |
+| `.cs-kpi-card` / `.cs-kpi-label` / `.cs-kpi-value` | Cards de KPI |
+| `.cs-scroll` | Scrollbar custom |
+| `.cs-toggle` / `.cs-toggle-track` / `.cs-toggle-knob` | Toggle/Switch |
+| `.cs-toast` / `.cs-toast-success` / `.cs-toast-warning` / `.cs-toast-danger` / `.cs-toast-info` | Toasts |
+| `.cs-avatar` / `.cs-avatar-sm` / `.cs-avatar-md` / `.cs-avatar-lg` / `.cs-avatar-xl` | Avatares |
+| `.cs-pagination` | Paginacion |
+| `.cs-progress` / `.cs-progress-bar` / `.cs-spinner` | Progress y loading |
+| `.cs-empty-state` | Estado vacio |
+| `.cs-navbar` | Barra superior |
+| `.cs-sidebar` / `.cs-nav-link` | Sidebar y links de navegacion |
+
+---
+
+## 8. Archivos de Referencia
 
 | Archivo | Descripcion |
 |---------|-------------|
@@ -318,6 +599,9 @@ Variantes: `cs-callout-info`, `cs-callout-success`, `cs-callout-warning`, `cs-ca
 | `templates/component-tables.html` | Tablas dark, agrupadas, vacias |
 | `templates/component-forms.html` | Formularios, inputs, chips |
 | `templates/component-badges-tabs.html` | Badges, tabs, callouts |
+| `templates/component-navbar.html` | Navbar con dropdown de usuario |
+| `templates/component-sidebar.html` | Sidebar con submenus |
+| `templates/component-toast.html` | Toasts/Notificaciones |
 | `modals/modal-form.html` | Modal de formulario |
 | `modals/modal-confirm.html` | Modal de confirmacion |
 | `modals/modal-dropdown-actions.html` | Dropdown de acciones en tabla |

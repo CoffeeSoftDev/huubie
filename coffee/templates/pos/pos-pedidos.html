@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedidos del Día — POS Huubie</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../../ui/css/ui-kit.css">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .order-row { transition: background-color .15s; }
+    .order-row:hover { background-color: #1a2332; }
+    .order-row.active { background-color: #1a2332; border-left: 3px solid #1C64F2; }
+  </style>
+</head>
+<body class="bg-[#111928] text-white h-screen overflow-hidden">
+
+  <!-- Navbar -->
+  <nav class="cs-navbar">
+    <div class="flex items-center gap-4">
+      <span class="text-xl font-bold tracking-wide text-white">hb<span class="text-[#1C64F2]">&#9679;</span></span>
+      <span class="text-sm text-gray-400 hidden md:inline">| Pedidos del día</span>
+    </div>
+    <div class="flex-1"></div>
+    <div class="flex items-center gap-3">
+      <button class="cs-btn cs-btn-primary cs-btn-sm">Nueva orden</button>
+      <button class="flex items-center gap-3">
+        <div class="cs-avatar cs-avatar-md">AL</div>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Layout -->
+  <div id="mainContainer" class="w-full h-[calc(100vh-64px)] flex flex-col mt-16 overflow-hidden">
+    <!-- Filter Bar -->
+    <div id="filterBar" class="w-full p-3 border-b border-gray-700 bg-[#141d2b]">
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="cs-form-group">
+          <label class="cs-label">Fecha</label>
+          <input type="date" class="cs-input" value="2026-05-07">
+        </div>
+        <div class="cs-form-group">
+          <label class="cs-label">Sucursal</label>
+          <select class="cs-select">
+            <option>Todas</option>
+            <option selected>Centro</option>
+            <option>Norte</option>
+          </select>
+        </div>
+        <div class="cs-form-group">
+          <label class="cs-label">Estado</label>
+          <select class="cs-select">
+            <option>Todos</option>
+            <option>Cotización</option>
+            <option selected>Pendiente</option>
+            <option>Pagado</option>
+            <option>Cancelado</option>
+            <option>Entregado</option>
+          </select>
+        </div>
+        <div class="cs-form-group">
+          <label class="cs-label">Tipo</label>
+          <select class="cs-select">
+            <option>Todos</option>
+            <option>Local</option>
+            <option>Domicilio</option>
+          </select>
+        </div>
+        <div class="flex-1"></div>
+        <div class="relative">
+          <span class="cs-input-group-icon">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </span>
+          <input type="text" class="cs-input pl-10 w-64" placeholder="Buscar folio o cliente...">
+        </div>
+      </div>
+    </div>
+
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Orders Table -->
+      <div class="flex-1 overflow-y-auto cs-scroll p-3">
+        <!-- JS injecta filas aquí -->
+        <div class="overflow-x-auto rounded-lg border border-gray-700">
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th>Folio</th>
+                <th>Cliente</th>
+                <th>Entrega</th>
+                <th class="text-right">Total</th>
+                <th>Estado</th>
+                <th>Tipo</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="posOrdersTable">
+              <tr class="order-row active cursor-pointer">
+                <td class="font-medium">#1042</td>
+                <td>María González</td>
+                <td>07/05 16:00</td>
+                <td class="text-right font-medium">$565.00</td>
+                <td><span class="cs-badge cs-badge-warning">Pendiente</span></td>
+                <td><span class="text-xs text-gray-400">Local</span></td>
+                <td class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <button class="cs-btn cs-btn-ghost cs-btn-sm">Ver</button>
+                    <button class="cs-btn cs-btn-success cs-btn-sm">Cobrar</button>
+                    <button class="cs-btn cs-btn-danger cs-btn-sm">Cancelar</button>
+                  </div>
+                </td>
+              </tr>
+              <tr class="order-row cursor-pointer">
+                <td class="font-medium">#1041</td>
+                <td>Juan Pérez</td>
+                <td>07/05 15:30</td>
+                <td class="text-right font-medium">$890.00</td>
+                <td><span class="cs-badge cs-badge-success">Pagado</span></td>
+                <td><span class="text-xs text-gray-400">Domicilio</span></td>
+                <td class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <button class="cs-btn cs-btn-ghost cs-btn-sm">Ver</button>
+                    <button class="cs-btn cs-btn-success cs-btn-sm">Cobrar</button>
+                    <button class="cs-btn cs-btn-danger cs-btn-sm">Cancelar</button>
+                  </div>
+                </td>
+              </tr>
+              <tr class="order-row cursor-pointer">
+                <td class="font-medium">#1040</td>
+                <td>Laura Martínez</td>
+                <td>08/05 12:00</td>
+                <td class="text-right font-medium">$320.00</td>
+                <td><span class="cs-badge cs-badge-info">Cotización</span></td>
+                <td><span class="text-xs text-gray-400">Local</span></td>
+                <td class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <button class="cs-btn cs-btn-ghost cs-btn-sm">Ver</button>
+                    <button class="cs-btn cs-btn-success cs-btn-sm">Cobrar</button>
+                    <button class="cs-btn cs-btn-danger cs-btn-sm">Cancelar</button>
+                  </div>
+                </td>
+              </tr>
+              <tr class="order-row cursor-pointer">
+                <td class="font-medium">#1039</td>
+                <td>Pedro Sánchez</td>
+                <td>07/05 18:00</td>
+                <td class="text-right font-medium">$1,250.00</td>
+                <td><span class="cs-badge cs-badge-danger">Cancelado</span></td>
+                <td><span class="text-xs text-gray-400">Domicilio</span></td>
+                <td class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <button class="cs-btn cs-btn-ghost cs-btn-sm">Ver</button>
+                    <button class="cs-btn cs-btn-success cs-btn-sm">Cobrar</button>
+                    <button class="cs-btn cs-btn-danger cs-btn-sm">Cancelar</button>
+                  </div>
+                </td>
+              </tr>
+              <tr class="order-row cursor-pointer">
+                <td class="font-medium">#1038</td>
+                <td>Ana López</td>
+                <td>07/05 14:00</td>
+                <td class="text-right font-medium">$650.00</td>
+                <td><span class="cs-badge cs-badge-success">Entregado</span></td>
+                <td><span class="text-xs text-gray-400">Local</span></td>
+                <td class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <button class="cs-btn cs-btn-ghost cs-btn-sm">Ver</button>
+                    <button class="cs-btn cs-btn-success cs-btn-sm">Cobrar</button>
+                    <button class="cs-btn cs-btn-danger cs-btn-sm">Cancelar</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-between mt-4">
+          <p class="text-xs text-gray-500">Showing 1-5 of 12</p>
+          <div class="cs-pagination">
+            <button disabled><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+            <button class="active-page">1</button>
+            <button>2</button>
+            <button>3</button>
+            <button><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail Panel -->
+      <div id="posDetailPanel" class="hidden md:flex w-[400px] flex-col border-l border-gray-700 bg-[#1F2A37]">
+        <div class="cs-card-header p-4 border-b border-gray-700 flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-white">Detalle #1042</h3>
+          <button class="cs-btn cs-btn-ghost cs-btn-sm">Continuar en POS</button>
+        </div>
+        <div class="flex-1 overflow-y-auto cs-scroll p-4 space-y-4">
+          <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700">
+            <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Cliente</p>
+            <p class="text-sm font-medium text-white">María González</p>
+            <p class="text-xs text-gray-400">55 1234 5678</p>
+            <p class="text-xs text-gray-400">maria.g@test.com</p>
+          </div>
+
+          <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700">
+            <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Productos</p>
+            <ul class="space-y-2">
+              <li class="flex justify-between text-sm">
+                <span class="text-gray-300">1x Pastel de chocolate</span>
+                <span class="text-white font-medium">$450.00</span>
+              </li>
+              <li class="flex justify-between text-sm">
+                <span class="text-gray-300">2x Cupcake red velvet</span>
+                <span class="text-white font-medium">$70.00</span>
+              </li>
+              <li class="flex justify-between text-sm">
+                <span class="text-gray-300">1x Café americano</span>
+                <span class="text-white font-medium">$45.00</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700">
+            <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Pagos realizados</p>
+            <div class="flex justify-between text-sm mb-1">
+              <span class="text-gray-300">Efectivo</span>
+              <span class="text-white font-medium">$200.00</span>
+            </div>
+            <div class="flex justify-between text-sm font-semibold pt-2 border-t border-gray-700">
+              <span class="text-white">Saldo pendiente</span>
+              <span class="text-[#fbbf24]">$365.00</span>
+            </div>
+          </div>
+
+          <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700">
+            <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Entrega</p>
+            <p class="text-sm text-gray-300">Local — 07/05 a las 16:00</p>
+            <p class="text-xs text-gray-400 mt-1">Nota: Sin dedicatoria</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

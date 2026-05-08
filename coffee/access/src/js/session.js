@@ -1,4 +1,4 @@
-let url_session = "/alpha/access/ctrl/ctrl-access.php";
+let url_session = "/coffee/access/ctrl/ctrl-access.php";
 
 $(() => {
     updateSession();
@@ -13,7 +13,7 @@ async function checkSession() {
 }
 
 function logout() {
-    window.location.href = "/alpha/salir/";
+    window.location.href = "/coffee/salir/";
 }
 
 function updateSession() {

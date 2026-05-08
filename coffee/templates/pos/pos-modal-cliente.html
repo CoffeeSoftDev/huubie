@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modal Cliente — POS Huubie</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../../ui/css/ui-kit.css">
+  <style> body { font-family: 'Inter', system-ui, sans-serif; } </style>
+</head>
+<body class="bg-[#111928] text-white min-h-screen flex items-center justify-center p-4">
+
+  <!-- Modal Backdrop (visible for demo) -->
+  <div class="cs-modal-backdrop"></div>
+
+  <div class="cs-modal" style="max-width: 640px; width: 100%;">
+    <div class="cs-modal-header">
+      <h3 class="cs-modal-title">Nueva orden</h3>
+      <button class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="cs-modal-body">
+
+      <!-- Search client -->
+      <div class="relative mb-4">
+        <span class="cs-input-group-icon">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </span>
+        <input type="text" class="cs-input pl-10 w-full" placeholder="Buscar cliente por nombre o teléfono...">
+      </div>
+
+      <!-- Suggestions (simulado) -->
+      <div class="bg-[#1a2332] rounded-lg border border-gray-700 mb-4 max-h-32 overflow-y-auto">
+        <!-- JS injecta resultados de búsqueda aquí -->
+        <div class="p-2 hover:bg-[#283341] cursor-pointer border-b border-gray-700 last:border-0">
+          <p class="text-sm text-white">María González — 55 1234 5678</p>
+        </div>
+        <div class="p-2 hover:bg-[#283341] cursor-pointer border-b border-gray-700 last:border-0">
+          <p class="text-sm text-white">Juan Pérez — 55 9876 5432</p>
+        </div>
+        <div class="p-2 hover:bg-[#283341] cursor-pointer">
+          <p class="text-sm text-white">Laura Martínez — 55 5555 1212</p>
+        </div>
+      </div>
+
+      <!-- Form fields -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Nombre</label>
+          <input type="text" class="cs-input w-full" placeholder="Nombre del cliente">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Teléfono</label>
+          <input type="tel" class="cs-input w-full" placeholder="55 0000 0000">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Email</label>
+          <input type="email" class="cs-input w-full" placeholder="cliente@email.com">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Fecha de cumpleaños</label>
+          <input type="date" class="cs-input w-full">
+        </div>
+      </div>
+
+      <!-- Delivery type toggle -->
+      <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Tipo de entrega</p>
+      <div class="cs-btn-group mb-4">
+        <button class="cs-btn cs-btn-primary active">Local</button>
+        <button class="cs-btn cs-btn-ghost">A domicilio</button>
+      </div>
+
+      <!-- Address fields (visible when delivery) -->
+      <div id="posAddressFields" class="bg-[#1a2332] rounded-lg p-3 border border-gray-700 mb-4">
+        <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Dirección de entrega</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="md:col-span-2">
+            <input type="text" class="cs-input w-full" placeholder="Calle y número">
+          </div>
+          <div>
+            <input type="text" class="cs-input w-full" placeholder="Colonia">
+          </div>
+          <div>
+            <input type="text" class="cs-input w-full" placeholder="Código postal">
+          </div>
+          <div class="md:col-span-2">
+            <textarea class="cs-textarea w-full" rows="2" placeholder="Referencias (ej. portón negro, timbre 3)"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delivery date/time -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Fecha de entrega</label>
+          <input type="date" class="cs-input w-full" value="2026-05-07">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Hora de entrega</label>
+          <input type="time" class="cs-input w-full" value="16:00">
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="mb-2">
+        <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Notas adicionales</label>
+        <textarea id="posOrderNotes" class="cs-textarea w-full" rows="3" placeholder="Dedicatoria, instrucciones especiales..."></textarea>
+      </div>
+
+    </div>
+
+    <div class="cs-modal-footer">
+      <button class="cs-btn cs-btn-outline">Cancelar</button>
+      <button class="cs-btn cs-btn-primary">Crear orden</button>
+    </div>
+  </div>
+
+</body>
+</html>

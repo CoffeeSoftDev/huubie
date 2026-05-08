@@ -62,16 +62,24 @@ class Perfil extends Templates {
                 <div class="grid md:grid-cols-[250px_1fr] gap-8">
                     <div class="flex flex-col items-center gap-4">
                         <div class="relative">
-                            <div class="w-48 h-48 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center overflow-hidden">
+                            <div class="relative w-48 h-48 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center overflow-hidden">
+                                <i data-lucide="user" class="w-28 h-28 text-slate-400" id="photoPlaceholder"></i>
                                 <img
-                                    src="https://huubie.com.mx/alpha/src/img/df-user.png"
+                                    src=""
                                     alt="Foto de perfil"
-                                    class="w-full h-full object-cover"
+                                    class="w-full h-full object-cover hidden"
                                     id="photo"
                                 />
+                                <button id="btnRemovePhoto" type="button" title="Quitar foto"
+                                    onmouseenter="this.style.opacity='1'"
+                                    onmouseleave="this.style.opacity='0'"
+                                    style="background-color: rgba(15, 23, 42, 0.85); opacity: 0; transition: opacity 0.2s; border: 0; cursor: pointer; z-index: 1; display: none;"
+                                    class="absolute inset-0 rounded-full flex items-center justify-center">
+                                    <i data-lucide="trash-2" class="w-8 h-8 text-white"></i>
+                                </button>
                             </div>
-                            <button class="absolute bottom-2 right-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 flex items-center justify-center" id="btnEditPhoto">
-                                <i class="icon-pencil text-white text-sm"></i>
+                            <button class="absolute bottom-2 right-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 flex items-center justify-center" id="btnEditPhoto" style="z-index: 20;">
+                                <i data-lucide="pencil" class="w-4 h-4 text-white"></i>
                             </button>
                             <input type="file" accept="image/*" id="inputPhotoUpload" class="hidden" />
                         </div>
@@ -85,40 +93,42 @@ class Perfil extends Templates {
                         <div class="grid md:grid-cols-2 gap-6">
                             <label class="flex flex-col gap-1.5">
                                 <span class="flex items-center gap-2 text-slate-300">
-                                    <i class="icon-building"></i> Empresa y sucursal
+                                    <i data-lucide="building-2" class="w-4 h-4"></i> Empresa y sucursal
                                 </span>
-                                <input class="bg-slate-700/50 border border-slate-600 text-white px-3 py-2 rounded" placeholder="Empresa" disabled id="business" />
+                                <input class="bg-slate-800/60 border border-slate-700 text-slate-400 px-3 py-2 rounded cursor-not-allowed" placeholder="Empresa" disabled id="business" />
                             </label>
                             <label class="flex flex-col gap-1.5">
                                 <span class="flex items-center gap-2 text-slate-300">
-                                    <i class="icon-location"></i> Ubicación sucursal
+                                    <i data-lucide="map-pin" class="w-4 h-4"></i> Ubicación sucursal
                                 </span>
-                                <input class="bg-slate-700/50 border border-slate-600 text-white px-3 py-2 rounded" placeholder="Ciudad, País" disabled id="location"/>
+                                <input class="bg-slate-800/60 border border-slate-700 text-slate-400 px-3 py-2 rounded cursor-not-allowed" placeholder="Ciudad, País" disabled id="location"/>
                             </label>
+                           
                             <label class="flex flex-col gap-1.5">
                                 <span class="flex items-center gap-2 text-slate-300">
-                                    <i class="icon-user"></i> Nombre completo
+                                    <i data-lucide="at-sign" class="w-4 h-4"></i> Usuario
+                                </span>
+                                <input class="bg-slate-800/60 border border-slate-700 text-slate-400 px-3 py-2 rounded cursor-not-allowed" placeholder="Nombre usuario" disabled id="user"/>
+                            </label>
+
+                            <label class="flex flex-col gap-1.5">
+                                <span class="flex items-center gap-2 text-slate-300">
+                                    <i data-lucide="user" class="w-4 h-4"></i> Nombre completo
                                 </span>
                                 <input class="bg-slate-700/50 border border-slate-600 text-white px-3 py-2 rounded" placeholder="Nombre completo" id="fullname"/>
-                            </label>
-                            <label class="flex flex-col gap-1.5">
-                                <span class="flex items-center gap-2 text-slate-300">
-                                    <i class="icon-user"></i> Usuario
-                                </span>
-                                <input class="bg-slate-700/50 border border-slate-600 text-white px-3 py-2 rounded" placeholder="Nombre usuario" id="user"/>
                             </label>
                         
 
                             <label class="flex flex-col gap-1.5">
                                 <span class="flex items-center gap-2 text-slate-300">
-                                    <i class="icon-phone"></i> Teléfono
+                                    <i data-lucide="phone" class="w-4 h-4"></i> Teléfono
                                 </span>
                                 <input type="tel" class="bg-slate-700/50 border border-slate-600 text-white px-3 py-2 rounded" placeholder="+52 900 000 000" id="phone"/>
                             </label>
 
                             <label class="flex flex-col gap-1.5 relative">
                                 <span class="flex items-center gap-2 text-slate-300">
-                                    <i class="icon-calendar"></i> Fecha de nacimiento
+                                    <i data-lucide="calendar" class="w-4 h-4"></i> Fecha de nacimiento
                                 </span>
                                 <input type="date" class="bg-slate-700/50 border border-slate-600 text-white px-3 py-2 rounded w-full" id="birthday"/>
                             </label>
@@ -133,6 +143,10 @@ class Perfil extends Templates {
             `
         );
 
+        if (window.lucide) lucide.createIcons();
+
+        let self = this;
+
         // Activar input file al hacer clic en el botón
         $('#btnEditPhoto').on('click', function () {
             $('#inputPhotoUpload').click();
@@ -144,7 +158,34 @@ class Perfil extends Templates {
             if (!file) return;
 
             const url = URL.createObjectURL(file);
-            $('#photo').attr('src', url);
+            $('#photo').attr('src', url).removeClass('hidden');
+            $('#photoPlaceholder').addClass('hidden');
+            $('#btnRemovePhoto').css('display', 'flex');
+        });
+
+        // Quitar foto con confirmación
+        $('#btnRemovePhoto').on('click', function () {
+            self.swalQuestion({
+                opts: {
+                    title: '¿Quitar foto?',
+                    text: 'Se eliminará tu foto de perfil actual.',
+                    icon: 'warning',
+                },
+                data: { opc: 'deletePhotoUser' },
+                methods: {
+                    send: (response) => {
+                        if (response.status == 200) {
+                            alert({ icon: "success", title: "Listo", text: response.message, btn1: true, btn1Text: "Ok" });
+                            $('#photo').attr('src', '').addClass('hidden');
+                            $('#photoPlaceholder').removeClass('hidden');
+                            $('#btnRemovePhoto').css('display', 'none');
+                            $('#inputPhotoUpload').val('');
+                        } else {
+                            alert({ icon: "error", title: "Oops!...", text: response.message, btn1: true, btn1Text: "Ok" });
+                        }
+                    }
+                }
+            });
         });
 
         this.renderPerfil();
@@ -156,7 +197,25 @@ class Perfil extends Templates {
         if (this.dataUser.status == 200) {
             // Rellenar los campos del perfil
             $('#rol').text(dataUsuario.data.rol);
-            $('#photo').attr('src', dataUsuario.data.photo || "https://huubie.com.mx/alpha/src/img/df-user.png");
+            if (dataUsuario.data.photo) {
+                $('#photo')
+                    .off('error load')
+                    .on('load', function () {
+                        $(this).removeClass('hidden');
+                        $('#photoPlaceholder').addClass('hidden');
+                        $('#btnRemovePhoto').css('display', 'flex');
+                    })
+                    .on('error', function () {
+                        $(this).addClass('hidden');
+                        $('#photoPlaceholder').removeClass('hidden');
+                        $('#btnRemovePhoto').css('display', 'none');
+                    })
+                    .attr('src', dataUsuario.data.photo);
+            } else {
+                $('#photo').addClass('hidden');
+                $('#photoPlaceholder').removeClass('hidden');
+                $('#btnRemovePhoto').css('display', 'none');
+            }
             $('#business').val(dataUsuario.data.company + '/ ' + dataUsuario.data.subsidiary || "No disponible");
             $('#location').val(dataUsuario.data.ubication || "No disponible");
             $('#fullname').val(dataUsuario.data.fullname || "No disponible");

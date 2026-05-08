@@ -2,8 +2,8 @@
     session_start();
     // Verifica si la sesión está iniciada
     if (!isset($_SESSION['USR'])) {
-        // Redirige al login si no está autenticado
-        header('Location: /alpha/');
+        // Redirige al login si no esta autenticado
+        header('Location: /coffee/');
         exit();
     }
 

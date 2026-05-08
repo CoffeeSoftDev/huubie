@@ -479,3 +479,239 @@
 .cs-scroll::-webkit-scrollbar-track { background: transparent; }
 .cs-scroll::-webkit-scrollbar-thumb { background: var(--cs-border); border-radius: 3px; }
 .cs-scroll::-webkit-scrollbar-thumb:hover { background: var(--cs-text-muted); }
+
+/* ---------- 18. Componente: Toggle / Switch ---------- */
+.cs-toggle {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 0.5rem;
+}
+.cs-toggle-track {
+  width: 44px;
+  height: 24px;
+  background-color: #374151;
+  border-radius: var(--cs-radius-full);
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+.cs-toggle-track.active {
+  background-color: var(--cs-accent-purple);
+}
+.cs-toggle-knob {
+  width: 18px;
+  height: 18px;
+  background-color: #fff;
+  border-radius: var(--cs-radius-full);
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s ease;
+}
+.cs-toggle-track.active .cs-toggle-knob {
+  transform: translateX(20px);
+}
+
+/* ---------- 19. Componente: Toast / Notificacion ---------- */
+.cs-toast {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background-color: var(--cs-bg-card);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-lg);
+  box-shadow: var(--cs-shadow-lg);
+  max-width: 400px;
+  animation: cs-toast-in 0.3s ease;
+}
+@keyframes cs-toast-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cs-toast-success { border-color: rgba(63, 193, 137, 0.3); background-color: rgba(63, 193, 137, 0.08); }
+.cs-toast-warning { border-color: rgba(251, 191, 36, 0.3); background-color: rgba(251, 191, 36, 0.08); }
+.cs-toast-danger  { border-color: rgba(234, 2, 52, 0.3); background-color: rgba(234, 2, 52, 0.08); }
+.cs-toast-info    { border-color: rgba(28, 100, 242, 0.3); background-color: rgba(28, 100, 242, 0.08); }
+
+/* ---------- 20. Componente: Avatar ---------- */
+.cs-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cs-radius-full);
+  font-weight: 600;
+  color: #fff;
+  background-color: var(--cs-primary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cs-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cs-avatar-sm  { width: 24px; height: 24px; font-size: 0.625rem; }
+.cs-avatar-md  { width: 36px; height: 36px; font-size: 0.875rem; }
+.cs-avatar-lg  { width: 48px; height: 48px; font-size: 1.125rem; }
+.cs-avatar-xl  { width: 80px; height: 80px; font-size: 1.5rem; }
+
+/* ---------- 21. Componente: Paginacion ---------- */
+.cs-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--cs-text-secondary);
+}
+.cs-pagination button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-md);
+  background-color: var(--cs-bg-card);
+  color: var(--cs-text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cs-pagination button:hover:not(:disabled) {
+  background-color: var(--cs-bg-hover);
+  border-color: var(--cs-text-secondary);
+}
+.cs-pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.cs-pagination .active-page {
+  background-color: var(--cs-primary);
+  border-color: var(--cs-primary);
+  color: #fff;
+}
+
+/* ---------- 22. Componente: Progress / Loading ---------- */
+.cs-progress {
+  width: 100%;
+  height: 8px;
+  background-color: var(--cs-bg-input);
+  border-radius: var(--cs-radius-full);
+  overflow: hidden;
+}
+.cs-progress-bar {
+  height: 100%;
+  background-color: var(--cs-primary);
+  border-radius: var(--cs-radius-full);
+  transition: width 0.3s ease;
+}
+.cs-progress-bar.success { background-color: var(--cs-success); }
+.cs-progress-bar.warning { background-color: var(--cs-warning); }
+.cs-progress-bar.danger  { background-color: var(--cs-danger); }
+.cs-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--cs-border);
+  border-top-color: var(--cs-primary);
+  border-radius: var(--cs-radius-full);
+  animation: cs-spin 0.8s linear infinite;
+}
+@keyframes cs-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- 23. Componente: Button Group ---------- */
+.cs-btn-group {
+  display: inline-flex;
+  border-radius: var(--cs-radius-md);
+  overflow: hidden;
+  border: 1px solid var(--cs-border);
+}
+.cs-btn-group .cs-btn {
+  border-radius: 0;
+  border-right: 1px solid var(--cs-border);
+}
+.cs-btn-group .cs-btn:last-child {
+  border-right: none;
+}
+
+/* ---------- 24. Componente: Empty State ---------- */
+.cs-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+/* ---------- 25. Componente: Navbar ---------- */
+.cs-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  background-color: var(--cs-bg-body);
+  border-bottom: 1px solid var(--cs-border);
+}
+
+/* ---------- 26. Componente: Sidebar ---------- */
+.cs-sidebar {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  bottom: 0;
+  width: 224px;
+  z-index: 40;
+  background-color: var(--cs-bg-sidebar);
+  border-right: 1px solid var(--cs-border);
+  overflow-y: auto;
+}
+.cs-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--cs-text-secondary);
+  border-radius: var(--cs-radius-md);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.cs-nav-link:hover {
+  color: var(--cs-text-primary);
+  background-color: var(--cs-bg-hover);
+}
+.cs-nav-link.active {
+  color: #fff;
+  background-color: var(--cs-primary);
+}
+
+/* ---------- 27. Componente: Input Group ---------- */
+.cs-input-group {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+.cs-input-group-icon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 0.75rem;
+  color: var(--cs-text-muted);
+  pointer-events: none;
+}
+.cs-input-group .cs-input {
+  padding-left: 2.5rem;
+}

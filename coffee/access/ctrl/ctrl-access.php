@@ -44,7 +44,7 @@ class Access extends MAccess {
             $_SESSION['COMPANY_ID']    = $sql['company_id'];
             $_SESSION['COM']    = $sql['company_id'];
 
-            $rute = ($idRol === 1 && $sql['active'] == 0) ? "/alpha/empresas/" : "/alpha/menu/";
+            $rute = ($idRol === 1 && $sql['active'] == 0) ? "/alpha/empresas/" : "/coffee/subsidiaries/";
 
             return [
                 "status"  => 200,
@@ -204,7 +204,7 @@ class Access extends MAccess {
         sleep(2);
         session_unset();
         session_destroy();
-        return "/alpha/";
+        return "/coffee/";
     }
 }
 

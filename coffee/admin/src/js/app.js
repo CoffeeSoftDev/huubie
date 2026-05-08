@@ -35,7 +35,7 @@ class App extends Templates {
     layout() {
         this.createLayout({
             parent: 'root',
-            design:false,
+            design: false,
             data: {
                 id: this.PROJECT_NAME,
                 class: 'w-full min-h-screen p-4',
