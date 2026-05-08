@@ -20,6 +20,7 @@ if (isset($_SESSION['USR'])) {
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <title>Huubie Coffee</title>
+
     <link rel="stylesheet" href="/coffee/src/plugins/sweetalert2/sweetalert2.min.css">
     <script src="/coffee/src/plugins/sweetalert2/sweetalert2.all.min.js"></script>
     <link rel="stylesheet" href="/coffee/src/plugins/fontello/css/fontello.css">
@@ -36,26 +37,28 @@ if (isset($_SESSION['USR'])) {
         <!-- Seccion formulario -->
         <div class="w-full md:w-1/2 flex flex-col items-center justify-center mb-6 md:mb-0">
             <!-- Bienvenida -->
-            <div class="w-full md:w-4/5 bg-[#1F2A37] p-4 flex items-center justify-between text-white rounded-md">
+            <div class="w-full md:w-4/5 bg-[#1F2A37] px-6 py-6 flex items-center justify-between text-white rounded-md">
                 <h2 class="text-xl md:text-2xl font-semibold">Bienvenido de regreso</h2>
-                <img src="/coffee/src/img/logo/huubie.svg" alt="Logo" class="w-20 h-15 object-cover">
+                <img src="/coffee/src/img/logo/huubie.svg" alt="huubie" class="h-16 object-contain">
             </div>
 
             <!-- Formulario -->
-            <form id="formLogin" action="none" class="w-full md:w-4/5 mt-4 text-white rounded-lg">
+            <form id="formLogin" action="none" class="w-full md:w-4/5 mt-6 text-white">
                 <div class="flex flex-col md:flex-row justify-between gap-x-4">
-                    <!-- Usuario -->
+                    <!-- Email -->
                     <div class="flex flex-col w-full md:w-1/2">
-                        <label for="user" class="text-sm font-medium">Usuario</label>
+                        <label for="user" class="text-sm font-medium">Email</label>
                         <input type="text" id="user" name="user"
-                            class="mt-1 p-2 bg-[#374151] rounded-md outline-none text-white" required>
+                            placeholder="name@example.com"
+                            class="mt-1 p-2 bg-[#374151] rounded-md outline-none text-white placeholder-gray-500" required>
                     </div>
                     <!-- Contrasena -->
                     <div class="flex flex-col w-full md:w-1/2 mt-4 md:mt-0">
                         <label for="key" class="text-sm font-medium">Contraseña</label>
                         <div class="relative mt-1">
                             <input type="password" id="key" name="key"
-                                class="w-full p-2 pr-10 bg-[#374151] rounded-md outline-none text-white" required>
+                                placeholder="••••••••••"
+                                class="w-full p-2 pr-10 bg-[#374151] rounded-md outline-none text-white placeholder-gray-500" required>
                             <button type="button" id="togglePassword"
                                 class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-white">
                                 <i class="icon-eye"></i>
@@ -64,28 +67,28 @@ if (isset($_SESSION['USR'])) {
                     </div>
                 </div>
 
-                <div class="flex flex-col md:flex-row justify-between items-center mt-4 text-sm">
+                <!-- <div class="flex flex-col md:flex-row justify-between items-center mt-4 text-sm">
                     <label class="flex items-center gap-x-2 cursor-pointer">
                         <input type="checkbox" id="rememberMe" name="rememberMe" class="bg-[#374151] w-4 h-4">
-                        Recuerdame
+                        Recuérdame
                     </label>
                     <a href="#" class="text-blue-400 hover:underline mt-2 md:mt-0">¿Olvidaste la contraseña?</a>
-                </div>
+                </div> -->
 
                 <button type="submit"
-                    class="w-full mt-4 p-2 bg-[#1C64F2] hover:bg-[#0E9E6E] rounded-lg font-semibold transition-colors">
-                    Iniciar sesión
+                    class="w-full mt-10 p-2 bg-[#1C64F2] hover:bg-[#0E9E6E] rounded-lg font-semibold transition-colors">
+                    Iniciar Sesión
                 </button>
             </form>
         </div>
 
         <!-- Seccion empresa -->
-        <div class="hidden md:flex w-1/2 items-center justify-center">
-            <img src="/coffee/src/img/logo/huubie.svg" alt="Logo" class="w-[50%] object-cover">
+        <div class="hidden md:flex w-1/2 flex-col items-center justify-center">
+            <img src="/coffee/src/img/logo/huubie.svg" alt="Tu empresa" class="w-[50%] object-contain">
+            <!-- <h3 class="text-white text-xl font-semibold mt-4">Tu empresa</h3> -->
         </div>
     </div>
 
     <script src="/coffee/access/src/js/access.js?t=<?= time() ?>"></script>
 </body>
-
 </html>

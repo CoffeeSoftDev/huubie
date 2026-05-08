@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Huubie Coffee — Propuesta 6: Corporativo Animado</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/ui-kit.css">
+  <style>
+    body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; overflow-x: hidden; }
+    :root {
+      --primarydark : #111928;
+      --secondaryDark: #1F2A37;
+      --primary     : rgb(28, 100, 242);
+      --primary1    : rgba(61, 36, 116, 0.1);
+      --primary2    : rgba(61, 36, 116, 0.2);
+      --secondary   : rgba(113, 82, 236);
+      --secondary1  : rgba(113, 82, 236, 0.1);
+      --info        : rgba(118, 169, 250);
+      --success     : rgb(63, 193, 137);
+      --danger      : rgb(234, 2, 52);
+      --warning     : #E74041;
+      --gray        : #374151;
+      --light       : #CED2D8;
+      --aliceblue   : #e3ebf6;
+    }
+
+    /* ===== ANIMACIONES ===== */
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-12px); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.05); }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    @keyframes ringExpand {
+      0% { transform: scale(0.8); opacity: 0.6; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+
+    .animated-gradient {
+      background: linear-gradient(-45deg, var(--primarydark), #0f172a, var(--secondaryDark), #141d2b);
+      background-size: 400% 400%;
+      animation: gradientShift 15s ease infinite;
+    }
+    .floating-logo {
+      animation: float 4s ease-in-out infinite;
+    }
+    .glow-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid var(--primary);
+      animation: ringExpand 3s ease-out infinite;
+    }
+    .glow-ring:nth-child(2) { animation-delay: 1s; }
+    .glow-ring:nth-child(3) { animation-delay: 2s; }
+    .slide-in {
+      animation: slideIn 0.8s ease-out forwards;
+      opacity: 0;
+    }
+    .slide-in-delay-1 { animation-delay: 0.1s; }
+    .slide-in-delay-2 { animation-delay: 0.2s; }
+    .slide-in-delay-3 { animation-delay: 0.3s; }
+    .slide-in-delay-4 { animation-delay: 0.4s; }
+    .shimmer-btn {
+      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 25%, var(--primary) 50%, var(--secondary) 75%, var(--primary) 100%);
+      background-size: 200% auto;
+      animation: shimmer 4s linear infinite;
+      border: none;
+    }
+    .input-glow:focus {
+      box-shadow: 0 0 0 3px rgba(28, 100, 242, 0.25), 0 0 20px rgba(28, 100, 242, 0.1);
+      border-color: var(--primary);
+    }
+    .card-3d {
+      transform-style: preserve-3d;
+      perspective: 1000px;
+      transition: transform 0.3s ease;
+    }
+    .card-3d:hover {
+      transform: rotateY(2deg) rotateX(-2deg) translateY(-4px);
+    }
+
+    /* Particulas de fondo */
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      background: var(--primary);
+      opacity: 0.15;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row" style="background-color: var(--primarydark);">
+
+  <!-- Panel izquierdo: corporativo animado -->
+  <div class="hidden md:flex md:w-1/2 animated-gradient relative items-center justify-center p-12 overflow-hidden"
+       style="border-right: 1px solid #1a2332;">
+
+    <!-- Particulas flotantes -->
+    <div class="particle w-2 h-2" style="top: 20%; left: 15%; animation: float 6s ease-in-out infinite;"></div>
+    <div class="particle w-1 h-1" style="top: 60%; left: 80%; animation: float 8s ease-in-out infinite 1s; background: var(--secondary);"></div>
+    <div class="particle w-3 h-3" style="top: 40%; left: 70%; animation: float 7s ease-in-out infinite 2s; opacity: 0.1;"></div>
+    <div class="particle w-1.5 h-1.5" style="top: 80%; left: 25%; animation: float 5s ease-in-out infinite 0.5s; background: var(--info);"></div>
+    <div class="particle w-2 h-2" style="top: 10%; left: 60%; animation: float 9s ease-in-out infinite 1.5s; background: var(--success);"></div>
+
+    <!-- Logo con anillos pulsantes -->
+    <div class="relative z-10 text-center">
+      <div class="relative mx-auto mb-8" style="width: 280px; height: 280px;">
+        <!-- Anillos pulsantes -->
+        <div class="glow-ring absolute inset-0" style="border-color: rgba(28,100,242,0.3);"></div>
+        <div class="glow-ring absolute inset-4" style="border-color: rgba(113,82,236,0.2);"></div>
+        <div class="glow-ring absolute inset-8" style="border-color: rgba(118,169,250,0.15);"></div>
+
+        <!-- Logo flotante -->
+        <div class="floating-logo absolute inset-0 flex items-center justify-center p-8">
+          <div class="w-full h-full rounded-3xl flex items-center justify-center p-6"
+               style="background: rgba(31,42,55,0.7); border: 1px solid rgba(55,65,81,0.5); backdrop-filter: blur(8px);">
+            <img src="../../src/img/logo/huubie.svg" alt="Huubie" class="w-full h-full object-contain drop-shadow-2xl">
+          </div>
+        </div>
+      </div>
+
+      <h2 class="slide-in slide-in-delay-1 text-3xl font-bold text-white mb-3 tracking-tight">
+        Huubie Coffee
+      </h2>
+      <div class="slide-in slide-in-delay-2 flex items-center justify-center gap-3 mb-4">
+        <span class="h-px w-8" style="background: linear-gradient(90deg, transparent, var(--primary));"></span>
+        <span class="text-xs font-semibold uppercase tracking-[0.25em]" style="color: var(--info);">Enterprise</span>
+        <span class="h-px w-8" style="background: linear-gradient(90deg, var(--primary), transparent);"></span>
+      </div>
+      <p class="slide-in slide-in-delay-3 text-sm leading-relaxed max-w-sm mx-auto" style="color: #9CA3AF;">
+        Plataforma integral para la gestión de cafeterías, restaurantes y puntos de venta.
+        Control total de tu negocio.
+      </p>
+
+      <!-- Stats animados -->
+      <div class="slide-in slide-in-delay-4 flex items-center justify-center gap-8 mt-8">
+        <div class="text-center">
+          <p class="text-2xl font-bold text-white">500+</p>
+          <p class="text-[10px] uppercase tracking-wider mt-1" style="color: #6B7280;">Clientes</p>
+        </div>
+        <div class="w-px h-8" style="background-color: #374151;"></div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-white">99.9%</p>
+          <p class="text-[10px] uppercase tracking-wider mt-1" style="color: #6B7280;">Uptime</p>
+        </div>
+        <div class="w-px h-8" style="background-color: #374151;"></div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-white">24/7</p>
+          <p class="text-[10px] uppercase tracking-wider mt-1" style="color: #6B7280;">Soporte</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gradient overlay inferior -->
+    <div class="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+         style="background: linear-gradient(0deg, var(--primarydark), transparent);"></div>
+  </div>
+
+  <!-- Panel derecho: formulario -->
+  <div class="flex-1 flex flex-col items-center justify-center px-6 py-10 md:px-16 md:py-0 relative">
+    <div class="w-full max-w-[400px]">
+
+      <!-- Header mobile -->
+      <div class="md:hidden flex flex-col items-center mb-8">
+        <div class="w-36 h-36 rounded-2xl flex items-center justify-center mb-4 p-4 floating-logo"
+             style="background-color: var(--secondaryDark); border: 1px solid var(--primary2);">
+          <img src="../../src/img/logo/huubie.svg" alt="Huubie" class="w-full h-full object-contain">
+        </div>
+        <h1 class="text-xl font-bold text-white">Huubie Coffee</h1>
+      </div>
+
+      <div class="mb-8">
+        <h2 class="text-xl font-bold text-white">Acceso corporativo</h2>
+        <p class="text-sm mt-1" style="color: #9CA3AF;">Ingresa tus credenciales de empresa</p>
+      </div>
+
+      <form class="space-y-5">
+        <div class="slide-in slide-in-delay-1">
+          <label class="block text-[11px] font-medium uppercase tracking-wider mb-1.5"
+                 style="color: #9CA3AF;">Usuario</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center" style="color: var(--gray);">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </span>
+            <input type="text" class="cs-input pl-10 input-glow transition-all duration-300" placeholder="ej. luis.garcia" required>
+          </div>
+        </div>
+
+        <div class="slide-in slide-in-delay-2">
+          <label class="block text-[11px] font-medium uppercase tracking-wider mb-1.5"
+                 style="color: #9CA3AF;">Contraseña</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center" style="color: var(--gray);">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+            </span>
+            <input type="password" class="cs-input pl-10 pr-10 input-glow transition-all duration-300" placeholder="••••••••" required>
+            <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center transition"
+                    style="color: var(--gray);" onmouseenter="this.style.color='#9CA3AF'" onmouseleave="this.style.color='var(--gray)'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end text-sm slide-in slide-in-delay-3">
+          <a href="#" class="transition" style="color: var(--primary); font-size: 0.75rem; font-weight: 500;"
+             onmouseenter="this.style.color='var(--info)'" onmouseleave="this.style.color='var(--primary)'">
+            ¿Olvidaste la contraseña?
+          </a>
+        </div>
+
+        <button type="submit" class="shimmer-btn w-full py-2.5 rounded-lg font-semibold text-white flex items-center justify-center gap-2 slide-in slide-in-delay-4 hover:shadow-[0_8px_25px_rgba(28,100,242,0.35)] transition-shadow">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+          </svg>
+          Iniciar sesión
+        </button>
+      </form>
+
+      <p class="text-center text-[11px] mt-8 slide-in slide-in-delay-4" style="color: #4B5563;">
+        Huubie Coffee Enterprise v1.0
+      </p>
+    </div>
+  </div>
+
+</body>
+</html>
