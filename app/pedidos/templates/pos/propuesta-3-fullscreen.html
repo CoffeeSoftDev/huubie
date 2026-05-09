@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Propuesta 3 — Fullscreen Touch-Friendly</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f1723; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .product-tile { transition: all 0.12s ease; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .product-tile:active { transform: scale(0.95); }
+        .product-tile:hover { border-color: #7c3aed; }
+        .cat-pill.active { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+        .numpad-btn { transition: all 0.1s ease; user-select: none; }
+        .numpad-btn:active { transform: scale(0.95); background: #374151; }
+        .drawer-open { transform: translateX(0); }
+        .drawer-closed { transform: translateX(100%); }
+        .glass { background: rgba(20, 29, 43, 0.95); backdrop-filter: blur(12px); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-up { animation: slideUp 0.25s ease; }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- ============================================================ -->
+    <!-- TOP BAR — Informacion del turno y sucursal -->
+    <!-- ============================================================ -->
+    <div class="flex items-center justify-between px-6 py-2.5 bg-[#111928] border-b border-gray-800 flex-shrink-0">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-xs">RK</div>
+                <div>
+                    <p class="text-sm font-bold">Reginas Kafeto</p>
+                    <p class="text-[10px] text-gray-500">Sucursal Principal</p>
+                </div>
+            </div>
+            <div class="h-6 w-px bg-gray-700"></div>
+            <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse"></div>
+                <div>
+                    <p class="text-xs font-semibold text-green-400">Turno MAÑANA</p>
+                    <p class="text-[10px] text-gray-500">Abierto 08:00 AM</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- Stats rapidos -->
+            <div class="flex items-center gap-4 px-4 py-1.5 bg-[#1a2332] rounded-xl border border-gray-700">
+                <div class="text-center">
+                    <p class="text-[10px] text-gray-500">Ordenes</p>
+                    <p class="text-sm font-bold text-white">24</p>
+                </div>
+                <div class="h-6 w-px bg-gray-700"></div>
+                <div class="text-center">
+                    <p class="text-[10px] text-gray-500">Venta</p>
+                    <p class="text-sm font-bold text-green-400">$12,450</p>
+                </div>
+                <div class="h-6 w-px bg-gray-700"></div>
+                <div class="text-center">
+                    <p class="text-[10px] text-gray-500">Efectivo</p>
+                    <p class="text-sm font-bold text-yellow-400">$8,200</p>
+                </div>
+            </div>
+
+            <!-- Acciones rapidas -->
+            <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-orange-400 hover:border-orange-500/40" title="Cierre del dia">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            </button>
+            <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-blue-400 hover:border-blue-500/40" title="Ordenes pendientes">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            </button>
+
+            <div class="h-6 w-px bg-gray-700"></div>
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[11px] font-bold">AM</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- CONTENIDO PRINCIPAL — 3 columnas -->
+    <!-- ============================================================ -->
+    <div class="flex flex-1 min-h-0">
+
+        <!-- ========================== -->
+        <!-- COL 1: Categorias (sidebar) -->
+        <!-- ========================== -->
+        <div class="w-48 bg-[#111928] border-r border-gray-800 flex flex-col py-3 flex-shrink-0">
+            <p class="px-4 text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">Categorias</p>
+
+            <div class="flex-1 overflow-y-auto space-y-1 px-2 scrollbar-thin">
+                <button class="cat-pill active w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left border border-transparent">
+                    <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold">Todos</p>
+                        <p class="text-[10px] opacity-60">12 items</p>
+                    </div>
+                </button>
+
+                <button class="cat-pill w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-gray-400 border border-transparent hover:bg-[#1a2332]">
+                    <div class="w-8 h-8 rounded-lg bg-amber-900/30 flex items-center justify-center"><span class="text-base">🎂</span></div>
+                    <div>
+                        <p class="text-xs font-semibold">Tradicional</p>
+                        <p class="text-[10px] opacity-60">4 items</p>
+                    </div>
+                </button>
+
+                <button class="cat-pill w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-gray-400 border border-transparent hover:bg-[#1a2332]">
+                    <div class="w-8 h-8 rounded-lg bg-teal-900/30 flex items-center justify-center"><span class="text-base">☕</span></div>
+                    <div>
+                        <p class="text-xs font-semibold">Cafes</p>
+                        <p class="text-[10px] opacity-60">1 item</p>
+                    </div>
+                </button>
+
+                <button class="cat-pill w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-gray-400 border border-transparent hover:bg-[#1a2332]">
+                    <div class="w-8 h-8 rounded-lg bg-purple-900/30 flex items-center justify-center"><span class="text-base">⭐</span></div>
+                    <div>
+                        <p class="text-xs font-semibold">Premium</p>
+                        <p class="text-[10px] opacity-60">5 items</p>
+                    </div>
+                </button>
+
+                <button class="cat-pill w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-gray-400 border border-transparent hover:bg-[#1a2332]">
+                    <div class="w-8 h-8 rounded-lg bg-orange-900/30 flex items-center justify-center"><span class="text-base">🧁</span></div>
+                    <div>
+                        <p class="text-xs font-semibold">Cupcakes</p>
+                        <p class="text-[10px] opacity-60">1 item</p>
+                    </div>
+                </button>
+
+                <button class="cat-pill w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-gray-400 border border-transparent hover:bg-[#1a2332]">
+                    <div class="w-8 h-8 rounded-lg bg-yellow-900/30 flex items-center justify-center"><span class="text-base">🍪</span></div>
+                    <div>
+                        <p class="text-xs font-semibold">Galletas</p>
+                        <p class="text-[10px] opacity-60">1 item</p>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Arma tu pastel boton grande -->
+            <div class="px-2 pt-2 mt-auto">
+                <button class="w-full flex items-center gap-2.5 px-3 py-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/40 text-purple-400 hover:from-purple-600/30 hover:to-pink-600/30 transition-colors">
+                    <div class="w-8 h-8 rounded-lg bg-purple-600/30 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold">Arma tu Pastel</p>
+                        <p class="text-[10px] opacity-60">Personalizado</p>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================== -->
+        <!-- COL 2: Grid de productos (flexible) -->
+        <!-- ========================== -->
+        <div class="flex-1 flex flex-col min-w-0">
+            <!-- Busqueda -->
+            <div class="px-5 py-3 border-b border-gray-800/50 flex-shrink-0">
+                <div class="relative max-w-lg">
+                    <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="text" placeholder="Buscar producto..." class="w-full bg-[#1a2332] border border-gray-700 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20">
+                </div>
+            </div>
+
+            <!-- Grid grande touch-friendly -->
+            <div class="flex-1 overflow-y-auto p-5 scrollbar-thin">
+                <div class="grid grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+
+                    <!-- Tile 1 -->
+                    <div class="product-tile bg-[#1a2332] border-2 border-gray-700/50 rounded-2xl overflow-hidden cursor-pointer">
+                        <div class="h-32 bg-gradient-to-br from-amber-900/30 to-amber-800/10 flex items-center justify-center relative">
+                            <span class="text-5xl">🎂</span>
+                            <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-amber-600/80 text-[9px] font-bold">POPULAR</span>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-sm font-bold">Pastel 3 Leches</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Chocolate</p>
+                            <div class="flex items-center justify-between mt-3">
+                                <p class="text-lg font-extrabold text-purple-400">$700</p>
+                                <div class="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tile 2 -->
+                    <div class="product-tile bg-[#1a2332] border-2 border-gray-700/50 rounded-2xl overflow-hidden cursor-pointer">
+                        <div class="h-32 bg-gradient-to-br from-pink-900/30 to-pink-800/10 flex items-center justify-center">
+                            <span class="text-5xl">🍰</span>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-sm font-bold">Pastel Carlos V</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Tradicional</p>
+                            <div class="flex items-center justify-between mt-3">
+                                <p class="text-lg font-extrabold text-purple-400">$390</p>
+                                <div class="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tile 3 -->
+                    <div class="product-tile bg-[#1a2332] border-2 border-gray-700/50 rounded-2xl overflow-hidden cursor-pointer">
+                        <div class="h-32 bg-gradient-to-br from-red-900/30 to-red-800/10 flex items-center justify-center">
+                            <span class="text-5xl">🍓</span>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-sm font-bold">Pay de Fresas</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Premium</p>
+                            <div class="flex items-center justify-between mt-3">
+                                <p class="text-lg font-extrabold text-purple-400">$350</p>
+                                <div class="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tile 4 -->
+                    <div class="product-tile bg-[#1a2332] border-2 border-gray-700/50 rounded-2xl overflow-hidden cursor-pointer">
+                        <div class="h-32 bg-gradient-to-br from-yellow-900/30 to-yellow-800/10 flex items-center justify-center">
+                            <span class="text-5xl">🍫</span>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-sm font-bold">Choco Aleman</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Premium</p>
+                            <div class="flex items-center justify-between mt-3">
+                                <p class="text-lg font-extrabold text-purple-400">$600</p>
+                                <div class="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tile 5 -->
+                    <div class="product-tile bg-[#1a2332] border-2 border-gray-700/50 rounded-2xl overflow-hidden cursor-pointer">
+                        <div class="h-32 bg-gradient-to-br from-emerald-900/30 to-emerald-800/10 flex items-center justify-center">
+                            <span class="text-5xl">🌲</span>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-sm font-bold">Chocolate Forest</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Tradicional</p>
+                            <div class="flex items-center justify-between mt-3">
+                                <p class="text-lg font-extrabold text-purple-400">$600</p>
+                                <div class="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tile 6 -->
+                    <div class="product-tile bg-[#1a2332] border-2 border-gray-700/50 rounded-2xl overflow-hidden cursor-pointer">
+                        <div class="h-32 bg-gradient-to-br from-orange-900/30 to-orange-800/10 flex items-center justify-center">
+                            <span class="text-5xl">🧁</span>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-sm font-bold">Cupcake</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Decorado</p>
+                            <div class="flex items-center justify-between mt-3">
+                                <p class="text-lg font-extrabold text-purple-400">$55</p>
+                                <div class="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tile 7 -->
+                    <div class="product-tile bg-[#1a2332] border-2 border-gray-700/50 rounded-2xl overflow-hidden cursor-pointer">
+                        <div class="h-32 bg-gradient-to-br from-rose-900/30 to-rose-800/10 flex items-center justify-center">
+                            <span class="text-5xl">🍰</span>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-sm font-bold">Tres Leches Fresa</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Premium</p>
+                            <div class="flex items-center justify-between mt-3">
+                                <p class="text-lg font-extrabold text-purple-400">$650</p>
+                                <div class="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tile 8 -->
+                    <div class="product-tile bg-[#1a2332] border-2 border-gray-700/50 rounded-2xl overflow-hidden cursor-pointer">
+                        <div class="h-32 bg-gradient-to-br from-yellow-900/30 to-amber-800/10 flex items-center justify-center">
+                            <span class="text-5xl">☕</span>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-sm font-bold">Chocolate Roll</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Cafe</p>
+                            <div class="flex items-center justify-between mt-3">
+                                <p class="text-lg font-extrabold text-purple-400">$700</p>
+                                <div class="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================== -->
+        <!-- COL 3: Panel de cobro (420px) -->
+        <!-- ========================== -->
+        <div class="flex flex-col bg-[#141d2b] border-l border-gray-800 flex-shrink-0" style="width: 420px;">
+
+            <!-- Orden header -->
+            <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+                <div>
+                    <h2 class="text-base font-extrabold">Orden #1043</h2>
+                    <p class="text-[10px] text-gray-500 mt-0.5">4 Abr 2026 — 10:45 AM</p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="px-3 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[11px] font-semibold text-gray-400 hover:text-blue-400 hover:border-blue-500/40">
+                        Ordenes (3)
+                    </button>
+                    <button class="w-8 h-8 rounded-lg bg-red-600/10 border border-red-500/30 flex items-center justify-center text-red-400 hover:bg-red-600 hover:text-white" title="Cancelar orden">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cliente -->
+            <div class="px-5 py-2.5 border-b border-gray-800/50 flex-shrink-0">
+                <div class="flex items-center gap-3 bg-[#1a2332] rounded-xl px-4 py-2.5 border border-gray-700">
+                    <div class="w-8 h-8 rounded-full bg-blue-600/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-xs font-semibold">Maria Lopez</p>
+                        <p class="text-[10px] text-gray-500">55 1234 5678</p>
+                    </div>
+                    <button class="text-xs text-purple-400 font-medium hover:underline">Cambiar</button>
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div class="flex-1 overflow-y-auto px-5 py-3 space-y-2 scrollbar-thin">
+
+                <!-- Item grande 1 -->
+                <div class="slide-up bg-[#1a2332] rounded-2xl p-4 border border-gray-700/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                            <span class="text-2xl">🎂</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold truncate">Pastel 3 Leches Chocolate</p>
+                            <p class="text-[11px] text-gray-500">"Feliz cumple Ana"</p>
+                        </div>
+                        <p class="text-base font-extrabold">$700</p>
+                    </div>
+                    <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-700/50">
+                        <div class="flex items-center gap-2">
+                            <button class="w-9 h-9 rounded-xl bg-gray-700 flex items-center justify-center text-sm font-bold hover:bg-gray-600 active:scale-95 transition-all">-</button>
+                            <span class="w-10 text-center text-base font-extrabold">1</span>
+                            <button class="w-9 h-9 rounded-xl bg-gray-700 flex items-center justify-center text-sm font-bold hover:bg-gray-600 active:scale-95 transition-all">+</button>
+                        </div>
+                        <button class="px-3 py-1.5 rounded-lg text-[11px] font-medium text-gray-500 hover:text-red-400 hover:bg-red-600/10 transition-colors">Eliminar</button>
+                    </div>
+                </div>
+
+                <!-- Item grande 2 -->
+                <div class="slide-up bg-[#1a2332] rounded-2xl p-4 border border-gray-700/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                            <span class="text-2xl">🍓</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold truncate">Pay de Fresas</p>
+                        </div>
+                        <p class="text-base font-extrabold">$700</p>
+                    </div>
+                    <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-700/50">
+                        <div class="flex items-center gap-2">
+                            <button class="w-9 h-9 rounded-xl bg-gray-700 flex items-center justify-center text-sm font-bold hover:bg-gray-600">-</button>
+                            <span class="w-10 text-center text-base font-extrabold">2</span>
+                            <button class="w-9 h-9 rounded-xl bg-gray-700 flex items-center justify-center text-sm font-bold hover:bg-gray-600">+</button>
+                        </div>
+                        <button class="px-3 py-1.5 rounded-lg text-[11px] font-medium text-gray-500 hover:text-red-400 hover:bg-red-600/10 transition-colors">Eliminar</button>
+                    </div>
+                </div>
+
+                <!-- Item grande 3 — Custom -->
+                <div class="slide-up bg-[#1a2332] rounded-2xl p-4 border-2 border-purple-500/30">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-purple-900/30 flex items-center justify-center flex-shrink-0">
+                            <span class="text-2xl">✨</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-bold truncate">Pastel Personalizado</p>
+                                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-purple-600 text-white">CUSTOM</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-0.5">Cobertura: Fondant | Relleno: Nutella | 30 porciones</p>
+                        </div>
+                        <p class="text-base font-extrabold">$1,200</p>
+                    </div>
+                    <div class="flex items-center justify-between mt-3 pt-3 border-t border-purple-500/20">
+                        <div class="flex items-center gap-2">
+                            <button class="w-9 h-9 rounded-xl bg-gray-700 flex items-center justify-center text-sm font-bold hover:bg-gray-600">-</button>
+                            <span class="w-10 text-center text-base font-extrabold">1</span>
+                            <button class="w-9 h-9 rounded-xl bg-gray-700 flex items-center justify-center text-sm font-bold hover:bg-gray-600">+</button>
+                        </div>
+                        <button class="px-3 py-1.5 rounded-lg text-[11px] font-medium text-purple-400 hover:bg-purple-600/20 transition-colors">Editar</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Panel de cobro fijo abajo -->
+            <div class="border-t border-gray-800 flex-shrink-0">
+                <!-- Totales -->
+                <div class="px-5 py-3 space-y-1.5">
+                    <div class="flex justify-between text-xs text-gray-500">
+                        <span>Subtotal (3 items)</span>
+                        <span>$2,600.00</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-orange-400">Descuento</span>
+                        <span class="text-orange-400">-$100.00</span>
+                    </div>
+                    <div class="flex justify-between items-baseline pt-2 border-t border-gray-700">
+                        <span class="text-sm font-bold text-gray-400">TOTAL A PAGAR</span>
+                        <span class="text-2xl font-extrabold text-green-400">$2,500.00</span>
+                    </div>
+                </div>
+
+                <!-- Acciones extra -->
+                <div class="px-5 pb-2 flex gap-2">
+                    <button class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#1a2332] border border-gray-700 text-[11px] font-semibold text-gray-400 hover:text-orange-400 hover:border-orange-500/40 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                        Descuento
+                    </button>
+                    <button class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#1a2332] border border-gray-700 text-[11px] font-semibold text-gray-400 hover:text-blue-400 hover:border-blue-500/40 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        Nota
+                    </button>
+                    <button class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#1a2332] border border-gray-700 text-[11px] font-semibold text-gray-400 hover:text-purple-400 hover:border-purple-500/40 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Imprimir
+                    </button>
+                </div>
+
+                <!-- Metodos de pago grandes -->
+                <div class="px-5 pb-2">
+                    <div class="grid grid-cols-3 gap-2">
+                        <button class="py-3.5 rounded-xl bg-green-600 text-white font-bold text-sm text-center shadow-lg shadow-green-600/20 hover:bg-green-500 active:scale-95 transition-all">
+                            <p class="text-lg mb-0.5">💵</p>
+                            Efectivo
+                        </button>
+                        <button class="py-3.5 rounded-xl bg-[#1a2332] border-2 border-gray-700 text-gray-300 font-bold text-sm text-center hover:border-blue-500/50 active:scale-95 transition-all">
+                            <p class="text-lg mb-0.5">💳</p>
+                            Tarjeta
+                        </button>
+                        <button class="py-3.5 rounded-xl bg-[#1a2332] border-2 border-gray-700 text-gray-300 font-bold text-sm text-center hover:border-purple-500/50 active:scale-95 transition-all">
+                            <p class="text-lg mb-0.5">🏦</p>
+                            Transferencia
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Boton principal cobrar -->
+                <div class="px-5 pb-4 flex gap-2">
+                    <button class="flex-shrink-0 py-4 px-6 rounded-2xl text-sm font-bold bg-[#1a2332] border-2 border-blue-500/40 text-blue-400 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:scale-95 transition-all">
+                        Cotizar
+                    </button>
+                    <button class="flex-1 py-4 rounded-2xl text-base font-extrabold bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-xl shadow-green-600/30 hover:from-green-500 hover:to-emerald-400 active:scale-[0.98] transition-all">
+                        COBRAR $2,500.00
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>

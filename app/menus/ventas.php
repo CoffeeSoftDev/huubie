@@ -27,6 +27,7 @@
     <!-- Modulo Scripts -->
     <script src="/app/menus/src/js/cards.js?t=<?php echo time(); ?>"></script>
     <script src="/app/menus/src/js/ventas.js?t=<?php echo time(); ?>"></script>
+
 </body>
 
 </html>

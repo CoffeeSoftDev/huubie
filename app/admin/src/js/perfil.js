@@ -230,32 +230,29 @@ class Perfil extends Templates {
 
     editUser() {
         $('#btnEnviarForm').prop('disabled', true); // Deshabilitar el botón para evitar múltiples envíos
-        // Validar campos requeridos
-        if (!$('#fullname').val().trim() || !$('#user').val().trim() ) {
-            alert({ icon: "warning", title: "Campos incompletos", text: "Por favor, completa todos los campos requeridos.", btn1: true, btn1Text: "Ok" });
+        // Validar nombre completo (requerido)
+        if (!$('#fullname').val().trim()) {
+            alert({ icon: "warning", title: "Campo requerido", text: "Por favor, ingresa tu nombre completo.", btn1: true, btn1Text: "Ok" });
+            $('#btnEnviarForm').prop('disabled', false);
             return;
         }
-        // Validar formato de teléfono
+        // Validar formato de teléfono (opcional)
         if ($('#phone').val().trim()) {
             const phonePattern = /^\+?\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/;
             if (!phonePattern.test($('#phone').val().trim())) {
                 alert({ icon: "warning", title: "Teléfono inválido", text: "Por favor, ingresa un número de teléfono válido.", btn1: true, btn1Text: "Ok" });
+                $('#btnEnviarForm').prop('disabled', false);
                 return;
             }
         }
-        // Validar formato de fecha
+        // Validar formato de fecha (opcional)
         if ($('#birthday').val().trim()) {
             const birthdayPattern = /^\d{4}-\d{2}-\d{2}$/;
             if (!birthdayPattern.test($('#birthday').val().trim())) {
                 alert({ icon: "warning", title: "Fecha inválida", text: "Por favor, ingresa una fecha de nacimiento válida.", btn1: true, btn1Text: "Ok" });
+                $('#btnEnviarForm').prop('disabled', false);
                 return;
             }
-        }
-        // Validar que el nombre de usuario solo contenga letras, números y guiones bajos
-        const userPattern = /^[a-zA-Z0-9_]+$/;
-        if (!userPattern.test($('#user').val().trim())) {
-            alert({ icon: "warning", title: "Usuario inválido", text: "El nombre de usuario solo puede contener letras, números y guiones bajos.", btn1: true, btn1Text: "Ok" });
-            return;
         }
 
         Swal.fire({

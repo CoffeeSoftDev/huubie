@@ -15,3 +15,7 @@
 
 <!-- BOOTSTRAP CSS (al final para que pise reglas residuales de Tailwind cuando aplique) -->
 <link rel="stylesheet" href="/app/src/plugins/bootstrap-5/css/bootstrap.min.css" />
+
+<!-- COFFEESOFT THEME (despues de Bootstrap para sobreescribir variables y hovers) -->
+<link rel="stylesheet" href="/app/src/css/colors.css" />
+<link rel="stylesheet" href="/app/src/css/buttons.css" />

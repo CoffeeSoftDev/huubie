@@ -46,6 +46,37 @@
             color: #fff !important;
             border-color: #3FC189 !important;
         }
+        /* Modal Cobro */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); }
+        .modal-cobro { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-cobro.hidden { display: none; }
+        .method-card {
+            transition: all 0.15s;
+            cursor: pointer;
+            position: relative;
+        }
+        .method-card.active {
+            border-color: #1C64F2 !important;
+            background: rgba(28,100,242,0.08) !important;
+        }
+        .method-card .check-indicator {
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .method-card.active .check-indicator {
+            opacity: 1;
+        }
+        .method-card .method-amount {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease, opacity 0.2s ease, margin-top 0.2s ease;
+        }
+        .method-card.active .method-amount {
+            max-height: 60px;
+            opacity: 1;
+            margin-top: 0.75rem;
+        }
     </style>
 </head>
 <body class="flex">
@@ -122,12 +153,12 @@
                 <input type="text" placeholder="Buscar producto o escanear..." class="cs-input pl-9 pr-4 py-2 text-xs" style="background:#1a2332; border:1px solid #374151; color:#fff; width:100%; border-radius:8px;">
             </div>
             <div class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-                <button class="cat-btn active flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151]">Todos</button>
-                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]">Pasteles Tradicional</button>
-                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]">Cafes</button>
-                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]">Premium</button>
-                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]">Cupcakes</button>
-                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]">Galletas</button>
+                <button class="cat-btn active flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151]" data-cat="Todos">Todos</button>
+                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]" data-cat="Pasteles Tradicional">Pasteles Tradicional</button>
+                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]" data-cat="Cafes">Cafes</button>
+                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]" data-cat="Premium">Premium</button>
+                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]" data-cat="Cupcakes">Cupcakes</button>
+                <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] bg-[#1a2332] text-[#9CA3AF]" data-cat="Galletas">Galletas</button>
             </div>
         </div>
 
@@ -135,7 +166,7 @@
         <div class="flex-1 overflow-y-auto px-4 pb-3 scrollbar-thin">
             <div class="grid grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Pasteles Tradicional">
                     <div class="h-16 bg-gradient-to-br from-amber-900/30 to-amber-800/10 flex items-center justify-center relative">
                         <i data-lucide="cake" class="w-7 h-7 text-amber-400"></i>
                         <span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#fbbf24] text-[8px] font-bold flex items-center justify-center text-[#111928]">3</span>
@@ -146,7 +177,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Pasteles Tradicional">
                     <div class="h-16 bg-gradient-to-br from-pink-900/30 to-pink-800/10 flex items-center justify-center">
                         <i data-lucide="gift" class="w-7 h-7 text-pink-400"></i>
                     </div>
@@ -156,7 +187,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Pasteles Tradicional">
                     <div class="h-16 bg-gradient-to-br from-red-900/30 to-red-800/10 flex items-center justify-center">
                         <i data-lucide="heart" class="w-7 h-7 text-red-400"></i>
                     </div>
@@ -166,7 +197,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Pasteles Tradicional">
                     <div class="h-16 bg-gradient-to-br from-yellow-900/30 to-yellow-800/10 flex items-center justify-center">
                         <i data-lucide="cookie" class="w-7 h-7 text-yellow-400"></i>
                     </div>
@@ -176,7 +207,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Premium">
                     <div class="h-16 bg-gradient-to-br from-emerald-900/30 to-emerald-800/10 flex items-center justify-center">
                         <i data-lucide="trees" class="w-7 h-7 text-emerald-400"></i>
                     </div>
@@ -186,7 +217,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Cupcakes">
                     <div class="h-16 bg-gradient-to-br from-orange-900/30 to-orange-800/10 flex items-center justify-center">
                         <i data-lucide="star" class="w-7 h-7 text-orange-400"></i>
                     </div>
@@ -196,7 +227,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Pasteles Tradicional">
                     <div class="h-16 bg-gradient-to-br from-rose-900/30 to-rose-800/10 flex items-center justify-center">
                         <i data-lucide="cake" class="w-7 h-7 text-rose-400"></i>
                     </div>
@@ -206,7 +237,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Cafes">
                     <div class="h-16 bg-gradient-to-br from-yellow-900/30 to-amber-800/10 flex items-center justify-center">
                         <i data-lucide="coffee" class="w-7 h-7 text-amber-400"></i>
                     </div>
@@ -216,7 +247,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Premium">
                     <div class="h-16 bg-gradient-to-br from-pink-900/30 to-rose-800/10 flex items-center justify-center">
                         <i data-lucide="gem" class="w-7 h-7 text-pink-400"></i>
                     </div>
@@ -226,7 +257,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Pasteles Tradicional">
                     <div class="h-16 bg-gradient-to-br from-amber-900/30 to-yellow-800/10 flex items-center justify-center">
                         <i data-lucide="droplets" class="w-7 h-7 text-amber-400"></i>
                     </div>
@@ -236,7 +267,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Pasteles Tradicional">
                     <div class="h-16 bg-gradient-to-br from-red-900/30 to-pink-800/10 flex items-center justify-center">
                         <i data-lucide="heart" class="w-7 h-7 text-red-400"></i>
                     </div>
@@ -246,7 +277,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Galletas">
                     <div class="h-16 bg-gradient-to-br from-teal-900/30 to-teal-800/10 flex items-center justify-center">
                         <i data-lucide="circle" class="w-7 h-7 text-teal-400"></i>
                     </div>
@@ -256,7 +287,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Premium">
                     <div class="h-16 bg-gradient-to-br from-indigo-900/30 to-indigo-800/10 flex items-center justify-center">
                         <i data-lucide="circle" class="w-7 h-7 text-indigo-400"></i>
                     </div>
@@ -266,7 +297,7 @@
                     </div>
                 </div>
 
-                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden">
+                <div class="product-card bg-[#1a2332] border border-[rgba(55,65,81,0.6)] rounded-lg overflow-hidden" data-cat="Pasteles Tradicional">
                     <div class="h-16 bg-gradient-to-br from-lime-900/30 to-lime-800/10 flex items-center justify-center">
                         <i data-lucide="sun" class="w-7 h-7 text-lime-400"></i>
                     </div>
@@ -276,11 +307,6 @@
                     </div>
                 </div>
 
-                <!-- Arma tu pastel -->
-                <div class="product-card bg-[rgba(124,58,237,0.15)] border border-dashed border-[rgba(124,58,237,0.4)] rounded-lg overflow-hidden flex flex-col items-center justify-center" style="min-height: 106px;">
-                    <i data-lucide="plus" class="w-5 h-5 text-[#7C3AED] mb-1"></i>
-                    <p class="text-[9px] font-bold text-[#7C3AED]">PERSONALIZADO</p>
-                </div>
 
             </div>
         </div>
@@ -468,19 +494,6 @@
                 </div>
             </div>
 
-            <!-- Metodos de pago -->
-            <div class="grid grid-cols-3 gap-1.5">
-                <button class="payment-btn py-2 rounded-lg text-[10px] font-bold bg-[#3FC189] text-white text-center hover:bg-[#35a876] active:scale-95 transition-all border border-[#3FC189]">
-                    Efectivo
-                </button>
-                <button class="payment-btn py-2 rounded-lg text-[10px] font-bold bg-[#1a2332] border border-[#374151] text-[#9CA3AF] text-center hover:border-[rgba(28,100,242,0.5)] active:scale-95 transition-all">
-                    Tarjeta
-                </button>
-                <button class="payment-btn py-2 rounded-lg text-[10px] font-bold bg-[#1a2332] border border-[#374151] text-[#9CA3AF] text-center hover:border-[rgba(124,58,237,0.5)] active:scale-95 transition-all">
-                    Transferencia
-                </button>
-            </div>
-
             <!-- Botones principales -->
             <div class="flex gap-2">
                 <button class="py-2.5 px-4 rounded-lg text-[11px] font-bold bg-[#1a2332] border border-[rgba(28,100,242,0.4)] text-[#1C64F2] hover:bg-[#1C64F2] hover:text-white active:scale-95 transition-all">
@@ -489,13 +502,246 @@
                 <button class="py-2.5 px-4 rounded-lg text-[11px] font-bold bg-[#1a2332] border border-[rgba(251,191,36,0.4)] text-[#fbbf24] hover:bg-[#fbbf24] hover:text-[#111928] active:scale-95 transition-all">
                     Anticipo
                 </button>
-                <button class="flex-1 py-2.5 rounded-lg text-sm font-extrabold bg-[#3FC189] text-white shadow-lg shadow-[rgba(63,193,137,0.2)] hover:bg-[#35a876] active:scale-[0.98] transition-all">
+                <button id="btnCobrar" class="flex-1 py-2.5 rounded-lg text-sm font-extrabold bg-[#3FC189] text-white shadow-lg shadow-[rgba(63,193,137,0.2)] hover:bg-[#35a876] active:scale-[0.98] transition-all" onclick="openCobroModal()">
                     COBRAR $2,626.75
                 </button>
             </div>
         </div>
     </div>
 
-    <script>lucide.createIcons();</script>
+    <script>
+        lucide.createIcons();
+
+        // ── Filtrado de categorías ───────────────────────────────────────────────
+        const catButtons = document.querySelectorAll('.cat-btn');
+        const productCards = document.querySelectorAll('.product-card');
+
+        catButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const selected = btn.dataset.cat;
+
+                // Actualizar botones activos
+                catButtons.forEach(b => {
+                    b.classList.remove('active');
+                    if (!b.classList.contains('active')) {
+                        b.classList.add('bg-[#1a2332]', 'text-[#9CA3AF]');
+                    }
+                });
+                btn.classList.add('active');
+                btn.classList.remove('bg-[#1a2332]', 'text-[#9CA3AF]');
+
+                // Filtrar productos
+                productCards.forEach(card => {
+                    const cardCat = card.dataset.cat;
+                    if (selected === 'Todos' || cardCat === selected) {
+                        card.style.display = '';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        });
+        // ── Modal de Cobro (tarjetas de método) ──────────────────────────────────
+        let paymentMethods = [
+            { id: 'cash', name: 'Efectivo', emoji: '💵', active: false, amount: 0 },
+            { id: 'card', name: 'Tarjeta', emoji: '💳', active: false, amount: 0 },
+            { id: 'transfer', name: 'Transferencia', emoji: '🏦', active: false, amount: 0 },
+            { id: 'cheque', name: 'Cheque', emoji: '📄', active: false, amount: 0 },
+            { id: 'voucher', name: 'Vale / Monedero', emoji: '🎟️', active: false, amount: 0 }
+        ];
+
+        function formatPrice(n) {
+            return '$' + parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function getTotalToPay() {
+            const txt = document.getElementById('modalTotalPagar').textContent.replace('$', '').replace(/,/g, '');
+            return parseFloat(txt) || 0;
+        }
+
+        function openCobroModal() {
+            document.getElementById('modalCobro').classList.remove('hidden');
+            paymentMethods.forEach(m => { m.active = false; m.amount = 0; });
+            renderMethods();
+            calcTotals();
+        }
+
+        function closeCobroModal() {
+            document.getElementById('modalCobro').classList.add('hidden');
+        }
+
+        function renderMethods() {
+            const container = document.getElementById('methodsGrid');
+            container.innerHTML = '';
+
+            paymentMethods.forEach(m => {
+                const el = document.createElement('div');
+                el.className = `method-card rounded-xl border border-[#374151] bg-[#1a2332] p-3 ${m.active ? 'active' : ''}`;
+                el.onclick = (e) => {
+                    if (e.target.tagName === 'INPUT') return;
+                    toggleMethod(m.id);
+                };
+                el.innerHTML = `
+                    <div class="check-indicator absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-[#1C64F2] flex items-center justify-center">
+                        <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </div>
+                    <div class="flex flex-col items-center gap-1.5 text-center">
+                        <div class="w-9 h-9 rounded-lg bg-[rgba(28,100,242,0.1)] border border-[rgba(28,100,242,0.2)] flex items-center justify-center">
+                            <span class="text-lg">${m.emoji}</span>
+                        </div>
+                        <p class="text-[10px] font-semibold text-[#D1D5DB] leading-tight">${m.name}</p>
+                    </div>
+                    <div class="method-amount">
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280] text-xs font-bold">$</span>
+                            <input type="number" step="0.01" min="0" value="${m.amount || ''}" placeholder="0.00"
+                                   class="w-full bg-[#141d2b] border border-[#374151] rounded-lg pl-6 pr-2 py-1.5 text-xs text-white text-right font-bold focus:outline-none focus:border-[#1C64F2]"
+                                   oninput="updateMethodAmount('${m.id}', this.value)">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function toggleMethod(id) {
+            const m = paymentMethods.find(x => x.id === id);
+            if (!m) return;
+            m.active = !m.active;
+            if (!m.active) m.amount = 0;
+            renderMethods();
+            calcTotals();
+        }
+
+        function updateMethodAmount(id, value) {
+            const m = paymentMethods.find(x => x.id === id);
+            if (!m) return;
+            m.amount = parseFloat(value) || 0;
+            calcTotals();
+        }
+
+        function calcTotals() {
+            const totalPagado = paymentMethods.reduce((s, m) => s + (m.active ? (parseFloat(m.amount) || 0) : 0), 0);
+            const totalAPagar = getTotalToPay();
+            const restante = totalAPagar - totalPagado;
+
+            document.getElementById('lblTotalPagado').textContent = formatPrice(totalPagado);
+
+            const rowRestante = document.getElementById('rowRestante');
+            const rowCambio = document.getElementById('rowCambio');
+            const btnConfirmar = document.getElementById('btnConfirmar');
+
+            if (restante > 0) {
+                rowRestante.classList.remove('hidden');
+                rowCambio.classList.add('hidden');
+                document.getElementById('lblRestante').textContent = formatPrice(restante);
+                btnConfirmar.classList.add('opacity-50', 'cursor-not-allowed');
+                btnConfirmar.classList.remove('hover:bg-[#35a876]');
+            } else {
+                rowRestante.classList.add('hidden');
+                rowCambio.classList.remove('hidden');
+                document.getElementById('lblCambio').textContent = formatPrice(Math.abs(restante));
+                btnConfirmar.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnConfirmar.classList.add('hover:bg-[#35a876]');
+            }
+        }
+
+        function confirmPayment() {
+            const totalAPagar = getTotalToPay();
+            const activos = paymentMethods.filter(m => m.active && m.amount > 0);
+            const totalPagado = activos.reduce((s, m) => s + m.amount, 0);
+
+            if (totalPagado < totalAPagar) {
+                alert('Falta pagar: ' + formatPrice(totalAPagar - totalPagado));
+                return;
+            }
+            if (activos.length === 0) {
+                alert('Selecciona al menos un método de pago');
+                return;
+            }
+            const resumen = activos.map(m => `${m.emoji} ${m.name}: ${formatPrice(m.amount)}`).join('\n');
+            alert('Pago confirmado:\n' + resumen + '\n\nTotal: ' + formatPrice(totalPagado));
+            closeCobroModal();
+        }
+    </script>
+    <!-- ============================================================ -->
+    <!-- MODAL COBRO -->
+    <!-- ============================================================ -->
+    <div id="modalCobro" class="modal-cobro hidden">
+        <div class="modal-backdrop" onclick="closeCobroModal()"></div>
+        <div class="relative z-10 w-full max-w-[480px] bg-[#1F2A37] rounded-2xl border border-[#374151] shadow-2xl overflow-hidden">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-5 py-4 border-b border-[#374151]">
+                <div>
+                    <h3 class="text-sm font-bold text-white">Cobrar <span id="modalFolio">Venta #1043</span></h3>
+                    <p class="text-[10px] text-[#9CA3AF] mt-0.5">Total: <span id="modalTotal">$2,626.75</span></p>
+                </div>
+                <button class="text-[#9CA3AF] hover:text-white transition-colors" onclick="closeCobroModal()" title="Cerrar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="px-5 py-4 space-y-4">
+                <!-- Resumen -->
+                <div class="bg-[#1a2332] rounded-lg p-3.5 border border-[#374151] space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-[#9CA3AF]">Subtotal</span>
+                        <span class="text-white font-medium" id="modalSubtotal">$2,765.00</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-[#9CA3AF]">Descuento</span>
+                        <span class="text-[#fbbf24] font-medium" id="modalDescuento">-$138.25</span>
+                    </div>
+                    <div class="flex justify-between text-sm font-bold pt-1.5 border-t border-[#374151]">
+                        <span class="text-white">Total a pagar</span>
+                        <span class="text-[#3FC189]" id="modalTotalPagar">$2,626.75</span>
+                    </div>
+                </div>
+
+                <!-- Métodos de pago -->
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-[#6B7280] font-semibold mb-2">Métodos de pago</p>
+                    <p class="text-[10px] text-[#9CA3AF] mb-3">Haz clic para activar un método e ingresa el monto</p>
+                    <div id="methodsGrid" class="grid grid-cols-3 gap-2">
+                        <!-- Las tarjetas de método se generan por JS -->
+                    </div>
+                </div>
+
+                <!-- Totales dinámicos -->
+                <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151] space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-[#9CA3AF]">Total pagado</span>
+                        <span class="text-white font-bold" id="lblTotalPagado">$0.00</span>
+                    </div>
+                    <div class="flex justify-between text-xs" id="rowRestante">
+                        <span class="text-[#EA0234]">Pendiente</span>
+                        <span class="text-[#EA0234] font-bold" id="lblRestante">$2,626.75</span>
+                    </div>
+                    <div class="flex justify-between text-xs hidden" id="rowCambio">
+                        <span class="text-[#3FC189]">Cambio</span>
+                        <span class="text-[#3FC189] font-bold" id="lblCambio">$0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#374151] bg-[#141d2b]">
+                <button class="px-4 py-2 rounded-lg text-xs font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#374151] transition-colors"
+                        onclick="closeCobroModal()">
+                    Cancelar
+                </button>
+                <button id="btnConfirmar" class="px-5 py-2 rounded-lg text-xs font-bold bg-[#3FC189] text-white hover:bg-[#35a876] active:scale-95 transition-all"
+                        onclick="confirmPayment()">
+                    Confirmar Pago
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

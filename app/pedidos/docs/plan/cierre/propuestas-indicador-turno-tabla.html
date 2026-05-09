@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indicador de turno en tabla</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f1724; font-family: 'Inter', system-ui, sans-serif; }
+        .row-pulse { animation: softPulse 3s ease-in-out infinite; }
+        @keyframes softPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-7xl mx-auto space-y-10">
+
+        <div class="text-center mb-6">
+            <h1 class="text-lg font-bold text-white mb-1">Indicador de turno en tabla</h1>
+            <p class="text-xs text-gray-500">Dot pequeño: verde = turno actual, naranja = turno anterior</p>
+        </div>
+
+        <div class="bg-[#1F2A37] rounded-lg p-3 overflow-hidden">
+            <!-- Header -->
+            <div class="grid grid-cols-[16px_80px_60px_140px_80px_70px_70px_90px_80px_80px_70px_50px] text-[10px] text-gray-500 uppercase tracking-wider border-b border-gray-700 pb-2 mb-1">
+                <span></span>
+                <span>Folio</span>
+                <span>Creación</span>
+                <span>Cliente</span>
+                <span>Abono</span>
+                <span>Total</span>
+                <span>Saldo</span>
+                <span>Fecha Entrega</span>
+                <span>Hora Entrega</span>
+                <span>Estado</span>
+                <span>Entregado</span>
+                <span></span>
+            </div>
+
+            <!-- Fila turno ACTUAL (dot verde pequeño) -->
+            <div class="grid grid-cols-[16px_80px_60px_140px_80px_70px_70px_90px_80px_80px_70px_50px] items-center text-[11px] text-gray-300 py-2.5 border-b border-gray-800/50">
+                <span class="flex justify-center"><span class="w-1.5 h-1.5 bg-green-400 rounded-full row-pulse"></span></span>
+                <span class="text-blue-400">P-RR-274</span>
+                <span class="text-gray-500">Hoy</span>
+                <span>Tatiana Guillen<br><span class="text-[10px] text-gray-500">9623260938</span></span>
+                <span class="text-green-400">$ 1,430.00</span>
+                <span>1,430.00</span>
+                <span>-</span>
+                <span>09/Apr/2026</span>
+                <span>02:30 PM</span>
+                <span><span class="bg-green-500/20 text-green-400 text-[9px] px-2 py-0.5 rounded">PAGADO</span></span>
+                <span class="text-orange-400 text-[9px]">No entregado</span>
+                <span class="text-gray-500">...</span>
+            </div>
+
+            <!-- Fila turno ACTUAL (dot verde pequeño) -->
+            <div class="grid grid-cols-[16px_80px_60px_140px_80px_70px_70px_90px_80px_80px_70px_50px] items-center text-[11px] text-gray-300 py-2.5 border-b border-gray-800/50">
+                <span class="flex justify-center"><span class="w-1.5 h-1.5 bg-green-400 rounded-full row-pulse"></span></span>
+                <span class="text-blue-400">P-RR-275</span>
+                <span class="text-gray-500">Hoy</span>
+                <span>Jazmin Morales<br><span class="text-[10px] text-gray-500">9626957223</span></span>
+                <span class="text-green-400">$ 400.00</span>
+                <span>460.00</span>
+                <span class="text-red-400">$ 60.00</span>
+                <span>04/Apr/2026</span>
+                <span>11:29 PM</span>
+                <span><span class="bg-orange-500/20 text-orange-400 text-[9px] px-2 py-0.5 rounded">PENDIENTE</span></span>
+                <span class="text-orange-400 text-[9px]">No entregado</span>
+                <span class="text-gray-500">...</span>
+            </div>
+
+            <!-- Fila turno ACTUAL (dot verde pequeño) -->
+            <div class="grid grid-cols-[16px_80px_60px_140px_80px_70px_70px_90px_80px_80px_70px_50px] items-center text-[11px] text-gray-300 py-2.5 border-b border-gray-800/50">
+                <span class="flex justify-center"><span class="w-1.5 h-1.5 bg-green-400 rounded-full row-pulse"></span></span>
+                <span class="text-blue-400">P-RR-276</span>
+                <span class="text-gray-500">Hoy</span>
+                <span>Sergio osorio mendez<br><span class="text-[10px] text-gray-500">9621501886</span></span>
+                <span class="text-green-400">$ 500.00</span>
+                <span>520.00</span>
+                <span class="text-red-400">$ 20.00</span>
+                <span>04/Apr/2026</span>
+                <span>11:35 PM</span>
+                <span><span class="bg-orange-500/20 text-orange-400 text-[9px] px-2 py-0.5 rounded">PENDIENTE</span></span>
+                <span class="text-orange-400 text-[9px]">No entregado</span>
+                <span class="text-gray-500">...</span>
+            </div>
+
+            <!-- Fila turno ANTERIOR (dot naranja pequeño, sin atenuación) -->
+            <div class="grid grid-cols-[16px_80px_60px_140px_80px_70px_70px_90px_80px_80px_70px_50px] items-center text-[11px] text-gray-300 py-2.5 border-b border-gray-800/50">
+                <span class="flex justify-center"><span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span></span>
+                <span class="text-blue-400">P-RR-270</span>
+                <span class="text-gray-500">Ayer</span>
+                <span>Carolina Rodriguez<br><span class="text-[10px] text-gray-500">9625410357</span></span>
+                <span class="text-green-400">$ 250.00</span>
+                <span>850.00</span>
+                <span class="text-red-400">$ 600.00</span>
+                <span>04/Apr/2026</span>
+                <span>11:40 PM</span>
+                <span><span class="bg-orange-500/20 text-orange-400 text-[9px] px-2 py-0.5 rounded">PENDIENTE</span></span>
+                <span class="text-orange-400 text-[9px]">No entregado</span>
+                <span class="text-gray-500">...</span>
+            </div>
+
+            <!-- Fila turno ANTERIOR (dot naranja pequeño, sin atenuación) -->
+            <div class="grid grid-cols-[16px_80px_60px_140px_80px_70px_70px_90px_80px_80px_70px_50px] items-center text-[11px] text-gray-300 py-2.5 border-b border-gray-800/50">
+                <span class="flex justify-center"><span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span></span>
+                <span class="text-blue-400">P-RR-265</span>
+                <span class="text-gray-500">02/Apr</span>
+                <span>Maria Lopez<br><span class="text-[10px] text-gray-500">9627890123</span></span>
+                <span class="text-green-400">$ 800.00</span>
+                <span>800.00</span>
+                <span>-</span>
+                <span>05/Apr/2026</span>
+                <span>03:00 PM</span>
+                <span><span class="bg-green-500/20 text-green-400 text-[9px] px-2 py-0.5 rounded">PAGADO</span></span>
+                <span class="text-orange-400 text-[9px]">No entregado</span>
+                <span class="text-gray-500">...</span>
+            </div>
+        </div>
+
+        <!-- Leyenda -->
+        <div class="flex items-center gap-6 px-2">
+            <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-green-400 rounded-full row-pulse"></span><span class="text-[10px] text-gray-500">Turno actual</span></div>
+            <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span><span class="text-[10px] text-gray-500">Otro turno</span></div>
+        </div>
+
+    </div>
+</body>
+</html>

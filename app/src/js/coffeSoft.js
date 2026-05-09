@@ -1594,7 +1594,7 @@ class Components extends Complements {
             defaults.class = "w-full table-auto text-sm text-gray-300";
             defaults.border_table = "";
             defaults.border_row = "border-t border-gray-700";
-            defaults.color_row_alt = "bg-[#111827]";
+            defaults.color_row_alt = "bg-[#283341]";
         } else if (options.theme === 'corporativo') {
             defaults.color_th = "bg-[#003360] text-white";
             defaults.color_row = "bg-white ";
