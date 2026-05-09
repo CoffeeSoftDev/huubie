@@ -14,6 +14,8 @@ class App extends Templates {
         this.PROJECT_NAME = "Subsidiaries";
     }
 
+    onBranchChange() {}
+
     render(data) {
         this.layout();
         this.welcome(data);

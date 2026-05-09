@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS — Pedidos y Ventas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../../ui/css/ui-kit.css">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    .order-row { transition: background-color .15s; cursor: pointer; }
+    .order-row:hover { background-color: #1a2332; }
+    .order-row.active { background-color: #1a2332; border-left: 3px solid #1C64F2; }
+    .tab-btn { border-bottom: 2px solid transparent; transition: all .15s; }
+    .tab-btn.active { color: #7C3AED; border-bottom-color: #7C3AED; }
+  </style>
+</head>
+<body class="bg-[#111928] text-white h-screen overflow-hidden">
+
+  <nav class="cs-navbar">
+    <div class="flex items-center gap-4">
+      <span class="text-xl font-bold tracking-wide text-white">hb<span class="text-[#1C64F2]">&#9679;</span></span>
+      <span class="text-sm text-gray-400 hidden md:inline">| Pedidos y Ventas</span>
+    </div>
+    <div class="flex-1"></div>
+    <div class="flex items-center gap-3">
+      <button class="cs-btn cs-btn-primary cs-btn-sm">Nueva orden</button>
+      <button class="flex items-center gap-3">
+        <div class="cs-avatar cs-avatar-md">AL</div>
+      </button>
+    </div>
+  </nav>
+
+  <div id="mainContainer" class="w-full h-[calc(100vh-64px)] flex flex-col mt-16 overflow-hidden">
+    <div id="filterBar" class="w-full p-3 border-b border-gray-700 bg-[#141d2b]">
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="cs-form-group">
+          <label class="cs-label">Fecha</label>
+          <input type="date" class="cs-input" value="2026-05-09">
+        </div>
+        <div class="cs-form-group">
+          <label class="cs-label">Sucursal</label>
+          <select class="cs-select">
+            <option>Todas</option>
+            <option selected>Centro</option>
+            <option>Norte</option>
+          </select>
+        </div>
+        <div class="cs-form-group">
+          <label class="cs-label">Estado</label>
+          <select class="cs-select" id="filterState" onchange="filterOrders()">
+            <option value="Todos">Todos</option>
+            <option value="Cotizacion">Cotización</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Pagado">Pagado</option>
+            <option value="Cancelado">Cancelado</option>
+            <option value="Entregado">Entregado</option>
+          </select>
+        </div>
+        <div class="cs-form-group">
+          <label class="cs-label">Tipo</label>
+          <select class="cs-select" id="filterType" onchange="filterOrders()">
+            <option value="Todos">Todos</option>
+            <option value="POS">POS</option>
+            <option value="Pedido">Pedido</option>
+            <option value="Cotizacion">Cotización</option>
+          </select>
+        </div>
+        <div class="flex-1"></div>
+        <div class="relative">
+          <span class="cs-input-group-icon">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </span>
+          <input type="text" id="searchOrders" class="cs-input pl-10 w-64" placeholder="Buscar folio o cliente..." oninput="filterOrders()">
+        </div>
+      </div>
+    </div>
+
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Orders Table -->
+      <div class="flex-1 overflow-y-auto cs-scroll p-3">
+        <div class="flex border-b border-gray-800 mb-3">
+          <button class="tab-btn active px-4 py-2.5 text-xs font-semibold" data-tab="Todos" onclick="switchTab(this)">Todos (<span id="countTodos">6</span>)</button>
+          <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500" data-tab="Hoy" onclick="switchTab(this)">Hoy (<span id="countHoy">3</span>)</button>
+          <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500" data-tab="Pendientes" onclick="switchTab(this)">Pendientes (<span id="countPendientes">2</span>)</button>
+          <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500" data-tab="Cotizaciones" onclick="switchTab(this)">Cotizaciones (<span id="countCotizaciones">1</span>)</button>
+          <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500" data-tab="Cancelados" onclick="switchTab(this)">Cancelados (<span id="countCancelados">1</span>)</button>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-gray-700">
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th>Folio</th>
+                <th>Tipo</th>
+                <th>Cliente</th>
+                <th>Productos</th>
+                <th class="text-right">Total</th>
+                <th class="text-right">Pagado</th>
+                <th class="text-right">Saldo</th>
+                <th>Entrega</th>
+                <th>Estado</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              <!-- JS inyecta filas -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-between mt-4">
+          <p class="text-xs text-gray-500">Showing <span id="showStart">1</span>-<span id="showEnd">6</span> of <span id="showTotal">6</span></p>
+          <div class="cs-pagination">
+            <button disabled><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+            <button class="active-page">1</button>
+            <button>2</button>
+            <button><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail Panel -->
+      <div id="detailPanel" class="hidden md:flex w-[420px] flex-col border-l border-gray-700 bg-[#1F2A37]">
+        <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-white" id="detailTitle">Detalle</h3>
+          <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="window.open('pos-main.html','_blank')">Continuar en POS</button>
+        </div>
+        <div id="detailContent" class="flex-1 overflow-y-auto cs-scroll p-4 space-y-4">
+          <!-- JS inyecta detalle -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const orders = [
+      { id:1042, folio:'1042', type:'POS', client:'María González', phone:'55 1234 5678', products:[{name:'Pastel 3 Leches', qty:1, price:700}, {name:'Cupcake', qty:2, price:55}], total:810, paid:810, balance:0, delivery:'Hoy', state:'Pagado', note:'' },
+      { id:1041, folio:'1041', type:'Pedido', client:'Juan Pérez', phone:'55 9876 5432', products:[{name:'Carlos V', qty:1, price:390}, {name:'Pay de Fresas', qty:1, price:350}], total:740, paid:370, balance:370, delivery:'09/05 16:00', state:'Pendiente', note:'Con dedicatoria' },
+      { id:1040, folio:'1040', type:'Cotizacion', client:'Laura Martínez', phone:'55 1111 2222', products:[{name:'Decorated', qty:1, price:650}], total:650, paid:0, balance:650, delivery:'12/05 12:00', state:'Cotizacion', note:'Confirmar diseño' },
+      { id:1039, folio:'1039', type:'POS', client:'Sin cliente', phone:'', products:[{name:'Choco Aleman', qty:1, price:600}, {name:'Cafe Americano', qty:2, price:45}], total:690, paid:690, balance:0, delivery:'Hoy', state:'Pagado', note:'' },
+      { id:1038, folio:'1038', type:'Pedido', client:'Ana López', phone:'55 3333 4444', products:[{name:'3 Leches Fresa', qty:1, price:650}, {name:'Choco Roll', qty:1, price:700}], total:1350, paid:0, balance:1350, delivery:'10/05 14:00', state:'Pendiente', note:'Entrega a domicilio' },
+      { id:1037, folio:'1037', type:'POS', client:'Pedro Sánchez', phone:'55 5555 6666', products:[{name:'Galleta Choco', qty:10, price:45}], total:450, paid:450, balance:0, delivery:'Hoy', state:'Cancelado', note:'Error en cobro' },
+    ];
+
+    let activeOrderId = null;
+    let currentTab = 'Todos';
+
+    const stateBadge = {
+      'Pagado': 'cs-badge-success',
+      'Pendiente': 'cs-badge-warning',
+      'Cotizacion': 'cs-badge-info',
+      'Cancelado': 'cs-badge-danger',
+      'Entregado': 'cs-badge-success'
+    };
+    const typeBadge = {
+      'POS': 'bg-green-500/15 text-green-400',
+      'Pedido': 'bg-blue-500/15 text-blue-400',
+      'Cotizacion': 'bg-gray-500/15 text-gray-400'
+    };
+
+    function renderOrders() {
+      const tbody = document.getElementById('ordersTableBody');
+      const stateFilter = document.getElementById('filterState').value;
+      const typeFilter = document.getElementById('filterType').value;
+      const q = document.getElementById('searchOrders').value.toLowerCase();
+
+      tbody.innerHTML = '';
+      const filtered = orders.filter(o => {
+        const tabMatch = currentTab === 'Todos' ||
+          (currentTab==='Hoy' && o.delivery==='Hoy') ||
+          (currentTab==='Pendientes' && o.state==='Pendiente') ||
+          (currentTab==='Cotizaciones' && o.type==='Cotizacion') ||
+          (currentTab==='Cancelados' && o.state==='Cancelado');
+        const stateMatch = stateFilter === 'Todos' || o.state === stateFilter;
+        const typeMatch = typeFilter === 'Todos' || o.type === typeFilter;
+        const searchMatch = o.folio.includes(q) || o.client.toLowerCase().includes(q);
+        return tabMatch && stateMatch && typeMatch && searchMatch;
+      });
+
+      filtered.forEach(o => {
+        const tr = document.createElement('tr');
+        tr.className = 'order-row' + (activeOrderId === o.id ? ' active' : '');
+        tr.onclick = () => selectOrder(o.id);
+        const prodSummary = o.products.map(p => p.name).join(', ');
+        tr.innerHTML = `
+          <td class="font-medium">#${o.folio}</td>
+          <td><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${typeBadge[o.type] || ''}">${o.type}</span></td>
+          <td><div><p class="text-sm">${o.client}</p>${o.phone ? `<p class="text-[10px] text-gray-500">${o.phone}</p>` : ''}</div></td>
+          <td><p class="text-xs text-gray-300">${prodSummary}</p><p class="text-[10px] text-gray-500">${o.products.length} items</p></td>
+          <td class="text-right font-medium">$${o.total.toLocaleString()}</td>
+          <td class="text-right text-green-400">$${o.paid.toLocaleString()}</td>
+          <td class="text-right ${o.balance>0?'text-orange-400 font-bold':'text-gray-500'}">$${o.balance.toLocaleString()}</td>
+          <td><p class="text-xs">${o.delivery}</p></td>
+          <td><span class="cs-badge ${stateBadge[o.state]||'cs-badge-neutral'}">${o.state}</span></td>
+          <td class="text-center">
+            <div class="flex justify-center gap-1">
+              ${o.balance>0 ? `<button class="cs-btn cs-btn-success cs-btn-sm" onclick="event.stopPropagation(); alert('Cobrar $${o.balance}')">Cobrar</button>` : ''}
+              <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="event.stopPropagation(); alert('Ver detalle #${o.folio}')">Ver</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('showTotal').textContent = filtered.length;
+      document.getElementById('showEnd').textContent = filtered.length;
+    }
+
+    function selectOrder(id) {
+      activeOrderId = id;
+      const o = orders.find(x => x.id === id);
+      if (!o) return;
+      renderOrders();
+      document.getElementById('detailTitle').textContent = `Pedido #${o.folio}`;
+      const content = document.getElementById('detailContent');
+      content.innerHTML = `
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700">
+          <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Cliente</p>
+          <p class="text-sm font-medium text-white">${o.client}</p>
+          ${o.phone ? `<p class="text-xs text-gray-400">${o.phone}</p>` : ''}
+        </div>
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700">
+          <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Productos (${o.products.length})</p>
+          <ul class="space-y-2">
+            ${o.products.map(p => `
+              <li class="flex justify-between text-sm">
+                <span class="text-gray-300">${p.qty}x ${p.name}</span>
+                <span class="text-white font-medium">$${(p.price*p.qty).toLocaleString()}</span>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700">
+          <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Resumen</p>
+          <div class="flex justify-between text-sm mb-1"><span class="text-gray-300">Total</span><span class="text-white font-medium">$${o.total.toLocaleString()}</span></div>
+          <div class="flex justify-between text-sm mb-1"><span class="text-gray-300">Pagado</span><span class="text-green-400">$${o.paid.toLocaleString()}</span></div>
+          <div class="flex justify-between text-sm font-semibold pt-2 border-t border-gray-700"><span class="text-white">Saldo</span><span class="${o.balance>0?'text-orange-400':'text-gray-500'}">$${o.balance.toLocaleString()}</span></div>
+        </div>
+        ${o.note ? `<div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700"><p class="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Nota</p><p class="text-sm text-gray-300">${o.note}</p></div>` : ''}
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700">
+          <p class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Entrega</p>
+          <p class="text-sm text-gray-300">${o.delivery}</p>
+        </div>
+      `;
+    }
+
+    function switchTab(btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.classList.add('text-gray-500');
+      });
+      btn.classList.add('active');
+      btn.classList.remove('text-gray-500');
+      currentTab = btn.dataset.tab;
+      renderOrders();
+    }
+
+    function filterOrders() { renderOrders(); }
+
+    // Init
+    renderOrders();
+    if (orders.length) selectOrder(orders[0].id);
+  </script>
+</body>
+</html>

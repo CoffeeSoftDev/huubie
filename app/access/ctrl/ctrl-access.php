@@ -82,6 +82,83 @@ class Access extends MAccess {
     }
 
 
+    function branches(){
+        if ((int) ($_SESSION['ROLID'] ?? 0) === 5) {
+            $list = $this->getBranchesByCompany([$_SESSION['COMPANY_ID']]);
+        } else {
+            $list = $this->getBranchesByUser([$_SESSION['USR']]);
+        }
+
+        $branches = [];
+        foreach ($list as $branch) {
+            $parts = preg_split('/\s+/', trim($branch['name']));
+            $initials = strtoupper(substr($parts[0], 0, 1));
+            if (count($parts) > 1) {
+                $initials .= strtoupper(substr(end($parts), 0, 1));
+            }
+
+            $branches[] = [
+                'id'        => (int) $branch['id'],
+                'name'      => $branch['name'],
+                'ubication' => $branch['ubication'] ?? '',
+                'active'    => (int) $branch['active'],
+                'initials'  => $initials,
+                'selected'  => ((int) $branch['id'] === (int) $_SESSION['SUB']) ? 1 : 0,
+            ];
+        }
+
+        return [
+            'status'   => 200,
+            'company'  => $_SESSION['COMPANY']           ?? '',
+            'current'  => [
+                'id'   => (int) ($_SESSION['SUB'] ?? 0),
+                'name' => $_SESSION['SUBSIDIARIE_NAME']  ?? '',
+            ],
+            'branches' => $branches,
+        ];
+    }
+
+    function switchBranch(){
+        $id = $_POST['id'];
+
+        $branch = $this->getBranchById([$id]);
+
+        if (!$branch) {
+            return [
+                'status'  => 404,
+                'message' => 'Sucursal no encontrada',
+            ];
+        }
+
+        if ((int) $branch['companies_id'] !== (int) $_SESSION['COMPANY_ID']) {
+            return [
+                'status'  => 403,
+                'message' => 'No tienes acceso a esta sucursal',
+            ];
+        }
+
+        if ((int) ($_SESSION['ROLID'] ?? 0) !== 5) {
+            if (!$this->userHasAccessToBranch([$_SESSION['USR'], $branch['id']])) {
+                return [
+                    'status'  => 403,
+                    'message' => 'Esta sucursal no esta asignada a tu usuario',
+                ];
+            }
+        }
+
+        $_SESSION['SUB']              = $branch['id'];
+        $_SESSION['SUBSIDIARIE_NAME'] = $branch['name'];
+
+        return [
+            'status'  => 200,
+            'message' => 'Sucursal cambiada correctamente',
+            'branch'  => [
+                'id'   => (int) $branch['id'],
+                'name' => $branch['name'],
+            ],
+        ];
+    }
+
     function sidebar(){
         $routes = [];
         if($_SESSION['ROLID'] != 5){

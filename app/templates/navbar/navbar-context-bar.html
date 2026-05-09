@@ -1,0 +1,482 @@
+<!--
+  ============================================================================
+  CoffeeMagic - Propuesta 2: Navbar con BARRA DE CONTEXTO secundaria
+  ============================================================================
+  Concepto:
+   - DOS barras apiladas:
+     * Barra 1 (h-16): logo, hamburguesa, menus globales y avatar (como hoy).
+     * Barra 2 (h-12): contexto operativo a la izquierda ("Nueva venta · CAJA-03 ·
+       TURNO MATUTINO") y selector de sucursal a la derecha.
+   - Separacion clara entre acciones globales y contexto operativo.
+   - Dropdown del switcher tipo "command palette": ancho ~480px, con buscador
+     en la parte superior y lista mas amplia.
+   - Toast tipo banner inferior centrado al pie de la pantalla.
+  Paleta Huubie: #111928, #1F2A37, #1F2937, #7C3AED, #A855F7, #EC4899, #22C55E
+  ============================================================================
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Huubie · Navbar Context Bar</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', 'Poppins', system-ui, sans-serif; background:#111928; color:#fff; }
+
+    /* Barra de contexto secundaria */
+    .context-bar {
+      background:#0d1421;
+      border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+    }
+
+    /* Trigger del switcher en context bar */
+    .branch-trigger {
+      background: rgba(31, 42, 55, .6);
+      border: 1px solid rgba(75, 85, 99, .4);
+      border-radius: 10px;
+      padding: 5px 12px;
+      transition: all .2s ease;
+    }
+    .branch-trigger:hover, .branch-trigger.active {
+      border-color: #7C3AED;
+      background: rgba(124, 58, 237, .08);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.10);
+    }
+
+    /* Dot estado */
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 9999px; background:#22C55E;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+      display:inline-block;
+    }
+
+    /* Avatar gradient circle (iniciales) */
+    .branch-avatar {
+      width: 44px; height: 44px;
+      border-radius: 9999px;
+      background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; letter-spacing: .5px; color:#fff;
+      box-shadow: 0 4px 14px rgba(124, 58, 237, .35);
+    }
+
+    /* Dropdown grande tipo command palette */
+    .branch-palette {
+      background:#0f172a;
+      border: 1px solid rgba(124, 58, 237, 0.22);
+      border-radius: 18px;
+      box-shadow: 0 32px 64px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.02);
+      backdrop-filter: blur(12px);
+    }
+
+    /* Search input del palette */
+    .palette-search {
+      background: #1a2332;
+      border: 1px solid rgba(75, 85, 99, .4);
+      border-radius: 12px;
+      padding: 10px 14px 10px 40px;
+      color:#fff; font-size: 13px;
+      width: 100%;
+      transition: all .15s ease;
+    }
+    .palette-search:focus {
+      outline: none;
+      border-color: #7C3AED;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+    }
+    .palette-search::placeholder { color:#6B7280; }
+
+    /* Card de sucursal */
+    .branch-card {
+      background:#1F2A37;
+      border: 1px solid rgba(55, 65, 81, .55);
+      border-radius: 14px;
+      padding: 14px;
+      transition: all .15s ease;
+      cursor: pointer;
+    }
+    .branch-card:hover {
+      border-color: #7C3AED;
+      background:#1F2937;
+      transform: translateY(-1px);
+    }
+    .branch-card.selected {
+      background: linear-gradient(135deg, rgba(124, 58, 237, .18) 0%, rgba(236, 72, 153, .10) 100%);
+      border-color: #A855F7;
+      box-shadow: 0 0 0 1px rgba(168, 85, 247, .30), 0 8px 20px rgba(124, 58, 237, .20);
+    }
+
+    /* Radio indicador */
+    .radio-mark {
+      width: 18px; height: 18px;
+      border-radius: 9999px;
+      border: 2px solid #4B5563;
+      display:flex; align-items:center; justify-content:center;
+      transition: all .2s ease;
+    }
+    .branch-card.selected .radio-mark { border-color: #A855F7; }
+    .radio-mark .inner {
+      width: 8px; height: 8px; border-radius: 9999px;
+      background: #A855F7;
+      opacity: 0; transition: opacity .2s ease;
+    }
+    .branch-card.selected .radio-mark .inner { opacity: 1; }
+
+    /* Toast banner inferior centrado */
+    .toast-banner {
+      position: relative;
+      background:#1F2A37;
+      border-radius: 14px;
+      padding: 14px 22px;
+      box-shadow: 0 24px 48px rgba(0,0,0,.55);
+      overflow: hidden;
+      min-width: 460px;
+    }
+    .toast-banner::before {
+      content: '';
+      position: absolute; inset: 0;
+      padding: 1.5px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #EC4899 0%, #A855F7 50%, #7C3AED 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    @keyframes slideUpCenter {
+      from { transform: translate(-50%, 24px); opacity: 0; }
+      to { transform: translate(-50%, 0); opacity: 1; }
+    }
+    .toast-anim { animation: slideUpCenter .4s ease-out; }
+
+    /* Boton ghost */
+    .btn-ghost {
+      color:#9CA3AF; font-size: 11px; padding: 5px 10px; border-radius: 8px;
+      transition: all .15s ease;
+    }
+    .btn-ghost:hover { color:#fff; background: rgba(255,255,255,.06); }
+
+    /* Boton CTA cerrar turno */
+    .btn-cta {
+      background: linear-gradient(135deg, #EC4899 0%, #A855F7 100%);
+      color:#fff; font-size:12px; font-weight:600;
+      padding: 9px 16px; border-radius: 10px;
+      box-shadow: 0 4px 14px rgba(236, 72, 153, .30);
+      transition: all .15s ease;
+    }
+    .btn-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(236, 72, 153, .40); }
+
+    /* Iconos accion */
+    .icon-action {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      display:flex; align-items:center; justify-content:center;
+      color:#6B7280;
+      transition: all .15s ease;
+    }
+    .icon-action:hover { background: rgba(255,255,255,.06); color:#fff; }
+
+    /* Demo wrapper */
+    .demo-wrap { padding-top: 124px; }
+
+    /* Breadcrumb separator */
+    .crumb-sep {
+      width: 4px; height: 4px;
+      border-radius: 9999px;
+      background: #4B5563;
+      display: inline-block;
+      margin: 0 10px;
+    }
+
+    /* Kbd hint */
+    .kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+      color: #9CA3AF;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 5px;
+      padding: 2px 6px;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- ================== NAVBAR PRINCIPAL (h-16) ================== -->
+  <nav class="bg-[#111827] fixed top-0 left-0 w-full text-white px-4 py-3 h-16 z-50 flex items-center justify-between border-b-2 border-pink-500">
+    <div class="flex items-center gap-3">
+      <!-- Logo -->
+      <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-white">
+          <path d="M2 12c0-3 2-6 6-6h8c4 0 6 3 6 6s-2 6-6 6H8c-4 0-6-3-6-6Z"/>
+          <path d="M8 12h8"/>
+        </svg>
+      </div>
+      <!-- Hamburguesa -->
+      <button id="toggleSidebar" class="text-white text-2xl px-2 hover:text-gray-300 transition">☰</button>
+      <!-- Brand -->
+      <div class="hidden md:flex flex-col leading-tight ml-1">
+        <span class="text-[15px] font-semibold text-white tracking-tight">Huubie</span>
+        <span class="text-[10px] uppercase tracking-[.14em] text-gray-500 font-medium">Reginas Pasteleria</span>
+      </div>
+    </div>
+
+    <ul class="hidden md:flex flex-1 justify-end items-center space-x-3">
+      <li class="invisible"><a href="#" class="hover:text-gray-400">Inicio</a></li>
+      <!-- Boton menus -->
+      <li>
+        <a href="/app/menu/" class="flex w-10 h-10 items-center justify-center rounded-lg hover:bg-white/5 transition" title="Menus">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+        </a>
+      </li>
+    </ul>
+
+    <button id="btnUserMenu" class="ml-2 flex items-center justify-center border-l border-gray-700 pl-3">
+      <div class="w-10 h-10 rounded-full border-2 border-white bg-purple-600 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+    </button>
+  </nav>
+
+  <!-- ================== CONTEXT BAR (barra secundaria h-12) ================== -->
+  <div class="context-bar fixed top-16 left-0 w-full z-40 px-4 h-12 flex items-center justify-between">
+
+    <!-- IZQUIERDA: contexto operativo / breadcrumb -->
+    <div class="flex items-center gap-2 text-[12px]">
+      <a href="#" class="text-gray-500 hover:text-white transition">POS</a>
+      <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <a href="#" class="text-gray-400 hover:text-white transition">Ventas</a>
+      <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <span class="text-white font-semibold">Nueva venta</span>
+      <span class="crumb-sep"></span>
+      <span class="text-[10px] uppercase tracking-[.14em] text-gray-500 font-semibold">CAJA-03</span>
+      <span class="crumb-sep"></span>
+      <span class="text-[10px] uppercase tracking-[.14em] text-gray-500 font-semibold">TURNO MATUTINO</span>
+    </div>
+
+    <!-- DERECHA: selector sucursal -->
+    <div class="relative">
+      <button id="btnBranch" class="branch-trigger active flex items-center gap-3" aria-expanded="true">
+        <div class="flex flex-col items-start leading-tight">
+          <span class="text-[9px] uppercase tracking-[.14em] text-gray-500 font-semibold">Sucursal</span>
+          <div class="flex items-center gap-2">
+            <span class="status-dot"></span>
+            <span class="text-[13px] font-semibold text-white">Reginas Matriz</span>
+          </div>
+        </div>
+        <svg class="chev w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transform: rotate(180deg);">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+
+      <!-- ====== DROPDOWN COMMAND PALETTE ABIERTO ====== -->
+      <div class="branch-palette absolute right-0 top-[calc(100%+10px)] w-[480px] z-50">
+
+        <!-- Header con search -->
+        <div class="px-5 pt-5 pb-4 border-b border-gray-800/50">
+          <div class="flex items-start justify-between mb-3">
+            <div>
+              <p class="text-[10px] uppercase tracking-[.14em] text-purple-400 font-semibold">Cambiar sucursal</p>
+              <p class="text-[12px] text-gray-400 mt-0.5">de <span class="text-gray-200 font-medium">Reginas Pasteleria</span></p>
+            </div>
+            <button class="btn-ghost flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              Limpiar
+            </button>
+          </div>
+          <!-- Search -->
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+            </svg>
+            <input type="text" class="palette-search" placeholder="Buscar sucursal por nombre o direccion..." />
+            <span class="kbd absolute right-3 top-1/2 -translate-y-1/2">Esc</span>
+          </div>
+        </div>
+
+        <!-- Lista sucursales -->
+        <div class="p-4 space-y-2.5 max-h-[440px] overflow-y-auto">
+
+          <p class="text-[9px] uppercase tracking-[.14em] text-gray-500 font-semibold mb-1 px-1">Disponibles · 3 sucursales</p>
+
+          <!-- Sucursal seleccionada: Reginas Matriz -->
+          <div class="branch-card selected">
+            <div class="flex items-start gap-3">
+              <div class="branch-avatar">RM</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-sm font-bold text-white truncate">Reginas Matriz</p>
+                  <div class="radio-mark"><div class="inner"></div></div>
+                </div>
+                <div class="flex items-center gap-1.5 mt-1">
+                  <span class="status-dot" style="width:6px;height:6px;box-shadow:0 0 0 2px rgba(34,197,94,.18);"></span>
+                  <span class="text-[11px] text-green-400 font-medium">Abierta</span>
+                  <span class="text-[11px] text-gray-500 truncate">· Av. Juarez 142 - Centro Historico</span>
+                </div>
+                <div class="flex items-center justify-between mt-3 pt-3 border-t border-purple-500/20">
+                  <div class="flex items-center gap-4">
+                    <div>
+                      <p class="text-[9px] uppercase tracking-wider text-gray-500">Turno actual</p>
+                      <p class="text-sm font-bold text-purple-300">$360.00</p>
+                    </div>
+                    <div>
+                      <p class="text-[9px] uppercase tracking-wider text-gray-500">Caja</p>
+                      <p class="text-sm font-bold text-white">CAJA-03</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button class="icon-action" title="Editar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    </button>
+                    <button class="icon-action" title="Eliminar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sucursal NO seleccionada: Reginas Centro -->
+          <div class="branch-card">
+            <div class="flex items-start gap-3">
+              <div class="branch-avatar" style="background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);">RC</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-sm font-bold text-white truncate">Reginas Centro</p>
+                  <div class="radio-mark"><div class="inner"></div></div>
+                </div>
+                <div class="flex items-center gap-1.5 mt-1">
+                  <span class="status-dot" style="width:6px;height:6px;box-shadow:0 0 0 2px rgba(34,197,94,.18);"></span>
+                  <span class="text-[11px] text-green-400 font-medium">Abierta</span>
+                  <span class="text-[11px] text-gray-500 truncate">· Calle 5 de Mayo 88 - Plaza Norte</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sucursal cerrada: Reginas Sur -->
+          <div class="branch-card opacity-80">
+            <div class="flex items-start gap-3">
+              <div class="branch-avatar" style="background: linear-gradient(135deg, #F472B6 0%, #C084FC 100%);">RS</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-sm font-bold text-white truncate">Reginas Sur</p>
+                  <div class="radio-mark"><div class="inner"></div></div>
+                </div>
+                <div class="flex items-center gap-1.5 mt-1">
+                  <span class="status-dot" style="width:6px;height:6px;background:#9CA3AF;box-shadow:0 0 0 2px rgba(156,163,175,.18);"></span>
+                  <span class="text-[11px] text-gray-400 font-medium">Cerrada</span>
+                  <span class="text-[11px] text-gray-500 truncate">· Av. Insurgentes 220 - Las Palmas</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-4 border-t border-gray-800/50 flex items-center justify-between gap-3 bg-[#0a1018] rounded-b-2xl">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center">
+              <svg class="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="leading-tight">
+              <p class="text-[11px] text-gray-300 font-medium">Tu turno <span class="text-purple-300 font-semibold">caja-03</span> permanece abierto.</p>
+              <p class="text-[10px] text-gray-500 mt-0.5">Iniciado a las 08:30 · 4h 22m activo</p>
+            </div>
+          </div>
+          <button class="btn-cta flex items-center gap-1.5 shrink-0">
+            Cerrar turno
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================== DEMO CONTENT ================== -->
+  <main class="demo-wrap px-6 py-12 max-w-6xl mx-auto">
+    <div class="text-center mb-8">
+      <p class="text-[10px] uppercase tracking-[.18em] text-purple-400 font-semibold mb-2">Propuesta 2 · CoffeeMagic</p>
+      <h1 class="text-2xl font-bold text-white">Navbar con Barra de Contexto</h1>
+      <p class="text-sm text-gray-400 mt-2 max-w-xl mx-auto">Dos barras apiladas: la primera con acciones globales (logo, menus, perfil) y la segunda con contexto operativo + selector de sucursal estilo command palette.</p>
+    </div>
+
+    <!-- Tarjeta de instrucciones -->
+    <div class="bg-[#1F2A37] border border-gray-800 rounded-2xl p-6 max-w-2xl mx-auto">
+      <h3 class="text-sm font-bold text-white mb-3">Caracteristicas clave</h3>
+      <ul class="space-y-2 text-[13px] text-gray-300">
+        <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5">▸</span><span>Barra de contexto con breadcrumb operativo (POS · Ventas · Nueva venta).</span></li>
+        <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5">▸</span><span>Selector tipo command palette (480px) con buscador y atajo Esc.</span></li>
+        <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5">▸</span><span>Mas espacio para datos del turno (monto + caja) en la sucursal activa.</span></li>
+        <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5">▸</span><span>Toast tipo banner inferior centrado, ancho fijo 460px.</span></li>
+      </ul>
+    </div>
+
+    <div class="h-32"></div>
+  </main>
+
+  <!-- ================== TOAST BANNER INFERIOR (visible) ================== -->
+  <div class="fixed bottom-8 left-1/2 z-50 toast-anim" style="transform: translateX(-50%);">
+    <div class="toast-banner">
+      <div class="flex items-center gap-4">
+        <!-- Icono check con anillo gradiente -->
+        <div class="relative shrink-0">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shadow-lg shadow-pink-500/30">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-white">Cambiaste a <span class="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">Reginas Matriz</span></p>
+          <div class="mt-1">
+            <p class="text-[11px] text-gray-400">
+              <span class="text-gray-500">Empresa</span> ·
+              <span class="text-gray-300">Reginas Pasteleria</span> ·
+              <span class="text-purple-300 font-medium">caja-03</span>
+            </p>
+          </div>
+        </div>
+        <div class="h-10 w-px bg-white/5 mx-1"></div>
+        <button class="btn-ghost flex items-center gap-1 shrink-0">
+          Deshacer
+        </button>
+        <button class="text-gray-500 hover:text-white transition shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Toggle minimo de demo (no funcional, solo visual)
+    document.getElementById('btnBranch')?.addEventListener('click', function () {
+      const expanded = this.getAttribute('aria-expanded') === 'true';
+      const dropdown = this.parentElement.querySelector('.branch-palette');
+      this.setAttribute('aria-expanded', !expanded);
+      this.classList.toggle('active', !expanded);
+      if (dropdown) dropdown.style.display = expanded ? 'none' : 'block';
+    });
+  </script>
+
+</body>
+</html>

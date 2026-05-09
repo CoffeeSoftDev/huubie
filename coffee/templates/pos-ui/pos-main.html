@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS — Pantalla Principal de Venta</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../../ui/css/ui-kit.css">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    .product-card { transition: all 0.12s ease; }
+    .product-card:hover { border-color: #7C3AED; transform: translateY(-1px); }
+    .product-card:active { transform: scale(0.97); }
+    .cat-btn.active { background: #7C3AED; color: #fff; border-color: #7C3AED; }
+    .cart-item { animation: slideIn 0.15s ease; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+    .nav-item.active { color: #7C3AED; border-color: #7C3AED; }
+    .pay-btn.active { border-color: #1C64F2; color: #60A5FA; background: rgba(28,100,242,0.1); }
+  </style>
+</head>
+<body class="bg-[#111928] text-white h-screen overflow-hidden flex">
+
+  <!-- SIDEBAR -->
+  <div class="w-[56px] bg-[#0f172a] border-r border-gray-800 flex flex-col items-center py-3 gap-1 flex-shrink-0 z-20">
+    <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-[10px] mb-3">RK</div>
+    <button class="nav-item active w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-purple-400" title="Cobrar">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+      <div class="w-1 h-1 rounded-full bg-purple-400"></div>
+    </button>
+    <button class="nav-item w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-gray-500 hover:text-gray-300" title="Pedidos">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <div class="w-1 h-1 rounded-full bg-transparent"></div>
+    </button>
+    <button class="nav-item w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-gray-500 hover:text-gray-300" title="Inventario">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+      <div class="w-1 h-1 rounded-full bg-transparent"></div>
+    </button>
+    <button class="nav-item w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-gray-500 hover:text-gray-300" title="Reportes">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <div class="w-1 h-1 rounded-full bg-transparent"></div>
+    </button>
+    <button class="nav-item w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-gray-500 hover:text-gray-300" title="Merma">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+      <div class="w-1 h-1 rounded-full bg-transparent"></div>
+    </button>
+    <div class="mt-auto space-y-1">
+      <button class="nav-item w-10 h-10 rounded-lg border border-transparent flex items-center justify-center text-gray-500 hover:text-orange-400" title="Cierre del día">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      </button>
+      <button class="nav-item w-10 h-10 rounded-lg border border-transparent flex items-center justify-center text-gray-500 hover:text-gray-300" title="Configuración">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- PANEL CATALOGO -->
+  <div class="flex flex-col flex-1 min-w-0" style="max-width: 60%;">
+    <div class="flex items-center justify-between px-4 py-2 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5 px-2.5 py-1 bg-green-500/15 border border-green-500/30 rounded-lg">
+          <div class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
+          <span class="text-[10px] font-semibold text-green-400">TURNO MAÑANA</span>
+        </div>
+        <span class="text-[10px] text-gray-500">Reginas Kafeto — Andrea M.</span>
+      </div>
+      <div class="flex items-center gap-2 text-[10px] text-gray-500">
+        <span>Ventas: <strong class="text-green-400" id="shiftSales">$0.00</strong></span>
+        <span class="text-gray-700">|</span>
+        <span>Órdenes: <strong class="text-white" id="shiftOrders">0</strong></span>
+      </div>
+    </div>
+
+    <div class="px-4 pt-3 pb-2 space-y-2 flex-shrink-0">
+      <div class="relative">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </span>
+        <input id="searchInput" type="text" placeholder="Buscar producto o escanear..." class="cs-input pl-9 w-full" oninput="searchProducts()">
+      </div>
+      <div class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin" id="categoryTabs">
+        <button class="cat-btn active flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700" data-cat="Todos">Todos</button>
+        <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Pasteles">Pasteles</button>
+        <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Cafés">Cafés</button>
+        <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Premium">Premium</button>
+        <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Cupcakes">Cupcakes</button>
+        <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Galletas">Galletas</button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-4 pb-3 scrollbar-thin">
+      <div id="productGrid" class="grid grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
+        <!-- JS renderiza productos aquí -->
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL DERECHO — CARRITO -->
+  <div class="flex flex-col bg-[#141d2b] border-l border-gray-800" style="width: 40%;">
+    <div class="px-4 py-2.5 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+      <div>
+        <div class="flex items-center gap-2">
+          <h2 class="text-sm font-bold">Venta #<span id="orderNumber">1043</span></h2>
+          <span class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">POS</span>
+        </div>
+        <p class="text-[10px] text-gray-500"><span id="cartCount">0</span> items — Venta directa</p>
+      </div>
+      <div class="flex gap-1.5">
+        <select id="orderType" class="cs-select text-[10px] px-2 py-1">
+          <option>Venta directa</option>
+          <option>Pedido (fecha entrega)</option>
+        </select>
+        <button class="w-7 h-7 rounded-lg bg-[#1a2332] border border-red-500/30 flex items-center justify-center text-red-400 hover:bg-red-600 hover:text-white" title="Vaciar" onclick="clearCart()">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="px-4 py-2 border-b border-gray-800/50 flex-shrink-0">
+      <div class="flex gap-2">
+        <div class="flex-1 flex items-center gap-2 bg-[#1a2332] rounded-lg px-2.5 py-1.5 border border-gray-700">
+          <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          <input id="customerInput" type="text" placeholder="Cliente (opcional)" class="flex-1 bg-transparent text-[10px] text-white placeholder-gray-500 focus:outline-none">
+        </div>
+        <button class="px-2 bg-[#1a2332] border border-gray-700 rounded-lg text-gray-400 hover:text-purple-400 text-[10px] font-semibold" onclick="openModal('pos-modal-cliente.html')">+Nuevo</button>
+      </div>
+    </div>
+
+    <div id="cartContainer" class="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 scrollbar-thin">
+      <div id="emptyCart" class="flex flex-col items-center justify-center h-full text-gray-500">
+        <svg class="w-10 h-10 mb-2 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+        <p class="text-xs">El carrito está vacío</p>
+        <p class="text-[10px] text-gray-600">Selecciona un producto para comenzar</p>
+      </div>
+    </div>
+
+    <div class="border-t border-gray-800 px-4 py-3 space-y-2.5 flex-shrink-0">
+      <div class="flex gap-1.5 flex-wrap">
+        <button class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400 hover:text-orange-400 hover:border-orange-500/40" onclick="openModal('pos-modal-descuento.html')">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+          Descuento
+        </button>
+        <button class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400 hover:text-blue-400 hover:border-blue-500/40">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          Nota
+        </button>
+        <button class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400 hover:text-green-400 hover:border-green-500/40">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          Imprimir
+        </button>
+        <button class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400 hover:text-yellow-400 hover:border-yellow-500/40 ml-auto">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Devolución
+        </button>
+      </div>
+
+      <div class="space-y-1">
+        <div class="flex justify-between text-[11px] text-gray-500">
+          <span>Subtotal (<span id="summaryItems">0</span> items, <span id="summaryPieces">0</span> pzas)</span>
+          <span id="subtotalDisplay">$0.00</span>
+        </div>
+        <div id="discountRow" class="flex justify-between text-[11px] text-orange-400 hidden">
+          <span id="discountLabel">Descuento</span>
+          <span id="discountDisplay">-$0.00</span>
+        </div>
+        <div class="flex justify-between text-base font-extrabold pt-1.5 border-t border-gray-700">
+          <span>TOTAL</span>
+          <span id="totalDisplay" class="text-green-400">$0.00</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5">
+        <button id="payCash" class="pay-btn py-2 rounded-lg text-[10px] font-bold bg-[#1a2332] border border-gray-700 text-gray-300 text-center hover:border-green-500/50 active:scale-95 transition-all" onclick="selectPayment('cash')">💵 Efectivo</button>
+        <button id="payCard" class="pay-btn py-2 rounded-lg text-[10px] font-bold bg-[#1a2332] border border-gray-700 text-gray-300 text-center hover:border-blue-500/50 active:scale-95 transition-all" onclick="selectPayment('card')">💳 Tarjeta</button>
+        <button id="payTransfer" class="pay-btn py-2 rounded-lg text-[10px] font-bold bg-[#1a2332] border border-gray-700 text-gray-300 text-center hover:border-purple-500/50 active:scale-95 transition-all" onclick="selectPayment('transfer')">🏦 Transferencia</button>
+      </div>
+
+      <div class="flex gap-2">
+        <button class="py-2.5 px-4 rounded-lg text-[11px] font-bold bg-[#1a2332] border border-blue-500/40 text-blue-400 hover:bg-blue-600 hover:text-white active:scale-95 transition-all" onclick="saveAsQuote()">Cotizar</button>
+        <button class="flex-1 py-2.5 rounded-lg text-sm font-extrabold bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-lg shadow-green-600/20 hover:from-green-500 hover:to-emerald-400 active:scale-[0.98] transition-all" onclick="openModal('pos-modal-cobro.html')">
+          COBRAR <span id="btnTotal">$0.00</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── PRODUCTOS DEMO ─────────────────────────────────────────────────────────
+    const products = [
+      { id:1, name:'Pastel 3 Leches Choco', price:700, cat:'Pasteles', emoji:'🎂', stock:3, low:true },
+      { id:2, name:'Carlos V', price:390, cat:'Pasteles', emoji:'🍰', stock:8, low:false },
+      { id:3, name:'Pay de Fresas', price:350, cat:'Pasteles', emoji:'🍓', stock:12, low:false },
+      { id:4, name:'Choco Aleman', price:600, cat:'Pasteles', emoji:'🍫', stock:8, low:false },
+      { id:5, name:'Choco Forest', price:600, cat:'Premium', emoji:'🌲', stock:5, low:false },
+      { id:6, name:'Cupcake', price:55, cat:'Cupcakes', emoji:'🧁', stock:0, low:true },
+      { id:7, name:'3 Leches Fresa', price:650, cat:'Pasteles', emoji:'🍰', stock:6, low:false },
+      { id:8, name:'Choco Roll', price:700, cat:'Premium', emoji:'☕', stock:4, low:false },
+      { id:9, name:'Decorated', price:650, cat:'Premium', emoji:'🎀', stock:2, low:true },
+      { id:10, name:'Sponge Cake', price:600, cat:'Pasteles', emoji:'🧽', stock:9, low:false },
+      { id:11, name:'Strawberry Pie', price:600, cat:'Pasteles', emoji:'🍓', stock:7, low:false },
+      { id:12, name:'Galleta Choco', price:45, cat:'Galletas', emoji:'🍪', stock:24, low:false },
+      { id:13, name:'Blueberry Cake', price:580, cat:'Premium', emoji:'🫐', stock:3, low:true },
+      { id:14, name:'Limon Cake', price:520, cat:'Pasteles', emoji:'🍋', stock:10, low:false },
+      { id:15, name:'Cafe Americano', price:45, cat:'Cafés', emoji:'☕', stock:50, low:false },
+      { id:16, name:'Capuccino', price:55, cat:'Cafés', emoji:'☕', stock:40, low:false },
+      { id:17, name:'Muffin Arandano', price:65, cat:'Cupcakes', emoji:'🧁', stock:8, low:false },
+      { id:18, name:'Brownie', price:75, cat:'Galletas', emoji:'🍫', stock:15, low:false },
+    ];
+
+    let cart = [];
+    let currentCategory = 'Todos';
+    let discount = { type:'none', value:0, amount:0 };
+    let paymentMethod = 'cash';
+    let orderCounter = 1043;
+
+    // ── RENDER PRODUCTOS ───────────────────────────────────────────────────────
+    function renderProducts() {
+      const grid = document.getElementById('productGrid');
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      grid.innerHTML = '';
+      const filtered = products.filter(p => {
+        const matchCat = currentCategory === 'Todos' || p.cat === currentCategory;
+        const matchSearch = p.name.toLowerCase().includes(q);
+        return matchCat && matchSearch;
+      });
+      filtered.forEach(p => {
+        const el = document.createElement('div');
+        el.className = 'product-card bg-[#1a2332] border border-gray-700/50 rounded-lg overflow-hidden cursor-pointer relative';
+        el.onclick = () => addToCart(p.id);
+        el.innerHTML = `
+          <div class="h-16 flex items-center justify-center relative" style="background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(28,100,242,0.05));">
+            <span class="text-2xl">${p.emoji}</span>
+            ${p.low ? `<span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-orange-500 text-[8px] font-bold flex items-center justify-center text-white">${p.stock}</span>` : ''}
+            ${p.stock === 0 ? `<span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-red-500 text-[8px] font-bold flex items-center justify-center text-white">0</span>` : ''}
+          </div>
+          <div class="p-2">
+            <p class="text-[10px] font-semibold truncate leading-tight">${p.name}</p>
+            <p class="text-xs font-bold text-purple-400 mt-0.5">$${p.price.toLocaleString()}</p>
+          </div>
+        `;
+        grid.appendChild(el);
+      });
+      // Tarjeta personalizado
+      const custom = document.createElement('div');
+      custom.className = 'product-card bg-purple-500/10 border border-dashed border-purple-500/40 rounded-lg overflow-hidden cursor-pointer flex flex-col items-center justify-center';
+      custom.style.minHeight = '96px';
+      custom.onclick = () => addCustomProduct();
+      custom.innerHTML = `
+        <svg class="w-5 h-5 text-purple-400 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        <p class="text-[9px] font-bold text-purple-400">PERSONALIZADO</p>
+      `;
+      grid.appendChild(custom);
+    }
+
+    // ── TABS CATEGORÍAS ────────────────────────────────────────────────────────
+    document.getElementById('categoryTabs').addEventListener('click', e => {
+      const btn = e.target.closest('.cat-btn');
+      if (!btn) return;
+      document.querySelectorAll('.cat-btn').forEach(b => {
+        b.classList.remove('active');
+        b.classList.add('bg-[#1a2332]', 'text-gray-400');
+      });
+      btn.classList.add('active');
+      btn.classList.remove('bg-[#1a2332]', 'text-gray-400');
+      currentCategory = btn.dataset.cat;
+      renderProducts();
+    });
+
+    function searchProducts() { renderProducts(); }
+
+    // ── CARRITO ────────────────────────────────────────────────────────────────
+    function addToCart(pid) {
+      const p = products.find(x => x.id === pid);
+      if (!p || p.stock === 0) return;
+      const item = cart.find(x => x.id === pid);
+      if (item) { item.qty++; }
+      else { cart.push({ id: p.id, name: p.name, price: p.price, emoji: p.emoji, qty: 1 }); }
+      renderCart(); updateTotals();
+    }
+
+    function addCustomProduct() {
+      const name = prompt('Nombre del producto personalizado:');
+      if (!name) return;
+      const price = parseFloat(prompt('Precio:')) || 0;
+      cart.push({ id: 'custom_'+Date.now(), name, price, emoji:'✨', qty: 1, custom:true });
+      renderCart(); updateTotals();
+    }
+
+    function removeFromCart(idx) {
+      cart.splice(idx, 1);
+      renderCart(); updateTotals();
+    }
+
+    function updateQty(idx, delta) {
+      cart[idx].qty += delta;
+      if (cart[idx].qty <= 0) cart.splice(idx, 1);
+      renderCart(); updateTotals();
+    }
+
+    function clearCart() {
+      if (!cart.length) return;
+      if (!confirm('Vaciar el carrito?')) return;
+      cart = []; discount = { type:'none', value:0, amount:0 };
+      renderCart(); updateTotals();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cartContainer');
+      if (!cart.length) {
+        container.innerHTML = `
+          <div id="emptyCart" class="flex flex-col items-center justify-center h-full text-gray-500">
+            <svg class="w-10 h-10 mb-2 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+            <p class="text-xs">El carrito está vacío</p>
+            <p class="text-[10px] text-gray-600">Selecciona un producto para comenzar</p>
+          </div>`;
+        return;
+      }
+      container.innerHTML = '';
+      cart.forEach((item, i) => {
+        const div = document.createElement('div');
+        div.className = 'cart-item bg-[#1a2332] rounded-lg p-2.5 border border-gray-700/50 group';
+        if (item.custom) div.classList.add('border-purple-500/30');
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-md bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+              <span class="text-sm">${item.emoji}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-[11px] font-semibold truncate">${item.name}</p>
+              <div class="flex items-center gap-2 mt-1">
+                <div class="flex items-center gap-0.5">
+                  <button class="w-5 h-5 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold hover:bg-gray-600 text-white" onclick="updateQty(${i}, -1)">-</button>
+                  <span class="w-6 text-center text-[10px] font-bold">${item.qty}</span>
+                  <button class="w-5 h-5 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold hover:bg-gray-600 text-white" onclick="updateQty(${i}, 1)">+</button>
+                </div>
+                <span class="text-[9px] text-gray-500">x $${item.price.toLocaleString()}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-xs font-bold">$${(item.price * item.qty).toLocaleString()}</p>
+              <button class="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" onclick="removeFromCart(${i})">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>`;
+        container.appendChild(div);
+      });
+    }
+
+    // ── TOTALES ────────────────────────────────────────────────────────────────
+    function updateTotals() {
+      const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+      let discAmt = 0;
+      if (discount.type === 'percent') discAmt = subtotal * (discount.value / 100);
+      else if (discount.type === 'fixed') discAmt = Math.min(discount.value, subtotal);
+      discount.amount = discAmt;
+      const total = subtotal - discAmt;
+      const pieces = cart.reduce((s, i) => s + i.qty, 0);
+
+      document.getElementById('cartCount').textContent = cart.length;
+      document.getElementById('summaryItems').textContent = cart.length;
+      document.getElementById('summaryPieces').textContent = pieces;
+      document.getElementById('subtotalDisplay').textContent = '$' + subtotal.toLocaleString('es-MX', {minimumFractionDigits:2});
+      document.getElementById('totalDisplay').textContent = '$' + total.toLocaleString('es-MX', {minimumFractionDigits:2});
+      document.getElementById('btnTotal').textContent = '$' + total.toLocaleString('es-MX', {minimumFractionDigits:2});
+
+      const dRow = document.getElementById('discountRow');
+      if (discAmt > 0) {
+        dRow.classList.remove('hidden');
+        document.getElementById('discountLabel').textContent = discount.type === 'percent' ? `Descuento (${discount.value}%)` : 'Descuento';
+        document.getElementById('discountDisplay').textContent = '-$' + discAmt.toLocaleString('es-MX', {minimumFractionDigits:2});
+      } else { dRow.classList.add('hidden'); }
+    }
+
+    // ── PAGO ───────────────────────────────────────────────────────────────────
+    function selectPayment(method) {
+      paymentMethod = method;
+      document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('payCash').classList.toggle('active', method==='cash');
+      document.getElementById('payCard').classList.toggle('active', method==='card');
+      document.getElementById('payTransfer').classList.toggle('active', method==='transfer');
+    }
+
+    function saveAsQuote() {
+      if (!cart.length) { alert('Agrega productos primero'); return; }
+      alert('Guardado como cotización #' + orderCounter);
+    }
+
+    function openModal(url) {
+      window.open(url, '_blank', 'width=560,height=720');
+    }
+
+    // ── SHIFT INFO ───────────────────────────────────────────────────────────
+    document.getElementById('shiftSales').textContent = '$4,850.00';
+    document.getElementById('shiftOrders').textContent = '12';
+
+    // ── INIT ───────────────────────────────────────────────────────────────────
+    renderProducts();
+    selectPayment('cash');
+  </script>
+</body>
+</html>

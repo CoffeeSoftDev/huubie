@@ -84,5 +84,67 @@
             ";
             return $this->_Read($query, null);
         }
+
+        function getBranchesByCompany($array){
+            $query = "
+                SELECT
+                    id,
+                    name,
+                    ubication,
+                    active,
+                    logo
+                FROM subsidiaries
+                WHERE companies_id = ?
+                    AND enabled = 1
+                ORDER BY active DESC, name ASC
+            ";
+            return $this->_Read($query, $array);
+        }
+
+        function getBranchesByUser($array){
+            $query = "
+                SELECT
+                    subsidiaries.id,
+                    subsidiaries.name,
+                    subsidiaries.ubication,
+                    subsidiaries.active,
+                    subsidiaries.logo
+                FROM usr_user_subsidiaries
+                INNER JOIN subsidiaries ON subsidiaries.id = usr_user_subsidiaries.subsidiaries_id
+                WHERE usr_user_subsidiaries.usr_users_id = ?
+                    AND subsidiaries.enabled = 1
+                ORDER BY subsidiaries.active DESC, subsidiaries.name ASC
+            ";
+            return $this->_Read($query, $array);
+        }
+
+        function userHasAccessToBranch($array){
+            $query = "
+                SELECT 1
+                FROM usr_user_subsidiaries
+                WHERE usr_users_id = ?
+                    AND subsidiaries_id = ?
+                LIMIT 1
+            ";
+            $result = $this->_Read($query, $array);
+            return !empty($result);
+        }
+
+        function getBranchById($array){
+            $query = "
+                SELECT
+                    id,
+                    name,
+                    companies_id,
+                    ubication,
+                    active
+                FROM subsidiaries
+                WHERE id = ?
+                    AND enabled = 1
+            ";
+            $success = $this->_Read($query, $array);
+
+            return (isset($success) && count($success) > 0) ? $success[0] : null;
+        }
     }
 ?>

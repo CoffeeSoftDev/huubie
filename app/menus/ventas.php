@@ -10,6 +10,8 @@
 
     <?php require_once(__DIR__ . '/../layout/head.php'); ?>
     <?php require_once(__DIR__ . '/../layout/core-libraries.php'); ?>
+
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 
 <body class="bg-[#111928] h-screen" data-bs-theme="dark">

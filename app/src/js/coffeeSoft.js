@@ -3262,6 +3262,18 @@ class Components extends Complements {
 class Templates extends Components {
     constructor(link, div_modulo) {
         super(link, div_modulo);
+
+        document.addEventListener('branchChanged', async (e) => {
+            if (typeof this.onBranchChange === 'function') {
+                return this.onBranchChange(e.detail);
+            }
+            if (typeof this.ls === 'function')   return this.ls();
+            if (typeof this.init === 'function') return this.init();
+            if (typeof this.render === 'function' && this._link) {
+                const data = await useFetch({ url: this._link, data: { opc: 'init' } });
+                return this.render(data);
+            }
+        });
     }
 
     createLayaout(options = {}) {

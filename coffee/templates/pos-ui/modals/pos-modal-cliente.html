@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuevo Cliente — POS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../../../ui/css/ui-kit.css">
+  <style> body { font-family: 'Inter', system-ui, sans-serif; } </style>
+</head>
+<body class="bg-[#111928] text-white min-h-screen flex items-center justify-center p-4">
+
+  <div class="cs-modal-backdrop"></div>
+  <div class="cs-modal" style="max-width: 480px; width: 100%;">
+    <div class="cs-modal-header">
+      <h3 class="cs-modal-title">Nuevo Cliente</h3>
+      <button class="text-gray-400 hover:text-white" onclick="window.close()">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="cs-modal-body space-y-4">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 rounded-full bg-blue-500/15 flex items-center justify-center">
+          <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        </div>
+        <div>
+          <p class="text-sm font-medium">Registra un nuevo cliente</p>
+          <p class="text-xs text-gray-500">Los campos marcados con * son obligatorios.</p>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Nombre completo *</label>
+        <input id="cName" type="text" class="cs-input w-full" placeholder="Ej. María González">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Teléfono</label>
+          <input id="cPhone" type="tel" class="cs-input w-full" placeholder="55 1234 5678">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Email</label>
+          <input id="cEmail" type="email" class="cs-input w-full" placeholder="cliente@email.com">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Dirección</label>
+        <textarea id="cAddress" rows="2" class="cs-textarea w-full" placeholder="Calle, número, colonia..."></textarea>
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Notas</label>
+        <textarea id="cNotes" rows="2" class="cs-textarea w-full" placeholder="Preferencias, alergias, etc."></textarea>
+      </div>
+
+      <div id="clienteError" class="hidden cs-callout cs-callout-danger">
+        <strong class="block text-sm mb-1">Error</strong>
+        <p class="text-sm text-gray-400">El nombre es obligatorio.</p>
+      </div>
+    </div>
+
+    <div class="cs-modal-footer">
+      <button class="cs-btn cs-btn-outline" onclick="window.close()">Cancelar</button>
+      <button class="cs-btn cs-btn-primary" onclick="guardarCliente()">Guardar Cliente</button>
+    </div>
+  </div>
+
+  <script>
+    function guardarCliente() {
+      const name = document.getElementById('cName').value.trim();
+      const phone = document.getElementById('cPhone').value.trim();
+      const email = document.getElementById('cEmail').value.trim();
+      const address = document.getElementById('cAddress').value.trim();
+      const notes = document.getElementById('cNotes').value.trim();
+
+      if (!name) {
+        document.getElementById('clienteError').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('clienteError').classList.add('hidden');
+
+      const data = { name, phone, email, address, notes };
+      console.log('Cliente guardado:', data);
+      alert('Cliente guardado: ' + name);
+
+      // Devolver datos al opener si existe
+      if (window.opener && window.opener.setCliente) {
+        window.opener.setCliente(data);
+      }
+      window.close();
+    }
+  </script>
+</body>
+</html>
