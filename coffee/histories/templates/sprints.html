@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprints - Historias de Usuario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../utils/coffee-varoch.css">
+    <style>body{font-family:'Inter',system-ui,sans-serif;}</style>
+</head>
+<body class="coffee-varoch cv-page">
+
+<aside class="cv-sidebar w-56 h-screen fixed left-0 top-0 flex flex-col border-r border-[var(--cv-border)]">
+    <div class="p-5 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--cv-primary)] to-[var(--cv-action)] flex items-center justify-center text-white font-bold text-sm">CS</div>
+        <span class="cv-title text-sm font-bold">CoffeeSoft</span>
+    </div>
+    <nav class="flex-1 px-3 py-2 space-y-1">
+        <a href="index.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Dashboard
+        </a>
+        <a href="tareas-tabla.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Actividades
+        </a>
+        <a href="agenda.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Agenda
+        </a>
+        <a href="historias.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            Historias
+        </a>
+        <a href="sprints.html" class="cv-nav-item active flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Sprints
+        </a>
+    </nav>
+    <div class="p-3 border-t border-[var(--cv-border)]">
+        <div class="flex items-center gap-3 px-3 py-2">
+            <div class="w-8 h-8 rounded-full bg-[var(--cv-primary)] flex items-center justify-center text-white text-xs font-bold">R</div>
+            <div>
+                <p class="text-sm font-medium text-[var(--cv-primary)]">Rosy</p>
+                <p class="text-xs text-gray-500">Admin</p>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<main class="ml-56 min-h-screen">
+    <header class="cv-header h-14 px-6 flex items-center justify-between border-b border-[var(--cv-border)]">
+        <h1 class="cv-title text-lg font-bold">Sprints</h1>
+        <div class="flex items-center gap-3">
+            <span class="cv-muted text-sm">Bienvenido, Somx</span>
+            <div class="w-8 h-8 rounded-full bg-[var(--cv-action)] flex items-center justify-center text-white text-xs font-bold">S</div>
+        </div>
+    </header>
+
+    <div class="px-6 py-6">
+        <!-- Sprint Manager -->
+        <div class="cv-card rounded-xl border border-[var(--cv-border)] p-5 mb-6">
+            <h2 class="cv-title font-bold text-base mb-4">Administrar Sprints</h2>
+            <div class="flex flex-wrap items-end gap-3 mb-4">
+                <div>
+                    <label class="cv-label block text-xs mb-1">Nombre del Sprint</label>
+                    <input type="text" placeholder="Ej. Sprint 1" class="cv-input w-48 px-3 py-2 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="cv-label block text-xs mb-1">Rango de fechas</label>
+                    <input type="text" placeholder="10 May - 17 May" class="cv-input w-40 px-3 py-2 rounded-lg text-sm">
+                </div>
+                <button class="cv-btn cv-btn-primary px-4 py-2 rounded-lg text-sm font-medium">
+                    + Agregar Sprint
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-[var(--cv-border)]">
+                        <tr>
+                            <th class="text-left px-4 py-2 font-semibold text-gray-700">Nombre</th>
+                            <th class="text-left px-4 py-2 font-semibold text-gray-700">Rango de Fechas</th>
+                            <th class="text-center px-4 py-2 font-semibold text-gray-700">Subtareas</th>
+                            <th class="text-center px-4 py-2 font-semibold text-gray-700">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-2 font-medium">Sprint 1</td>
+                            <td class="px-4 py-2 text-gray-600">10 May - 17 May 2026</td>
+                            <td class="px-4 py-2 text-center"><span class="cv-badge cv-badge-neutral">3</span></td>
+                            <td class="px-4 py-2 text-center">
+                                <button class="p-1 rounded-md hover:bg-red-50 text-red-500" title="Eliminar">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-2 font-medium">Sprint 2</td>
+                            <td class="px-4 py-2 text-gray-600">18 May - 25 May 2026</td>
+                            <td class="px-4 py-2 text-center"><span class="cv-badge cv-badge-neutral">0</span></td>
+                            <td class="px-4 py-2 text-center">
+                                <button class="p-1 rounded-md hover:bg-red-50 text-red-500" title="Eliminar">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Subtareas -->
+        <div class="cv-card rounded-xl border border-[var(--cv-border)] p-5">
+            <h2 class="cv-title font-bold text-base mb-4">Subtareas</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-[var(--cv-border)]">
+                        <tr>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Titulo</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Asignados</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Estado</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Sprint</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Rango Fechas</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Dias Faltantes</th>
+                            <th class="text-center px-4 py-3 font-semibold text-gray-700">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-medium">Crear tabla de tareas</td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1"><span class="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] flex items-center justify-center font-bold">R</span><span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] flex items-center justify-center font-bold">S</span></span>
+                            </td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-success">Completada</span></td>
+                            <td class="px-4 py-3">Sprint 1</td>
+                            <td class="px-4 py-3 text-gray-600">10 May - 17 May</td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-danger">0 dias</span></td>
+                            <td class="px-4 py-3 text-center">
+                                <button class="p-1 rounded-md hover:bg-red-50 text-red-500" title="Eliminar">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-medium">Crear formulario tarea</td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1"><span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] flex items-center justify-center font-bold">S</span></span>
+                            </td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-warning">En progreso</span></td>
+                            <td class="px-4 py-3">Sprint 1</td>
+                            <td class="px-4 py-3 text-gray-600">10 May - 17 May</td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-warning">5 dias</span></td>
+                            <td class="px-4 py-3 text-center">
+                                <button class="p-1 rounded-md hover:bg-red-50 text-red-500" title="Eliminar">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <button class="mt-4 cv-btn cv-btn-outline-action px-4 py-2 rounded-lg text-sm font-medium">
+                + Agregar Subtarea
+            </button>
+        </div>
+    </div>
+</main>
+
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Tarea - Historias de Usuario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../utils/coffee-varoch.css">
+    <style>body{font-family:'Inter',system-ui,sans-serif;}</style>
+</head>
+<body class="coffee-varoch cv-page">
+
+<aside class="cv-sidebar w-56 h-screen fixed left-0 top-0 flex flex-col border-r border-[var(--cv-border)]">
+    <div class="p-5 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--cv-primary)] to-[var(--cv-action)] flex items-center justify-center text-white font-bold text-sm">CS</div>
+        <span class="cv-title text-sm font-bold">CoffeeSoft</span>
+    </div>
+    <nav class="flex-1 px-3 py-2 space-y-1">
+        <a href="index.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Dashboard
+        </a>
+        <a href="tareas-tabla.html" class="cv-nav-item active flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Actividades
+        </a>
+        <a href="agenda.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Agenda
+        </a>
+        <a href="historias.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            Historias
+        </a>
+        <a href="sprints.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Sprints
+        </a>
+    </nav>
+    <div class="p-3 border-t border-[var(--cv-border)]">
+        <div class="flex items-center gap-3 px-3 py-2">
+            <div class="w-8 h-8 rounded-full bg-[var(--cv-primary)] flex items-center justify-center text-white text-xs font-bold">R</div>
+            <div>
+                <p class="text-sm font-medium text-[var(--cv-primary)]">Rosy</p>
+                <p class="text-xs text-gray-500">Admin</p>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<main class="ml-56 min-h-screen">
+    <header class="cv-header h-14 px-6 flex items-center justify-between border-b border-[var(--cv-border)]">
+        <h1 class="cv-title text-lg font-bold">Nueva Tarea</h1>
+        <div class="flex items-center gap-3">
+            <span class="cv-muted text-sm">Bienvenido, Somx</span>
+            <div class="w-8 h-8 rounded-full bg-[var(--cv-action)] flex items-center justify-center text-white text-xs font-bold">S</div>
+        </div>
+    </header>
+
+    <div class="px-6 py-6 max-w-4xl">
+        <form class="cv-card rounded-xl border border-[var(--cv-border)] p-6 space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="md:col-span-2">
+                    <label class="cv-label block text-xs mb-1">Titulo</label>
+                    <input type="text" placeholder="Titulo de la tarea" class="cv-input w-full px-3 py-2.5 rounded-lg text-sm">
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="cv-label block text-xs mb-1">Objetivo (Para que)</label>
+                    <textarea placeholder="Describe el objetivo de esta tarea..." rows="3" class="cv-input w-full px-3 py-2.5 rounded-lg text-sm resize-none"></textarea>
+                </div>
+
+                <div>
+                    <label class="cv-label block text-xs mb-1">Lista</label>
+                    <select class="cv-input w-full px-3 py-2.5 rounded-lg text-sm">
+                        <option>Seleccionar...</option>
+                        <option>Actividades</option>
+                        <option>Sprints</option>
+                        <option>Historias de usuario</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="cv-label block text-xs mb-1">Fecha de entrega</label>
+                    <input type="date" class="cv-input w-full px-3 py-2.5 rounded-lg text-sm">
+                </div>
+
+                <div>
+                    <label class="cv-label block text-xs mb-1">Quien lo hara</label>
+                    <select class="cv-input w-full px-3 py-2.5 rounded-lg text-sm">
+                        <option>Seleccionar...</option>
+                        <option>Rosy</option>
+                        <option>Somx</option>
+                        <option>Ambos</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="cv-label block text-xs mb-1">Clasificacion</label>
+                    <select class="cv-input w-full px-3 py-2.5 rounded-lg text-sm">
+                        <option>Seleccionar...</option>
+                        <option>Bug</option>
+                        <option>Feature</option>
+                        <option>Mejora</option>
+                        <option>Documentacion</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="cv-label block text-xs mb-1">Empresa</label>
+                    <select class="cv-input w-full px-3 py-2.5 rounded-lg text-sm">
+                        <option>Seleccionar...</option>
+                        <option>CoffeeSoft</option>
+                        <option>Huubie</option>
+                        <option>ERP-GV</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="cv-label block text-xs mb-1">Modulo</label>
+                    <select class="cv-input w-full px-3 py-2.5 rounded-lg text-sm">
+                        <option>Seleccionar...</option>
+                        <option>Finanzas</option>
+                        <option>RRHH</option>
+                        <option>Pedidos</option>
+                        <option>Inventario</option>
+                        <option>Auth</option>
+                    </select>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="cv-label block text-xs mb-1">Depende de</label>
+                    <div class="flex gap-2">
+                        <select class="cv-input flex-1 px-3 py-2.5 rounded-lg text-sm">
+                            <option>Ninguna</option>
+                            <option>Base de datos</option>
+                            <option>Diagrama UML</option>
+                            <option>Plantillas Figma</option>
+                        </select>
+                        <button type="button" class="cv-btn cv-btn-outline-action px-4 py-2.5 rounded-lg text-sm">Buscar</button>
+                    </div>
+                    <p class="cv-muted text-xs mt-1">Busca una actividad pasada o futura de la que dependa esta tarea.</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-[var(--cv-border)]">
+                <a href="tareas-tabla.html" class="cv-btn cv-btn-ghost px-5 py-2.5 rounded-lg text-sm font-medium">Cancelar</a>
+                <button type="submit" class="cv-btn cv-btn-primary px-6 py-2.5 rounded-lg text-sm font-medium">Guardar Tarea</button>
+            </div>
+        </form>
+    </div>
+</main>
+
+</body>
+</html>

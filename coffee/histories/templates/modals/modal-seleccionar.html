@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seleccionar Actividad - Historias de Usuario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../utils/coffee-varoch.css">
+    <style>body{font-family:'Inter',system-ui,sans-serif;}</style>
+</head>
+<body class="coffee-varoch cv-page bg-black/60 flex items-center justify-center min-h-screen">
+
+    <div class="cv-card w-full max-w-lg rounded-xl border border-[var(--cv-border)] shadow-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="cv-title font-bold text-lg">Seleccionar Actividad</h3>
+            <button onclick="window.close()" class="p-1 rounded-md hover:bg-gray-100 text-gray-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <p class="cv-muted text-sm mb-4">Selecciona la actividad a la que deseas agregar una historia de usuario:</p>
+
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <label class="cursor-pointer">
+                <input type="radio" name="actividad" class="peer sr-only">
+                <div class="p-4 rounded-lg border border-[var(--cv-border)] hover:border-[var(--cv-action)] peer-checked:border-[var(--cv-action)] peer-checked:bg-blue-50 transition-all">
+                    <p class="cv-title font-medium text-sm">Crear modulo historias</p>
+                    <p class="cv-muted text-xs mt-1">CoffeeSoft / Feature</p>
+                </div>
+            </label>
+            <label class="cursor-pointer">
+                <input type="radio" name="actividad" class="peer sr-only">
+                <div class="p-4 rounded-lg border border-[var(--cv-border)] hover:border-[var(--cv-action)] peer-checked:border-[var(--cv-action)] peer-checked:bg-blue-50 transition-all">
+                    <p class="cv-title font-medium text-sm">Integracion calendario</p>
+                    <p class="cv-muted text-xs mt-1">Huubie / Feature</p>
+                </div>
+            </label>
+            <label class="cursor-pointer">
+                <input type="radio" name="actividad" class="peer sr-only">
+                <div class="p-4 rounded-lg border border-[var(--cv-border)] hover:border-[var(--cv-action)] peer-checked:border-[var(--cv-action)] peer-checked:bg-blue-50 transition-all">
+                    <p class="cv-title font-medium text-sm">Fix login timeout</p>
+                    <p class="cv-muted text-xs mt-1">ERP-GV / Bug</p>
+                </div>
+            </label>
+            <label class="cursor-pointer">
+                <input type="radio" name="actividad" class="peer sr-only">
+                <div class="p-4 rounded-lg border border-[var(--cv-border)] hover:border-[var(--cv-action)] peer-checked:border-[var(--cv-action)] peer-checked:bg-blue-50 transition-all">
+                    <p class="cv-title font-medium text-sm">Crear plantillas figma</p>
+                    <p class="cv-muted text-xs mt-1">CoffeeSoft / Mejora</p>
+                </div>
+            </label>
+        </div>
+
+        <div class="flex items-center justify-end gap-3">
+            <button onclick="window.close()" class="cv-btn cv-btn-ghost px-5 py-2 rounded-lg text-sm font-medium">Cancelar</button>
+            <button class="cv-btn cv-btn-primary px-5 py-2 rounded-lg text-sm font-medium">Aceptar</button>
+        </div>
+    </div>
+
+</body>
+</html>

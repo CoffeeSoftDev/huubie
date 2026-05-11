@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear con CoffeeIA - Historias de Usuario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../utils/coffee-varoch.css">
+    <style>body{font-family:'Inter',system-ui,sans-serif;}</style>
+</head>
+<body class="coffee-varoch cv-page bg-black/60 flex items-center justify-center min-h-screen">
+
+    <div class="cv-card w-full max-w-lg rounded-xl border border-[var(--cv-border)] shadow-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <h3 class="cv-title font-bold text-lg">Crear Tarea con CoffeeIA</h3>
+            </div>
+            <button onclick="window.close()" class="p-1 rounded-md hover:bg-gray-100 text-gray-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="mb-4">
+            <label class="cv-label block text-xs mb-1">Describe lo que necesitas hacer</label>
+            <textarea placeholder="Ejemplo: Necesito crear un modulo para gestionar inventario con campos de producto, stock y precio..." rows="4" class="cv-input w-full px-3 py-2.5 rounded-lg text-sm resize-none"></textarea>
+            <p class="cv-muted text-xs mt-1">CoffeeIA analizara tu descripcion y sugerira los campos mas apropiados para la tarea.</p>
+        </div>
+
+        <!-- Preview de campos detectados -->
+        <div class="mb-6 p-4 rounded-lg border border-dashed border-gray-300 bg-gray-50">
+            <p class="cv-label text-xs font-semibold mb-2">Campos sugeridos por CoffeeIA:</p>
+            <div class="flex flex-wrap gap-2">
+                <span class="px-2 py-1 rounded-md bg-white border border-[var(--cv-border)] text-xs">Titulo: Gestion de Inventario</span>
+                <span class="px-2 py-1 rounded-md bg-white border border-[var(--cv-border)] text-xs">Clasificacion: Feature</span>
+                <span class="px-2 py-1 rounded-md bg-white border border-[var(--cv-border)] text-xs">Modulo: Inventario</span>
+                <span class="px-2 py-1 rounded-md bg-white border border-[var(--cv-border)] text-xs">Empresa: Huubie</span>
+                <span class="px-2 py-1 rounded-md bg-white border border-[var(--cv-border)] text-xs">Asignado: Somx</span>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3">
+            <button onclick="window.close()" class="cv-btn cv-btn-ghost px-5 py-2 rounded-lg text-sm font-medium">Cancelar</button>
+            <button class="cv-btn cv-btn-primary px-5 py-2 rounded-lg text-sm font-medium">Crear Tarea</button>
+        </div>
+    </div>
+
+</body>
+</html>

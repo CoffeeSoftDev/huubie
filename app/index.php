@@ -21,11 +21,17 @@ if (isset($_SESSION['USR'])) {
 
     <title>Huubie Coffee</title>
 
+    <style>
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .anim-in { animation: slideDown 0.28s ease-out; }
+    </style>
+
     <link rel="stylesheet" href="/app/src/plugins/sweetalert2/sweetalert2.min.css">
     <script src="/app/src/plugins/sweetalert2/sweetalert2.all.min.js"></script>
     <link rel="stylesheet" href="/app/src/plugins/fontello/css/fontello.css">
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/app/src/plugins/lucide/lucide.min.js"></script>
     <script src="/app/src/plugins/jquery/jquery-3.7.0.js"></script>
     <script src="/app/src/js/complementos.js?t=<?= time() ?>"></script>
     <script src="/app/src/js/plugins.js?t=<?= time() ?>"></script>
@@ -38,12 +44,27 @@ if (isset($_SESSION['USR'])) {
         <div class="w-full md:w-1/2 flex flex-col items-center justify-center mb-6 md:mb-0">
             <!-- Bienvenida -->
             <div class="w-full md:w-4/5 bg-[#1F2A37] px-6 py-6 flex items-center justify-between text-white rounded-md">
-                <h2 class="text-xl md:text-2xl font-semibold">Bienvenido de regreso</h2>
+                <div>
+                    <h2 class="text-xl md:text-2xl font-semibold">Bienvenido de regreso</h2>
+                    <p class="text-gray-400 text-xs mt-1">Inicia sesión para continuar</p>
+                </div>
                 <img src="/app/src/img/logo/huubie.svg" alt="huubie" class="h-16 object-contain">
             </div>
 
             <!-- Formulario -->
             <form id="formLogin" action="none" class="w-full md:w-4/5 mt-6 text-white">
+
+                <!-- Error message container -->
+                <div id="loginErrorWrapper" class="hidden mb-4">
+                    <div class="flex items-center gap-3 bg-[#3D1820] border border-[#991B1B]/60 rounded-md p-3 anim-in">
+                        <i data-lucide="alert-circle" class="w-6 h-6 text-white shrink-0"></i>
+                        <div class="flex flex-col leading-tight">
+                            <span id="loginErrorTitle" class="text-white text-sm font-semibold">Hubo un error al acceder.</span>
+                            <span id="loginErrorSub" class="text-[#FCA5A5] text-[12px] mt-0.5">Verifica tu correo y contraseña.</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex flex-col md:flex-row justify-between gap-x-4">
                     <!-- Email -->
                     <div class="flex flex-col w-full md:w-1/2">
@@ -67,16 +88,8 @@ if (isset($_SESSION['USR'])) {
                     </div>
                 </div>
 
-                <!-- <div class="flex flex-col md:flex-row justify-between items-center mt-4 text-sm">
-                    <label class="flex items-center gap-x-2 cursor-pointer">
-                        <input type="checkbox" id="rememberMe" name="rememberMe" class="bg-[#374151] w-4 h-4">
-                        Recuérdame
-                    </label>
-                    <a href="#" class="text-blue-400 hover:underline mt-2 md:mt-0">¿Olvidaste la contraseña?</a>
-                </div> -->
-
                 <button type="submit"
-                    class="w-full mt-10 p-2 bg-[#1C64F2] hover:bg-[#0E9E6E] rounded-lg font-semibold transition-colors">
+                    class="w-full mt-6 p-2 bg-[#1C64F2] hover:bg-[#0E9E6E] rounded-lg font-semibold transition-colors">
                     Iniciar Sesión
                 </button>
             </form>

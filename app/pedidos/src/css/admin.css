@@ -1,0 +1,66 @@
+/* ===========================================================
+   Modulo Admin - Pedidos
+   Overrides de Select2 y jQuery UI Autocomplete (tema dark)
+   =========================================================== */
+
+/* Select2 */
+.select2-selection {
+    background-color: #1F2A37 !important;
+    border-color: rgb(79, 92, 112) !important;
+}
+
+.select2-dropdown {
+    background-color: #1F2A37 !important;
+    color: #ADB5BD !important;
+}
+
+.select2-selection__choice {
+    color: #ADB5AE !important;
+    border: 1px solid rgb(153, 161, 169) !important;
+}
+
+.select2-search {
+    color: #ADB5BD !important;
+}
+
+.select2-results__option.select2-results__option--highlighted {
+    background-color: #313D4F !important;
+    color: #ADB5BD !important;
+}
+
+/* jQuery UI Autocomplete */
+.ui-autocomplete {
+    z-index: 99999 !important;
+    background: #23262f !important;
+    color: #fff !important;
+    border: 1.5px solid #23284c !important;
+    border-radius: 0.7rem !important;
+    padding: 8px 0;
+    font-family: 'Poppins', 'Inter', sans-serif;
+    font-size: 15px;
+}
+
+.ui-menu-item-wrapper {
+    background: transparent !important;
+    color: #fff !important;
+    padding: 8px 18px;
+    border: #2c2f37;
+    cursor: pointer;
+    border-radius: 0.32rem;
+    transition: background 0.13s;
+}
+
+.ui-menu-item-wrapper.ui-state-active,
+.ui-menu-item-wrapper:hover {
+    background: #2c2f37 !important;
+    color: #fff !important;
+    border: none !important;
+    outline: none !important;
+    font-weight: 500;
+}
+
+.ui-menu .ui-state-active {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}

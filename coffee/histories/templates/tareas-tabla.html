@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Actividades - Historias de Usuario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../utils/coffee-varoch.css">
+    <style>
+        body{font-family:'Inter',system-ui,sans-serif;}
+        .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:50;display:none;align-items:center;justify-content:center;padding:1rem;}
+        .modal-backdrop.open{display:flex;}
+        .modal-panel{background:var(--cv-card);border-radius:14px;border:1px solid var(--cv-border);width:100%;max-width:920px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.18);}
+        .sprint-node{position:relative;}
+        .sprint-node::before{content:"";position:absolute;left:15px;top:32px;bottom:-16px;width:2px;background:#e5e7eb;}
+        .sprint-node:last-child::before{display:none;}
+        .sprint-node.done::before{background:#22c55e;}
+        .sprint-node.active::before{background:linear-gradient(#2563eb 50%,#e5e7eb 50%);}
+    </style>
+</head>
+<body class="coffee-varoch cv-page">
+
+<aside class="cv-sidebar w-56 h-screen fixed left-0 top-0 flex flex-col border-r border-[var(--cv-border)]">
+    <div class="p-5 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--cv-primary)] to-[var(--cv-action)] flex items-center justify-center text-white font-bold text-sm">CS</div>
+        <span class="cv-title text-sm font-bold">CoffeeSoft</span>
+    </div>
+    <nav class="flex-1 px-3 py-2 space-y-1">
+        <a href="index.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Dashboard
+        </a>
+        <a href="tareas-tabla.html" class="cv-nav-item active flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Actividades
+        </a>
+        <a href="agenda.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Agenda
+        </a>
+        <a href="historias.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            Historias
+        </a>
+        <a href="sprints.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Sprints
+        </a>
+    </nav>
+    <div class="p-3 border-t border-[var(--cv-border)]">
+        <div class="flex items-center gap-3 px-3 py-2">
+            <div class="w-8 h-8 rounded-full bg-[var(--cv-primary)] flex items-center justify-center text-white text-xs font-bold">R</div>
+            <div>
+                <p class="text-sm font-medium text-[var(--cv-primary)]">Rosy</p>
+                <p class="text-xs text-gray-500">Admin</p>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<main class="ml-56 min-h-screen">
+    <!-- Header -->
+    <header class="cv-header h-14 px-6 flex items-center justify-between border-b border-[var(--cv-border)]">
+        <h1 class="cv-title text-lg font-bold">Lista de Actividades</h1>
+        <div class="flex items-center gap-3">
+            <span class="cv-muted text-sm">Bienvenido, Somx</span>
+            <div class="w-8 h-8 rounded-full bg-[var(--cv-action)] flex items-center justify-center text-white text-xs font-bold">S</div>
+        </div>
+    </header>
+
+    <!-- Subheader -->
+    <div class="px-6 py-4 border-b border-[var(--cv-border)] bg-[var(--cv-card)]">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div class="flex flex-wrap items-end gap-3">
+                <div>
+                    <label class="cv-label block text-xs mb-1">Buscar</label>
+                    <input type="text" placeholder="Buscar tarea..." class="cv-input w-48 px-3 py-2 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="cv-label block text-xs mb-1">Empresa</label>
+                    <select class="cv-input w-36 px-3 py-2 rounded-lg text-sm">
+                        <option>Todas</option>
+                        <option>CoffeeSoft</option>
+                        <option>Huubie</option>
+                        <option>ERP-GV</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="cv-label block text-xs mb-1">Clasificacion</label>
+                    <select class="cv-input w-36 px-3 py-2 rounded-lg text-sm">
+                        <option>Todas</option>
+                        <option>Bug</option>
+                        <option>Feature</option>
+                        <option>Mejora</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="cv-label block text-xs mb-1">Modulo</label>
+                    <select class="cv-input w-36 px-3 py-2 rounded-lg text-sm">
+                        <option>Todos</option>
+                        <option>Finanzas</option>
+                        <option>RRHH</option>
+                        <option>Pedidos</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="cv-label block text-xs mb-1">Estado</label>
+                    <select class="cv-input w-36 px-3 py-2 rounded-lg text-sm">
+                        <option>Todos</option>
+                        <option>Pendiente</option>
+                        <option>En progreso</option>
+                        <option>Completada</option>
+                        <option>Cancelada</option>
+                    </select>
+                </div>
+            </div>
+            <a href="tareas-form.html" class="cv-btn cv-btn-primary px-4 py-2 rounded-lg text-sm font-medium">
+                + Nueva Tarea
+            </a>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="px-6 py-4">
+        <div class="cv-card rounded-xl border border-[var(--cv-border)] overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-[var(--cv-border)]">
+                        <tr>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Fecha Entrega</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Titulo</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Empresa</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Clasif.</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Modulo</th>
+                            <th class="text-center px-4 py-3 font-semibold text-gray-700">Sprints</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Dependencia</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Asignado</th>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-700">Estado</th>
+                            <th class="text-center px-4 py-3 font-semibold text-gray-700">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr class="hover:bg-gray-50 transition-colors"
+                            data-fecha="2026-05-15"
+                            data-titulo="Crear modulo de historias de usuario"
+                            data-empresa="CoffeeSoft"
+                            data-clasificacion="Feature"
+                            data-clasificacion-tone="info"
+                            data-modulo="Pedidos"
+                            data-dependencia="Base de datos"
+                            data-asignado="Rosy"
+                            data-asignado-color="purple"
+                            data-estado="En progreso"
+                            data-estado-tone="warning"
+                            data-sprints='[{"nombre":"Sprint 1 - Modelado","fecha":"2026-04-20","estado":"done","nota":"Tablas creadas y revisadas"},{"nombre":"Sprint 2 - Backend CTRL/MDL","fecha":"2026-05-02","estado":"done","nota":"APIs funcionales"},{"nombre":"Sprint 3 - UI y pruebas","fecha":"2026-05-15","estado":"active","nota":"En curso, 60% avance"}]'>
+                            <td class="px-4 py-3 text-gray-600">2026-05-15</td>
+                            <td class="px-4 py-3 font-medium text-[var(--cv-primary)]">Crear modulo de historias de usuario</td>
+                            <td class="px-4 py-3">CoffeeSoft</td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-info">Feature</span></td>
+                            <td class="px-4 py-3">Pedidos</td>
+                            <td class="px-4 py-3 text-center"><span class="cv-badge cv-badge-neutral">3</span></td>
+                            <td class="px-4 py-3 text-gray-500">Base de datos</td>
+                            <td class="px-4 py-3"><span class="inline-flex items-center gap-1"><span class="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] flex items-center justify-center font-bold">R</span>Rosy</span></td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-warning">En progreso</span></td>
+                            <td class="px-4 py-3 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 js-view" title="Ver"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+                                    <a href="tareas-form.html" class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500" title="Editar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></a>
+                                    <button class="p-1.5 rounded-md hover:bg-gray-100 text-red-500" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition-colors"
+                            data-fecha="2026-05-20"
+                            data-titulo="Integracion de calendario"
+                            data-empresa="Huubie"
+                            data-clasificacion="Feature"
+                            data-clasificacion-tone="info"
+                            data-modulo="Agenda"
+                            data-dependencia="-"
+                            data-asignado="Somx"
+                            data-asignado-color="blue"
+                            data-estado="Pendiente"
+                            data-estado-tone="warning"
+                            data-sprints='[]'>
+                            <td class="px-4 py-3 text-gray-600">2026-05-20</td>
+                            <td class="px-4 py-3 font-medium text-[var(--cv-primary)]">Integracion de calendario</td>
+                            <td class="px-4 py-3">Huubie</td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-info">Feature</span></td>
+                            <td class="px-4 py-3">Agenda</td>
+                            <td class="px-4 py-3 text-center"><span class="cv-badge cv-badge-neutral">0</span></td>
+                            <td class="px-4 py-3 text-gray-500">-</td>
+                            <td class="px-4 py-3"><span class="inline-flex items-center gap-1"><span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] flex items-center justify-center font-bold">S</span>Somx</span></td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-warning">Pendiente</span></td>
+                            <td class="px-4 py-3 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 js-view" title="Ver"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+                                    <a href="tareas-form.html" class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500" title="Editar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></a>
+                                    <button class="p-1.5 rounded-md hover:bg-gray-100 text-red-500" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition-colors"
+                            data-fecha="2026-05-10"
+                            data-titulo="Fix: login timeout"
+                            data-empresa="ERP-GV"
+                            data-clasificacion="Bug"
+                            data-clasificacion-tone="danger"
+                            data-modulo="Auth"
+                            data-dependencia="-"
+                            data-asignado="Rosy"
+                            data-asignado-color="purple"
+                            data-estado="Completada"
+                            data-estado-tone="success"
+                            data-sprints='[{"nombre":"Sprint - Hotfix timeout","fecha":"2026-05-10","estado":"done","nota":"Fix liberado en produccion"}]'>
+                            <td class="px-4 py-3 text-gray-600">2026-05-10</td>
+                            <td class="px-4 py-3 font-medium text-[var(--cv-primary)]">Fix: login timeout</td>
+                            <td class="px-4 py-3">ERP-GV</td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-danger">Bug</span></td>
+                            <td class="px-4 py-3">Auth</td>
+                            <td class="px-4 py-3 text-center"><span class="cv-badge cv-badge-neutral">1</span></td>
+                            <td class="px-4 py-3 text-gray-500">-</td>
+                            <td class="px-4 py-3"><span class="inline-flex items-center gap-1"><span class="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] flex items-center justify-center font-bold">R</span>Rosy</span></td>
+                            <td class="px-4 py-3"><span class="cv-badge cv-badge-success">Completada</span></td>
+                            <td class="px-4 py-3 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 js-view" title="Ver"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+                                    <a href="tareas-form.html" class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500" title="Editar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></a>
+                                    <button class="p-1.5 rounded-md hover:bg-gray-100 text-red-500" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="px-4 py-3 border-t border-[var(--cv-border)] flex items-center justify-between">
+                <span class="cv-muted text-xs">Mostrando 1-3 de 24</span>
+                <div class="flex items-center gap-1">
+                    <button class="px-3 py-1 rounded-md text-sm text-gray-500 hover:bg-gray-100 disabled:opacity-40">Anterior</button>
+                    <button class="px-3 py-1 rounded-md text-sm bg-[var(--cv-action)] text-white">1</button>
+                    <button class="px-3 py-1 rounded-md text-sm text-gray-500 hover:bg-gray-100">2</button>
+                    <button class="px-3 py-1 rounded-md text-sm text-gray-500 hover:bg-gray-100">3</button>
+                    <button class="px-3 py-1 rounded-md text-sm text-gray-500 hover:bg-gray-100">Siguiente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Modal: Seguimiento de tarea -->
+<div id="taskDetailModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-panel">
+        <header class="px-6 py-4 border-b border-[var(--cv-border)] flex items-start justify-between gap-4">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span>Fecha de entrega:</span>
+                    <span id="mdFecha" class="font-semibold text-[var(--cv-primary)]">-</span>
+                </div>
+                <h2 id="mdTitulo" class="cv-title text-lg font-bold truncate">-</h2>
+            </div>
+            <button id="mdClose" class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500" title="Cerrar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </header>
+
+        <div class="px-6 py-5 overflow-y-auto">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                <div>
+                    <p class="text-xs text-gray-500 mb-1">Empresa</p>
+                    <p id="mdEmpresa" class="text-sm font-medium text-[var(--cv-primary)]">-</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 mb-1">Clasificacion</p>
+                    <span id="mdClasif" class="cv-badge cv-badge-info">-</span>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 mb-1">Modulo</p>
+                    <p id="mdModulo" class="text-sm font-medium">-</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 mb-1">No. de Sprints</p>
+                    <span id="mdSprintsCount" class="cv-badge cv-badge-neutral">0</span>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 mb-1">Dependencia</p>
+                    <p id="mdDependencia" class="text-sm font-medium">-</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 mb-1">Asignado a</p>
+                    <div id="mdAsignado" class="inline-flex items-center gap-1 text-sm font-medium">-</div>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-xs text-gray-500 mb-1">Estado</p>
+                    <span id="mdEstado" class="cv-badge cv-badge-warning">-</span>
+                </div>
+            </div>
+
+            <div class="mb-5">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-medium text-gray-600">Progreso</span>
+                    <span id="mdProgressLabel" class="text-xs text-gray-500">0%</span>
+                </div>
+                <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="mdProgressBar" class="h-full bg-[var(--cv-action)] transition-all" style="width:0%"></div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="cv-title text-sm font-bold mb-3 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-[var(--cv-action)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Seguimiento de Sprints
+                </h3>
+                <div id="mdSprints" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <footer class="px-6 py-3 border-t border-[var(--cv-border)] flex items-center justify-end gap-2">
+            <button id="mdCloseFooter" class="cv-btn cv-btn-outline-action px-4 py-1.5 rounded-lg text-sm">Cerrar</button>
+            <a href="tareas-form.html" class="cv-btn cv-btn-primary px-4 py-1.5 rounded-lg text-sm">Editar tarea</a>
+        </footer>
+    </div>
+</div>
+
+<script>
+(function(){
+    const modal  = document.getElementById('taskDetailModal');
+    const $id    = id => document.getElementById(id);
+    const toneMap = {
+        info:'cv-badge cv-badge-info',
+        danger:'cv-badge cv-badge-danger',
+        success:'cv-badge cv-badge-success',
+        warning:'cv-badge cv-badge-warning',
+        neutral:'cv-badge cv-badge-neutral'
+    };
+    const colorMap = {
+        purple:'bg-purple-100 text-purple-700',
+        blue:'bg-blue-100 text-blue-700',
+        green:'bg-green-100 text-green-700',
+        orange:'bg-orange-100 text-orange-700'
+    };
+
+    function openModal(row){
+        const d = row.dataset;
+        $id('mdFecha').textContent       = d.fecha || '-';
+        $id('mdTitulo').textContent      = d.titulo || '-';
+        $id('mdEmpresa').textContent     = d.empresa || '-';
+        $id('mdModulo').textContent      = d.modulo || '-';
+        $id('mdDependencia').textContent = d.dependencia || '-';
+
+        const clasif = $id('mdClasif');
+        clasif.className = toneMap[d.clasificacionTone] || toneMap.info;
+        clasif.textContent = d.clasificacion || '-';
+
+        const estado = $id('mdEstado');
+        estado.className = toneMap[d.estadoTone] || toneMap.warning;
+        estado.textContent = d.estado || '-';
+
+        const asignado = $id('mdAsignado');
+        const initial = (d.asignado || '?').charAt(0).toUpperCase();
+        const colorCls = colorMap[d.asignadoColor] || colorMap.purple;
+        asignado.innerHTML = `<span class="w-5 h-5 rounded-full ${colorCls} text-[10px] flex items-center justify-center font-bold">${initial}</span>${d.asignado || '-'}`;
+
+        let sprints = [];
+        try { sprints = JSON.parse(d.sprints || '[]'); } catch(_) {}
+
+        $id('mdSprintsCount').textContent = sprints.length;
+
+        const done = sprints.filter(s => s.estado === 'done').length;
+        const active = sprints.filter(s => s.estado === 'active').length;
+        const pct = sprints.length ? Math.round(((done + active*0.5) / sprints.length) * 100) : 0;
+        $id('mdProgressBar').style.width = pct + '%';
+        $id('mdProgressLabel').textContent = pct + '%';
+
+        const list = $id('mdSprints');
+        if (!sprints.length) {
+            list.innerHTML = `<div class="text-sm text-gray-500 border border-dashed border-gray-300 rounded-lg p-4 text-center">Esta tarea aun no tiene sprints asignados.</div>`;
+        } else {
+            list.innerHTML = sprints.map(s => {
+                const cls = s.estado === 'done' ? 'done' : (s.estado === 'active' ? 'active' : 'pending');
+                const dotBg = s.estado === 'done' ? 'bg-green-500' : (s.estado === 'active' ? 'bg-[var(--cv-action)]' : 'bg-gray-300');
+                const badge = s.estado === 'done'
+                    ? '<span class="cv-badge cv-badge-success">Completado</span>'
+                    : s.estado === 'active'
+                        ? '<span class="cv-badge cv-badge-info">En curso</span>'
+                        : '<span class="cv-badge cv-badge-neutral">Pendiente</span>';
+                return `
+                    <div class="sprint-node ${cls} pl-10 relative">
+                        <div class="absolute left-0 top-1 w-8 h-8 rounded-full ${dotBg} text-white flex items-center justify-center text-xs font-bold">
+                            ${s.estado === 'done' ? '&#10003;' : s.estado === 'active' ? '&#8635;' : '&#9679;'}
+                        </div>
+                        <div class="flex items-start justify-between gap-2 mb-1">
+                            <h4 class="text-sm font-semibold text-[var(--cv-primary)]">${s.nombre || ''}</h4>
+                            ${badge}
+                        </div>
+                        <p class="text-xs text-gray-500 mb-1">${s.fecha || ''}</p>
+                        <p class="text-xs text-gray-600">${s.nota || ''}</p>
+                    </div>`;
+            }).join('');
+        }
+
+        modal.classList.add('open');
+    }
+
+    function closeModal(){ modal.classList.remove('open'); }
+
+    document.querySelectorAll('tbody tr').forEach(row => {
+        const viewBtn = row.querySelector('.js-view');
+        if (viewBtn) viewBtn.addEventListener('click', () => openModal(row));
+    });
+
+    $id('mdClose').addEventListener('click', closeModal);
+    $id('mdCloseFooter').addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+})();
+</script>
+
+</body>
+</html>

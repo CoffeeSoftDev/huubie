@@ -179,6 +179,7 @@ class App extends Templates {
                 right : [2],
                 f_size:12,
                 striped:true,
+                bordered:true,
                 center: [1, 3, 6]
             }
         });
@@ -977,9 +978,29 @@ class Modifier extends App {
                 id     : "tbModifiers",
                 theme  : 'dark',
                 striped: true,
-                center : [2, 4]
+                f_size : 12,
+                center : [1, 3, 4]
             },
         });
+
+        setTimeout(() => {
+            $('#tbModifiers thead th:nth-child(1), #tbModifiers tbody td:nth-child(1)').css({
+                'width'    : '180px',
+                'min-width': '180px'
+            });
+            $('#tbModifiers thead th:nth-child(2), #tbModifiers tbody td:nth-child(2)').css({
+                'width'    : '70px',
+                'min-width': '70px'
+            });
+            $('#tbModifiers thead th:nth-child(4), #tbModifiers tbody td:nth-child(4)').css({
+                'width'    : '110px',
+                'min-width': '110px'
+            });
+            $('#tbModifiers thead th:last-child, #tbModifiers tbody td:last-child').css({
+                'width'    : '140px',
+                'min-width': '140px'
+            });
+        }, 100);
     }
 
     async addModifier() {

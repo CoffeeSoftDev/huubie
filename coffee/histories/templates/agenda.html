@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda - Historias de Usuario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../utils/coffee-varoch.css">
+    <style>
+        body{font-family:'Inter',system-ui,sans-serif;}
+        .task-item{cursor:grab;transition:box-shadow .15s,transform .15s,opacity .15s;}
+        .task-item:active{cursor:grabbing;}
+        .task-item.dragging{opacity:.4;transform:scale(.98);}
+        .dropzone{min-height:60px;transition:background .15s,outline .15s;border-radius:10px;}
+        .dropzone.drag-over{outline:2px dashed var(--cv-action);outline-offset:2px;background:rgba(37,99,235,.04);}
+        .task-handle{cursor:grab;color:#9ca3af;}
+        .task-handle:hover{color:var(--cv-action);}
+    </style>
+</head>
+<body class="coffee-varoch cv-page">
+
+<aside class="cv-sidebar w-56 h-screen fixed left-0 top-0 flex flex-col border-r border-[var(--cv-border)]">
+    <div class="p-5 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--cv-primary)] to-[var(--cv-action)] flex items-center justify-center text-white font-bold text-sm">CS</div>
+        <span class="cv-title text-sm font-bold">CoffeeSoft</span>
+    </div>
+    <nav class="flex-1 px-3 py-2 space-y-1">
+        <a href="index.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Dashboard
+        </a>
+        <a href="tareas-tabla.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Actividades
+        </a>
+        <a href="agenda.html" class="cv-nav-item active flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Agenda
+        </a>
+        <a href="historias.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            Historias
+        </a>
+        <a href="sprints.html" class="cv-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Sprints
+        </a>
+    </nav>
+    <div class="p-3 border-t border-[var(--cv-border)]">
+        <div class="flex items-center gap-3 px-3 py-2">
+            <div class="w-8 h-8 rounded-full bg-[var(--cv-primary)] flex items-center justify-center text-white text-xs font-bold">R</div>
+            <div>
+                <p class="text-sm font-medium text-[var(--cv-primary)]">Rosy</p>
+                <p class="text-xs text-gray-500">Admin</p>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<main class="ml-56 min-h-screen">
+    <header class="cv-header h-14 px-6 flex items-center justify-between border-b border-[var(--cv-border)]">
+        <h1 class="cv-title text-lg font-bold">Agenda</h1>
+        <div class="flex items-center gap-3">
+            <span class="cv-muted text-sm">Bienvenido, Somx</span>
+            <div class="w-8 h-8 rounded-full bg-[var(--cv-action)] flex items-center justify-center text-white text-xs font-bold">S</div>
+        </div>
+    </header>
+
+    <div class="p-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <!-- Seccion 1: Hoy -->
+            <div class="cv-card rounded-xl border border-[var(--cv-border)] p-5 relative">
+                <div class="flex items-center justify-between mb-4">
+                    <button id="prevDay" class="p-1 rounded-lg hover:bg-gray-100 text-gray-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <h2 id="titleHoy" class="cv-title font-bold text-lg">Hoy - 10 Mayo 2026</h2>
+                    <button id="nextDay" class="p-1 rounded-lg hover:bg-gray-100 text-gray-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+
+                <div class="space-y-3 dropzone" data-section="hoy">
+                    <div class="flex items-center gap-3 p-3 rounded-lg border border-[var(--cv-border)] bg-white task-item" draggable="true">
+                        <span class="task-handle" title="Arrastrar">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                        </span>
+                        <select class="cv-input text-sm px-2 py-1.5 rounded-md w-48">
+                            <option>Seleccionar actividad...</option>
+                            <option>Crear modulo historias</option>
+                            <option>Integracion calendario</option>
+                        </select>
+                        <select class="cv-input text-sm px-2 py-1.5 rounded-md w-32">
+                            <option>Pendiente</option>
+                            <option>En progreso</option>
+                            <option>Completada</option>
+                        </select>
+                        <button class="ml-auto p-1.5 rounded-md hover:bg-red-50 text-red-500" title="Eliminar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 rounded-lg border border-[var(--cv-border)] bg-white task-item" draggable="true">
+                        <span class="task-handle" title="Arrastrar">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                        </span>
+                        <select class="cv-input text-sm px-2 py-1.5 rounded-md w-48">
+                            <option>Sprint: Fix login timeout</option>
+                        </select>
+                        <select class="cv-input text-sm px-2 py-1.5 rounded-md w-32">
+                            <option>En progreso</option>
+                            <option>Completada</option>
+                        </select>
+                        <button class="ml-auto p-1.5 rounded-md hover:bg-red-50 text-red-500" title="Eliminar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button class="mt-4 w-full py-2 rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[var(--cv-action)] hover:text-[var(--cv-action)] transition-colors text-sm font-medium">
+                    + Agregar actividad
+                </button>
+            </div>
+
+            <!-- Seccion 2: Manana -->
+            <div class="cv-card rounded-xl border border-[var(--cv-border)] p-5 relative">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-5"></div>
+                    <h2 id="titleManana" class="cv-title font-bold text-lg">Manana - 11 Mayo 2026</h2>
+                    <div class="w-5"></div>
+                </div>
+
+                <div class="space-y-3 dropzone" data-section="manana">
+                    <div class="flex items-center gap-3 p-3 rounded-lg border border-[var(--cv-border)] bg-white task-item" draggable="true">
+                        <span class="task-handle" title="Arrastrar">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                        </span>
+                        <select class="cv-input text-sm px-2 py-1.5 rounded-md w-48">
+                            <option>Seleccionar actividad...</option>
+                            <option>Crear modulo historias</option>
+                        </select>
+                        <select class="cv-input text-sm px-2 py-1.5 rounded-md w-32">
+                            <option>Pendiente</option>
+                            <option>En progreso</option>
+                        </select>
+                        <button class="ml-auto p-1.5 rounded-md hover:bg-red-50 text-red-500" title="Eliminar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button class="mt-4 w-full py-2 rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[var(--cv-action)] hover:text-[var(--cv-action)] transition-colors text-sm font-medium">
+                    + Agregar actividad
+                </button>
+            </div>
+
+            <!-- Seccion 3: Calendario -->
+            <div class="cv-card rounded-xl border border-[var(--cv-border)] p-5">
+                <h2 id="calTitle" class="cv-title font-bold text-lg mb-4">Mayo 2026</h2>
+
+                <div class="grid grid-cols-7 gap-1 text-center text-xs mb-2">
+                    <span class="py-1 font-semibold text-gray-500">L</span>
+                    <span class="py-1 font-semibold text-gray-500">M</span>
+                    <span class="py-1 font-semibold text-gray-500">M</span>
+                    <span class="py-1 font-semibold text-gray-500">J</span>
+                    <span class="py-1 font-semibold text-gray-500">V</span>
+                    <span class="py-1 font-semibold text-gray-500">S</span>
+                    <span class="py-1 font-semibold text-gray-500">D</span>
+                </div>
+                <div id="calGrid" class="grid grid-cols-7 gap-1">
+                    <!-- Se genera dinamicamente -->
+                </div>
+
+                <div class="mt-4 flex items-center gap-4 text-xs">
+                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-pink-400"></span> Con actividades</span>
+                    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-300"></span> Seleccionado</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+(function(){
+    let dragged = null;
+    const realToday = new Date();
+    realToday.setHours(0,0,0,0);
+    let currentDate = new Date(realToday);
+    const activityDates = new Set();
+
+    const $ = q => document.querySelector(q);
+    const $$ = q => document.querySelectorAll(q);
+
+    function pad(n){ return String(n).padStart(2,'0'); }
+    function fmtDate(d){
+        const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        return `${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    function isoDate(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+
+    function tomorrow(d){ const t=new Date(d); t.setDate(t.getDate()+1); return t; }
+
+    function updateActivityDates(){
+        const hoy = isoDate(currentDate);
+        const man = isoDate(tomorrow(currentDate));
+        const hoyItems = $$('[data-section="hoy"] .task-item').length;
+        const manItems = $$('[data-section="manana"] .task-item').length;
+        if (hoyItems) activityDates.add(hoy); else activityDates.delete(hoy);
+        if (manItems) activityDates.add(man); else activityDates.delete(man);
+    }
+
+    function render(){
+        updateActivityDates();
+
+        const isRealToday = currentDate.getTime() === realToday.getTime();
+        $('#titleHoy').textContent = (isRealToday ? 'Hoy' : 'Seleccionado') + ' - ' + fmtDate(currentDate);
+        $('#titleManana').textContent = 'Mañana - ' + fmtDate(tomorrow(currentDate));
+        $('#calTitle').textContent = fmtDate(currentDate).replace(/^\d+\s/,''); // "Mayo 2026"
+
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month+1, 0);
+        const startDay = firstDay.getDay(); // 0=Dom
+        const leading = startDay === 0 ? 6 : startDay - 1; // Lunes primero
+        const daysInMonth = lastDay.getDate();
+
+        let html = '';
+        for(let i=0;i<leading;i++) html += '<span></span>';
+        for(let d=1; d<=daysInMonth; d++){
+            const dateStr = `${year}-${pad(month+1)}-${pad(d)}`;
+            const isSelected = currentDate.getDate()===d && currentDate.getMonth()===month && currentDate.getFullYear()===year;
+            const thisDay = new Date(year, month, d);
+            const isToday = thisDay.getTime() === realToday.getTime();
+            const hasAct = activityDates.has(dateStr);
+            let cls = 'aspect-square rounded-lg flex items-center justify-center text-sm relative transition-colors';
+            if(isToday){
+                cls += ' bg-pink-100 text-pink-600 font-bold border border-pink-300';
+            } else if(isSelected){
+                cls += ' bg-blue-100 text-blue-700 font-bold border border-blue-300';
+            } else {
+                cls += ' hover:bg-gray-100';
+            }
+            let dot = '';
+            if(hasAct){
+                dot = `<span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-pink-400"></span>`;
+            }
+            html += `<button class="${cls}" data-date="${dateStr}">${d}${dot}</button>`;
+        }
+        $('#calGrid').innerHTML = html;
+    }
+
+    // --- Drag & Drop ---
+    function getInsertBeforeElement(zone, y){
+        const items = [...zone.querySelectorAll('.task-item:not(.dragging)')];
+        return items.find(item => {
+            const rect = item.getBoundingClientRect();
+            return y < rect.top + rect.height / 2;
+        });
+    }
+
+    function bindItem(item){
+        item.addEventListener('dragstart', e => {
+            dragged = item;
+            item.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            try { e.dataTransfer.setData('text/plain', ''); } catch(_) {}
+        });
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+            $$('.dropzone.drag-over').forEach(z => z.classList.remove('drag-over'));
+            dragged = null;
+            render();
+        });
+    }
+    $$('.task-item').forEach(bindItem);
+
+    $$('.dropzone').forEach(zone => {
+        zone.addEventListener('dragover', e => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            zone.classList.add('drag-over');
+            if (!dragged) return;
+            const before = getInsertBeforeElement(zone, e.clientY);
+            if (before == null) zone.appendChild(dragged);
+            else zone.insertBefore(dragged, before);
+        });
+        zone.addEventListener('dragleave', e => {
+            if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+        });
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            render();
+        });
+    });
+
+    // --- Eliminar ---
+    document.addEventListener('click', e => {
+        const btn = e.target.closest('button[title="Eliminar"]');
+        if (!btn) return;
+        const item = btn.closest('.task-item');
+        if (item) { item.remove(); render(); }
+    });
+
+    // --- Agregar actividad ---
+    document.addEventListener('click', e => {
+        const btn = e.target.closest('button');
+        if(!btn || !btn.textContent.includes('Agregar actividad')) return;
+        const zone = btn.previousElementSibling;
+        if(!zone || !zone.classList.contains('dropzone')) return;
+        const template = zone.querySelector('.task-item');
+        const newItem = template ? template.cloneNode(true) : createEmptyTask();
+        newItem.querySelectorAll('select').forEach(sel => sel.selectedIndex = 0);
+        bindItem(newItem);
+        zone.appendChild(newItem);
+        render();
+    });
+
+    function createEmptyTask(){
+        const div = document.createElement('div');
+        div.className = 'flex items-center gap-3 p-3 rounded-lg border border-[var(--cv-border)] bg-white task-item';
+        div.draggable = true;
+        div.innerHTML = `
+            <span class="task-handle" title="Arrastrar">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+            </span>
+            <select class="cv-input text-sm px-2 py-1.5 rounded-md w-48">
+                <option>Seleccionar actividad...</option>
+                <option>Crear modulo historias</option>
+                <option>Integracion calendario</option>
+            </select>
+            <select class="cv-input text-sm px-2 py-1.5 rounded-md w-32">
+                <option>Pendiente</option>
+                <option>En progreso</option>
+                <option>Completada</option>
+            </select>
+            <button class="ml-auto p-1.5 rounded-md hover:bg-red-50 text-red-500" title="Eliminar">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+        `;
+        return div;
+    }
+
+    // --- Navegacion y calendario ---
+    $('#prevDay').addEventListener('click', () => { currentDate.setDate(currentDate.getDate()-1); render(); });
+    $('#nextDay').addEventListener('click', () => { currentDate.setDate(currentDate.getDate()+1); render(); });
+    $('#calGrid').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-date]');
+        if(!btn) return;
+        const [y,m,d] = btn.dataset.date.split('-').map(Number);
+        currentDate = new Date(y, m-1, d);
+        render();
+    });
+
+    render();
+})();
+</script>
+
+</body>
+</html>

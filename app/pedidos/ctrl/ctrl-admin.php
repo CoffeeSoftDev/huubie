@@ -468,19 +468,19 @@
                 $a = [];
 
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                        'html'    => '<i class="icon-pencil"></i>',
+                    'class'   => 'btn btn-sm btn-primary inline-flex items-center justify-center w-8 h-8 p-0 me-1',
+                    'html'    => '<i class="icon-pencil"></i>',
                     'onclick' => 'mod.editModifier(' . $key['id'] . ')'
                 ];
 
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger  me-1',
+                    'class'   => 'btn btn-sm btn-danger inline-flex items-center justify-center w-8 h-8 p-0 me-1',
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'mod.statusModifier(' . $key['id'] . ', ' . $key['active'] . ')'
                 ];
 
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-success',
+                    'class'   => 'btn btn-sm btn-success inline-flex items-center justify-center w-8 h-8 p-0',
                     'html'    => '<i class="icon-eye"></i>',
                     'onclick' => 'mod.showProducts(' . $key['id'] . ')'
                 ];
@@ -496,23 +496,23 @@
                     foreach ($prods as $index => $p) {
                         if (!empty($p['name'])) {
                             $displayClass = $index >= $limit ? 'hidden product-extra-' . $key['id'] : '';
-                            $names[] = '<span class="inline-flex items-center gap-2 justify-center min-w-[100px] px-2 py-1 rounded text-xs font-semibold bg-gray-700 text-gray-200 me-1 mb-1 ' . $displayClass . '" >' . $p['name'] . '</span>';
+                            $names[] = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium leading-none bg-gray-700 text-gray-200 ' . $displayClass . '">' . $p['name'] . '</span>';
                         }
                     }
 
-                    $productText = '<div class="flex flex-wrap items-center gap-1">' . implode(' ', $names);
-                    
+                    $productText = '<div class="flex flex-wrap items-center gap-1">' . implode('', $names);
+
                     if ($totalProducts > $limit) {
                         $remaining = $totalProducts - $limit;
-                        $productText .= '<button 
-                            onclick="mod.editModifier(' . $key['id'] . ')" 
+                        $productText .= '<button
+                            onclick="mod.editModifier(' . $key['id'] . ')"
                             id="btn-more-' . $key['id'] . '"
-                            class="inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-semibold bg-gray-800 hover:bg-gray-900 text-gray-200 transition-colors cursor-pointer">
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium leading-none bg-gray-800 hover:bg-gray-900 text-gray-200 transition-colors cursor-pointer">
                             <i class="icon-eye"></i>
-                            <span>+' . $remaining . ' más</span>
+                            <span>+' . $remaining . '</span>
                         </button>';
                     }
-                    
+
                     $productText .= '</div>';
                 }
 

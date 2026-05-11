@@ -167,6 +167,7 @@ class mdl extends CRUD {
                 name,
                 phone,
                 email,
+                active,
                 DATE_FORMAT(date_create, '%Y-%m-%d') as date_create",
             'where'  => 'active = ? AND subsidiaries_id = ?',
             'order'  => ['DESC' => 'id'],
