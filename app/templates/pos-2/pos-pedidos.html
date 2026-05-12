@@ -75,6 +75,31 @@
             padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700;
         }
 
+        /* ═══════════════════════════════════════════════════════════════
+           Badges coffee-magic (cm-badge) — pill semitransparente
+           Ref: coffee-magic-ui.md §4 y §21
+           ═══════════════════════════════════════════════════════════════ */
+        .cm-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.2;
+            border: 1px solid transparent;
+            letter-spacing: .02em;
+        }
+        .cm-badge-success  { background: rgba(63,193,137,.15);  color: var(--cs-success);       border-color: rgba(63,193,137,.30); }
+        .cm-badge-danger   { background: rgba(234,2,52,.15);    color: var(--cs-danger);        border-color: rgba(234,2,52,.35);  }
+        .cm-badge-warning  { background: rgba(251,191,36,.15);  color: var(--cs-warning);       border-color: rgba(251,191,36,.30); }
+        .cm-badge-info     { background: rgba(28,100,242,.18);  color: var(--cs-info);          border-color: rgba(28,100,242,.35); }
+        .cm-badge-purple   { background: rgba(124,58,237,.18);  color: #c4b5fd;                 border-color: rgba(124,58,237,.35); }
+        .cm-badge-pink     { background: rgba(244,114,182,.15); color: #f472b6;                 border-color: rgba(244,114,182,.30); }
+        .cm-badge-orange   { background: rgba(249,115,22,.15);  color: #fb923c;                 border-color: rgba(249,115,22,.30);  }
+        .cm-badge-neutral  { background: rgba(156,163,175,.15); color: var(--cs-text-secondary); border-color: rgba(156,163,175,.30); }
+
         /* SweetAlert2 — Huubie Dark Theme */
         .swal2-popup.huubie-swal {
             background: var(--cs-bg-card) !important; border: 1px solid var(--cs-border) !important;
@@ -777,20 +802,20 @@
         }
 
         function statusBadge(estatus) {
-            if (estatus === 'pagado')    return '<span class="cs-badge cs-badge-success">PAGADO</span>';
-            if (estatus === 'cancelado') return '<span class="cs-badge cs-badge-danger">CANCELADO</span>';
-            return '<span class="cs-badge cs-badge-warning">' + esc(estatus).toUpperCase() + '</span>';
+            if (estatus === 'pagado')    return '<span class="cm-badge cm-badge-success">PAGADO</span>';
+            if (estatus === 'cancelado') return '<span class="cm-badge cm-badge-danger">CANCELADO</span>';
+            return '<span class="cm-badge cm-badge-warning">' + esc(estatus).toUpperCase() + '</span>';
         }
         function pagoBadge(label) {
             const map = {
-                'Efectivo':      { cls:'cs-badge-success', bg:'rgba(63,193,137,0.12)', fg:'var(--cs-success)', bd:'rgba(63,193,137,0.3)' },
-                'Tarjeta':       { cls:'cs-badge-info',    bg:'rgba(28,100,242,0.12)', fg:'var(--cs-info)',    bd:'rgba(28,100,242,0.3)' },
-                'Transferencia': { cls:'cs-badge-purple',  bg:'rgba(124,58,237,0.12)', fg:'var(--cs-accent-purple)', bd:'rgba(124,58,237,0.3)' }
+                'Efectivo':      'cm-badge-success',
+                'Tarjeta':       'cm-badge-info',
+                'Transferencia': 'cm-badge-purple'
             };
-            let base = map[label];
-            if (!base && label.startsWith('Mixto')) base = { cls:'cs-badge-warning', bg:'rgba(251,191,36,0.12)', fg:'var(--cs-warning)', bd:'rgba(251,191,36,0.3)' };
-            if (!base) base = { cls:'', bg:'rgba(156,163,175,0.12)', fg:'var(--cs-text-secondary)', bd:'rgba(156,163,175,0.3)' };
-            return `<span class="mini-chip ${base.cls}" style="background:${base.bg};color:${base.fg};border:1px solid ${base.bd}">${esc(label)}</span>`;
+            let cls = map[label];
+            if (!cls && label.startsWith('Mixto')) cls = 'cm-badge-warning';
+            if (!cls) cls = 'cm-badge-neutral';
+            return `<span class="cm-badge ${cls}">${esc(label)}</span>`;
         }
 
         function renderVentas() {
