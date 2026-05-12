@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventarios — Traspasos entre Sucursales</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../../app/ui/css/ui-kit.css">
+  <script src="/app/src/plugins/lucide/lucide.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+    .cs-scroll::-webkit-scrollbar { width: 6px; }
+    .cs-scroll::-webkit-scrollbar-track { background: transparent; }
+    .cs-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    #sidebar { scrollbar-width: none; }
+
+    .cs-table { font-size: 10px; }
+    .cs-table th { padding: 6px 8px !important; font-size: 9px !important; text-transform: uppercase; letter-spacing: 0.02em; font-weight: 600; }
+    .cs-table td { padding: 5px 8px !important; font-size: 10px !important; line-height: 1.35; }
+    .cs-input, .cs-select { padding: 5px 10px !important; font-size: 10px !important; min-height: 0 !important; }
+    .cs-input.pl-10 { padding-left: 30px !important; }
+    .cs-textarea { padding: 6px 10px !important; font-size: 10px !important; }
+    .cs-input-group-icon { width: 28px !important; }
+    .cs-input-group-icon .w-4 { width: 0.8rem !important; height: 0.8rem !important; }
+    .cs-btn { padding: 4px 10px !important; font-size: 10px !important; }
+    .cs-btn-sm { padding: 3px 8px !important; font-size: 9px !important; }
+    .cs-badge { padding: 1px 6px !important; font-size: 8px !important; line-height: 1.3; }
+    .cs-tabs .cs-tab { padding: 6px 10px !important; font-size: 10px !important; }
+    h1.text-lg { font-size: 13px !important; }
+    h3.text-sm { font-size: 11px !important; }
+
+    /* Estado rows */
+    tbody tr.selected-row { background: rgba(124,58,237,0.08) !important; border-left: 2px solid #7C3AED; }
+    tbody tr.row-transito { background: rgba(251,191,36,0.04); }
+    tbody tr.row-rechazado td > * { opacity: 0.55; }
+    .arrow-flow { color: #c4b5fd; }
+  </style>
+</head>
+<body class="bg-[#111928] h-screen overflow-hidden flex flex-col">
+
+  <!-- NAVBAR -->
+  <nav class="fixed top-0 left-0 w-full text-white px-4 py-0 h-14 z-50 flex items-center justify-between bg-[#0f172a] border-b border-[#374151] flex-shrink-0">
+    <div class="flex items-center space-x-4">
+      <button id="toggleSidebar" class="text-[#9CA3AF] hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <span class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">●</span></span>
+    </div>
+    <div class="flex-1"></div>
+    <div class="flex items-center space-x-4">
+      <button class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        <div class="hidden md:flex flex-col items-start leading-tight">
+          <span class="text-xs font-medium text-white">Admin Usuario</span>
+          <span class="text-[10px] text-[#3FC189]">EN LINEA</span>
+        </div>
+      </button>
+    </div>
+  </nav>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar" class="fixed top-0 left-0 mt-14 h-[calc(100vh-3.5rem)] bg-[#0f172a] w-56 transform -translate-x-full transition-transform duration-500 ease-in-out z-40 overflow-y-auto border-r border-[#374151]">
+    <h5 class="text-white pt-4 font-semibold ps-7 text-sm">Huubie</h5>
+    <ul class="space-y-1 p-4">
+      <li><a href="#" class="block text-xs text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-2 rounded-lg">Resumen</a></li>
+      <li>
+        <div class="text-xs font-medium px-3 py-2 rounded-lg text-[#c4b5fd] bg-[rgba(124,58,237,0.12)] flex items-center gap-2"><i data-lucide="package" class="w-4 h-4"></i>Inventarios</div>
+        <ul class="mt-1 pl-4 space-y-1">
+          <li><a href="inventarios-stock.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Stock Actual</a></li>
+          <li><a href="inventarios-movimientos.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Movimientos</a></li>
+          <li><a href="inventarios-entradas.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Entradas</a></li>
+          <li><a href="inventarios-traspasos.html" class="block w-full text-[11px] text-[#c4b5fd] bg-[rgba(124,58,237,0.12)] border-l-2 border-[#7C3AED] px-3 py-1.5 rounded-lg">Traspasos</a></li>
+          <li><a href="inventarios-ajustes.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Ajustes</a></li>
+          <li><a href="inventarios-merma.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Merma</a></li>
+          <li><a href="inventarios-catalogo.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Catálogo</a></li>
+        </ul>
+      </li>
+      <li><a href="inventarios-index-navegacion.html" class="block text-xs text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-2 rounded-lg">Hub Inventarios</a></li>
+    </ul>
+  </div>
+
+  <!-- SHELL -->
+  <div class="mt-14 h-[calc(100vh-3.5rem)] flex overflow-hidden">
+
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+        <div>
+          <h1 class="text-lg font-bold">Traspasos entre Sucursales</h1>
+          <p class="text-[11px] text-[#6B7280]">Movimientos de producto entre almacenes</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <select class="cs-select text-xs">
+            <option>Reginas Kafeto (actual)</option>
+            <option>Todas las sucursales</option>
+          </select>
+          <button onclick="document.getElementById('modalTraspaso').classList.remove('hidden'); document.getElementById('modalTraspaso').classList.add('flex');" class="cs-btn cs-btn-primary cs-btn-sm">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            Nuevo Traspaso
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="cs-tabs px-6 flex-shrink-0 border-b border-[#374151]">
+        <a href="inventarios-stock.html" class="cs-tab">Stock Actual</a>
+        <a href="inventarios-movimientos.html" class="cs-tab">Movimientos</a>
+        <a href="inventarios-entradas.html" class="cs-tab">Entradas</a>
+        <a href="inventarios-traspasos.html" class="cs-tab active">Traspasos</a>
+        <a href="inventarios-ajustes.html" class="cs-tab">Ajustes</a>
+      </div>
+
+      <!-- KPIs compactas -->
+      <div class="grid grid-cols-5 gap-2 px-6 py-2 flex-shrink-0">
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Total Mes</p>
+            <p class="text-lg font-bold text-white leading-tight">24</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-[rgba(124,58,237,0.12)] flex items-center justify-center">
+            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5 text-[#c4b5fd]"></i>
+          </div>
+        </div>
+        <div class="bg-[#1F2A37] border border-yellow-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-yellow-500 uppercase tracking-wider">Pendientes</p>
+            <p class="text-lg font-bold text-yellow-400 leading-tight">3</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-yellow-500/15 flex items-center justify-center">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-yellow-400"></i>
+          </div>
+        </div>
+        <div class="bg-[#1F2A37] border border-orange-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-orange-500 uppercase tracking-wider">En Tránsito</p>
+            <p class="text-lg font-bold text-orange-400 leading-tight">2</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-orange-500/15 flex items-center justify-center">
+            <i data-lucide="truck" class="w-3.5 h-3.5 text-orange-400"></i>
+          </div>
+        </div>
+        <div class="bg-[#1F2A37] border border-green-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-green-500 uppercase tracking-wider">Recibidos</p>
+            <p class="text-lg font-bold text-green-400 leading-tight">18</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-green-500/15 flex items-center justify-center">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-green-400"></i>
+          </div>
+        </div>
+        <div class="bg-[#1F2A37] border border-red-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-red-500 uppercase tracking-wider">Rechazados</p>
+            <p class="text-lg font-bold text-red-400 leading-tight">1</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-red-500/15 flex items-center justify-center">
+            <i data-lucide="x-circle" class="w-3.5 h-3.5 text-red-400"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="px-6 pb-3 flex-shrink-0">
+        <div class="flex items-center gap-2 flex-nowrap">
+          <div class="relative flex-1 min-w-0">
+            <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+            <input type="text" placeholder="Buscar por folio o producto..." class="cs-input pl-10 text-xs w-full">
+          </div>
+          <select class="cs-select text-xs flex-shrink-0 w-36">
+            <option>Todos los estados</option>
+            <option>Pendiente</option>
+            <option>En Tránsito</option>
+            <option>Recibido</option>
+            <option>Rechazado</option>
+          </select>
+          <select class="cs-select text-xs flex-shrink-0 w-40">
+            <option>Origen: cualquiera</option>
+            <option>Reginas Kafeto</option>
+            <option>Suc. Centro</option>
+            <option>Suc. Norte</option>
+            <option>Suc. Sur</option>
+          </select>
+          <select class="cs-select text-xs flex-shrink-0 w-40">
+            <option>Destino: cualquiera</option>
+            <option>Reginas Kafeto</option>
+            <option>Suc. Centro</option>
+            <option>Suc. Norte</option>
+            <option>Suc. Sur</option>
+          </select>
+          <input type="date" value="2026-04-04" class="cs-input text-xs flex-shrink-0 w-32">
+          <button class="cs-btn cs-btn-outline cs-btn-sm flex-shrink-0 whitespace-nowrap">
+            <i data-lucide="download" class="w-3 h-3"></i>
+            Exportar
+          </button>
+        </div>
+      </div>
+
+      <!-- Contenedor tabla -->
+      <div class="flex-1 px-6 pb-4 overflow-hidden min-h-0">
+        <div class="h-full bg-[#1F2A37] rounded-lg p-3 overflow-auto cs-scroll border border-[#374151]">
+          <div class="overflow-x-auto rounded-lg border border-gray-700">
+            <table class="cs-table">
+              <thead>
+                <tr>
+                  <th class="text-left w-20">Folio</th>
+                  <th class="text-left w-40">Origen</th>
+                  <th class="text-center w-8"></th>
+                  <th class="text-left w-40">Destino</th>
+                  <th class="text-left">Productos</th>
+                  <th class="text-center w-16">Items</th>
+                  <th class="text-center w-16">Uds</th>
+                  <th class="text-right w-24">Costo</th>
+                  <th class="text-left w-28">Solicitó</th>
+                  <th class="text-left w-28">Fecha</th>
+                  <th class="text-center w-24">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr onclick="selectRow(this)" class="cursor-pointer selected-row">
+                  <td><span class="text-xs font-bold text-[#c4b5fd]">TRA-042</span></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-[rgba(28,100,242,0.15)] flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-[#76A9FA]"></i></div>
+                      <span>Suc. Centro</span>
+                    </div>
+                  </td>
+                  <td class="text-center"><i data-lucide="arrow-right" class="w-3 h-3 arrow-flow mx-auto"></i></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-green-500/15 flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-green-400"></i></div>
+                      <span class="font-semibold">Reginas Kafeto</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="flex -space-x-1">
+                        <div class="w-5 h-5 rounded bg-yellow-900/30 flex items-center justify-center border border-[#141d2b]"><i data-lucide="candy" class="w-3 h-3 text-yellow-400"></i></div>
+                        <div class="w-5 h-5 rounded bg-red-900/30 flex items-center justify-center border border-[#141d2b]"><i data-lucide="cherry" class="w-3 h-3 text-red-400"></i></div>
+                      </div>
+                      <p class="text-[11px] font-medium">Choco Alemán, Pay Fresas</p>
+                    </div>
+                  </td>
+                  <td class="text-center text-xs font-bold">2</td>
+                  <td class="text-center text-xs font-bold text-blue-400">8</td>
+                  <td class="text-right text-xs font-bold">$1,840</td>
+                  <td class="text-[10px] text-gray-400">Admin</td>
+                  <td class="text-[10px] text-gray-500">04 Abr 10:00</td>
+                  <td class="text-center"><span class="cs-badge cs-badge-warning">En Tránsito</span></td>
+                </tr>
+                <tr onclick="selectRow(this)" class="cursor-pointer">
+                  <td><span class="text-xs font-bold text-[#c4b5fd]">TRA-041</span></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-green-500/15 flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-green-400"></i></div>
+                      <span>Reginas Kafeto</span>
+                    </div>
+                  </td>
+                  <td class="text-center"><i data-lucide="arrow-right" class="w-3 h-3 arrow-flow mx-auto"></i></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-purple-500/15 flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-purple-400"></i></div>
+                      <span>Suc. Norte</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-amber-900/30 flex items-center justify-center"><i data-lucide="cake" class="w-3 h-3 text-amber-400"></i></div>
+                      <p class="text-[11px] font-medium">Pastel 3 Leches Chocolate</p>
+                    </div>
+                  </td>
+                  <td class="text-center text-xs font-bold">1</td>
+                  <td class="text-center text-xs font-bold text-blue-400">4</td>
+                  <td class="text-right text-xs font-bold">$1,120</td>
+                  <td class="text-[10px] text-gray-400">Carlos G.</td>
+                  <td class="text-[10px] text-gray-500">04 Abr 09:15</td>
+                  <td class="text-center"><span class="cs-badge cs-badge-success">Recibido</span></td>
+                </tr>
+                <tr onclick="selectRow(this)" class="cursor-pointer">
+                  <td><span class="text-xs font-bold text-[#c4b5fd]">TRA-040</span></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-pink-500/15 flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-pink-400"></i></div>
+                      <span>Suc. Sur</span>
+                    </div>
+                  </td>
+                  <td class="text-center"><i data-lucide="arrow-right" class="w-3 h-3 arrow-flow mx-auto"></i></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-green-500/15 flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-green-400"></i></div>
+                      <span>Reginas Kafeto</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="flex -space-x-1">
+                        <div class="w-5 h-5 rounded bg-orange-900/30 flex items-center justify-center border border-[#141d2b]"><i data-lucide="cup-soda" class="w-3 h-3 text-orange-400"></i></div>
+                        <div class="w-5 h-5 rounded bg-teal-900/30 flex items-center justify-center border border-[#141d2b]"><i data-lucide="cookie" class="w-3 h-3 text-teal-400"></i></div>
+                        <div class="w-5 h-5 rounded bg-amber-900/30 flex items-center justify-center border border-[#141d2b]"><i data-lucide="cake" class="w-3 h-3 text-amber-400"></i></div>
+                      </div>
+                      <p class="text-[11px] font-medium">Cupcakes, Galletas, Pasteles</p>
+                    </div>
+                  </td>
+                  <td class="text-center text-xs font-bold">3</td>
+                  <td class="text-center text-xs font-bold text-blue-400">15</td>
+                  <td class="text-right text-xs font-bold">$2,450</td>
+                  <td class="text-[10px] text-gray-400">Andrea M.</td>
+                  <td class="text-[10px] text-gray-500">03 Abr 16:30</td>
+                  <td class="text-center"><span class="cs-badge cs-badge-warning">Pendiente</span></td>
+                </tr>
+                <tr onclick="selectRow(this)" class="cursor-pointer">
+                  <td><span class="text-xs font-bold text-[#c4b5fd]">TRA-039</span></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-green-500/15 flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-green-400"></i></div>
+                      <span>Reginas Kafeto</span>
+                    </div>
+                  </td>
+                  <td class="text-center"><i data-lucide="arrow-right" class="w-3 h-3 arrow-flow mx-auto"></i></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-[rgba(28,100,242,0.15)] flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-[#76A9FA]"></i></div>
+                      <span>Suc. Centro</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-rose-900/30 flex items-center justify-center"><i data-lucide="cake" class="w-3 h-3 text-rose-400"></i></div>
+                      <p class="text-[11px] font-medium">Tres Leches Strawberry</p>
+                    </div>
+                  </td>
+                  <td class="text-center text-xs font-bold">1</td>
+                  <td class="text-center text-xs font-bold text-red-400">6</td>
+                  <td class="text-right text-xs font-bold">$1,560</td>
+                  <td class="text-[10px] text-gray-400">Andrea M.</td>
+                  <td class="text-[10px] text-gray-500">02 Abr 11:20</td>
+                  <td class="text-center"><span class="cs-badge cs-badge-danger">Rechazado</span></td>
+                </tr>
+                <tr onclick="selectRow(this)" class="cursor-pointer">
+                  <td><span class="text-xs font-bold text-[#c4b5fd]">TRA-038</span></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-purple-500/15 flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-purple-400"></i></div>
+                      <span>Suc. Norte</span>
+                    </div>
+                  </td>
+                  <td class="text-center"><i data-lucide="arrow-right" class="w-3 h-3 arrow-flow mx-auto"></i></td>
+                  <td class="text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-green-500/15 flex items-center justify-center"><i data-lucide="store" class="w-3 h-3 text-green-400"></i></div>
+                      <span>Reginas Kafeto</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded bg-teal-900/30 flex items-center justify-center"><i data-lucide="cookie" class="w-3 h-3 text-teal-400"></i></div>
+                      <p class="text-[11px] font-medium">Galleta Chocolate</p>
+                    </div>
+                  </td>
+                  <td class="text-center text-xs font-bold">1</td>
+                  <td class="text-center text-xs font-bold text-blue-400">20</td>
+                  <td class="text-right text-xs font-bold">$400</td>
+                  <td class="text-[10px] text-gray-400">Admin</td>
+                  <td class="text-[10px] text-gray-500">01 Abr 14:45</td>
+                  <td class="text-center"><span class="cs-badge cs-badge-success">Recibido</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Paginación -->
+          <div class="flex items-center justify-between mt-3">
+            <p class="text-[10px] text-gray-500">Mostrando 1-5 de 24</p>
+            <div class="cs-pagination">
+              <button disabled><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+              <button class="active-page">1</button>
+              <button>2</button>
+              <button>3</button>
+              <button><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Panel lateral: Detalle del traspaso -->
+    <aside class="w-[360px] bg-[#141d2b] border-l border-[#374151] flex flex-col flex-shrink-0">
+      <div class="px-4 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0">
+        <div>
+          <h3 class="text-sm font-bold text-[#c4b5fd]">Traspaso TRA-042</h3>
+          <p class="text-[10px] text-[#6B7280]">04 Abr 2026 — 10:00</p>
+        </div>
+        <span class="cs-badge cs-badge-warning">En Tránsito</span>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3 cs-scroll">
+
+        <!-- Flow visual origen → destino -->
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151]">
+          <p class="text-[9px] text-[#6B7280] uppercase tracking-wider mb-2">Ruta del traspaso</p>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 text-center">
+              <div class="w-10 h-10 rounded-lg bg-[rgba(28,100,242,0.15)] border border-[rgba(28,100,242,0.35)] flex items-center justify-center mx-auto mb-1">
+                <i data-lucide="store" class="w-5 h-5 text-[#76A9FA]"></i>
+              </div>
+              <p class="text-[9px] text-[#6B7280] uppercase">Origen</p>
+              <p class="text-[11px] font-bold">Suc. Centro</p>
+            </div>
+            <div class="flex flex-col items-center px-1">
+              <i data-lucide="arrow-right" class="w-5 h-5 text-[#c4b5fd]"></i>
+              <span class="text-[8px] text-[#6B7280] mt-0.5">en ruta</span>
+            </div>
+            <div class="flex-1 text-center">
+              <div class="w-10 h-10 rounded-lg bg-green-500/15 border border-green-500/35 flex items-center justify-center mx-auto mb-1">
+                <i data-lucide="store" class="w-5 h-5 text-green-400"></i>
+              </div>
+              <p class="text-[9px] text-[#6B7280] uppercase">Destino</p>
+              <p class="text-[11px] font-bold">Reginas Kafeto</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metadata -->
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151] space-y-1.5">
+          <div class="flex justify-between text-[11px]"><span class="text-[#6B7280]">Solicitó</span><span class="font-medium">Admin</span></div>
+          <div class="flex justify-between text-[11px]"><span class="text-[#6B7280]">Autoriza</span><span class="font-medium">Carlos G.</span></div>
+          <div class="flex justify-between text-[11px]"><span class="text-[#6B7280]">Fecha solicitud</span><span>04 Abr 10:00</span></div>
+          <div class="flex justify-between text-[11px]"><span class="text-[#6B7280]">Fecha envío</span><span>04 Abr 11:30</span></div>
+          <div class="flex justify-between text-[11px]"><span class="text-[#6B7280]">Total productos</span><span class="font-bold">2 tipos / 8 uds</span></div>
+          <div class="flex justify-between text-[11px]"><span class="text-[#6B7280]">Costo total</span><span class="font-bold text-[#76A9FA]">$1,840.00</span></div>
+        </div>
+
+        <!-- Productos -->
+        <div>
+          <p class="text-[9px] text-[#6B7280] uppercase tracking-wider mb-2">Productos en traspaso</p>
+          <div class="space-y-1.5">
+            <div class="bg-[#1a2332] rounded-lg p-2.5 border border-[#374151]">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded bg-yellow-900/30 flex items-center justify-center"><i data-lucide="candy" class="w-4 h-4 text-yellow-400"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-[11px] font-bold">Choco Alemán</p>
+                  <p class="text-[9px] text-[#6B7280]">SKU: PAS-CHA-001</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-[#374151]">
+                <div><p class="text-[8px] text-[#6B7280] uppercase">Cant</p><p class="text-xs font-bold text-blue-400">5 uds</p></div>
+                <div><p class="text-[8px] text-[#6B7280] uppercase">Costo</p><p class="text-xs font-bold">$240</p></div>
+                <div><p class="text-[8px] text-[#6B7280] uppercase">Subtotal</p><p class="text-xs font-bold">$1,200</p></div>
+              </div>
+              <div class="flex justify-between mt-1.5 text-[9px]">
+                <span class="text-[#6B7280]">Stock origen: 12 → <strong class="text-orange-400">7</strong></span>
+                <span class="text-[#6B7280]">Stock destino: 5 → <strong class="text-green-400">10</strong></span>
+              </div>
+            </div>
+            <div class="bg-[#1a2332] rounded-lg p-2.5 border border-[#374151]">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded bg-red-900/30 flex items-center justify-center"><i data-lucide="cherry" class="w-4 h-4 text-red-400"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-[11px] font-bold">Pay de Fresas</p>
+                  <p class="text-[9px] text-[#6B7280]">SKU: PAY-FRS-001</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-[#374151]">
+                <div><p class="text-[8px] text-[#6B7280] uppercase">Cant</p><p class="text-xs font-bold text-blue-400">3 uds</p></div>
+                <div><p class="text-[8px] text-[#6B7280] uppercase">Costo</p><p class="text-xs font-bold">$140</p></div>
+                <div><p class="text-[8px] text-[#6B7280] uppercase">Subtotal</p><p class="text-xs font-bold">$420</p></div>
+              </div>
+              <div class="flex justify-between mt-1.5 text-[9px]">
+                <span class="text-[#6B7280]">Stock origen: 8 → <strong class="text-orange-400">5</strong></span>
+                <span class="text-[#6B7280]">Stock destino: 12 → <strong class="text-green-400">15</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline de estados -->
+        <div>
+          <p class="text-[9px] text-[#6B7280] uppercase tracking-wider mb-2">Historial</p>
+          <div class="space-y-0 border-l-2 border-[#374151] ml-2 pl-3">
+            <div class="relative pb-3">
+              <div class="absolute -left-[17px] top-0 w-2.5 h-2.5 rounded-full bg-orange-400 border-2 border-[#141d2b]"></div>
+              <p class="text-[10px] font-medium">En Tránsito <span class="text-[#6B7280]">Carlos G.</span></p>
+              <p class="text-[9px] text-[#6B7280]">04 Abr 11:30</p>
+            </div>
+            <div class="relative pb-3">
+              <div class="absolute -left-[17px] top-0 w-2.5 h-2.5 rounded-full bg-yellow-400 border-2 border-[#141d2b]"></div>
+              <p class="text-[10px] font-medium">Autorizado <span class="text-[#6B7280]">Carlos G.</span></p>
+              <p class="text-[9px] text-[#6B7280]">04 Abr 10:30</p>
+            </div>
+            <div class="relative">
+              <div class="absolute -left-[17px] top-0 w-2.5 h-2.5 rounded-full bg-[#76A9FA] border-2 border-[#141d2b]"></div>
+              <p class="text-[10px] font-medium">Solicitado <span class="text-[#6B7280]">Admin</span></p>
+              <p class="text-[9px] text-[#6B7280]">04 Abr 10:00</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nota -->
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151]">
+          <p class="text-[9px] text-[#6B7280] uppercase tracking-wider mb-1">Nota</p>
+          <p class="text-[11px] text-gray-300">Reabastecimiento urgente por aumento de demanda fin de semana. Confirmar recepción al llegar.</p>
+        </div>
+
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">
+        <button class="cs-btn cs-btn-outline flex-1 cs-btn-sm">
+          <i data-lucide="x" class="w-3 h-3"></i>
+          Rechazar
+        </button>
+        <button class="cs-btn cs-btn-success flex-1 cs-btn-sm">
+          <i data-lucide="check" class="w-3 h-3"></i>
+          Confirmar Recepción
+        </button>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- MODAL: Nuevo Traspaso -->
+  <div id="modalTraspaso" class="hidden fixed inset-0 bg-black/70 z-[60] items-center justify-center p-4">
+    <div class="bg-[#1F2A37] rounded-2xl p-5 border border-[#374151] w-[680px] max-h-[90vh] overflow-y-auto cs-scroll relative">
+
+      <button onclick="document.getElementById('modalTraspaso').classList.add('hidden'); document.getElementById('modalTraspaso').classList.remove('flex');" class="absolute top-3 right-3 text-[#6B7280] hover:text-white">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="mb-4 pb-3 border-b border-[#374151]">
+        <h3 class="text-base font-bold text-[#c4b5fd]">Nuevo Traspaso</h3>
+        <p class="text-[10px] text-[#6B7280]">Mover producto entre sucursales</p>
+      </div>
+
+      <!-- Ruta origen → destino -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1.5">Sucursal Origen</label>
+          <select class="cs-select text-xs w-full">
+            <option>Reginas Kafeto (Sucursal 4)</option>
+            <option>Suc. Centro</option>
+            <option>Suc. Norte</option>
+            <option>Suc. Sur</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1.5">Sucursal Destino</label>
+          <select class="cs-select text-xs w-full">
+            <option>Seleccionar destino...</option>
+            <option>Suc. Centro</option>
+            <option>Suc. Norte</option>
+            <option>Suc. Sur</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Lista de productos a traspasar -->
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Productos a traspasar</label>
+          <button class="text-[10px] text-[#c4b5fd] hover:text-white flex items-center gap-1">
+            <i data-lucide="plus-circle" class="w-3 h-3"></i>
+            Agregar producto
+          </button>
+        </div>
+
+        <div class="space-y-1.5">
+
+          <!-- Item 1 -->
+          <div class="bg-[#1a2332] rounded-lg p-2.5 border border-[#374151]">
+            <div class="grid grid-cols-12 gap-2 items-center">
+              <div class="col-span-5">
+                <select class="cs-select text-xs w-full">
+                  <option>Choco Alemán (disponible: 12)</option>
+                  <option>Pay de Fresas (disponible: 8)</option>
+                  <option>Pastel 3 Leches (disponible: 4)</option>
+                </select>
+              </div>
+              <div class="col-span-2">
+                <input type="number" value="5" class="cs-input text-xs text-center w-full" placeholder="Cant">
+              </div>
+              <div class="col-span-2 text-right">
+                <p class="text-[9px] text-[#6B7280]">Subtotal</p>
+                <p class="text-xs font-bold">$1,200</p>
+              </div>
+              <div class="col-span-2 text-right">
+                <p class="text-[9px] text-[#6B7280]">Stock→</p>
+                <p class="text-[10px] font-bold"><span class="text-orange-400">7</span> / <span class="text-green-400">10</span></p>
+              </div>
+              <div class="col-span-1 text-center">
+                <button class="text-[#6B7280] hover:text-red-400">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 2 -->
+          <div class="bg-[#1a2332] rounded-lg p-2.5 border border-[#374151]">
+            <div class="grid grid-cols-12 gap-2 items-center">
+              <div class="col-span-5">
+                <select class="cs-select text-xs w-full">
+                  <option>Pay de Fresas (disponible: 8)</option>
+                  <option>Choco Alemán (disponible: 12)</option>
+                  <option>Pastel 3 Leches (disponible: 4)</option>
+                </select>
+              </div>
+              <div class="col-span-2">
+                <input type="number" value="3" class="cs-input text-xs text-center w-full" placeholder="Cant">
+              </div>
+              <div class="col-span-2 text-right">
+                <p class="text-[9px] text-[#6B7280]">Subtotal</p>
+                <p class="text-xs font-bold">$420</p>
+              </div>
+              <div class="col-span-2 text-right">
+                <p class="text-[9px] text-[#6B7280]">Stock→</p>
+                <p class="text-[10px] font-bold"><span class="text-orange-400">5</span> / <span class="text-green-400">15</span></p>
+              </div>
+              <div class="col-span-1 text-center">
+                <button class="text-[#6B7280] hover:text-red-400">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Resumen -->
+      <div class="bg-[rgba(124,58,237,0.08)] border border-[rgba(124,58,237,0.25)] rounded-lg p-3 mb-3">
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <p class="text-[9px] text-[#6B7280] uppercase">Items</p>
+            <p class="text-sm font-bold text-white">2</p>
+          </div>
+          <div>
+            <p class="text-[9px] text-[#6B7280] uppercase">Total unidades</p>
+            <p class="text-sm font-bold text-white">8</p>
+          </div>
+          <div>
+            <p class="text-[9px] text-[#6B7280] uppercase">Costo total</p>
+            <p class="text-sm font-bold text-[#c4b5fd]">$1,620.00</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nota -->
+      <div class="mb-4">
+        <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1.5">Nota / Motivo</label>
+        <textarea rows="2" placeholder="Ej: Reabastecimiento urgente por demanda..." class="cs-textarea text-xs w-full"></textarea>
+      </div>
+
+      <!-- Callout -->
+      <div class="cs-callout cs-callout-info mb-4">
+        <strong class="block text-sm mb-1">Flujo de 2 pasos</strong>
+        <p class="text-sm text-gray-400">Al crear el traspaso, el stock se descuenta del origen y queda "En Tránsito" hasta que la sucursal destino confirme la recepción.</p>
+      </div>
+
+      <!-- Acciones -->
+      <div class="flex justify-end gap-2 pt-3 border-t border-[#374151]">
+        <button onclick="document.getElementById('modalTraspaso').classList.add('hidden'); document.getElementById('modalTraspaso').classList.remove('flex');" class="cs-btn cs-btn-outline cs-btn-sm">Cancelar</button>
+        <button class="cs-btn cs-btn-primary cs-btn-sm">
+          <i data-lucide="send" class="w-3 h-3"></i>
+          Crear y Enviar Traspaso
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    const toggleSidebar = document.getElementById('toggleSidebar');
+    const sidebar = document.getElementById('sidebar');
+    if (toggleSidebar && sidebar) {
+      toggleSidebar.addEventListener('click', () => {
+        sidebar.classList.toggle('-translate-x-full');
+        sidebar.classList.toggle('translate-x-0');
+      });
+    }
+
+    function selectRow(row) {
+      document.querySelectorAll('tbody tr').forEach(r => r.classList.remove('selected-row'));
+      row.classList.add('selected-row');
+    }
+  </script>
+</body>
+</html>

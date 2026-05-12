@@ -102,7 +102,7 @@
     <section class="mb-6">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">Secciones del Módulo</h2>
-        <span class="text-[10px] text-[#6B7280]">6 vistas</span>
+        <span class="text-[10px] text-[#6B7280]">7 vistas</span>
       </div>
 
       <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -127,6 +127,17 @@
           </div>
           <h3 class="text-xs font-bold text-white leading-tight">Entradas</h3>
           <p class="text-[10px] text-[#6B7280] mt-1 leading-snug">Compras, producción y transferencias recibidas</p>
+        </a>
+
+        <a href="inventarios-traspasos.html" class="hub-card">
+          <div class="flex items-start justify-between mb-2">
+            <div class="w-8 h-8 rounded-md bg-[rgba(124,58,237,0.15)] flex items-center justify-center">
+              <i data-lucide="arrow-left-right" class="w-4 h-4 text-[#c4b5fd]"></i>
+            </div>
+            <span class="px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400 text-[8px] font-bold uppercase">nuevo</span>
+          </div>
+          <h3 class="text-xs font-bold text-white leading-tight">Traspasos</h3>
+          <p class="text-[10px] text-[#6B7280] mt-1 leading-snug">Mover stock entre sucursales con flujo de 2 pasos</p>
         </a>
 
         <a href="inventarios-movimientos.html" class="hub-card">
@@ -185,16 +196,16 @@
           <span class="text-[10px] text-white font-medium">Nueva Entrada</span>
         </button>
         <button class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center gap-2 hover:border-[#7C3AED] transition-colors">
+          <i data-lucide="arrow-left-right" class="w-3.5 h-3.5 text-[#c4b5fd]"></i>
+          <span class="text-[10px] text-white font-medium">Nuevo Traspaso</span>
+        </button>
+        <button class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center gap-2 hover:border-[#7C3AED] transition-colors">
           <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-red-400"></i>
           <span class="text-[10px] text-white font-medium">Registrar Merma</span>
         </button>
         <button class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center gap-2 hover:border-[#7C3AED] transition-colors">
           <i data-lucide="clipboard-check" class="w-3.5 h-3.5 text-purple-400"></i>
           <span class="text-[10px] text-white font-medium">Inventario Físico</span>
-        </button>
-        <button class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center gap-2 hover:border-[#7C3AED] transition-colors">
-          <i data-lucide="download" class="w-3.5 h-3.5 text-[#76A9FA]"></i>
-          <span class="text-[10px] text-white font-medium">Exportar Reporte</span>
         </button>
       </div>
     </section>
