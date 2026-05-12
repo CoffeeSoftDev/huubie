@@ -194,14 +194,14 @@ class Navbar {
             .branch-pill { background: linear-gradient(180deg, #1F2A37 0%, #1a2332 100%); border: 1px solid rgba(124,58,237,0.35); border-radius: 12px; padding: 6px 12px; transition: all .2s ease; }
             .branch-pill:hover { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
             .branch-status-dot { width: 8px; height: 8px; border-radius: 9999px; background: #22C55E; box-shadow: 0 0 0 3px rgba(34,197,94,0.18); display: inline-block; }
-            .branch-avatar { width: 40px; height: 40px; border-radius: 9999px; background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; letter-spacing: .5px; color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,.35); }
-            .branch-dropdown { background: #111928; border: 1px solid rgba(124,58,237,0.18); border-radius: 16px; box-shadow: 0 24px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02); }
-            .branch-card { background: #1F2A37; border: 1px solid rgba(55,65,81,.55); border-radius: 12px; padding: 12px; transition: all .15s ease; cursor: pointer; }
+            .branch-avatar { width: 34px; height: 34px; border-radius: 9999px; background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; letter-spacing: .5px; color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,.35); }
+            .branch-dropdown { background: #111928; border: 1px solid rgba(124,58,237,0.18); border-radius: 14px; box-shadow: 0 24px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02); }
+            .branch-card { background: #1F2A37; border: 1px solid rgba(55,65,81,.55); border-radius: 10px; padding: 8px 10px; transition: all .15s ease; cursor: pointer; }
             .branch-card:hover { border-color: #7C3AED; background: #1F2937; }
             .branch-card.selected { background: linear-gradient(135deg, rgba(124,58,237,.18) 0%, rgba(236,72,153,.10) 100%); border-color: #A855F7; box-shadow: 0 0 0 1px rgba(168,85,247,.25); }
-            .radio-mark { width: 18px; height: 18px; border-radius: 9999px; border: 2px solid #4B5563; display: flex; align-items: center; justify-content: center; transition: all .2s ease; }
+            .radio-mark { width: 16px; height: 16px; border-radius: 9999px; border: 2px solid #4B5563; display: flex; align-items: center; justify-content: center; transition: all .2s ease; }
             .branch-card.selected .radio-mark { border-color: #A855F7; }
-            .radio-mark .inner { width: 8px; height: 8px; border-radius: 9999px; background: #A855F7; opacity: 0; transition: opacity .2s ease; }
+            .radio-mark .inner { width: 7px; height: 7px; border-radius: 9999px; background: #A855F7; opacity: 0; transition: opacity .2s ease; }
             .branch-card.selected .radio-mark .inner { opacity: 1; }
             .toast-card { position: relative; background: #1F2A37; border-radius: 14px; padding: 14px 18px; overflow: hidden; }
             .toast-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, #7C3AED 0%, #A855F7 100%); border-radius: 14px 0 0 14px; }
@@ -236,11 +236,11 @@ class Navbar {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
             </button>
-            <div id="branchDropdown" class="branch-dropdown absolute right-0 top-[calc(100%+10px)] w-[360px] z-40" style="display: none;">
-                <div class="px-4 pt-4 pb-3 flex items-start justify-between border-b border-gray-800/60">
+            <div id="branchDropdown" class="branch-dropdown absolute right-0 top-[calc(100%+10px)] w-[320px] z-40" style="display: none;">
+                <div class="px-3 pt-3 pb-2 flex items-start justify-between border-b border-gray-800/60">
                     <div>
                         <p class="text-[10px] uppercase tracking-[.14em] text-purple-400 font-semibold">Cambiar sucursal</p>
-                        <p class="text-[12px] text-gray-400 mt-0.5">de ${this.settings.company || ''}</p>
+                        <p class="text-[11px] text-gray-400 mt-0.5">de ${this.settings.company || ''}</p>
                     </div>
                     <button id="btnBranchClose" class="btn-ghost flex items-center gap-1">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -249,7 +249,7 @@ class Navbar {
                         Cerrar
                     </button>
                 </div>
-                <div class="p-3 space-y-2 max-h-[420px] overflow-y-auto">
+                <div class="p-2 space-y-1.5 max-h-[360px] overflow-y-auto">
                     ${branches.map((branch, i) => this.branchCardHtml(branch, i)).join('')}
                 </div>
             </div>
@@ -278,11 +278,11 @@ class Navbar {
 
         return `
         <div class="branch-card ${selectedClass}" data-id="${branch.id}" data-name="${branch.name}">
-            <div class="flex items-start gap-3">
+            <div class="flex items-center gap-2.5">
                 <div class="branch-avatar" style="background: ${gradient};">${branch.initials || ''}</div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-2">
-                        <p class="text-sm font-bold text-white truncate">${branch.name}</p>
+                        <p class="text-[13px] font-bold text-white truncate">${branch.name}</p>
                         <div class="radio-mark"><div class="inner"></div></div>
                     </div>
                     ${branch.active === 0 ? closedRow : openRow}
@@ -463,7 +463,7 @@ class Navbar {
     }
 }
 
-const HIDE_BRANCH_PATHS  = ['/app/perfil/', '/app/admin/'];
+const HIDE_BRANCH_PATHS  = ['/app/perfil/', '/app/admin/', '/app/ventas/'];
 const BRANCH_ALLOW_LEVEL = [1, 5];
 
 $(async () => {

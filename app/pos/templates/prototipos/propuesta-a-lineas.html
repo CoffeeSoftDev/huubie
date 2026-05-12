@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta A — Líneas Compactas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+
+        .input-modal {
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #d1d5db;
+            width: 100%;
+            transition: border-color .15s;
+        }
+        .input-modal:focus { outline: none; border-color: #7c3aed; }
+
+        .pay-method-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 28px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+
+        /* Light theme overrides */
+        body[data-theme="light"] { background: #f3f4f6; color: #111928; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background: #ffffff !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background: #ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background: #f3f4f6 !important; }
+        body[data-theme="light"] .border-gray-700 { border-color: #d1d5db !important; }
+        body[data-theme="light"] .text-white { color: #111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color: #374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color: #4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color: #6b7280 !important; }
+        body[data-theme="light"] .input-modal { background: #f9fafb !important; border-color: #e5e7eb !important; color: #111928 !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Modal -->
+    <div class="w-full max-w-[520px] bg-[#1F2A37] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-[#141d2b]">
+            <div>
+                <h3 class="text-sm font-bold text-white">Cobrar Venta #1043</h3>
+                <p class="text-[11px] text-gray-500 mt-1">Total a pagar: <span class="text-[#3FC189] font-semibold">$2,626.75</span></p>
+            </div>
+            <button class="text-gray-500 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="px-6 py-5 space-y-5">
+
+            <!-- Resumen mini -->
+            <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700/50 flex justify-between items-center">
+                <span class="text-xs text-gray-400">Subtotal</span>
+                <span class="text-xs text-white font-medium">$2,765.00</span>
+            </div>
+
+            <!-- Pagos aplicados -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Pagos aplicados</p>
+                    <button class="text-[11px] font-semibold text-[#1C64F2] hover:text-[#60A5FA] transition-colors flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        Agregar pago
+                    </button>
+                </div>
+
+                <div class="space-y-2.5">
+                    <!-- Línea 1 -->
+                    <div class="flex items-center gap-3">
+                        <select class="input-modal pay-method-select flex-1">
+                            <option>💵 Efectivo</option>
+                            <option>💳 Tarjeta</option>
+                            <option>🏦 Transferencia</option>
+                        </select>
+                        <input type="number" value="300" class="input-modal w-32 text-right font-semibold">
+                    </div>
+
+                    <!-- Línea 2 -->
+                    <div class="flex items-center gap-3">
+                        <select class="input-modal pay-method-select flex-1">
+                            <option>💵 Efectivo</option>
+                            <option selected>💳 Tarjeta</option>
+                            <option>🏦 Transferencia</option>
+                        </select>
+                        <input type="number" value="200" class="input-modal w-32 text-right font-semibold">
+                    </div>
+
+                    <!-- Línea 3 -->
+                    <div class="flex items-center gap-3">
+                        <select class="input-modal pay-method-select flex-1">
+                            <option>💵 Efectivo</option>
+                            <option>💳 Tarjeta</option>
+                            <option selected>🏦 Transferencia</option>
+                        </select>
+                        <input type="number" value="300" class="input-modal w-32 text-right font-semibold">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Totales -->
+            <div class="bg-[#1a2332] rounded-lg p-4 border border-gray-700/50 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-gray-400">Total pagado</span>
+                    <span class="text-sm text-white font-bold">$800.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-red-400">Pendiente</span>
+                    <span class="bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full">$1,826.75</span>
+                </div>
+                <div class="flex justify-between items-center hidden">
+                    <span class="text-xs text-emerald-400">Cambio</span>
+                    <span class="text-xs text-emerald-400 font-bold">$0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-700 bg-[#141d2b]">
+            <button class="px-4 py-2 rounded-lg border border-gray-600 text-gray-400 text-xs font-semibold hover:border-gray-500 hover:text-white transition">Cancelar</button>
+            <button class="px-5 py-2 rounded-lg text-xs font-bold bg-[#1c64f2] text-white hover:bg-blue-500 active:scale-95 transition-all">Confirmar Pago</button>
+        </div>
+    </div>
+
+    <!-- Badge flotante de referencia -->
+    <div class="fixed bottom-4 right-4 bg-[#1F2A37] border border-gray-700 rounded-lg px-4 py-2 text-xs text-gray-500">
+        Propuesta A — Líneas Compactas
+    </div>
+
+</body>
+</html>

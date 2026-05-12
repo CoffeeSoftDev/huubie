@@ -44,7 +44,7 @@ class App extends Templates {
         const branches = data.branches || [];
 
         $('#container' + this.PROJECT_NAME).html(`
-            <div class="w-full min-h-full flex flex-col items-center justify-center text-white text-center px-4 py-10">
+            <div class="w-full h-full flex flex-col items-center justify-center text-white text-center px-4 py-10">
                 <img src="/app/src/img/logo/huubie.svg" alt="huubie" class="h-10 mb-6">
 
                 <h1 class="text-3xl font-bold mb-2">Selecciona tu sucursal</h1>

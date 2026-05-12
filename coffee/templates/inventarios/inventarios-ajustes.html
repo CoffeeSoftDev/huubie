@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventarios — Ajustes de Inventario</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../../app/ui/css/ui-kit.css">
+  <script src="/app/src/plugins/lucide/lucide.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+    .cs-scroll::-webkit-scrollbar { width: 6px; }
+    .cs-scroll::-webkit-scrollbar-track { background: transparent; }
+    .cs-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    #sidebar { scrollbar-width: none; }
+
+    .cs-table { font-size: 10px; }
+    .cs-table th { padding: 6px 8px !important; font-size: 9px !important; text-transform: uppercase; letter-spacing: 0.02em; font-weight: 600; }
+    .cs-table td { padding: 5px 8px !important; font-size: 10px !important; line-height: 1.35; }
+    .cs-input, .cs-select { padding: 5px 10px !important; font-size: 10px !important; min-height: 0 !important; }
+    .cs-input.pl-10 { padding-left: 30px !important; }
+    .cs-textarea { padding: 6px 10px !important; font-size: 10px !important; }
+    .cs-input-group-icon { width: 28px !important; }
+    .cs-input-group-icon .w-4 { width: 0.8rem !important; height: 0.8rem !important; }
+    .cs-btn { padding: 4px 10px !important; font-size: 10px !important; }
+    .cs-btn-sm { padding: 3px 8px !important; font-size: 9px !important; }
+    .cs-badge { padding: 1px 6px !important; font-size: 8px !important; line-height: 1.3; }
+    .cs-tabs .cs-tab { padding: 6px 10px !important; font-size: 10px !important; }
+    h1.text-lg { font-size: 13px !important; }
+    h3.text-sm { font-size: 11px !important; }
+  </style>
+</head>
+<body class="bg-[#111928] h-screen overflow-hidden flex flex-col">
+
+  <nav class="fixed top-0 left-0 w-full text-white px-4 py-0 h-14 z-50 flex items-center justify-between bg-[#0f172a] border-b border-[#374151] flex-shrink-0">
+    <div class="flex items-center space-x-4">
+      <button id="toggleSidebar" class="text-[#9CA3AF] hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <span class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">●</span></span>
+    </div>
+    <div class="flex-1"></div>
+    <div class="flex items-center space-x-4">
+      <button class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        <div class="hidden md:flex flex-col items-start leading-tight">
+          <span class="text-xs font-medium text-white">Admin Usuario</span>
+          <span class="text-[10px] text-[#3FC189]">EN LINEA</span>
+        </div>
+      </button>
+    </div>
+  </nav>
+
+  <div id="sidebar" class="fixed top-0 left-0 mt-14 h-[calc(100vh-3.5rem)] bg-[#0f172a] w-56 transform -translate-x-full transition-transform duration-500 ease-in-out z-40 overflow-y-auto border-r border-[#374151]">
+    <h5 class="text-white pt-4 font-semibold ps-7 text-sm">Huubie</h5>
+    <ul class="space-y-1 p-4">
+      <li><a href="#" class="block text-xs text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-2 rounded-lg">Resumen</a></li>
+      <li>
+        <div class="text-xs font-medium px-3 py-2 rounded-lg text-[#c4b5fd] bg-[rgba(124,58,237,0.12)] flex items-center gap-2"><i data-lucide="package" class="w-4 h-4"></i>Inventarios</div>
+        <ul class="mt-1 pl-4 space-y-1">
+          <li><a href="inventarios-stock.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Stock Actual</a></li>
+          <li><a href="inventarios-movimientos.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Movimientos</a></li>
+          <li><a href="inventarios-entradas.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Entradas</a></li>
+          <li><a href="inventarios-ajustes.html" class="block w-full text-[11px] text-[#c4b5fd] bg-[rgba(124,58,237,0.12)] border-l-2 border-[#7C3AED] px-3 py-1.5 rounded-lg">Ajustes</a></li>
+          <li><a href="inventarios-merma.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Merma</a></li>
+          <li><a href="inventarios-catalogo.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Catálogo</a></li>
+        </ul>
+      </li>
+      <li><a href="inventarios-index-navegacion.html" class="block text-xs text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-2 rounded-lg">Hub Inventarios</a></li>
+    </ul>
+  </div>
+
+  <div class="mt-14 h-[calc(100vh-3.5rem)] flex overflow-hidden">
+
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+        <div>
+          <h1 class="text-lg font-bold">Inventario</h1>
+          <p class="text-[11px] text-[#6B7280]">Control de stock por sucursal</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <select class="cs-select text-xs">
+            <option>Reginas Kafeto (Sucursal 4)</option>
+            <option>Todas las sucursales</option>
+          </select>
+          <button class="cs-btn cs-btn-primary cs-btn-sm">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            Nueva Entrada
+          </button>
+        </div>
+      </div>
+
+      <div class="cs-tabs px-6 flex-shrink-0 border-b border-[#374151]">
+        <a href="inventarios-stock.html" class="cs-tab">Stock Actual</a>
+        <a href="inventarios-movimientos.html" class="cs-tab">Movimientos</a>
+        <a href="inventarios-entradas.html" class="cs-tab">Entradas</a>
+        <a href="inventarios-ajustes.html" class="cs-tab active">Ajustes</a>
+      </div>
+
+      <!-- KPIs compactas -->
+      <div class="grid grid-cols-4 gap-2 px-6 py-2 flex-shrink-0">
+        <div class="bg-[#1F2A37] border border-purple-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-purple-500 uppercase tracking-wider">Ajustes Mes</p>
+            <p class="text-lg font-bold text-purple-400 leading-tight">14</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-purple-500/15 flex items-center justify-center">
+            <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-purple-400"></i>
+          </div>
+        </div>
+        <div class="bg-[#1F2A37] border border-red-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Diferencia</p>
+            <p class="text-lg font-bold text-red-400 leading-tight">-$480</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-red-500/15 flex items-center justify-center">
+            <i data-lucide="trending-down" class="w-3.5 h-3.5 text-red-400"></i>
+          </div>
+        </div>
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Último Inv.</p>
+            <p class="text-sm font-bold text-white leading-tight">01 Abr</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-[rgba(28,100,242,0.15)] flex items-center justify-center">
+            <i data-lucide="clipboard-check" class="w-3.5 h-3.5 text-[#76A9FA]"></i>
+          </div>
+        </div>
+        <div class="bg-[#1F2A37] border border-green-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-green-500 uppercase tracking-wider">Precisión</p>
+            <p class="text-lg font-bold text-green-400 leading-tight">96.8%</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-green-500/15 flex items-center justify-center">
+            <i data-lucide="target" class="w-3.5 h-3.5 text-green-400"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 pb-3 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="relative flex-1 max-w-sm">
+            <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+            <input type="text" placeholder="Buscar ajuste..." class="cs-input pl-10 text-xs">
+          </div>
+          <button class="cs-btn cs-btn-primary cs-btn-sm">Nuevo Ajuste</button>
+        </div>
+      </div>
+
+      <div class="flex-1 px-6 pb-4 overflow-hidden min-h-0">
+        <div class="h-full bg-[#1F2A37] rounded-lg p-3 overflow-auto cs-scroll border border-[#374151]">
+          <div class="overflow-x-auto rounded-lg border border-gray-700">
+            <table class="cs-table">
+              <thead>
+                <tr>
+                  <th class="text-left w-20">Folio</th>
+                  <th class="text-left">Producto</th>
+                  <th class="text-center w-20">Sistema</th>
+                  <th class="text-center w-20">Físico</th>
+                  <th class="text-center w-20">Diferencia</th>
+                  <th class="text-right w-24">Costo Dif</th>
+                  <th class="text-left w-36">Motivo</th>
+                  <th class="text-left w-24">Autorizó</th>
+                  <th class="text-left w-32">Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="cursor-pointer">
+                  <td><span class="text-xs font-bold text-purple-400">AJU-042</span></td>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <div class="w-6 h-6 rounded bg-teal-900/30 flex items-center justify-center"><i data-lucide="cookie" class="w-4 h-4 text-teal-400"></i></div>
+                      <p class="text-[11px] font-medium">Galleta Chocolate</p>
+                    </div>
+                  </td>
+                  <td class="text-center text-xs text-gray-400">18</td>
+                  <td class="text-center text-xs font-bold">15</td>
+                  <td class="text-center text-xs font-bold text-red-400">-3</td>
+                  <td class="text-right text-xs text-red-400 font-semibold">-$60</td>
+                  <td><span class="text-[10px] text-gray-300">Faltante sin explicar</span></td>
+                  <td class="text-[10px] text-gray-400">Andrea M.</td>
+                  <td class="text-[10px] text-gray-500">03 Abr 21:00</td>
+                </tr>
+                <tr class="cursor-pointer">
+                  <td><span class="text-xs font-bold text-purple-400">AJU-041</span></td>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <div class="w-6 h-6 rounded bg-red-900/30 flex items-center justify-center"><i data-lucide="cherry" class="w-4 h-4 text-red-400"></i></div>
+                      <p class="text-[11px] font-medium">Pay de Fresas</p>
+                    </div>
+                  </td>
+                  <td class="text-center text-xs text-gray-400">10</td>
+                  <td class="text-center text-xs font-bold">12</td>
+                  <td class="text-center text-xs font-bold text-green-400">+2</td>
+                  <td class="text-right text-xs text-green-400 font-semibold">+$280</td>
+                  <td><span class="text-[10px] text-gray-300">Entrada no registrada</span></td>
+                  <td class="text-[10px] text-gray-400">Admin</td>
+                  <td class="text-[10px] text-gray-500">01 Abr 20:30</td>
+                </tr>
+                <tr class="cursor-pointer">
+                  <td><span class="text-xs font-bold text-purple-400">AJU-040</span></td>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <div class="w-6 h-6 rounded bg-amber-900/30 flex items-center justify-center"><i data-lucide="cake" class="w-4 h-4 text-amber-400"></i></div>
+                      <p class="text-[11px] font-medium">Pastel 3 Leches</p>
+                    </div>
+                  </td>
+                  <td class="text-center text-xs text-gray-400">12</td>
+                  <td class="text-center text-xs font-bold">10</td>
+                  <td class="text-center text-xs font-bold text-red-400">-2</td>
+                  <td class="text-right text-xs text-red-400 font-semibold">-$560</td>
+                  <td><span class="text-[10px] text-gray-300">Entregados sin registrar</span></td>
+                  <td class="text-[10px] text-gray-400">Andrea M.</td>
+                  <td class="text-[10px] text-gray-500">01 Abr 20:30</td>
+                </tr>
+                <tr class="cursor-pointer">
+                  <td><span class="text-xs font-bold text-yellow-400">AJU-039</span></td>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <div class="w-6 h-6 rounded bg-purple-900/30 flex items-center justify-center"><i data-lucide="clipboard-check" class="w-3 h-3 text-purple-400"></i></div>
+                      <div>
+                        <p class="text-[11px] font-bold text-yellow-400">INVENTARIO FÍSICO</p>
+                        <p class="text-[9px] text-gray-500">48 productos verificados</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="text-center text-[10px] text-gray-500">—</td>
+                  <td class="text-center text-[10px] text-gray-500">—</td>
+                  <td class="text-center text-xs font-bold text-red-400">-5</td>
+                  <td class="text-right text-xs text-red-400 font-semibold">-$340</td>
+                  <td><span class="text-[10px] text-yellow-400">Cierre mensual</span></td>
+                  <td class="text-[10px] text-gray-400">Admin</td>
+                  <td class="text-[10px] text-gray-500">01 Abr 20:30</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <aside class="w-[360px] bg-[#141d2b] border-l border-[#374151] flex flex-col flex-shrink-0">
+      <div class="px-4 py-3 border-b border-[#374151] flex-shrink-0">
+        <h3 class="text-sm font-bold text-purple-400">Nuevo Ajuste</h3>
+        <p class="text-[10px] text-[#6B7280]">Corregir stock del sistema vs conteo físico</p>
+      </div>
+      <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3 cs-scroll">
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1.5">Tipo de ajuste</label>
+          <div class="cs-btn-group">
+            <button class="cs-btn cs-btn-primary active">Individual</button>
+            <button class="cs-btn cs-btn-ghost">Inventario completo</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1">Producto</label>
+          <select class="cs-select text-xs">
+            <option>Seleccionar producto...</option>
+            <option selected>Galleta Chocolate (Stock sistema: 18)</option>
+            <option>Pastel 3 Leches (Stock sistema: 4)</option>
+            <option>Pay de Fresas (Stock sistema: 12)</option>
+          </select>
+        </div>
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151]">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded bg-teal-900/30 flex items-center justify-center"><i data-lucide="cookie" class="w-5 h-5 text-teal-400"></i></div>
+            <div>
+              <p class="text-xs font-bold">Galleta Chocolate</p>
+              <p class="text-[9px] text-[#6B7280]">SKU: GAL-CHO-001</p>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1">Sistema</label>
+            <div class="w-full bg-gray-800/50 border border-[#374151] rounded-lg px-3 py-2 text-sm text-gray-400 font-bold">18</div>
+            <p class="text-[8px] text-gray-600 mt-0.5">Solo lectura</p>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium uppercase tracking-wider text-purple-400 mb-1">Físico</label>
+            <input type="number" value="15" class="cs-input border-2 border-purple-500/50">
+          </div>
+        </div>
+        <div class="cs-callout cs-callout-danger">
+          <div class="flex items-center justify-between">
+            <div>
+              <strong class="block text-sm mb-1">Diferencia</strong>
+              <p class="text-sm text-gray-400">Faltante 3 uds</p>
+            </div>
+            <div class="text-right">
+              <p class="text-lg font-extrabold text-red-400">-3</p>
+              <p class="text-xs text-red-400">-$60.00</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1">Motivo</label>
+          <select class="cs-select text-xs">
+            <option>Conteo físico / Inventario</option>
+            <option>Error de registro previo</option>
+            <option>Producto encontrado</option>
+            <option>Faltante sin explicar</option>
+            <option>Corrección administrativa</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1">Observaciones</label>
+          <textarea rows="3" class="cs-textarea text-xs">Se encontraron 3 galletas menos durante el conteo de cierre. Posible consumo interno no registrado.</textarea>
+        </div>
+        <div class="cs-callout cs-callout-warning">
+          <strong class="block text-sm mb-1">Requiere autorización</strong>
+          <p class="text-sm text-gray-400">Ajustes negativos mayores a 2 unidades requieren aprobación admin.</p>
+        </div>
+      </div>
+      <div class="px-4 py-3 border-t border-[#374151] flex-shrink-0">
+        <button class="cs-btn cs-btn-primary w-full">Aplicar Ajuste (-3 uds)</button>
+        <p class="text-[8px] text-gray-600 text-center mt-2">Registrado en auditoría</p>
+      </div>
+    </aside>
+
+  </div>
+
+  <script>
+    lucide.createIcons();
+    const toggleSidebar = document.getElementById('toggleSidebar');
+    const sidebar = document.getElementById('sidebar');
+    if (toggleSidebar && sidebar) {
+      toggleSidebar.addEventListener('click', () => {
+        sidebar.classList.toggle('-translate-x-full');
+        sidebar.classList.toggle('translate-x-0');
+      });
+    }
+  </script>
+</body>
+</html>
