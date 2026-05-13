@@ -7,7 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../utils/coffee-varoch.css">
-    <style>body{font-family:'Inter',system-ui,sans-serif;}</style>
+    <style>
+        body{font-family:'Inter',system-ui,sans-serif;}
+        .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:50;display:none;align-items:center;justify-content:center;padding:1rem;}
+        .modal-backdrop.open{display:flex;}
+        .modal-panel{background:#fff;border-radius:14px;border:1px solid var(--cv-border,#e5e7eb);width:100%;max-width:640px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.18);}
+    </style>
 </head>
 <body class="coffee-varoch cv-page">
 
@@ -58,26 +63,92 @@
         </div>
     </header>
 
-    <!-- Subheader -->
-    <div class="px-6 py-4 border-b border-[var(--cv-border)] bg-[var(--cv-card)]">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <span class="cv-label text-xs">Tarea padre:</span>
-                <span class="cv-title font-bold text-sm">Crear modulo de historias de usuario</span>
+    <!-- Subheader: vista panel general (por defecto) -->
+    <div id="viewAllHeader" class="px-6 py-4 border-b border-[var(--cv-border)] bg-[var(--cv-card)]">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+                <h2 class="cv-title font-bold text-base">Panel de Historias de Usuario</h2>
+                <p class="cv-muted text-xs">Visualiza todas las historias creadas en el sistema.</p>
             </div>
-            <div class="flex items-center gap-2">
-                <button class="cv-btn cv-btn-outline-action px-4 py-2 rounded-lg text-sm font-medium">
-                    Mejorar con IA
-                </button>
-                <button class="cv-btn cv-btn-primary px-4 py-2 rounded-lg text-sm font-medium">
+            <div class="flex items-center gap-2 flex-wrap">
+                <input id="inpSearchHistoria" type="text" placeholder="Buscar historia..."
+                    class="cv-input w-56 px-3 py-2 rounded-lg text-sm">
+                <select id="selFilterEstado" class="cv-input w-36 px-3 py-2 rounded-lg text-sm">
+                    <option value="">Todos los estados</option>
+                    <option value="Activa">Activa</option>
+                    <option value="En progreso">En progreso</option>
+                    <option value="Completada">Completada</option>
+                    <option value="Archivada">Archivada</option>
+                </select>
+                <button id="btnNuevaHistoriaAll" class="cv-btn cv-btn-primary px-4 py-2 rounded-lg text-sm font-medium">
                     + Nueva Historia
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Table -->
-    <div class="px-6 py-4">
+    <!-- Subheader: vista tarea especifica -->
+    <div id="viewTaskHeader" class="px-6 py-4 border-b border-[var(--cv-border)] bg-[var(--cv-card)] hidden">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="historias.html" class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500" title="Regresar al panel">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                </a>
+                <span class="cv-label text-xs">Tarea padre:</span>
+                <span id="lblTaskPadre" class="cv-title font-bold text-sm">Crear modulo de historias de usuario</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="cv-btn cv-btn-outline-action px-4 py-2 rounded-lg text-sm font-medium">
+                    Mejorar con IA
+                </button>
+                <button id="btnNuevaHistoria" class="cv-btn cv-btn-primary px-4 py-2 rounded-lg text-sm font-medium">
+                    + Nueva Historia
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel: Todas las historias (vista por defecto, estilo GitHub) -->
+    <div id="viewAllPanel" class="px-6 py-4">
+        <div class="cv-card rounded-xl border border-[var(--cv-border)] overflow-hidden">
+            <header class="px-4 py-3 bg-gray-50 border-b border-[var(--cv-border)] flex items-center justify-between">
+                <div class="flex items-center gap-4 text-sm">
+                    <span class="flex items-center gap-1.5 font-medium text-[var(--cv-primary)]">
+                        <svg class="w-4 h-4 text-[var(--cv-action)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        <span id="lblTotalHistorias">0</span> historias
+                    </span>
+                    <span class="text-gray-400">|</span>
+                    <span class="text-xs text-gray-500">Actualizado recientemente</span>
+                </div>
+                <div class="flex items-center gap-1 text-xs text-gray-500">
+                    <span>Ordenar:</span>
+                    <select id="selOrder" class="bg-transparent text-[var(--cv-action)] font-medium focus:outline-none cursor-pointer">
+                        <option value="recent">Mas recientes</option>
+                        <option value="old">Mas antiguas</option>
+                        <option value="activities">No. actividades</option>
+                    </select>
+                </div>
+            </header>
+
+            <ul id="listHistorias" class="divide-y divide-gray-100"></ul>
+
+            <div id="emptyHistorias" class="hidden px-6 py-10 text-center text-sm text-gray-500">
+                No hay historias de usuario que coincidan con el filtro.
+            </div>
+
+            <div class="px-4 py-3 border-t border-[var(--cv-border)] flex items-center justify-between">
+                <span class="cv-muted text-xs" id="lblPaginacion">Mostrando 0 de 0</span>
+                <div class="flex items-center gap-1">
+                    <button class="px-3 py-1 rounded-md text-sm text-gray-500 hover:bg-gray-100 disabled:opacity-40">Anterior</button>
+                    <button class="px-3 py-1 rounded-md text-sm bg-[var(--cv-action)] text-white">1</button>
+                    <button class="px-3 py-1 rounded-md text-sm text-gray-500 hover:bg-gray-100">Siguiente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vista tarea especifica (tabla detallada) -->
+    <div id="viewTaskTable" class="px-6 py-4 hidden">
         <div class="cv-card rounded-xl border border-[var(--cv-border)] overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -90,7 +161,7 @@
                             <th class="text-center px-4 py-3 font-semibold text-gray-700">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody id="tbodyHistorias" class="divide-y divide-gray-100"></tbody>
                         <tr class="hover:bg-gray-50 transition-colors">
                             <td class="px-4 py-3 font-medium text-[var(--cv-primary)]">rosi y somx</td>
                             <td class="px-4 py-3">Crear una tarea de desarrollo que contenga los campos necesarios</td>
@@ -118,6 +189,44 @@
                             </td>
                         </tr>
                     </tbody>
+                    <tfoot>
+                        <tr id="rowAddHistoria" class="border-t border-[var(--cv-border)] bg-gray-50/50 hover:bg-gray-100 cursor-pointer transition-colors" onclick="activateAddRow()">
+                            <td colspan="5" class="px-4 py-3">
+                                <div class="flex items-center justify-center gap-2 text-gray-500 hover:text-[var(--cv-action)] text-sm font-medium">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                    <span>Agregar nueva historia</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr id="rowEditHistoria" class="hidden bg-blue-50/40 border-t-2 border-[var(--cv-action)]">
+                            <td class="px-4 py-3 align-top">
+                                <input type="text" id="inpUsuario" placeholder="Usuario..."
+                                    class="w-full px-2 py-1.5 border border-[var(--cv-border)] rounded-md text-sm focus:outline-none focus:border-[var(--cv-action)] focus:ring-1 focus:ring-[var(--cv-action)]">
+                            </td>
+                            <td class="px-4 py-3 align-top">
+                                <textarea id="inpQuiero" rows="2" placeholder="Quiero..."
+                                    class="w-full px-2 py-1.5 border border-[var(--cv-border)] rounded-md text-sm focus:outline-none focus:border-[var(--cv-action)] focus:ring-1 focus:ring-[var(--cv-action)] resize-none"></textarea>
+                            </td>
+                            <td class="px-4 py-3 align-top">
+                                <textarea id="inpBeneficio" rows="2" placeholder="Para que..."
+                                    class="w-full px-2 py-1.5 border border-[var(--cv-border)] rounded-md text-sm focus:outline-none focus:border-[var(--cv-action)] focus:ring-1 focus:ring-[var(--cv-action)] resize-none"></textarea>
+                            </td>
+                            <td class="px-4 py-3 align-top">
+                                <textarea id="inpCriterios" rows="2" placeholder="Criterios de aceptacion..."
+                                    class="w-full px-2 py-1.5 border border-[var(--cv-border)] rounded-md text-sm focus:outline-none focus:border-[var(--cv-action)] focus:ring-1 focus:ring-[var(--cv-action)] resize-none"></textarea>
+                            </td>
+                            <td class="px-4 py-3 align-top">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button onclick="saveNewRow()" class="px-3 py-1.5 rounded-md bg-[var(--cv-action)] text-white text-xs font-semibold hover:opacity-90" title="Guardar">
+                                        Guardar
+                                    </button>
+                                    <button onclick="cancelAddRow()" class="px-3 py-1.5 rounded-md border border-[var(--cv-border)] text-gray-600 text-xs font-semibold hover:bg-gray-100" title="Cancelar">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
 
@@ -135,6 +244,298 @@
         </div>
     </div>
 </main>
+
+<!-- Modal: Seleccionar actividad para nueva historia -->
+<div id="taskPickerModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-panel">
+        <header class="px-6 py-4 border-b border-[var(--cv-border)] flex items-start justify-between gap-4">
+            <div class="min-w-0">
+                <h2 class="cv-title text-base font-bold">Seleccionar actividad</h2>
+                <p class="text-xs text-gray-500">Elige la actividad para crear su historia de usuario.</p>
+            </div>
+            <button id="tpClose" class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500" title="Cerrar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </header>
+
+        <div class="px-6 py-3 border-b border-[var(--cv-border)]">
+            <input id="tpSearch" type="text" placeholder="Buscar actividad..."
+                class="cv-input w-full px-3 py-2 rounded-lg text-sm">
+        </div>
+
+        <div class="px-6 py-3 overflow-y-auto" id="tpList"></div>
+
+        <footer class="px-6 py-3 border-t border-[var(--cv-border)] flex items-center justify-end gap-2">
+            <button id="tpCancel" class="cv-btn cv-btn-outline-action px-4 py-1.5 rounded-lg text-sm">Cancelar</button>
+        </footer>
+    </div>
+</div>
+
+<script>
+function activateAddRow() {
+    document.getElementById('rowAddHistoria').classList.add('hidden');
+    const editRow = document.getElementById('rowEditHistoria');
+    editRow.classList.remove('hidden');
+    document.getElementById('inpUsuario').focus();
+}
+
+function cancelAddRow() {
+    document.getElementById('rowEditHistoria').classList.add('hidden');
+    document.getElementById('rowAddHistoria').classList.remove('hidden');
+    clearInputs();
+}
+
+function clearInputs() {
+    ['inpUsuario', 'inpQuiero', 'inpBeneficio', 'inpCriterios'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function saveNewRow() {
+    const usuario   = document.getElementById('inpUsuario').value.trim();
+    const quiero    = document.getElementById('inpQuiero').value.trim();
+    const beneficio = document.getElementById('inpBeneficio').value.trim();
+    const criterios = document.getElementById('inpCriterios').value.trim();
+
+    if (!usuario || !quiero) {
+        alert('Usuario y Quiero son obligatorios');
+        return;
+    }
+
+    const tbody = document.getElementById('tbodyHistorias');
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-gray-50 transition-colors';
+    tr.innerHTML = `
+        <td class="px-4 py-3 font-medium text-[var(--cv-primary)]">${escapeHtml(usuario)}</td>
+        <td class="px-4 py-3">${escapeHtml(quiero)}</td>
+        <td class="px-4 py-3">${escapeHtml(beneficio)}</td>
+        <td class="px-4 py-3 text-gray-600">${escapeHtml(criterios)}</td>
+        <td class="px-4 py-3 text-center">
+            <div class="flex items-center justify-center gap-1">
+                <button class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500" title="Ver"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+                <button class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500" title="Editar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                <button class="p-1.5 rounded-md hover:bg-gray-100 text-red-500" title="Eliminar" onclick="this.closest('tr').remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+            </div>
+        </td>
+    `;
+    tbody.appendChild(tr);
+
+    clearInputs();
+    document.getElementById('inpUsuario').focus();
+}
+
+document.addEventListener('keydown', (e) => {
+    const editRow = document.getElementById('rowEditHistoria');
+    if (editRow.classList.contains('hidden')) return;
+
+    if (e.key === 'Escape') cancelAddRow();
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveNewRow();
+});
+
+// --- Integracion con Modo 1 y Modo 2 ---
+const ACTIVITIES = [
+    { id: '1', titulo: 'Crear modulo de historias de usuario', empresa: 'CoffeeSoft', modulo: 'Pedidos' },
+    { id: '2', titulo: 'Integracion de calendario',           empresa: 'Huubie',     modulo: 'Agenda'  },
+    { id: '3', titulo: 'Fix: login timeout',                  empresa: 'ERP-GV',     modulo: 'Auth'    }
+];
+
+// Demo data: panel general de historias
+const HISTORIAS = [
+    { id: 101, titulo: 'Como admin quiero gestionar historias de usuario',  estado: 'En progreso', actividades: 3, fecha: '2026-05-10' },
+    { id: 102, titulo: 'Como desarrollador quiero ver un diagrama de flujo', estado: 'Activa',      actividades: 1, fecha: '2026-05-08' },
+    { id: 103, titulo: 'Como usuario quiero iniciar sesion rapido',          estado: 'Completada',  actividades: 2, fecha: '2026-05-01' },
+    { id: 104, titulo: 'Como cajero quiero imprimir tickets de corte',       estado: 'Activa',      actividades: 4, fecha: '2026-04-27' },
+    { id: 105, titulo: 'Como admin quiero archivar modulos obsoletos',       estado: 'Archivada',   actividades: 0, fecha: '2026-03-14' }
+];
+
+const ESTADO_STYLES = {
+    'Activa':      { cls: 'bg-green-100 text-green-700',   dot: 'bg-green-500' },
+    'En progreso': { cls: 'bg-blue-100 text-blue-700',     dot: 'bg-blue-500'  },
+    'Completada':  { cls: 'bg-purple-100 text-purple-700', dot: 'bg-purple-500'},
+    'Archivada':   { cls: 'bg-gray-100 text-gray-600',     dot: 'bg-gray-400'  }
+};
+
+(function applyUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    const titulo = params.get('titulo');
+    const isNew  = params.get('new') === '1';
+    const taskId = params.get('taskId');
+
+    const viewAllHeader  = document.getElementById('viewAllHeader');
+    const viewAllPanel   = document.getElementById('viewAllPanel');
+    const viewTaskHeader = document.getElementById('viewTaskHeader');
+    const viewTaskTable  = document.getElementById('viewTaskTable');
+
+    if (taskId || titulo) {
+        viewAllHeader.classList.add('hidden');
+        viewAllPanel.classList.add('hidden');
+        viewTaskHeader.classList.remove('hidden');
+        viewTaskTable.classList.remove('hidden');
+
+        if (titulo) {
+            document.getElementById('lblTaskPadre').textContent = titulo;
+            document.title = `Historias: ${titulo}`;
+        }
+        if (isNew) setTimeout(activateAddRow, 100);
+    }
+})();
+
+(function initPanelHistorias() {
+    const listEl   = document.getElementById('listHistorias');
+    const emptyEl  = document.getElementById('emptyHistorias');
+    const totalEl  = document.getElementById('lblTotalHistorias');
+    const pagLbl   = document.getElementById('lblPaginacion');
+    const inpSearch= document.getElementById('inpSearchHistoria');
+    const selEst   = document.getElementById('selFilterEstado');
+    const selOrd   = document.getElementById('selOrder');
+
+    if (!listEl) return;
+
+    function render() {
+        const q      = (inpSearch.value || '').trim().toLowerCase();
+        const est    = selEst.value;
+        const order  = selOrd.value;
+
+        let items = HISTORIAS.filter(h =>
+            (!q || h.titulo.toLowerCase().includes(q)) &&
+            (!est || h.estado === est)
+        );
+
+        if (order === 'recent')     items.sort((a, b) => b.fecha.localeCompare(a.fecha));
+        if (order === 'old')        items.sort((a, b) => a.fecha.localeCompare(b.fecha));
+        if (order === 'activities') items.sort((a, b) => b.actividades - a.actividades);
+
+        totalEl.textContent = HISTORIAS.length;
+        pagLbl.textContent  = `Mostrando ${items.length} de ${HISTORIAS.length}`;
+
+        if (!items.length) {
+            listEl.innerHTML = '';
+            emptyEl.classList.remove('hidden');
+            return;
+        }
+        emptyEl.classList.add('hidden');
+
+        listEl.innerHTML = items.map(h => {
+            const st = ESTADO_STYLES[h.estado] || ESTADO_STYLES['Activa'];
+            return `
+                <li class="px-4 py-3 hover:bg-gray-50 transition-colors flex items-center gap-4" data-id="${h.id}">
+                    <span class="w-2.5 h-2.5 rounded-full ${st.dot} flex-shrink-0" title="${h.estado}"></span>
+
+                    <a href="#" class="flex-1 min-w-0 js-open-historia" data-id="${h.id}">
+                        <p class="text-sm font-semibold text-[var(--cv-primary)] truncate hover:underline">${h.titulo}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">#${h.id} creada el ${h.fecha}</p>
+                    </a>
+
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${st.cls} flex-shrink-0">${h.estado}</span>
+
+                    <span class="hidden sm:inline-flex items-center gap-1 text-xs text-gray-500 flex-shrink-0" title="Actividades vinculadas">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        ${h.actividades}
+                    </span>
+
+                    <span class="hidden md:inline text-xs text-gray-400 flex-shrink-0 w-24 text-right">${h.fecha}</span>
+
+                    <div class="flex items-center gap-1 flex-shrink-0">
+                        <button class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 js-edit" data-id="${h.id}" title="Editar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </button>
+                        <button class="p-1.5 rounded-md hover:bg-gray-100 text-red-500 js-delete" data-id="${h.id}" title="Eliminar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+                </li>`;
+        }).join('');
+
+        listEl.querySelectorAll('.js-edit').forEach(b => b.addEventListener('click', ev => {
+            ev.preventDefault();
+            alert('Editar historia #' + b.dataset.id);
+        }));
+        listEl.querySelectorAll('.js-delete').forEach(b => b.addEventListener('click', ev => {
+            ev.preventDefault();
+            if (!confirm('Eliminar historia #' + b.dataset.id + '?')) return;
+            const idx = HISTORIAS.findIndex(h => h.id == b.dataset.id);
+            if (idx > -1) { HISTORIAS.splice(idx, 1); render(); }
+        }));
+        listEl.querySelectorAll('.js-open-historia').forEach(a => a.addEventListener('click', ev => {
+            ev.preventDefault();
+            alert('Abrir detalle de historia #' + a.dataset.id);
+        }));
+    }
+
+    inpSearch.addEventListener('input', render);
+    selEst.addEventListener('change', render);
+    selOrd.addEventListener('change', render);
+    render();
+})();
+
+(function initTaskPicker() {
+    const modal   = document.getElementById('taskPickerModal');
+    const listEl  = document.getElementById('tpList');
+    const search  = document.getElementById('tpSearch');
+    const btnNew  = document.getElementById('btnNuevaHistoria');
+    const btnNewAll = document.getElementById('btnNuevaHistoriaAll');
+
+    function renderList(filter = '') {
+        const q = filter.trim().toLowerCase();
+        const items = ACTIVITIES.filter(a =>
+            !q || a.titulo.toLowerCase().includes(q) || a.empresa.toLowerCase().includes(q)
+        );
+
+        if (!items.length) {
+            listEl.innerHTML = `<div class="text-sm text-gray-500 text-center py-6">Sin resultados</div>`;
+            return;
+        }
+
+        listEl.innerHTML = items.map(a => `
+            <button type="button" data-id="${a.id}" data-titulo="${encodeURIComponent(a.titulo)}"
+                class="tp-item w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors border border-transparent hover:border-[var(--cv-action)]/30 mb-1">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-[var(--cv-primary)] truncate">${a.titulo}</p>
+                        <p class="text-xs text-gray-500">${a.empresa} &middot; ${a.modulo}</p>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </button>
+        `).join('');
+
+        listEl.querySelectorAll('.tp-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id     = btn.dataset.id;
+                const titulo = decodeURIComponent(btn.dataset.titulo);
+                const url    = `historias.html?taskId=${id}&titulo=${encodeURIComponent(titulo)}&new=1`;
+                closeModal();
+                window.open(url, '_blank', 'noopener');
+            });
+        });
+    }
+
+    function openModal() {
+        search.value = '';
+        renderList();
+        modal.classList.add('open');
+        setTimeout(() => search.focus(), 50);
+    }
+
+    function closeModal() { modal.classList.remove('open'); }
+
+    btnNew.addEventListener('click', openModal);
+    if (btnNewAll) btnNewAll.addEventListener('click', openModal);
+    document.getElementById('tpClose').addEventListener('click', closeModal);
+    document.getElementById('tpCancel').addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    search.addEventListener('input', e => renderList(e.target.value));
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+    });
+})();
+</script>
 
 </body>
 </html>

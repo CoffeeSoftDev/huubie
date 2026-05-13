@@ -142,6 +142,7 @@
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         <tr class="hover:bg-gray-50 transition-colors"
+                            data-task-id="1"
                             data-fecha="2026-05-15"
                             data-titulo="Crear modulo de historias de usuario"
                             data-empresa="CoffeeSoft"
@@ -153,9 +154,10 @@
                             data-asignado-color="purple"
                             data-estado="En progreso"
                             data-estado-tone="warning"
+                            data-has-stories="true"
                             data-sprints='[{"nombre":"Sprint 1 - Modelado","fecha":"2026-04-20","estado":"done","nota":"Tablas creadas y revisadas"},{"nombre":"Sprint 2 - Backend CTRL/MDL","fecha":"2026-05-02","estado":"done","nota":"APIs funcionales"},{"nombre":"Sprint 3 - UI y pruebas","fecha":"2026-05-15","estado":"active","nota":"En curso, 60% avance"}]'>
                             <td class="px-4 py-3 text-gray-600">2026-05-15</td>
-                            <td class="px-4 py-3 font-medium text-[var(--cv-primary)]">Crear modulo de historias de usuario</td>
+                            <td class="px-4 py-3 font-medium text-[var(--cv-primary)] cursor-pointer hover:underline js-title" title="Ver historias de usuario">Crear modulo de historias de usuario</td>
                             <td class="px-4 py-3">CoffeeSoft</td>
                             <td class="px-4 py-3"><span class="cv-badge cv-badge-info">Feature</span></td>
                             <td class="px-4 py-3">Pedidos</td>
@@ -172,6 +174,7 @@
                             </td>
                         </tr>
                         <tr class="hover:bg-gray-50 transition-colors"
+                            data-task-id="2"
                             data-fecha="2026-05-20"
                             data-titulo="Integracion de calendario"
                             data-empresa="Huubie"
@@ -183,9 +186,10 @@
                             data-asignado-color="blue"
                             data-estado="Pendiente"
                             data-estado-tone="warning"
+                            data-has-stories="false"
                             data-sprints='[]'>
                             <td class="px-4 py-3 text-gray-600">2026-05-20</td>
-                            <td class="px-4 py-3 font-medium text-[var(--cv-primary)]">Integracion de calendario</td>
+                            <td class="px-4 py-3 font-medium text-[var(--cv-primary)] cursor-pointer hover:underline js-title" title="Crear historia de usuario">Integracion de calendario</td>
                             <td class="px-4 py-3">Huubie</td>
                             <td class="px-4 py-3"><span class="cv-badge cv-badge-info">Feature</span></td>
                             <td class="px-4 py-3">Agenda</td>
@@ -202,6 +206,7 @@
                             </td>
                         </tr>
                         <tr class="hover:bg-gray-50 transition-colors"
+                            data-task-id="3"
                             data-fecha="2026-05-10"
                             data-titulo="Fix: login timeout"
                             data-empresa="ERP-GV"
@@ -213,9 +218,10 @@
                             data-asignado-color="purple"
                             data-estado="Completada"
                             data-estado-tone="success"
+                            data-has-stories="false"
                             data-sprints='[{"nombre":"Sprint - Hotfix timeout","fecha":"2026-05-10","estado":"done","nota":"Fix liberado en produccion"}]'>
                             <td class="px-4 py-3 text-gray-600">2026-05-10</td>
-                            <td class="px-4 py-3 font-medium text-[var(--cv-primary)]">Fix: login timeout</td>
+                            <td class="px-4 py-3 font-medium text-[var(--cv-primary)] cursor-pointer hover:underline js-title" title="Crear historia de usuario">Fix: login timeout</td>
                             <td class="px-4 py-3">ERP-GV</td>
                             <td class="px-4 py-3"><span class="cv-badge cv-badge-danger">Bug</span></td>
                             <td class="px-4 py-3">Auth</td>
@@ -249,6 +255,36 @@
         </div>
     </div>
 </main>
+
+<!-- Modal: Confirmar crear historia de usuario -->
+<div id="confirmStoryModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-panel" style="max-width:460px;">
+        <header class="px-6 py-4 border-b border-[var(--cv-border)] flex items-start justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-100 text-[var(--cv-action)] flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                </div>
+                <div class="min-w-0">
+                    <h2 class="cv-title text-base font-bold">Sin historia de usuario</h2>
+                    <p class="text-xs text-gray-500">Esta actividad aun no tiene historia creada.</p>
+                </div>
+            </div>
+            <button id="confirmClose" class="p-1.5 rounded-md hover:bg-gray-100 text-gray-500" title="Cerrar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </header>
+        <div class="px-6 py-5">
+            <p class="text-sm text-gray-700">
+                ¿Deseas crear una historia de usuario para la actividad
+                <span id="confirmTitulo" class="font-semibold text-[var(--cv-primary)]">-</span>?
+            </p>
+        </div>
+        <footer class="px-6 py-3 border-t border-[var(--cv-border)] flex items-center justify-end gap-2">
+            <button id="confirmCancel" class="cv-btn cv-btn-outline-action px-4 py-1.5 rounded-lg text-sm">Cancelar</button>
+            <button id="confirmAccept" class="cv-btn cv-btn-primary px-4 py-1.5 rounded-lg text-sm">Si, crear historia</button>
+        </footer>
+    </div>
+</div>
 
 <!-- Modal: Seguimiento de tarea -->
 <div id="taskDetailModal" class="modal-backdrop" role="dialog" aria-modal="true">
@@ -410,12 +446,61 @@
     document.querySelectorAll('tbody tr').forEach(row => {
         const viewBtn = row.querySelector('.js-view');
         if (viewBtn) viewBtn.addEventListener('click', () => openModal(row));
+
+        const titleCell = row.querySelector('.js-title');
+        if (titleCell) titleCell.addEventListener('click', () => handleTitleClick(row));
     });
+
+    // --- Flujo Historias de Usuario ---
+    const confirmModal = document.getElementById('confirmStoryModal');
+    let pendingTask = null;
+
+    function buildStoryUrl(task, isNew) {
+        const params = new URLSearchParams({
+            taskId: task.id,
+            titulo: task.titulo
+        });
+        if (isNew) params.set('new', '1');
+        return `historias.html?${params.toString()}`;
+    }
+
+    function handleTitleClick(row) {
+        const d = row.dataset;
+        const task = { id: d.taskId || '', titulo: d.titulo || '' };
+        const hasStories = d.hasStories === 'true';
+
+        if (hasStories) {
+            window.location.href = buildStoryUrl(task, false);
+            return;
+        }
+        pendingTask = task;
+        $id('confirmTitulo').textContent = task.titulo;
+        confirmModal.classList.add('open');
+    }
+
+    function closeConfirm() {
+        confirmModal.classList.remove('open');
+        pendingTask = null;
+    }
+
+    $id('confirmClose').addEventListener('click', closeConfirm);
+    $id('confirmCancel').addEventListener('click', closeConfirm);
+    $id('confirmAccept').addEventListener('click', () => {
+        if (!pendingTask) return closeConfirm();
+        const url = buildStoryUrl(pendingTask, true);
+        closeConfirm();
+        window.location.href = url;
+    });
+    confirmModal.addEventListener('click', e => { if (e.target === confirmModal) closeConfirm(); });
 
     $id('mdClose').addEventListener('click', closeModal);
     $id('mdCloseFooter').addEventListener('click', closeModal);
     modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        if (modal.classList.contains('open')) closeModal();
+        if (confirmModal.classList.contains('open')) closeConfirm();
+    });
 })();
 </script>
 
