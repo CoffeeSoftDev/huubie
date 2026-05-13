@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../../app/ui/css/ui-kit.css">
-  <script src="/app/src/plugins/lucide/lucide.min.js"></script>
+  <script src="../../../app/src/plugins/lucide/lucide.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
@@ -87,7 +87,7 @@
             <option>Reginas Kafeto (Sucursal 4)</option>
             <option>Todas las sucursales</option>
           </select>
-          <button class="cs-btn cs-btn-primary cs-btn-sm">
+          <button id="btnNuevaEntrada" class="cs-btn cs-btn-primary cs-btn-sm">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
             Nueva Entrada
           </button>
@@ -330,7 +330,300 @@
 
   </div>
 
+  <!-- Modal: Nueva Entrada de Stock -->
+  <div id="modalNuevaEntrada" class="hidden">
+    <div class="cs-modal-backdrop" data-modal-close></div>
+    <div class="cs-modal" style="max-width: 900px; max-height: 85vh;">
+      <div class="cs-modal-header">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center">
+            <i data-lucide="plus" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <h3 class="cs-modal-title">Nueva Entrada de Stock</h3>
+            <p class="text-[11px] text-gray-500">Agrega múltiples productos en un solo lote de entrada</p>
+          </div>
+        </div>
+        <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close>
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="cs-modal-body">
+        <div class="flex flex-1 min-h-0">
+          <!-- Columna izquierda: Configuración del lote -->
+          <div class="w-[320px] border-r border-gray-800 flex flex-col flex-shrink-0 pr-4">
+            <div class="space-y-3 overflow-y-auto cs-scroll flex-1">
+              <div>
+                <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1.5">Origen de la entrada</label>
+                <div class="grid grid-cols-2 gap-1.5" data-origen-group>
+                  <button class="cs-btn cs-btn-primary cs-btn-sm" data-origen="Producción">Producción</button>
+                  <button class="cs-btn cs-btn-ghost cs-btn-sm" data-origen="Compra">Compra</button>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 mt-1.5" data-origen-group>
+                  <button class="cs-btn cs-btn-ghost cs-btn-sm" data-origen="Transferencia">Transferencia</button>
+                  <button class="cs-btn cs-btn-ghost cs-btn-sm" data-origen="Devolución">Devolución</button>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Sucursal destino</label>
+                <select class="cs-select text-xs">
+                  <option>Reginas Kafeto (Sucursal 4)</option>
+                  <option>Todas las sucursales</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Agregar producto al lote</label>
+                <div class="relative">
+                  <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+                  <input id="buscarProducto" type="text" placeholder="Buscar por nombre o SKU..." class="cs-input pl-10 text-xs">
+                </div>
+                <div id="resultadosBusqueda" class="mt-1 bg-[#1a2332] border border-gray-700 rounded-lg overflow-hidden hidden"></div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Nota del lote (opcional)</label>
+                <textarea rows="2" placeholder="Descripción general de la entrada..." class="cs-textarea text-xs"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Columna derecha: Lista de productos del lote -->
+          <div class="flex-1 flex flex-col min-w-0 pl-4">
+            <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold">Productos en este lote</p>
+                <p class="text-[10px] text-gray-500" id="resumenLote">0 productos — 0 unidades totales</p>
+              </div>
+              <div class="cs-callout cs-callout-success">
+                <p class="text-[10px] text-green-400 font-bold" id="costoTotalHeader">Costo total: $0.00</p>
+              </div>
+            </div>
+
+            <div id="listaProductos" class="flex-1 overflow-y-auto px-5 py-3 space-y-2.5 cs-scroll">
+              <div class="flex flex-col items-center justify-center py-10 text-gray-500 text-center">
+                <i data-lucide="package-plus" class="w-10 h-10 mb-2 opacity-40"></i>
+                <p class="text-xs">Busca y agrega productos al lote</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cs-modal-footer">
+        <div class="text-[10px] text-gray-500" id="resumenFooter">
+          <span>0 productos</span> · <span>0 unidades</span> · <span class="text-green-400 font-bold">$0.00 costo total</span>
+        </div>
+        <div class="flex gap-2">
+          <button class="cs-btn cs-btn-outline cs-btn-sm" data-modal-close>Cancelar</button>
+          <button id="btnRegistrarEntrada" class="cs-btn cs-btn-success cs-btn-sm">Registrar Entrada</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // === Modal Nueva Entrada — lógica ===
+    const CATALOGO = [
+      { sku: 'CUP-DEC-001', nombre: 'Cupcake Decorado', stock: 0, icon: 'cup-soda', bg: 'bg-orange-900/30', color: 'text-orange-400', costo: 22 },
+      { sku: 'CUP-RDV-001', nombre: 'Cupcake Red Velvet', stock: 8, icon: 'cup-soda', bg: 'bg-orange-900/30', color: 'text-orange-400', costo: 25 },
+      { sku: 'PAS-3LC-001', nombre: 'Pastel 3 Leches Chocolate', stock: 3, icon: 'cake', bg: 'bg-amber-900/30', color: 'text-amber-400', costo: 280 },
+      { sku: 'PAY-FRE-001', nombre: 'Pay de Fresas', stock: 5, icon: 'cherry', bg: 'bg-red-900/30', color: 'text-red-400', costo: 260 },
+      { sku: 'GAL-CHO-001', nombre: 'Galleta Chocolate', stock: 15, icon: 'cookie', bg: 'bg-teal-900/30', color: 'text-teal-400', costo: 20 },
+      { sku: 'CHA-ALE-001', nombre: 'Choco Alemán', stock: 12, icon: 'candy', bg: 'bg-yellow-900/30', color: 'text-yellow-400', costo: 240 },
+      { sku: 'CAF-AME-001', nombre: 'Café Americano', stock: 40, icon: 'cup-soda', bg: 'bg-gray-700', color: 'text-gray-400', costo: 12 }
+    ];
+
+    const modal = document.getElementById('modalNuevaEntrada');
+    const btnOpen = document.getElementById('btnNuevaEntrada');
+    const buscarInput = document.getElementById('buscarProducto');
+    const resultados = document.getElementById('resultadosBusqueda');
+    const listaProductos = document.getElementById('listaProductos');
+    const resumenLote = document.getElementById('resumenLote');
+    const costoTotalHeader = document.getElementById('costoTotalHeader');
+    const resumenFooter = document.getElementById('resumenFooter');
+    const btnRegistrar = document.getElementById('btnRegistrarEntrada');
+
+    let lote = []; // { sku, nombre, stock, icon, bg, color, cantidad, costo, caducidad }
+
+    function abrirModal() {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      modal.style.cssText = 'position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;';
+      buscarInput.value = '';
+      resultados.classList.add('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function cerrarModal() {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      modal.style.cssText = '';
+    }
+
+    btnOpen.addEventListener('click', abrirModal);
+    modal.querySelectorAll('[data-modal-close]').forEach(el => el.addEventListener('click', cerrarModal));
+
+    // Selector de origen
+    modal.querySelectorAll('[data-origen]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        modal.querySelectorAll('[data-origen]').forEach(b => {
+          b.classList.remove('cs-btn-primary');
+          b.classList.add('cs-btn-ghost');
+        });
+        btn.classList.remove('cs-btn-ghost');
+        btn.classList.add('cs-btn-primary');
+      });
+    });
+
+    // Búsqueda
+    buscarInput.addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      if (!q) { resultados.classList.add('hidden'); resultados.innerHTML = ''; return; }
+
+      const matches = CATALOGO.filter(p =>
+        p.nombre.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
+      ).filter(p => !lote.some(x => x.sku === p.sku)).slice(0, 6);
+
+      if (!matches.length) {
+        resultados.innerHTML = '<p class="text-[10px] text-gray-500 text-center py-3">Sin resultados</p>';
+        resultados.classList.remove('hidden');
+        return;
+      }
+
+      resultados.innerHTML = matches.map(p => {
+        const stockColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
+        return `
+          <div class="flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-gray-700/50 hover:bg-[#1e293b]" data-add-sku="${p.sku}">
+            <div class="w-6 h-6 rounded ${p.bg} flex items-center justify-center">
+              <i data-lucide="${p.icon}" class="w-4 h-4 ${p.color}"></i>
+            </div>
+            <div class="flex-1">
+              <p class="text-[11px] font-medium">${p.nombre}</p>
+              <p class="text-[9px] text-gray-500">SKU: ${p.sku} — Stock: <strong class="${stockColor}">${p.stock}</strong></p>
+            </div>
+            <button class="w-6 h-6 rounded bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 hover:bg-purple-600 hover:text-white">
+              <i data-lucide="plus" class="w-3 h-3"></i>
+            </button>
+          </div>`;
+      }).join('');
+      resultados.classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    });
+
+    resultados.addEventListener('click', (e) => {
+      const row = e.target.closest('[data-add-sku]');
+      if (!row) return;
+      const sku = row.dataset.addSku;
+      const prod = CATALOGO.find(p => p.sku === sku);
+      if (!prod) return;
+      lote.push({ ...prod, cantidad: 1, caducidad: '' });
+      buscarInput.value = '';
+      resultados.classList.add('hidden');
+      resultados.innerHTML = '';
+      render();
+    });
+
+    function render() {
+      if (!lote.length) {
+        listaProductos.innerHTML = `
+          <div class="flex flex-col items-center justify-center py-10 text-gray-500 text-center">
+            <i data-lucide="package-plus" class="w-10 h-10 mb-2 opacity-40"></i>
+            <p class="text-xs">Busca y agrega productos al lote</p>
+          </div>`;
+      } else {
+        listaProductos.innerHTML = lote.map((p, i) => {
+          const subtotal = (p.cantidad * p.costo).toFixed(2);
+          const nuevoStock = p.stock + Number(p.cantidad);
+          const stockActualColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
+          return `
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50" data-idx="${i}">
+              <div class="flex items-center gap-2 mb-2.5">
+                <div class="w-8 h-8 rounded-lg ${p.bg} flex items-center justify-center">
+                  <i data-lucide="${p.icon}" class="w-4 h-4 ${p.color}"></i>
+                </div>
+                <div class="flex-1">
+                  <p class="text-xs font-bold">${p.nombre}</p>
+                  <p class="text-[9px] text-gray-500">SKU: ${p.sku} — Stock actual: <strong class="${stockActualColor}">${p.stock}</strong></p>
+                </div>
+                <button class="w-6 h-6 rounded flex items-center justify-center text-gray-600 hover:text-red-400" data-remove="${i}">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="text-[8px] text-gray-500 uppercase block mb-0.5">Cantidad</label>
+                  <input type="number" min="1" value="${p.cantidad}" class="cs-input text-xs" data-field="cantidad" data-idx="${i}">
+                </div>
+                <div>
+                  <label class="text-[8px] text-gray-500 uppercase block mb-0.5">Costo Unitario</label>
+                  <input type="number" min="0" step="0.01" value="${p.costo}" class="cs-input text-xs" data-field="costo" data-idx="${i}">
+                </div>
+                <div>
+                  <label class="text-[8px] text-gray-500 uppercase block mb-0.5">Caducidad</label>
+                  <input type="date" value="${p.caducidad}" class="cs-input text-[10px]" data-field="caducidad" data-idx="${i}">
+                </div>
+              </div>
+              <div class="flex justify-between mt-2 pt-2 border-t border-gray-700/30 text-[10px]">
+                <span class="text-gray-500">Subtotal: <strong class="text-white">$${subtotal}</strong></span>
+                <span class="text-gray-500">Nuevo stock: <strong class="text-green-400">${nuevoStock}</strong></span>
+              </div>
+            </div>`;
+        }).join('');
+      }
+
+      // Totales
+      const totalItems = lote.length;
+      const totalUds = lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
+      const totalCosto = lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
+      const costoFmt = totalCosto.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      resumenLote.textContent = `${totalItems} producto${totalItems === 1 ? '' : 's'} — ${totalUds} unidades totales`;
+      costoTotalHeader.textContent = `Costo total: $${costoFmt}`;
+      resumenFooter.innerHTML = `<span>${totalItems} productos</span> · <span>${totalUds} unidades</span> · <span class="text-green-400 font-bold">$${costoFmt} costo total</span>`;
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    listaProductos.addEventListener('click', (e) => {
+      const rm = e.target.closest('[data-remove]');
+      if (rm) {
+        const idx = Number(rm.dataset.remove);
+        lote.splice(idx, 1);
+        render();
+      }
+    });
+
+    listaProductos.addEventListener('input', (e) => {
+      const f = e.target.dataset.field;
+      const idx = Number(e.target.dataset.idx);
+      if (f == null || isNaN(idx)) return;
+      lote[idx][f] = e.target.value;
+      if (f === 'cantidad' || f === 'costo') render();
+    });
+
+    btnRegistrar.addEventListener('click', () => {
+      if (!lote.length) {
+        alert('Agrega al menos un producto al lote');
+        return;
+      }
+      const origen = modal.querySelector('[data-origen].cs-btn-primary')?.dataset.origen || 'Producción';
+      const totalUds = lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
+      const totalCosto = lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
+      console.log('Registrar entrada:', { origen, productos: lote, totalUds, totalCosto });
+      alert(`Entrada registrada\nOrigen: ${origen}\nProductos: ${lote.length}\nUnidades: ${totalUds}\nCosto: $${totalCosto.toFixed(2)}`);
+      lote = [];
+      render();
+      cerrarModal();
+    });
+
+    // ESC para cerrar
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) cerrarModal();
+    });
+
     lucide.createIcons();
     const toggleSidebar = document.getElementById('toggleSidebar');
     const sidebar = document.getElementById('sidebar');
