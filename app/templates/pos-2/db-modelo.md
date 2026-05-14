@@ -130,9 +130,6 @@ SELECT
     pop.amount,
     pop.tendered_amount,
     pop.change_amount,
-    pop.reference,
-    pop.authorization_code,
-    pop.last_four,
     pop.paid_at,
     pt.code                       AS metodo,
     pt.name                       AS metodo_nombre,
@@ -282,11 +279,10 @@ Métodos de pago del POS. Convive con `method_pay` legacy.
 | 1 | `id` | INT UNSIGNED AUTO_INCREMENT | NO | — | PK |
 | 2 | `code` | VARCHAR(10) | NO | — | UNIQUE: `EFE`, `TDC`, `CORT`, `TRF`, `OTRO` |
 | 3 | `name` | VARCHAR(60) | NO | — | Nombre legible |
-| 4 | `requires_reference` | TINYINT(1) | NO | `0` | Pide referencia / autorización |
-| 5 | `is_cash` | TINYINT(1) | NO | `0` | Suma a "efectivo en caja" |
-| 6 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | |
-| 7 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | |
-| 8 | `active` | TINYINT(1) | NO | `1` | Soft-delete |
+| 4 | `is_cash` | TINYINT(1) | NO | `0` | Suma a "efectivo en caja" |
+| 5 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | |
+| 6 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | |
+| 7 | `active` | TINYINT(1) | NO | `1` | Soft-delete |
 
 **Índices:** `UNIQUE KEY uk_pos_payment_type_code (code)`
 **Seed:** 5 filas (EFE, TDC, CORT, TRF, OTRO)
@@ -316,19 +312,16 @@ Split de pago del ticket POS. Sin prefijo `detail_` porque `pos_` ya identifica 
 | # | Columna | Tipo | Null | Default | Notas |
 |:-:|---|---|:-:|---|---|
 | 1 | `id` | INT UNSIGNED AUTO_INCREMENT | NO | — | PK |
-| 2 | `reference` | VARCHAR(50) | SÍ | NULL | Referencia bancaria / SPEI |
-| 3 | `authorization_code` | VARCHAR(50) | SÍ | NULL | Código de autorización de la TPV |
-| 4 | `last_four` | VARCHAR(4) | SÍ | NULL | Últimos 4 de la tarjeta |
-| 5 | `amount` | DOUBLE | NO | `0` | Monto aplicado a la venta |
-| 6 | `tendered_amount` | DOUBLE | NO | `0` | Lo que entregó el cliente |
-| 7 | `change_amount` | DOUBLE | NO | `0` | Cambio devuelto |
-| 8 | `paid_at` | DATETIME | NO | — | Momento real del cobro |
-| 9 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | |
-| 10 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | |
-| 11 | `order_id` | INT UNSIGNED | NO | — | FK → `order(id)` · CASCADE/CASCADE |
-| 12 | `pos_payment_type_id` | INT UNSIGNED | SÍ | NULL | FK → `pos_payment_type(id)` · SET NULL/CASCADE |
-| 13 | `user_id` | INT UNSIGNED | SÍ | NULL | FK → `fayxzvov_alpha.usr_users(idUser)` · SET NULL/CASCADE |
-| 14 | `active` | TINYINT(1) | NO | `1` | Soft-delete |
+| 2 | `amount` | DOUBLE | NO | `0` | Monto aplicado a la venta |
+| 3 | `tendered_amount` | DOUBLE | NO | `0` | Lo que entregó el cliente |
+| 4 | `change_amount` | DOUBLE | NO | `0` | Cambio devuelto |
+| 5 | `paid_at` | DATETIME | NO | — | Momento real del cobro |
+| 6 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | |
+| 7 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | |
+| 8 | `order_id` | INT UNSIGNED | NO | — | FK → `order(id)` · CASCADE/CASCADE |
+| 9 | `pos_payment_type_id` | INT UNSIGNED | SÍ | NULL | FK → `pos_payment_type(id)` · SET NULL/CASCADE |
+| 10 | `user_id` | INT UNSIGNED | SÍ | NULL | FK → `fayxzvov_alpha.usr_users(idUser)` · SET NULL/CASCADE |
+| 11 | `active` | TINYINT(1) | NO | `1` | Soft-delete |
 
 **KEYs:** `KEY (order_id)`, `KEY (pos_payment_type_id)`, `KEY (user_id)`, `KEY (paid_at)`
 
@@ -403,13 +396,11 @@ VALUES
 -- 3. Pago en efectivo (un solo registro)
 INSERT INTO pos_order_payment (
     amount, tendered_amount, change_amount,
-    reference, authorization_code, last_four,
     paid_at, created_at, updated_at,
     order_id, pos_payment_type_id, user_id,
     active
 ) VALUES (
     90.00, 100.00, 10.00,
-    NULL, NULL, NULL,
     NOW(), NOW(), NOW(),
     @order_id,
     (SELECT id FROM pos_payment_type WHERE code = 'EFE'),
@@ -449,13 +440,11 @@ VALUES
 -- 3. Pago A — efectivo $200 (cliente entregó exacto)
 INSERT INTO pos_order_payment (
     amount, tendered_amount, change_amount,
-    reference, authorization_code, last_four,
     paid_at, created_at, updated_at,
     order_id, pos_payment_type_id, user_id,
     active
 ) VALUES (
     200.00, 200.00, 0.00,
-    NULL, NULL, NULL,
     NOW(), NOW(), NOW(),
     @order_id,
     (SELECT id FROM pos_payment_type WHERE code = 'EFE'),
@@ -463,16 +452,14 @@ INSERT INTO pos_order_payment (
     1
 );
 
--- 4. Pago B — tarjeta $300 con autorización
+-- 4. Pago B — tarjeta $300
 INSERT INTO pos_order_payment (
     amount, tendered_amount, change_amount,
-    reference, authorization_code, last_four,
     paid_at, created_at, updated_at,
     order_id, pos_payment_type_id, user_id,
     active
 ) VALUES (
     300.00, 300.00, 0.00,
-    NULL, '485920', '1234',
     NOW(), NOW(), NOW(),
     @order_id,
     (SELECT id FROM pos_payment_type WHERE code = 'TDC'),
@@ -562,13 +549,11 @@ INSERT INTO pos_order_discount (
 -- 5. Pago — transferencia SPEI por el total final
 INSERT INTO pos_order_payment (
     amount, tendered_amount, change_amount,
-    reference, authorization_code, last_four,
     paid_at, created_at, updated_at,
     order_id, pos_payment_type_id, user_id,
     active
 ) VALUES (
     422.50, 422.50, 0.00,
-    'SPEI-7F3A9B21', NULL, NULL,
     NOW(), NOW(), NOW(),
     @order_id,
     (SELECT id FROM pos_payment_type WHERE code = 'TRF'),
@@ -589,7 +574,6 @@ INSERT INTO pos_order_payment (
 | `scope = 'line'` | Obliga a tener `order_package_id NOT NULL`. |
 | `scope = 'order'` | Obliga a tener `order_package_id NULL`. |
 | Autorización | `authorized_by_user_id` se llena solo si el motivo `requires_authorization = 1`. |
-| Referencia bancaria | `reference` o `authorization_code` se exigen cuando `pos_payment_type.requires_reference = 1`. |
 
 ---
 
@@ -689,13 +673,11 @@ INSERT INTO order_package (
 -- 4. Pago normal
 INSERT INTO pos_order_payment (
     amount, tendered_amount, change_amount,
-    reference, authorization_code, last_four,
     paid_at, created_at, updated_at,
     order_id, pos_payment_type_id, user_id,
     active
 ) VALUES (
     299.00, 300.00, 1.00,
-    NULL, NULL, NULL,
     NOW(), NOW(), NOW(),
     @order_id,
     (SELECT id FROM pos_payment_type WHERE code = 'EFE'),

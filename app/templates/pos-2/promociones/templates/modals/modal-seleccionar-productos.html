@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es" style="background:#111928;color:#fff">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal - Seleccionar productos</title>
+    <style>html,body{background:#111928!important;color:#fff;margin:0}</style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
+        .input-modal { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:8px 12px; font-size:12px; color:#d1d5db; width:100%; }
+        .input-modal:focus { outline:none; border-color:#7c3aed; }
+        select.input-modal {
+            appearance:none;
+            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat:no-repeat; background-position:right 10px center; padding-right:28px;
+        }
+        .scrollbar-thin::-webkit-scrollbar { width:4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+
+        .product-pick { background:#1a2332; border:1px solid #374151; border-radius:10px; padding:10px; cursor:pointer; transition:.15s; display:flex; align-items:center; gap:10px; position:relative; }
+        .product-pick:hover { border-color:rgba(124,58,237,.5); }
+        .product-pick.selected { border-color:#7c3aed; background:rgba(124,58,237,.08); }
+        .product-pick.selected .check { opacity:1; }
+        .check { position:absolute; top:6px; right:6px; width:18px; height:18px; border-radius:50%; background:#7c3aed; color:#fff; display:flex; align-items:center; justify-content:center; opacity:0; transition:.15s; }
+
+        .cat-pill { padding:5px 12px; border-radius:9999px; font-size:11px; font-weight:600; cursor:pointer; background:#1a2332; border:1px solid #374151; color:#9CA3AF; transition:.15s; white-space:nowrap; }
+        .cat-pill:hover { color:#fff; }
+        .cat-pill.active { background:#7c3aed; border-color:#7c3aed; color:#fff; }
+
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .product-pick { background:#f9fafb !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .cat-pill { background:#f9fafb !important; border-color:#e5e7eb !important; color:#6b7280 !important; }
+        body[data-theme="light"] .input-modal { background:#f9fafb !important; border-color:#e5e7eb !important; color:#111928 !important; }
+    </style>
+</head>
+<body>
+
+    <div class="fixed inset-0 bg-black/60 -z-10"></div>
+
+    <div class="fixed top-4 right-4 flex items-center bg-[#1a2332] border border-gray-700 rounded-lg p-1 gap-0.5 z-50">
+        <button data-theme-btn="dark" class="theme-active px-3 py-1 text-[10px] font-semibold">Dark</button>
+        <button data-theme-btn="light" class="px-3 py-1 text-[10px] font-semibold text-gray-400">Light</button>
+    </div>
+
+    <!-- Modal -->
+    <div class="w-full max-w-[720px] bg-[#1F2A37] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-700 bg-[#141d2b] flex items-center justify-between flex-shrink-0">
+            <div>
+                <h3 class="text-sm font-bold">Seleccionar productos elegibles</h3>
+                <p class="text-[11px] text-gray-500 mt-0.5">Marca los productos que disparan la promocion</p>
+            </div>
+            <button onclick="window.close()" class="text-gray-500 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Buscador + filtros -->
+        <div class="px-6 py-3 border-b border-gray-700 bg-[#141d2b] flex-shrink-0 space-y-3">
+            <div class="flex items-center gap-2">
+                <div class="relative flex-1">
+                    <svg class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="search" placeholder="Buscar producto por nombre o codigo..." class="input-modal pl-9">
+                </div>
+                <select class="input-modal w-auto">
+                    <option>Ordenar: Mas vendidos</option>
+                    <option>Ordenar: Nombre A-Z</option>
+                    <option>Ordenar: Precio</option>
+                </select>
+            </div>
+            <!-- Categorias -->
+            <div class="flex items-center gap-1.5 overflow-x-auto scrollbar-thin pb-1">
+                <div class="cat-pill active">Todas</div>
+                <div class="cat-pill">Cafe</div>
+                <div class="cat-pill">Panaderia</div>
+                <div class="cat-pill">Bebidas frias</div>
+                <div class="cat-pill">Postres</div>
+                <div class="cat-pill">Sandwiches</div>
+                <div class="cat-pill">Snacks</div>
+            </div>
+        </div>
+
+        <!-- Body grid -->
+        <div class="overflow-y-auto px-6 py-4 scrollbar-thin">
+            <div class="grid grid-cols-3 gap-2">
+
+                <div class="product-pick selected">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-xs font-bold flex-shrink-0">L</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">Latte mediano</p>
+                        <p class="text-[10px] text-gray-500">PROD-012 · $55</p>
+                    </div>
+                    <span class="check"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                </div>
+
+                <div class="product-pick selected">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600 to-red-700 flex items-center justify-center text-xs font-bold flex-shrink-0">C</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">Cappuccino</p>
+                        <p class="text-[10px] text-gray-500">PROD-013 · $55</p>
+                    </div>
+                    <span class="check"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                </div>
+
+                <div class="product-pick selected">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-stone-600 to-stone-800 flex items-center justify-center text-xs font-bold flex-shrink-0">A</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">Americano</p>
+                        <p class="text-[10px] text-gray-500">PROD-014 · $45</p>
+                    </div>
+                    <span class="check"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                </div>
+
+                <div class="product-pick">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-xs font-bold flex-shrink-0">M</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">Matcha latte</p>
+                        <p class="text-[10px] text-gray-500">PROD-015 · $65</p>
+                    </div>
+                    <span class="check"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                </div>
+
+                <div class="product-pick">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-rose-500 to-pink-700 flex items-center justify-center text-xs font-bold flex-shrink-0">F</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">Frappe vainilla</p>
+                        <p class="text-[10px] text-gray-500">PROD-016 · $70</p>
+                    </div>
+                    <span class="check"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                </div>
+
+                <div class="product-pick">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-600 to-amber-700 flex items-center justify-center text-xs font-bold flex-shrink-0">E</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">Espresso doble</p>
+                        <p class="text-[10px] text-gray-500">PROD-017 · $42</p>
+                    </div>
+                    <span class="check"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                </div>
+
+                <div class="product-pick">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-xs font-bold flex-shrink-0">M</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">Mocha helado</p>
+                        <p class="text-[10px] text-gray-500">PROD-018 · $72</p>
+                    </div>
+                    <span class="check"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                </div>
+
+                <div class="product-pick">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-700 to-stone-800 flex items-center justify-center text-xs font-bold flex-shrink-0">T</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">Te chai latte</p>
+                        <p class="text-[10px] text-gray-500">PROD-019 · $58</p>
+                    </div>
+                    <span class="check"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                </div>
+
+                <div class="product-pick">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center text-xs font-bold flex-shrink-0">C</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">Cold brew</p>
+                        <p class="text-[10px] text-gray-500">PROD-020 · $68</p>
+                    </div>
+                    <span class="check"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-3 border-t border-gray-700 bg-[#141d2b] flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <span class="text-[11px] text-gray-400"><span class="text-[#c4b5fd] font-bold">3</span> productos seleccionados</span>
+                <button class="text-[11px] text-[#76A9FA] font-semibold hover:text-blue-300">Seleccionar todos</button>
+                <button class="text-[11px] text-gray-500 hover:text-white">Limpiar</button>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="px-5 py-2 rounded-lg border border-gray-600 text-gray-300 text-xs font-semibold hover:bg-gray-700/30" onclick="window.close()">Cancelar</button>
+                <button class="px-6 py-2 rounded-lg bg-[#7c3aed] text-white text-xs font-semibold hover:bg-[#6d28d9]">Aceptar seleccion</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const KEY = 'huubie-theme';
+        const apply = (t) => {
+            document.body.setAttribute('data-theme', t);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('theme-active', b.dataset.themeBtn === t));
+        };
+        apply(localStorage.getItem(KEY) || 'dark');
+        document.querySelectorAll('[data-theme-btn]').forEach(b => b.addEventListener('click', () => { localStorage.setItem(KEY, b.dataset.themeBtn); apply(b.dataset.themeBtn); }));
+        document.querySelectorAll('.product-pick').forEach(p => p.addEventListener('click', () => p.classList.toggle('selected')));
+        document.querySelectorAll('.cat-pill').forEach(c => c.addEventListener('click', () => {
+            document.querySelectorAll('.cat-pill').forEach(x => x.classList.remove('active'));
+            c.classList.add('active');
+        }));
+    </script>
+</body>
+</html>

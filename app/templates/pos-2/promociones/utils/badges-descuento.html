@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es" style="background:#111928;color:#fff">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Util - Badges de descuento</title>
+    <style>html,body{background:#111928!important;color:#fff;margin:0}</style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; padding:2rem; }
+
+        .badge-base { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; line-height:1.2; }
+
+        /* Por tipo */
+        .badge-3x2  { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-2x1  { background:rgba(244,114,182,.15); color:#f472b6; border-color:rgba(244,114,182,.3); }
+        .badge-4x3  { background:rgba(28,100,242,.18); color:#76a9fa; border-color:rgba(28,100,242,.35); }
+        .badge-5x4  { background:rgba(20,184,166,.15); color:#5eead4; border-color:rgba(20,184,166,.3); }
+        .badge-pct  { background:rgba(63,193,137,.15); color:#3FC189; border-color:rgba(63,193,137,.3); }
+        .badge-fixed{ background:rgba(249,115,22,.15); color:#fb923c; border-color:rgba(249,115,22,.3); }
+
+        /* Estado */
+        .status-active   { background:rgba(63,193,137,.15); color:#3FC189; border-color:rgba(63,193,137,.3); }
+        .status-paused   { background:rgba(251,191,36,.15); color:#fbbf24; border-color:rgba(251,191,36,.3); }
+        .status-expired  { background:rgba(156,163,175,.15); color:#9CA3AF; border-color:rgba(156,163,175,.3); }
+        .status-scheduled{ background:rgba(28,100,242,.15); color:#76a9fa; border-color:rgba(28,100,242,.3); }
+        .status-draft    { background:rgba(124,58,237,.15); color:#c4b5fd; border-color:rgba(124,58,237,.3); }
+
+        /* Tamano grande */
+        .badge-lg { font-size:12px; padding:4px 14px; }
+
+        /* Card seccion */
+        .card { background:#1F2A37; border:1px solid rgba(55,65,81,.6); border-radius:12px; padding:1.25rem; }
+        .grid-snippet { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:.75rem; font-family:'Courier New',monospace; font-size:11px; color:#9CA3AF; }
+
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] .bg-\[\#1F2A37\], body[data-theme="light"] .card { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\], body[data-theme="light"] .grid-snippet { background:#f9fafb !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-8">
+            <div>
+                <span class="text-[10px] text-gray-500">Util reutilizable</span>
+                <h1 class="text-2xl font-bold mt-1">Badges de descuento</h1>
+                <p class="text-sm text-gray-400 mt-2 max-w-2xl">Inventario de pildoras visuales para identificar tipo y estado de promociones. Usar via clases CSS o copiar HTML directamente.</p>
+            </div>
+            <div class="flex items-center bg-[#1a2332] border border-gray-700 rounded-lg p-1 gap-0.5">
+                <button data-theme-btn="dark" class="theme-active px-3 py-1 text-[10px] font-semibold">Dark</button>
+                <button data-theme-btn="light" class="px-3 py-1 text-[10px] font-semibold text-gray-400">Light</button>
+            </div>
+        </div>
+
+        <!-- Badges por tipo -->
+        <h2 class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-3">Por tipo de promocion</h2>
+        <div class="card mb-6">
+            <div class="flex flex-wrap gap-3 mb-4">
+                <span class="badge-base badge-3x2">3x2</span>
+                <span class="badge-base badge-2x1">2x1</span>
+                <span class="badge-base badge-4x3">4x3</span>
+                <span class="badge-base badge-5x4">5x4</span>
+                <span class="badge-base badge-pct">15% OFF</span>
+                <span class="badge-base badge-fixed">$50 OFF</span>
+            </div>
+            <p class="text-[10px] uppercase text-gray-500 font-bold mb-2">Tamano grande</p>
+            <div class="flex flex-wrap gap-3 mb-4">
+                <span class="badge-base badge-3x2 badge-lg">3x2</span>
+                <span class="badge-base badge-2x1 badge-lg">2x1</span>
+                <span class="badge-base badge-pct badge-lg">15% OFF</span>
+            </div>
+            <div class="grid-snippet">&lt;span class="badge-base badge-3x2"&gt;3x2&lt;/span&gt;</div>
+        </div>
+
+        <!-- Badges por estado -->
+        <h2 class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-3">Por estado</h2>
+        <div class="card mb-6">
+            <div class="flex flex-wrap gap-3 mb-4">
+                <span class="badge-base status-active">ACTIVA</span>
+                <span class="badge-base status-paused">PAUSADA</span>
+                <span class="badge-base status-scheduled">PROGRAMADA</span>
+                <span class="badge-base status-expired">VENCIDA</span>
+                <span class="badge-base status-draft">BORRADOR</span>
+            </div>
+            <div class="grid-snippet">&lt;span class="badge-base status-active"&gt;ACTIVA&lt;/span&gt;</div>
+        </div>
+
+        <!-- Badges con icono -->
+        <h2 class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-3">Con icono</h2>
+        <div class="card mb-6">
+            <div class="flex flex-wrap gap-3 mb-4">
+                <span class="badge-base badge-3x2">
+                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                    3x2 Cafe
+                </span>
+                <span class="badge-base badge-pct">
+                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17 21h-6L7 16l8.51-9.4a2 2 0 012.83 0L19 7l.4.4a2 2 0 010 2.83L17 21z"/></svg>
+                    15% Frias
+                </span>
+                <span class="badge-base status-active">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#3FC189]"></span>
+                    En vivo
+                </span>
+                <span class="badge-base status-scheduled">
+                    <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Inicia 01 Jun
+                </span>
+            </div>
+        </div>
+
+        <!-- Banner promo (badge ancho) -->
+        <h2 class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-3">Banner promocional</h2>
+        <div class="card mb-6">
+            <div class="space-y-2">
+                <div class="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-[rgba(124,58,237,.15)] to-[rgba(244,114,182,.15)] border border-[rgba(124,58,237,.3)]">
+                    <span class="badge-base badge-3x2 badge-lg flex-shrink-0">3x2</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold">3x2 en cafe matutino</p>
+                        <p class="text-[10px] text-gray-400">Lun-Vie 7-11 am · Llevate el 3ro gratis</p>
+                    </div>
+                    <span class="text-[11px] text-[#3FC189] font-bold flex-shrink-0">Ahorra $45</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-[rgba(244,114,182,.15)] to-[rgba(251,191,36,.15)] border border-[rgba(244,114,182,.3)]">
+                    <span class="badge-base badge-2x1 badge-lg flex-shrink-0">2x1</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold">2x1 panaderia tarde</p>
+                        <p class="text-[10px] text-gray-400">Diario 5-8 pm · Lleva 2 y paga uno</p>
+                    </div>
+                    <span class="text-[11px] text-[#3FC189] font-bold flex-shrink-0">Ahorra hasta $80</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de referencia -->
+        <h2 class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-3">Referencia de clases</h2>
+        <div class="card">
+            <table class="w-full text-[11px]">
+                <thead class="border-b border-gray-700">
+                    <tr class="text-left text-gray-400">
+                        <th class="py-2">Clase</th>
+                        <th class="py-2">Background</th>
+                        <th class="py-2">Texto</th>
+                        <th class="py-2">Uso recomendado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/40 text-gray-300">
+                    <tr><td class="py-2 font-mono text-[#c4b5fd]">.badge-3x2</td><td class="py-2 text-gray-500">purple-500/18</td><td class="py-2 text-gray-500">#c4b5fd</td><td class="py-2">Buy 3, Get 1 Free</td></tr>
+                    <tr><td class="py-2 font-mono text-[#f472b6]">.badge-2x1</td><td class="py-2 text-gray-500">pink-500/15</td><td class="py-2 text-gray-500">#f472b6</td><td class="py-2">Buy 2, Get 1 Free</td></tr>
+                    <tr><td class="py-2 font-mono text-[#76a9fa]">.badge-4x3</td><td class="py-2 text-gray-500">blue-500/18</td><td class="py-2 text-gray-500">#76a9fa</td><td class="py-2">Buy 4, Get 1 Free</td></tr>
+                    <tr><td class="py-2 font-mono text-[#3FC189]">.badge-pct</td><td class="py-2 text-gray-500">green-500/15</td><td class="py-2 text-gray-500">#3FC189</td><td class="py-2">% off (no BXGY)</td></tr>
+                    <tr><td class="py-2 font-mono text-[#3FC189]">.status-active</td><td class="py-2 text-gray-500">green-500/15</td><td class="py-2 text-gray-500">#3FC189</td><td class="py-2">Promocion aplicandose</td></tr>
+                    <tr><td class="py-2 font-mono text-[#fbbf24]">.status-paused</td><td class="py-2 text-gray-500">yellow-500/15</td><td class="py-2 text-gray-500">#fbbf24</td><td class="py-2">Pausada manualmente</td></tr>
+                    <tr><td class="py-2 font-mono text-[#76a9fa]">.status-scheduled</td><td class="py-2 text-gray-500">blue-500/15</td><td class="py-2 text-gray-500">#76a9fa</td><td class="py-2">Aun no inicia</td></tr>
+                    <tr><td class="py-2 font-mono text-[#9CA3AF]">.status-expired</td><td class="py-2 text-gray-500">gray-500/15</td><td class="py-2 text-gray-500">#9CA3AF</td><td class="py-2">Periodo vencido</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const KEY = 'huubie-theme';
+        const apply = (t) => {
+            document.body.setAttribute('data-theme', t);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('theme-active', b.dataset.themeBtn === t));
+        };
+        apply(localStorage.getItem(KEY) || 'dark');
+        document.querySelectorAll('[data-theme-btn]').forEach(b => b.addEventListener('click', () => { localStorage.setItem(KEY, b.dataset.themeBtn); apply(b.dataset.themeBtn); }));
+    </script>
+</body>
+</html>

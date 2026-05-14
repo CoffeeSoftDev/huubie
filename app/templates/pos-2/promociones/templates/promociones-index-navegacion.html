@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es" style="background:#111928;color:#fff">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promociones POS-2 - Hub de Navegacion</title>
+    <style>html,body{background:#111928!important;color:#fff;margin:0}</style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; min-height: 100vh; }
+        .card-demo { background:#1F2A37; border:1px solid rgba(55,65,81,.6); border-radius:12px; padding:1.25rem; transition:.15s; }
+        .card-demo:hover { border-color:#7c3aed; transform:translateY(-2px); box-shadow:0 10px 30px rgba(0,0,0,.3); }
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+
+        /* Light theme */
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .card-demo { background:#ffffff !important; border-color:#e5e7eb !important; }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-6xl mx-auto">
+
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-8">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[rgba(124,58,237,0.18)] text-[#c4b5fd] border border-[rgba(124,58,237,0.35)]">POS-2 · ADMIN</span>
+                    <span class="text-[10px] text-gray-500">Fase 1 - Mockup UI</span>
+                </div>
+                <h1 class="text-2xl font-bold mb-2">Promociones - Buy X, Get Y Free</h1>
+                <p class="text-sm text-gray-400 max-w-2xl">Configura promociones tipo "3x2", "2x1" y multipack discount. Define productos elegibles, vigencia, restricciones y simula el impacto antes de activar.</p>
+            </div>
+
+            <!-- Theme switcher -->
+            <div class="flex items-center bg-[#1a2332] border border-gray-700 rounded-lg p-1 gap-0.5">
+                <button data-theme-btn="dark" class="theme-active px-3 py-1 text-[11px] font-semibold">Dark</button>
+                <button data-theme-btn="light" class="px-3 py-1 text-[11px] font-semibold text-gray-400">Light</button>
+            </div>
+        </div>
+
+        <!-- Seccion: Vistas principales -->
+        <h2 class="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">Vistas principales</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+
+            <!-- Lista de promociones -->
+            <a href="promociones-lista.html" class="card-demo group block">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-[rgba(28,100,242,0.18)] border border-[rgba(28,100,242,0.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#76A9FA]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                    </div>
+                    <span class="text-[10px] text-gray-500">conjure table</span>
+                </div>
+                <h3 class="text-sm font-bold mb-1 group-hover:text-[#c4b5fd] transition-colors">Lista de promociones</h3>
+                <p class="text-[11px] text-gray-400 mb-2">Tabla principal con todas las promociones activas, pausadas y vencidas. Filtros por tipo, vigencia y sucursal.</p>
+                <span class="text-[10px] text-gray-500">promociones-lista.html</span>
+            </a>
+
+            <!-- Dashboard -->
+            <a href="promociones-dashboard.html" class="card-demo group block">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-[rgba(63,193,137,0.18)] border border-[rgba(63,193,137,0.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#3FC189]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <span class="text-[10px] text-gray-500">conjure cards</span>
+                </div>
+                <h3 class="text-sm font-bold mb-1 group-hover:text-[#c4b5fd] transition-colors">Dashboard de descuentos</h3>
+                <p class="text-[11px] text-gray-400 mb-2">KPIs de efectividad: ahorro total entregado, sets aplicados, productos regalados, top promociones y grafico de tendencia.</p>
+                <span class="text-[10px] text-gray-500">promociones-dashboard.html</span>
+            </a>
+
+            <!-- Detalle promocion -->
+            <a href="promociones-detalle.html" class="card-demo group block md:col-span-2">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-[rgba(124,58,237,0.18)] border border-[rgba(124,58,237,0.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#c4b5fd]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    </div>
+                    <span class="text-[10px] text-gray-500">conjure detail</span>
+                </div>
+                <h3 class="text-sm font-bold mb-1 group-hover:text-[#c4b5fd] transition-colors">Detalle de promocion BXGY</h3>
+                <p class="text-[11px] text-gray-400 mb-2">Vista completa: configuracion, productos elegibles, restricciones activas, historial de aplicaciones recientes y KPIs en vivo.</p>
+                <span class="text-[10px] text-gray-500">promociones-detalle.html</span>
+            </a>
+        </div>
+
+        <!-- Seccion: Modales -->
+        <h2 class="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">Modales</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+
+            <a href="modals/modal-nueva-promocion.html" class="card-demo group block">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-[rgba(124,58,237,0.18)] border border-[rgba(124,58,237,0.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#c4b5fd]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    </div>
+                    <span class="text-[10px] text-gray-500">conjure form</span>
+                </div>
+                <h3 class="text-sm font-bold mb-1 group-hover:text-[#c4b5fd] transition-colors">Crear / editar promocion</h3>
+                <p class="text-[11px] text-gray-400 mb-2">Formulario completo: tipo, X / Y, vigencia, franja horaria, dias de semana, productos y restricciones.</p>
+                <span class="text-[10px] text-gray-500">modal-nueva-promocion.html</span>
+            </a>
+
+            <a href="modals/modal-seleccionar-productos.html" class="card-demo group block">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-[rgba(118,169,250,0.18)] border border-[rgba(118,169,250,0.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#76A9FA]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <span class="text-[10px] text-gray-500">conjure selector</span>
+                </div>
+                <h3 class="text-sm font-bold mb-1 group-hover:text-[#c4b5fd] transition-colors">Seleccionar productos</h3>
+                <p class="text-[11px] text-gray-400 mb-2">Grid de productos del catalogo con buscador, filtro por categoria y seleccion masiva. Tags de elegibles.</p>
+                <span class="text-[10px] text-gray-500">modal-seleccionar-productos.html</span>
+            </a>
+
+            <a href="modals/modal-simulacion-previa.html" class="card-demo group block">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-[rgba(251,191,36,0.18)] border border-[rgba(251,191,36,0.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#fbbf24]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <span class="text-[10px] text-gray-500">conjure modal</span>
+                </div>
+                <h3 class="text-sm font-bold mb-1 group-hover:text-[#c4b5fd] transition-colors">Simulacion previa</h3>
+                <p class="text-[11px] text-gray-400 mb-2">Preview del impacto: monto descontado proyectado, items regalados y casos edge antes de activar la promo.</p>
+                <span class="text-[10px] text-gray-500">modal-simulacion-previa.html</span>
+            </a>
+        </div>
+
+        <!-- Seccion: Utils -->
+        <h2 class="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">Utils (componentes reutilizables)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+
+            <a href="../utils/badges-descuento.html" class="card-demo group block">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-[rgba(63,193,137,0.18)] border border-[rgba(63,193,137,0.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#3FC189]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                    </div>
+                    <span class="text-[10px] text-gray-500">badges</span>
+                </div>
+                <h3 class="text-sm font-bold mb-1 group-hover:text-[#c4b5fd] transition-colors">Badges de descuento</h3>
+                <p class="text-[11px] text-gray-400 mb-2">Coleccion de badges: 3x2, 2x1, % off, vigencia, status. Variantes dark / light.</p>
+                <span class="text-[10px] text-gray-500">utils/badges-descuento.html</span>
+            </a>
+
+            <a href="../utils/tarjeta-promocion.html" class="card-demo group block">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-[rgba(244,114,182,0.18)] border border-[rgba(244,114,182,0.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#f472b6]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                    </div>
+                    <span class="text-[10px] text-gray-500">card</span>
+                </div>
+                <h3 class="text-sm font-bold mb-1 group-hover:text-[#c4b5fd] transition-colors">Tarjeta de promocion</h3>
+                <p class="text-[11px] text-gray-400 mb-2">Card visual para mostrar en panel admin, lista o resumen. Incluye toggle activar / pausar.</p>
+                <span class="text-[10px] text-gray-500">utils/tarjeta-promocion.html</span>
+            </a>
+
+            <a href="../utils/indicador-ahorro-carrito.html" class="card-demo group block">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-[rgba(251,191,36,0.18)] border border-[rgba(251,191,36,0.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#fbbf24]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17"/></svg>
+                    </div>
+                    <span class="text-[10px] text-gray-500">indicator</span>
+                </div>
+                <h3 class="text-sm font-bold mb-1 group-hover:text-[#c4b5fd] transition-colors">Indicador ahorro carrito</h3>
+                <p class="text-[11px] text-gray-400 mb-2">Banner que se inserta en el carrito del POS: muestra cuanto esta ahorrando el cliente en tiempo real.</p>
+                <span class="text-[10px] text-gray-500">utils/indicador-ahorro-carrito.html</span>
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-[10px] text-gray-500 mt-8 pt-6 border-t border-gray-800">
+            CoffeeSoft - Huubie POS-2 - Modulo Promociones BXGY - generado por CoffeeMagic
+        </div>
+    </div>
+
+    <script>
+        // Theme toggle
+        const KEY = 'huubie-theme';
+        const apply = (t) => {
+            document.body.setAttribute('data-theme', t);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => {
+                b.classList.toggle('theme-active', b.dataset.themeBtn === t);
+            });
+        };
+        apply(localStorage.getItem(KEY) || 'dark');
+        document.querySelectorAll('[data-theme-btn]').forEach(b => {
+            b.addEventListener('click', () => {
+                localStorage.setItem(KEY, b.dataset.themeBtn);
+                apply(b.dataset.themeBtn);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -77,7 +77,10 @@
       "Bash(mkdir -p /c/Users/CoffeSoft/.kiro/steering/grimorios)",
       "Bash(cp /c/Users/CoffeSoft/.claude/steering/grimorios/grimorio-finanzas.md /c/Users/CoffeSoft/.kiro/steering/grimorios/)",
       "Bash(cp /c/Users/CoffeSoft/.claude/steering/grimorios/grimorio-rrhh.md /c/Users/CoffeSoft/.kiro/steering/grimorios/)",
-      "Bash(cp /c/Users/CoffeSoft/.claude/steering/grimorios/grimorio-huubie-ui.md /c/Users/CoffeSoft/.kiro/steering/grimorios/)"
+      "Bash(cp /c/Users/CoffeSoft/.claude/steering/grimorios/grimorio-huubie-ui.md /c/Users/CoffeSoft/.kiro/steering/grimorios/)",
+      "Bash(dir \"C:\\\\Users\\\\SomxDev\\\\.claude\\\\skills\" /b)",
+      "Bash(dir \"C:\\\\Users\\\\SomxDev\\\\.claude\\\\agents\" /b)",
+      "Bash(dir \"c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\templates\\\\pos-2\" /b)"
     ]
   },
   "spinnerTipsEnabled": true

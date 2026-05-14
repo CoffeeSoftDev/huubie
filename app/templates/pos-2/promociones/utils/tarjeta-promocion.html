@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es" style="background:#111928;color:#fff">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Util - Tarjeta de promocion</title>
+    <style>html,body{background:#111928!important;color:#fff;margin:0}</style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; padding:2rem; }
+
+        .promo-card { background:#1F2A37; border:1px solid rgba(55,65,81,.6); border-radius:14px; padding:1rem; transition:.2s; position:relative; overflow:hidden; }
+        .promo-card:hover { border-color:#7c3aed; transform:translateY(-2px); box-shadow:0 10px 30px rgba(0,0,0,.3); }
+        .promo-card.active::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:#7c3aed; }
+        .promo-card.paused::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:#fbbf24; }
+        .promo-card.scheduled::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:#76a9fa; }
+        .promo-card.expired { opacity:.6; }
+        .promo-card.expired::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:#9CA3AF; }
+
+        .badge-base { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; }
+        .badge-3x2 { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-2x1 { background:rgba(244,114,182,.15); color:#f472b6; border-color:rgba(244,114,182,.3); }
+        .badge-4x3 { background:rgba(28,100,242,.18); color:#76a9fa; border-color:rgba(28,100,242,.35); }
+        .badge-pct { background:rgba(63,193,137,.15); color:#3FC189; border-color:rgba(63,193,137,.3); }
+        .status-active { background:rgba(63,193,137,.15); color:#3FC189; border-color:rgba(63,193,137,.3); }
+        .status-paused { background:rgba(251,191,36,.15); color:#fbbf24; border-color:rgba(251,191,36,.3); }
+        .status-scheduled { background:rgba(28,100,242,.15); color:#76a9fa; border-color:rgba(28,100,242,.3); }
+        .status-expired { background:rgba(156,163,175,.15); color:#9CA3AF; border-color:rgba(156,163,175,.3); }
+
+        .toggle { position:relative; width:32px; height:18px; background:#374151; border-radius:9999px; cursor:pointer; transition:.2s; }
+        .toggle::after { content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; background:#fff; border-radius:50%; transition:.2s; }
+        .toggle.active { background:#7c3aed; }
+        .toggle.active::after { transform:translateX(14px); }
+
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] .promo-card { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-6xl mx-auto">
+
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-8">
+            <div>
+                <span class="text-[10px] text-gray-500">Util reutilizable</span>
+                <h1 class="text-2xl font-bold mt-1">Tarjeta de promocion</h1>
+                <p class="text-sm text-gray-400 mt-2 max-w-2xl">Componente visual de promocion. Variantes por estado (activa, pausada, programada, vencida) y por tamano (mini, full).</p>
+            </div>
+            <div class="flex items-center bg-[#1a2332] border border-gray-700 rounded-lg p-1 gap-0.5">
+                <button data-theme-btn="dark" class="theme-active px-3 py-1 text-[10px] font-semibold">Dark</button>
+                <button data-theme-btn="light" class="px-3 py-1 text-[10px] font-semibold text-gray-400">Light</button>
+            </div>
+        </div>
+
+        <!-- Tarjetas FULL -->
+        <h2 class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-3">Tarjeta completa (full)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+
+            <!-- Activa -->
+            <div class="promo-card active">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-xl bg-[rgba(124,58,237,.18)] border border-[rgba(124,58,237,.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#c4b5fd]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                    </div>
+                    <div class="toggle active"></div>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="badge-base badge-3x2">3x2</span>
+                    <span class="badge-base status-active">ACTIVA</span>
+                </div>
+                <h3 class="text-sm font-bold">3x2 cafe matutino</h3>
+                <p class="text-[11px] text-gray-400 mt-1 mb-3">Lun-Vie 7-11 am · 3 productos</p>
+                <div class="flex items-center justify-between pt-3 border-t border-gray-800/50">
+                    <div>
+                        <p class="text-[10px] text-gray-500">Ahorrado</p>
+                        <p class="text-sm font-bold text-[#3FC189]">$4,580</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-gray-500">Sets</p>
+                        <p class="text-sm font-bold">102</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pausada -->
+            <div class="promo-card paused">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-xl bg-[rgba(63,193,137,.18)] border border-[rgba(63,193,137,.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#3FC189]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 21h-6L7 16l8.51-9.4a2 2 0 012.83 0L19 7l.4.4a2 2 0 010 2.83L17 21z"/></svg>
+                    </div>
+                    <div class="toggle"></div>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="badge-base badge-pct">15% OFF</span>
+                    <span class="badge-base status-paused">PAUSADA</span>
+                </div>
+                <h3 class="text-sm font-bold">15% off bebidas frias</h3>
+                <p class="text-[11px] text-gray-400 mt-1 mb-3">Diario · 6 productos elegibles</p>
+                <div class="flex items-center justify-between pt-3 border-t border-gray-800/50">
+                    <div>
+                        <p class="text-[10px] text-gray-500">Ahorrado</p>
+                        <p class="text-sm font-bold text-[#fbbf24]">$1,240</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-gray-500">Aplicaciones</p>
+                        <p class="text-sm font-bold">68</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Programada -->
+            <div class="promo-card scheduled">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-xl bg-[rgba(28,100,242,.18)] border border-[rgba(28,100,242,.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#76A9FA]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div class="toggle active"></div>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="badge-base badge-4x3">4x3</span>
+                    <span class="badge-base status-scheduled">PROGRAMADA</span>
+                </div>
+                <h3 class="text-sm font-bold">4x3 postres fin de semana</h3>
+                <p class="text-[11px] text-gray-400 mt-1 mb-3">Inicia 01 Jun · 12 productos</p>
+                <div class="flex items-center justify-between pt-3 border-t border-gray-800/50">
+                    <div>
+                        <p class="text-[10px] text-gray-500">Empieza en</p>
+                        <p class="text-sm font-bold text-[#76A9FA]">18 dias</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-gray-500">Vigencia</p>
+                        <p class="text-sm font-bold">4 meses</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vencida -->
+            <div class="promo-card expired">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-10 h-10 rounded-xl bg-[rgba(156,163,175,.18)] border border-[rgba(156,163,175,.35)] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[#9CA3AF]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="badge-base badge-3x2">3x2</span>
+                    <span class="badge-base status-expired">VENCIDA</span>
+                </div>
+                <h3 class="text-sm font-bold">3x2 paninis al horno</h3>
+                <p class="text-[11px] text-gray-400 mt-1 mb-3">Cerrada el 15 Abr 2026</p>
+                <div class="flex items-center justify-between pt-3 border-t border-gray-800/50">
+                    <div>
+                        <p class="text-[10px] text-gray-500">Ahorrado total</p>
+                        <p class="text-sm font-bold text-gray-500">$12,340</p>
+                    </div>
+                    <button class="text-[10px] text-[#76A9FA] font-semibold hover:text-blue-300">Re-activar</button>
+                </div>
+            </div>
+
+            <!-- Card placeholder (agregar) -->
+            <button class="rounded-2xl border-2 border-dashed border-purple-500/40 hover:bg-purple-500/5 transition flex flex-col items-center justify-center min-h-[200px] text-purple-400">
+                <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                <p class="text-xs font-bold">Nueva promocion</p>
+                <p class="text-[10px] text-gray-500 mt-1">Crear desde plantilla</p>
+            </button>
+        </div>
+
+        <!-- Tarjetas MINI -->
+        <h2 class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-3">Tarjeta mini (compacta)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
+
+            <div class="promo-card active py-3">
+                <div class="flex items-center gap-3">
+                    <span class="badge-base badge-3x2 flex-shrink-0">3x2</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">3x2 cafe matutino</p>
+                        <p class="text-[10px] text-gray-500">Lun-Vie 7-11 am</p>
+                    </div>
+                    <span class="text-xs font-bold text-[#3FC189] flex-shrink-0">$4,580</span>
+                    <div class="toggle active flex-shrink-0"></div>
+                </div>
+            </div>
+
+            <div class="promo-card paused py-3">
+                <div class="flex items-center gap-3">
+                    <span class="badge-base badge-pct flex-shrink-0">15%</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold truncate">15% off bebidas frias</p>
+                        <p class="text-[10px] text-gray-500">Pausada hace 3 dias</p>
+                    </div>
+                    <span class="text-xs font-bold text-[#fbbf24] flex-shrink-0">$1,240</span>
+                    <div class="toggle flex-shrink-0"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Variante hero (destacada) -->
+        <h2 class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-3">Hero (promo destacada)</h2>
+        <div class="relative rounded-2xl overflow-hidden bg-gradient-to-br from-[rgba(124,58,237,.15)] via-[rgba(244,114,182,.1)] to-[rgba(28,100,242,.15)] border border-[rgba(124,58,237,.3)] p-6 mb-6">
+            <div class="absolute top-3 right-3"><span class="badge-base status-active"><span class="w-1.5 h-1.5 rounded-full bg-[#3FC189]"></span>EN VIVO</span></div>
+            <div class="flex items-center gap-4">
+                <div class="text-5xl font-black text-[#c4b5fd] font-mono leading-none">3x2</div>
+                <div class="flex-1">
+                    <h2 class="text-xl font-bold">Cafe matutino</h2>
+                    <p class="text-sm text-gray-300 mt-1">Llevate 3 y paga solo 2 - el de menor precio va por la casa.</p>
+                    <p class="text-[11px] text-gray-500 mt-2">Valido Lun-Vie 7:00-11:00 · Solo sucursal Centro</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[11px] text-gray-400">Termina en</p>
+                    <p class="text-2xl font-bold">109 dias</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const KEY = 'huubie-theme';
+        const apply = (t) => {
+            document.body.setAttribute('data-theme', t);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('theme-active', b.dataset.themeBtn === t));
+        };
+        apply(localStorage.getItem(KEY) || 'dark');
+        document.querySelectorAll('[data-theme-btn]').forEach(b => b.addEventListener('click', () => { localStorage.setItem(KEY, b.dataset.themeBtn); apply(b.dataset.themeBtn); }));
+        document.querySelectorAll('.toggle').forEach(t => t.addEventListener('click', () => t.classList.toggle('active')));
+    </script>
+</body>
+</html>

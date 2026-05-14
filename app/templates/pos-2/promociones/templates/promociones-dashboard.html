@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es" style="background:#111928;color:#fff">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promociones - Dashboard</title>
+    <style>html,body{background:#111928!important;color:#fff;margin:0}</style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; }
+        .scrollbar-thin::-webkit-scrollbar { width:4px; height:4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+        .card-base { background:#1F2A37; border:1px solid rgba(55,65,81,.6); border-radius:12px; }
+        .sidebar-item { display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:8px; font-size:12px; color:#9ca3af; cursor:pointer; }
+        .sidebar-item:hover { background:rgba(124,58,237,.08); color:#d1d5db; }
+        .sidebar-item.active { color:#c4b5fd; background:rgba(124,58,237,.15); }
+        .badge-base { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; }
+        .badge-3x2  { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-2x1  { background:rgba(244,114,182,.15); color:#f472b6; border-color:rgba(244,114,182,.3); }
+        .badge-4x3  { background:rgba(28,100,242,.18); color:#76a9fa; border-color:rgba(28,100,242,.35); }
+        .badge-pct  { background:rgba(63,193,137,.15); color:#3FC189; border-color:rgba(63,193,137,.3); }
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] aside.bg-\[\#0f172a\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .card-base { background:#ffffff !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .sidebar-item { color:#6b7280 !important; }
+        body[data-theme="light"] .sidebar-item.active { color:#7c3aed !important; background:rgba(124,58,237,.12) !important; }
+    </style>
+</head>
+<body class="flex">
+
+    <!-- Sidebar -->
+    <aside class="w-56 bg-[#0f172a] border-r border-gray-800 h-screen flex flex-col flex-shrink-0 sticky top-0">
+        <div class="px-4 py-4 border-b border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-xs font-bold">hb</div>
+            <div>
+                <p class="text-xs font-bold">Huubie POS-2</p>
+                <p class="text-[10px] text-gray-500">Sucursal Centro</p>
+            </div>
+        </div>
+        <nav class="flex-1 px-2 py-3 space-y-1 overflow-y-auto scrollbar-thin">
+            <div class="text-[10px] uppercase tracking-wider text-gray-600 px-3 py-1">Venta</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4"/></svg> Cobrar</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/></svg> Pedidos</div>
+            <div class="text-[10px] uppercase tracking-wider text-gray-600 px-3 py-1 mt-3">Admin</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12v10H4V12M2 7h20v5H2V7zM12 22V7"/></svg> Productos</div>
+            <div class="sidebar-item active"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg> Promociones</div>
+            <div class="sidebar-item"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10"/></svg> Reportes</div>
+        </nav>
+        <div class="px-3 py-3 border-t border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">AU</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-[11px] font-semibold truncate">Admin User</p>
+                <p class="text-[10px] text-gray-500">Supervisor</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 overflow-y-auto">
+
+        <!-- Header -->
+        <header class="bg-[#141d2b] border-b border-gray-800 px-6 py-3 flex items-center gap-3 sticky top-0 z-20">
+            <div class="flex items-center gap-2 text-xs text-gray-400">
+                <span>POS-2</span><span>/</span><span>Admin</span><span>/</span>
+                <a href="promociones-lista.html" class="hover:text-white">Promociones</a><span>/</span>
+                <span class="text-white font-semibold">Dashboard</span>
+            </div>
+            <div class="flex-1"></div>
+            <div class="flex items-center bg-[#1a2332] border border-gray-700 rounded-lg p-1 gap-0.5">
+                <button data-theme-btn="dark" class="theme-active px-3 py-1 text-[10px] font-semibold">Dark</button>
+                <button data-theme-btn="light" class="px-3 py-1 text-[10px] font-semibold text-gray-400">Light</button>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">AU</div>
+        </header>
+
+        <!-- Subheader -->
+        <div class="bg-[#141d2b] border-b border-gray-800 px-6 py-4 flex items-end justify-between gap-4">
+            <div>
+                <h1 class="text-lg font-bold">Dashboard de descuentos</h1>
+                <p class="text-[11px] text-gray-500">Efectividad de promociones BXGY en el periodo seleccionado.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <select class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-[11px] text-gray-300">
+                    <option>Mes actual</option>
+                    <option>Ultimos 30 dias</option>
+                    <option>Ultimos 90 dias</option>
+                    <option>Anio en curso</option>
+                </select>
+                <select class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-[11px] text-gray-300">
+                    <option>Todas las sucursales</option>
+                    <option>Centro</option>
+                    <option>Reforma</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 space-y-6">
+
+            <!-- Fila 1: KPI cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Total ahorrado -->
+                <div class="card-base p-5">
+                    <div class="flex items-start justify-between mb-2">
+                        <p class="text-[11px] text-gray-400">Total ahorrado (descontado)</p>
+                        <div class="w-9 h-9 rounded-lg bg-green-500/20 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m3 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H10a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold">$24,560</p>
+                    <p class="text-[10px] text-[#3FC189] mt-2 flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                        +18% vs mes anterior
+                    </p>
+                </div>
+
+                <!-- Sets aplicados -->
+                <div class="card-base p-5">
+                    <div class="flex items-start justify-between mb-2">
+                        <p class="text-[11px] text-gray-400">Sets aplicados</p>
+                        <div class="w-9 h-9 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold">1,247</p>
+                    <p class="text-[10px] text-gray-500 mt-2">total en el periodo</p>
+                </div>
+
+                <!-- Items gratis -->
+                <div class="card-base p-5">
+                    <div class="flex items-start justify-between mb-2">
+                        <p class="text-[11px] text-gray-400">Productos regalados</p>
+                        <div class="w-9 h-9 rounded-lg bg-pink-500/20 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold">1,247</p>
+                    <p class="text-[10px] text-gray-500 mt-2">items como "gratis"</p>
+                </div>
+
+                <!-- Promociones activas -->
+                <div class="card-base p-5">
+                    <div class="flex items-start justify-between mb-2">
+                        <p class="text-[11px] text-gray-400">Promociones activas</p>
+                        <div class="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold">12</p>
+                    <p class="text-[10px] text-gray-500 mt-2">de 22 promociones totales</p>
+                </div>
+            </div>
+
+            <!-- Fila 2: grafico + top promociones -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                <!-- Grafico tendencia -->
+                <div class="card-base p-5 lg:col-span-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-bold">Tendencia de ahorro entregado</h3>
+                            <p class="text-[11px] text-gray-500">Monto descontado por dia - ultimo mes</p>
+                        </div>
+                        <div class="flex items-center gap-3 text-[10px] text-gray-400">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-[#7c3aed]"></span> 3x2
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-[#f472b6]"></span> 2x1
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-[#3FC189]"></span> % off
+                            </div>
+                        </div>
+                    </div>
+                    <div class="h-[260px]">
+                        <canvas id="chartTrend"></canvas>
+                    </div>
+                </div>
+
+                <!-- Top promociones -->
+                <div class="card-base p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold">Top promociones</h3>
+                        <span class="text-[10px] text-gray-500">por ahorro</span>
+                    </div>
+                    <div class="space-y-3">
+
+                        <div class="flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-md bg-[rgba(124,58,237,.2)] text-[#c4b5fd] text-[10px] font-bold flex items-center justify-center">1</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-bold truncate">2x1 panaderia tarde</p>
+                                <p class="text-[10px] text-gray-500">446 sets</p>
+                            </div>
+                            <p class="text-xs font-bold text-[#3FC189]">$8,920</p>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-md bg-[rgba(28,100,242,.2)] text-[#76a9fa] text-[10px] font-bold flex items-center justify-center">2</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-bold truncate">3x2 cafe matutino</p>
+                                <p class="text-[10px] text-gray-500">102 sets</p>
+                            </div>
+                            <p class="text-xs font-bold text-[#3FC189]">$4,580</p>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-md bg-[rgba(244,114,182,.2)] text-[#f472b6] text-[10px] font-bold flex items-center justify-center">3</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-bold truncate">3x2 paninis al horno</p>
+                                <p class="text-[10px] text-gray-500">247 sets</p>
+                            </div>
+                            <p class="text-xs font-bold text-[#3FC189]">$12,340</p>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-md bg-[rgba(63,193,137,.2)] text-[#3FC189] text-[10px] font-bold flex items-center justify-center">4</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-bold truncate">15% off bebidas frias</p>
+                                <p class="text-[10px] text-gray-500">68 aplicaciones</p>
+                            </div>
+                            <p class="text-xs font-bold text-[#3FC189]">$1,240</p>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-md bg-[rgba(156,163,175,.2)] text-gray-400 text-[10px] font-bold flex items-center justify-center">5</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-bold truncate">3x2 bagels semana</p>
+                                <p class="text-[10px] text-gray-500">34 sets</p>
+                            </div>
+                            <p class="text-xs font-bold text-[#3FC189]">$1,150</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fila 3: Distribucion por tipo + alertas -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                <!-- Distribucion por tipo -->
+                <div class="card-base p-5">
+                    <h3 class="text-sm font-bold mb-1">Distribucion por tipo</h3>
+                    <p class="text-[11px] text-gray-500 mb-4">Mezcla de promociones aplicadas</p>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="badge-base badge-3x2">3x2</span>
+                                <span class="text-xs font-bold">$13,830 <span class="text-[10px] text-gray-500">(56%)</span></span>
+                            </div>
+                            <div class="h-1.5 bg-[#374151] rounded-full overflow-hidden">
+                                <div class="h-full bg-[#7c3aed]" style="width:56%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="badge-base badge-2x1">2x1</span>
+                                <span class="text-xs font-bold">$8,920 <span class="text-[10px] text-gray-500">(36%)</span></span>
+                            </div>
+                            <div class="h-1.5 bg-[#374151] rounded-full overflow-hidden">
+                                <div class="h-full bg-[#f472b6]" style="width:36%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="badge-base badge-pct">% OFF</span>
+                                <span class="text-xs font-bold">$1,240 <span class="text-[10px] text-gray-500">(5%)</span></span>
+                            </div>
+                            <div class="h-1.5 bg-[#374151] rounded-full overflow-hidden">
+                                <div class="h-full bg-[#3FC189]" style="width:5%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="badge-base badge-4x3">4x3</span>
+                                <span class="text-xs font-bold">$570 <span class="text-[10px] text-gray-500">(3%)</span></span>
+                            </div>
+                            <div class="h-1.5 bg-[#374151] rounded-full overflow-hidden">
+                                <div class="h-full bg-[#76a9fa]" style="width:3%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alertas / auditoria -->
+                <div class="card-base p-5 lg:col-span-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-bold">Alertas y auditoria</h3>
+                            <p class="text-[11px] text-gray-500">Posibles abusos o reglas a revisar</p>
+                        </div>
+                        <button class="text-[11px] text-[#76A9FA] hover:text-blue-300 font-semibold">Ver historial completo</button>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex items-start gap-3 p-3 rounded-lg bg-[rgba(251,191,36,.08)] border border-[rgba(251,191,36,.25)]">
+                            <div class="w-7 h-7 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-semibold">Cliente "FREC_001" supero limite diario</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">5 aplicaciones de 3x2 cafe en un mismo dia · supero el tope (max 3)</p>
+                            </div>
+                            <span class="text-[10px] text-gray-500 flex-shrink-0">hace 2h</span>
+                        </div>
+
+                        <div class="flex items-start gap-3 p-3 rounded-lg bg-[rgba(28,100,242,.08)] border border-[rgba(28,100,242,.25)]">
+                            <div class="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-semibold">"3x2 paninis al horno" expira en 3 dias</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">Decide si extender o cerrar antes del 15 Abr</p>
+                            </div>
+                            <span class="text-[10px] text-gray-500 flex-shrink-0">hoy</span>
+                        </div>
+
+                        <div class="flex items-start gap-3 p-3 rounded-lg bg-[rgba(63,193,137,.08)] border border-[rgba(63,193,137,.25)]">
+                            <div class="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-semibold">"2x1 panaderia tarde" supera meta del mes</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">446 aplicaciones vs meta de 300 · +49% sobre proyeccion</p>
+                            </div>
+                            <span class="text-[10px] text-gray-500 flex-shrink-0">ayer</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-[#141d2b] border-t border-gray-800 px-6 py-2">
+            <p class="text-[10px] text-gray-500">CoffeeSoft - Huubie POS-2 - Dashboard de Promociones BXGY</p>
+        </div>
+    </main>
+
+    <script>
+        const KEY = 'huubie-theme';
+        const apply = (t) => {
+            document.body.setAttribute('data-theme', t);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('theme-active', b.dataset.themeBtn === t));
+        };
+        apply(localStorage.getItem(KEY) || 'dark');
+        document.querySelectorAll('[data-theme-btn]').forEach(b => b.addEventListener('click', () => { localStorage.setItem(KEY, b.dataset.themeBtn); apply(b.dataset.themeBtn); }));
+
+        // Chart
+        const labels = ['1','3','5','7','9','11','13','15','17','19','21','23','25','27','29'];
+        new Chart(document.getElementById('chartTrend').getContext('2d'), {
+            type:'line',
+            data:{
+                labels,
+                datasets:[
+                    { label:'3x2', data:[120,180,150,210,230,180,260,310,290,340,380,420,450,470,520], borderColor:'#7c3aed', backgroundColor:'rgba(124,58,237,.1)', tension:.35, fill:true, borderWidth:2, pointRadius:0 },
+                    { label:'2x1', data:[80,120,140,160,180,210,240,260,280,300,320,340,360,380,400], borderColor:'#f472b6', backgroundColor:'rgba(244,114,182,.1)', tension:.35, fill:true, borderWidth:2, pointRadius:0 },
+                    { label:'% off', data:[20,30,40,35,50,45,55,60,50,45,40,30,25,20,15], borderColor:'#3FC189', backgroundColor:'rgba(63,193,137,.1)', tension:.35, fill:true, borderWidth:2, pointRadius:0 }
+                ]
+            },
+            options:{
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{ display:false } },
+                scales:{
+                    x:{ ticks:{ color:'#6b7280', font:{ size:10 } }, grid:{ color:'rgba(55,65,81,.3)' } },
+                    y:{ ticks:{ color:'#6b7280', font:{ size:10 }, callback:(v)=>'$'+v }, grid:{ color:'rgba(55,65,81,.3)' } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

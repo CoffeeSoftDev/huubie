@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es" style="background:#111928;color:#fff">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promociones - Lista</title>
+    <style>html,body{background:#111928!important;color:#fff;margin:0}</style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; height:100vh; overflow:hidden; }
+
+        .scrollbar-thin::-webkit-scrollbar { width:4px; height:4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+
+        .input-base { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:6px 12px; font-size:12px; color:#d1d5db; }
+        .input-base:focus { outline:none; border-color:#7c3aed; }
+        select.input-base {
+            appearance:none;
+            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat:no-repeat; background-position:right 10px center; padding-right:28px;
+        }
+
+        .badge-base { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid; }
+        .badge-3x2  { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(124,58,237,.35); }
+        .badge-2x1  { background:rgba(244,114,182,.15); color:#f472b6; border-color:rgba(244,114,182,.3); }
+        .badge-4x3  { background:rgba(28,100,242,.18); color:#76a9fa; border-color:rgba(28,100,242,.35); }
+        .badge-pct  { background:rgba(63,193,137,.15); color:#3FC189; border-color:rgba(63,193,137,.3); }
+        .status-active   { background:rgba(63,193,137,.15); color:#3FC189; border-color:rgba(63,193,137,.3); }
+        .status-paused   { background:rgba(251,191,36,.15); color:#fbbf24; border-color:rgba(251,191,36,.3); }
+        .status-expired  { background:rgba(156,163,175,.15); color:#9CA3AF; border-color:rgba(156,163,175,.3); }
+        .status-scheduled{ background:rgba(28,100,242,.15); color:#76a9fa; border-color:rgba(28,100,242,.3); }
+
+        .sidebar-item { display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:8px; font-size:12px; color:#9ca3af; cursor:pointer; }
+        .sidebar-item:hover { background:rgba(124,58,237,.08); color:#d1d5db; }
+        .sidebar-item.active { color:#c4b5fd; background:rgba(124,58,237,.15); }
+
+        .toggle { position:relative; width:34px; height:18px; background:#374151; border-radius:9999px; cursor:pointer; transition:background .2s; }
+        .toggle::after { content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; background:#fff; border-radius:50%; transition:transform .2s; }
+        .toggle.active { background:#7c3aed; }
+        .toggle.active::after { transform:translateX(16px); }
+
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+
+        /* Light theme */
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] aside.bg-\[\#0f172a\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#111928\] { background:#f9fafb !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .border-gray-800 { border-color:#e5e7eb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .sidebar-item { color:#6b7280 !important; }
+        body[data-theme="light"] .sidebar-item:hover { background:rgba(124,58,237,.08) !important; color:#111928 !important; }
+        body[data-theme="light"] .sidebar-item.active { color:#7c3aed !important; background:rgba(124,58,237,.12) !important; }
+        body[data-theme="light"] .hover\:bg-\[\#1a2332\]\/40:hover { background:#f3f4f6 !important; }
+        body[data-theme="light"] thead { background:#f9fafb !important; }
+        body[data-theme="light"] .input-base { background:#f9fafb !important; border-color:#e5e7eb !important; color:#111928 !important; }
+    </style>
+</head>
+<body class="flex">
+
+    <!-- Sidebar -->
+    <aside class="w-56 bg-[#0f172a] border-r border-gray-800 h-screen flex flex-col flex-shrink-0">
+        <div class="px-4 py-4 border-b border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-xs font-bold">hb</div>
+            <div>
+                <p class="text-xs font-bold">Huubie POS-2</p>
+                <p class="text-[10px] text-gray-500">Sucursal Centro</p>
+            </div>
+        </div>
+        <nav class="flex-1 px-2 py-3 space-y-1 overflow-y-auto scrollbar-thin">
+            <div class="text-[10px] uppercase tracking-wider text-gray-600 px-3 py-1">Venta</div>
+            <div class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4"/></svg>
+                Cobrar
+            </div>
+            <div class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/></svg>
+                Pedidos
+            </div>
+            <div class="text-[10px] uppercase tracking-wider text-gray-600 px-3 py-1 mt-3">Admin</div>
+            <div class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12v10H4V12M2 7h20v5H2V7zM12 22V7"/></svg>
+                Productos
+            </div>
+            <div class="sidebar-item active">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                Promociones
+            </div>
+            <div class="sidebar-item">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10"/></svg>
+                Reportes
+            </div>
+        </nav>
+        <div class="px-3 py-3 border-t border-gray-800 flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">AU</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-[11px] font-semibold truncate">Admin User</p>
+                <p class="text-[10px] text-gray-500">Supervisor</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+
+        <!-- Header -->
+        <header class="bg-[#141d2b] border-b border-gray-800 px-6 py-3 flex items-center gap-3 flex-shrink-0">
+            <div class="flex items-center gap-2 text-xs text-gray-400">
+                <span>POS-2</span>
+                <span>/</span>
+                <span>Admin</span>
+                <span>/</span>
+                <span class="text-white font-semibold">Promociones</span>
+            </div>
+            <div class="flex-1"></div>
+            <div class="flex items-center bg-[#1a2332] border border-gray-700 rounded-lg p-1 gap-0.5">
+                <button data-theme-btn="dark" class="theme-active px-3 py-1 text-[10px] font-semibold">Dark</button>
+                <button data-theme-btn="light" class="px-3 py-1 text-[10px] font-semibold text-gray-400">Light</button>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">AU</div>
+        </header>
+
+        <!-- Subheader: titulo + KPIs mini -->
+        <div class="bg-[#141d2b] border-b border-gray-800 px-6 py-3 flex items-end justify-between gap-4">
+            <div>
+                <h1 class="text-lg font-bold">Promociones</h1>
+                <p class="text-[11px] text-gray-500">Configura "Buy X, Get Y Free", multipack y descuentos automaticos.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="px-3 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400">
+                    <span class="text-[#3FC189] font-bold">12</span> activas
+                </div>
+                <div class="px-3 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400">
+                    <span class="text-[#fbbf24] font-bold">3</span> pausadas
+                </div>
+                <div class="px-3 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400">
+                    <span class="text-[#9CA3AF] font-bold">7</span> vencidas
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="bg-[#141d2b] border-b border-gray-800 px-6 py-3 flex items-center gap-3 flex-wrap">
+            <div class="flex items-center gap-2 text-xs text-gray-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                <span class="font-semibold">Filtrar por</span>
+            </div>
+            <select class="input-base">
+                <option>Todos los tipos</option>
+                <option>3x2</option>
+                <option>2x1</option>
+                <option>4x3</option>
+                <option>% off</option>
+            </select>
+            <select class="input-base">
+                <option>Todos los estados</option>
+                <option>Activas</option>
+                <option>Pausadas</option>
+                <option>Programadas</option>
+                <option>Vencidas</option>
+            </select>
+            <select class="input-base">
+                <option>Todas las sucursales</option>
+                <option>Centro</option>
+                <option>Reforma</option>
+                <option>Polanco</option>
+            </select>
+            <input type="search" placeholder="Buscar promocion..." class="input-base w-56">
+            <button class="text-xs text-red-400 font-semibold hover:text-red-300 flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Reset
+            </button>
+            <div class="flex-1"></div>
+            <button onclick="window.location.href='modals/modal-nueva-promocion.html'" class="px-4 py-2 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold flex items-center gap-2 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                Nueva promocion
+            </button>
+        </div>
+
+        <!-- Tabla -->
+        <div class="flex-1 overflow-auto scrollbar-thin">
+            <table class="w-full">
+                <thead class="sticky top-0 bg-[#111928] z-10">
+                    <tr>
+                        <th class="text-left py-3 px-6 text-[10px] text-gray-500 uppercase tracking-wider">Codigo / Nombre</th>
+                        <th class="text-left py-3 px-3 text-[10px] text-gray-500 uppercase tracking-wider">Tipo</th>
+                        <th class="text-center py-3 px-3 text-[10px] text-gray-500 uppercase tracking-wider">Productos</th>
+                        <th class="text-left py-3 px-3 text-[10px] text-gray-500 uppercase tracking-wider">Vigencia</th>
+                        <th class="text-left py-3 px-3 text-[10px] text-gray-500 uppercase tracking-wider">Sucursal</th>
+                        <th class="text-right py-3 px-3 text-[10px] text-gray-500 uppercase tracking-wider">Ahorrado / Sets</th>
+                        <th class="text-center py-3 px-3 text-[10px] text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th class="text-center py-3 px-3 text-[10px] text-gray-500 uppercase tracking-wider">Activa</th>
+                        <th class="text-right py-3 px-6 text-[10px] text-gray-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/50">
+
+                    <!-- Fila 1 -->
+                    <tr class="hover:bg-[#1a2332]/40 transition-colors">
+                        <td class="py-3 px-6">
+                            <p class="text-xs font-bold">3x2 en cafe matutino</p>
+                            <p class="text-[10px] text-gray-500">PROMO_3X2_CAFE_MAT</p>
+                        </td>
+                        <td class="py-3 px-3"><span class="badge-base badge-3x2">3x2</span></td>
+                        <td class="py-3 px-3 text-center">
+                            <span class="text-[11px] text-gray-300 font-medium">3</span>
+                            <span class="text-[10px] text-gray-500">productos</span>
+                        </td>
+                        <td class="py-3 px-3">
+                            <p class="text-[11px] text-gray-300">01 May - 31 Ago 2026</p>
+                            <p class="text-[10px] text-gray-500">Lun-Vie 07:00-11:00</p>
+                        </td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Centro</td>
+                        <td class="py-3 px-3 text-right">
+                            <p class="text-xs font-bold text-[#3FC189]">$4,580.00</p>
+                            <p class="text-[10px] text-gray-500">102 sets / 102 gratis</p>
+                        </td>
+                        <td class="py-3 px-3 text-center"><span class="badge-base status-active">ACTIVA</span></td>
+                        <td class="py-3 px-3 text-center"><div class="toggle active mx-auto"></div></td>
+                        <td class="py-3 px-6 text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#76A9FA] text-gray-400 hover:text-[#76A9FA] flex items-center justify-center transition" title="Ver">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                </button>
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#c4b5fd] text-gray-400 hover:text-[#c4b5fd] flex items-center justify-center transition" title="Editar">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                </button>
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#fbbf24] text-gray-400 hover:text-[#fbbf24] flex items-center justify-center transition" title="Simular">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Fila 2 -->
+                    <tr class="hover:bg-[#1a2332]/40 transition-colors">
+                        <td class="py-3 px-6">
+                            <p class="text-xs font-bold">2x1 panaderia tarde</p>
+                            <p class="text-[10px] text-gray-500">PROMO_2X1_PAN_PM</p>
+                        </td>
+                        <td class="py-3 px-3"><span class="badge-base badge-2x1">2x1</span></td>
+                        <td class="py-3 px-3 text-center">
+                            <span class="text-[11px] text-gray-300 font-medium">8</span>
+                            <span class="text-[10px] text-gray-500">productos</span>
+                        </td>
+                        <td class="py-3 px-3">
+                            <p class="text-[11px] text-gray-300">15 Abr - 31 Dic 2026</p>
+                            <p class="text-[10px] text-gray-500">Diario 17:00-20:00</p>
+                        </td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Todas</td>
+                        <td class="py-3 px-3 text-right">
+                            <p class="text-xs font-bold text-[#3FC189]">$8,920.00</p>
+                            <p class="text-[10px] text-gray-500">446 sets / 446 gratis</p>
+                        </td>
+                        <td class="py-3 px-3 text-center"><span class="badge-base status-active">ACTIVA</span></td>
+                        <td class="py-3 px-3 text-center"><div class="toggle active mx-auto"></div></td>
+                        <td class="py-3 px-6 text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#76A9FA] text-gray-400 hover:text-[#76A9FA] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#c4b5fd] text-gray-400 hover:text-[#c4b5fd] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#fbbf24] text-gray-400 hover:text-[#fbbf24] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Fila 3 -->
+                    <tr class="hover:bg-[#1a2332]/40 transition-colors">
+                        <td class="py-3 px-6">
+                            <p class="text-xs font-bold">4x3 postres fin de semana</p>
+                            <p class="text-[10px] text-gray-500">PROMO_4X3_POSTRES</p>
+                        </td>
+                        <td class="py-3 px-3"><span class="badge-base badge-4x3">4x3</span></td>
+                        <td class="py-3 px-3 text-center">
+                            <span class="text-[11px] text-gray-300 font-medium">12</span>
+                            <span class="text-[10px] text-gray-500">productos</span>
+                        </td>
+                        <td class="py-3 px-3">
+                            <p class="text-[11px] text-gray-300">01 Jun - 30 Sep 2026</p>
+                            <p class="text-[10px] text-gray-500">Sab-Dom todo el dia</p>
+                        </td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Reforma</td>
+                        <td class="py-3 px-3 text-right">
+                            <p class="text-xs font-bold text-[#76A9FA]">$0.00</p>
+                            <p class="text-[10px] text-gray-500">Inicia 01 Jun</p>
+                        </td>
+                        <td class="py-3 px-3 text-center"><span class="badge-base status-scheduled">PROGRAMADA</span></td>
+                        <td class="py-3 px-3 text-center"><div class="toggle active mx-auto"></div></td>
+                        <td class="py-3 px-6 text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#76A9FA] text-gray-400 hover:text-[#76A9FA] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#c4b5fd] text-gray-400 hover:text-[#c4b5fd] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#fbbf24] text-gray-400 hover:text-[#fbbf24] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Fila 4 -->
+                    <tr class="hover:bg-[#1a2332]/40 transition-colors">
+                        <td class="py-3 px-6">
+                            <p class="text-xs font-bold">15% off bebidas frias</p>
+                            <p class="text-[10px] text-gray-500">PROMO_PCT15_FRIAS</p>
+                        </td>
+                        <td class="py-3 px-3"><span class="badge-base badge-pct">15% OFF</span></td>
+                        <td class="py-3 px-3 text-center">
+                            <span class="text-[11px] text-gray-300 font-medium">6</span>
+                            <span class="text-[10px] text-gray-500">productos</span>
+                        </td>
+                        <td class="py-3 px-3">
+                            <p class="text-[11px] text-gray-300">01 May - 30 May 2026</p>
+                            <p class="text-[10px] text-gray-500">Diario</p>
+                        </td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Todas</td>
+                        <td class="py-3 px-3 text-right">
+                            <p class="text-xs font-bold text-[#fbbf24]">$1,240.00</p>
+                            <p class="text-[10px] text-gray-500">Pausada hace 3 dias</p>
+                        </td>
+                        <td class="py-3 px-3 text-center"><span class="badge-base status-paused">PAUSADA</span></td>
+                        <td class="py-3 px-3 text-center"><div class="toggle mx-auto"></div></td>
+                        <td class="py-3 px-6 text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#76A9FA] text-gray-400 hover:text-[#76A9FA] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#c4b5fd] text-gray-400 hover:text-[#c4b5fd] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#fbbf24] text-gray-400 hover:text-[#fbbf24] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Fila 5 -->
+                    <tr class="hover:bg-[#1a2332]/40 transition-colors">
+                        <td class="py-3 px-6">
+                            <p class="text-xs font-bold">3x2 paninis al horno</p>
+                            <p class="text-[10px] text-gray-500">PROMO_3X2_PANINI</p>
+                        </td>
+                        <td class="py-3 px-3"><span class="badge-base badge-3x2">3x2</span></td>
+                        <td class="py-3 px-3 text-center">
+                            <span class="text-[11px] text-gray-300 font-medium">5</span>
+                            <span class="text-[10px] text-gray-500">productos</span>
+                        </td>
+                        <td class="py-3 px-3">
+                            <p class="text-[11px] text-gray-300">15 Mar - 15 Abr 2026</p>
+                            <p class="text-[10px] text-gray-500">Lun-Dom</p>
+                        </td>
+                        <td class="py-3 px-3 text-[11px] text-gray-400">Polanco</td>
+                        <td class="py-3 px-3 text-right">
+                            <p class="text-xs font-bold text-gray-500">$12,340.00</p>
+                            <p class="text-[10px] text-gray-500">Cerrada / 247 sets</p>
+                        </td>
+                        <td class="py-3 px-3 text-center"><span class="badge-base status-expired">VENCIDA</span></td>
+                        <td class="py-3 px-3 text-center"><div class="toggle mx-auto opacity-50"></div></td>
+                        <td class="py-3 px-6 text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#76A9FA] text-gray-400 hover:text-[#76A9FA] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+                                <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 hover:border-[#c4b5fd] text-gray-400 hover:text-[#c4b5fd] flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></button>
+                            </div>
+                        </td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer paginacion -->
+        <div class="bg-[#141d2b] border-t border-gray-800 px-6 py-2 flex items-center justify-between flex-shrink-0">
+            <p class="text-[10px] text-gray-500">Mostrando 1-5 de 22 promociones</p>
+            <div class="flex items-center gap-1">
+                <button class="px-2 py-1 rounded text-[10px] text-gray-500 hover:text-white">Prev</button>
+                <button class="px-2 py-1 rounded text-[10px] bg-[#7c3aed] text-white font-bold">1</button>
+                <button class="px-2 py-1 rounded text-[10px] text-gray-400 hover:text-white">2</button>
+                <button class="px-2 py-1 rounded text-[10px] text-gray-400 hover:text-white">3</button>
+                <button class="px-2 py-1 rounded text-[10px] text-gray-400 hover:text-white">4</button>
+                <button class="px-2 py-1 rounded text-[10px] text-gray-500 hover:text-white">Next</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const KEY = 'huubie-theme';
+        const apply = (t) => {
+            document.body.setAttribute('data-theme', t);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('theme-active', b.dataset.themeBtn === t));
+        };
+        apply(localStorage.getItem(KEY) || 'dark');
+        document.querySelectorAll('[data-theme-btn]').forEach(b => b.addEventListener('click', () => { localStorage.setItem(KEY, b.dataset.themeBtn); apply(b.dataset.themeBtn); }));
+
+        // Toggle interactivo
+        document.querySelectorAll('.toggle').forEach(t => t.addEventListener('click', () => t.classList.toggle('active')));
+    </script>
+</body>
+</html>

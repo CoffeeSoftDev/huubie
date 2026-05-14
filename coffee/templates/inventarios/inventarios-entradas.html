@@ -57,21 +57,17 @@
 
     .submenu ul { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out; }
 
-    /* === Modal Nueva Entrada — estilos === */
-    #modalNuevaEntrada .cs-modal {
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    #modalNuevaEntrada .cs-modal-header,
-    #modalNuevaEntrada .cs-modal-footer { flex-shrink: 0; }
+    /* === Modal Nueva Entrada — estilos compartidos === */
+    .cs-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 90; }
+    .cs-modal { position: fixed; z-index: 100; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 100%; display: flex; flex-direction: column; background: #111928; border: 1px solid rgba(55,65,81,0.6); border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); overflow: hidden; }
+    .cs-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(55,65,81,0.6); background: #141d2b; flex-shrink: 0; }
+    .cs-modal-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .cs-modal-body { padding: 0; flex: 1; overflow: hidden; min-height: 0; }
+    .cs-modal-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; border-top: 1px solid rgba(55,65,81,0.6); background: #141d2b; flex-shrink: 0; }
 
-    #modalNuevaEntrada input[type="number"]::-webkit-outer-spin-button,
-    #modalNuevaEntrada input[type="number"]::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-    #modalNuevaEntrada input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+    .cs-modal input[type="number"]::-webkit-outer-spin-button,
+    .cs-modal input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .cs-modal input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
     .product-card {
       background: linear-gradient(180deg, #1a2332 0%, #161e2c 100%);
@@ -90,13 +86,8 @@
       opacity: 0;
       transition: opacity .18s ease;
     }
-    .product-card:hover {
-      border-color: rgba(124,58,237,.5);
-      box-shadow: 0 4px 16px -4px rgba(124,58,237,.15);
-    }
+    .product-card:hover { border-color: rgba(124,58,237,.5); box-shadow: 0 4px 16px -4px rgba(124,58,237,.15); }
     .product-card:hover::before { opacity: 1; }
-
-    /* Inputs dentro de la tarjeta */
     .product-card .cs-input {
       background: #0f1825 !important;
       border-color: rgba(55,65,81,.6) !important;
@@ -109,16 +100,11 @@
     }
 
     /* Buscador con efecto premium */
-    #buscarProducto {
-      transition: all .2s ease;
-    }
-    #buscarProducto:focus {
-      border-color: #7C3AED !important;
-      box-shadow: 0 0 0 3px rgba(124,58,237,.15) !important;
-    }
+    #buscarProducto { transition: all .2s ease; }
+    #buscarProducto:focus { border-color: #7C3AED !important; box-shadow: 0 0 0 3px rgba(124,58,237,.15) !important; }
 
     /* Dropdown de resultados */
-    #resultadosBusqueda {
+    #resultadosBusqueda, .resultados-busqueda {
       background: #0f1825;
       border: 1px solid rgba(75,85,99,.5);
       border-radius: 10px;
@@ -130,25 +116,14 @@
       border-bottom: 1px solid rgba(55,65,81,.4);
     }
     .search-result-item:last-child { border-bottom: none; }
-    .search-result-item:hover {
-      background: linear-gradient(90deg, rgba(124,58,237,.08) 0%, transparent 100%);
-    }
+    .search-result-item:hover { background: linear-gradient(90deg, rgba(124,58,237,.08) 0%, transparent 100%); }
 
     /* Empty state animado */
-    .empty-state-pulse {
-      animation: emptyPulse 2.4s ease-in-out infinite;
-    }
-    @keyframes emptyPulse {
-      0%, 100% { transform: scale(1); opacity: 0.85; }
-      50% { transform: scale(1.04); opacity: 1; }
-    }
+    .empty-state-pulse { animation: emptyPulse 2.4s ease-in-out infinite; }
+    @keyframes emptyPulse { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.04); opacity: 1; } }
 
-    /* Header de la sección de productos */
-    .lote-header {
-      background: linear-gradient(180deg, rgba(15,24,37,.6) 0%, transparent 100%);
-    }
+    .lote-header { background: linear-gradient(180deg, rgba(15,24,37,.6) 0%, transparent 100%); }
 
-    /* Pill de cantidad de productos */
     .badge-counter {
       background: linear-gradient(135deg, rgba(124,58,237,.22) 0%, rgba(168,85,247,.18) 100%);
       color: #c4b5fd;
@@ -156,23 +131,54 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
     }
 
-    /* Botón eliminar producto */
     .btn-remove-product {
       background: rgba(31,41,55,.4);
       border: 1px solid transparent;
       transition: all .15s ease;
     }
-    .btn-remove-product:hover {
-      background: rgba(239,68,68,.15);
-      border-color: rgba(239,68,68,.3);
-      color: #f87171 !important;
-    }
+    .btn-remove-product:hover { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); color: #f87171 !important; }
 
     .kbd-hint {
       display: inline-flex; align-items: center;
       padding: 1px 5px; border-radius: 4px;
       background: rgba(55,65,81,.6); border: 1px solid rgba(75,85,99,.5);
       font-size: 8px; color: #9CA3AF; font-family: monospace;
+    }
+
+    /* === Propuesta 2: Wizard steps === */
+    .wizard-step { display: none; }
+    .wizard-step.active { display: flex; flex-direction: column; }
+    .wizard-nav { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-bottom: 1px solid rgba(55,65,81,0.5); background: #0f172a; }
+    .wizard-dot {
+      width: 24px; height: 24px; border-radius: 9999px; font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; border: 2px solid #374151;
+      color: #9CA3AF; transition: all .2s ease;
+    }
+    .wizard-dot.active { border-color: #7C3AED; background: rgba(124,58,237,0.15); color: #c4b5fd; }
+    .wizard-dot.done { border-color: #22C55E; background: rgba(34,197,94,0.12); color: #4ADE80; }
+    .wizard-label { font-size: 10px; color: #6B7280; font-weight: 500; }
+    .wizard-label.active { color: #c4b5fd; }
+    .wizard-label.done { color: #4ADE80; }
+
+    /* === Propuesta 3: POS layout === */
+    .pos-input-search {
+      background: #0f1825; border: 1px solid rgba(55,65,81,0.6); border-radius: 10px;
+      padding: 10px 14px; font-size: 13px; color: #fff; width: 100%;
+      transition: all .2s ease;
+    }
+    .pos-input-search:focus { outline: none; border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
+    .pos-cart-item {
+      background: #1a2332; border: 1px solid rgba(55,65,81,0.4); border-radius: 8px; padding: 8px 10px;
+      transition: all .15s ease;
+    }
+    .pos-cart-item:hover { border-color: rgba(124,58,237,0.35); }
+    .pos-config-pill {
+      background: #1a2332; border: 1px solid rgba(55,65,81,0.5); border-radius: 8px; padding: 5px 10px;
+      font-size: 10px; color: #9CA3AF; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .pos-sticky-bar {
+      position: sticky; bottom: 0; background: #141d2b; border-top: 1px solid rgba(55,65,81,0.6);
+      padding: 10px 14px; z-index: 10;
     }
   </style>
 </head>
@@ -186,12 +192,9 @@
         </svg>
       </button>
       <span class="navbar-logo text-xl font-bold tracking-wide">hb<span class="dot text-[var(--cs-primary,#1C64F2)]">●</span></span>
-      <div class="hidden md:flex items-center gap-2 ml-3">
-      </div>
+      <div class="hidden md:flex items-center gap-2 ml-3"></div>
     </div>
     <div class="flex items-center gap-3">
-
-      <!-- BRANCH PILL -->
       <div class="relative">
         <button id="btnBranch" class="branch-pill flex items-center gap-3" aria-expanded="false">
           <div class="flex flex-col items-start leading-tight">
@@ -221,15 +224,12 @@
           <div id="branchList" class="p-3 space-y-2 max-h-[420px] overflow-y-auto"></div>
         </div>
       </div>
-
-      <!-- USER AVATAR -->
       <button id="btnUserMenu" class="ml-1 flex items-center justify-center border-l border-gray-700 pl-3">
         <div class="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-semibold text-[11px] text-white">AU</div>
       </button>
     </div>
   </nav>
 
-  <!-- Dropdown usuario (estilo admin enriquecido) -->
   <div class="fixed top-16 right-4 z-50">
     <div id="userMenuDropdown" class="w-72 rounded-2xl shadow-lg opacity-0 scale-95 invisible transition-all duration-500 ease-out" style="background-color: #111928;">
       <div class="relative flex items-center justify-center h-20 rounded-t-2xl" style="background-color: #1F2A37;">
@@ -247,37 +247,27 @@
       </div>
       <div class="flex flex-col items-center pt-4 pb-2 px-4 space-y-2">
         <h2 class="text-white font-semibold text-lg mt-3" id="lblUserName">Admin Usuario</h2>
-        <span class="inline-flex text-xs font-semibold px-2 py-1 rounded-full align-items-center" style="background-color: rgba(30,58,138,0.5); color: #bfdbfe;" id="lblUserRol">
-          ADMINISTRADOR
-        </span>
+        <span class="inline-flex text-xs font-semibold px-2 py-1 rounded-full align-items-center" style="background-color: rgba(30,58,138,0.5); color: #bfdbfe;" id="lblUserRol">ADMINISTRADOR</span>
       </div>
       <div class="w-full h-px my-2" style="background-color: #1F2937;"></div>
       <div class="w-full px-5 mt-3 mb-4">
-        <button id="btnLogout" class="w-full flex items-center justify-center gap-2 px-2 py-2 border rounded-xl transition" style="border-color: #ef4444; color: #ef4444;">
-          Cerrar sesion
-        </button>
+        <button id="btnLogout" class="w-full flex items-center justify-center gap-2 px-2 py-2 border rounded-xl transition" style="border-color: #ef4444; color: #ef4444;">Cerrar sesion</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast cambio de sucursal -->
   <div id="branchToast" class="fixed top-[88px] right-6 z-40 w-[340px] hidden">
     <div class="toast-card">
       <div class="flex items-start gap-3">
         <div class="relative shrink-0">
           <div class="w-10 h-10 rounded-xl bg-[#7C3AED]/15 flex items-center justify-center border border-[#7C3AED]/25">
-            <svg class="w-5 h-5 text-[#A855F7]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-            </svg>
+            <svg class="w-5 h-5 text-[#A855F7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
           </div>
         </div>
         <div class="flex-1 min-w-0">
           <p class="text-sm font-semibold text-white">Cambiaste a <span id="branchToastName" class="text-[#A855F7]">Sucursal</span></p>
           <div class="mt-1.5 pt-1.5 border-t border-white/5">
-            <p class="text-[11px] text-gray-400">
-              <span class="text-gray-500">Empresa</span> ·
-              <span class="text-gray-300">Reginas</span>
-            </p>
+            <p class="text-[11px] text-gray-400"><span class="text-gray-500">Empresa</span> · <span class="text-gray-300">Reginas</span></p>
           </div>
         </div>
         <button id="btnBranchToastClose" class="text-gray-500 hover:text-white transition shrink-0">
@@ -293,13 +283,8 @@
       <li><a href="#" class="block text-xs text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-2 rounded-lg">Resumen</a></li>
       <li class="submenu">
         <button class="w-full text-left flex items-center justify-between text-xs font-medium px-3 py-2 rounded-lg text-[#c4b5fd] bg-[rgba(124,58,237,0.12)] hover:text-white transition">
-          <span class="flex items-center gap-2">
-            <i data-lucide="package" class="w-4 h-4"></i>
-            Inventarios
-          </span>
-          <svg class="h-4 w-4 text-[#6B7280] transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-          </svg>
+          <span class="flex items-center gap-2"><i data-lucide="package" class="w-4 h-4"></i>Inventarios</span>
+          <svg class="h-4 w-4 text-[#6B7280] transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <ul class="mt-1 pl-4 space-y-1" style="max-height: 500px;">
           <li><a href="inventarios-stock.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Stock Actual</a></li>
@@ -316,19 +301,20 @@
   </div>
 
   <div class="mt-16 h-[calc(100vh-4rem)] flex overflow-hidden">
-
     <div class="flex-1 flex flex-col min-w-0">
-
       <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
         <div>
           <h1 class="text-lg font-bold">Inventario</h1>
           <p class="text-[11px] text-[#6B7280]">Control de stock por sucursal</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
           <button id="btnNuevaEntrada" class="cs-btn cs-btn-primary cs-btn-sm">
-            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-            Nueva Entrada
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva Entrada
           </button>
+          <span class="text-gray-600 text-xs">|</span>
+          <button id="btnDemoP1" class="cs-btn cs-btn-outline cs-btn-sm" title="Layout Compacto Mejorado">P1</button>
+          <button id="btnDemoP2" class="cs-btn cs-btn-outline cs-btn-sm" title="Wizard de Pasos">P2</button>
+          <button id="btnDemoP3" class="cs-btn cs-btn-outline cs-btn-sm" title="Layout Tipo POS">P3</button>
         </div>
       </div>
 
@@ -340,43 +326,34 @@
         <a href="inventarios-ajustes.html" class="cs-tab">Ajustes</a>
       </div>
 
-      <!-- KPIs compactas -->
       <div class="grid grid-cols-4 gap-2 px-6 py-2 flex-shrink-0">
         <div class="bg-[#1F2A37] border border-green-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
           <div>
             <p class="text-[9px] text-green-500 uppercase tracking-wider">Entradas Hoy</p>
             <p id="kpiEntradas" class="text-lg font-bold text-green-400 leading-tight">3</p>
           </div>
-          <div class="w-7 h-7 rounded-md bg-green-500/15 flex items-center justify-center">
-            <i data-lucide="arrow-down-to-line" class="w-3.5 h-3.5 text-green-400"></i>
-          </div>
+          <div class="w-7 h-7 rounded-md bg-green-500/15 flex items-center justify-center"><i data-lucide="arrow-down-to-line" class="w-3.5 h-3.5 text-green-400"></i></div>
         </div>
         <div class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center justify-between">
           <div>
             <p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Costo Hoy</p>
             <p id="kpiCosto" class="text-lg font-bold text-white leading-tight">$6,888</p>
           </div>
-          <div class="w-7 h-7 rounded-md bg-[rgba(28,100,242,0.15)] flex items-center justify-center">
-            <i data-lucide="dollar-sign" class="w-3.5 h-3.5 text-[#76A9FA]"></i>
-          </div>
+          <div class="w-7 h-7 rounded-md bg-[rgba(28,100,242,0.15)] flex items-center justify-center"><i data-lucide="dollar-sign" class="w-3.5 h-3.5 text-[#76A9FA]"></i></div>
         </div>
         <div class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center justify-between">
           <div>
             <p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Semana</p>
             <p id="kpiSemana" class="text-lg font-bold text-white leading-tight">3</p>
           </div>
-          <div class="w-7 h-7 rounded-md bg-[rgba(124,58,237,0.12)] flex items-center justify-center">
-            <i data-lucide="calendar" class="w-3.5 h-3.5 text-[#c4b5fd]"></i>
-          </div>
+          <div class="w-7 h-7 rounded-md bg-[rgba(124,58,237,0.12)] flex items-center justify-center"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#c4b5fd]"></i></div>
         </div>
         <div class="bg-[#1F2A37] border border-purple-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
           <div>
             <p class="text-[9px] text-purple-500 uppercase tracking-wider">Principal</p>
             <p id="kpiPrincipal" class="text-sm font-bold text-purple-400 leading-tight">Producción</p>
           </div>
-          <div class="w-7 h-7 rounded-md bg-purple-500/15 flex items-center justify-center">
-            <i data-lucide="factory" class="w-3.5 h-3.5 text-purple-400"></i>
-          </div>
+          <div class="w-7 h-7 rounded-md bg-purple-500/15 flex items-center justify-center"><i data-lucide="factory" class="w-3.5 h-3.5 text-purple-400"></i></div>
         </div>
       </div>
 
@@ -410,7 +387,7 @@
                   <th class="text-left w-24">Registrado</th>
                   <th class="text-left w-44">Fecha</th>
                   <th class="text-center w-20">Estado</th>
-                  <th class="text-center w-16">Op.</th>
+                  <th class="text-center w-24">Op.</th>
                 </tr>
               </thead>
               <tbody id="tbEntradasBody"></tbody>
@@ -418,11 +395,9 @@
           </div>
         </div>
       </div>
-
     </div>
 
     <aside id="entradaPanel" class="w-[360px] bg-[#141d2b] border-l border-[#374151] flex flex-col flex-shrink-0">
-      <!-- Header dinámico -->
       <div class="px-4 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0">
         <div>
           <h3 id="panelFolio" class="text-sm font-bold text-green-400">—</h3>
@@ -430,8 +405,6 @@
         </div>
         <span id="panelEstado" class="cs-badge cs-badge-success">—</span>
       </div>
-
-      <!-- Body dinámico -->
       <div id="panelBody" class="flex-1 overflow-y-auto px-4 py-3 space-y-3 cs-scroll">
         <div class="flex flex-col items-center justify-center py-12 text-center">
           <div class="w-14 h-14 rounded-2xl bg-purple-500/8 border border-purple-500/20 flex items-center justify-center mb-3">
@@ -441,153 +414,300 @@
           <p class="text-[10px] text-gray-500 mt-1">Haz clic en el ícono de ojo para ver detalle</p>
         </div>
       </div>
-
-      <!-- Footer -->
       <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">
         <button id="btnPanelImprimir" class="cs-btn cs-btn-outline flex-1 cs-btn-sm" disabled>Imprimir</button>
         <button id="btnPanelReversar" class="cs-btn cs-btn-danger flex-1 cs-btn-sm" disabled>Reversar</button>
       </div>
     </aside>
-
   </div>
 
-  <!-- Modal: Nueva Entrada de Stock -->
-  <div id="modalNuevaEntrada" class="hidden">
-    <div class="cs-modal-backdrop" data-modal-close></div>
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- PROPUESTA 1: Layout Compacto Mejorado -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="modalNuevaEntradaP1" class="hidden">
+    <div class="cs-modal-backdrop" data-modal-close="p1"></div>
     <div class="cs-modal" style="max-width: 960px; max-height: 90vh;">
-      <!-- Header del modal -->
       <div class="cs-modal-header">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
             <i data-lucide="package-plus" class="w-5 h-5 text-white"></i>
           </div>
           <div>
-            <h3 id="modalEntradaTitle" class="cs-modal-title">Nueva Entrada de Stock</h3>
-            <p id="modalEntradaSubtitle" class="text-[11px] text-gray-500">Registra productos que ingresan al inventario</p>
+            <h3 class="cs-modal-title">Nueva Entrada de Stock</h3>
+            <p class="text-[11px] text-gray-500">Propuesta 1 — Layout Compacto Mejorado</p>
           </div>
         </div>
-        <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close>
+        <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close="p1">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
 
-      <div class="cs-modal-body" style="padding: 0; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
-
-        <!-- Configuración del lote (banda superior) -->
-        <div class="px-5 pt-4 pb-3 border-b border-gray-800/70 bg-[#0f1825]/40">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300 mb-2.5">Configuración del lote</p>
-
-          <!-- Origen, Sucursal y Fecha en la misma fila -->
-          <div class="grid grid-cols-3 gap-2">
+      <div class="cs-modal-body" style="display: flex; flex-direction: column;">
+        <!-- Configuración compacta -->
+        <div class="px-5 pt-3 pb-2 border-b border-gray-800/70 bg-[#0f1825]/40">
+          <div class="grid grid-cols-4 gap-2 items-end">
             <div>
-              <label class="block text-[10px] text-gray-500 mb-1">Origen de la entrada</label>
-              <select id="selOrigen" class="cs-select text-xs">
-                <option value="Producción">Producción</option>
-                <option value="Compra">Compra a proveedor</option>
-                <option value="Transferencia">Transferencia</option>
-                <option value="Devolución">Devolución de cliente</option>
-              </select>
+              <label class="block text-[10px] text-gray-500 mb-1">Origen</label>
+              <select id="p1_selOrigen" class="cs-select text-xs w-full"><option value="Producción">Producción</option><option value="Compra">Compra a proveedor</option><option value="Transferencia">Transferencia</option><option value="Devolución">Devolución de cliente</option></select>
             </div>
             <div>
               <label class="block text-[10px] text-gray-500 mb-1">Sucursal destino</label>
-              <select id="selSucursal" class="cs-select text-xs">
-                <option>Reginas Kafeto (Sucursal 4)</option>
-                <option>Todas las sucursales</option>
-              </select>
+              <select id="p1_selSucursal" class="cs-select text-xs w-full"><option>Reginas Kafeto (Sucursal 4)</option><option>Todas las sucursales</option></select>
             </div>
             <div>
-              <label class="block text-[10px] text-gray-500 mb-1">Fecha de entrada</label>
-              <input id="inpFecha" type="date" value="2026-04-04" class="cs-input text-xs">
+              <label class="block text-[10px] text-gray-500 mb-1">Fecha</label>
+              <input id="p1_inpFecha" type="date" value="2026-04-04" class="cs-input text-xs w-full">
+            </div>
+            <div>
+              <label class="block text-[10px] text-gray-500 mb-1">Nota (opcional)</label>
+              <input id="p1_inpNota" type="text" placeholder="Descripción..." class="cs-input text-xs w-full">
             </div>
           </div>
         </div>
 
-        <!-- Productos del lote (2 columnas) -->
+        <!-- Contenido 2 columnas -->
         <div class="flex flex-1 min-h-0">
-          <!-- Izquierda: búsqueda + nota + resumen -->
-          <div class="w-[280px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-3 gap-3 overflow-hidden">
+          <!-- Izquierda: búsqueda + resumen sticky -->
+          <div class="w-[260px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-3 gap-3 overflow-hidden">
             <div>
               <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300 mb-2">Buscar productos</p>
               <div class="relative">
                 <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
-                <input id="buscarProducto" type="text" placeholder="Nombre o SKU..." class="cs-input pl-10 text-xs" autocomplete="off">
+                <input id="p1_buscarProducto" type="text" placeholder="Nombre o SKU..." class="cs-input pl-10 text-xs w-full" autocomplete="off">
               </div>
-              <div id="resultadosBusqueda" class="mt-1.5 bg-[#0f172a] border border-gray-700/60 rounded-lg overflow-hidden hidden"></div>
+              <div id="p1_resultadosBusqueda" class="mt-1.5 bg-[#0f172a] border border-gray-700/60 rounded-lg overflow-hidden hidden"></div>
             </div>
-
-            <div class="border-t border-gray-800/70 pt-3">
-              <label class="block text-[10px] text-gray-500 mb-1">Nota del lote (opcional)</label>
-              <textarea id="inpNota" rows="3" placeholder="Descripción general de la entrada..." class="cs-textarea text-xs"></textarea>
-            </div>
-
-            <!-- Resumen rápido del lote -->
             <div class="border-t border-gray-800/70 pt-3 mt-auto">
-              <p class="text-[9px] uppercase text-gray-500 tracking-wider mb-2">Resumen</p>
+              <p class="text-[9px] uppercase text-gray-500 tracking-wider mb-2">Resumen del lote</p>
               <div class="space-y-1.5">
-                <div class="flex justify-between items-center text-[11px]">
-                  <span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="package" class="w-3 h-3"></i>Productos</span>
-                  <span class="text-white font-bold" id="qtyItems">0</span>
-                </div>
-                <div class="flex justify-between items-center text-[11px]">
-                  <span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="layers" class="w-3 h-3"></i>Unidades</span>
-                  <span class="text-white font-bold" id="qtyUnits">0</span>
-                </div>
-                <div class="flex justify-between items-center text-xs pt-2 mt-1 border-t border-gray-800/50">
-                  <span class="text-gray-300 font-medium">Costo total</span>
-                  <span class="text-green-400 font-bold text-sm" id="qtyCost">$0.00</span>
-                </div>
+                <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="package" class="w-3 h-3"></i>Productos</span><span class="text-white font-bold" id="p1_qtyItems">0</span></div>
+                <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="layers" class="w-3 h-3"></i>Unidades</span><span class="text-white font-bold" id="p1_qtyUnits">0</span></div>
+                <div class="flex justify-between items-center text-xs pt-2 mt-1 border-t border-gray-800/50"><span class="text-gray-300 font-medium">Costo total</span><span class="text-green-400 font-bold text-sm" id="p1_qtyCost">$0.00</span></div>
               </div>
             </div>
           </div>
-
-          <!-- Derecha: lista de productos -->
+          <!-- Derecha: lista productos -->
           <div class="flex-1 flex flex-col min-w-0 min-h-0">
             <div class="lote-header px-4 py-2.5 border-b border-gray-800/70 flex items-center justify-between flex-shrink-0">
               <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded-md bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
-                  <i data-lucide="boxes" class="w-3.5 h-3.5 text-purple-400"></i>
-                </div>
-                <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300">Productos en este lote</p>
-                <span id="cntProductos" class="cs-badge badge-counter font-bold">0</span>
+                <div class="w-6 h-6 rounded-md bg-purple-500/15 border border-purple-500/25 flex items-center justify-center"><i data-lucide="boxes" class="w-3.5 h-3.5 text-purple-400"></i></div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300">Productos</p>
+                <span id="p1_cntProductos" class="cs-badge badge-counter font-bold">0</span>
               </div>
-              <button id="btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-400 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-500/10">
-                <i data-lucide="trash-2" class="w-3 h-3"></i>
-                Limpiar todo
-              </button>
+              <button id="p1_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-400 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-500/10"><i data-lucide="trash-2" class="w-3 h-3"></i>Limpiar</button>
             </div>
-
-            <div id="listaProductos" class="flex-1 overflow-y-auto px-3 py-3 space-y-2 cs-scroll">
+            <div id="p1_listaProductos" class="flex-1 overflow-y-auto px-3 py-3 space-y-2 cs-scroll">
               <div class="flex flex-col items-center justify-center py-12 text-center">
-                <div class="empty-state-pulse w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/25 flex items-center justify-center mb-3">
-                  <i data-lucide="package-plus" class="w-8 h-8 text-purple-400/70"></i>
-                </div>
+                <div class="empty-state-pulse w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/25 flex items-center justify-center mb-3"><i data-lucide="package-plus" class="w-8 h-8 text-purple-400/70"></i></div>
                 <p class="text-xs font-semibold text-gray-200">Aún no has agregado productos</p>
-                <p class="text-[10px] text-gray-500 mt-1">Usa el buscador de la izquierda para empezar</p>
+                <p class="text-[10px] text-gray-500 mt-1">Usa el buscador para empezar</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Footer del modal -->
       <div class="cs-modal-footer">
-        <div class="text-[10px] text-gray-500 flex items-center gap-1.5">
-          <i data-lucide="info" class="w-3 h-3"></i>
-          <span>Al registrar, el stock se actualizará automáticamente</span>
-        </div>
+        <div class="text-[10px] text-gray-500 flex items-center gap-1.5"><i data-lucide="info" class="w-3 h-3"></i><span>El stock se actualizará automáticamente</span></div>
         <div class="flex gap-2">
-          <button class="cs-btn cs-btn-outline cs-btn-sm" data-modal-close>Cancelar</button>
-          <button id="btnRegistrarEntrada" class="cs-btn cs-btn-success cs-btn-sm flex items-center gap-1.5">
-            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
-            <span id="btnRegistrarEntradaText">Registrar Entrada</span>
-          </button>
+          <button class="cs-btn cs-btn-outline cs-btn-sm" data-modal-close="p1">Cancelar</button>
+          <button id="p1_btnRegistrarEntrada" class="cs-btn cs-btn-success cs-btn-sm flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span id="p1_btnRegistrarEntradaText">Registrar Entrada</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- PROPUESTA 2: Wizard de Pasos -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="modalNuevaEntradaP2" class="hidden">
+    <div class="cs-modal-backdrop" data-modal-close="p2"></div>
+    <div class="cs-modal" style="max-width: 720px; max-height: 88vh;">
+      <div class="cs-modal-header">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+            <i data-lucide="package-plus" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <h3 class="cs-modal-title">Nueva Entrada de Stock</h3>
+            <p class="text-[11px] text-gray-500">Propuesta 2 — Wizard de Pasos</p>
+          </div>
+        </div>
+        <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close="p2">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Wizard nav -->
+      <div class="wizard-nav">
+        <div class="flex items-center gap-2 flex-1">
+          <div class="wizard-dot active" id="p2_dot1">1</div>
+          <span class="wizard-label active" id="p2_lbl1">Configurar</span>
+        </div>
+        <div class="h-px flex-1 bg-gray-800"></div>
+        <div class="flex items-center gap-2 flex-1 justify-center">
+          <div class="wizard-dot" id="p2_dot2">2</div>
+          <span class="wizard-label" id="p2_lbl2">Productos</span>
+        </div>
+        <div class="h-px flex-1 bg-gray-800"></div>
+        <div class="flex items-center gap-2 flex-1 justify-end">
+          <div class="wizard-dot" id="p2_dot3">3</div>
+          <span class="wizard-label" id="p2_lbl3">Revisar</span>
+        </div>
+      </div>
+
+      <div class="cs-modal-body relative" style="min-height: 420px;">
+        <!-- Step 1: Configurar -->
+        <div class="wizard-step active px-6 py-5 gap-4" id="p2_step1">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300">Configuración del lote</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[10px] text-gray-500 mb-1">Origen de la entrada</label>
+              <select id="p2_selOrigen" class="cs-select text-xs w-full"><option value="Producción">Producción</option><option value="Compra">Compra a proveedor</option><option value="Transferencia">Transferencia</option><option value="Devolución">Devolución de cliente</option></select>
+            </div>
+            <div>
+              <label class="block text-[10px] text-gray-500 mb-1">Sucursal destino</label>
+              <select id="p2_selSucursal" class="cs-select text-xs w-full"><option>Reginas Kafeto (Sucursal 4)</option><option>Todas las sucursales</option></select>
+            </div>
+            <div>
+              <label class="block text-[10px] text-gray-500 mb-1">Fecha de entrada</label>
+              <input id="p2_inpFecha" type="date" value="2026-04-04" class="cs-input text-xs w-full">
+            </div>
+            <div>
+              <label class="block text-[10px] text-gray-500 mb-1">Referencia / Folio externo</label>
+              <input type="text" placeholder="Ej. OC-2024-115" class="cs-input text-xs w-full">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[10px] text-gray-500 mb-1">Nota del lote</label>
+            <textarea id="p2_inpNota" rows="3" placeholder="Descripción general de la entrada..." class="cs-textarea text-xs w-full"></textarea>
+          </div>
+          <div class="mt-auto pt-2 flex justify-end">
+            <button class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" onclick="p2_goStep(2)">Siguiente <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>
+
+        <!-- Step 2: Productos -->
+        <div class="wizard-step px-6 py-5 gap-3" id="p2_step2">
+          <div class="relative">
+            <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+            <input id="p2_buscarProducto" type="text" placeholder="Buscar producto por nombre o SKU..." class="cs-input pl-10 text-xs w-full" autocomplete="off">
+          </div>
+          <div id="p2_resultadosBusqueda" class="resultados-busqueda hidden"></div>
+          <div class="flex items-center justify-between pt-1">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2"><i data-lucide="boxes" class="w-3.5 h-3.5 text-purple-400"></i> Productos agregados <span id="p2_cntProductos" class="cs-badge badge-counter font-bold">0</span></p>
+            <button id="p2_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-400 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-500/10"><i data-lucide="trash-2" class="w-3 h-3"></i>Limpiar todo</button>
+          </div>
+          <div id="p2_listaProductos" class="flex-1 overflow-y-auto space-y-2 cs-scroll border border-gray-800/60 rounded-lg p-2 bg-[#0f1825]/30"></div>
+          <div class="flex justify-between pt-2">
+            <button class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" onclick="p2_goStep(1)"><i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>Anterior</button>
+            <button class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" onclick="p2_goStep(3)">Siguiente <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>
+
+        <!-- Step 3: Revisar -->
+        <div class="wizard-step px-6 py-5 gap-3" id="p2_step3">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300 mb-1">Resumen del lote</p>
+          <div class="bg-[#0f1825]/40 border border-gray-800/60 rounded-lg p-3 space-y-2">
+            <div class="flex justify-between text-[11px]"><span class="text-gray-500">Origen</span><span class="text-white font-medium" id="p2_resOrigen">Producción</span></div>
+            <div class="flex justify-between text-[11px]"><span class="text-gray-500">Sucursal</span><span class="text-white font-medium" id="p2_resSucursal">Reginas Kafeto</span></div>
+            <div class="flex justify-between text-[11px]"><span class="text-gray-500">Fecha</span><span class="text-white font-medium" id="p2_resFecha">2026-04-04</span></div>
+            <div class="h-px bg-gray-800/60"></div>
+            <div class="flex justify-between text-[11px]"><span class="text-gray-500">Productos</span><span class="text-white font-bold" id="p2_qtyItems">0</span></div>
+            <div class="flex justify-between text-[11px]"><span class="text-gray-500">Unidades totales</span><span class="text-white font-bold" id="p2_qtyUnits">0</span></div>
+            <div class="flex justify-between text-xs pt-1 border-t border-gray-800/50"><span class="text-gray-300 font-medium">Costo total</span><span class="text-green-400 font-bold text-sm" id="p2_qtyCost">$0.00</span></div>
+          </div>
+          <div id="p2_resLista" class="flex-1 overflow-y-auto space-y-2 cs-scroll"></div>
+          <div class="flex justify-between pt-2">
+            <button class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" onclick="p2_goStep(2)"><i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>Anterior</button>
+            <button id="p2_btnRegistrarEntrada" class="cs-btn cs-btn-success cs-btn-sm flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span id="p2_btnRegistrarEntradaText">Registrar Entrada</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- PROPUESTA 3: Layout Tipo POS -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="modalNuevaEntradaP3" class="hidden">
+    <div class="cs-modal-backdrop" data-modal-close="p3"></div>
+    <div class="cs-modal" style="max-width: 1000px; max-height: 92vh;">
+      <div class="cs-modal-header" style="padding: 10px 16px;">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+            <i data-lucide="package-plus" class="w-4 h-4 text-white"></i>
+          </div>
+          <div>
+            <h3 class="cs-modal-title" style="font-size: 13px;">Nueva Entrada</h3>
+            <p class="text-[10px] text-gray-500">Propuesta 3 — Layout Tipo Registro/POS</p>
+          </div>
+        </div>
+        <button class="w-7 h-7 rounded-md bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close="p3">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- Configuración en pills inline -->
+      <div class="px-4 py-2 border-b border-gray-800/70 bg-[#0f1825]/40 flex items-center gap-2 flex-wrap flex-shrink-0">
+        <span class="text-[9px] uppercase text-gray-500 tracking-wider mr-1">Configuración:</span>
+        <select id="p3_selOrigen" class="pos-config-pill !bg-[#1a2332] !border-gray-700 !text-gray-300 !rounded-md !text-[10px] !py-1 !px-2" style="border:1px solid rgba(55,65,81,0.5); background:#1a2332; color:#d1d5db; border-radius:6px; padding:3px 8px; font-size:10px;">
+          <option value="Producción">Producción</option><option value="Compra">Compra</option><option value="Transferencia">Transferencia</option><option value="Devolución">Devolución</option>
+        </select>
+        <select id="p3_selSucursal" class="pos-config-pill !bg-[#1a2332] !border-gray-700 !text-gray-300 !rounded-md !text-[10px] !py-1 !px-2" style="border:1px solid rgba(55,65,81,0.5); background:#1a2332; color:#d1d5db; border-radius:6px; padding:3px 8px; font-size:10px;">
+          <option>Reginas Kafeto</option><option>Todas las sucursales</option>
+        </select>
+        <input id="p3_inpFecha" type="date" value="2026-04-04" class="pos-config-pill !bg-[#1a2332] !border-gray-700 !text-gray-300 !rounded-md !text-[10px] !py-1 !px-2" style="border:1px solid rgba(55,65,81,0.5); background:#1a2332; color:#d1d5db; border-radius:6px; padding:3px 8px; font-size:10px;">
+        <input id="p3_inpNota" type="text" placeholder="Nota..." class="pos-config-pill flex-1 min-w-[120px]" style="border:1px solid rgba(55,65,81,0.5); background:#1a2332; color:#d1d5db; border-radius:6px; padding:3px 8px; font-size:10px;">
+      </div>
+
+      <div class="cs-modal-body" style="display: flex; flex-direction: row;">
+        <!-- Área central: búsqueda grande + resultados -->
+        <div class="flex-1 flex flex-col min-w-0 p-4 gap-3">
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"><i data-lucide="search" class="w-4 h-4"></i></span>
+            <input id="p3_buscarProducto" type="text" placeholder="Escribe para buscar producto..." class="pos-input-search pl-10" autocomplete="off" style="padding-left: 36px;">
+          </div>
+          <div id="p3_resultadosBusqueda" class="resultados-busqueda hidden"></div>
+          <div class="flex-1 overflow-y-auto cs-scroll border border-gray-800/40 rounded-lg p-3 bg-[#0f1825]/20" id="p3_listaProductos">
+            <div class="flex flex-col items-center justify-center py-12 text-center">
+              <div class="empty-state-pulse w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/20 flex items-center justify-center mb-3"><i data-lucide="package-plus" class="w-7 h-7 text-purple-400/60"></i></div>
+              <p class="text-xs font-medium text-gray-300">Busca y agrega productos</p>
+              <p class="text-[10px] text-gray-500 mt-1">El resumen aparecerá en el panel derecho</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel lateral derecho: carrito -->
+        <div class="w-[300px] border-l border-gray-800/70 bg-[#0f172a]/30 flex flex-col flex-shrink-0">
+          <div class="px-3 py-2.5 border-b border-gray-800/70 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-2">
+              <i data-lucide="shopping-cart" class="w-3.5 h-3.5 text-purple-400"></i>
+              <p class="text-[11px] font-bold text-gray-300">Lote</p>
+              <span id="p3_cntProductos" class="cs-badge badge-counter font-bold">0</span>
+            </div>
+            <button id="p3_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-400 transition hidden px-2 py-1 rounded hover:bg-red-500/10"><i data-lucide="trash-2" class="w-3 h-3 inline mr-0.5"></i>Limpiar</button>
+          </div>
+          <div id="p3_cartItems" class="flex-1 overflow-y-auto px-3 py-2 space-y-2 cs-scroll"></div>
+
+          <!-- Totales sticky -->
+          <div class="pos-sticky-bar">
+            <div class="space-y-1.5 mb-3">
+              <div class="flex justify-between text-[11px]"><span class="text-gray-500">Productos</span><span class="text-white font-bold" id="p3_qtyItems">0</span></div>
+              <div class="flex justify-between text-[11px]"><span class="text-gray-500">Unidades</span><span class="text-white font-bold" id="p3_qtyUnits">0</span></div>
+              <div class="flex justify-between text-xs pt-1.5 border-t border-gray-800/50"><span class="text-gray-300 font-medium">Costo total</span><span class="text-green-400 font-bold text-sm" id="p3_qtyCost">$0.00</span></div>
+            </div>
+            <div class="flex gap-2">
+              <button class="cs-btn cs-btn-outline cs-btn-sm flex-1" data-modal-close="p3">Cancelar</button>
+              <button id="p3_btnRegistrarEntrada" class="cs-btn cs-btn-success cs-btn-sm flex-[2] flex items-center justify-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span id="p3_btnRegistrarEntradaText">Registrar Entrada</span></button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // === Modal Nueva Entrada — lógica ===
     const CATALOGO = [
       { sku: 'CUP-DEC-001', nombre: 'Cupcake Decorado', stock: 0, icon: 'cup-soda', bg: 'bg-orange-900/30', color: 'text-orange-400', costo: 22 },
       { sku: 'CUP-RDV-001', nombre: 'Cupcake Red Velvet', stock: 8, icon: 'cup-soda', bg: 'bg-orange-900/30', color: 'text-orange-400', costo: 25 },
@@ -598,343 +718,314 @@
       { sku: 'CAF-AME-001', nombre: 'Café Americano', stock: 40, icon: 'cup-soda', bg: 'bg-gray-700', color: 'text-gray-400', costo: 12 }
     ];
 
-    const modal = document.getElementById('modalNuevaEntrada');
-    const btnOpen = document.getElementById('btnNuevaEntrada');
-    const buscarInput = document.getElementById('buscarProducto');
-    const resultados = document.getElementById('resultadosBusqueda');
-    const listaProductos = document.getElementById('listaProductos');
-    const qtyItems = document.getElementById('qtyItems');
-    const qtyUnits = document.getElementById('qtyUnits');
-    const qtyCost = document.getElementById('qtyCost');
-    const cntProductos = document.getElementById('cntProductos');
-    const btnLimpiarLote = document.getElementById('btnLimpiarLote');
-    const btnRegistrar = document.getElementById('btnRegistrarEntrada');
+    let lote = [];
+    let modoEdicion = null;
+    let propuestaActiva = 'p1';
 
-    let lote = []; // { sku, nombre, stock, icon, bg, color, cantidad, costo, caducidad }
-
-    function abrirModal() {
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      modal.style.cssText = 'position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;';
-      buscarInput.value = '';
-      resultados.classList.add('hidden');
-      if (window.lucide) lucide.createIcons();
-    }
-
-    function cerrarModal() {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      modal.style.cssText = '';
-    }
-
-    btnOpen.addEventListener('click', abrirModal);
-    modal.querySelectorAll('[data-modal-close]').forEach(el => el.addEventListener('click', cerrarModal));
-
-    // Limpiar lote
-    btnLimpiarLote.addEventListener('click', () => {
-      if (lote.length && confirm('¿Eliminar todos los productos del lote?')) {
-        lote = [];
-        render();
-      }
-    });
-
-    // Búsqueda
-    buscarInput.addEventListener('input', (e) => {
-      const q = e.target.value.trim().toLowerCase();
-      if (!q) { resultados.classList.add('hidden'); resultados.innerHTML = ''; return; }
-
-      const matches = CATALOGO.filter(p =>
-        p.nombre.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
-      ).filter(p => !lote.some(x => x.sku === p.sku)).slice(0, 6);
-
-      if (!matches.length) {
-        resultados.innerHTML = '<p class="text-[10px] text-gray-500 text-center py-3">Sin resultados</p>';
-        resultados.classList.remove('hidden');
-        return;
-      }
-
-      resultados.innerHTML = matches.map(p => {
-        const stockColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
-        const stockBg = p.stock === 0 ? 'bg-red-500/10' : p.stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
-        return `
-          <div class="search-result-item flex items-center gap-2.5 px-3 py-2 cursor-pointer" data-add-sku="${p.sku}">
-            <div class="w-8 h-8 rounded-lg ${p.bg} flex items-center justify-center flex-shrink-0">
-              <i data-lucide="${p.icon}" class="w-4 h-4 ${p.color}"></i>
-            </div>
+    // ═══════════════════════════════════════════════════════════
+    // Helpers de render para productos (compartido)
+    // ═══════════════════════════════════════════════════════════
+    function renderProductCard(p, i, prefix) {
+      const cant = Number(p.cantidad || 0);
+      const costoNum = Number(p.costo || 0);
+      const subtotal = (cant * costoNum).toFixed(2);
+      const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const nuevoStock = p.stock + cant;
+      const stockActualColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
+      return `
+        <div class="product-card p-2.5" data-idx="${i}">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg ${p.bg} flex items-center justify-center flex-shrink-0 ring-1 ring-white/5"><i data-lucide="${p.icon}" class="w-4 h-4 ${p.color}"></i></div>
             <div class="flex-1 min-w-0">
-              <p class="text-[11px] font-semibold text-white truncate">${p.nombre}</p>
+              <p class="text-[11px] font-bold leading-tight text-white truncate">${p.nombre}</p>
               <div class="flex items-center gap-1.5 mt-0.5">
                 <span class="text-[9px] text-gray-500 font-mono">${p.sku}</span>
-                <span class="text-[9px] px-1.5 py-0.5 rounded ${stockBg} ${stockColor} font-bold">Stock ${p.stock}</span>
+                <span class="text-gray-700">·</span>
+                <span class="text-[9px] text-gray-400">Stock <strong class="${stockActualColor}">${p.stock}</strong> <span class="text-gray-600">→</span> <strong class="text-green-400">${nuevoStock}</strong></span>
               </div>
             </div>
-            <div class="w-7 h-7 rounded-lg bg-purple-600/15 border border-purple-500/30 flex items-center justify-center text-purple-400 hover:bg-purple-600 hover:text-white transition flex-shrink-0">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-            </div>
-          </div>`;
-      }).join('');
-      resultados.classList.remove('hidden');
-      if (window.lucide) lucide.createIcons();
-    });
-
-    resultados.addEventListener('click', (e) => {
-      const row = e.target.closest('[data-add-sku]');
-      if (!row) return;
-      const sku = row.dataset.addSku;
-      const prod = CATALOGO.find(p => p.sku === sku);
-      if (!prod) return;
-      lote.push({ ...prod, cantidad: 1, caducidad: '' });
-      buscarInput.value = '';
-      resultados.classList.add('hidden');
-      resultados.innerHTML = '';
-      render();
-    });
-
-    function render() {
-      if (!lote.length) {
-        listaProductos.innerHTML = `
-          <div class="flex flex-col items-center justify-center py-12 text-center">
-            <div class="w-14 h-14 rounded-2xl bg-purple-500/8 border border-purple-500/20 flex items-center justify-center mb-3">
-              <i data-lucide="package-plus" class="w-7 h-7 text-purple-400/60"></i>
-            </div>
-            <p class="text-xs font-medium text-gray-300">Aún no has agregado productos</p>
-            <p class="text-[10px] text-gray-500 mt-1">Usa el buscador de la izquierda para empezar</p>
-          </div>`;
-        btnLimpiarLote.classList.add('hidden');
-      } else {
-        btnLimpiarLote.classList.remove('hidden');
-        listaProductos.innerHTML = lote.map((p, i) => {
-          const cant = Number(p.cantidad || 0);
-          const costoNum = Number(p.costo || 0);
-          const subtotal = (cant * costoNum).toFixed(2);
-          const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          const nuevoStock = p.stock + cant;
-          const stockActualColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
-          return `
-            <div class="product-card p-2.5" data-idx="${i}">
-              <!-- Header del producto -->
-              <div class="flex items-center gap-2 mb-2">
-                <div class="w-8 h-8 rounded-lg ${p.bg} flex items-center justify-center flex-shrink-0 ring-1 ring-white/5">
-                  <i data-lucide="${p.icon}" class="w-4 h-4 ${p.color}"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-[11px] font-bold leading-tight text-white truncate">${p.nombre}</p>
-                  <div class="flex items-center gap-1.5 mt-0.5">
-                    <span class="text-[9px] text-gray-500 font-mono">${p.sku}</span>
-                    <span class="text-gray-700">·</span>
-                    <span class="text-[9px] text-gray-400">Stock <strong class="${stockActualColor}">${p.stock}</strong> <span class="text-gray-600">→</span> <strong class="text-green-400">${nuevoStock}</strong></span>
-                  </div>
-                </div>
-                <button class="btn-remove-product w-6 h-6 rounded-md flex items-center justify-center text-gray-500 flex-shrink-0" data-remove="${i}" title="Eliminar del lote">
-                  <i data-lucide="x" class="w-3 h-3"></i>
-                </button>
+            <button class="btn-remove-product w-6 h-6 rounded-md flex items-center justify-center text-gray-500 flex-shrink-0" data-remove="${i}" title="Eliminar del lote"><i data-lucide="x" class="w-3 h-3"></i></button>
+          </div>
+          <div class="grid grid-cols-12 gap-1.5 items-center">
+            <div class="col-span-3"><input type="number" min="1" value="${p.cantidad}" placeholder="Cant" class="cs-input text-xs text-center font-bold" data-field="cantidad" data-idx="${i}"></div>
+            <div class="col-span-5">
+              <div class="relative">
+                <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center"><i data-lucide="dollar-sign" class="w-3 h-3"></i></span>
+                <input type="number" min="0" step="0.01" value="${p.costo}" placeholder="Costo" class="cs-input text-xs" style="padding-left: 22px;" data-field="costo" data-idx="${i}">
               </div>
+            </div>
+            <div class="col-span-4 text-right">
+              <p class="text-[8px] text-gray-500 uppercase tracking-wider leading-none mb-0.5">Subtotal</p>
+              <span class="text-green-400 font-bold text-xs">$${subtotalFmt}</span>
+            </div>
+          </div>
+        </div>`;
+    }
 
-              <!-- Inputs + subtotal en una sola fila -->
-              <div class="grid grid-cols-12 gap-1.5 items-center">
-                <div class="col-span-3">
-                  <input type="number" min="1" value="${p.cantidad}" placeholder="Cant" class="cs-input text-xs text-center font-bold" data-field="cantidad" data-idx="${i}">
-                </div>
-                <div class="col-span-5">
-                  <div class="relative">
-                    <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center">
-                      <i data-lucide="dollar-sign" class="w-3 h-3"></i>
-                    </span>
-                    <input type="number" min="0" step="0.01" value="${p.costo}" placeholder="Costo" class="cs-input text-xs" style="padding-left: 22px;" data-field="costo" data-idx="${i}">
-                  </div>
-                </div>
-                <div class="col-span-4 text-right">
-                  <p class="text-[8px] text-gray-500 uppercase tracking-wider leading-none mb-0.5">Subtotal</p>
-                  <span class="text-green-400 font-bold text-xs">$${subtotalFmt}</span>
-                </div>
-              </div>
-            </div>`;
-        }).join('');
-      }
+    function renderCartItem(p, i) {
+      const cant = Number(p.cantidad || 0);
+      const costoNum = Number(p.costo || 0);
+      const subtotal = (cant * costoNum).toFixed(2);
+      const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `
+        <div class="pos-cart-item" data-idx="${i}">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-md ${p.bg} flex items-center justify-center flex-shrink-0"><i data-lucide="${p.icon}" class="w-3.5 h-3.5 ${p.color}"></i></div>
+            <div class="flex-1 min-w-0">
+              <p class="text-[10px] font-bold text-white truncate">${p.nombre}</p>
+              <p class="text-[8px] text-gray-500 font-mono">${p.sku}</p>
+            </div>
+            <button class="btn-remove-product w-5 h-5 rounded flex items-center justify-center text-gray-500 flex-shrink-0" data-remove="${i}"><i data-lucide="x" class="w-3 h-3"></i></button>
+          </div>
+          <div class="grid grid-cols-3 gap-1 mt-1.5 pt-1.5 border-t border-gray-800/40">
+            <div><input type="number" min="1" value="${p.cantidad}" class="cs-input text-[10px] text-center w-full" data-field="cantidad" data-idx="${i}"></div>
+            <div class="relative"><span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-600 text-[8px]">$</span><input type="number" min="0" step="0.01" value="${p.costo}" class="cs-input text-[10px] w-full" style="padding-left: 14px;" data-field="costo" data-idx="${i}"></div>
+            <div class="text-right"><p class="text-[7px] text-gray-500 uppercase">Sub</p><p class="text-[10px] font-bold text-green-400">$${subtotalFmt}</p></div>
+          </div>
+        </div>`;
+    }
 
-      // Totales
+    function renderEmptyState() {
+      return `
+        <div class="flex flex-col items-center justify-center py-12 text-center">
+          <div class="w-14 h-14 rounded-2xl bg-purple-500/8 border border-purple-500/20 flex items-center justify-center mb-3"><i data-lucide="package-plus" class="w-7 h-7 text-purple-400/60"></i></div>
+          <p class="text-xs font-medium text-gray-300">Aún no has agregado productos</p>
+          <p class="text-[10px] text-gray-500 mt-1">Usa el buscador para empezar</p>
+        </div>`;
+    }
+
+    function renderSearchResult(p) {
+      const stockColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
+      const stockBg = p.stock === 0 ? 'bg-red-500/10' : p.stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
+      return `
+        <div class="search-result-item flex items-center gap-2.5 px-3 py-2 cursor-pointer" data-add-sku="${p.sku}">
+          <div class="w-8 h-8 rounded-lg ${p.bg} flex items-center justify-center flex-shrink-0"><i data-lucide="${p.icon}" class="w-4 h-4 ${p.color}"></i></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-[11px] font-semibold text-white truncate">${p.nombre}</p>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span class="text-[9px] text-gray-500 font-mono">${p.sku}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded ${stockBg} ${stockColor} font-bold">Stock ${p.stock}</span>
+            </div>
+          </div>
+          <div class="w-7 h-7 rounded-lg bg-purple-600/15 border border-purple-500/30 flex items-center justify-center text-purple-400 hover:bg-purple-600 hover:text-white transition flex-shrink-0"><i data-lucide="plus" class="w-3.5 h-3.5"></i></div>
+        </div>`;
+    }
+
+    function updateTotals(prefix) {
       const totalItems = lote.length;
       const totalUds = lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
       const totalCosto = lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
       const costoFmt = totalCosto.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const elItems = document.getElementById(prefix + '_qtyItems');
+      const elUnits = document.getElementById(prefix + '_qtyUnits');
+      const elCost = document.getElementById(prefix + '_qtyCost');
+      const elCnt = document.getElementById(prefix + '_cntProductos');
+      if (elItems) elItems.textContent = totalItems;
+      if (elUnits) elUnits.textContent = totalUds;
+      if (elCost) elCost.textContent = '$' + costoFmt;
+      if (elCnt) elCnt.textContent = totalItems;
+      // Wizard P2 summary
+      if (prefix === 'p2') {
+        document.getElementById('p2_resOrigen').textContent = document.getElementById('p2_selOrigen').value;
+        document.getElementById('p2_resSucursal').textContent = document.getElementById('p2_selSucursal').value;
+        document.getElementById('p2_resFecha').textContent = document.getElementById('p2_inpFecha').value;
+      }
+    }
 
-      qtyItems.textContent = totalItems;
-      qtyUnits.textContent = totalUds;
-      qtyCost.textContent = `$${costoFmt}`;
-      cntProductos.textContent = totalItems;
-
+    function renderPropuesta(prefix) {
+      const lista = document.getElementById(prefix + '_listaProductos');
+      const cart = document.getElementById(prefix + '_cartItems');
+      const limpiar = document.getElementById(prefix + '_btnLimpiarLote');
+      if (!lote.length) {
+        if (lista) lista.innerHTML = renderEmptyState();
+        if (cart) cart.innerHTML = '<p class="text-[10px] text-gray-500 text-center py-4">Sin productos</p>';
+        if (limpiar) limpiar.classList.add('hidden');
+      } else {
+        if (limpiar) limpiar.classList.remove('hidden');
+        if (lista) lista.innerHTML = lote.map((p, i) => renderProductCard(p, i, prefix)).join('');
+        if (cart) cart.innerHTML = lote.map((p, i) => renderCartItem(p, i)).join('');
+      }
+      updateTotals(prefix);
       if (window.lucide) lucide.createIcons();
     }
 
-    listaProductos.addEventListener('click', (e) => {
-      const rm = e.target.closest('[data-remove]');
-      if (rm) {
-        const idx = Number(rm.dataset.remove);
-        lote.splice(idx, 1);
-        render();
-      }
-    });
+    function renderAll() {
+      renderPropuesta('p1');
+      renderPropuesta('p2');
+      renderPropuesta('p3');
+    }
 
-    listaProductos.addEventListener('input', (e) => {
-      const f = e.target.dataset.field;
-      const idx = Number(e.target.dataset.idx);
-      if (f == null || isNaN(idx)) return;
-      lote[idx][f] = e.target.value;
-      if (f === 'cantidad' || f === 'costo') render();
-    });
-
-    btnRegistrar.addEventListener('click', () => {
-      if (!lote.length) {
-        alert('Agrega al menos un producto al lote');
-        return;
-      }
-      const origen = document.getElementById('selOrigen')?.value || 'Producción';
-      const totalUds = lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
-      const totalCosto = lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
-      console.log('Registrar entrada:', { origen, productos: lote, totalUds, totalCosto });
-      alert(`Entrada registrada\nOrigen: ${origen}\nProductos: ${lote.length}\nUnidades: ${totalUds}\nCosto: $${totalCosto.toFixed(2)}`);
-      lote = [];
-      render();
-      cerrarModal();
-    });
-
-    // ESC para cerrar
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !modal.classList.contains('hidden')) cerrarModal();
-    });
-
-    lucide.createIcons();
-    const toggleSidebar = document.getElementById('toggleSidebar');
-    const sidebar = document.getElementById('sidebar');
-    if (toggleSidebar && sidebar) {
-      toggleSidebar.addEventListener('click', () => {
-        sidebar.classList.toggle('-translate-x-full');
-        sidebar.classList.toggle('translate-x-0');
+    // ═══════════════════════════════════════════════════════════
+    // Búsqueda (compartida por prefijo)
+    // ═══════════════════════════════════════════════════════════
+    function setupBusqueda(prefix) {
+      const input = document.getElementById(prefix + '_buscarProducto');
+      const resultados = document.getElementById(prefix + '_resultadosBusqueda');
+      if (!input || !resultados) return;
+      input.addEventListener('input', (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        if (!q) { resultados.classList.add('hidden'); resultados.innerHTML = ''; return; }
+        const matches = CATALOGO.filter(p => p.nombre.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)).filter(p => !lote.some(x => x.sku === p.sku)).slice(0, 6);
+        if (!matches.length) {
+          resultados.innerHTML = '<p class="text-[10px] text-gray-500 text-center py-3">Sin resultados</p>';
+          resultados.classList.remove('hidden');
+          return;
+        }
+        resultados.innerHTML = matches.map(renderSearchResult).join('');
+        resultados.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      });
+      resultados.addEventListener('click', (e) => {
+        const row = e.target.closest('[data-add-sku]');
+        if (!row) return;
+        const sku = row.dataset.addSku;
+        const prod = CATALOGO.find(p => p.sku === sku);
+        if (!prod) return;
+        lote.push({ ...prod, cantidad: 1, caducidad: '' });
+        input.value = '';
+        resultados.classList.add('hidden');
+        resultados.innerHTML = '';
+        renderAll();
       });
     }
 
+    ['p1','p2','p3'].forEach(setupBusqueda);
+
     // ═══════════════════════════════════════════════════════════
-    // NAVBAR — branch selector (mismo patron que /app/pos/templates/pos-pedidos.html)
+    // Clicks en listas (remove + input)
     // ═══════════════════════════════════════════════════════════
-    const $ = (id) => document.getElementById(id);
-
-    const BRANCH_GRADIENTS = [
-      'linear-gradient(135deg, #7C3AED 0%, #EC4899 100%)',
-      'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-      'linear-gradient(135deg, #F472B6 0%, #C084FC 100%)',
-      'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
-      'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-    ];
-
-    const branchState = {
-      sucursal: '',
-      branches: [
-        { id: 'kafeto',  name: 'Reginas Kafeto',      initials: 'RK', ubication: 'Plaza Kafeto',     active: 1 },
-        { id: 'central', name: 'Reginas Central Gpe', initials: 'RC', ubication: 'Centro Guadalupe', active: 1 },
-        { id: 'norte',   name: 'Reginas Norte',       initials: 'RN', ubication: 'Av. Universidad',  active: 1 },
-        { id: 'sur',     name: 'Reginas Sur',         initials: 'RS', ubication: 'Av. Insurgentes',  active: 1 }
-      ]
-    };
-
-    function renderBranchList() {
-      const host = $('branchList');
-      const items = [
-        { id: '', name: 'Todas las sucursales', initials: 'ALL', ubication: 'Vista consolidada', active: 1 },
-        ...branchState.branches
-      ];
-      host.innerHTML = items.map((b, i) => {
-        const grad = BRANCH_GRADIENTS[i % BRANCH_GRADIENTS.length];
-        const sel  = branchState.sucursal === b.id ? 'selected' : '';
-        return `
-          <div class="branch-card ${sel}" data-id="${b.id}" data-name="${b.name}">
-            <div class="flex items-start gap-3">
-              <div class="branch-avatar" style="background: ${grad};">${b.initials || ''}</div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between gap-2">
-                  <p class="text-sm font-bold text-white truncate">${b.name}</p>
-                  <div class="radio-mark"><div class="inner"></div></div>
-                </div>
-                <p class="text-[11px] text-gray-400 mt-1 truncate">${b.ubication || 'Sin direccion'}</p>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
+    function setupListaClicks(prefix) {
+      const lista = document.getElementById(prefix + '_listaProductos');
+      const cart = document.getElementById(prefix + '_cartItems');
+      [lista, cart].forEach(el => {
+        if (!el) return;
+        el.addEventListener('click', (e) => {
+          const rm = e.target.closest('[data-remove]');
+          if (rm) { lote.splice(Number(rm.dataset.remove), 1); renderAll(); }
+        });
+        el.addEventListener('input', (e) => {
+          const f = e.target.dataset.field;
+          const idx = Number(e.target.dataset.idx);
+          if (f == null || isNaN(idx)) return;
+          lote[idx][f] = e.target.value;
+          if (f === 'cantidad' || f === 'costo') renderAll();
+        });
+      });
     }
+    ['p1','p2','p3'].forEach(setupListaClicks);
 
-    function toggleBranchDropdown() {
-      const btn = $('btnBranch');
-      const dd  = $('branchDropdown');
-      const expanded = btn.getAttribute('aria-expanded') === 'true';
-      btn.setAttribute('aria-expanded', !expanded);
-      dd.style.display = expanded ? 'none' : 'block';
-    }
-
-    function closeBranchDropdown() {
-      $('btnBranch').setAttribute('aria-expanded', 'false');
-      $('branchDropdown').style.display = 'none';
-    }
-
-    let toastTimer = null;
-    function showBranchToast(name) {
-      const toast = $('branchToast');
-      $('branchToastName').textContent = name;
-      toast.classList.remove('hidden', 'toast-fade-out');
-      toast.classList.add('toast-anim');
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(hideBranchToast, 3000);
-    }
-    function hideBranchToast() {
-      const toast = $('branchToast');
-      toast.classList.remove('toast-anim');
-      toast.classList.add('toast-fade-out');
-      const handler = () => {
-        toast.classList.add('hidden');
-        toast.classList.remove('toast-fade-out');
-        toast.removeEventListener('animationend', handler);
-      };
-      toast.addEventListener('animationend', handler);
-    }
-
-    function setSucursal(id, name, opts = {}) {
-      branchState.sucursal = id || '';
-      $('btnBranchName').textContent = name || 'Todas las sucursales';
-      renderBranchList();
-      if (!opts.silent) showBranchToast(name || 'Todas las sucursales');
-    }
-
-    $('btnBranch').addEventListener('click', (e) => { e.stopPropagation(); toggleBranchDropdown(); });
-    $('btnBranchClose').addEventListener('click', (e) => { e.stopPropagation(); closeBranchDropdown(); });
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('#btnBranch, #branchDropdown')) closeBranchDropdown();
+    // ═══════════════════════════════════════════════════════════
+    // Limpiar lote
+    // ═══════════════════════════════════════════════════════════
+    ['p1','p2','p3'].forEach(prefix => {
+      const btn = document.getElementById(prefix + '_btnLimpiarLote');
+      if (btn) btn.addEventListener('click', () => {
+        if (lote.length && confirm('¿Eliminar todos los productos del lote?')) { lote = []; renderAll(); }
+      });
     });
-    $('branchList').addEventListener('click', (e) => {
-      const card = e.target.closest('.branch-card');
-      if (!card) return;
-      const id   = card.getAttribute('data-id');
-      const name = card.getAttribute('data-name');
-      if (card.classList.contains('selected')) { closeBranchDropdown(); return; }
-      setSucursal(id, name);
-      closeBranchDropdown();
-    });
-    $('btnBranchToastClose').addEventListener('click', hideBranchToast);
 
     // ═══════════════════════════════════════════════════════════
-    // NAVBAR — user menu
+    // Modal helpers
     // ═══════════════════════════════════════════════════════════
-    const btnUserMenu = $('btnUserMenu');
-    const userMenuDropdown = $('userMenuDropdown');
-    function toggleUserMenu() {
-      userMenuDropdown.classList.toggle('opacity-0');
-      userMenuDropdown.classList.toggle('scale-95');
-      userMenuDropdown.classList.toggle('invisible');
-      userMenuDropdown.classList.toggle('opacity-100');
-      userMenuDropdown.classList.toggle('scale-100');
+    function abrirModal(prefix) {
+      propuestaActiva = prefix;
+      lote = [];
+      modoEdicion = null;
+      const modal = document.getElementById('modalNuevaEntrada' + prefix.toUpperCase());
+      modal.classList.remove('hidden');
+      modal.style.cssText = 'position:fixed;inset:0;z-index:100;';
+      // Reset wizard si es P2
+      if (prefix === 'p2') p2_goStep(1);
+      renderAll();
+      if (window.lucide) lucide.createIcons();
     }
-    btnUserMenu.addEventListener('click', toggleUserMenu);
-    $('btnCloseUserMenu').addEventListener('click', toggleUserMenu);
-    $('btnLogout').addEventListener('click', () => {
-      console.log('Cerrar sesion');
+
+    function cerrarModal(prefix) {
+      const modal = document.getElementById('modalNuevaEntrada' + prefix.toUpperCase());
+      modal.classList.add('hidden');
+      modal.style.cssText = '';
+      modoEdicion = null;
+    }
+
+    ['p1','p2','p3'].forEach(prefix => {
+      const modal = document.getElementById('modalNuevaEntrada' + prefix.toUpperCase());
+      modal.querySelectorAll('[data-modal-close]').forEach(el => {
+        if (el.dataset.modalClose === prefix) el.addEventListener('click', () => cerrarModal(prefix));
+      });
+    });
+
+    document.getElementById('btnNuevaEntrada').addEventListener('click', () => abrirModal('p1'));
+    document.getElementById('btnDemoP1').addEventListener('click', () => abrirModal('p1'));
+    document.getElementById('btnDemoP2').addEventListener('click', () => abrirModal('p2'));
+    document.getElementById('btnDemoP3').addEventListener('click', () => abrirModal('p3'));
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        ['p1','p2','p3'].forEach(prefix => {
+          const modal = document.getElementById('modalNuevaEntrada' + prefix.toUpperCase());
+          if (!modal.classList.contains('hidden')) cerrarModal(prefix);
+        });
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // Wizard P2 navigation
+    // ═══════════════════════════════════════════════════════════
+    let p2_currentStep = 1;
+    function p2_goStep(n) {
+      p2_currentStep = n;
+      [1,2,3].forEach(s => {
+        document.getElementById('p2_step' + s).classList.toggle('active', s === n);
+        const dot = document.getElementById('p2_dot' + s);
+        const lbl = document.getElementById('p2_lbl' + s);
+        dot.classList.remove('active','done');
+        lbl.classList.remove('active','done');
+        if (s === n) { dot.classList.add('active'); lbl.classList.add('active'); }
+        else if (s < n) { dot.classList.add('done'); lbl.classList.add('done'); }
+      });
+      if (n === 3) renderPropuesta('p2'); // refresh summary
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Registrar entrada (compartido)
+    // ═══════════════════════════════════════════════════════════
+    function doRegistrar(prefix) {
+      if (!lote.length) { alert('Agrega al menos un producto al lote'); return; }
+      const origenSelVal = document.getElementById(prefix + '_selOrigen')?.value || 'Producción';
+      const origenLabel = origenSelVal === 'Compra' ? 'Proveedor' : origenSelVal;
+      const sucursal = document.getElementById(prefix + '_selSucursal')?.value || '';
+      const fecha = document.getElementById(prefix + '_inpFecha')?.value || '';
+      const nota = document.getElementById(prefix + '_inpNota')?.value || '';
+      const totalUds = lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
+      const totalCosto = lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
+      const productosPayload = lote.map(p => ({
+        nombre: p.nombre, sku: p.sku, icon: p.icon, bg: p.bg, color: p.color,
+        cant: Number(p.cantidad || 0), costo: Number(p.costo || 0), stockPrev: Number(p.stock || 0)
+      }));
+      if (modoEdicion) {
+        const idx = ENTRADAS.findIndex(x => x.folio === modoEdicion.folio);
+        if (idx >= 0) {
+          const prev = ENTRADAS[idx];
+          ENTRADAS[idx] = { ...prev, origen: origenLabel, sucursal: sucursal || prev.sucursal, fechaIso: fecha ? `${fecha}T${(prev.fechaIso || '').slice(11) || '00:00:00'}` : prev.fechaIso, nota, productos: productosPayload };
+          renderTabla(); applyFilters(); renderPanel(ENTRADAS[idx].folio);
+          alert(`Entrada ${ENTRADAS[idx].folio} actualizada\nProductos: ${productosPayload.length}\nUnidades: ${totalUds}\nCosto: $${totalCosto.toFixed(2)}`);
+        }
+      } else {
+        const nextNum = (ENTRADAS.reduce((mx, e) => { const n = parseInt(String(e.folio).replace(/\D/g, ''), 10); return Number.isFinite(n) && n > mx ? n : mx; }, 0) || 0) + 1;
+        const nuevoFolio = 'ENT-' + String(nextNum).padStart(3, '0');
+        const fechaIso = fecha ? `${fecha}T${new Date().toTimeString().slice(0, 8)}` : new Date().toISOString();
+        const nueva = { folio: nuevoFolio, origen: origenLabel, sucursal: sucursal || 'Reginas Kafeto', registrado: 'Admin', fechaIso, estado: 'Aplicada', nota, productos: productosPayload };
+        ENTRADAS.unshift(nueva);
+        renderTabla(); applyFilters(); renderPanel(nueva.folio);
+        alert(`Entrada ${nuevoFolio} registrada\nOrigen: ${origenLabel}\nProductos: ${nueva.productos.length}\nUnidades: ${totalUds}\nCosto: $${totalCosto.toFixed(2)}`);
+      }
+      lote = []; renderAll(); cerrarModal(prefix);
+    }
+
+    ['p1','p2','p3'].forEach(prefix => {
+      const btn = document.getElementById(prefix + '_btnRegistrarEntrada');
+      if (btn) btn.addEventListener('click', () => doRegistrar(prefix));
     });
 
     // ═══════════════════════════════════════════════════════════
@@ -942,53 +1033,32 @@
     // ═══════════════════════════════════════════════════════════
     const ENTRADAS = [
       {
-        folio: 'ENT-089',
-        origen: 'Producción',
-        sucursal: 'Reginas Kafeto',
-        registrado: 'Carlos G.',
-        fechaIso: '2026-04-04T08:30:00',
-        estado: 'Aplicada',
+        folio: 'ENT-089', origen: 'Producción', sucursal: 'Reginas Kafeto', registrado: 'Carlos G.', fechaIso: '2026-04-04T08:30:00', estado: 'Aplicada',
         nota: 'Producción matutina del turno de mañana. Se produjeron cupcakes de chocolate y vainilla, pasteles 3 leches y galletas decoradas.',
         productos: [
-          { nombre: 'Cupcake Decorado',         sku: 'CUP-DEC-001', icon: 'cup-soda', bg: 'bg-orange-900/30', color: 'text-orange-400', cant: 24, costo: 22,  stockPrev: 0  },
-          { nombre: 'Pastel 3 Leches Chocolate', sku: 'PAS-3LC-001', icon: 'cake',     bg: 'bg-amber-900/30',  color: 'text-amber-400',  cant: 10, costo: 280, stockPrev: 6  },
-          { nombre: 'Galleta Chocolate',         sku: 'GAL-CHO-001', icon: 'cookie',   bg: 'bg-teal-900/30',   color: 'text-teal-400',   cant: 14, costo: 20,  stockPrev: 15 }
+          { nombre: 'Cupcake Decorado', sku: 'CUP-DEC-001', icon: 'cup-soda', bg: 'bg-orange-900/30', color: 'text-orange-400', cant: 24, costo: 22, stockPrev: 0 },
+          { nombre: 'Pastel 3 Leches Chocolate', sku: 'PAS-3LC-001', icon: 'cake', bg: 'bg-amber-900/30', color: 'text-amber-400', cant: 10, costo: 280, stockPrev: 6 },
+          { nombre: 'Galleta Chocolate', sku: 'GAL-CHO-001', icon: 'cookie', bg: 'bg-teal-900/30', color: 'text-teal-400', cant: 14, costo: 20, stockPrev: 15 }
         ]
       },
       {
-        folio: 'ENT-088',
-        origen: 'Proveedor',
-        sucursal: 'Reginas Kafeto',
-        registrado: 'Admin',
-        fechaIso: '2026-04-03T15:00:00',
-        estado: 'Aplicada',
+        folio: 'ENT-088', origen: 'Proveedor', sucursal: 'Reginas Kafeto', registrado: 'Admin', fechaIso: '2026-04-03T15:00:00', estado: 'Aplicada',
         nota: 'Recepción de orden de compra OC-2024-115 de proveedor Lácteos del Valle.',
         productos: [
           { nombre: 'Pay de Fresas', sku: 'PAY-FRE-001', icon: 'cherry', bg: 'bg-red-900/30', color: 'text-red-400', cant: 10, costo: 240, stockPrev: 5 }
         ]
       },
       {
-        folio: 'ENT-087',
-        origen: 'Transferencia',
-        sucursal: 'Reginas Kafeto',
-        registrado: 'Admin',
-        fechaIso: '2026-04-03T17:00:00',
-        estado: 'Aplicada',
+        folio: 'ENT-087', origen: 'Transferencia', sucursal: 'Reginas Kafeto', registrado: 'Admin', fechaIso: '2026-04-03T17:00:00', estado: 'Aplicada',
         nota: 'Transferencia desde Reginas Central por reabasto de productos secos.',
         productos: [
-          { nombre: 'Choco Alemán',     sku: 'CHA-ALE-001', icon: 'candy',    bg: 'bg-yellow-900/30', color: 'text-yellow-400', cant: 4, costo: 240, stockPrev: 12 },
-          { nombre: 'Café Americano',   sku: 'CAF-AME-001', icon: 'cup-soda', bg: 'bg-gray-700',      color: 'text-gray-400',   cant: 4, costo: 220, stockPrev: 40 }
+          { nombre: 'Choco Alemán', sku: 'CHA-ALE-001', icon: 'candy', bg: 'bg-yellow-900/30', color: 'text-yellow-400', cant: 4, costo: 240, stockPrev: 12 },
+          { nombre: 'Café Americano', sku: 'CAF-AME-001', icon: 'cup-soda', bg: 'bg-gray-700', color: 'text-gray-400', cant: 4, costo: 220, stockPrev: 40 }
         ]
       }
     ];
 
-    const ORIGEN_BADGE = {
-      'Producción':    'cs-badge-purple',
-      'Proveedor':     'cs-badge-warning',
-      'Transferencia': 'cs-badge-info',
-      'Devolución':    'cs-badge-danger'
-    };
-
+    const ORIGEN_BADGE = { 'Producción': 'cs-badge-purple', 'Proveedor': 'cs-badge-warning', 'Transferencia': 'cs-badge-info', 'Devolución': 'cs-badge-danger' };
     const tbody = document.getElementById('tbEntradasBody');
 
     function totalsOf(e) {
@@ -996,25 +1066,13 @@
       const costo = e.productos.reduce((s, p) => s + Number(p.cant || 0) * Number(p.costo || 0), 0);
       return { uds, costo };
     }
-
-    function fmtMoney(n) {
-      return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    function fmtMoneyShort(n) {
-      return '$' + Number(n).toLocaleString('en-US');
-    }
-
+    function fmtMoney(n) { return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function fmtMoneyShort(n) { return '$' + Number(n).toLocaleString('en-US'); }
     const DOW_ES = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
     const MON_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     function fmtFechaCorta(iso) {
-      const d = new Date(iso);
-      const dow = DOW_ES[d.getDay()];
-      const day = String(d.getDate()).padStart(2, '0');
-      const mon = MON_ES[d.getMonth()];
-      let h = d.getHours();
-      const m = String(d.getMinutes()).padStart(2, '0');
-      const ampm = h >= 12 ? 'pm' : 'am';
-      h = h % 12 || 12;
+      const d = new Date(iso); const dow = DOW_ES[d.getDay()]; const day = String(d.getDate()).padStart(2, '0'); const mon = MON_ES[d.getMonth()];
+      let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, '0'); const ampm = h >= 12 ? 'pm' : 'am'; h = h % 12 || 12;
       return `${dow} ${day} ${mon} ${String(h).padStart(2,'0')}:${m} ${ampm}`;
     }
 
@@ -1036,9 +1094,10 @@
             <td class="text-[10px] text-gray-500 whitespace-nowrap">${fechaCorta}</td>
             <td class="text-center"><span class="cs-badge cs-badge-success">${e.estado}</span></td>
             <td class="text-center">
-              <button class="btn-ver-entrada w-7 h-7 inline-flex items-center justify-center rounded-md bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition" data-folio="${e.folio}" title="Ver entrada">
-                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-              </button>
+              <div class="inline-flex items-center gap-1">
+                <button class="btn-ver-entrada w-7 h-7 inline-flex items-center justify-center rounded-md bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition" data-folio="${e.folio}" title="Ver entrada"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
+                <button class="btn-editar-entrada w-7 h-7 inline-flex items-center justify-center rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition" data-folio="${e.folio}" title="Editar entrada"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+              </div>
             </td>
           </tr>`;
       }).join('');
@@ -1050,12 +1109,10 @@
       if (!e) return;
       const { uds, costo } = totalsOf(e);
       const badgeCls = ORIGEN_BADGE[e.origen] || 'cs-badge-info';
-
       document.getElementById('panelFolio').textContent = `Entrada ${e.folio}`;
       document.getElementById('panelFecha').textContent = fmtFechaCorta(e.fechaIso);
       document.getElementById('panelEstado').className = `cs-badge cs-badge-success`;
       document.getElementById('panelEstado').textContent = e.estado;
-
       const productosHtml = e.productos.map(p => {
         const subtotal = Number(p.cant) * Number(p.costo);
         const nuevoStock = Number(p.stockPrev) + Number(p.cant);
@@ -1073,12 +1130,9 @@
               <div><p class="text-[7px] text-[#6B7280] uppercase leading-none">Costo</p><p class="text-[10px] font-bold leading-tight">${fmtMoney(p.costo)}</p></div>
               <div><p class="text-[7px] text-[#6B7280] uppercase leading-none">Subtot.</p><p class="text-[10px] font-bold leading-tight">${fmtMoneyShort(subtotal)}</p></div>
             </div>
-            <div class="mt-1 text-[8px] leading-tight">
-              <span class="text-[#6B7280]">Stock: ${p.stockPrev} → <strong class="text-green-400">${nuevoStock}</strong></span>
-            </div>
+            <div class="mt-1 text-[8px] leading-tight"><span class="text-[#6B7280]">Stock: ${p.stockPrev} → <strong class="text-green-400">${nuevoStock}</strong></span></div>
           </div>`;
       }).join('');
-
       document.getElementById('panelBody').innerHTML = `
         <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151] space-y-1.5">
           <div class="flex justify-between text-[11px]"><span class="text-[#6B7280]">Origen</span><span class="cs-badge ${badgeCls}">${e.origen}</span></div>
@@ -1091,83 +1145,116 @@
           <p class="text-[9px] text-[#6B7280] uppercase tracking-wider mb-2">Detalle de Productos</p>
           <div class="space-y-1">${productosHtml}</div>
         </div>
-        ${e.nota ? `
-          <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151]">
-            <p class="text-[9px] text-[#6B7280] uppercase tracking-wider mb-1">Nota</p>
-            <p class="text-[11px] text-gray-300">${e.nota}</p>
-          </div>` : ''}
-      `;
-
+        ${e.nota ? `<div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151]"><p class="text-[9px] text-[#6B7280] uppercase tracking-wider mb-1">Nota</p><p class="text-[11px] text-gray-300">${e.nota}</p></div>` : ''}`;
       document.getElementById('btnPanelImprimir').disabled = false;
       document.getElementById('btnPanelReversar').disabled = false;
-
-      // Marcar fila seleccionada
       document.querySelectorAll('#tbEntradasBody tr').forEach(tr => tr.classList.remove('bg-[#1a2332]/40'));
       const trSel = document.querySelector(`#tbEntradasBody tr[data-folio="${folio}"]`);
       if (trSel) trSel.classList.add('bg-[#1a2332]/40');
-
       if (window.lucide) lucide.createIcons();
     }
 
-    // Click en botón ver y en fila
     document.getElementById('tbEntradasBody').addEventListener('click', (e) => {
+      const btnEditar = e.target.closest('.btn-editar-entrada');
+      if (btnEditar) { e.stopPropagation(); return; } // edit no implementado para demo
       const btn = e.target.closest('.btn-ver-entrada');
+      if (btn) { e.stopPropagation(); renderPanel(btn.dataset.folio); return; }
       const tr = e.target.closest('tr[data-folio]');
-      if (btn) {
-        e.stopPropagation();
-        renderPanel(btn.dataset.folio);
-        return;
-      }
       if (tr) renderPanel(tr.dataset.folio);
     });
 
-    // ═══════════════════════════════════════════════════════════
-    // FILTROS DE TABLA + CARDS
-    // ═══════════════════════════════════════════════════════════
-    const searchInput   = document.getElementById('searchInput');
-    const filterOrigen  = document.getElementById('filterOrigen');
-
+    const searchInput = document.getElementById('searchInput');
+    const filterOrigen = document.getElementById('filterOrigen');
     function applyFilters() {
       const q = searchInput.value.trim().toLowerCase();
       const o = filterOrigen.value;
-
-      let visibleCount = 0;
-      let totalCosto   = 0;
-      const origenCount = {};
-
+      let visibleCount = 0, totalCosto = 0, origenCount = {};
       document.querySelectorAll('#tbEntradasBody tr').forEach(tr => {
         const text = tr.textContent.toLowerCase();
         const rowOrigen = tr.getAttribute('data-origen') || '';
-        const rowCosto  = parseFloat(tr.getAttribute('data-costo')) || 0;
-
+        const rowCosto = parseFloat(tr.getAttribute('data-costo')) || 0;
         const matchesSearch = !q || text.includes(q);
         const matchesOrigen = o === 'Todos' || rowOrigen === o;
-
         if (matchesSearch && matchesOrigen) {
-          tr.style.display = '';
-          visibleCount++;
-          totalCosto += rowCosto;
+          tr.style.display = ''; visibleCount++; totalCosto += rowCosto;
           origenCount[rowOrigen] = (origenCount[rowOrigen] || 0) + 1;
-        } else {
-          tr.style.display = 'none';
-        }
+        } else { tr.style.display = 'none'; }
       });
-
       document.getElementById('kpiEntradas').textContent = visibleCount;
-      document.getElementById('kpiCosto').textContent    = '$' + Math.round(totalCosto).toLocaleString('en-US');
-      document.getElementById('kpiSemana').textContent   = visibleCount;
-
+      document.getElementById('kpiCosto').textContent = '$' + Math.round(totalCosto).toLocaleString('en-US');
+      document.getElementById('kpiSemana').textContent = visibleCount;
       const principalOrigen = Object.keys(origenCount).reduce((a, b) => origenCount[a] > origenCount[b] ? a : b, Object.keys(origenCount)[0] || '-');
       document.getElementById('kpiPrincipal').textContent = principalOrigen;
     }
-
-    if (searchInput)  searchInput.addEventListener('input', applyFilters);
+    if (searchInput) searchInput.addEventListener('input', applyFilters);
     if (filterOrigen) filterOrigen.addEventListener('change', applyFilters);
 
-    // Render inicial
     renderTabla();
     applyFilters();
     if (ENTRADAS.length) renderPanel(ENTRADAS[0].folio);
+
+    // ═══════════════════════════════════════════════════════════
+    // Sidebar + Navbar
+    // ═══════════════════════════════════════════════════════════
+    lucide.createIcons();
+    const toggleSidebar = document.getElementById('toggleSidebar');
+    const sidebar = document.getElementById('sidebar');
+    if (toggleSidebar && sidebar) {
+      toggleSidebar.addEventListener('click', () => { sidebar.classList.toggle('-translate-x-full'); sidebar.classList.toggle('translate-x-0'); });
+    }
+
+    const $ = (id) => document.getElementById(id);
+    const BRANCH_GRADIENTS = [
+      'linear-gradient(135deg, #7C3AED 0%, #EC4899 100%)',
+      'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+      'linear-gradient(135deg, #F472B6 0%, #C084FC 100%)',
+      'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
+      'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+    ];
+    const branchState = {
+      sucursal: '',
+      branches: [
+        { id: 'kafeto', name: 'Reginas Kafeto', initials: 'RK', ubication: 'Plaza Kafeto', active: 1 },
+        { id: 'central', name: 'Reginas Central Gpe', initials: 'RC', ubication: 'Centro Guadalupe', active: 1 },
+        { id: 'norte', name: 'Reginas Norte', initials: 'RN', ubication: 'Av. Universidad', active: 1 },
+        { id: 'sur', name: 'Reginas Sur', initials: 'RS', ubication: 'Av. Insurgentes', active: 1 }
+      ]
+    };
+    function renderBranchList() {
+      const host = $('branchList');
+      const items = [{ id: '', name: 'Todas las sucursales', initials: 'ALL', ubication: 'Vista consolidada', active: 1 }, ...branchState.branches];
+      host.innerHTML = items.map((b, i) => {
+        const grad = BRANCH_GRADIENTS[i % BRANCH_GRADIENTS.length];
+        const sel = branchState.sucursal === b.id ? 'selected' : '';
+        return `<div class="branch-card ${sel}" data-id="${b.id}" data-name="${b.name}"><div class="flex items-start gap-3"><div class="branch-avatar" style="background: ${grad};">${b.initials || ''}</div><div class="flex-1 min-w-0"><div class="flex items-center justify-between gap-2"><p class="text-sm font-bold text-white truncate">${b.name}</p><div class="radio-mark"><div class="inner"></div></div></div><p class="text-[11px] text-gray-400 mt-1 truncate">${b.ubication || 'Sin direccion'}</p></div></div></div>`;
+      }).join('');
+    }
+    function toggleBranchDropdown() { const btn = $('btnBranch'); const dd = $('branchDropdown'); const expanded = btn.getAttribute('aria-expanded') === 'true'; btn.setAttribute('aria-expanded', !expanded); dd.style.display = expanded ? 'none' : 'block'; }
+    function closeBranchDropdown() { $('btnBranch').setAttribute('aria-expanded', 'false'); $('branchDropdown').style.display = 'none'; }
+    let toastTimer = null;
+    function showBranchToast(name) { const toast = $('branchToast'); $('branchToastName').textContent = name; toast.classList.remove('hidden', 'toast-fade-out'); toast.classList.add('toast-anim'); if (toastTimer) clearTimeout(toastTimer); toastTimer = setTimeout(hideBranchToast, 3000); }
+    function hideBranchToast() { const toast = $('branchToast'); toast.classList.remove('toast-anim'); toast.classList.add('toast-fade-out'); const handler = () => { toast.classList.add('hidden'); toast.classList.remove('toast-fade-out'); toast.removeEventListener('animationend', handler); }; toast.addEventListener('animationend', handler); }
+    function setSucursal(id, name, opts = {}) { branchState.sucursal = id || ''; $('btnBranchName').textContent = name || 'Todas las sucursales'; renderBranchList(); if (!opts.silent) showBranchToast(name || 'Todas las sucursales'); }
+    $('btnBranch').addEventListener('click', (e) => { e.stopPropagation(); toggleBranchDropdown(); });
+    $('btnBranchClose').addEventListener('click', (e) => { e.stopPropagation(); closeBranchDropdown(); });
+    document.addEventListener('click', (e) => { if (!e.target.closest('#btnBranch, #branchDropdown')) closeBranchDropdown(); });
+    $('branchList').addEventListener('click', (e) => {
+      const card = e.target.closest('.branch-card');
+      if (!card) return;
+      const id = card.getAttribute('data-id');
+      const name = card.getAttribute('data-name');
+      if (card.classList.contains('selected')) { closeBranchDropdown(); return; }
+      setSucursal(id, name);
+      closeBranchDropdown();
+    });
+    $('btnBranchToastClose').addEventListener('click', hideBranchToast);
+
+    const btnUserMenu = $('btnUserMenu');
+    const userMenuDropdown = $('userMenuDropdown');
+    function toggleUserMenu() { userMenuDropdown.classList.toggle('opacity-0'); userMenuDropdown.classList.toggle('scale-95'); userMenuDropdown.classList.toggle('invisible'); userMenuDropdown.classList.toggle('opacity-100'); userMenuDropdown.classList.toggle('scale-100'); }
+    btnUserMenu.addEventListener('click', toggleUserMenu);
+    $('btnCloseUserMenu').addEventListener('click', toggleUserMenu);
+    $('btnLogout').addEventListener('click', () => { console.log('Cerrar sesion'); });
 
     renderBranchList();
   </script>

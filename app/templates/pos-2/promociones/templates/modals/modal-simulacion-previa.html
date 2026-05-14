@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es" style="background:#111928;color:#fff">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal - Simulacion previa</title>
+    <style>html,body{background:#111928!important;color:#fff;margin:0}</style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#111928; font-family:'Inter',system-ui,sans-serif; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
+        .input-modal { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:8px 12px; font-size:12px; color:#d1d5db; width:100%; }
+        .input-modal:focus { outline:none; border-color:#7c3aed; }
+        .scrollbar-thin::-webkit-scrollbar { width:4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+
+        .case-card { background:#1a2332; border:1px solid #374151; border-radius:10px; padding:14px; }
+        .case-card.warning { border-color:rgba(251,191,36,.4); background:rgba(251,191,36,.05); }
+        .case-card.success { border-color:rgba(63,193,137,.4); background:rgba(63,193,137,.05); }
+        .case-card.danger { border-color:rgba(234,2,52,.4); background:rgba(234,2,52,.05); }
+
+        .line-item { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; font-size:11px; background:#111928; border:1px solid rgba(55,65,81,.4); }
+        .line-item.free { border-color:rgba(63,193,137,.4); background:rgba(63,193,137,.08); }
+        .line-item.free .price { text-decoration:line-through; color:#6b7280; }
+
+        [data-theme-btn] { transition:.15s; }
+        [data-theme-btn].theme-active { background:rgba(124,58,237,.8); color:#fff !important; border-radius:4px; }
+
+        body[data-theme="light"] { background:#f3f4f6; color:#111928; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background:#ffffff !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background:#f3f4f6 !important; }
+        body[data-theme="light"] .bg-\[\#111928\] { background:#f9fafb !important; }
+        body[data-theme="light"] .border-gray-700 { border-color:#d1d5db !important; }
+        body[data-theme="light"] .text-white { color:#111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color:#374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color:#4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color:#6b7280 !important; }
+        body[data-theme="light"] .case-card { background:#f9fafb !important; border-color:#e5e7eb !important; }
+        body[data-theme="light"] .input-modal { background:#f9fafb !important; border-color:#e5e7eb !important; color:#111928 !important; }
+    </style>
+</head>
+<body>
+
+    <div class="fixed inset-0 bg-black/60 -z-10"></div>
+
+    <div class="fixed top-4 right-4 flex items-center bg-[#1a2332] border border-gray-700 rounded-lg p-1 gap-0.5 z-50">
+        <button data-theme-btn="dark" class="theme-active px-3 py-1 text-[10px] font-semibold">Dark</button>
+        <button data-theme-btn="light" class="px-3 py-1 text-[10px] font-semibold text-gray-400">Light</button>
+    </div>
+
+    <!-- Modal -->
+    <div class="w-full max-w-[720px] bg-[#1F2A37] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-700 bg-[#141d2b] flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-[rgba(251,191,36,.18)] border border-[rgba(251,191,36,.35)] flex items-center justify-center">
+                    <svg class="w-5 h-5 text-[#fbbf24]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold">Simulacion previa</h3>
+                    <p class="text-[11px] text-gray-500 mt-0.5">Verifica el impacto antes de activar la promocion</p>
+                </div>
+            </div>
+            <button onclick="window.close()" class="text-gray-500 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Body scroll -->
+        <div class="overflow-y-auto px-6 py-5 space-y-5 scrollbar-thin">
+
+            <!-- Resumen promocion a simular -->
+            <div class="case-card">
+                <div class="flex items-center justify-between mb-2">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Simulando</p>
+                        <p class="text-sm font-bold">3x2 en cafe matutino</p>
+                    </div>
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-[rgba(124,58,237,.18)] text-[#c4b5fd] border border-[rgba(124,58,237,.35)]">3x2</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mt-3 text-[11px]">
+                    <div><span class="text-gray-500">Compra (X):</span> <span class="text-white font-bold">3</span></div>
+                    <div><span class="text-gray-500">Paga (Y):</span> <span class="text-white font-bold">2</span></div>
+                    <div><span class="text-gray-500">Regala:</span> <span class="text-white font-bold">El mas barato</span></div>
+                </div>
+            </div>
+
+            <!-- Caso A: aplica normal -->
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Caso A - Aplicacion normal</p>
+                <div class="case-card success">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-xs font-bold flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 text-[#3FC189]" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            Cliente lleva 3 cafes - 1 set completo
+                        </p>
+                        <span class="text-xs font-bold text-[#3FC189]">Ahorra $45</span>
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="line-item">
+                            <span class="flex-1">Latte mediano</span>
+                            <span class="price">$55.00</span>
+                        </div>
+                        <div class="line-item">
+                            <span class="flex-1">Cappuccino</span>
+                            <span class="price">$55.00</span>
+                        </div>
+                        <div class="line-item free">
+                            <span class="flex-1 flex items-center gap-2">
+                                Americano
+                                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#3FC189] text-white">GRATIS</span>
+                            </span>
+                            <span class="price">$45.00</span>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-700/50 mt-3 pt-3 flex items-center justify-between">
+                        <span class="text-[11px] text-gray-400">Total a cobrar</span>
+                        <span class="text-sm font-bold">$110.00 <span class="text-[10px] text-gray-500 ml-1">de $155.00</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Caso B: limite alcanzado -->
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Caso B - Limite por orden alcanzado</p>
+                <div class="case-card warning">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-xs font-bold flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 text-[#fbbf24]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            Cliente lleva 9 cafes - solo aplica 2 sets (limite)
+                        </p>
+                        <span class="text-xs font-bold text-[#fbbf24]">Ahorra $90</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mb-2">Constraint <span class="text-white font-mono">MAX_USES_PER_ORDER=2</span>: el motor aplica 2 sets (6 productos) y los 3 restantes se cobran completos.</p>
+                    <div class="grid grid-cols-3 gap-2 text-[11px]">
+                        <div class="bg-[#111928] rounded-md p-2 text-center">
+                            <p class="text-[10px] text-gray-500">Sets aplicados</p>
+                            <p class="text-base font-bold mt-0.5">2 / 3 posibles</p>
+                        </div>
+                        <div class="bg-[#111928] rounded-md p-2 text-center">
+                            <p class="text-[10px] text-gray-500">Items gratis</p>
+                            <p class="text-base font-bold text-[#3FC189] mt-0.5">2</p>
+                        </div>
+                        <div class="bg-[#111928] rounded-md p-2 text-center">
+                            <p class="text-[10px] text-gray-500">Items pagados</p>
+                            <p class="text-base font-bold mt-0.5">7</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Caso C: no aplica -->
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Caso C - No alcanza para 1 set</p>
+                <div class="case-card danger">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-xs font-bold flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 text-[#EA0234]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            Cliente lleva solo 2 cafes - no aplica promocion
+                        </p>
+                        <span class="text-xs font-bold text-[#EA0234]">$0 de ahorro</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400">Necesita 3 productos elegibles para activar 1 set. Sugiere al cliente agregar 1 mas para obtener el descuento.</p>
+                </div>
+            </div>
+
+            <!-- Proyeccion mensual -->
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Proyeccion en el mes (basado en historico)</p>
+                <div class="grid grid-cols-4 gap-2">
+                    <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700">
+                        <p class="text-[10px] text-gray-500 mb-1">Tickets impactados</p>
+                        <p class="text-lg font-bold">~480</p>
+                    </div>
+                    <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700">
+                        <p class="text-[10px] text-gray-500 mb-1">Sets aplicados</p>
+                        <p class="text-lg font-bold">~520</p>
+                    </div>
+                    <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700">
+                        <p class="text-[10px] text-gray-500 mb-1">Items regalados</p>
+                        <p class="text-lg font-bold text-[#c4b5fd]">~520</p>
+                    </div>
+                    <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700">
+                        <p class="text-[10px] text-gray-500 mb-1">Ahorro entregado</p>
+                        <p class="text-lg font-bold text-[#3FC189]">~$23,400</p>
+                    </div>
+                </div>
+                <p class="text-[10px] text-gray-500 mt-2 text-center">Proyeccion calculada con ventas de los ultimos 30 dias en horario lun-vie 7-11 am.</p>
+            </div>
+
+            <!-- Productos a probar -->
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Probar con productos especificos</p>
+                <div class="flex items-center gap-2">
+                    <input type="search" placeholder="Agrega productos al simulador..." class="input-modal flex-1">
+                    <button class="px-4 py-2 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold flex items-center gap-1.5 flex-shrink-0">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Re-simular
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-3 border-t border-gray-700 bg-[#141d2b] flex items-center justify-between flex-shrink-0">
+            <p class="text-[10px] text-gray-500">La simulacion es referencial · el motor real recalcula con tickets en vivo</p>
+            <div class="flex items-center gap-2">
+                <button class="px-5 py-2 rounded-lg border border-gray-600 text-gray-300 text-xs font-semibold hover:bg-gray-700/30" onclick="window.close()">Cerrar</button>
+                <button class="px-6 py-2 rounded-lg bg-[#1c64f2] text-white text-xs font-semibold hover:bg-blue-600 flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Confirmar y activar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const KEY = 'huubie-theme';
+        const apply = (t) => {
+            document.body.setAttribute('data-theme', t);
+            document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('theme-active', b.dataset.themeBtn === t));
+        };
+        apply(localStorage.getItem(KEY) || 'dark');
+        document.querySelectorAll('[data-theme-btn]').forEach(b => b.addEventListener('click', () => { localStorage.setItem(KEY, b.dataset.themeBtn); apply(b.dataset.themeBtn); }));
+    </script>
+</body>
+</html>
