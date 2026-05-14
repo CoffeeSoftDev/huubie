@@ -507,6 +507,20 @@
             { id: 'p014', name: 'Limon Cake',       category: 'Pasteles Tradicional', price: 520, stock: 9,  icon: 'cake',       color: 'lime'    },
             { id: 'p015', name: 'Latte Vainilla',   category: 'Cafes',                price: 65,  stock: 30, icon: 'coffee',     color: 'amber'   },
             { id: 'p016', name: 'Mocaccino',        category: 'Cafes',                price: 75,  stock: 20, icon: 'coffee',     color: 'amber'   },
+            // ── Combos / Paquetes ─────────────────────────────────────────────
+            { id: 'c001', name: 'Combo Familiar',   category: 'Combos',               price: 1200, stock: 999, icon: 'gift',     color: 'indigo', isCombo: 1,
+              components: [
+                  { productId: 'p001', quantity: 1 },  // 3 Leches Choco
+                  { productId: 'p008', quantity: 2 },  // Choco Roll
+                  { productId: 'p012', quantity: 4 }   // Galleta Choco
+              ]
+            },
+            { id: 'c002', name: 'Combo Cafe Pareja', category: 'Combos',              price: 240,  stock: 999, icon: 'gift',     color: 'pink',   isCombo: 1,
+              components: [
+                  { productId: 'p015', quantity: 2 },  // Latte Vainilla
+                  { productId: 'p006', quantity: 2 }   // Cupcake
+              ]
+            },
         ];
 
         // ── Mapa de colores (gradiente + texto en formato seguro para CDN) ───────
@@ -524,7 +538,15 @@
         };
 
         // ── Estado ───────────────────────────────────────────────────────────────
-        const cart = [];                  // [{ id, qty, discount, discountMotivo }]
+        // Cada renglon del cart tiene un lineId unico. Para combos:
+        //   - Cabecera: { lineId, id, qty, discount, comboId: null }  (lleva el precio)
+        //   - Hijos:    { lineId, id, qty, discount: 0, comboId: <lineId del padre> }
+        const cart = [];                  // [{ lineId, id, qty, discount, discountMotivo, comboId }]
+        let _cartSeq = 1;
+        const nextLineId = () => 'L' + (_cartSeq++);
+        const isComboChild = (it) => !!it.comboId;
+        const isComboHeader = (it) => !it.comboId && (productById(it.id)?.isCombo === 1);
+        const cartHeaders = () => cart.filter(it => !isComboChild(it));   // sueltos + cabeceras de combo
         let activeCategory = 'Todos';
         let searchQuery    = '';
         let accountDiscount = null;       // { type: 'porcentaje'|'monto', value: number, motivo: string }
@@ -645,22 +667,37 @@
             grid.innerHTML = filtered.map(p => {
                 const c   = colorMap[p.color] || colorMap.amber;
                 const st  = productStatus(p);
-                const isOut = p.stock <= 0;
-                const opacity = isOut ? 'opacity-50' : '';
-                const cursor  = isOut ? 'cursor-not-allowed' : 'cursor-pointer';
+                const isOut    = p.stock <= 0;
+                const isCombo  = p.isCombo === 1;
+                const opacity  = isOut ? 'opacity-50' : '';
+                const cursor   = isOut ? 'cursor-not-allowed' : 'cursor-pointer';
+                const borderCombo = isCombo ? 'border-[rgba(124,58,237,0.5)] ring-1 ring-[rgba(124,58,237,0.25)]' : 'border-[rgba(55,65,81,0.5)]';
+                const headerBg    = isCombo ? 'bg-gradient-to-br from-[rgba(124,58,237,0.18)] to-[rgba(124,58,237,0.05)]' : 'bg-[#141d2b]';
+
+                // Tooltip de componentes para combos
+                const comboTip = isCombo
+                    ? `title="Incluye: ${(p.components || []).map(comp => {
+                        const cp = productById(comp.productId);
+                        return cp ? `${comp.quantity}x ${cp.name}` : '';
+                      }).filter(Boolean).join(', ')}"`
+                    : '';
+
                 return `
-                    <div class="product-card bg-[#1F2A37] border border-[rgba(55,65,81,0.5)] rounded-lg overflow-hidden ${opacity} ${cursor}"
-                         data-id="${p.id}" ${isOut ? 'data-disabled="1"' : ''}>
-                        <div class="h-16 flex items-center justify-center relative bg-[#141d2b]">
-                            <i data-lucide="${p.icon}" class="w-6 h-6 text-[#9CA3AF]"></i>
-                            <span class="absolute top-1 left-1 px-1 rounded text-[7px] font-bold" style="background:${st.bg};color:${st.fg}">${escape(st.label)}</span>
-                            ${p.stock > 0 ? `<span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-[rgba(124,58,237,0.25)] text-[9px] font-bold flex items-center justify-center text-[#c4b5fd]">${p.stock}</span>` : ''}
+                    <div class="product-card bg-[#1F2A37] border ${borderCombo} rounded-lg overflow-hidden ${opacity} ${cursor}"
+                         data-id="${p.id}" ${isOut ? 'data-disabled="1"' : ''} ${comboTip}>
+                        <div class="h-16 flex items-center justify-center relative ${headerBg}">
+                            <i data-lucide="${p.icon}" class="w-6 h-6 ${isCombo ? 'text-[#c4b5fd]' : 'text-[#9CA3AF]'}"></i>
+                            ${isCombo
+                                ? `<span class="absolute top-1 left-1 inline-flex items-center gap-0.5 px-1 rounded text-[7px] font-bold bg-[rgba(124,58,237,0.25)] text-[#c4b5fd] border border-[rgba(124,58,237,0.5)]"><i data-lucide="gift" class="w-2 h-2"></i>COMBO</span>`
+                                : `<span class="absolute top-1 left-1 px-1 rounded text-[7px] font-bold" style="background:${st.bg};color:${st.fg}">${escape(st.label)}</span>`}
+                            ${p.stock > 0 && !isCombo ? `<span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-[rgba(124,58,237,0.25)] text-[9px] font-bold flex items-center justify-center text-[#c4b5fd]">${p.stock}</span>` : ''}
+                            ${isCombo ? `<span class="absolute top-1 right-1 px-1 rounded text-[8px] font-bold bg-[rgba(124,58,237,0.25)] text-[#c4b5fd]">${(p.components || []).length} prod</span>` : ''}
                         </div>
                         <div class="p-2.5">
                             <p class="text-[10px] font-semibold truncate leading-tight text-white">${escape(p.name)}</p>
                             <div class="flex items-center justify-between mt-1">
-                                <p class="text-xs font-bold text-[#76A9FA]">${fmtShort(p.price)}</p>
-                                <button class="btn-add w-5 h-5 rounded bg-[#1C64F2] hover:bg-[#1A56DB] flex items-center justify-center ${isOut ? 'pointer-events-none opacity-40' : ''}"
+                                <p class="text-xs font-bold ${isCombo ? 'text-[#c4b5fd]' : 'text-[#76A9FA]'}">${fmtShort(p.price)}</p>
+                                <button class="btn-add w-5 h-5 rounded ${isCombo ? 'bg-[#7C3AED] hover:bg-[#6D28D9]' : 'bg-[#1C64F2] hover:bg-[#1A56DB]'} flex items-center justify-center ${isOut ? 'pointer-events-none opacity-40' : ''}"
                                         data-id="${p.id}" title="Agregar al ticket">
                                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                                 </button>
@@ -686,32 +723,72 @@
             const p = productById(productId);
             if (!p || p.stock <= 0) return;
 
-            const existing = cart.find(it => it.id === productId);
-            if (existing) {
-                existing.qty += 1;
+            // Combo: si ya existe la cabecera en cart, incrementa qty y escala hijos.
+            if (p.isCombo) {
+                const header = cart.find(it => it.id === productId && !it.comboId);
+                if (header) {
+                    header.qty += 1;
+                    // Re-escalar qty de los hijos segun receta original × qty del header
+                    cart.forEach(it => {
+                        if (it.comboId === header.lineId) {
+                            const recipe = (p.components || []).find(c => c.productId === it.id);
+                            if (recipe) it.qty = recipe.quantity * header.qty;
+                        }
+                    });
+                } else {
+                    const headerId = nextLineId();
+                    cart.push({ lineId: headerId, id: productId, qty: 1, discount: 0, comboId: null });
+                    (p.components || []).forEach(c => {
+                        cart.push({ lineId: nextLineId(), id: c.productId, qty: c.quantity, discount: 0, comboId: headerId });
+                    });
+                }
             } else {
-                cart.push({ id: productId, qty: 1, discount: 0 });
+                // Suelto: agrupa con sueltos previos del mismo producto (que no sean hijos de combo).
+                const existing = cart.find(it => it.id === productId && !it.comboId);
+                if (existing) {
+                    existing.qty += 1;
+                } else {
+                    cart.push({ lineId: nextLineId(), id: productId, qty: 1, discount: 0, comboId: null });
+                }
             }
             renderCart();
             updateTotals();
         }
 
-        function changeQty(productId, delta) {
-            const it = cart.find(x => x.id === productId);
+        function changeQty(lineId, delta) {
+            const it = cart.find(x => x.lineId === lineId);
             if (!it) return;
-            it.qty += delta;
-            if (it.qty <= 0) {
-                removeFromCart(productId);
+            if (isComboChild(it)) return; // los hijos no se editan directo
+
+            const p = productById(it.id);
+            const newQty = it.qty + delta;
+            if (newQty <= 0) {
+                removeFromCart(lineId);
                 return;
             }
+            it.qty = newQty;
+            // Si es header de combo, propaga a hijos segun receta × newQty
+            if (p && p.isCombo) {
+                cart.forEach(child => {
+                    if (child.comboId === it.lineId) {
+                        const recipe = (p.components || []).find(c => c.productId === child.id);
+                        if (recipe) child.qty = recipe.quantity * newQty;
+                    }
+                });
+            }
             renderCart();
             updateTotals();
         }
 
-        function removeFromCart(productId) {
-            const idx = cart.findIndex(x => x.id === productId);
-            if (idx === -1) return;
-            cart.splice(idx, 1);
+        function removeFromCart(lineId) {
+            const it = cart.find(x => x.lineId === lineId);
+            if (!it) return;
+            // Si es header de combo, elimina hijos en cascada
+            for (let i = cart.length - 1; i >= 0; i--) {
+                if (cart[i].lineId === lineId || cart[i].comboId === lineId) {
+                    cart.splice(i, 1);
+                }
+            }
             renderCart();
             updateTotals();
         }
@@ -743,26 +820,54 @@
             cont.classList.remove('hidden');
             if (btnEliminar) btnEliminar.classList.remove('hidden');
 
-            cont.innerHTML = cart.map(it => {
+            // Render iterando solo headers/sueltos; los hijos de combo se anidan bajo su padre.
+            cont.innerHTML = cartHeaders().map(it => {
                 const p = productById(it.id);
                 if (!p) return '';
-                const discountPct = it.discount || 0;
+                const discountPct  = it.discount || 0;
                 const importeBruto = p.price * it.qty;
-                const importe = importeBruto * (1 - discountPct / 100);
-                const hasDiscount = discountPct > 0;
+                const importe      = importeBruto * (1 - discountPct / 100);
+                const hasDiscount  = discountPct > 0;
+                const isCombo      = p.isCombo === 1;
+
+                // Hijos del combo (solo para headers de combo)
+                const childrenHtml = isCombo
+                    ? cart.filter(c => c.comboId === it.lineId).map(c => {
+                        const cp = productById(c.id);
+                        if (!cp) return '';
+                        return `
+                            <div class="flex items-center gap-2 pl-3 pr-1 py-1 text-[10px] text-[#9CA3AF]">
+                                <span class="text-[#7C3AED]">└</span>
+                                <i data-lucide="${cp.icon}" class="w-3 h-3 text-[#6B7280]"></i>
+                                <span class="flex-1 truncate">${escape(cp.name)}</span>
+                                <span class="text-[#6B7280]">x${c.qty}</span>
+                                <span class="text-[9px] text-[#4B5563] italic">incluido</span>
+                            </div>
+                        `;
+                    }).join('')
+                    : '';
+
+                const comboBadge = isCombo
+                    ? `<span class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-bold bg-[rgba(124,58,237,0.18)] text-[#c4b5fd] border border-[rgba(124,58,237,0.35)] ml-1"><i data-lucide="gift" class="w-2 h-2"></i>COMBO</span>`
+                    : '';
+
+                const borderLeft = hasDiscount ? 'border-l-2 border-l-[#fbbf24]'
+                                              : isCombo ? 'border-l-2 border-l-[#7C3AED]'
+                                              : '';
+
                 return `
-                    <div class="cart-item bg-[#1a2332] rounded-lg p-2.5 border border-[rgba(55,65,81,0.5)] ${hasDiscount ? 'border-l-2 border-l-[#fbbf24]' : ''} group">
+                    <div class="cart-item bg-[#1a2332] rounded-lg p-2.5 border border-[rgba(55,65,81,0.5)] ${borderLeft} group">
                         <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-[#141d2b] border border-[#374151]">
-                                <i data-lucide="${p.icon}" class="w-4 h-4 text-[#9CA3AF]"></i>
+                            <div class="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 ${isCombo ? 'bg-[rgba(124,58,237,0.12)] border border-[rgba(124,58,237,0.35)]' : 'bg-[#141d2b] border border-[#374151]'}">
+                                <i data-lucide="${p.icon}" class="w-4 h-4 ${isCombo ? 'text-[#c4b5fd]' : 'text-[#9CA3AF]'}"></i>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-[11px] font-semibold truncate text-white">${escape(p.name)}</p>
+                                <p class="text-[11px] font-semibold truncate text-white">${escape(p.name)}${comboBadge}</p>
                                 <div class="flex items-center gap-2 mt-1">
                                     <div class="flex items-center gap-0.5">
-                                        <button class="qty-dec w-5 h-5 rounded bg-[#374151] flex items-center justify-center text-[10px] font-bold hover:bg-[#4B5563] text-white" data-id="${p.id}">-</button>
+                                        <button class="qty-dec w-5 h-5 rounded bg-[#374151] flex items-center justify-center text-[10px] font-bold hover:bg-[#4B5563] text-white" data-line="${it.lineId}">-</button>
                                         <span class="w-6 text-center text-[10px] font-bold text-white">${it.qty}</span>
-                                        <button class="qty-inc w-5 h-5 rounded bg-[#374151] flex items-center justify-center text-[10px] font-bold hover:bg-[#4B5563] text-white" data-id="${p.id}">+</button>
+                                        <button class="qty-inc w-5 h-5 rounded bg-[#374151] flex items-center justify-center text-[10px] font-bold hover:bg-[#4B5563] text-white" data-line="${it.lineId}">+</button>
                                     </div>
                                     <span class="text-[9px] text-[#6B7280]">x ${fmtShort(p.price)}</span>
                                     ${hasDiscount ? `<span class="text-[9px] font-bold text-[#fbbf24]">-${discountPct}%</span>` : ''}
@@ -774,37 +879,39 @@
                                     <p class="text-xs font-bold text-white">${fmtShort(importe)}</p>
                                 </div>
                                 <div class="flex items-center gap-1">
-                                    <button class="item-discount w-5 h-5 rounded bg-[rgba(251,191,36,0.12)] border border-[rgba(251,191,36,0.3)] flex items-center justify-center text-[#fbbf24] hover:bg-[rgba(251,191,36,0.25)] transition-colors" data-id="${p.id}" title="Aplicar descuento">
+                                    <button class="item-discount w-5 h-5 rounded bg-[rgba(251,191,36,0.12)] border border-[rgba(251,191,36,0.3)] flex items-center justify-center text-[#fbbf24] hover:bg-[rgba(251,191,36,0.25)] transition-colors" data-line="${it.lineId}" title="Aplicar descuento">
                                         <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
                                     </button>
-                                    <button class="item-remove w-5 h-5 rounded bg-[rgba(234,2,52,0.12)] border border-[rgba(234,2,52,0.3)] flex items-center justify-center text-[#EA0234] hover:bg-[rgba(234,2,52,0.25)] transition-colors" data-id="${p.id}" title="Quitar">
+                                    <button class="item-remove w-5 h-5 rounded bg-[rgba(234,2,52,0.12)] border border-[rgba(234,2,52,0.3)] flex items-center justify-center text-[#EA0234] hover:bg-[rgba(234,2,52,0.25)] transition-colors" data-line="${it.lineId}" title="Quitar">
                                         <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                     </button>
                                 </div>
                             </div>
                         </div>
+                        ${childrenHtml ? `<div class="mt-1.5 pt-1.5 border-t border-dashed border-[rgba(124,58,237,0.25)]">${childrenHtml}</div>` : ''}
                     </div>
                 `;
             }).join('');
 
-            cont.querySelectorAll('.qty-inc').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); changeQty(b.dataset.id, +1); }));
-            cont.querySelectorAll('.qty-dec').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); changeQty(b.dataset.id, -1); }));
-            cont.querySelectorAll('.item-remove').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); removeFromCart(b.dataset.id); }));
-            cont.querySelectorAll('.item-discount').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); applyItemDiscount(b.dataset.id); }));
+            cont.querySelectorAll('.qty-inc').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); changeQty(b.dataset.line, +1); }));
+            cont.querySelectorAll('.qty-dec').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); changeQty(b.dataset.line, -1); }));
+            cont.querySelectorAll('.item-remove').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); removeFromCart(b.dataset.line); }));
+            cont.querySelectorAll('.item-discount').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); applyItemDiscount(b.dataset.line); }));
 
             lucide.createIcons();
         }
 
         // ── Descuento individual por item ────────────────────────────────────────
-        function applyItemDiscount(productId) {
-            openDiscountModal('item', productId);
+        function applyItemDiscount(lineId) {
+            openDiscountModal('item', lineId);
         }
 
         // ── Totales ──────────────────────────────────────────────────────────────
         function updateTotals() {
             let subtotal       = 0;
             let descuentoItems = 0;
-            cart.forEach(it => {
+            // Solo headers/sueltos contribuyen al subtotal — los hijos de combo van "incluidos".
+            cartHeaders().forEach(it => {
                 const p = productById(it.id);
                 if (!p) return;
                 const bruto = p.price * it.qty;
@@ -826,8 +933,8 @@
 
             const descuento  = descuentoItems + descuentoCuenta;
             const total      = subtotal - descuento;
-            const itemsCount = cart.length;
-            const piezas     = cart.reduce((s, it) => s + it.qty, 0);
+            const itemsCount = cartHeaders().length;
+            const piezas     = cartHeaders().reduce((s, it) => s + it.qty, 0);
 
             const setText = (id, value) => {
                 const el = $(id);
@@ -1243,9 +1350,9 @@
             const showFooter  = $('printShowFooter')?.checked;
             const showQR      = $('printShowQR')?.checked;
 
-            // Totales del cart
+            // Totales del cart — solo headers/sueltos contribuyen
             let subtotal = 0, descuentoItems = 0;
-            cart.forEach(it => {
+            cartHeaders().forEach(it => {
                 const p = productById(it.id);
                 if (!p) return;
                 const bruto = p.price * it.qty;
@@ -1261,8 +1368,8 @@
             const descuento = descuentoItems + descuentoCuenta;
             const total = subtotal - descuento;
 
-            // Actualizar resumen sidebar
-            const itemsCount = cart.reduce((s, it) => s + it.qty, 0);
+            // Actualizar resumen sidebar — cuenta piezas de headers/sueltos
+            const itemsCount = cartHeaders().reduce((s, it) => s + it.qty, 0);
             $('printItemsCount').textContent = itemsCount;
             $('printTotal').textContent = fmt(total);
 
@@ -1290,25 +1397,41 @@
                     <span class="text-center">Qty</span>
                     <span class="text-right">Total</span>
                 </div>
-                ${cart.map(it => {
+                ${cartHeaders().map(it => {
                     const p = productById(it.id);
                     if (!p) return '';
                     const bruto = p.price * it.qty;
                     const neto = bruto * (1 - (it.discount || 0) / 100);
                     const hasDisc = (it.discount || 0) > 0;
+                    const isCombo = p.isCombo === 1;
                     const priceLine = printState.type === 'cocina'
                         ? ''
                         : `<span class="text-right font-semibold">${fmtShort(neto)}</span>`;
+                    // Hijos del combo (solo si es header de combo)
+                    const childrenLines = isCombo
+                        ? cart.filter(c => c.comboId === it.lineId).map(c => {
+                            const cp = productById(c.id);
+                            if (!cp) return '';
+                            return `
+                                <div class="grid grid-cols-[1fr_auto_auto] gap-x-2 pl-3 text-[9px] text-gray-700">
+                                    <span class="truncate">└ ${escape(cp.name)}</span>
+                                    <span class="text-center">${c.qty}</span>
+                                    ${printState.type === 'cocina' ? '<span></span>' : '<span class="text-right italic">incluido</span>'}
+                                </div>
+                            `;
+                        }).join('')
+                        : '';
                     return `
                         <div class="grid grid-cols-[1fr_auto_auto] gap-x-2 mt-1">
                             <div class="truncate">
-                                <span>${escape(p.name)}</span>
+                                <span>${escape(p.name)}${isCombo ? ' <strong>[COMBO]</strong>' : ''}</span>
                                 ${hasDisc && printState.type !== 'cocina' ? `<span class="text-[9px] text-gray-500"> (-${it.discount}%)</span>` : ''}
                             </div>
                             <span class="text-center">${it.qty}</span>
                             ${printState.type === 'cocina' ? '<span></span>' : priceLine}
                         </div>
-                        ${printState.type !== 'cocina' ? `<p class="text-[9px] text-gray-600 pl-2">${it.qty} x ${fmtShort(p.price)}</p>` : ''}
+                        ${printState.type !== 'cocina' && !isCombo ? `<p class="text-[9px] text-gray-600 pl-2">${it.qty} x ${fmtShort(p.price)}</p>` : ''}
+                        ${childrenLines}
                     `;
                 }).join('')}
                 <div class="border-t border-dashed border-gray-400 my-2"></div>
@@ -1377,7 +1500,7 @@
             ` : '';
 
             // Ensamble
-            const folio = '#' + (1043 + cart.length).toString();
+            const folio = '#' + (1043 + cartHeaders().length).toString();
             const fecha = new Date().toLocaleString('es-MX');
             const headerHtml = printState.type === 'cocina'
                 ? `<div class="text-center mb-2">
@@ -1686,38 +1809,39 @@
 
         let discountState = {
             type: 'porcentaje',   // 'porcentaje' | 'monto' | 'producto'
-            productId: null       // solo en modo producto
+            lineId: null          // solo en modo producto — apunta al renglon del cart
         };
 
-        function openDiscountModal(mode, productId) {
+        function openDiscountModal(mode, lineId) {
             // Validar que haya algo en el ticket
             if (cart.length === 0) {
                 swalWarn('Ticket vacio', 'Agrega productos al ticket antes de aplicar un descuento.');
                 return;
             }
 
-            discountState.productId = productId || null;
+            discountState.lineId = lineId || null;
             const modal = $('modalDescuento');
             const productSection = $('discountProductSection');
             const lblTarget = $('lblDiscountTarget');
             const selectProd = $('inputDiscountProduct');
 
-            // Poblar select de productos del ticket
+            // Poblar select solo con headers/sueltos (no hijos de combo)
             selectProd.innerHTML = '<option value="">Selecciona un producto del ticket</option>' +
-                cart.map(it => {
+                cartHeaders().map(it => {
                     const p = productById(it.id);
                     if (!p) return '';
-                    return `<option value="${p.id}">${escape(p.name)} — ${it.qty} x ${fmtShort(p.price)}</option>`;
+                    const tag = p.isCombo ? ' [COMBO]' : '';
+                    return `<option value="${it.lineId}">${escape(p.name)}${tag} — ${it.qty} x ${fmtShort(p.price)}</option>`;
                 }).join('');
 
-            if (mode === 'item' && productId) {
+            if (mode === 'item' && lineId) {
                 // Descuento de un item especifico (viene del botón por renglón)
                 setDiscountType('producto');
-                selectProd.value = productId;
+                selectProd.value = lineId;
                 productSection.classList.remove('hidden');
                 lblTarget.textContent = 'A un producto especifico';
 
-                const it = cart.find(x => x.id === productId);
+                const it = cart.find(x => x.lineId === lineId);
                 $('inputDiscountValue').value = it?.discount || '';
                 $('selectDiscountMotivo').value = it?.discountMotivo || '';
             } else {
@@ -1847,13 +1971,13 @@
 
             // Aplicar segun tipo
             if (type === 'producto') {
-                const pid = $('inputDiscountProduct').value;
-                if (!pid) {
+                const lid = $('inputDiscountProduct').value;
+                if (!lid) {
                     showDiscountAlert('Selecciona un producto del ticket');
                     $('inputDiscountProduct').focus();
                     return;
                 }
-                const it = cart.find(x => x.id === pid);
+                const it = cart.find(x => x.lineId === lid);
                 if (!it) {
                     showDiscountAlert('El producto seleccionado no esta en el ticket');
                     return;
@@ -1862,8 +1986,8 @@
                 it.discountMotivo = motivo;
                 renderCart();
             } else {
-                // Validar monto no mayor a subtotal
-                const subtotal = cart.reduce((s, it) => s + (productById(it.id)?.price || 0) * it.qty, 0);
+                // Validar monto no mayor a subtotal (solo headers/sueltos)
+                const subtotal = cartHeaders().reduce((s, it) => s + (productById(it.id)?.price || 0) * it.qty, 0);
                 if (type === 'monto' && value > subtotal) {
                     showDiscountAlert(`El monto no puede exceder el subtotal (${fmt(subtotal)})`);
                     return;

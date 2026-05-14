@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS — Admin Productos y Combos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../ui/css/ui-kit.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #111928;
+            font-family: 'Inter', system-ui, sans-serif;
+            color: #fff;
+            min-height: 100vh;
+        }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+
+        /* Tabs */
+        .tab-btn {
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #9CA3AF;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+            cursor: pointer;
+            background: transparent;
+        }
+        .tab-btn:hover { color: #fff; }
+        .tab-btn.active {
+            color: #fff;
+            border-bottom-color: #7C3AED;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Table base */
+        .admin-table { width: 100%; border-collapse: collapse; }
+        .admin-table thead th {
+            position: sticky; top: 0;
+            background: #141d2b;
+            color: #9CA3AF;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #374151;
+            z-index: 1;
+        }
+        .admin-table tbody td {
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #d1d5db;
+            border-bottom: 1px solid rgba(55,65,81,0.4);
+        }
+        .admin-table tbody tr:hover { background-color: rgba(124,58,237,0.05); }
+
+        /* Action buttons */
+        .act-btn {
+            width: 26px; height: 26px;
+            border-radius: 6px;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: #1a2332;
+            border: 1px solid #374151;
+            color: #9CA3AF;
+            transition: all 0.15s;
+        }
+        .act-btn:hover { color: #fff; }
+        .act-btn.edit:hover { color: #76A9FA; border-color: rgba(118,169,250,0.4); }
+        .act-btn.delete:hover { color: #EA0234; border-color: rgba(234,2,52,0.4); }
+        .act-btn.view:hover { color: #c4b5fd; border-color: rgba(124,58,237,0.4); }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.2;
+            border: 1px solid transparent;
+        }
+        .badge-combo   { background: rgba(124,58,237,0.18); color: #c4b5fd; border-color: rgba(124,58,237,0.35); }
+        .badge-active  { background: rgba(63,193,137,0.15); color: #3FC189; border-color: rgba(63,193,137,0.30); }
+        .badge-inactive{ background: rgba(156,163,175,0.15); color: #9CA3AF; border-color: rgba(156,163,175,0.30); }
+        .badge-low     { background: rgba(251,191,36,0.15); color: #fbbf24; border-color: rgba(251,191,36,0.30); }
+        .badge-out     { background: rgba(234,2,52,0.15); color: #EA0234; border-color: rgba(234,2,52,0.30); }
+
+        /* Inputs */
+        .input-modal {
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #d1d5db;
+            width: 100%;
+        }
+        .input-modal:focus { outline: none; border-color: #7C3AED; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(2px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 50;
+            padding: 1rem;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal-card {
+            background: #1F2A37;
+            border: 1px solid #374151;
+            border-radius: 16px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* Combo row expandible */
+        .combo-row-expanded { background-color: rgba(124,58,237,0.06); }
+        .components-list {
+            background: #141d2b;
+            border-left: 2px solid #7C3AED;
+            padding: 8px 16px;
+            margin: 0 0 0 24px;
+        }
+
+        /* Selector de componentes en modal combo */
+        .component-picker {
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .component-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+        }
+        .component-row:hover { background: rgba(124,58,237,0.08); }
+        .component-row.selected { background: rgba(124,58,237,0.15); }
+
+        /* Toggle */
+        .toggle-switch {
+            position: relative;
+            width: 36px; height: 18px;
+            background: #374151;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 14px; height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-switch.active { background: #7C3AED; }
+        .toggle-switch.active::after { transform: translateX(18px); }
+
+        /* SweetAlert */
+        .swal2-popup.huubie-swal {
+            background: #1F2A37 !important;
+            border: 1px solid #374151 !important;
+            border-radius: 16px !important;
+            color: #fff !important;
+            font-family: 'Inter', system-ui, sans-serif !important;
+        }
+        .swal2-popup.huubie-swal .swal2-title { color: #fff !important; font-size: 1rem !important; font-weight: 700 !important; }
+        .swal2-popup.huubie-swal .swal2-html-container { color: #9CA3AF !important; font-size: 0.813rem !important; }
+        .swal2-popup.huubie-swal .swal2-confirm {
+            background: #1C64F2 !important; color: #fff !important;
+            font-size: 0.75rem !important; font-weight: 700 !important;
+            padding: 0.5rem 1.25rem !important; border-radius: 0.5rem !important;
+        }
+        .swal2-popup.huubie-swal .swal2-confirm.swal-danger { background: #EA0234 !important; }
+        .swal2-popup.huubie-swal .swal2-cancel {
+            background: transparent !important; color: #9CA3AF !important;
+            font-size: 0.75rem !important; font-weight: 600 !important;
+            padding: 0.5rem 1rem !important;
+            border: 1px solid #374151 !important; border-radius: 0.5rem !important;
+        }
+        .swal2-container.swal2-backdrop-show {
+            background: rgba(0,0,0,0.7) !important;
+            backdrop-filter: blur(2px) !important;
+        }
+    </style>
+</head>
+<body class="bg-[#111928] flex flex-col">
+
+    <!-- ============================================================ -->
+    <!-- NAVBAR -->
+    <!-- ============================================================ -->
+    <nav class="fixed top-0 left-0 w-full text-white px-4 h-14 z-50 flex items-center justify-between bg-[#0f172a] border-b border-[#374151]">
+        <div class="flex items-center space-x-4">
+            <a href="index.html" class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">●</span></a>
+            <span class="text-xs text-[#6B7280] hidden md:block">/ POS-2 / Admin / Productos y Combos</span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <a href="pos-main.html" class="text-[11px] px-3 py-1.5 rounded-lg bg-[rgba(28,100,242,0.15)] border border-[rgba(28,100,242,0.35)] text-[#76A9FA] hover:bg-[#1C64F2] hover:text-white transition-colors flex items-center gap-1.5">
+                <i data-lucide="shopping-cart" class="w-3 h-3"></i>
+                Ir a Cobrar
+            </a>
+            <div class="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        </div>
+    </nav>
+
+    <!-- ============================================================ -->
+    <!-- MAIN -->
+    <!-- ============================================================ -->
+    <main class="mt-14 p-6 max-w-[1400px] mx-auto w-full">
+
+        <!-- Header de pagina -->
+        <div class="mb-5 flex items-end justify-between gap-4 flex-wrap">
+            <div>
+                <h1 class="text-xl font-bold">Productos y Combos</h1>
+                <p class="text-[11px] text-[#9CA3AF] mt-1">Administra el catalogo del POS y arma paquetes promocionales.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="px-3 py-1.5 rounded-lg bg-[#1a2332] border border-[#374151] text-[10px] text-[#9CA3AF]">
+                    <span class="text-white font-bold" id="kpiTotalProductos">0</span> productos
+                </div>
+                <div class="px-3 py-1.5 rounded-lg bg-[#1a2332] border border-[#374151] text-[10px] text-[#9CA3AF]">
+                    <span class="text-[#c4b5fd] font-bold" id="kpiTotalCombos">0</span> combos
+                </div>
+                <div class="px-3 py-1.5 rounded-lg bg-[#1a2332] border border-[#374151] text-[10px] text-[#9CA3AF]">
+                    <span class="text-[#EA0234] font-bold" id="kpiSinStock">0</span> sin stock
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex items-center gap-2 border-b border-[#374151] mb-4">
+            <button class="tab-btn active" data-tab="productos">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="package" class="w-3.5 h-3.5"></i>
+                    Productos
+                </span>
+            </button>
+            <button class="tab-btn" data-tab="combos">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="gift" class="w-3.5 h-3.5"></i>
+                    Combos / Paquetes
+                </span>
+            </button>
+        </div>
+
+        <!-- ====================================================== -->
+        <!-- TAB: PRODUCTOS -->
+        <!-- ====================================================== -->
+        <div id="tabProductos" class="tab-content active">
+            <!-- Filtros -->
+            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                <div class="relative flex-1 min-w-[240px] max-w-[400px]">
+                    <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]"></i>
+                    <input id="searchProductos" type="text" placeholder="Buscar por nombre o ID..." class="input-modal pl-9">
+                </div>
+                <select id="filterCategoria" class="input-modal w-auto min-w-[160px]">
+                    <option value="">Todas las categorias</option>
+                </select>
+                <select id="filterStatus" class="input-modal w-auto">
+                    <option value="">Todos los estados</option>
+                    <option value="active">Activos</option>
+                    <option value="inactive">Inactivos</option>
+                    <option value="out">Sin stock</option>
+                </select>
+                <div class="flex-1"></div>
+                <button onclick="openProductoModal()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1C64F2] hover:bg-[#1a53d4] text-white text-[11px] font-semibold transition-colors">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    Nuevo producto
+                </button>
+            </div>
+
+            <!-- Tabla -->
+            <div class="bg-[#1F2A37] rounded-lg border border-[#374151] overflow-hidden">
+                <div class="overflow-x-auto scrollbar-thin max-h-[calc(100vh-280px)] overflow-y-auto">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th style="width:48px"></th>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Categoria</th>
+                                <th class="text-right">Precio</th>
+                                <th class="text-center">Stock</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyProductos"></tbody>
+                    </table>
+                </div>
+                <div id="emptyProductos" class="hidden flex flex-col items-center justify-center py-10 text-center">
+                    <i data-lucide="package-x" class="w-10 h-10 text-[#374151] mb-2"></i>
+                    <p class="text-[11px] text-[#6B7280]">Sin productos para esta busqueda</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================================================== -->
+        <!-- TAB: COMBOS -->
+        <!-- ====================================================== -->
+        <div id="tabCombos" class="tab-content">
+            <!-- Filtros -->
+            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                <div class="relative flex-1 min-w-[240px] max-w-[400px]">
+                    <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]"></i>
+                    <input id="searchCombos" type="text" placeholder="Buscar combo..." class="input-modal pl-9">
+                </div>
+                <div class="flex-1"></div>
+                <button onclick="openComboModal()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-[11px] font-semibold transition-colors">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    Nuevo combo
+                </button>
+            </div>
+
+            <!-- Tabla -->
+            <div class="bg-[#1F2A37] rounded-lg border border-[#374151] overflow-hidden">
+                <div class="overflow-x-auto scrollbar-thin max-h-[calc(100vh-280px)] overflow-y-auto">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th style="width:48px"></th>
+                                <th>Combo</th>
+                                <th class="text-center">Componentes</th>
+                                <th class="text-right">Precio bruto</th>
+                                <th class="text-right">Precio combo</th>
+                                <th class="text-right">Ahorro</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyCombos"></tbody>
+                    </table>
+                </div>
+                <div id="emptyCombos" class="hidden flex flex-col items-center justify-center py-10 text-center">
+                    <i data-lucide="gift" class="w-10 h-10 text-[#374151] mb-2"></i>
+                    <p class="text-[11px] text-[#6B7280]">No hay combos definidos</p>
+                    <p class="text-[10px] text-[#4B5563] mt-1">Crea uno con el boton "Nuevo combo"</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ============================================================ -->
+    <!-- MODAL: NUEVO/EDITAR PRODUCTO -->
+    <!-- ============================================================ -->
+    <div id="modalProducto" class="modal-overlay hidden">
+        <div class="modal-card w-full max-w-md">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-[#374151]">
+                <h3 class="text-sm font-bold" id="modalProductoTitle">Nuevo producto</h3>
+                <button onclick="closeProductoModal()" class="text-[#6B7280] hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-3">
+                <input type="hidden" id="prodId">
+                <div>
+                    <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Nombre</label>
+                    <input id="prodName" type="text" class="input-modal mt-1" placeholder="Ej. Latte Vainilla">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Categoria</label>
+                        <input id="prodCategory" type="text" class="input-modal mt-1" placeholder="Ej. Cafes" list="catList">
+                        <datalist id="catList"></datalist>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Precio</label>
+                        <input id="prodPrice" type="number" min="0" step="0.01" class="input-modal mt-1" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Stock inicial</label>
+                        <input id="prodStock" type="number" min="0" step="1" class="input-modal mt-1" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Icono lucide</label>
+                        <input id="prodIcon" type="text" class="input-modal mt-1" placeholder="cake, coffee, cookie...">
+                    </div>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-[#374151]">
+                    <span class="text-[11px] text-[#9CA3AF]">Activo</span>
+                    <div id="prodActive" class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                </div>
+            </div>
+            <div class="px-5 py-3 border-t border-[#374151] flex justify-end gap-2">
+                <button onclick="closeProductoModal()" class="px-4 py-2 rounded-lg text-[11px] font-semibold text-[#9CA3AF] hover:bg-[#1a2332]">Cancelar</button>
+                <button onclick="saveProducto()" class="px-4 py-2 rounded-lg text-[11px] font-bold bg-[#1C64F2] text-white hover:bg-[#1a53d4]">Guardar producto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL: NUEVO/EDITAR COMBO -->
+    <!-- ============================================================ -->
+    <div id="modalCombo" class="modal-overlay hidden">
+        <div class="modal-card w-full max-w-2xl">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-[#374151]">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="gift" class="w-4 h-4 text-[#c4b5fd]"></i>
+                    <h3 class="text-sm font-bold" id="modalComboTitle">Nuevo combo</h3>
+                </div>
+                <button onclick="closeComboModal()" class="text-[#6B7280] hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Lado izquierdo: datos del combo -->
+                <div class="space-y-3">
+                    <input type="hidden" id="comboId">
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Nombre del combo</label>
+                        <input id="comboName" type="text" class="input-modal mt-1" placeholder="Ej. Combo Familiar">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Categoria</label>
+                        <input id="comboCategory" type="text" class="input-modal mt-1" value="Combos" list="catList">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Precio combo</label>
+                        <input id="comboPrice" type="number" min="0" step="0.01" class="input-modal mt-1" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Icono lucide</label>
+                        <input id="comboIcon" type="text" class="input-modal mt-1" value="gift" placeholder="gift, package...">
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-[#374151]">
+                        <span class="text-[11px] text-[#9CA3AF]">Activo</span>
+                        <div id="comboActive" class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                </div>
+
+                <!-- Lado derecho: selector de componentes -->
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Componentes del combo</label>
+                        <div class="relative mt-1">
+                            <i data-lucide="search" class="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6B7280]"></i>
+                            <input id="searchComponents" type="text" placeholder="Buscar producto a agregar..." class="input-modal pl-8 mb-2">
+                        </div>
+                        <div id="componentPicker" class="component-picker"></div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-[#9CA3AF] uppercase tracking-wider font-semibold">Seleccionados</label>
+                        <div id="selectedComponents" class="mt-1 bg-[#141d2b] rounded-lg p-2 min-h-[80px] max-h-[160px] overflow-y-auto scrollbar-thin">
+                            <p class="text-[10px] text-[#6B7280] text-center py-4">Aun no hay componentes</p>
+                        </div>
+                    </div>
+                    <!-- Resumen de precio -->
+                    <div class="bg-[#1a2332] border border-[#374151] rounded-lg p-3 space-y-1">
+                        <div class="flex justify-between text-[10px] text-[#9CA3AF]">
+                            <span>Precio bruto (suelto)</span>
+                            <span id="comboBruto" class="font-bold text-white">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-[#9CA3AF]">
+                            <span>Precio combo</span>
+                            <span id="comboNeto" class="font-bold text-[#76A9FA]">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-[10px] pt-1 border-t border-[#374151]">
+                            <span class="text-[#3FC189] font-semibold">Ahorro cliente</span>
+                            <span id="comboAhorro" class="font-bold text-[#3FC189]">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="px-5 py-3 border-t border-[#374151] flex justify-end gap-2">
+                <button onclick="closeComboModal()" class="px-4 py-2 rounded-lg text-[11px] font-semibold text-[#9CA3AF] hover:bg-[#1a2332]">Cancelar</button>
+                <button onclick="saveCombo()" class="px-4 py-2 rounded-lg text-[11px] font-bold bg-[#7C3AED] text-white hover:bg-[#6D28D9]">Guardar combo</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ════════════════════════════════════════════════════════════════════════
+        //   DATA MOCK
+        // ════════════════════════════════════════════════════════════════════════
+        let products = [
+            { id: 'p001', name: '3 Leches Choco',  category: 'Pasteles Tradicional', price: 700, stock: 3,  icon: 'cake',       active: 1, isCombo: 0 },
+            { id: 'p002', name: 'Carlos V',         category: 'Pasteles Tradicional', price: 390, stock: 12, icon: 'candy',      active: 1, isCombo: 0 },
+            { id: 'p003', name: 'Pay de Fresas',    category: 'Pasteles Tradicional', price: 350, stock: 8,  icon: 'pie-chart',  active: 1, isCombo: 0 },
+            { id: 'p004', name: 'Choco Aleman',     category: 'Pasteles Tradicional', price: 600, stock: 5,  icon: 'cake',       active: 1, isCombo: 0 },
+            { id: 'p005', name: 'Choco Forest',     category: 'Premium',              price: 600, stock: 2,  icon: 'cake-slice', active: 1, isCombo: 0 },
+            { id: 'p006', name: 'Cupcake',          category: 'Cupcakes',             price: 55,  stock: 25, icon: 'cookie',     active: 1, isCombo: 0 },
+            { id: 'p007', name: '3 Leches Fresa',   category: 'Pasteles Tradicional', price: 650, stock: 4,  icon: 'cake',       active: 1, isCombo: 0 },
+            { id: 'p008', name: 'Choco Roll',       category: 'Cafes',                price: 700, stock: 6,  icon: 'coffee',     active: 1, isCombo: 0 },
+            { id: 'p009', name: 'Decorated',        category: 'Premium',              price: 650, stock: 3,  icon: 'sparkles',   active: 1, isCombo: 0 },
+            { id: 'p010', name: 'Sponge Cake',      category: 'Pasteles Tradicional', price: 600, stock: 7,  icon: 'cake',       active: 1, isCombo: 0 },
+            { id: 'p011', name: 'Strawberry Pie',   category: 'Pasteles Tradicional', price: 600, stock: 0,  icon: 'pie-chart',  active: 1, isCombo: 0 },
+            { id: 'p012', name: 'Galleta Choco',    category: 'Galletas',             price: 45,  stock: 50, icon: 'cookie',     active: 1, isCombo: 0 },
+            { id: 'p013', name: 'Blueberry Cake',   category: 'Premium',              price: 580, stock: 5,  icon: 'cake-slice', active: 1, isCombo: 0 },
+            { id: 'p014', name: 'Limon Cake',       category: 'Pasteles Tradicional', price: 520, stock: 9,  icon: 'cake',       active: 1, isCombo: 0 },
+            { id: 'p015', name: 'Latte Vainilla',   category: 'Cafes',                price: 65,  stock: 30, icon: 'coffee',     active: 1, isCombo: 0 },
+            { id: 'p016', name: 'Mocaccino',        category: 'Cafes',                price: 75,  stock: 20, icon: 'coffee',     active: 1, isCombo: 0 },
+            // Combos
+            { id: 'c001', name: 'Combo Familiar',   category: 'Combos',               price: 1200, stock: 999, icon: 'gift',     active: 1, isCombo: 1,
+              components: [
+                  { productId: 'p001', quantity: 1 },
+                  { productId: 'p008', quantity: 2 },
+                  { productId: 'p012', quantity: 4 }
+              ]
+            },
+            { id: 'c002', name: 'Combo Cafe Pareja', category: 'Combos',              price: 240,  stock: 999, icon: 'gift',     active: 1, isCombo: 1,
+              components: [
+                  { productId: 'p015', quantity: 2 },
+                  { productId: 'p006', quantity: 2 }
+              ]
+            }
+        ];
+
+        // ════════════════════════════════════════════════════════════════════════
+        //   UTIL
+        // ════════════════════════════════════════════════════════════════════════
+        const $ = (id) => document.getElementById(id);
+        const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const escape = (s) => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+        const productById = (id) => products.find(p => p.id === id);
+        const swalBase = { customClass: { popup: 'huubie-swal' }, buttonsStyling: false };
+
+        // ════════════════════════════════════════════════════════════════════════
+        //   TABS
+        // ════════════════════════════════════════════════════════════════════════
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                $('tab' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)).classList.add('active');
+            });
+        });
+
+        // ════════════════════════════════════════════════════════════════════════
+        //   RENDER: KPIS + CATEGORIAS
+        // ════════════════════════════════════════════════════════════════════════
+        function refreshKPIs() {
+            const sueltos = products.filter(p => !p.isCombo);
+            const combos  = products.filter(p =>  p.isCombo);
+            $('kpiTotalProductos').textContent = sueltos.length;
+            $('kpiTotalCombos').textContent    = combos.length;
+            $('kpiSinStock').textContent       = sueltos.filter(p => p.stock <= 0).length;
+        }
+
+        function refreshCategoryFilters() {
+            const cats = Array.from(new Set(products.filter(p => !p.isCombo).map(p => p.category))).sort();
+            const sel = $('filterCategoria');
+            sel.innerHTML = '<option value="">Todas las categorias</option>' +
+                cats.map(c => `<option value="${escape(c)}">${escape(c)}</option>`).join('');
+            $('catList').innerHTML = cats.map(c => `<option value="${escape(c)}">`).join('');
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        //   RENDER: TABLA PRODUCTOS
+        // ════════════════════════════════════════════════════════════════════════
+        function renderProductos() {
+            const q = ($('searchProductos').value || '').trim().toLowerCase();
+            const cat = $('filterCategoria').value;
+            const status = $('filterStatus').value;
+
+            const filtered = products.filter(p => {
+                if (p.isCombo) return false;
+                if (q && !(p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))) return false;
+                if (cat && p.category !== cat) return false;
+                if (status === 'active' && !p.active) return false;
+                if (status === 'inactive' && p.active) return false;
+                if (status === 'out' && p.stock > 0) return false;
+                return true;
+            });
+
+            const tbody = $('tbodyProductos');
+            const empty = $('emptyProductos');
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            tbody.innerHTML = filtered.map(p => {
+                const stockBadge =
+                    p.stock <= 0    ? '<span class="badge badge-out">Agotado</span>' :
+                    p.stock <= 3    ? `<span class="badge badge-low">Bajo (${p.stock})</span>` :
+                                      `<span class="text-[#3FC189] font-bold">${p.stock}</span>`;
+                const statusBadge = p.active
+                    ? '<span class="badge badge-active">Activo</span>'
+                    : '<span class="badge badge-inactive">Inactivo</span>';
+                return `
+                    <tr>
+                        <td>
+                            <div class="w-8 h-8 rounded-md flex items-center justify-center bg-[#141d2b] border border-[#374151]">
+                                <i data-lucide="${escape(p.icon)}" class="w-4 h-4 text-[#9CA3AF]"></i>
+                            </div>
+                        </td>
+                        <td><span class="font-mono text-[10px] text-[#6B7280]">${escape(p.id)}</span></td>
+                        <td><span class="font-semibold text-white">${escape(p.name)}</span></td>
+                        <td><span class="text-[11px] text-[#9CA3AF]">${escape(p.category)}</span></td>
+                        <td class="text-right font-bold text-[#76A9FA]">${fmt(p.price)}</td>
+                        <td class="text-center">${stockBadge}</td>
+                        <td class="text-center">${statusBadge}</td>
+                        <td class="text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <button class="act-btn edit" onclick="openProductoModal('${escape(p.id)}')" title="Editar">
+                                    <i data-lucide="pencil" class="w-3 h-3"></i>
+                                </button>
+                                <button class="act-btn delete" onclick="deleteProducto('${escape(p.id)}')" title="Eliminar">
+                                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        //   RENDER: TABLA COMBOS
+        // ════════════════════════════════════════════════════════════════════════
+        function renderCombos() {
+            const q = ($('searchCombos').value || '').trim().toLowerCase();
+            const filtered = products.filter(p => p.isCombo && (!q || p.name.toLowerCase().includes(q)));
+
+            const tbody = $('tbodyCombos');
+            const empty = $('emptyCombos');
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            tbody.innerHTML = filtered.map(c => {
+                const bruto = (c.components || []).reduce((s, x) => {
+                    const child = productById(x.productId);
+                    return s + (child ? child.price * x.quantity : 0);
+                }, 0);
+                const ahorro = bruto - c.price;
+                const statusBadge = c.active
+                    ? '<span class="badge badge-active">Activo</span>'
+                    : '<span class="badge badge-inactive">Inactivo</span>';
+                const componentsHtml = (c.components || []).map(x => {
+                    const ch = productById(x.productId);
+                    if (!ch) return '';
+                    return `<div class="flex items-center gap-2 text-[10px] py-1">
+                        <i data-lucide="${escape(ch.icon)}" class="w-3 h-3 text-[#9CA3AF]"></i>
+                        <span class="text-white">${escape(ch.name)}</span>
+                        <span class="text-[#6B7280]">x${x.quantity}</span>
+                        <span class="ml-auto text-[#76A9FA]">${fmt(ch.price * x.quantity)}</span>
+                    </div>`;
+                }).join('');
+                return `
+                    <tr class="combo-row" data-id="${escape(c.id)}">
+                        <td>
+                            <button class="act-btn view toggle-combo" data-id="${escape(c.id)}" title="Ver componentes">
+                                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                            </button>
+                        </td>
+                        <td>
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-md flex items-center justify-center bg-[rgba(124,58,237,0.12)] border border-[rgba(124,58,237,0.35)]">
+                                    <i data-lucide="${escape(c.icon)}" class="w-4 h-4 text-[#c4b5fd]"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-white">${escape(c.name)}</p>
+                                    <span class="badge badge-combo mt-0.5"><i data-lucide="gift" class="w-2.5 h-2.5"></i> COMBO</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <span class="font-bold text-white">${(c.components || []).length}</span>
+                            <span class="text-[10px] text-[#6B7280] ml-1">productos</span>
+                        </td>
+                        <td class="text-right text-[#9CA3AF]">${fmt(bruto)}</td>
+                        <td class="text-right font-bold text-[#76A9FA]">${fmt(c.price)}</td>
+                        <td class="text-right">
+                            ${ahorro > 0 ? `<span class="font-bold text-[#3FC189]">-${fmt(ahorro)}</span>` : '<span class="text-[#6B7280]">$0.00</span>'}
+                        </td>
+                        <td class="text-center">${statusBadge}</td>
+                        <td class="text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <button class="act-btn edit" onclick="openComboModal('${escape(c.id)}')" title="Editar">
+                                    <i data-lucide="pencil" class="w-3 h-3"></i>
+                                </button>
+                                <button class="act-btn delete" onclick="deleteCombo('${escape(c.id)}')" title="Eliminar">
+                                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="combo-components hidden" data-parent="${escape(c.id)}">
+                        <td colspan="8" class="!p-0">
+                            <div class="components-list">${componentsHtml}</div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Toggle expansion
+            tbody.querySelectorAll('.toggle-combo').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.dataset.id;
+                    const row = tbody.querySelector(`.combo-row[data-id="${id}"]`);
+                    const exp = tbody.querySelector(`.combo-components[data-parent="${id}"]`);
+                    const icon = btn.querySelector('i');
+                    if (exp.classList.contains('hidden')) {
+                        exp.classList.remove('hidden');
+                        row.classList.add('combo-row-expanded');
+                        icon.setAttribute('data-lucide', 'chevron-down');
+                    } else {
+                        exp.classList.add('hidden');
+                        row.classList.remove('combo-row-expanded');
+                        icon.setAttribute('data-lucide', 'chevron-right');
+                    }
+                    lucide.createIcons();
+                });
+            });
+
+            lucide.createIcons();
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        //   MODAL: PRODUCTO
+        // ════════════════════════════════════════════════════════════════════════
+        function openProductoModal(id) {
+            const editing = !!id;
+            $('modalProductoTitle').textContent = editing ? 'Editar producto' : 'Nuevo producto';
+            $('prodId').value       = id || '';
+            $('prodName').value     = '';
+            $('prodCategory').value = '';
+            $('prodPrice').value    = '';
+            $('prodStock').value    = '';
+            $('prodIcon').value     = 'package';
+            $('prodActive').classList.add('active');
+
+            if (editing) {
+                const p = productById(id);
+                if (p) {
+                    $('prodName').value     = p.name;
+                    $('prodCategory').value = p.category;
+                    $('prodPrice').value    = p.price;
+                    $('prodStock').value    = p.stock;
+                    $('prodIcon').value     = p.icon;
+                    $('prodActive').classList.toggle('active', !!p.active);
+                }
+            }
+            $('modalProducto').classList.remove('hidden');
+        }
+        function closeProductoModal() { $('modalProducto').classList.add('hidden'); }
+
+        function saveProducto() {
+            const id = $('prodId').value;
+            const name = $('prodName').value.trim();
+            if (!name) return Swal.fire({ ...swalBase, icon: 'warning', title: 'Falta nombre', text: 'Captura el nombre del producto.' });
+
+            const data = {
+                name,
+                category: $('prodCategory').value.trim() || 'Sin categoria',
+                price:    parseFloat($('prodPrice').value) || 0,
+                stock:    parseInt($('prodStock').value) || 0,
+                icon:     $('prodIcon').value.trim() || 'package',
+                active:   $('prodActive').classList.contains('active') ? 1 : 0,
+                isCombo:  0
+            };
+
+            if (id) {
+                const p = productById(id);
+                Object.assign(p, data);
+            } else {
+                const newId = 'p' + String(Date.now()).slice(-6);
+                products.push({ id: newId, ...data });
+            }
+
+            closeProductoModal();
+            refreshKPIs();
+            refreshCategoryFilters();
+            renderProductos();
+            Swal.fire({ ...swalBase, icon: 'success', title: id ? 'Producto actualizado' : 'Producto creado', timer: 1400, showConfirmButton: false });
+        }
+
+        function deleteProducto(id) {
+            const p = productById(id);
+            if (!p) return;
+            Swal.fire({
+                ...swalBase, icon: 'warning',
+                title: `¿Eliminar ${p.name}?`,
+                text: 'Esta accion no se puede deshacer.',
+                showCancelButton: true,
+                confirmButtonText: 'Si, eliminar',
+                cancelButtonText: 'Cancelar',
+                customClass: { popup: 'huubie-swal', confirmButton: 'swal-danger' }
+            }).then(r => {
+                if (!r.isConfirmed) return;
+                products = products.filter(x => x.id !== id);
+                refreshKPIs();
+                renderProductos();
+                renderCombos();
+                Swal.fire({ ...swalBase, icon: 'success', title: 'Producto eliminado', timer: 1200, showConfirmButton: false });
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        //   MODAL: COMBO
+        // ════════════════════════════════════════════════════════════════════════
+        let comboDraft = []; // [{ productId, quantity }]
+
+        function openComboModal(id) {
+            const editing = !!id;
+            $('modalComboTitle').textContent = editing ? 'Editar combo' : 'Nuevo combo';
+            $('comboId').value       = id || '';
+            $('comboName').value     = '';
+            $('comboCategory').value = 'Combos';
+            $('comboPrice').value    = '';
+            $('comboIcon').value     = 'gift';
+            $('comboActive').classList.add('active');
+            comboDraft = [];
+
+            if (editing) {
+                const c = productById(id);
+                if (c) {
+                    $('comboName').value     = c.name;
+                    $('comboCategory').value = c.category;
+                    $('comboPrice').value    = c.price;
+                    $('comboIcon').value     = c.icon;
+                    $('comboActive').classList.toggle('active', !!c.active);
+                    comboDraft = (c.components || []).map(x => ({ ...x }));
+                }
+            }
+            $('searchComponents').value = '';
+            renderComponentPicker();
+            renderSelectedComponents();
+            $('modalCombo').classList.remove('hidden');
+        }
+        function closeComboModal() { $('modalCombo').classList.add('hidden'); }
+
+        function renderComponentPicker() {
+            const q = ($('searchComponents').value || '').trim().toLowerCase();
+            const list = products.filter(p => !p.isCombo && p.active && (!q || p.name.toLowerCase().includes(q)));
+            const picker = $('componentPicker');
+            if (list.length === 0) {
+                picker.innerHTML = '<p class="text-[10px] text-[#6B7280] text-center py-3">Sin coincidencias</p>';
+                return;
+            }
+            picker.innerHTML = list.map(p => {
+                const sel = comboDraft.find(x => x.productId === p.id);
+                return `
+                    <div class="component-row ${sel ? 'selected' : ''}">
+                        <i data-lucide="${escape(p.icon)}" class="w-3.5 h-3.5 text-[#9CA3AF]"></i>
+                        <span class="flex-1 text-white">${escape(p.name)}</span>
+                        <span class="text-[#76A9FA] font-bold">${fmt(p.price)}</span>
+                        <button onclick="toggleComponent('${escape(p.id)}')" class="px-2 py-0.5 rounded text-[10px] font-semibold ${sel ? 'bg-[#EA0234] text-white' : 'bg-[#1C64F2] text-white'}">
+                            ${sel ? 'Quitar' : 'Agregar'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function renderSelectedComponents() {
+            const host = $('selectedComponents');
+            if (comboDraft.length === 0) {
+                host.innerHTML = '<p class="text-[10px] text-[#6B7280] text-center py-4">Aun no hay componentes</p>';
+                updateComboPriceSummary();
+                return;
+            }
+            host.innerHTML = comboDraft.map(x => {
+                const p = productById(x.productId);
+                if (!p) return '';
+                return `
+                    <div class="flex items-center gap-2 py-1.5 border-b border-[rgba(55,65,81,0.4)] last:border-0">
+                        <i data-lucide="${escape(p.icon)}" class="w-3 h-3 text-[#9CA3AF]"></i>
+                        <span class="flex-1 text-[11px] text-white">${escape(p.name)}</span>
+                        <div class="flex items-center gap-1">
+                            <button onclick="changeComponentQty('${escape(p.id)}', -1)" class="w-5 h-5 rounded bg-[#374151] text-white text-[10px] font-bold hover:bg-[#4B5563]">-</button>
+                            <span class="w-5 text-center text-[10px] font-bold">${x.quantity}</span>
+                            <button onclick="changeComponentQty('${escape(p.id)}', +1)" class="w-5 h-5 rounded bg-[#374151] text-white text-[10px] font-bold hover:bg-[#4B5563]">+</button>
+                        </div>
+                        <span class="text-[10px] font-bold text-[#76A9FA] w-14 text-right">${fmt(p.price * x.quantity)}</span>
+                        <button onclick="toggleComponent('${escape(p.id)}')" class="text-[#EA0234] hover:bg-[rgba(234,2,52,0.15)] rounded p-0.5">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+            updateComboPriceSummary();
+        }
+
+        function toggleComponent(productId) {
+            const idx = comboDraft.findIndex(x => x.productId === productId);
+            if (idx >= 0) comboDraft.splice(idx, 1);
+            else comboDraft.push({ productId, quantity: 1 });
+            renderComponentPicker();
+            renderSelectedComponents();
+        }
+
+        function changeComponentQty(productId, delta) {
+            const x = comboDraft.find(c => c.productId === productId);
+            if (!x) return;
+            x.quantity = Math.max(1, x.quantity + delta);
+            renderSelectedComponents();
+        }
+
+        function updateComboPriceSummary() {
+            const bruto = comboDraft.reduce((s, x) => {
+                const p = productById(x.productId);
+                return s + (p ? p.price * x.quantity : 0);
+            }, 0);
+            const neto = parseFloat($('comboPrice').value) || 0;
+            const ahorro = Math.max(0, bruto - neto);
+            $('comboBruto').textContent  = fmt(bruto);
+            $('comboNeto').textContent   = fmt(neto);
+            $('comboAhorro').textContent = fmt(ahorro);
+        }
+
+        $('comboPrice') && $('comboPrice').addEventListener('input', updateComboPriceSummary);
+        $('searchComponents') && $('searchComponents').addEventListener('input', renderComponentPicker);
+
+        function saveCombo() {
+            const id = $('comboId').value;
+            const name = $('comboName').value.trim();
+            if (!name) return Swal.fire({ ...swalBase, icon: 'warning', title: 'Falta nombre', text: 'Captura el nombre del combo.' });
+            if (comboDraft.length === 0) return Swal.fire({ ...swalBase, icon: 'warning', title: 'Sin componentes', text: 'Agrega al menos un producto al combo.' });
+            const price = parseFloat($('comboPrice').value) || 0;
+            if (price <= 0) return Swal.fire({ ...swalBase, icon: 'warning', title: 'Precio invalido', text: 'El combo debe tener un precio mayor a cero.' });
+
+            const data = {
+                name,
+                category: $('comboCategory').value.trim() || 'Combos',
+                price,
+                stock: 999,
+                icon: $('comboIcon').value.trim() || 'gift',
+                active: $('comboActive').classList.contains('active') ? 1 : 0,
+                isCombo: 1,
+                components: comboDraft.map(x => ({ ...x }))
+            };
+
+            if (id) {
+                const c = productById(id);
+                Object.assign(c, data);
+            } else {
+                const newId = 'c' + String(Date.now()).slice(-6);
+                products.push({ id: newId, ...data });
+            }
+            closeComboModal();
+            refreshKPIs();
+            renderCombos();
+            Swal.fire({ ...swalBase, icon: 'success', title: id ? 'Combo actualizado' : 'Combo creado', timer: 1400, showConfirmButton: false });
+        }
+
+        function deleteCombo(id) {
+            const c = productById(id);
+            if (!c) return;
+            Swal.fire({
+                ...swalBase, icon: 'warning',
+                title: `¿Eliminar ${c.name}?`,
+                text: 'El combo se eliminara del catalogo. Los productos componentes no se afectan.',
+                showCancelButton: true,
+                confirmButtonText: 'Si, eliminar',
+                cancelButtonText: 'Cancelar',
+                customClass: { popup: 'huubie-swal', confirmButton: 'swal-danger' }
+            }).then(r => {
+                if (!r.isConfirmed) return;
+                products = products.filter(x => x.id !== id);
+                refreshKPIs();
+                renderCombos();
+                Swal.fire({ ...swalBase, icon: 'success', title: 'Combo eliminado', timer: 1200, showConfirmButton: false });
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        //   FILTROS
+        // ════════════════════════════════════════════════════════════════════════
+        ['searchProductos', 'filterCategoria', 'filterStatus'].forEach(id => {
+            const el = $(id);
+            if (el) el.addEventListener('input', renderProductos);
+        });
+        $('searchCombos').addEventListener('input', renderCombos);
+
+        // ════════════════════════════════════════════════════════════════════════
+        //   INIT
+        // ════════════════════════════════════════════════════════════════════════
+        refreshKPIs();
+        refreshCategoryFilters();
+        renderProductos();
+        renderCombos();
+        lucide.createIcons();
+    </script>
+</body>
+</html>

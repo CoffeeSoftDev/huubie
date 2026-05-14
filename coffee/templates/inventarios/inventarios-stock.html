@@ -258,66 +258,69 @@
       </div>
 
       <!-- KPIs -->
-      <div class="grid grid-cols-4 gap-2 px-6 py-2 flex-shrink-0">
+      <div class="grid grid-cols-5 gap-2 px-6 py-2 flex-shrink-0">
         <div class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center justify-between">
           <div>
             <p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Total Productos</p>
-            <p class="text-lg font-bold text-white leading-tight">48</p>
+            <p id="kpiTotal" class="text-lg font-bold text-white leading-tight">48</p>
           </div>
           <div class="w-7 h-7 rounded-md bg-[rgba(124,58,237,0.12)] flex items-center justify-center flex-shrink-0">
             <i data-lucide="package" class="w-3.5 h-3.5 text-[#c4b5fd]"></i>
           </div>
         </div>
-        <div class="bg-[#1F2A37] border border-green-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+        <div class="bg-[#1F2A37] border border-emerald-700/25 rounded-lg px-3 py-2 flex items-center justify-between">
           <div>
-            <p class="text-[9px] text-green-500 uppercase tracking-wider">Stock OK</p>
-            <p class="text-lg font-bold text-green-400 leading-tight">35</p>
+            <p class="text-[9px] text-emerald-400/70 uppercase tracking-wider">Stock OK</p>
+            <p id="kpiOk" class="text-lg font-bold text-emerald-300 leading-tight">35</p>
           </div>
-          <div class="w-7 h-7 rounded-md bg-green-500/15 flex items-center justify-center flex-shrink-0">
-            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-green-400"></i>
+          <div class="w-7 h-7 rounded-md bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-300"></i>
           </div>
         </div>
-        <div class="bg-[#1F2A37] border border-orange-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+        <div class="bg-[#1F2A37] border border-orange-700/25 rounded-lg px-3 py-2 flex items-center justify-between">
           <div>
-            <p class="text-[9px] text-orange-500 uppercase tracking-wider">Stock Bajo</p>
-            <p class="text-lg font-bold text-orange-400 leading-tight">9</p>
+            <p class="text-[9px] text-orange-400/70 uppercase tracking-wider">Stock Bajo</p>
+            <p id="kpiBajo" class="text-lg font-bold text-orange-300 leading-tight">9</p>
           </div>
-          <div class="w-7 h-7 rounded-md bg-orange-500/15 flex items-center justify-center flex-shrink-0">
-            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-orange-400"></i>
+          <div class="w-7 h-7 rounded-md bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-orange-300"></i>
           </div>
         </div>
-        <div class="bg-[#1F2A37] border border-red-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+        <div class="bg-[#1F2A37] border border-rose-700/25 rounded-lg px-3 py-2 flex items-center justify-between">
           <div>
-            <p class="text-[9px] text-red-500 uppercase tracking-wider">Agotado</p>
-            <p class="text-lg font-bold text-red-400 leading-tight">4</p>
+            <p class="text-[9px] text-rose-400/70 uppercase tracking-wider">Agotado</p>
+            <p id="kpiAgotado" class="text-lg font-bold text-rose-300 leading-tight">4</p>
           </div>
-          <div class="w-7 h-7 rounded-md bg-red-500/15 flex items-center justify-center flex-shrink-0">
-            <i data-lucide="x-circle" class="w-3.5 h-3.5 text-red-400"></i>
+          <div class="w-7 h-7 rounded-md bg-rose-500/10 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="x-circle" class="w-3.5 h-3.5 text-rose-300"></i>
+          </div>
+        </div>
+        <div class="bg-[#1F2A37] border border-amber-700/25 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-amber-400/70 uppercase tracking-wider">Vida útil</p>
+            <p id="kpiVida" class="text-lg font-bold text-amber-300 leading-tight">3</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-amber-300"></i>
           </div>
         </div>
       </div>
 
       <!-- Filter bar -->
       <div class="px-6 pb-3 flex-shrink-0">
-        <div class="flex items-center gap-3">
-          <div class="relative flex-1 max-w-sm">
-            <span class="cs-input-group-icon">
-              <i data-lucide="search" class="w-4 h-4"></i>
-            </span>
-            <input type="text" placeholder="Buscar producto..." class="cs-input pl-10 text-xs">
-          </div>
-          <select class="cs-select text-xs">
-            <option>Todas las categorías</option>
-            <option>Pasteles Tradicional</option>
-            <option>Premium</option>
-            <option>Cupcakes</option>
-            <option>Galletas</option>
+        <div class="grid grid-cols-12 gap-3">
+          <select id="filterCategoria" class="cs-select text-xs col-span-3">
+            <option value="">Todas las categorías</option>
+            <option value="Tradicional">Tradicional</option>
+            <option value="Premium">Premium</option>
+            <option value="Cupcakes">Cupcakes</option>
+            <option value="Galletas">Galletas</option>
           </select>
-          <select class="cs-select text-xs">
-            <option>Todos los niveles</option>
-            <option>Stock OK</option>
-            <option>Stock Bajo</option>
-            <option>Agotado</option>
+          <select id="filterNivel" class="cs-select text-xs col-span-3">
+            <option value="">Todos los niveles</option>
+            <option value="ok">Stock OK</option>
+            <option value="bajo">Stock Bajo</option>
+            <option value="agotado">Agotado</option>
           </select>
         </div>
       </div>
@@ -337,11 +340,12 @@
                   <th class="text-right w-24">Precio</th>
                   <th class="text-right w-24">Costo</th>
                   <th class="text-center w-24">Estado</th>
+                  <th class="text-center w-24">Vida útil</th>
                   <th class="text-center w-20">Acciones</th>
                 </tr>
               </thead>
               <tbody id="tbProductos">
-                <tr data-product="p3" class="cursor-pointer hover:bg-[#1a2332]">
+                <tr data-product="p3" data-categoria="Tradicional" data-nivel="bajo" data-vida="critico" class="cursor-pointer hover:bg-[#1a2332]">
                   <td>
                     <div class="flex items-center gap-2">
                       <div class="w-7 h-7 rounded bg-amber-900/30 flex items-center justify-center text-amber-400">
@@ -359,15 +363,15 @@
                   <td class="text-center text-[10px] text-gray-500">20</td>
                   <td class="text-right text-xs font-semibold">$700</td>
                   <td class="text-right text-xs text-gray-400">$280</td>
-                  <td class="text-center"><span class="cs-badge cs-badge-warning">BAJO</span></td>
+                  <td class="text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-semibold bg-orange-500/10 text-orange-300 border border-orange-500/20">BAJO</span></td>
+                  <td class="text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/20">2 días</span></td>
                   <td class="text-center">
                     <div class="flex justify-center gap-1">
                       <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="view" title="Ver movimientos"><i data-lucide="eye" class="w-3 h-3"></i></button>
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="entrada" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
                     </div>
                   </td>
                 </tr>
-                <tr data-product="pf" class="cursor-pointer hover:bg-[#1a2332]">
+                <tr data-product="pf" data-categoria="Premium" data-nivel="ok" data-vida="critico" class="cursor-pointer hover:bg-[#1a2332]">
                   <td>
                     <div class="flex items-center gap-2">
                       <div class="w-7 h-7 rounded bg-red-900/30 flex items-center justify-center text-red-400">
@@ -385,15 +389,15 @@
                   <td class="text-center text-[10px] text-gray-500">25</td>
                   <td class="text-right text-xs font-semibold">$350</td>
                   <td class="text-right text-xs text-gray-400">$140</td>
-                  <td class="text-center"><span class="cs-badge cs-badge-success">OK</span></td>
+                  <td class="text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">OK</span></td>
+                  <td class="text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/20">3 días</span></td>
                   <td class="text-center">
                     <div class="flex justify-center gap-1">
                       <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="view" title="Ver movimientos"><i data-lucide="eye" class="w-3 h-3"></i></button>
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="entrada" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
                     </div>
                   </td>
                 </tr>
-                <tr data-product="cd" class="cursor-pointer hover:bg-[#1a2332]">
+                <tr data-product="cd" data-categoria="Cupcakes" data-nivel="agotado" data-vida="na" class="cursor-pointer hover:bg-[#1a2332]">
                   <td>
                     <div class="flex items-center gap-2">
                       <div class="w-7 h-7 rounded bg-orange-900/30 flex items-center justify-center text-orange-400">
@@ -411,15 +415,15 @@
                   <td class="text-center text-[10px] text-gray-500">50</td>
                   <td class="text-right text-xs font-semibold">$55</td>
                   <td class="text-right text-xs text-gray-400">$22</td>
-                  <td class="text-center"><span class="cs-badge cs-badge-danger">AGOTADO</span></td>
+                  <td class="text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/20">AGOTADO</span></td>
+                  <td class="text-center text-[10px] text-gray-500">N/A</td>
                   <td class="text-center">
                     <div class="flex justify-center gap-1">
                       <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="view" title="Ver movimientos"><i data-lucide="eye" class="w-3 h-3"></i></button>
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="entrada" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
                     </div>
                   </td>
                 </tr>
-                <tr data-product="ca" class="cursor-pointer hover:bg-[#1a2332]">
+                <tr data-product="ca" data-categoria="Premium" data-nivel="ok" data-vida="proximo" class="cursor-pointer hover:bg-[#1a2332]">
                   <td>
                     <div class="flex items-center gap-2">
                       <div class="w-7 h-7 rounded bg-yellow-900/30 flex items-center justify-center text-yellow-400">
@@ -437,11 +441,11 @@
                   <td class="text-center text-[10px] text-gray-500">15</td>
                   <td class="text-right text-xs font-semibold">$600</td>
                   <td class="text-right text-xs text-gray-400">$240</td>
-                  <td class="text-center"><span class="cs-badge cs-badge-success">OK</span></td>
+                  <td class="text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">OK</span></td>
+                  <td class="text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20">5 días</span></td>
                   <td class="text-center">
                     <div class="flex justify-center gap-1">
                       <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="view" title="Ver movimientos"><i data-lucide="eye" class="w-3 h-3"></i></button>
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="entrada" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
                     </div>
                   </td>
                 </tr>
@@ -477,17 +481,6 @@
 
       <!-- Contenido dinámico -->
       <div id="panelVista" class="hidden flex-1 overflow-y-auto px-4 py-3 space-y-3 cs-scroll"></div>
-
-      <div id="panelFooter" class="hidden px-4 py-3 border-t border-[#374151] flex-shrink-0 grid grid-cols-2 gap-2">
-        <button class="cs-btn cs-btn-ghost cs-btn-sm w-full">
-          <i data-lucide="list" class="w-3 h-3"></i>
-          Movimientos
-        </button>
-        <button class="cs-btn cs-btn-primary cs-btn-sm w-full">
-          <i data-lucide="plus" class="w-3 h-3"></i>
-          Nueva entrada
-        </button>
-      </div>
 
     </aside>
 
@@ -639,6 +632,7 @@
         name: 'Pastel 3 Leches Chocolate', sku: 'PAS-3LC-001', category: 'Tradicional',
         iconBg: 'bg-amber-900/30', iconText: 'text-amber-400',
         min: 5, max: 20, status: 'bajo',
+        vida: { dias: 2, label: 'critico' },
         stock: { '': 27, kafeto: 3, central: 14, norte: 10, sur: 0 },
         almacenes: [
           { name: 'ALM-Central', type: 'info' },
@@ -646,16 +640,25 @@
           { name: 'Refrig-01', type: 'purple' }
         ],
         movs: [
-          { type: 'in',     label: 'Entrada · Compra',     qty: '+12', when: 'Hace 2 días · Reginas Kafeto' },
-          { type: 'out',    label: 'Salida · Venta',       qty: '-5',  when: 'Hace 1 día · POS-04' },
-          { type: 'tr',     label: 'Traspaso · A Centro',  qty: '-4',  when: 'Hoy · 09:42' },
-          { type: 'adjust', label: 'Ajuste · Conteo físico', qty: '±0', when: 'Hoy · 11:15' }
+          { type: 'in',     label: 'Entrada · Compra',       qty: '+12', when: 'Hace 2 días · Reginas Kafeto' },
+          { type: 'out',    label: 'Salida · Venta',         qty: '-5',  when: 'Hace 1 día · POS-04' },
+          { type: 'tr',     label: 'Traspaso · A Centro',    qty: '-4',  when: 'Hoy · 09:42' },
+          { type: 'adjust', label: 'Ajuste · Conteo físico', qty: '±0',  when: 'Hoy · 11:15' },
+          { type: 'out',    label: 'Salida · Venta',         qty: '-2',  when: 'Hoy · POS-02' },
+          { type: 'out',    label: 'Salida · Venta',         qty: '-3',  when: 'Hoy · POS-01' },
+          { type: 'in',     label: 'Entrada · Devolución',   qty: '+1',  when: 'Hoy · POS-03' },
+          { type: 'tr',     label: 'Traspaso · De Norte',    qty: '+2',  when: 'Ayer · 14:20' },
+          { type: 'out',    label: 'Salida · Merma',         qty: '-1',  when: 'Ayer · 17:45' },
+          { type: 'in',     label: 'Entrada · Producción',   qty: '+6',  when: 'Hace 2 días · ALM-Central' },
+          { type: 'out',    label: 'Salida · Venta',         qty: '-3',  when: 'Hace 3 días · POS-04' },
+          { type: 'adjust', label: 'Ajuste · Sistema',       qty: '+1',  when: 'Hace 4 días · 10:00' }
         ]
       },
       pf: {
         name: 'Pay de Fresas', sku: 'PAY-FRS-001', category: 'Premium',
         iconBg: 'bg-red-900/30', iconText: 'text-red-400',
         min: 5, max: 25, status: 'ok',
+        vida: { dias: 3, label: 'critico' },
         stock: { '': 44, kafeto: 12, central: 18, norte: 9, sur: 5 },
         almacenes: [
           { name: 'ALM-Central', type: 'info' },
@@ -670,6 +673,7 @@
         name: 'Cupcake Decorado', sku: 'CUP-DEC-001', category: 'Cupcakes',
         iconBg: 'bg-orange-900/30', iconText: 'text-orange-400',
         min: 10, max: 50, status: 'agotado',
+        vida: { dias: null, label: 'na' },
         stock: { '': 0, kafeto: 0, central: 0, norte: 0, sur: 0 },
         almacenes: [{ name: 'ALM-Central', type: 'info' }],
         movs: [
@@ -680,6 +684,7 @@
         name: 'Choco Alemán', sku: 'PAS-CHA-001', category: 'Premium',
         iconBg: 'bg-yellow-900/30', iconText: 'text-yellow-400',
         min: 3, max: 15, status: 'ok',
+        vida: { dias: 5, label: 'proximo' },
         stock: { '': 25, kafeto: 8, central: 7, norte: 6, sur: 4 },
         almacenes: [
           { name: 'ALM-Central', type: 'info' },
@@ -692,9 +697,15 @@
     };
 
     const STATUS_MAP = {
-      ok:      { color: 'success', icon: 'check-circle-2', label: 'Stock OK',   msg: 'Nivel saludable, dentro del rango óptimo.', stockColor: 'text-green-400' },
-      bajo:    { color: 'warning', icon: 'alert-triangle', label: 'Stock Bajo', msg: 'El nivel actual está por debajo del mínimo recomendado.', stockColor: 'text-orange-400' },
-      agotado: { color: 'danger',  icon: 'x-circle',       label: 'Agotado',    msg: 'No hay existencias disponibles.', stockColor: 'text-red-400' }
+      ok:      { palette: 'emerald', icon: 'check-circle-2', label: 'Stock OK',   msg: 'Nivel saludable, dentro del rango óptimo.', stockColor: 'text-emerald-300' },
+      bajo:    { palette: 'orange',  icon: 'alert-triangle', label: 'Stock Bajo', msg: 'El nivel actual está por debajo del mínimo recomendado.', stockColor: 'text-orange-300' },
+      agotado: { palette: 'rose',    icon: 'x-circle',       label: 'Agotado',    msg: 'No hay existencias disponibles.', stockColor: 'text-rose-300' }
+    };
+
+    const STATUS_PALETTES = {
+      emerald: { bg: 'bg-emerald-500/8', border: 'border-emerald-500/20', text: 'text-emerald-300' },
+      orange:  { bg: 'bg-orange-500/8',  border: 'border-orange-500/20',  text: 'text-orange-300' },
+      rose:    { bg: 'bg-rose-500/8',    border: 'border-rose-500/20',    text: 'text-rose-300' }
     };
 
     const MOV_MAP = {
@@ -714,6 +725,7 @@
       const sucName = $('btnBranchName').textContent;
       const stock   = p.stock[sucId] ?? 0;
       const status  = STATUS_MAP[p.status];
+      const statusPalette = STATUS_PALETTES[status.palette];
 
       const sucursales = [
         { id: 'kafeto',  name: 'Reginas Kafeto'  },
@@ -741,7 +753,9 @@
         <span class="cs-badge cs-badge-${a.type}"><i data-lucide="warehouse" class="w-2.5 h-2.5 mr-1 inline"></i>${a.name}</span>
       `).join('');
 
-      const movsHtml = p.movs.map(m => {
+      const movsAll = p.movs || [];
+      const movsToShow = movsAll.slice(0, 10);
+      const movsHtml = movsToShow.map(m => {
         const cfg = MOV_MAP[m.type];
         return `
           <div class="flex items-start gap-2 bg-[#1a2332] rounded-md px-2.5 py-1.5 border border-[#374151]">
@@ -758,9 +772,37 @@
           </div>`;
       }).join('');
 
+      const vidaCfg = {
+        critico: { palette: 'rose',    icon: 'alert-octagon', label: 'Crítica',   msg: 'Caducidad inminente, prioriza la rotación.' },
+        proximo: { palette: 'amber',   icon: 'clock',         label: 'Próxima',   msg: 'Cercano a su fecha de caducidad.' },
+        ok:      { palette: 'emerald', icon: 'leaf',          label: 'Saludable', msg: 'Vida útil dentro del rango óptimo.' },
+        na:      { palette: 'slate',   icon: 'minus',         label: 'No aplica', msg: 'Producto sin vida útil registrada.' }
+      }[p.vida?.label || 'na'];
+
+      const vidaPalettes = {
+        rose:    { bg: 'bg-rose-500/8',    border: 'border-rose-500/20',    text: 'text-rose-300' },
+        amber:   { bg: 'bg-amber-500/8',   border: 'border-amber-500/20',   text: 'text-amber-300' },
+        emerald: { bg: 'bg-emerald-500/8', border: 'border-emerald-500/20', text: 'text-emerald-300' },
+        slate:   { bg: 'bg-slate-500/8',   border: 'border-slate-500/20',   text: 'text-slate-300' }
+      }[vidaCfg.palette];
+
+      const vidaText = p.vida?.dias != null ? `${p.vida.dias} días restantes` : 'Sin caducidad activa';
+
+      const stockBajoBanner = (p.status === 'bajo' || p.status === 'agotado') ? `
+        <div class="rounded-lg border ${p.status === 'agotado' ? 'border-rose-500/25 bg-rose-500/8' : 'border-amber-500/25 bg-amber-500/8'} px-3 py-2 flex items-start gap-2">
+          <i data-lucide="bell-ring" class="w-4 h-4 ${p.status === 'agotado' ? 'text-rose-300' : 'text-amber-300'} flex-shrink-0 mt-0.5"></i>
+          <div class="flex-1 min-w-0">
+            <p class="text-[11px] font-bold ${p.status === 'agotado' ? 'text-rose-300' : 'text-amber-300'}">${p.status === 'agotado' ? 'Producto agotado' : 'Atención: stock bajo'}</p>
+            <p class="text-[10px] text-gray-400">${p.status === 'agotado' ? 'Sin existencias disponibles. Considera generar un reabastecimiento.' : `Existencias por debajo del mínimo (${p.min}). Considera reabastecer pronto.`}</p>
+          </div>
+        </div>
+      ` : '';
+
       $('panelSubtitle').textContent = sucId ? `Existencias en ${sucName}` : 'Vista consolidada (todas las sucursales)';
 
       $('panelVista').innerHTML = `
+        ${stockBajoBanner}
+
         <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151]">
           <div class="flex items-center gap-2">
             <div class="w-10 h-10 rounded-lg ${p.iconBg} flex items-center justify-center ${p.iconText}">
@@ -787,13 +829,19 @@
           </div>
         </div>
 
-        <div class="cs-callout cs-callout-${status.color}">
-          <div class="flex items-center gap-2">
-            <i data-lucide="${status.icon}" class="w-4 h-4 flex-shrink-0"></i>
-            <div>
-              <strong class="block text-xs">Estado: ${status.label}</strong>
-              <p class="text-[10px] text-gray-400">${status.msg}</p>
-            </div>
+        <div class="rounded-lg border ${statusPalette.border} ${statusPalette.bg} px-3 py-2 flex items-start gap-2">
+          <i data-lucide="${status.icon}" class="w-4 h-4 ${statusPalette.text} flex-shrink-0 mt-0.5"></i>
+          <div class="flex-1 min-w-0">
+            <strong class="block text-xs ${statusPalette.text}">Estado: ${status.label}</strong>
+            <p class="text-[10px] text-gray-400">${status.msg}</p>
+          </div>
+        </div>
+
+        <div class="rounded-lg border ${vidaPalettes.border} ${vidaPalettes.bg} px-3 py-2 flex items-start gap-2">
+          <i data-lucide="${vidaCfg.icon}" class="w-4 h-4 ${vidaPalettes.text} flex-shrink-0 mt-0.5"></i>
+          <div class="flex-1 min-w-0">
+            <strong class="block text-xs ${vidaPalettes.text}">Vida útil: ${vidaCfg.label} · ${vidaText}</strong>
+            <p class="text-[10px] text-gray-400">${vidaCfg.msg}</p>
           </div>
         </div>
 
@@ -813,7 +861,7 @@
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Historial de movimientos</h4>
-            <button class="text-[9px] text-[#c4b5fd] hover:underline">Ver todo</button>
+            <span class="text-[9px] text-gray-500">${movsToShow.length} de ${movsAll.length}${movsAll.length > 10 ? ' (últimos 10)' : ''}</span>
           </div>
           <div class="space-y-1.5">${movsHtml}</div>
         </div>
@@ -821,7 +869,6 @@
 
       $('panelEmpty').classList.add('hidden');
       $('panelVista').classList.remove('hidden');
-      $('panelFooter').classList.remove('hidden');
       lucide.createIcons();
     }
 
@@ -836,21 +883,63 @@
     function closePanel() {
       panelState.productId = null;
       document.querySelectorAll('#tbProductos tr').forEach(tr => tr.classList.remove('row-active'));
-      $('panelEmpty').classList.remove('hidden');
+      $('panelVista').innerHTML = '';
       $('panelVista').classList.add('hidden');
-      $('panelFooter').classList.add('hidden');
+      $('panelEmpty').classList.remove('hidden');
       $('panelSubtitle').textContent = 'Comportamiento e historial';
+      lucide.createIcons();
     }
 
     document.getElementById('tbProductos').addEventListener('click', (e) => {
       const tr = e.target.closest('tr[data-product]');
       if (!tr) return;
-      const action = e.target.closest('[data-action]')?.getAttribute('data-action');
-      if (action === 'entrada') return;
       selectProduct(tr.getAttribute('data-product'));
     });
 
-    $('btnPanelClose').addEventListener('click', closePanel);
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#btnPanelClose')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closePanel();
+      }
+    });
+
+    // ════════════════════════════════════════════════════════════════════
+    // FILTROS — categoría / nivel — actualizan tabla y KPI cards
+    // ════════════════════════════════════════════════════════════════════
+    function applyFilters() {
+      const cat = $('filterCategoria').value;
+      const niv = $('filterNivel').value;
+      const counts = { total: 0, ok: 0, bajo: 0, agotado: 0, vida: 0 };
+      let activeStillVisible = false;
+
+      document.querySelectorAll('#tbProductos tr[data-product]').forEach(tr => {
+        const matchCat = !cat || tr.dataset.categoria === cat;
+        const matchNiv = !niv || tr.dataset.nivel === niv;
+        const visible  = matchCat && matchNiv;
+
+        tr.classList.toggle('hidden', !visible);
+
+        if (visible) {
+          counts.total++;
+          counts[tr.dataset.nivel] = (counts[tr.dataset.nivel] || 0) + 1;
+          if (tr.dataset.vida === 'critico' || tr.dataset.vida === 'proximo') counts.vida++;
+          if (tr.dataset.product === panelState.productId) activeStillVisible = true;
+        }
+      });
+
+      $('kpiTotal').textContent   = counts.total;
+      $('kpiOk').textContent      = counts.ok || 0;
+      $('kpiBajo').textContent    = counts.bajo || 0;
+      $('kpiAgotado').textContent = counts.agotado || 0;
+      $('kpiVida').textContent    = counts.vida || 0;
+
+      if (panelState.productId && !activeStillVisible) closePanel();
+    }
+
+    $('filterCategoria').addEventListener('change', applyFilters);
+    $('filterNivel').addEventListener('change', applyFilters);
+    applyFilters();
 
     renderBranchList();
   </script>
