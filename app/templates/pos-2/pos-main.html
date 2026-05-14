@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" style="background:#111928;color:#fff">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS — Punto de Venta</title>
+    <!-- Fondo dark aplicado ANTES de cualquier script para evitar flash blanco mientras carga Tailwind CDN -->
+    <style>html,body{background:#111928!important;color:#fff;margin:0}</style>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../ui/css/ui-kit.css">
@@ -24,9 +26,10 @@
 
         /* Product Cards */
         .product-card {
-            transition: all 0.15s ease;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
             cursor: pointer;
             border: 1px solid rgba(55,65,81,0.5);
+            box-shadow: 0 0 0 0 rgba(124,58,237,0); /* base para transition suave */
         }
         .product-card:hover {
             border-color: #7C3AED;
@@ -34,6 +37,17 @@
             box-shadow: 0 8px 24px rgba(124,58,237,0.12);
         }
         .product-card:active { transform: scale(0.97); }
+
+        /* Product Cards — variante COMBO (sin flash al pasar el mouse) */
+        .product-card.is-combo {
+            border-color: rgba(124,58,237,0.5);
+            box-shadow: 0 0 0 1px rgba(124,58,237,0.20);
+        }
+        .product-card.is-combo:hover {
+            border-color: #7C3AED;
+            box-shadow: 0 0 0 1px rgba(124,58,237,0.45), 0 8px 24px rgba(124,58,237,0.18);
+            transform: translateY(-2px);
+        }
 
         /* Category Buttons */
         .cat-btn.active {
@@ -671,7 +685,7 @@
                 const isCombo  = p.isCombo === 1;
                 const opacity  = isOut ? 'opacity-50' : '';
                 const cursor   = isOut ? 'cursor-not-allowed' : 'cursor-pointer';
-                const borderCombo = isCombo ? 'border-[rgba(124,58,237,0.5)] ring-1 ring-[rgba(124,58,237,0.25)]' : 'border-[rgba(55,65,81,0.5)]';
+                const comboClass  = isCombo ? 'is-combo' : '';
                 const headerBg    = isCombo ? 'bg-gradient-to-br from-[rgba(124,58,237,0.18)] to-[rgba(124,58,237,0.05)]' : 'bg-[#141d2b]';
 
                 // Tooltip de componentes para combos
@@ -683,7 +697,7 @@
                     : '';
 
                 return `
-                    <div class="product-card bg-[#1F2A37] border ${borderCombo} rounded-lg overflow-hidden ${opacity} ${cursor}"
+                    <div class="product-card ${comboClass} bg-[#1F2A37] rounded-lg overflow-hidden ${opacity} ${cursor}"
                          data-id="${p.id}" ${isOut ? 'data-disabled="1"' : ''} ${comboTip}>
                         <div class="h-16 flex items-center justify-center relative ${headerBg}">
                             <i data-lucide="${p.icon}" class="w-6 h-6 ${isCombo ? 'text-[#c4b5fd]' : 'text-[#9CA3AF]'}"></i>
