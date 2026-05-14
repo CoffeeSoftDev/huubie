@@ -53,46 +53,158 @@
     /* Title override */
     h1.text-lg { font-size: 13px !important; }
     h3.text-sm { font-size: 11px !important; }
+
+    /* ============================================================
+       Navbar Huubie (mismo patron que /app/pos/templates/pos-pedidos.html)
+       ============================================================ */
+    .branch-pill { background: linear-gradient(180deg, #1F2A37 0%, #1a2332 100%); border: 1px solid rgba(124,58,237,0.35); border-radius: 12px; padding: 6px 12px; transition: all .2s ease; }
+    .branch-pill:hover { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+    .branch-status-dot { width: 8px; height: 8px; border-radius: 9999px; background: #22C55E; box-shadow: 0 0 0 3px rgba(34,197,94,0.18); display: inline-block; }
+    .branch-avatar { width: 40px; height: 40px; border-radius: 9999px; background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; letter-spacing: .5px; color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,.35); }
+    .branch-dropdown { background: #111928; border: 1px solid rgba(124,58,237,0.18); border-radius: 16px; box-shadow: 0 24px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02); }
+    .branch-card { background: #1F2A37; border: 1px solid rgba(55,65,81,.55); border-radius: 12px; padding: 12px; transition: all .15s ease; cursor: pointer; }
+    .branch-card:hover { border-color: #7C3AED; background: #1F2937; }
+    .branch-card.selected { background: linear-gradient(135deg, rgba(124,58,237,.18) 0%, rgba(236,72,153,.10) 100%); border-color: #A855F7; box-shadow: 0 0 0 1px rgba(168,85,247,.25); }
+    .radio-mark { width: 18px; height: 18px; border-radius: 9999px; border: 2px solid #4B5563; display: flex; align-items: center; justify-content: center; transition: all .2s ease; }
+    .branch-card.selected .radio-mark { border-color: #A855F7; }
+    .radio-mark .inner { width: 8px; height: 8px; border-radius: 9999px; background: #A855F7; opacity: 0; transition: opacity .2s ease; }
+    .branch-card.selected .radio-mark .inner { opacity: 1; }
+    .toast-card { position: relative; background: #1F2A37; border-radius: 14px; padding: 14px 18px; overflow: hidden; }
+    .toast-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, #7C3AED 0%, #A855F7 100%); border-radius: 14px 0 0 14px; }
+    @keyframes branchSlideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .toast-anim { animation: branchSlideIn .35s ease-out; }
+    @keyframes branchFadeOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(20px); } }
+    .toast-fade-out { animation: branchFadeOut .4s ease-in forwards; }
+    .chev { transition: transform .2s ease; }
+    .branch-pill[aria-expanded="true"] .chev { transform: rotate(180deg); }
+    .btn-ghost { color: #9CA3AF; font-size: 11px; padding: 4px 10px; border-radius: 8px; transition: all .15s ease; }
+    .btn-ghost:hover { color: #fff; background: rgba(255,255,255,.06); }
+
+    /* Estados activos del visor */
+    tr.row-active { background-color: #1a2332 !important; box-shadow: inset 2px 0 0 #7C3AED; }
+    .branch-row-active { border-color: #7C3AED !important; background: linear-gradient(135deg, rgba(124,58,237,.18) 0%, rgba(236,72,153,.10) 100%) !important; box-shadow: 0 0 0 1px rgba(168,85,247,.25); }
   </style>
 </head>
 <body class="bg-[#111928] h-screen overflow-hidden flex flex-col">
 
   <!-- ============================================================ -->
-  <!-- NAVBAR -->
+  <!-- NAVBAR (mismo patron que /app/pos/templates/pos-pedidos.html) -->
   <!-- ============================================================ -->
-  <nav class="navbar fixed top-0 left-0 w-full text-white px-4 py-0 h-14 z-50 flex items-center justify-between bg-[#0f172a] border-b border-[#374151] flex-shrink-0">
+  <nav class="fixed top-0 left-0 w-full text-white px-4 py-3 h-16 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20" style="background-color: #141d2b; border-bottom-color: rgba(28,100,242,0.3);">
     <div class="flex items-center space-x-4">
       <button id="toggleSidebar" class="text-[#9CA3AF] hover:text-white transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
         </svg>
       </button>
-      <span class="navbar-logo text-xl font-bold tracking-wide">hb<span class="dot text-[#1C64F2]">●</span></span>
+      <span class="navbar-logo text-xl font-bold tracking-wide">hb<span class="dot text-[var(--cs-primary,#1C64F2)]">&#9679;</span></span>
+      <div class="hidden md:flex items-center gap-2 ml-3">
+        <a href="inventarios-index-navegacion.html" class="text-[11px] text-[#9CA3AF] hover:text-white px-2.5 py-1 rounded hover:bg-[#1F2A37]">Hub</a>
+        <a href="inventarios-stock.html" class="text-[11px] text-white font-semibold px-2.5 py-1 rounded bg-[rgba(124,58,237,0.18)] border border-[rgba(124,58,237,0.35)]">Stock Actual</a>
+      </div>
     </div>
-    <div class="flex-1"></div>
-    <div class="flex items-center space-x-4">
-      <button class="navbar-icon text-xl text-[#9CA3AF] hover:text-white transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
-          <circle cx="3.5" cy="3.5" r="1.5"/>
-          <circle cx="12.5" cy="3.5" r="1.5"/>
-          <circle cx="3.5" cy="12.5" r="1.5"/>
-          <circle cx="12.5" cy="12.5" r="1.5"/>
-        </svg>
-      </button>
-      <button id="btnUserMenu" class="flex items-center space-x-3">
-        <div class="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
-        <div class="hidden md:flex flex-col items-start leading-tight">
-          <span class="text-xs font-medium text-white">Admin Usuario</span>
-          <span class="text-[10px] text-[#3FC189]">EN LINEA</span>
+    <div class="flex items-center gap-3">
+
+      <!-- BRANCH PILL -->
+      <div class="relative">
+        <button id="btnBranch" class="branch-pill flex items-center gap-3" aria-expanded="false">
+          <div class="flex flex-col items-start leading-tight">
+            <span class="text-[9px] uppercase tracking-[.14em] text-gray-500 font-semibold">Sucursal</span>
+            <div class="flex items-center gap-2">
+              <span class="branch-status-dot"></span>
+              <span id="btnBranchName" class="text-sm font-semibold text-white">Todas las sucursales</span>
+            </div>
+          </div>
+          <svg class="chev w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div id="branchDropdown" class="branch-dropdown absolute right-0 top-[calc(100%+10px)] w-[360px] z-40" style="display: none;">
+          <div class="px-4 pt-4 pb-3 flex items-start justify-between border-b border-gray-800/60">
+            <div>
+              <p class="text-[10px] uppercase tracking-[.14em] text-purple-400 font-semibold">Cambiar sucursal</p>
+              <p class="text-[12px] text-gray-400 mt-0.5">de Reginas</p>
+            </div>
+            <button id="btnBranchClose" class="btn-ghost flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              Cerrar
+            </button>
+          </div>
+          <div id="branchList" class="p-3 space-y-2 max-h-[420px] overflow-y-auto"></div>
         </div>
+      </div>
+
+      <!-- USER AVATAR -->
+      <button id="btnUserMenu" class="ml-1 flex items-center justify-center border-l border-gray-700 pl-3">
+        <div class="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-semibold text-[11px] text-white">AU</div>
       </button>
     </div>
   </nav>
 
+  <!-- Dropdown usuario (estilo admin enriquecido) -->
+  <div class="fixed top-16 right-4 z-50">
+    <div id="userMenuDropdown" class="w-72 rounded-2xl shadow-lg opacity-0 scale-95 invisible transition-all duration-500 ease-out" style="background-color: #111928;">
+      <div class="relative flex items-center justify-center h-20 rounded-t-2xl" style="background-color: #1F2A37;">
+        <button id="btnCloseUserMenu" class="btn btn-sm p-1 absolute top-2 right-3 text-gray-400 hover:text-white focus:outline-none">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+        <div class="absolute -bottom-10">
+          <div class="relative">
+            <div class="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-base font-bold text-white">AU</div>
+            <span class="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2" style="background-color: #22c55e; border-color: #1F2A37;"></span>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col items-center pt-4 pb-2 px-4 space-y-2">
+        <h2 class="text-white font-semibold text-lg mt-3" id="lblUserName">Admin Usuario</h2>
+        <span class="inline-flex text-xs font-semibold px-2 py-1 rounded-full align-items-center" style="background-color: rgba(30,58,138,0.5); color: #bfdbfe;" id="lblUserRol">
+          ADMINISTRADOR
+        </span>
+      </div>
+      <div class="w-full h-px my-2" style="background-color: #1F2937;"></div>
+      <div class="w-full px-5 mt-3 mb-4">
+        <button id="btnLogout" class="w-full flex items-center justify-center gap-2 px-2 py-2 border rounded-xl transition" style="border-color: #ef4444; color: #ef4444;">
+          Cerrar sesion
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast cambio de sucursal -->
+  <div id="branchToast" class="fixed top-[88px] right-6 z-40 w-[340px] hidden">
+    <div class="toast-card">
+      <div class="flex items-start gap-3">
+        <div class="relative shrink-0">
+          <div class="w-10 h-10 rounded-xl bg-[#7C3AED]/15 flex items-center justify-center border border-[#7C3AED]/25">
+            <svg class="w-5 h-5 text-[#A855F7]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-white">Cambiaste a <span id="branchToastName" class="text-[#A855F7]">Sucursal</span></p>
+          <div class="mt-1.5 pt-1.5 border-t border-white/5">
+            <p class="text-[11px] text-gray-400">
+              <span class="text-gray-500">Empresa</span> ·
+              <span class="text-gray-300">Reginas</span>
+            </p>
+          </div>
+        </div>
+        <button id="btnBranchToastClose" class="text-gray-500 hover:text-white transition shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============================================================ -->
   <!-- SIDEBAR -->
   <!-- ============================================================ -->
-  <div id="sidebar" class="fixed top-0 left-0 mt-14 h-[calc(100vh-3.5rem)] bg-[#0f172a] w-56 transform -translate-x-full transition-transform duration-500 ease-in-out z-40 overflow-y-auto border-r border-[#374151]">
+  <div id="sidebar" class="fixed top-0 left-0 mt-16 h-[calc(100vh-4rem)] bg-[#0f172a] w-56 transform -translate-x-full transition-transform duration-500 ease-in-out z-40 overflow-y-auto border-r border-[#374151]">
     <h5 class="text-white pt-4 font-semibold ps-7 text-sm">Huubie</h5>
     <ul class="space-y-1 p-4">
       <li><a href="#" class="block text-xs text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-2 rounded-lg">Resumen</a></li>
@@ -123,7 +235,7 @@
   <!-- ============================================================ -->
   <!-- SHELL PRINCIPAL -->
   <!-- ============================================================ -->
-  <div class="mt-14 h-[calc(100vh-3.5rem)] flex overflow-hidden">
+  <div class="mt-16 h-[calc(100vh-4rem)] flex overflow-hidden">
 
     <!-- ======================== COLUMNA CENTRAL ======================== -->
     <div class="flex-1 flex flex-col min-w-0">
@@ -133,16 +245,6 @@
         <div>
           <h1 class="text-lg font-bold">Inventario</h1>
           <p class="text-[11px] text-[#6B7280]">Control de stock por sucursal</p>
-        </div>
-        <div class="flex items-center gap-3">
-          <select class="cs-select text-xs">
-            <option>Reginas Kafeto (Sucursal 4)</option>
-            <option>Todas las sucursales</option>
-          </select>
-          <button class="cs-btn cs-btn-primary cs-btn-sm">
-            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-            Nueva Entrada
-          </button>
         </div>
       </div>
 
@@ -238,11 +340,13 @@
                   <th class="text-center w-20">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
+              <tbody id="tbProductos">
+                <tr data-product="p3" class="cursor-pointer hover:bg-[#1a2332]">
                   <td>
                     <div class="flex items-center gap-2">
-                      <div class="w-7 h-7 rounded bg-amber-900/30 flex items-center justify-center text-xs font-bold text-amber-400">P3</div>
+                      <div class="w-7 h-7 rounded bg-amber-900/30 flex items-center justify-center text-amber-400">
+                        <i data-lucide="cake" class="w-3.5 h-3.5"></i>
+                      </div>
                       <div>
                         <p class="text-xs font-medium">Pastel 3 Leches Chocolate</p>
                         <p class="text-[9px] text-gray-500">SKU: PAS-3LC-001</p>
@@ -258,15 +362,17 @@
                   <td class="text-center"><span class="cs-badge cs-badge-warning">BAJO</span></td>
                   <td class="text-center">
                     <div class="flex justify-center gap-1">
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="view" title="Ver movimientos"><i data-lucide="eye" class="w-3 h-3"></i></button>
+                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="entrada" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
                     </div>
                   </td>
                 </tr>
-                <tr>
+                <tr data-product="pf" class="cursor-pointer hover:bg-[#1a2332]">
                   <td>
                     <div class="flex items-center gap-2">
-                      <div class="w-7 h-7 rounded bg-red-900/30 flex items-center justify-center text-xs font-bold text-red-400">PF</div>
+                      <div class="w-7 h-7 rounded bg-red-900/30 flex items-center justify-center text-red-400">
+                        <i data-lucide="cake" class="w-3.5 h-3.5"></i>
+                      </div>
                       <div>
                         <p class="text-xs font-medium">Pay de Fresas</p>
                         <p class="text-[9px] text-gray-500">SKU: PAY-FRS-001</p>
@@ -282,15 +388,17 @@
                   <td class="text-center"><span class="cs-badge cs-badge-success">OK</span></td>
                   <td class="text-center">
                     <div class="flex justify-center gap-1">
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="view" title="Ver movimientos"><i data-lucide="eye" class="w-3 h-3"></i></button>
+                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="entrada" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
                     </div>
                   </td>
                 </tr>
-                <tr>
+                <tr data-product="cd" class="cursor-pointer hover:bg-[#1a2332]">
                   <td>
                     <div class="flex items-center gap-2">
-                      <div class="w-7 h-7 rounded bg-orange-900/30 flex items-center justify-center text-xs font-bold text-orange-400">CD</div>
+                      <div class="w-7 h-7 rounded bg-orange-900/30 flex items-center justify-center text-orange-400">
+                        <i data-lucide="cake" class="w-3.5 h-3.5"></i>
+                      </div>
                       <div>
                         <p class="text-xs font-medium">Cupcake Decorado</p>
                         <p class="text-[9px] text-gray-500">SKU: CUP-DEC-001</p>
@@ -306,15 +414,17 @@
                   <td class="text-center"><span class="cs-badge cs-badge-danger">AGOTADO</span></td>
                   <td class="text-center">
                     <div class="flex justify-center gap-1">
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="view" title="Ver movimientos"><i data-lucide="eye" class="w-3 h-3"></i></button>
+                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="entrada" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
                     </div>
                   </td>
                 </tr>
-                <tr>
+                <tr data-product="ca" class="cursor-pointer hover:bg-[#1a2332]">
                   <td>
                     <div class="flex items-center gap-2">
-                      <div class="w-7 h-7 rounded bg-yellow-900/30 flex items-center justify-center text-xs font-bold text-yellow-400">CA</div>
+                      <div class="w-7 h-7 rounded bg-yellow-900/30 flex items-center justify-center text-yellow-400">
+                        <i data-lucide="cake" class="w-3.5 h-3.5"></i>
+                      </div>
                       <div>
                         <p class="text-xs font-medium">Choco Alemán</p>
                         <p class="text-[9px] text-gray-500">SKU: PAS-CHA-001</p>
@@ -330,8 +440,8 @@
                   <td class="text-center"><span class="cs-badge cs-badge-success">OK</span></td>
                   <td class="text-center">
                     <div class="flex justify-center gap-1">
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
-                      <button class="cs-btn cs-btn-ghost cs-btn-sm" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="view" title="Ver movimientos"><i data-lucide="eye" class="w-3 h-3"></i></button>
+                      <button class="cs-btn cs-btn-ghost cs-btn-sm" data-action="entrada" title="Entrada"><i data-lucide="plus" class="w-3 h-3"></i></button>
                     </div>
                   </td>
                 </tr>
@@ -343,73 +453,40 @@
 
     </div>
 
-    <!-- ======================== PANEL LATERAL DERECHO ======================== -->
+    <!-- ======================== PANEL DE VISTA (DERECHO) ======================== -->
     <aside class="w-[360px] bg-[#141d2b] border-l border-[#374151] flex flex-col flex-shrink-0">
 
-      <div class="px-4 py-3 border-b border-[#374151] flex-shrink-0">
-        <h3 class="text-sm font-bold">Entrada Rápida de Stock</h3>
-        <p class="text-[10px] text-[#6B7280]">Registrar nueva entrada de producto</p>
+      <div class="px-4 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold">Vista del Producto</h3>
+          <p class="text-[10px] text-[#6B7280]" id="panelSubtitle">Comportamiento e historial</p>
+        </div>
+        <button id="btnPanelClose" class="cs-btn cs-btn-ghost cs-btn-sm" title="Cerrar">
+          <i data-lucide="x" class="w-3 h-3"></i>
+        </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3 cs-scroll">
-
-        <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151]">
-          <div class="flex items-center gap-2">
-            <div class="w-10 h-10 rounded-lg bg-amber-900/30 flex items-center justify-center text-xs font-bold text-amber-400">P3</div>
-            <div>
-              <p class="text-xs font-bold">Pastel 3 Leches Chocolate</p>
-              <p class="text-[9px] text-[#6B7280]">Stock actual: <strong class="text-orange-400">3 unidades</strong></p>
-            </div>
-          </div>
+      <!-- Estado vacío -->
+      <div id="panelEmpty" class="flex-1 flex flex-col items-center justify-center text-center px-6">
+        <div class="w-14 h-14 rounded-full bg-[#1F2A37] border border-[#374151] flex items-center justify-center mb-3">
+          <i data-lucide="package-search" class="w-6 h-6 text-[#6B7280]"></i>
         </div>
-
-        <div class="space-y-2.5">
-          <div>
-            <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1">Cantidad a ingresar</label>
-            <input type="number" value="10" class="cs-input">
-          </div>
-          <div>
-            <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1">Tipo de movimiento</label>
-            <select class="cs-select text-xs">
-              <option>Compra / Producción</option>
-              <option>Devolución de cliente</option>
-              <option>Transferencia de sucursal</option>
-              <option>Ajuste de inventario</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1">Costo unitario</label>
-            <input type="number" value="280" class="cs-input">
-          </div>
-          <div>
-            <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1">Fecha de caducidad (opcional)</label>
-            <input type="date" class="cs-input text-xs">
-          </div>
-          <div>
-            <label class="block text-[11px] font-medium uppercase tracking-wider text-[#6B7280] mb-1">Nota</label>
-            <textarea rows="2" placeholder="Motivo o detalle..." class="cs-textarea text-xs"></textarea>
-          </div>
-        </div>
-
-        <div class="cs-callout cs-callout-success">
-          <strong class="block text-sm mb-1">Resultado</strong>
-          <div class="flex justify-between text-xs">
-            <span class="text-gray-400">Stock actual</span>
-            <span class="text-orange-400 font-bold">3</span>
-          </div>
-          <div class="flex justify-between text-xs">
-            <span class="text-gray-400">+ Entrada</span>
-            <span class="text-green-400 font-bold">10</span>
-          </div>
-          <div class="flex justify-between text-xs font-bold pt-1 border-t border-green-700/30 mt-1">
-            <span>Nuevo stock</span>
-            <span class="text-white">13</span>
-          </div>
-        </div>
+        <p class="text-[11px] text-[#6B7280]">Selecciona un producto</p>
+        <p class="text-[10px] text-[#6B7280] mt-1 max-w-[220px]">Haz click en cualquier fila o en el ícono <i data-lucide="eye" class="w-3 h-3 inline"></i> para ver el detalle aquí.</p>
       </div>
 
-      <div class="px-4 py-3 border-t border-[#374151] flex-shrink-0">
-        <button class="cs-btn cs-btn-success w-full">Registrar Entrada</button>
+      <!-- Contenido dinámico -->
+      <div id="panelVista" class="hidden flex-1 overflow-y-auto px-4 py-3 space-y-3 cs-scroll"></div>
+
+      <div id="panelFooter" class="hidden px-4 py-3 border-t border-[#374151] flex-shrink-0 grid grid-cols-2 gap-2">
+        <button class="cs-btn cs-btn-ghost cs-btn-sm w-full">
+          <i data-lucide="list" class="w-3 h-3"></i>
+          Movimientos
+        </button>
+        <button class="cs-btn cs-btn-primary cs-btn-sm w-full">
+          <i data-lucide="plus" class="w-3 h-3"></i>
+          Nueva entrada
+        </button>
       </div>
 
     </aside>
@@ -428,6 +505,354 @@
         sidebar.classList.toggle('translate-x-0');
       });
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    // NAVBAR — branch selector (mismo patron que /app/pos/templates/pos-pedidos.html)
+    // ════════════════════════════════════════════════════════════════════
+    const $ = (id) => document.getElementById(id);
+
+    const BRANCH_GRADIENTS = [
+      'linear-gradient(135deg, #7C3AED 0%, #EC4899 100%)',
+      'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+      'linear-gradient(135deg, #F472B6 0%, #C084FC 100%)',
+      'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
+      'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+    ];
+
+    const branchState = {
+      sucursal: '',
+      branches: [
+        { id: 'kafeto',  name: 'Reginas Kafeto',      initials: 'RK', ubication: 'Plaza Kafeto',     active: 1 },
+        { id: 'central', name: 'Reginas Central Gpe', initials: 'RC', ubication: 'Centro Guadalupe', active: 1 },
+        { id: 'norte',   name: 'Reginas Norte',       initials: 'RN', ubication: 'Av. Universidad',  active: 1 },
+        { id: 'sur',     name: 'Reginas Sur',         initials: 'RS', ubication: 'Av. Insurgentes',  active: 1 }
+      ]
+    };
+
+    function renderBranchList() {
+      const host = $('branchList');
+      const items = [
+        { id: '', name: 'Todas las sucursales', initials: 'ALL', ubication: 'Vista consolidada', active: 1 },
+        ...branchState.branches
+      ];
+      host.innerHTML = items.map((b, i) => {
+        const grad = BRANCH_GRADIENTS[i % BRANCH_GRADIENTS.length];
+        const sel  = branchState.sucursal === b.id ? 'selected' : '';
+        return `
+          <div class="branch-card ${sel}" data-id="${b.id}" data-name="${b.name}">
+            <div class="flex items-start gap-3">
+              <div class="branch-avatar" style="background: ${grad};">${b.initials || ''}</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-sm font-bold text-white truncate">${b.name}</p>
+                  <div class="radio-mark"><div class="inner"></div></div>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-1 truncate">${b.ubication || 'Sin direccion'}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleBranchDropdown() {
+      const btn = $('btnBranch');
+      const dd  = $('branchDropdown');
+      const expanded = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', !expanded);
+      dd.style.display = expanded ? 'none' : 'block';
+    }
+
+    function closeBranchDropdown() {
+      $('btnBranch').setAttribute('aria-expanded', 'false');
+      $('branchDropdown').style.display = 'none';
+    }
+
+    let toastTimer = null;
+    function showBranchToast(name) {
+      const toast = $('branchToast');
+      $('branchToastName').textContent = name;
+      toast.classList.remove('hidden', 'toast-fade-out');
+      toast.classList.add('toast-anim');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(hideBranchToast, 3000);
+    }
+    function hideBranchToast() {
+      const toast = $('branchToast');
+      toast.classList.remove('toast-anim');
+      toast.classList.add('toast-fade-out');
+      const handler = () => {
+        toast.classList.add('hidden');
+        toast.classList.remove('toast-fade-out');
+        toast.removeEventListener('animationend', handler);
+      };
+      toast.addEventListener('animationend', handler);
+    }
+
+    function setSucursal(id, name, opts = {}) {
+      branchState.sucursal = id || '';
+      $('btnBranchName').textContent = name || 'Todas las sucursales';
+      renderBranchList();
+      if (panelState.productId) renderPanel();
+      if (!opts.silent) showBranchToast(name || 'Todas las sucursales');
+    }
+
+    $('btnBranch').addEventListener('click', (e) => { e.stopPropagation(); toggleBranchDropdown(); });
+    $('btnBranchClose').addEventListener('click', (e) => { e.stopPropagation(); closeBranchDropdown(); });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#btnBranch, #branchDropdown')) closeBranchDropdown();
+    });
+    $('branchList').addEventListener('click', (e) => {
+      const card = e.target.closest('.branch-card');
+      if (!card) return;
+      const id   = card.getAttribute('data-id');
+      const name = card.getAttribute('data-name');
+      if (card.classList.contains('selected')) { closeBranchDropdown(); return; }
+      setSucursal(id, name);
+      closeBranchDropdown();
+    });
+    $('btnBranchToastClose').addEventListener('click', hideBranchToast);
+
+    // ════════════════════════════════════════════════════════════════════
+    // NAVBAR — user menu
+    // ════════════════════════════════════════════════════════════════════
+    const btnUserMenu = $('btnUserMenu');
+    const userMenuDropdown = $('userMenuDropdown');
+    function toggleUserMenu() {
+      userMenuDropdown.classList.toggle('opacity-0');
+      userMenuDropdown.classList.toggle('scale-95');
+      userMenuDropdown.classList.toggle('invisible');
+      userMenuDropdown.classList.toggle('opacity-100');
+      userMenuDropdown.classList.toggle('scale-100');
+    }
+    btnUserMenu.addEventListener('click', toggleUserMenu);
+    $('btnCloseUserMenu').addEventListener('click', toggleUserMenu);
+    $('btnLogout').addEventListener('click', () => {
+      console.log('Cerrar sesion');
+    });
+
+    // ════════════════════════════════════════════════════════════════════
+    // PANEL DE VISTA — selección de producto + sincronización con sucursal
+    // ════════════════════════════════════════════════════════════════════
+    const productsData = {
+      p3: {
+        name: 'Pastel 3 Leches Chocolate', sku: 'PAS-3LC-001', category: 'Tradicional',
+        iconBg: 'bg-amber-900/30', iconText: 'text-amber-400',
+        min: 5, max: 20, status: 'bajo',
+        stock: { '': 27, kafeto: 3, central: 14, norte: 10, sur: 0 },
+        almacenes: [
+          { name: 'ALM-Central', type: 'info' },
+          { name: 'ALM-Norte', type: 'info' },
+          { name: 'Refrig-01', type: 'purple' }
+        ],
+        movs: [
+          { type: 'in',     label: 'Entrada · Compra',     qty: '+12', when: 'Hace 2 días · Reginas Kafeto' },
+          { type: 'out',    label: 'Salida · Venta',       qty: '-5',  when: 'Hace 1 día · POS-04' },
+          { type: 'tr',     label: 'Traspaso · A Centro',  qty: '-4',  when: 'Hoy · 09:42' },
+          { type: 'adjust', label: 'Ajuste · Conteo físico', qty: '±0', when: 'Hoy · 11:15' }
+        ]
+      },
+      pf: {
+        name: 'Pay de Fresas', sku: 'PAY-FRS-001', category: 'Premium',
+        iconBg: 'bg-red-900/30', iconText: 'text-red-400',
+        min: 5, max: 25, status: 'ok',
+        stock: { '': 44, kafeto: 12, central: 18, norte: 9, sur: 5 },
+        almacenes: [
+          { name: 'ALM-Central', type: 'info' },
+          { name: 'Refrig-01', type: 'purple' }
+        ],
+        movs: [
+          { type: 'in',  label: 'Entrada · Producción', qty: '+20', when: 'Hace 3 días · ALM-Central' },
+          { type: 'out', label: 'Salida · Venta',       qty: '-8',  when: 'Hoy · POS-02' }
+        ]
+      },
+      cd: {
+        name: 'Cupcake Decorado', sku: 'CUP-DEC-001', category: 'Cupcakes',
+        iconBg: 'bg-orange-900/30', iconText: 'text-orange-400',
+        min: 10, max: 50, status: 'agotado',
+        stock: { '': 0, kafeto: 0, central: 0, norte: 0, sur: 0 },
+        almacenes: [{ name: 'ALM-Central', type: 'info' }],
+        movs: [
+          { type: 'out', label: 'Salida · Venta', qty: '-10', when: 'Ayer · POS-01' }
+        ]
+      },
+      ca: {
+        name: 'Choco Alemán', sku: 'PAS-CHA-001', category: 'Premium',
+        iconBg: 'bg-yellow-900/30', iconText: 'text-yellow-400',
+        min: 3, max: 15, status: 'ok',
+        stock: { '': 25, kafeto: 8, central: 7, norte: 6, sur: 4 },
+        almacenes: [
+          { name: 'ALM-Central', type: 'info' },
+          { name: 'Refrig-01', type: 'purple' }
+        ],
+        movs: [
+          { type: 'in', label: 'Entrada · Compra', qty: '+15', when: 'Hace 4 días · ALM-Central' }
+        ]
+      }
+    };
+
+    const STATUS_MAP = {
+      ok:      { color: 'success', icon: 'check-circle-2', label: 'Stock OK',   msg: 'Nivel saludable, dentro del rango óptimo.', stockColor: 'text-green-400' },
+      bajo:    { color: 'warning', icon: 'alert-triangle', label: 'Stock Bajo', msg: 'El nivel actual está por debajo del mínimo recomendado.', stockColor: 'text-orange-400' },
+      agotado: { color: 'danger',  icon: 'x-circle',       label: 'Agotado',    msg: 'No hay existencias disponibles.', stockColor: 'text-red-400' }
+    };
+
+    const MOV_MAP = {
+      in:     { bg: 'bg-green-500/15',  iconColor: 'text-green-400',  icon: 'arrow-down',  qtyColor: 'text-green-400' },
+      out:    { bg: 'bg-red-500/15',    iconColor: 'text-red-400',    icon: 'arrow-up',    qtyColor: 'text-red-400' },
+      tr:     { bg: 'bg-purple-500/15', iconColor: 'text-purple-400', icon: 'repeat',      qtyColor: 'text-purple-400' },
+      adjust: { bg: 'bg-orange-500/15', iconColor: 'text-orange-400', icon: 'settings-2',  qtyColor: 'text-orange-400' }
+    };
+
+    const panelState = { productId: null };
+
+    function renderPanel() {
+      const p = productsData[panelState.productId];
+      if (!p) return;
+
+      const sucId   = branchState.sucursal;
+      const sucName = $('btnBranchName').textContent;
+      const stock   = p.stock[sucId] ?? 0;
+      const status  = STATUS_MAP[p.status];
+
+      const sucursales = [
+        { id: 'kafeto',  name: 'Reginas Kafeto'  },
+        { id: 'central', name: 'Reginas Central' },
+        { id: 'norte',   name: 'Reginas Norte'   },
+        { id: 'sur',     name: 'Reginas Sur'     }
+      ];
+
+      const stockColor = (q) => q === 0 ? 'text-red-400' : (q < p.min ? 'text-orange-400' : 'text-green-400');
+
+      const branchListHtml = sucursales.map(s => {
+        const q = p.stock[s.id] ?? 0;
+        const active = sucId === s.id ? 'branch-row-active' : '';
+        return `
+          <div class="flex items-center justify-between bg-[#1a2332] rounded-md px-2.5 py-1.5 border border-[#374151] ${active}">
+            <div class="flex items-center gap-2">
+              <i data-lucide="store" class="w-3 h-3 ${q === 0 ? 'text-gray-500' : 'text-[#c4b5fd]'}"></i>
+              <span class="text-[11px] ${q === 0 ? 'text-gray-500' : ''}">${s.name}</span>
+            </div>
+            <span class="text-[11px] font-bold ${stockColor(q)}">${q}</span>
+          </div>`;
+      }).join('');
+
+      const almacenesHtml = p.almacenes.map(a => `
+        <span class="cs-badge cs-badge-${a.type}"><i data-lucide="warehouse" class="w-2.5 h-2.5 mr-1 inline"></i>${a.name}</span>
+      `).join('');
+
+      const movsHtml = p.movs.map(m => {
+        const cfg = MOV_MAP[m.type];
+        return `
+          <div class="flex items-start gap-2 bg-[#1a2332] rounded-md px-2.5 py-1.5 border border-[#374151]">
+            <div class="w-5 h-5 rounded ${cfg.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
+              <i data-lucide="${cfg.icon}" class="w-2.5 h-2.5 ${cfg.iconColor}"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <p class="text-[10px] font-medium">${m.label}</p>
+                <span class="text-[10px] font-bold ${cfg.qtyColor}">${m.qty}</span>
+              </div>
+              <p class="text-[9px] text-[#6B7280]">${m.when}</p>
+            </div>
+          </div>`;
+      }).join('');
+
+      $('panelSubtitle').textContent = sucId ? `Existencias en ${sucName}` : 'Vista consolidada (todas las sucursales)';
+
+      $('panelVista').innerHTML = `
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-[#374151]">
+          <div class="flex items-center gap-2">
+            <div class="w-10 h-10 rounded-lg ${p.iconBg} flex items-center justify-center ${p.iconText}">
+              <i data-lucide="cake" class="w-5 h-5"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-bold truncate">${p.name}</p>
+              <p class="text-[9px] text-[#6B7280]">SKU: ${p.sku} · ${p.category}</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 mt-3 pt-2 border-t border-[#374151]">
+            <div class="text-center">
+              <p class="text-[8px] text-[#6B7280] uppercase">Stock</p>
+              <p class="text-sm font-bold ${status.stockColor}">${stock}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-[8px] text-[#6B7280] uppercase">Min</p>
+              <p class="text-sm font-bold text-white">${p.min}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-[8px] text-[#6B7280] uppercase">Max</p>
+              <p class="text-sm font-bold text-white">${p.max}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="cs-callout cs-callout-${status.color}">
+          <div class="flex items-center gap-2">
+            <i data-lucide="${status.icon}" class="w-4 h-4 flex-shrink-0"></i>
+            <div>
+              <strong class="block text-xs">Estado: ${status.label}</strong>
+              <p class="text-[10px] text-gray-400">${status.msg}</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Existencias por sucursal</h4>
+            <span class="text-[9px] text-gray-500">Total: ${p.stock['']}</span>
+          </div>
+          <div class="space-y-1.5">${branchListHtml}</div>
+        </div>
+
+        <div>
+          <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1.5">Almacenes disponibles</h4>
+          <div class="flex flex-wrap gap-1.5">${almacenesHtml}</div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Historial de movimientos</h4>
+            <button class="text-[9px] text-[#c4b5fd] hover:underline">Ver todo</button>
+          </div>
+          <div class="space-y-1.5">${movsHtml}</div>
+        </div>
+      `;
+
+      $('panelEmpty').classList.add('hidden');
+      $('panelVista').classList.remove('hidden');
+      $('panelFooter').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function selectProduct(productId) {
+      panelState.productId = productId;
+      document.querySelectorAll('#tbProductos tr').forEach(tr => tr.classList.remove('row-active'));
+      const row = document.querySelector(`#tbProductos tr[data-product="${productId}"]`);
+      if (row) row.classList.add('row-active');
+      renderPanel();
+    }
+
+    function closePanel() {
+      panelState.productId = null;
+      document.querySelectorAll('#tbProductos tr').forEach(tr => tr.classList.remove('row-active'));
+      $('panelEmpty').classList.remove('hidden');
+      $('panelVista').classList.add('hidden');
+      $('panelFooter').classList.add('hidden');
+      $('panelSubtitle').textContent = 'Comportamiento e historial';
+    }
+
+    document.getElementById('tbProductos').addEventListener('click', (e) => {
+      const tr = e.target.closest('tr[data-product]');
+      if (!tr) return;
+      const action = e.target.closest('[data-action]')?.getAttribute('data-action');
+      if (action === 'entrada') return;
+      selectProduct(tr.getAttribute('data-product'));
+    });
+
+    $('btnPanelClose').addEventListener('click', closePanel);
+
+    renderBranchList();
   </script>
 </body>
 </html>

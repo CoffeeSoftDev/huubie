@@ -44,6 +44,7 @@ class App extends Templates {
                     class: 'flex-1 overflow-y-auto px-4 pb-3 scrollbar-thin'
                 }
             ]
+            
         };
 
         // Panel de ventas .
