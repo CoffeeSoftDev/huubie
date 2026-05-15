@@ -1,15 +1,15 @@
 let api = 'ctrl/ctrl-pos.php';
-let app;
+let app, data;
 
 $(async () => {
-    const data = await useFetch({ url: api, data: { opc: 'init' } });
+    data = await useFetch({ url: api, data: { opc: 'init' } });
 
     app = new App(api, 'root');
     app.render();
 });
 
 class App extends Templates {
-    constructor(link, divModule, data = {}) {
+    constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME    = 'POS';
         this.products        = data.products  || [];
