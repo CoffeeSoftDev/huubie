@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventarios — Merma y Desperdicios</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../../app/ui/css/ui-kit.css">
+  <script src="../../../app/src/plugins/lucide/lucide.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+    .cs-scroll::-webkit-scrollbar { width: 6px; }
+    .cs-scroll::-webkit-scrollbar-track { background: transparent; }
+    .cs-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    #sidebar { scrollbar-width: none; }
+
+    .cs-table { font-size: 10px; }
+    .cs-table th { padding: 6px 8px !important; font-size: 9px !important; text-transform: uppercase; letter-spacing: 0.02em; font-weight: 600; }
+    .cs-table td { padding: 5px 8px !important; font-size: 10px !important; line-height: 1.35; }
+    .cs-input, .cs-select { padding: 5px 10px !important; font-size: 10px !important; min-height: 0 !important; }
+    .cs-input.pl-10 { padding-left: 30px !important; }
+    .cs-textarea { padding: 6px 10px !important; font-size: 10px !important; }
+    .cs-input-group-icon { width: 28px !important; }
+    .cs-input-group-icon .w-4 { width: 0.8rem !important; height: 0.8rem !important; }
+    .cs-btn { padding: 4px 10px !important; font-size: 10px !important; }
+    .cs-btn-sm { padding: 3px 8px !important; font-size: 9px !important; }
+    .cs-badge { padding: 1px 6px !important; font-size: 8px !important; line-height: 1.3; }
+    .cs-tabs .cs-tab { padding: 6px 10px !important; font-size: 10px !important; }
+    h1.text-lg { font-size: 13px !important; }
+    h3.text-sm { font-size: 11px !important; }
+
+    /* Navbar Huubie (mismo patron que entradas/pos-pedidos) */
+    .branch-pill { background: linear-gradient(180deg, #1F2A37 0%, #1a2332 100%); border: 1px solid rgba(124,58,237,0.35); border-radius: 12px; padding: 6px 12px; transition: all .2s ease; }
+    .branch-pill:hover { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+    .branch-status-dot { width: 8px; height: 8px; border-radius: 9999px; background: #22C55E; box-shadow: 0 0 0 3px rgba(34,197,94,0.18); display: inline-block; }
+    .branch-avatar { width: 40px; height: 40px; border-radius: 9999px; background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; letter-spacing: .5px; color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,.35); }
+    .branch-dropdown { background: #111928; border: 1px solid rgba(124,58,237,0.18); border-radius: 16px; box-shadow: 0 24px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02); }
+    .branch-card { background: #1F2A37; border: 1px solid rgba(55,65,81,.55); border-radius: 12px; padding: 12px; transition: all .15s ease; cursor: pointer; }
+    .branch-card:hover { border-color: #7C3AED; background: #1F2937; }
+    .branch-card.selected { background: linear-gradient(135deg, rgba(124,58,237,.18) 0%, rgba(236,72,153,.10) 100%); border-color: #A855F7; box-shadow: 0 0 0 1px rgba(168,85,247,.25); }
+    .radio-mark { width: 18px; height: 18px; border-radius: 9999px; border: 2px solid #4B5563; display: flex; align-items: center; justify-content: center; transition: all .2s ease; }
+    .branch-card.selected .radio-mark { border-color: #A855F7; }
+    .radio-mark .inner { width: 8px; height: 8px; border-radius: 9999px; background: #A855F7; opacity: 0; transition: opacity .2s ease; }
+    .branch-card.selected .radio-mark .inner { opacity: 1; }
+    .toast-card { position: relative; background: #1F2A37; border-radius: 14px; padding: 14px 18px; overflow: hidden; }
+    .toast-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, #7C3AED 0%, #A855F7 100%); border-radius: 14px 0 0 14px; }
+    @keyframes branchSlideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .toast-anim { animation: branchSlideIn .35s ease-out; }
+    @keyframes branchFadeOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(20px); } }
+    .toast-fade-out { animation: branchFadeOut .4s ease-in forwards; }
+    .chev { transition: transform .2s ease; }
+    .branch-pill[aria-expanded="true"] .chev { transform: rotate(180deg); }
+    .btn-ghost { color: #9CA3AF; font-size: 11px; padding: 4px 10px; border-radius: 8px; transition: all .15s ease; }
+    .btn-ghost:hover { color: #fff; background: rgba(255,255,255,.06); }
+    .submenu ul { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out; }
+
+    /* === Modal Nueva Merma — mismo patron que entradas === */
+    .cs-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 90; }
+    .cs-modal { position: fixed; z-index: 100; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 100%; display: flex; flex-direction: column; background: #111928; border: 1px solid rgba(55,65,81,0.6); border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); overflow: hidden; }
+    .cs-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(55,65,81,0.6); background: #141d2b; flex-shrink: 0; }
+    .cs-modal-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .cs-modal-body { padding: 0; flex: 1; overflow: hidden; min-height: 0; }
+    .cs-modal-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; border-top: 1px solid rgba(55,65,81,0.6); background: #141d2b; flex-shrink: 0; }
+    .cs-modal input[type="number"]::-webkit-outer-spin-button,
+    .cs-modal input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .cs-modal input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+    .product-card {
+      background: linear-gradient(180deg, #1a2332 0%, #161e2c 100%);
+      border-radius: 10px;
+      border: 1px solid rgba(55,65,81,.5);
+      transition: all .18s ease;
+      position: relative;
+    }
+    .product-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 8px; bottom: 8px;
+      width: 2px;
+      background: linear-gradient(180deg, #DC2626 0%, #EF4444 100%);
+      border-radius: 0 2px 2px 0;
+      opacity: 0;
+      transition: opacity .18s ease;
+    }
+    .product-card:hover { border-color: rgba(239,68,68,.45); box-shadow: 0 4px 16px -4px rgba(239,68,68,.15); }
+    .product-card:hover::before { opacity: 1; }
+    .product-card .cs-input {
+      background: #0f1825 !important;
+      border-color: rgba(55,65,81,.6) !important;
+      transition: all .15s ease;
+    }
+    .product-card .cs-input:focus {
+      border-color: #EF4444 !important;
+      background: #111928 !important;
+      box-shadow: 0 0 0 2px rgba(239,68,68,.18) !important;
+    }
+
+    #m_buscarProducto { transition: all .2s ease; }
+    #m_buscarProducto:focus { border-color: #EF4444 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.15) !important; }
+
+    #m_resultadosBusqueda {
+      background: #0f1825;
+      border: 1px solid rgba(75,85,99,.5);
+      border-radius: 10px;
+      box-shadow: 0 12px 28px -8px rgba(0,0,0,.5);
+      overflow: hidden;
+    }
+    .search-result-item { transition: background .12s ease; border-bottom: 1px solid rgba(55,65,81,.4); }
+    .search-result-item:last-child { border-bottom: none; }
+    .search-result-item:hover { background: linear-gradient(90deg, rgba(239,68,68,.08) 0%, transparent 100%); }
+
+    .empty-state-pulse { animation: emptyPulse 2.4s ease-in-out infinite; }
+    @keyframes emptyPulse { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.04); opacity: 1; } }
+
+    .lote-header { background: linear-gradient(180deg, rgba(15,24,37,.6) 0%, transparent 100%); }
+
+    .badge-counter {
+      background: linear-gradient(135deg, rgba(239,68,68,.22) 0%, rgba(220,38,38,.18) 100%);
+      color: #fca5a5;
+      border: 1px solid rgba(239,68,68,.4);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+
+    .btn-remove-product {
+      background: rgba(31,41,55,.4);
+      border: 1px solid transparent;
+      transition: all .15s ease;
+    }
+    .btn-remove-product:hover { background: rgba(239,68,68,.18); border-color: rgba(239,68,68,.35); color: #f87171 !important; }
+  </style>
+</head>
+<body class="bg-[#111928] h-screen overflow-hidden flex flex-col">
+
+  <nav class="fixed top-0 left-0 w-full text-white px-4 py-3 h-16 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20" style="background-color: #141d2b; border-bottom-color: rgba(28,100,242,0.3);">
+    <div class="flex items-center space-x-4">
+      <button id="toggleSidebar" class="text-[#9CA3AF] hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+      <span class="navbar-logo text-xl font-bold tracking-wide">hb<span class="dot text-[var(--cs-primary,#1C64F2)]">●</span></span>
+      <div class="hidden md:flex items-center gap-2 ml-3"></div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="relative">
+        <button id="btnBranch" class="branch-pill flex items-center gap-3" aria-expanded="false">
+          <div class="flex flex-col items-start leading-tight">
+            <span class="text-[9px] uppercase tracking-[.14em] text-gray-500 font-semibold">Sucursal</span>
+            <div class="flex items-center gap-2">
+              <span class="branch-status-dot"></span>
+              <span id="btnBranchName" class="text-sm font-semibold text-white">Todas las sucursales</span>
+            </div>
+          </div>
+          <svg class="chev w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div id="branchDropdown" class="branch-dropdown absolute right-0 top-[calc(100%+10px)] w-[360px] z-40" style="display: none;">
+          <div class="px-4 pt-4 pb-3 flex items-start justify-between border-b border-gray-800/60">
+            <div>
+              <p class="text-[10px] uppercase tracking-[.14em] text-purple-400 font-semibold">Cambiar sucursal</p>
+              <p class="text-[12px] text-gray-400 mt-0.5">de Reginas</p>
+            </div>
+            <button id="btnBranchClose" class="btn-ghost flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              Cerrar
+            </button>
+          </div>
+          <div id="branchList" class="p-3 space-y-2 max-h-[420px] overflow-y-auto"></div>
+        </div>
+      </div>
+      <button id="btnUserMenu" class="ml-1 flex items-center justify-center border-l border-gray-700 pl-3">
+        <div class="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-semibold text-[11px] text-white">AU</div>
+      </button>
+    </div>
+  </nav>
+
+  <div class="fixed top-16 right-4 z-50">
+    <div id="userMenuDropdown" class="w-72 rounded-2xl shadow-lg opacity-0 scale-95 invisible transition-all duration-500 ease-out" style="background-color: #111928;">
+      <div class="relative flex items-center justify-center h-20 rounded-t-2xl" style="background-color: #1F2A37;">
+        <button id="btnCloseUserMenu" class="btn btn-sm p-1 absolute top-2 right-3 text-gray-400 hover:text-white focus:outline-none">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+        <div class="absolute -bottom-10">
+          <div class="relative">
+            <div class="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-base font-bold text-white">AU</div>
+            <span class="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2" style="background-color: #22c55e; border-color: #1F2A37;"></span>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col items-center pt-4 pb-2 px-4 space-y-2">
+        <h2 class="text-white font-semibold text-lg mt-3" id="lblUserName">Admin Usuario</h2>
+        <span class="inline-flex text-xs font-semibold px-2 py-1 rounded-full align-items-center" style="background-color: rgba(30,58,138,0.5); color: #bfdbfe;" id="lblUserRol">ADMINISTRADOR</span>
+      </div>
+      <div class="w-full h-px my-2" style="background-color: #1F2937;"></div>
+      <div class="w-full px-5 mt-3 mb-4">
+        <button id="btnLogout" class="w-full flex items-center justify-center gap-2 px-2 py-2 border rounded-xl transition" style="border-color: #ef4444; color: #ef4444;">Cerrar sesion</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="branchToast" class="fixed top-[88px] right-6 z-40 w-[340px] hidden">
+    <div class="toast-card">
+      <div class="flex items-start gap-3">
+        <div class="relative shrink-0">
+          <div class="w-10 h-10 rounded-xl bg-[#7C3AED]/15 flex items-center justify-center border border-[#7C3AED]/25">
+            <svg class="w-5 h-5 text-[#A855F7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-white">Cambiaste a <span id="branchToastName" class="text-[#A855F7]">Sucursal</span></p>
+          <div class="mt-1.5 pt-1.5 border-t border-white/5">
+            <p class="text-[11px] text-gray-400"><span class="text-gray-500">Empresa</span> · <span class="text-gray-300">Reginas</span></p>
+          </div>
+        </div>
+        <button id="btnBranchToastClose" class="text-gray-500 hover:text-white transition shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebar" class="fixed top-0 left-0 mt-16 h-[calc(100vh-4rem)] bg-[#0f172a] w-56 transform -translate-x-full transition-transform duration-500 ease-in-out z-40 overflow-y-auto border-r border-[#374151]">
+    <h5 class="text-white pt-4 font-semibold ps-7 text-sm">Huubie</h5>
+    <ul class="space-y-1 p-4">
+      <li><a href="#" class="block text-xs text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-2 rounded-lg">Resumen</a></li>
+      <li class="submenu">
+        <button class="w-full text-left flex items-center justify-between text-xs font-medium px-3 py-2 rounded-lg text-[#c4b5fd] bg-[rgba(124,58,237,0.12)] hover:text-white transition">
+          <span class="flex items-center gap-2"><i data-lucide="package" class="w-4 h-4"></i>Inventarios</span>
+          <svg class="h-4 w-4 text-[#6B7280] transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <ul class="mt-1 pl-4 space-y-1" style="max-height: 500px;">
+          <li><a href="inventarios-stock.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Stock Actual</a></li>
+          <li><a href="inventarios-movimientos.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Movimientos</a></li>
+          <li><a href="inventarios-entradas.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Entradas</a></li>
+          <li><a href="inventarios-traspasos.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Traspasos</a></li>
+          <li><a href="inventarios-ajustes.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Ajustes</a></li>
+          <li><a href="inventarios-merma.html" class="block w-full text-[11px] text-[#c4b5fd] bg-[rgba(124,58,237,0.12)] border-l-2 border-[#7C3AED] px-3 py-1.5 rounded-lg">Merma</a></li>
+          <li><a href="inventarios-catalogo.html" class="block w-full text-[11px] text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-1.5 rounded-lg">Catálogo</a></li>
+        </ul>
+      </li>
+      <li><a href="inventarios-index-navegacion.html" class="block text-xs text-[#9CA3AF] hover:text-white hover:bg-[rgba(124,58,237,0.08)] transition px-3 py-2 rounded-lg">Hub Inventarios</a></li>
+    </ul>
+  </div>
+
+  <div class="mt-16 h-[calc(100vh-4rem)] flex overflow-hidden">
+
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+        <div>
+          <h1 class="text-lg font-bold">Merma y Desperdicios</h1>
+          <p class="text-[11px] text-[#6B7280]">Control de pérdidas por sucursal</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="cs-btn-group">
+            <button class="cs-btn cs-btn-primary cs-btn-sm active">Hoy</button>
+            <button class="cs-btn cs-btn-ghost cs-btn-sm">Semana</button>
+            <button class="cs-btn cs-btn-ghost cs-btn-sm">Mes</button>
+          </div>
+          <button id="btnNuevaMerma" class="cs-btn cs-btn-danger cs-btn-sm">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            Nueva Merma
+          </button>
+        </div>
+      </div>
+
+      <div class="cs-tabs px-6 flex-shrink-0 border-b border-[#374151]">
+        <a href="inventarios-stock.html" class="cs-tab">Stock Actual</a>
+        <a href="inventarios-movimientos.html" class="cs-tab">Movimientos</a>
+        <a href="inventarios-entradas.html" class="cs-tab">Entradas</a>
+        <a href="inventarios-traspasos.html" class="cs-tab">Traspasos</a>
+        <a href="inventarios-ajustes.html" class="cs-tab">Ajustes</a>
+        <a href="inventarios-merma.html" class="cs-tab active">Merma</a>
+      </div>
+
+      <div class="grid grid-cols-4 gap-2 px-6 py-2 flex-shrink-0">
+        <div class="bg-[#1F2A37] border border-red-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-red-500 uppercase tracking-wider">Merma Hoy</p>
+            <p id="kpiMermaHoy" class="text-lg font-bold text-red-400 leading-tight">$0</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-red-500/15 flex items-center justify-center"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-red-400"></i></div>
+        </div>
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Registros</p>
+            <p id="kpiRegistros" class="text-lg font-bold text-white leading-tight">0</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-red-500/15 flex items-center justify-center"><i data-lucide="trending-up" class="w-3.5 h-3.5 text-red-400"></i></div>
+        </div>
+        <div class="bg-[#1F2A37] border border-orange-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-orange-500 uppercase tracking-wider">Unidades</p>
+            <p id="kpiUnidades" class="text-lg font-bold text-orange-400 leading-tight">0</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-orange-500/15 flex items-center justify-center"><i data-lucide="layers" class="w-3.5 h-3.5 text-orange-400"></i></div>
+        </div>
+        <div class="bg-[#1F2A37] border border-yellow-700/30 rounded-lg px-3 py-2 flex items-center justify-between">
+          <div>
+            <p class="text-[9px] text-yellow-500 uppercase tracking-wider">Motivo Top</p>
+            <p id="kpiMotivo" class="text-sm font-bold text-yellow-400 leading-tight">—</p>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-yellow-500/15 flex items-center justify-center"><i data-lucide="calendar-x" class="w-3.5 h-3.5 text-yellow-400"></i></div>
+        </div>
+      </div>
+
+      <div class="px-6 pb-3 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="relative flex-1 max-w-sm">
+            <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+            <input id="filterBuscar" type="text" placeholder="Buscar folio o producto..." class="cs-input pl-10 text-xs">
+          </div>
+          <select id="filterMotivo" class="cs-select text-xs">
+            <option value="Todos">Todos los motivos</option>
+            <option value="Caducidad">Caducidad</option>
+            <option value="Dañado">Dañado</option>
+            <option value="Error producción">Error producción</option>
+            <option value="Robo/Faltante">Robo/Faltante</option>
+            <option value="Devolución">Devolución</option>
+            <option value="Otro">Otro</option>
+          </select>
+          <select class="cs-select text-xs">
+            <option>Todas las sucursales</option>
+            <option>Reginas Kafeto</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex-1 px-6 pb-4 overflow-hidden min-h-0">
+        <div class="h-full bg-[#1F2A37] rounded-lg p-3 overflow-auto cs-scroll border border-[#374151]">
+          <div class="overflow-x-auto rounded-lg border border-gray-700">
+            <table id="tbMermas" class="cs-table">
+              <thead>
+                <tr>
+                  <th class="text-left w-20">Folio</th>
+                  <th class="text-left w-32">Motivo</th>
+                  <th class="text-center w-20">Productos</th>
+                  <th class="text-center w-20">Total Uds</th>
+                  <th class="text-right w-28">Costo Pérdida</th>
+                  <th class="text-left w-24">Registrado</th>
+                  <th class="text-left w-40">Fecha</th>
+                  <th class="text-center w-16">Foto</th>
+                  <th class="text-center w-20">Op.</th>
+                </tr>
+              </thead>
+              <tbody id="tbMermasBody">
+                <!-- Fila 1: Caducidad -->
+                <tr class="hover:bg-[#111928]/60 cursor-pointer border-b border-gray-800/50">
+                  <td class="font-mono text-red-400 font-semibold">MRM-0512</td>
+                  <td><span class="cs-badge cs-badge-warning">Caducidad</span></td>
+                  <td class="text-center text-gray-300">3</td>
+                  <td class="text-center text-gray-300">12</td>
+                  <td class="text-right font-semibold text-red-400">-$840.00</td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style="background: linear-gradient(135deg,#7C3AED,#EC4899);">AU</div>
+                      <span class="text-gray-300">Andrea U.</span>
+                    </div>
+                  </td>
+                  <td class="text-gray-400">12/05/2026 14:32</td>
+                  <td class="text-center"><i data-lucide="image" class="w-3.5 h-3.5 text-emerald-400 inline-block"></i></td>
+                  <td class="text-center">
+                    <div class="flex items-center justify-center gap-1">
+                      <button class="w-6 h-6 rounded hover:bg-blue-500/15 text-blue-400" title="Ver"><i data-lucide="eye" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-amber-500/15 text-amber-400" title="Editar"><i data-lucide="pencil" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-red-500/15 text-red-400" title="Eliminar"><i data-lucide="trash-2" class="w-3 h-3 inline-block"></i></button>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Fila 2: Dañado -->
+                <tr class="hover:bg-[#111928]/60 cursor-pointer border-b border-gray-800/50">
+                  <td class="font-mono text-red-400 font-semibold">MRM-0511</td>
+                  <td><span class="cs-badge cs-badge-danger">Dañado</span></td>
+                  <td class="text-center text-gray-300">2</td>
+                  <td class="text-center text-gray-300">8</td>
+                  <td class="text-right font-semibold text-red-400">-$1,250.00</td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style="background: linear-gradient(135deg,#6366F1,#8B5CF6);">RC</div>
+                      <span class="text-gray-300">Ricardo C.</span>
+                    </div>
+                  </td>
+                  <td class="text-gray-400">11/05/2026 09:15</td>
+                  <td class="text-center"><i data-lucide="x" class="w-3.5 h-3.5 text-gray-600 inline-block"></i></td>
+                  <td class="text-center">
+                    <div class="flex items-center justify-center gap-1">
+                      <button class="w-6 h-6 rounded hover:bg-blue-500/15 text-blue-400" title="Ver"><i data-lucide="eye" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-amber-500/15 text-amber-400" title="Editar"><i data-lucide="pencil" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-red-500/15 text-red-400" title="Eliminar"><i data-lucide="trash-2" class="w-3 h-3 inline-block"></i></button>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Fila 3: Error producción -->
+                <tr class="hover:bg-[#111928]/60 cursor-pointer border-b border-gray-800/50">
+                  <td class="font-mono text-red-400 font-semibold">MRM-0510</td>
+                  <td><span class="cs-badge cs-badge-info">Error producción</span></td>
+                  <td class="text-center text-gray-300">5</td>
+                  <td class="text-center text-gray-300">24</td>
+                  <td class="text-right font-semibold text-red-400">-$2,180.00</td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style="background: linear-gradient(135deg,#F472B6,#C084FC);">LM</div>
+                      <span class="text-gray-300">Laura M.</span>
+                    </div>
+                  </td>
+                  <td class="text-gray-400">10/05/2026 16:48</td>
+                  <td class="text-center"><i data-lucide="image" class="w-3.5 h-3.5 text-emerald-400 inline-block"></i></td>
+                  <td class="text-center">
+                    <div class="flex items-center justify-center gap-1">
+                      <button class="w-6 h-6 rounded hover:bg-blue-500/15 text-blue-400" title="Ver"><i data-lucide="eye" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-amber-500/15 text-amber-400" title="Editar"><i data-lucide="pencil" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-red-500/15 text-red-400" title="Eliminar"><i data-lucide="trash-2" class="w-3 h-3 inline-block"></i></button>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Fila 4: Robo/Faltante -->
+                <tr class="hover:bg-[#111928]/60 cursor-pointer border-b border-gray-800/50">
+                  <td class="font-mono text-red-400 font-semibold">MRM-0509</td>
+                  <td><span class="cs-badge cs-badge-purple">Robo/Faltante</span></td>
+                  <td class="text-center text-gray-300">1</td>
+                  <td class="text-center text-gray-300">3</td>
+                  <td class="text-right font-semibold text-red-400">-$420.00</td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style="background: linear-gradient(135deg,#7C3AED,#EC4899);">AU</div>
+                      <span class="text-gray-300">Andrea U.</span>
+                    </div>
+                  </td>
+                  <td class="text-gray-400">09/05/2026 11:20</td>
+                  <td class="text-center"><i data-lucide="x" class="w-3.5 h-3.5 text-gray-600 inline-block"></i></td>
+                  <td class="text-center">
+                    <div class="flex items-center justify-center gap-1">
+                      <button class="w-6 h-6 rounded hover:bg-blue-500/15 text-blue-400" title="Ver"><i data-lucide="eye" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-amber-500/15 text-amber-400" title="Editar"><i data-lucide="pencil" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-red-500/15 text-red-400" title="Eliminar"><i data-lucide="trash-2" class="w-3 h-3 inline-block"></i></button>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Fila 5: Devolución -->
+                <tr class="hover:bg-[#111928]/60 cursor-pointer border-b border-gray-800/50">
+                  <td class="font-mono text-red-400 font-semibold">MRM-0508</td>
+                  <td><span class="cs-badge cs-badge-success">Devolución</span></td>
+                  <td class="text-center text-gray-300">4</td>
+                  <td class="text-center text-gray-300">6</td>
+                  <td class="text-right font-semibold text-red-400">-$560.00</td>
+                  <td>
+                    <div class="flex items-center gap-1.5">
+                      <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style="background: linear-gradient(135deg,#6366F1,#8B5CF6);">RC</div>
+                      <span class="text-gray-300">Ricardo C.</span>
+                    </div>
+                  </td>
+                  <td class="text-gray-400">08/05/2026 17:55</td>
+                  <td class="text-center"><i data-lucide="image" class="w-3.5 h-3.5 text-emerald-400 inline-block"></i></td>
+                  <td class="text-center">
+                    <div class="flex items-center justify-center gap-1">
+                      <button class="w-6 h-6 rounded hover:bg-blue-500/15 text-blue-400" title="Ver"><i data-lucide="eye" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-amber-500/15 text-amber-400" title="Editar"><i data-lucide="pencil" class="w-3 h-3 inline-block"></i></button>
+                      <button class="w-6 h-6 rounded hover:bg-red-500/15 text-red-400" title="Eliminar"><i data-lucide="trash-2" class="w-3 h-3 inline-block"></i></button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <aside id="mermaPanel" class="w-[340px] bg-[#141d2b] border-l border-[#374151] flex flex-col flex-shrink-0">
+      <div class="px-4 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0">
+        <div>
+          <h3 id="panelFolio" class="text-sm font-bold text-red-400">—</h3>
+          <p id="panelFecha" class="text-[10px] text-[#6B7280]">Selecciona un registro</p>
+        </div>
+        <span id="panelEstado" class="cs-badge cs-badge-danger">—</span>
+      </div>
+      <div id="panelBody" class="flex-1 overflow-y-auto px-4 py-3 space-y-3 cs-scroll">
+        <div class="flex flex-col items-center justify-center py-12 text-center">
+          <div class="w-14 h-14 rounded-2xl bg-red-500/8 border border-red-500/20 flex items-center justify-center mb-3">
+            <i data-lucide="eye" class="w-7 h-7 text-red-400/60"></i>
+          </div>
+          <p class="text-xs font-medium text-gray-300">Selecciona un registro</p>
+          <p class="text-[10px] text-gray-500 mt-1">Haz clic en una fila para ver detalle</p>
+        </div>
+      </div>
+      <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">
+        <button id="btnPanelImprimir" class="cs-btn cs-btn-outline flex-1 cs-btn-sm" disabled>Imprimir</button>
+        <button id="btnPanelReversar" class="cs-btn cs-btn-danger flex-1 cs-btn-sm" disabled>Reversar</button>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Modal Nueva Merma -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="modalNuevaMerma" class="hidden">
+    <div class="cs-modal-backdrop" data-modal-close></div>
+    <div class="cs-modal" style="max-width: 960px; max-height: 90vh;">
+      <div class="cs-modal-header">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/20">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <h3 class="cs-modal-title">Registrar Merma</h3>
+            <p class="text-[11px] text-gray-500">Reporta productos dañados, vencidos o perdidos</p>
+          </div>
+        </div>
+        <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close>
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="cs-modal-body" style="display: flex; flex-direction: column;">
+        <!-- Configuración -->
+        <div class="px-5 pt-3 pb-2 border-b border-gray-800/70 bg-[#0f1825]/40">
+          <div class="grid grid-cols-4 gap-2 items-end">
+            <div>
+              <label class="block text-[10px] text-gray-500 mb-1">Motivo</label>
+              <select id="m_selMotivo" class="cs-select text-xs w-full">
+                <option value="Caducidad">Caducidad / Vencimiento</option>
+                <option value="Dañado">Producto dañado</option>
+                <option value="Error producción">Error de producción</option>
+                <option value="Robo/Faltante">Robo / Faltante</option>
+                <option value="Devolución">Devolución de cliente</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] text-gray-500 mb-1">Sucursal</label>
+              <select id="m_selSucursal" class="cs-select text-xs w-full">
+                <option>Reginas Kafeto</option>
+                <option>Reginas Central Gpe</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] text-gray-500 mb-1">Fecha</label>
+              <input id="m_inpFecha" type="date" value="2026-05-15" class="cs-input text-xs w-full">
+            </div>
+            <div>
+              <label class="block text-[10px] text-gray-500 mb-1">Observaciones</label>
+              <input id="m_inpNota" type="text" placeholder="Detalle adicional..." class="cs-input text-xs w-full">
+            </div>
+          </div>
+        </div>
+
+        <!-- Contenido 2 columnas -->
+        <div class="flex flex-1 min-h-0">
+          <!-- Izquierda: búsqueda + evidencia foto + totales -->
+          <div class="w-[280px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-3 gap-3 overflow-hidden">
+            <div>
+              <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300 mb-2">Buscar productos</p>
+              <div class="relative">
+                <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+                <input id="m_buscarProducto" type="text" placeholder="Nombre o SKU..." class="cs-input pl-10 text-xs w-full" autocomplete="off">
+              </div>
+              <div id="m_resultadosBusqueda" class="mt-1.5 hidden"></div>
+            </div>
+
+            <!-- Evidencia fotográfica -->
+            <div>
+              <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300 mb-2">Evidencia fotográfica</p>
+              <input type="file" id="m_photoInput" accept="image/*" capture="environment" class="hidden">
+              <div id="m_photoDropzone" class="border-2 border-dashed border-[#374151] rounded-lg p-3 text-center hover:border-red-500/50 cursor-pointer transition-colors">
+                <i data-lucide="camera" class="w-5 h-5 text-gray-600 mx-auto mb-1"></i>
+                <p class="text-[10px] text-[#6B7280]">Tomar foto o subir</p>
+                <p class="text-[9px] text-[#4B5563] mt-0.5">JPG/PNG · máx. 5 MB</p>
+              </div>
+              <div id="m_photoPreview" class="hidden relative rounded-lg overflow-hidden border border-[#374151] bg-[#0f172a]">
+                <img id="m_photoImg" alt="Evidencia" class="w-full h-24 object-cover">
+                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 flex items-center justify-between">
+                  <span id="m_photoName" class="text-[9px] text-white truncate max-w-[160px]"></span>
+                  <div class="flex items-center gap-1">
+                    <button type="button" id="m_photoReplace" class="text-white/80 hover:text-white px-1 py-0.5 rounded bg-white/10 hover:bg-white/20" title="Cambiar">
+                      <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                    </button>
+                    <button type="button" id="m_photoRemove" class="text-white/80 hover:text-white px-1 py-0.5 rounded bg-red-500/40 hover:bg-red-500/60" title="Eliminar">
+                      <i data-lucide="trash-2" class="w-3 h-3"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p id="m_photoError" class="hidden text-[10px] text-red-400 mt-1"></p>
+            </div>
+
+            <div class="border-t border-gray-800/70 pt-3 mt-auto">
+              <p class="text-[9px] uppercase text-gray-500 tracking-wider mb-2">Resumen del folio</p>
+              <div class="space-y-1.5">
+                <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="package" class="w-3 h-3"></i>Productos</span><span class="text-white font-bold" id="m_qtyItems">0</span></div>
+                <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="layers" class="w-3 h-3"></i>Unidades</span><span class="text-white font-bold" id="m_qtyUnits">0</span></div>
+                <div class="flex justify-between items-center text-xs pt-2 mt-1 border-t border-gray-800/50"><span class="text-gray-300 font-medium">Pérdida total</span><span class="text-red-400 font-bold text-sm" id="m_qtyCosto">-$0.00</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derecha: lista productos -->
+          <div class="flex-1 flex flex-col min-w-0 min-h-0">
+            <div class="lote-header px-4 py-2.5 border-b border-gray-800/70 flex items-center justify-between flex-shrink-0">
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-md bg-red-500/15 border border-red-500/25 flex items-center justify-center"><i data-lucide="boxes" class="w-3.5 h-3.5 text-red-400"></i></div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300">Productos en merma</p>
+                <span id="m_cntProductos" class="cs-badge badge-counter font-bold">0</span>
+              </div>
+              <button id="m_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-400 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-500/10"><i data-lucide="trash-2" class="w-3 h-3"></i>Limpiar</button>
+            </div>
+            <div id="m_listaProductos" class="flex-1 overflow-y-auto px-3 py-3 space-y-2 cs-scroll"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cs-modal-footer">
+        <div class="text-[10px] text-gray-500 flex items-center gap-1.5"><i data-lucide="info" class="w-3 h-3"></i><span>El stock se descontará automáticamente</span></div>
+        <div class="flex gap-2">
+          <button class="cs-btn cs-btn-outline cs-btn-sm" data-modal-close>Cancelar</button>
+          <button id="m_btnRegistrarMerma" class="cs-btn cs-btn-danger cs-btn-sm flex items-center gap-1.5">
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+            <span>Registrar Merma</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

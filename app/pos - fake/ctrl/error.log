@@ -1,0 +1,14 @@
+[ 2026-05-15 09:24:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  UPDATE fayxzvov_reginas.order SET  WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WHERE id = '1042'' at line 1
+
+
+[ 2026-05-15 09:24:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  UPDATE fayxzvov_reginas.order SET  WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WHERE id = '1043'' at line 1
+
+
