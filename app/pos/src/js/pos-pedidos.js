@@ -130,15 +130,9 @@ const SAMPLE_FILTERS = [
     },
     {
         opc:   'input-calendar',
-        id:    'fDesde',
-        lbl:   'Fecha desde:',
-        class: 'col-12 col-md-3 col-lg-2'
-    },
-    {
-        opc:   'input-calendar',
-        id:    'fHasta',
-        lbl:   'Fecha hasta:',
-        class: 'col-12 col-md-3 col-lg-2'
+        id:    'calendarPOSPedidos',
+        lbl:   'Rango de fecha:',
+        class: 'col-12 col-md-4 col-lg-3'
     }
 ];
 
@@ -190,17 +184,17 @@ class App extends Templates {
         this.renderFooter(SAMPLE_VIEW_FOOTER);
         this.renderInfoCards(SAMPLE_KPIS);
         this.renderDetail(SAMPLE_SALE);
-        this.lsVentas(SAMPLE_VENTAS_TABLE);
     }
 
     // ── Data layer ────────────────────────────────────────────────────────
 
     getFilters() {
+        const range = getDataRangePicker(`calendar${this.PROJECT_NAME}`) || {};
         return {
             subsidiaries_id: $('#subsidiaries_id').val() || '',
             cash_shift_id:   $('#fTurno').val()          || '',
-            fi:              $('#fDesde').val()           || '',
-            ff:              $('#fHasta').val()           || '',
+            fi:              range.fi || '',
+            ff:              range.ff || '',
             status:          ''
         };
     }
@@ -218,7 +212,7 @@ class App extends Templates {
             this.populateSelect('subsidiaries_id', sucursales);
         }
 
-        await this.lsVentas();
+        this.lsVentas();
         await this.lsKpis();
     }
 
@@ -231,36 +225,30 @@ class App extends Templates {
         });
     }
 
-    async lsVentas(seed) {
-        let data = seed;
-
-        if (!data) {
-            const filters  = this.getFilters();
-            const response = await useFetch({
-                url:  api,
-                data: { opc: 'lsVentas', ...filters }
-            });
-
-            data = (response && response.row && response.row.length)
-                ? response
-                : SAMPLE_VENTAS_TABLE;
-        }
-
-        this.createCoffeeTable3({
-            parent:       'tableWrap',
-            id:           `tb${this.PROJECT_NAME}`,
-            theme:        'dark',
-            data:         data,
-            hover:        true,
-            striped:      true,
-            scrollable:   true,
-            emptyMessage: 'No se encontraron ventas con los filtros aplicados',
-            emptyIcon:    'icon-doc-text',
-            f_size:       12
+    lsVentas() {
+        this.createTable({
+            parent:      'tableWrap',
+            idFilterBar: 'filterBar',
+            data:        { opc: 'lsVentas' },
+            conf:        { datatable: true, pag: 15 },
+            coffeesoft:  true,
+            attr: {
+                id:           `tb${this.PROJECT_NAME}`,
+                theme:        'dark',
+                title:        '',
+                subtitle:     '',
+                extends:      true,
+                emptyMessage: 'No se encontraron ventas con los filtros aplicados',
+                emptyIcon:    'icon-doc-text',
+                f_size:       12
+            },
+            methods: {
+                send: (data) => {
+                    const total = data && data.row ? data.row.length : 0;
+                    this.updateFooterInfo(`Mostrando ${total} venta${total !== 1 ? 's' : ''}`);
+                }
+            }
         });
-
-        const total = data.row ? data.row.length : 0;
-        this.updateFooterInfo(`Mostrando ${total} venta${total !== 1 ? 's' : ''}`);
     }
 
     async lsKpis() {
@@ -392,6 +380,23 @@ class App extends Templates {
             parent: 'filterBar',
             data:   fields
         });
+
+        dataPicker({
+            parent: `calendar${this.PROJECT_NAME}`,
+            rangepicker: {
+                startDate:     moment().startOf('month'),
+                endDate:       moment().endOf('month'),
+                showDropdowns: true,
+                ranges: {
+                    'Hoy':           [moment(), moment()],
+                    'Ayer':          [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Semana actual': [moment().startOf('week'),  moment().endOf('week')],
+                    'Mes actual':    [moment().startOf('month'), moment().endOf('month')],
+                    'Mes anterior':  [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                }
+            },
+            onSelect: () => this.onChangeFilters()
+        });
     }
 
     renderHeader(data) {
@@ -416,7 +421,7 @@ class App extends Templates {
     // ── Event handlers ────────────────────────────────────────────────────
 
     async onChangeFilters() {
-        await this.lsVentas();
+        this.lsVentas();
         await this.lsKpis();
     }
 
@@ -428,7 +433,7 @@ class App extends Templates {
 
         if (response && response.status === 200) {
             alert({ icon: 'success', text: response.message });
-            await this.lsVentas();
+            this.lsVentas();
         }
     }
 
@@ -445,7 +450,7 @@ class App extends Templates {
                     if (response.status === 200) {
                         alert({ icon: 'success', text: response.message });
                         this.renderDetail(null);
-                        await this.lsVentas();
+                        this.lsVentas();
                         await this.lsKpis();
                     }
                 }

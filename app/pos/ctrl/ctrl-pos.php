@@ -2,10 +2,6 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
-
 require_once '../mdl/mdl-pos-pedidos.php';
 
 class ctrl extends mdl {
@@ -18,11 +14,11 @@ class ctrl extends mdl {
     }
 
     function lsVentas() {
-        $subsidiaries_id = $_POST['subsidiaries_id'];
-        $cash_shift_id   = $_POST['cash_shift_id'];
-        $fi              = $_POST['fi'];
-        $ff              = $_POST['ff'];
-        $status          = $_POST['status'];
+        $subsidiaries_id = $_POST['subsidiaries_id'] ?? 4;
+        $cash_shift_id   = $_POST['cash_shift_id'] ?? '';
+        $fi              = $_POST['fi'] ?? '2026-05-01';
+        $ff              = $_POST['ff'] ?? '2026-05-15';
+        $status          = $_POST['status'] ?? 1;
 
         $ls = $this->listVentas([
             'subsidiaries_id' => $subsidiaries_id,
