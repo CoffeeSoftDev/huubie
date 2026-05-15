@@ -110,7 +110,7 @@ class App extends Templates {
         $(document).off('click.branch').on('click.branch', '.branch-card', function () {
             const id = $(this).data('id');
             fn_ajax({ opc: 'switchBranch', id }, '/app/access/ctrl/ctrl-access.php').then(res => {
-                if (res.status === 200) window.location.href = '/app/pedidos/';
+                if (res.status === 200) window.location.href = '/app/ventas/';
             });
         });
 

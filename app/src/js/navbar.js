@@ -463,7 +463,8 @@ class Navbar {
     }
 }
 
-const HIDE_BRANCH_PATHS  = ['/app/perfil/', '/app/admin/', '/app/ventas/'];
+const HIDE_BRANCH_PATHS  = ['/app/perfil/', '/app/admin/', '/app/ventas/', '/app/subsidiaries/'];
+const HIDE_NAV_PATHS     = ['/app/subsidiaries/'];
 const BRANCH_ALLOW_LEVEL = [1, 5];
 
 $(async () => {
@@ -500,4 +501,10 @@ $(async () => {
         branches:      branchInfo?.branches      || [],
         currentBranch: branchInfo?.current       || null,
     });
+
+    if (HIDE_NAV_PATHS.some(p => location.pathname.startsWith(p))) {
+        $('#toggleSidebar').hide();
+        $('#menu-navbar a[href="/app/menu/"]').hide();
+        $('#menu-sidebar').hide();
+    }
 });

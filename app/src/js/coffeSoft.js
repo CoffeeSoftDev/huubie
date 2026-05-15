@@ -2893,6 +2893,8 @@ class Templates extends Components {
         $(`#${opts.parent}`).simple_json_tab({ data: opts.json });
     }
 
+   
+
 
 }
 

@@ -379,7 +379,7 @@
         <!-- ============================================================ -->
         <!-- PANEL DERECHO: Detalle de venta -->
         <!-- ============================================================ -->
-        <aside class="w-[420px] flex-shrink-0 bg-[var(--cs-bg-header)] border-l border-[var(--cs-border)] flex flex-col overflow-hidden">
+        <aside class="w-[380px] flex-shrink-0 bg-[var(--cs-bg-header)] border-l border-[var(--cs-border)] flex flex-col overflow-hidden">
 
             <!-- Estado vacio -->
             <div id="detalleVacio" class="flex-1 flex flex-col items-center justify-center text-center px-6">
@@ -390,27 +390,87 @@
                 <p class="text-[10px] text-[var(--cs-text-muted)] mt-1 max-w-[220px]">Haz click en cualquier fila de la tabla para ver el detalle completo aqui</p>
             </div>
 
-            <!-- Detalle -->
+            <!-- Detalle (diseño tipo ticket vertical) -->
             <div id="detalleContenido" class="hidden flex-1 flex flex-col overflow-hidden">
 
-                <!-- Header -->
-                <div class="px-4 py-3 border-b border-[var(--cs-border)] bg-[var(--cs-bg-dashboard)] flex-shrink-0">
-                    <div class="flex items-center justify-between mb-1">
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-sm font-bold text-white" id="dFolio">Venta #0000</h3>
+                <!-- Header: Folio + Badge + Close -->
+                <div class="px-5 py-4 border-b border-[var(--cs-border)] flex-shrink-0">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <h3 class="text-base font-bold text-white" id="dFolio">Venta V-0000</h3>
                             <span id="dEstatus"></span>
                         </div>
                         <button onclick="cerrarDetalle()" class="text-[var(--cs-text-secondary)] hover:text-white transition-colors" title="Cerrar">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
-                    <p class="text-[10px] text-[var(--cs-text-muted)]" id="dFechaSucursal">—</p>
+                    <p class="text-[10px] text-[var(--cs-text-muted)] mt-0.5" id="dFechaSucursal">—</p>
                 </div>
 
-                <!-- Panel operativo -->
-                <div class="px-4 py-3 border-b border-[var(--cs-border)] flex-shrink-0 bg-[var(--cs-bg-dashboard)]">
-                    <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold mb-2">Acciones operativas</p>
-                    <div class="grid grid-cols-3 gap-1.5">
+                <!-- Scroll body -->
+                <div class="flex-1 overflow-y-auto cs-scroll px-5 py-4 space-y-4">
+
+                    <!-- INFORMACION: Cliente + Fecha -->
+                    <div>
+                        <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold mb-2">Informacion</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-[var(--cs-bg-input)] rounded-lg p-3 border border-[var(--cs-border)]">
+                                <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-semibold mb-1">Cliente</p>
+                                <div id="dCliente"></div>
+                            </div>
+                            <div class="bg-[var(--cs-bg-input)] rounded-lg p-3 border border-[var(--cs-border)]">
+                                <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-semibold mb-1">Fecha y hora</p>
+                                <p id="dFechaHora" class="text-[12px] text-white font-bold">—</p>
+                                <p id="dTurno" class="text-[10px] text-[var(--cs-text-muted)]">—</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ITEMS / PRODUCTOS -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold">Items - Productos</p>
+                            <span id="dItemsCount" class="text-[9px] text-[var(--cs-text-muted)] uppercase font-bold">0 items</span>
+                        </div>
+                        <div id="dItems"></div>
+                    </div>
+
+                    <!-- NOTA DE LA VENTA -->
+                    <div>
+                        <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold mb-2">Nota de la venta</p>
+                        <div class="bg-[var(--cs-bg-input)] rounded-lg px-3 py-2.5 border border-[var(--cs-border)]">
+                            <p id="dNota" class="text-[11px] text-[var(--cs-text-secondary)] leading-snug">—</p>
+                        </div>
+                    </div>
+
+                    <!-- METODOS DE PAGO + TOTALES -->
+                    <div class="border-t border-[var(--cs-border)] pt-4">
+                        <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold mb-2">Metodos de pago</p>
+                        <div id="dPagos" class="space-y-1.5 mb-3"></div>
+
+                        <div class="flex items-center justify-between text-[11px] mb-1">
+                            <span class="text-[var(--cs-text-secondary)]">Subtotal</span>
+                            <span id="dSubtotal" class="text-white font-medium">$0.00</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] mb-3">
+                            <span class="text-[var(--cs-text-secondary)]">Descuento</span>
+                            <span id="dDescuento" class="text-[var(--cs-warning)] font-medium">-$0.00</span>
+                        </div>
+
+                        <div class="border-t border-dashed border-[var(--cs-border)] pt-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] text-[var(--cs-text-muted)] uppercase font-bold">Total</span>
+                                <span id="dTotal" class="text-xl text-[var(--cs-success)] font-extrabold">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Footer: Botones de accion -->
+                <div class="px-5 py-3 border-t border-[var(--cs-border)] flex-shrink-0">
+                    <p id="avisoOp" class="hidden mb-2 text-[10px]"></p>
+                    <div class="grid grid-cols-3 gap-2">
                         <button id="btnReabrir" class="op-btn reabrir" onclick="reabrirCuenta()" title="Reabrir cuenta">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M4 9a9 9 0 0114.85-3.36M20 20v-5h-5M20 15a9 9 0 01-14.85 3.36"/></svg>
                             Reabrir
@@ -424,68 +484,6 @@
                             Cancelar
                         </button>
                     </div>
-                    <p id="avisoOp" class="hidden mt-2 text-[10px]"></p>
-                </div>
-
-                <!-- Scroll body -->
-                <div class="flex-1 overflow-y-auto cs-scroll px-4 py-3 space-y-3">
-
-                    <!-- Info base: cliente + fecha -->
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-[var(--cs-bg-input)] rounded-lg p-2.5 border border-[var(--cs-border)]">
-                            <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold mb-1">Cliente</p>
-                            <div id="dCliente"></div>
-                        </div>
-                        <div class="bg-[var(--cs-bg-input)] rounded-lg p-2.5 border border-[var(--cs-border)]">
-                            <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold mb-1">Fecha y hora</p>
-                            <p id="dFechaHora" class="text-[11px] text-white font-medium">—</p>
-                            <p id="dTurno" class="text-[9px] text-[var(--cs-text-muted)]">—</p>
-                        </div>
-                    </div>
-
-                    <!-- Items -->
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold">Items / Productos</p>
-                            <span id="dItemsCount" class="text-[9px] text-[var(--cs-text-muted)]">0 items</span>
-                        </div>
-                        <div id="dItems" class="space-y-1.5"></div>
-                    </div>
-
-                    <!-- Info adicional: izquierda (pagos+nota) / derecha (totales) -->
-                    <div class="grid grid-cols-[1fr_auto] gap-3">
-
-                        <!-- IZQUIERDA: pagos + nota -->
-                        <div class="space-y-2 min-w-0">
-                            <div class="bg-[var(--cs-bg-input)] rounded-lg p-2.5 border border-[var(--cs-border)]">
-                                <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold mb-1.5">Metodos de pago</p>
-                                <div id="dPagos" class="space-y-1"></div>
-                            </div>
-                            <div class="bg-[var(--cs-bg-input)] rounded-lg p-2.5 border border-[var(--cs-border)]">
-                                <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold mb-1">Nota de la venta</p>
-                                <p id="dNota" class="text-[10px] text-[var(--cs-text-secondary)] leading-snug">—</p>
-                            </div>
-                        </div>
-
-                        <!-- DERECHA: totales -->
-                        <div class="bg-[var(--cs-bg-input)] rounded-lg p-3 border border-[var(--cs-border)] w-[160px] flex flex-col justify-between">
-                            <div class="space-y-1.5">
-                                <div>
-                                    <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold">Subtotal</p>
-                                    <p id="dSubtotal" class="text-[11px] text-white font-semibold">$0.00</p>
-                                </div>
-                                <div>
-                                    <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold">Descuento</p>
-                                    <p id="dDescuento" class="text-[11px] text-[var(--cs-warning)] font-semibold">-$0.00</p>
-                                </div>
-                            </div>
-                            <div class="pt-2 mt-2 border-t border-[var(--cs-border)]">
-                                <p class="text-[9px] text-[var(--cs-text-muted)] uppercase tracking-wider font-bold">Total</p>
-                                <p id="dTotal" class="text-base text-[var(--cs-success)] font-extrabold">$0.00</p>
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
             </div>
         </aside>
@@ -908,45 +906,55 @@
 
             // Info base
             $('dCliente').innerHTML = v.cliente
-                ? `<p class="text-[11px] text-white font-semibold leading-tight">${esc(v.cliente.name)}</p>
-                   ${v.cliente.phone ? `<p class="text-[9px] text-[var(--cs-text-secondary)]">${esc(v.cliente.phone)}</p>` : ''}
-                   ${v.cliente.email ? `<p class="text-[9px] text-[var(--cs-text-muted)] truncate">${esc(v.cliente.email)}</p>` : ''}`
+                ? `<p class="text-[12px] text-white font-bold leading-tight">${esc(v.cliente.name)}</p>
+                   ${v.cliente.phone ? `<p class="text-[10px] text-[var(--cs-text-secondary)]">${esc(v.cliente.phone)}</p>` : ''}
+                   ${v.cliente.email ? `<p class="text-[10px] text-[var(--cs-text-muted)] truncate">${esc(v.cliente.email)}</p>` : ''}`
                 : '<p class="text-[11px] text-[var(--cs-text-muted)] italic">N/A</p><p class="text-[9px] text-[var(--cs-text-muted)]">Sin cliente asociado</p>';
 
-            $('dFechaHora').textContent = fmtFecha(v.fecha);
-            $('dTurno').textContent     = `Turno: ${turnoLabel(v.turno)}`;
+            const d = new Date(v.fecha);
+            const dd = String(d.getDate()).padStart(2,'0');
+            const mm = String(d.getMonth()+1).padStart(2,'0');
+            const yy = d.getFullYear();
+            const hh = String(d.getHours()).padStart(2,'0');
+            const mi = String(d.getMinutes()).padStart(2,'0');
+            $('dFechaHora').textContent = `${dd}/${mm}/${yy}`;
+            $('dTurno').textContent     = `${hh}:${mi} · Turno: ${turnoLabel(v.turno)}`;
 
-            // Items
+            // Items (estilo ticket: contenedor con borde, filas internas divididas)
             $('dItemsCount').textContent = `${v.items.length} item${v.items.length === 1 ? '' : 's'}`;
-            $('dItems').innerHTML = v.items.map(it => {
+            $('dItems').innerHTML = `<div class="rounded-lg border border-[var(--cs-border)] overflow-hidden">${v.items.map(it => {
                 const bruto = it.price * it.qty;
                 const neto  = bruto * (1 - (it.discount || 0) / 100);
                 const hasDisc = (it.discount || 0) > 0;
+                const bgClass = hasDisc ? 'bg-[rgba(180,160,60,0.18)]' : '';
                 return `
-                    <div class="bg-[var(--cs-bg-input)] rounded-lg p-2 border border-[var(--cs-border)] ${hasDisc ? 'border-l-2 border-l-[var(--cs-warning)]' : ''}">
-                        <div class="flex items-center justify-between gap-2">
+                    <div class="px-4 py-3 border-b border-[var(--cs-border)] last:border-b-0 ${bgClass}">
+                        <div class="flex items-start justify-between gap-3">
                             <div class="flex-1 min-w-0">
-                                <p class="text-[11px] font-medium text-white truncate">${esc(it.name)}</p>
-                                <div class="flex items-center gap-1.5 mt-0.5">
-                                    <span class="text-[9px] text-[var(--cs-text-muted)]">${it.qty} x ${fmt(it.price)}</span>
-                                    ${hasDisc ? `<span class="mini-chip" style="background:rgba(251,191,36,0.15);color:var(--cs-warning);border:1px solid rgba(251,191,36,0.35)">-${it.discount}%</span>` : ''}
+                                <p class="text-[13px] font-semibold text-white">${esc(it.name)}</p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-[11px] text-[var(--cs-text-muted)]">${it.qty} × ${fmt(it.price)}</span>
+                                    ${hasDisc ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border border-[var(--cs-warning)] text-[var(--cs-warning)] bg-[rgba(251,191,36,0.1)]">-${it.discount}%</span>` : ''}
                                 </div>
                             </div>
-                            <div class="text-right flex-shrink-0">
-                                ${hasDisc ? `<p class="text-[9px] text-[var(--cs-text-muted)] line-through">${fmt(bruto)}</p>` : ''}
-                                <p class="text-[11px] font-bold text-white">${fmt(neto)}</p>
+                            <div class="text-right flex-shrink-0 pt-0.5">
+                                ${hasDisc ? `<p class="text-[10px] text-[var(--cs-text-muted)] line-through">${fmt(bruto)}</p>` : ''}
+                                <p class="text-[14px] font-bold text-white">${fmt(neto)}</p>
                             </div>
                         </div>
                     </div>
                 `;
-            }).join('');
+            }).join('')}</div>`;
 
-            // Pagos
+            // Pagos (clave en badge + nombre + monto alineado derecha)
             $('dPagos').innerHTML = (v.pagos || []).length > 0
                 ? v.pagos.map(p => `
-                    <div class="flex items-center justify-between text-[10px]">
-                        <span class="text-[var(--cs-text-secondary)]"><strong class="text-white">${esc(p.clave)}</strong> ${esc(p.name)}</span>
-                        <span class="text-white font-bold">${fmt(p.amount)}</span>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border border-[var(--cs-border)] text-[var(--cs-text-secondary)] bg-[var(--cs-bg-input)]">${esc(p.clave)}</span>
+                            <span class="text-[11px] text-[var(--cs-text-secondary)]">${esc(p.name)}</span>
+                        </div>
+                        <span class="text-[11px] text-white font-semibold">${fmt(p.amount)}</span>
                     </div>
                 `).join('')
                 : '<p class="text-[10px] text-[var(--cs-text-muted)] italic">Sin pagos registrados</p>';

@@ -42,6 +42,35 @@ debe llevar la siguiente nomenclatura
 - Los nombres de las funciones deben:
   - Estar en inglés.
   - Usar notación `camelCase`.
+- **NO usar prefijo `_`** (guion bajo) en métodos ni propiedades de instancia de clases JS. Aunque sea convención común de JS para "uso interno", el framework CoffeeSoft no la aplica. Todos los identificadores van con nombre normal (`this.uid`, `this.parent`, `buildCards()`, `renderHeader()`), igual que en `Templates`, `Cards`, `Navbar`, `App`.
+
+  ✅ **CORRECTO:**
+  ```js
+  class Ventas extends Templates {
+      constructor(link, divModule) {
+          super(link, divModule);
+          this.PROJECT_NAME = 'Ventas';
+      }
+      render(data) {
+          const cards = this.buildCards(data);
+          new ModuleCard('#mainContainer', { cards }).init();
+      }
+      buildCards(data) { ... }
+  }
+  ```
+
+  ❌ **INCORRECTO:**
+  ```js
+  class Ventas extends Templates {
+      render(data) {
+          const cards = this._buildCards(data);
+          new ModuleCard('#mainContainer', { cards }).init();
+      }
+      _buildCards(data) { ... }
+  }
+  ```
+
+  > **Aplica a:** métodos públicos, helpers internos y propiedades de instancia. Para señalar "no es API documentada", usar comentario inline corto o agrupar bajo separador `// -- Public API --`, pero el nombre va sin `_`.
 
 
 ## La clase debe implementar los siguientes métodos:

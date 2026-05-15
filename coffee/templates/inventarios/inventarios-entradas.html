@@ -311,10 +311,6 @@
           <button id="btnNuevaEntrada" class="cs-btn cs-btn-primary cs-btn-sm">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva Entrada
           </button>
-          <span class="text-gray-600 text-xs">|</span>
-          <button id="btnDemoP1" class="cs-btn cs-btn-outline cs-btn-sm" title="Layout Compacto Mejorado">P1</button>
-          <button id="btnDemoP2" class="cs-btn cs-btn-outline cs-btn-sm" title="Wizard de Pasos">P2</button>
-          <button id="btnDemoP3" class="cs-btn cs-btn-outline cs-btn-sm" title="Layout Tipo POS">P3</button>
         </div>
       </div>
 
@@ -359,10 +355,6 @@
 
       <div class="px-6 pb-3 flex-shrink-0">
         <div class="flex items-center gap-3">
-          <div class="relative w-1/4">
-            <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
-            <input id="searchInput" type="text" placeholder="Buscar..." class="cs-input pl-10 text-xs w-full">
-          </div>
           <select id="filterOrigen" class="cs-select text-xs w-1/4">
             <option value="Todos">Todos los orígenes</option>
             <option value="Producción">Producción</option>
@@ -955,9 +947,6 @@
     });
 
     document.getElementById('btnNuevaEntrada').addEventListener('click', () => abrirModal('p1'));
-    document.getElementById('btnDemoP1').addEventListener('click', () => abrirModal('p1'));
-    document.getElementById('btnDemoP2').addEventListener('click', () => abrirModal('p2'));
-    document.getElementById('btnDemoP3').addEventListener('click', () => abrirModal('p3'));
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -1095,8 +1084,8 @@
             <td class="text-center"><span class="cs-badge cs-badge-success">${e.estado}</span></td>
             <td class="text-center">
               <div class="inline-flex items-center gap-1">
-                <button class="btn-ver-entrada w-7 h-7 inline-flex items-center justify-center rounded-md bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition" data-folio="${e.folio}" title="Ver entrada"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
-                <button class="btn-editar-entrada w-7 h-7 inline-flex items-center justify-center rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition" data-folio="${e.folio}" title="Editar entrada"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                <button class="btn-ver-entrada w-7 h-7 inline-flex items-center justify-center rounded-md text-purple-300 hover:text-purple-100 transition" data-folio="${e.folio}" title="Ver entrada"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
+                <button class="btn-editar-entrada w-7 h-7 inline-flex items-center justify-center rounded-md text-amber-300 hover:text-amber-100 transition" data-folio="${e.folio}" title="Editar entrada"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
               </div>
             </td>
           </tr>`;
@@ -1163,19 +1152,15 @@
       if (tr) renderPanel(tr.dataset.folio);
     });
 
-    const searchInput = document.getElementById('searchInput');
     const filterOrigen = document.getElementById('filterOrigen');
     function applyFilters() {
-      const q = searchInput.value.trim().toLowerCase();
       const o = filterOrigen.value;
       let visibleCount = 0, totalCosto = 0, origenCount = {};
       document.querySelectorAll('#tbEntradasBody tr').forEach(tr => {
-        const text = tr.textContent.toLowerCase();
         const rowOrigen = tr.getAttribute('data-origen') || '';
         const rowCosto = parseFloat(tr.getAttribute('data-costo')) || 0;
-        const matchesSearch = !q || text.includes(q);
         const matchesOrigen = o === 'Todos' || rowOrigen === o;
-        if (matchesSearch && matchesOrigen) {
+        if (matchesOrigen) {
           tr.style.display = ''; visibleCount++; totalCosto += rowCosto;
           origenCount[rowOrigen] = (origenCount[rowOrigen] || 0) + 1;
         } else { tr.style.display = 'none'; }
@@ -1186,7 +1171,6 @@
       const principalOrigen = Object.keys(origenCount).reduce((a, b) => origenCount[a] > origenCount[b] ? a : b, Object.keys(origenCount)[0] || '-');
       document.getElementById('kpiPrincipal').textContent = principalOrigen;
     }
-    if (searchInput) searchInput.addEventListener('input', applyFilters);
     if (filterOrigen) filterOrigen.addEventListener('change', applyFilters);
 
     renderTabla();

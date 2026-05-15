@@ -1,52 +1,76 @@
-// Instanciar la clase y generar las tarjetas
-$(async () => {
-    const data = await useFetch({ url: "/app/access/ctrl/ctrl-access.php", data: { opc: 'company' } });
+let api = '/app/access/ctrl/ctrl-access.php';
+let ventas;
 
-    let tarjetas = [];
-    // Crear las tarjetas dinamicamente
-    data['routes'].forEach(route => {
-        if (data['level'] != '5') {
-            tarjetas.push({
-                titulo: route['name'],
+$(async () => {
+    const data = await useFetch({ url: api, data: { opc: 'company' } });
+    ventas = new Ventas(api, 'mainContainer');
+    ventas.init(data);
+});
+
+// --- Ventas ---
+class Ventas extends Templates {
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'Ventas';
+    }
+
+    init(data) {
+        this.render(data);
+    }
+
+    render(data) {
+        const cards = this.buildCards(data);
+        const hour  = new Date().getHours();
+        const greet = hour < 12 ? 'Buen dia' : hour < 19 ? 'Buena tarde' : 'Buena noche';
+
+        new ModuleCard('#mainContainer', {
+            header: {
+                title:    `¡${greet}, ${data['user'] || 'Usuario'}! 👋`,
+                subtitle: 'Nos da gusto verte de vuelta. ¿Por donde quieres empezar hoy?',
+            },
+            cards: cards,
+        }).init();
+    }
+
+    buildCards(data) {
+        const cards = [];
+
+        data['routes'].forEach(route => {
+            const title = data['level'] != '5' ? route['name'] : route['nickname'];
+            cards.push({
+                titulo:      title,
                 descripcion: route['description'],
-                imagen: "/app/" + route['image'],
-                enlace: "/app/" + route['route'],
-                padding: route['padding']
+                imagen:      '/app/' + route['image'],
+                enlace:      '/app/' + route['route'],
+                padding:     route['padding'],
             });
-        } else {
-            tarjetas.push({
-                titulo: route['nickname'],
-                descripcion: route['description'],
-                imagen: "/app/" + route['image'],
-                enlace: "/app/" + route['route'],
-                padding: route['padding']
+        });
+
+        cards.push({
+            titulo:      'POS',
+            descripcion: 'Punto de venta para registrar pedidos.',
+            imagen:      '',
+            enlace:      '/app/pos/',
+            padding:     '',
+        });
+
+        if (data['level'] == '1') {
+            cards.push({
+                titulo:      'Reportes',
+                descripcion: 'Genera reportes detallados de ventas y turnos.',
+                imagen:      '/app/src/img/reportes.svg',
+                enlace:      '/app/pedidos-reportes/',
+                padding:     '',
+            });
+            cards.push({
+                titulo:      'Configuracion',
+                descripcion: 'Agrega usuarios y sucursales.',
+                imagen:      '/app/src/img/configuracion.svg',
+                enlace:      '/app/admin/',
+                padding:     '',
             });
         }
-    });
 
-    if (data['level'] == '1') {
-        tarjetas.push({
-            titulo: "Reportes",
-            descripcion: "Genera reportes detallados de ventas y turnos.",
-            imagen: "/app/src/img/reportes.svg",
-            enlace: "/app/pedidos-reportes/",
-            padding: ""
-        });
-        // tarjetas.push({
-        //     titulo: "Inventario",
-        //     descripcion: "Administra tu inventario de productos.",
-        //     imagen: "/app/src/img/inventario.svg",
-        //     enlace: "/app/inventario/",
-        //     padding: ""
-        // });
-        tarjetas.push({
-            titulo: "Configuración",
-            descripcion: "Agrega usuarios y sucursales.",
-            imagen: "/app/src/img/configuracion.svg",
-            enlace: "/app/admin/",
-            padding: ""
-        });
+        return cards;
     }
-    let card = new Cards("#grid-card", tarjetas);
-    card.render();
-});
+}
