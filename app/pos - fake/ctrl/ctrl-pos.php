@@ -2,7 +2,7 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
-require_once '../mdl/mdl-pos.php';
+require_once '../mdl/mdl-pos-pedidos.php';
 
 class ctrl extends mdl {
 

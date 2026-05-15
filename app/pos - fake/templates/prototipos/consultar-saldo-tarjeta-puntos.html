@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cobrar venta - POS-2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2rem; padding: 1.5rem; }
+
+        .input-modal {
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #d1d5db;
+            width: 100%;
+            transition: border-color .15s;
+        }
+        .input-modal:focus { outline: none; border-color: #7c3aed; }
+
+        .money-field {
+            position: relative;
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 10px 14px 10px 26px;
+            transition: border-color .15s;
+        }
+        .money-field:hover { border-color: #4b5563; }
+        .money-field:focus-within { border-color: #7c3aed; }
+        .money-field .currency-prefix {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 600;
+            pointer-events: none;
+        }
+        .money-field input {
+            width: 100%;
+            background: transparent;
+            border: 0;
+            outline: 0;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .pay-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .pay-table thead th {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: #6b7280;
+            background: #141d2b;
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid #374151;
+        }
+        .pay-table thead th:nth-child(3),
+        .pay-table thead th:nth-child(4) { text-align: right; }
+        .pay-table tbody td {
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #d1d5db;
+            border-bottom: 1px solid rgba(55,65,81,.4);
+            transition: background .12s;
+        }
+        .pay-table tbody td:nth-child(3),
+        .pay-table tbody td:nth-child(4) {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            color: #9ca3af;
+        }
+        .pay-table tbody tr:hover td { background: rgba(124,58,237,.05); }
+        .pay-table tbody tr.is-active td {
+            background: rgba(124,58,237,.12);
+            color: #fff;
+            border-bottom-color: rgba(124,58,237,.25);
+        }
+        .pay-table tbody tr.is-active td:nth-child(3),
+        .pay-table tbody tr.is-active td:nth-child(4) { color: #c4b5fd; }
+        .pay-table tbody tr.is-active td:first-child {
+            position: relative;
+            font-weight: 700;
+        }
+        .pay-table tbody tr.is-active td:first-child::before {
+            content: "";
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: #7c3aed;
+            border-radius: 0 2px 2px 0;
+        }
+
+        .pay-key-pill {
+            display: inline-block;
+            min-width: 42px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(28,100,242,.15);
+            color: #76a9fa;
+            border: 1px solid rgba(28,100,242,.3);
+        }
+        .pay-table tbody tr.is-active .pay-key-pill {
+            background: rgba(124,58,237,.22);
+            color: #c4b5fd;
+            border-color: rgba(124,58,237,.4);
+        }
+
+        .kbd {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            height: 18px;
+            padding: 0 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 1;
+            background: rgba(255,255,255,.08);
+            color: #d1d5db;
+            border: 1px solid rgba(255,255,255,.12);
+            font-family: 'Inter', monospace;
+        }
+        .btn-primary .kbd {
+            background: rgba(255,255,255,.18);
+            color: #fff;
+            border-color: rgba(255,255,255,.25);
+        }
+
+        .btn-primary {
+            background: #1c64f2;
+            color: #fff;
+        }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-ghost {
+            background: transparent;
+            color: #d1d5db;
+            border: 1px solid #4b5563;
+        }
+        .btn-ghost:hover { border-color: #6b7280; color: #fff; background: rgba(255,255,255,.03); }
+
+        .saldo-card {
+            background: linear-gradient(135deg, rgba(124,58,237,.18) 0%, rgba(28,100,242,.10) 100%);
+            border: 1px solid rgba(124,58,237,.35);
+            border-radius: 12px;
+            padding: 12px 32px;
+        }
+
+        .discount-card {
+            background: linear-gradient(135deg, rgba(234,2,52,.12) 0%, rgba(234,2,52,.05) 100%);
+            border: 1px solid rgba(234,2,52,.25);
+            border-radius: 12px;
+            padding: 12px 32px;
+        }
+
+        .total-card {
+            background: linear-gradient(135deg, rgba(63,193,137,.15) 0%, rgba(63,193,137,.05) 100%);
+            border: 1px solid rgba(63,193,137,.3);
+            border-radius: 12px;
+            padding: 12px 32px;
+        }
+
+        .tooltip-wrap { position: relative; }
+        .tooltip-wrap .tooltip-bubble {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 240px;
+            background: #0f172a;
+            border: 1px solid #374151;
+            color: #d1d5db;
+            font-size: 11px;
+            line-height: 1.4;
+            padding: 8px 10px;
+            border-radius: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-4px);
+            transition: all .18s;
+            z-index: 30;
+            box-shadow: 0 10px 25px rgba(0,0,0,.4);
+        }
+        .tooltip-wrap:hover .tooltip-bubble {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+
+        body[data-theme="light"] { background: #f3f4f6; color: #111928; }
+        body[data-theme="light"] .bg-\[\#1F2A37\] { background: #ffffff !important; }
+        body[data-theme="light"] .bg-\[\#141d2b\] { background: #f9fafb !important; }
+        body[data-theme="light"] .bg-\[\#1a2332\] { background: #f3f4f6 !important; }
+        body[data-theme="light"] .border-gray-700 { border-color: #e5e7eb !important; }
+        body[data-theme="light"] .text-white { color: #111928 !important; }
+        body[data-theme="light"] .text-gray-300 { color: #374151 !important; }
+        body[data-theme="light"] .text-gray-400 { color: #4b5563 !important; }
+        body[data-theme="light"] .text-gray-500 { color: #6b7280 !important; }
+        body[data-theme="light"] .input-modal { background: #f9fafb !important; border-color: #e5e7eb !important; color: #111928 !important; }
+        body[data-theme="light"] .money-field { background: #f9fafb !important; border-color: #e5e7eb !important; }
+        body[data-theme="light"] .money-field input { color: #111928 !important; }
+        body[data-theme="light"] .pay-table thead th { background: #f9fafb !important; color: #6b7280 !important; border-bottom-color: #e5e7eb !important; }
+        body[data-theme="light"] .pay-table tbody td { color: #374151 !important; border-bottom-color: #f3f4f6 !important; }
+        body[data-theme="light"] .pay-table tbody td:nth-child(3),
+        body[data-theme="light"] .pay-table tbody td:nth-child(4) { color: #6b7280 !important; }
+    </style>
+</head>
+<body>
+
+    <!-- ======= VARIACION 1: Cobrar venta (sin descuento) ======= -->
+    <div class="w-full max-w-[760px] bg-[#1F2A37] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden mb-8">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-[#141d2b]">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">Cobrar venta</h3>
+                    <p class="text-[11px] text-gray-500 mt-0.5">Folio venta: <span class="text-gray-300 font-medium">#1043</span></p>
+                </div>
+            </div>
+            <button class="text-gray-500 hover:text-white transition-colors" onclick="window.close()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="px-6 py-5 space-y-5">
+            <div class="grid grid-cols-1 gap-3">
+                <div>
+                    <label class="text-[11px] uppercase tracking-wider text-gray-500 font-semibold block mb-1.5">Total en M.N.</label>
+                    <div class="money-field">
+                        <span class="currency-prefix">$</span>
+                        <input type="text" value="847.50" readonly>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-gray-700 overflow-hidden bg-[#141d2b]/40">
+                <div class="max-h-[260px] overflow-y-auto scrollbar-thin">
+                    <table class="pay-table">
+                        <thead>
+                            <tr>
+                                <th style="width:90px">Clave</th>
+                                <th>Descripcion</th>
+                                <th style="width:120px">Importe</th>
+                                <th style="width:140px">Importe total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="is-active pay-row" data-key="EF">
+                                <td><span class="pay-key-pill">EF</span></td>
+                                <td>EFECTIVO</td>
+                                <td><input type="text" value="500.00" class="input-modal w-24 text-right tabular-nums pay-importe" data-row="EF"></td>
+                                <td><input type="text" value="500.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total" data-row="EF"></td>
+                            </tr>
+                            <tr class="pay-row" data-key="VISA">
+                                <td><span class="pay-key-pill">VISA</span></td>
+                                <td>VISA</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe" data-row="VISA"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total" data-row="VISA"></td>
+                            </tr>
+                            <tr class="pay-row" data-key="MC">
+                                <td><span class="pay-key-pill">MC</span></td>
+                                <td>MASTERCARD</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe" data-row="MC"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total" data-row="MC"></td>
+                            </tr>
+                            <tr class="pay-row" data-key="AMEX">
+                                <td><span class="pay-key-pill">AMEX</span></td>
+                                <td>AMERICAN EXPRESS</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe" data-row="AMEX"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total" data-row="AMEX"></td>
+                            </tr>
+                            <tr class="pay-row" data-key="CR">
+                                <td><span class="pay-key-pill">CR</span></td>
+                                <td>CREDITO</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe" data-row="CR"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total" data-row="CR"></td>
+                            </tr>
+                            <tr class="pay-row" data-key="DLL">
+                                <td><span class="pay-key-pill">DLL</span></td>
+                                <td>DOLARES</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe" data-row="DLL"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total" data-row="DLL"></td>
+                            </tr>
+                            <tr class="pay-row" data-key="VAL">
+                                <td><span class="pay-key-pill">VAL</span></td>
+                                <td>VALES</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe" data-row="VAL"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total" data-row="VAL"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-700 bg-[#141d2b]">
+            <div class="saldo-card flex items-center gap-4">
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-purple-200/70 font-semibold">Saldo</p>
+                    <p class="text-lg font-extrabold text-white tabular-nums leading-tight">$847.50</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="btn-ghost px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition" onclick="window.close()">
+                    Cancelar
+                    <span class="kbd">Esc</span>
+                </button>
+                <button class="btn-primary px-5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 active:scale-95 transition-all">
+                    Aceptar
+                    <span class="kbd">F2</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Badge -->
+    <div class="fixed bottom-4 right-4 bg-[#1F2A37] border border-gray-700 rounded-lg px-4 py-2 text-xs text-gray-500">
+        POS-2 — Cobrar venta
+    </div>
+
+    <!-- ======= VARIACION 2: Cobrar venta (con descuento) ======= -->
+    <div class="w-full max-w-[760px] bg-[#1F2A37] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-[#141d2b]">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">Cobrar venta</h3>
+                    <p class="text-[11px] text-gray-500 mt-0.5">Folio venta: <span class="text-gray-300 font-medium">#1044</span></p>
+                </div>
+            </div>
+            <button class="text-gray-500 hover:text-white transition-colors" onclick="window.close()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="px-6 py-5 space-y-5">
+            <!-- Resumen monetario con descuento -->
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="text-[11px] uppercase tracking-wider text-gray-500 font-semibold block mb-1.5">Subtotal</label>
+                    <div class="money-field">
+                        <span class="currency-prefix">$</span>
+                        <input type="text" value="1,000.00" readonly>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[11px] uppercase tracking-wider text-gray-500 font-semibold block mb-1.5">Descuento 15%</label>
+                    <div class="money-field">
+                        <span class="currency-prefix">$</span>
+                        <input type="text" value="150.00" readonly>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[11px] uppercase tracking-wider text-gray-500 font-semibold block mb-1.5">Total en M.N.</label>
+                    <div class="money-field">
+                        <span class="currency-prefix">$</span>
+                        <input type="text" value="850.00" readonly>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-gray-700 overflow-hidden bg-[#141d2b]/40">
+                <div class="max-h-[260px] overflow-y-auto scrollbar-thin">
+                    <table class="pay-table">
+                        <thead>
+                            <tr>
+                                <th style="width:90px">Clave</th>
+                                <th>Descripcion</th>
+                                <th style="width:120px">Importe</th>
+                                <th style="width:140px">Importe total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="is-active pay-row2" data-key="EF">
+                                <td><span class="pay-key-pill">EF</span></td>
+                                <td>EFECTIVO</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe2" data-row="EF"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total2" data-row="EF"></td>
+                            </tr>
+                            <tr class="pay-row2" data-key="VISA">
+                                <td><span class="pay-key-pill">VISA</span></td>
+                                <td>VISA</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe2" data-row="VISA"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total2" data-row="VISA"></td>
+                            </tr>
+                            <tr class="pay-row2" data-key="MC">
+                                <td><span class="pay-key-pill">MC</span></td>
+                                <td>MASTERCARD</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe2" data-row="MC"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total2" data-row="MC"></td>
+                            </tr>
+                            <tr class="pay-row2" data-key="AMEX">
+                                <td><span class="pay-key-pill">AMEX</span></td>
+                                <td>AMERICAN EXPRESS</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe2" data-row="AMEX"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total2" data-row="AMEX"></td>
+                            </tr>
+                            <tr class="pay-row2" data-key="CR">
+                                <td><span class="pay-key-pill">CR</span></td>
+                                <td>CREDITO</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe2" data-row="CR"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total2" data-row="CR"></td>
+                            </tr>
+                            <tr class="pay-row2" data-key="DLL">
+                                <td><span class="pay-key-pill">DLL</span></td>
+                                <td>DOLARES</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe2" data-row="DLL"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total2" data-row="DLL"></td>
+                            </tr>
+                            <tr class="pay-row2" data-key="VAL">
+                                <td><span class="pay-key-pill">VAL</span></td>
+                                <td>VALES</td>
+                                <td><input type="text" value="0.00" class="input-modal w-24 text-right tabular-nums pay-importe2" data-row="VAL"></td>
+                                <td><input type="text" value="0.00" readonly class="input-modal w-28 text-right tabular-nums pay-importe-total2" data-row="VAL"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-700 bg-[#141d2b]">
+            <div class="flex items-center gap-4">
+                <div class="discount-card flex items-center gap-4">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-red-300/70 font-semibold">Descuento</p>
+                        <p class="text-lg font-extrabold text-red-400 tabular-nums leading-tight">$150.00</p>
+                    </div>
+                </div>
+                <div class="total-card flex items-center gap-4">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-green-300/70 font-semibold">Saldo</p>
+                        <p class="text-lg font-extrabold text-green-400 tabular-nums leading-tight">$850.00</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="btn-ghost px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition" onclick="window.close()">
+                    Cancelar
+                    <span class="kbd">Esc</span>
+                </button>
+                <button class="btn-primary px-5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 active:scale-95 transition-all">
+                    Aceptar
+                    <span class="kbd">F2</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= Scripts ======= -->
+    <script>
+        (function() {
+            // Helpers
+            function fmt(n) {
+                const v = parseFloat(String(n).replace(/[^0-9.]/g, '')) || 0;
+                return v.toFixed(2);
+            }
+
+            // ----- Variacion 1 (sin descuento) -----
+            const TOTAL_VENTA = 847.50;
+            const saldoEl = document.querySelector('.saldo-card p.text-lg');
+            const importeInputs = document.querySelectorAll('.pay-importe');
+            const rows = document.querySelectorAll('.pay-row');
+
+            function recalc() {
+                let pagado = 0;
+                importeInputs.forEach(inp => { pagado += parseFloat(inp.value) || 0; });
+                const saldo = TOTAL_VENTA - pagado;
+                saldoEl.textContent = '$' + fmt(saldo);
+
+                if (saldo <= 0) {
+                    saldoEl.classList.remove('text-white', 'text-yellow-400', 'text-red-400');
+                    saldoEl.classList.add('text-green-400');
+                } else if (saldo < TOTAL_VENTA) {
+                    saldoEl.classList.remove('text-white', 'text-green-400', 'text-red-400');
+                    saldoEl.classList.add('text-yellow-400');
+                } else {
+                    saldoEl.classList.remove('text-green-400', 'text-yellow-400', 'text-red-400');
+                    saldoEl.classList.add('text-white');
+                }
+            }
+
+            rows.forEach(row => {
+                row.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'INPUT') return;
+                    rows.forEach(r => r.classList.remove('is-active'));
+                    this.classList.add('is-active');
+                    const inp = this.querySelector('.pay-importe');
+                    if (inp) inp.focus();
+                });
+            });
+
+            importeInputs.forEach(inp => {
+                inp.addEventListener('input', function() {
+                    let v = this.value.replace(/[^0-9.]/g, '');
+                    const parts = v.split('.');
+                    if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+                    if (parts[1] && parts[1].length > 2) v = parts[0] + '.' + parts[1].slice(0, 2);
+                    this.value = v;
+                });
+
+                inp.addEventListener('blur', function() {
+                    const rowKey = this.dataset.row;
+                    const val = fmt(this.value);
+                    this.value = val;
+                    const totalInp = document.querySelector('.pay-importe-total[data-row="' + rowKey + '"]');
+                    if (totalInp) totalInp.value = val;
+                    recalc();
+                });
+
+                inp.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.blur();
+                        const idx = Array.from(importeInputs).indexOf(this);
+                        if (idx < importeInputs.length - 1) {
+                            const nextRow = rows[idx + 1];
+                            rows.forEach(r => r.classList.remove('is-active'));
+                            nextRow.classList.add('is-active');
+                            importeInputs[idx + 1].focus();
+                        }
+                    }
+                });
+            });
+
+            recalc();
+
+            // ----- Variacion 2 (con descuento) -----
+            const TOTAL_VENTA_2 = 850.00;
+            const saldoEl2 = document.querySelector('.total-card p.text-lg');
+            const importeInputs2 = document.querySelectorAll('.pay-importe2');
+            const rows2 = document.querySelectorAll('.pay-row2');
+
+            function recalc2() {
+                let pagado = 0;
+                importeInputs2.forEach(inp => { pagado += parseFloat(inp.value) || 0; });
+                const saldo = TOTAL_VENTA_2 - pagado;
+                saldoEl2.textContent = '$' + fmt(saldo);
+
+                if (saldo <= 0) {
+                    saldoEl2.classList.remove('text-white', 'text-yellow-400', 'text-red-400');
+                    saldoEl2.classList.add('text-green-400');
+                } else if (saldo < TOTAL_VENTA_2) {
+                    saldoEl2.classList.remove('text-white', 'text-green-400', 'text-red-400');
+                    saldoEl2.classList.add('text-yellow-400');
+                } else {
+                    saldoEl2.classList.remove('text-green-400', 'text-yellow-400', 'text-red-400');
+                    saldoEl2.classList.add('text-green-400');
+                }
+            }
+
+            rows2.forEach(row => {
+                row.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'INPUT') return;
+                    rows2.forEach(r => r.classList.remove('is-active'));
+                    this.classList.add('is-active');
+                    const inp = this.querySelector('.pay-importe2');
+                    if (inp) inp.focus();
+                });
+            });
+
+            importeInputs2.forEach(inp => {
+                inp.addEventListener('input', function() {
+                    let v = this.value.replace(/[^0-9.]/g, '');
+                    const parts = v.split('.');
+                    if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+                    if (parts[1] && parts[1].length > 2) v = parts[0] + '.' + parts[1].slice(0, 2);
+                    this.value = v;
+                });
+
+                inp.addEventListener('blur', function() {
+                    const rowKey = this.dataset.row;
+                    const val = fmt(this.value);
+                    this.value = val;
+                    const totalInp = document.querySelector('.pay-importe-total2[data-row="' + rowKey + '"]');
+                    if (totalInp) totalInp.value = val;
+                    recalc2();
+                });
+
+                inp.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.blur();
+                        const idx = Array.from(importeInputs2).indexOf(this);
+                        if (idx < importeInputs2.length - 1) {
+                            const nextRow = rows2[idx + 1];
+                            rows2.forEach(r => r.classList.remove('is-active'));
+                            nextRow.classList.add('is-active');
+                            importeInputs2[idx + 1].focus();
+                        }
+                    }
+                });
+            });
+
+            recalc2();
+
+            // Theme
+            const saved = localStorage.getItem('huubie-theme');
+            if (saved === 'light') document.body.setAttribute('data-theme', 'light');
+        })();
+    </script>
+
+</body>
+</html>
