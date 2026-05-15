@@ -20,6 +20,7 @@
         <div class="bg-[#111928]" id="root"></div>
     </div>
 
+    <script src="/app/pos/src/js/sample_json.js?t=<?php echo time(); ?>"></script>
     <script src="/app/pos/src/js/pos-pedidos.js?t=<?php echo time(); ?>"></script>
 </body>
 
