@@ -15,7 +15,7 @@ class ctrl extends mdl {
 
     function lsVentas() {
         $subsidiaries_id = $_POST['subsidiaries_id'] ?? 4;
-        $cash_shift_id   = $_POST['cash_shift_id'] ?? '';
+        $cash_shift_id   = $_POST['cash_shift_id'] ?? 1;
         $fi              = $_POST['fi'] ?? '2026-05-01';
         $ff              = $_POST['ff'] ?? '2026-05-15';
         $status          = $_POST['status'] ?? 1;
