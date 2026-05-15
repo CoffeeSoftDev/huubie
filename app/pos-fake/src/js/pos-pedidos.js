@@ -1,180 +1,50 @@
-let api = 'ctrl/ctrl-pos.php';
+let api = 'ctrl/ctrl-pos-pedidos.php';
 let app;
+let lsPOSPedidosData;
 
-const SAMPLE_VIEW_HEADER = {
-    title:    'Cuentas de Ventas',
-    subtitle: 'Consulta los registros de ventas por sucursal, rango de fecha y turno',
-    toggles: [
-        {
-            key:   'rol',
-            label: 'Rol demo:',
-            value: 'admin',
-            options: [
-                { value: 'admin',    label: 'Administrador' },
-                { value: 'vendedor', label: 'Vendedor'      }
-            ]
-        },
-        {
-            key:   'dia',
-            label: 'Dia:',
-            value: 'abierto',
-            options: [
-                { value: 'abierto', label: 'Abierto' },
-                { value: 'cerrado', label: 'Cerrado' }
-            ]
-        }
-    ]
-};
+let turno , subsidiaries_id ;
 
-const SAMPLE_VIEW_FOOTER = {
-    info: 'Mostrando 5 de 5 ventas',
-    legends: [
-        { tone: 'success', label: 'Pagado'      },
-        { tone: 'danger',  label: 'Cancelado'   },
-        { tone: 'success', label: 'Dia abierto' }
-    ]
-};
+window.updateSession = () => {};
 
-const SAMPLE_VENTAS_TABLE = {
-    row: [
-        {
-            id: 1043,
-            Folio:     'V-1043',
-            Cliente:   'Andrea Martinez',
-            Estatus:   '<span class="px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,0.18);color:#3FC189;">PAGADO</span>',
-            Fecha:     '10/05/2026 12:15',
-            Total:     '$897.00',
-            Descuento: '-$13.00',
-            Pago:      'Mixto',
-            a: [
-                { class:'btn btn-sm btn-secondary me-1', html:'<i class="icon-eye"></i>',         onclick:'app.renderDetail(SAMPLE_SALE)' },
-                { class:'btn btn-sm btn-primary me-1',   html:'<i class="icon-pencil"></i>',      onclick:'app.editVenta(1043)' },
-                { class:'btn btn-sm btn-danger',         html:'<i class="icon-trash-empty"></i>', onclick:'app.cancelVenta(1043)' }
-            ]
-        },
-        {
-            id: 1042,
-            Folio:     'V-1042',
-            Cliente:   '<span class="italic text-gray-400">N/A</span>',
-            Estatus:   '<span class="px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,0.18);color:#3FC189;">PAGADO</span>',
-            Fecha:     '10/05/2026 11:42',
-            Total:     '$485.00',
-            Descuento: '-$18.00',
-            Pago:      'Tarjeta',
-            a: [
-                { class:'btn btn-sm btn-secondary me-1', html:'<i class="icon-eye"></i>',         onclick:'app.renderDetail(SAMPLE_SALE)' },
-                { class:'btn btn-sm btn-primary me-1',   html:'<i class="icon-pencil"></i>',      onclick:'app.editVenta(1042)' },
-                { class:'btn btn-sm btn-danger',         html:'<i class="icon-trash-empty"></i>', onclick:'app.cancelVenta(1042)' }
-            ]
-        },
-        {
-            id: 1041,
-            Folio:     'V-1041',
-            Cliente:   'Carlos Ramirez',
-            Estatus:   '<span class="px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,0.18);color:#3FC189;">PAGADO</span>',
-            Fecha:     '10/05/2026 10:58',
-            Total:     '$2,170.00',
-            Descuento: '-$180.00',
-            Pago:      'Transferencia',
-            a: [
-                { class:'btn btn-sm btn-secondary me-1', html:'<i class="icon-eye"></i>',         onclick:'app.renderDetail(SAMPLE_SALE)' },
-                { class:'btn btn-sm btn-primary me-1',   html:'<i class="icon-pencil"></i>',      onclick:'app.editVenta(1041)' },
-                { class:'btn btn-sm btn-danger',         html:'<i class="icon-trash-empty"></i>', onclick:'app.cancelVenta(1041)' }
-            ]
-        },
-        {
-            id: 1040,
-            Folio:     'V-1040',
-            Cliente:   '<span class="italic text-gray-400">N/A</span>',
-            Estatus:   '<span class="px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,0.18);color:#E02424;">CANCELADO</span>',
-            Fecha:     '10/05/2026 10:20',
-            Total:     '$220.00',
-            Descuento: '$0.00',
-            Pago:      'Efectivo',
-            a: [
-                { class:'btn btn-sm btn-secondary me-1',        html:'<i class="icon-eye"></i>',         onclick:'app.renderDetail(SAMPLE_SALE)' },
-                { class:'btn btn-sm btn-primary me-1 disabled', html:'<i class="icon-pencil"></i>',      onclick:'return false' },
-                { class:'btn btn-sm btn-danger disabled',       html:'<i class="icon-trash-empty"></i>', onclick:'return false' }
-            ]
-        },
-        {
-            id: 1039,
-            Folio:     'V-1039',
-            Cliente:   'Maria Gonzalez',
-            Estatus:   '<span class="px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,0.18);color:#3FC189;">PAGADO</span>',
-            Fecha:     '09/05/2026 19:33',
-            Total:     '$890.00',
-            Descuento: '$0.00',
-            Pago:      'Mixto',
-            a: [
-                { class:'btn btn-sm btn-secondary me-1', html:'<i class="icon-eye"></i>',         onclick:'app.renderDetail(SAMPLE_SALE)' },
-                { class:'btn btn-sm btn-primary me-1',   html:'<i class="icon-pencil"></i>',      onclick:'app.editVenta(1039)' },
-                { class:'btn btn-sm btn-danger',         html:'<i class="icon-trash-empty"></i>', onclick:'app.cancelVenta(1039)' }
-            ]
-        }
-    ]
-};
-
-const SAMPLE_FILTERS = [
-    {
-        opc:      'select',
-        id:       'fTurno',
-        lbl:      'Periodo:',
-        class:    'col-12 col-md-3 col-lg-2',
-        onchange: 'app.onChangeFilters()',
-        data: [
-            { id: 'actual', valor: 'Turno actual' },
-            { id: 'dia',    valor: 'Dia actual'   },
-            { id: 'rango',  valor: 'Por rango de fecha' }
-        ]
-    },
-    {
-        opc:   'input-calendar',
-        id:    'calendarPOSPedidos',
-        lbl:   'Rango de fecha:',
-        class: 'col-12 col-md-4 col-lg-3'
-    }
-];
-
-const SAMPLE_KPIS = [
-    { id:'kpiCount', label:'Ventas',      value: 12,         tone:'default' },
-    { id:'kpiTotal', label:'Monto total', value:'$4,820.00', tone:'success' },
-    { id:'kpiDesc',  label:'Descuentos',  value:'$320.00',   tone:'warning' },
-    { id:'kpiCanc',  label:'Canceladas',  value: 1,          tone:'danger'  }
-];
-
-const SAMPLE_SALE = {
-    id:1043, folio:'V-1043',
-    estatus:'pagado',
-    fecha:'2026-05-10T12:15:00',
-    sucursal:'kafeto', turno:'manana', turnoCerrado:false,
-    cliente:{ name:'Andrea Martinez', phone:'9611234567', email:'andrea.m@example.com' },
-    nota:'Cliente frecuente, sin bolsa',
-    items:[
-        { name:'3 Leches Choco', qty:1, price:700, discount:0  },
-        { name:'Latte Vainilla', qty:2, price:65,  discount:10 },
-        { name:'Cupcake',        qty:4, price:55,  discount:0  }
-    ],
-    pagos:[
-        { clave:'EFE', name:'Efectivo',           amount:500 },
-        { clave:'TDC', name:'Tarjeta de Credito', amount:760 }
-    ]
-};
 
 $(async () => {
     app = new App(api, 'root');
-    await app.init();
+    app.init();
 });
 
 class App extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'POSPedidos';
+        this.activeSubsidiaryId = null;
     }
 
-    async init() {
-        this.render();
-        await this.loadInit();
+    init() {
+        useFetch({
+            url:  this._link,
+            data: { opc: 'init' }
+        }).then((data) => {
+            lsPOSPedidosData = data || {};
+
+            this.activeSubsidiaryId = lsPOSPedidosData.subsidiaries_id || null;
+            subsidiaries_id         = this.activeSubsidiaryId;
+
+            this.render();
+
+            const sucursales = lsPOSPedidosData.sucursales || [];
+            if (sucursales.length) {
+                this.populateSelect('subsidiaries_id', sucursales);
+            }
+
+            const turnos = lsPOSPedidosData.turnos || [];
+            if (turnos.length) {
+                this.populateSelect('cash_shift_id', turnos);
+                turno = turnos[0];
+            }
+
+            this.lsVentas();
+            this.lsKpis();
+        });
     }
 
     render() {
@@ -182,38 +52,83 @@ class App extends Templates {
         this.filterBar(SAMPLE_FILTERS);
         this.renderHeader(SAMPLE_VIEW_HEADER);
         this.renderFooter(SAMPLE_VIEW_FOOTER);
-        this.renderInfoCards(SAMPLE_KPIS);
+        // this.renderInfoCards(SAMPLE_KPIS);
         this.renderDetail(SAMPLE_SALE);
     }
 
-    // ── Data layer ────────────────────────────────────────────────────────
+    layout() {
+      
+
+        const mainPanel = {
+            type: 'div',
+            id: 'mainPanel',
+            class: 'flex-1 flex flex-col overflow-hidden min-w-0 w-full',
+            children: [
+                {
+                    id: 'viewHeader',
+                    text: '#viewHeader',
+                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                },
+                {
+                    id: 'filterBar',
+                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                },
+                {
+                    id: 'kpisRow',
+                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                },
+                {
+                    id: 'tableWrap',
+                    text: '#tableWrap',
+                    class: 'p-3 flex-1 overflow-y-auto overflow-x-auto cs-scroll'
+                },
+                {
+                    id: 'viewFooter',
+                    text: '#viewFooter',
+                    class: 'px-4 py-2 bg-[#141d2b] border-t border-[#374151] flex items-center justify-between flex-shrink-0'
+                }
+            ]
+        };
+
+        const detailPanel = {
+            type: 'aside',
+            id: 'detailPanel',
+            class: 'w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden',
+            children: [
+                {
+                    id: 'emptyDetail',
+                    text: '#emptyDetail',
+                    class: 'flex-1 flex flex-col items-center justify-center text-center px-6'
+                },
+                {
+                    id: 'detailContent',
+                    text: '#detailContent',
+                    class: 'hidden flex-1 flex flex-col overflow-hidden'
+                }
+            ]
+        };
+
+        this.createLayout({
+            parent: 'root',
+            design: false,
+            data: {
+                id: this.PROJECT_NAME,
+                class: 'mt-16 h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
+                container: [mainPanel, detailPanel]
+            }
+        });
+    }
+
 
     getFilters() {
         const range = getDataRangePicker(`calendar${this.PROJECT_NAME}`) || {};
         return {
-            subsidiaries_id: $('#subsidiaries_id').val() || '',
-            cash_shift_id:   $('#fTurno').val()          || '',
+            subsidiaries_id: $('#subsidiaries_id').val() || this.activeSubsidiaryId || '',
+            cash_shift_id:   $('#cash_shift_id').val() || '',
             fi:              range.fi || '',
             ff:              range.ff || '',
-            status:          ''
+            status:          $('#status').val() || ''
         };
-    }
-
-    async loadInit() {
-        const response = await useFetch({
-            url:  api,
-            data: { opc: 'init' }
-        });
-
-        if (!response || !response.sucursales) return;
-
-        const sucursales = response.sucursales.length ? response.sucursales : [];
-        if (sucursales.length) {
-            this.populateSelect('subsidiaries_id', sucursales);
-        }
-
-        this.lsVentas();
-        await this.lsKpis();
     }
 
     populateSelect(id, data) {
@@ -229,7 +144,7 @@ class App extends Templates {
         this.createTable({
             parent:      'tableWrap',
             idFilterBar: 'filterBar',
-            data:        { opc: 'lsVentas' },
+            data:        { opc: 'lsVentas', subsidiaries_id: this.activeSubsidiaryId || '' },
             conf:        { datatable: true, pag: 15 },
             coffeesoft:  true,
             attr: {
@@ -254,7 +169,7 @@ class App extends Templates {
     async lsKpis() {
         const filters  = this.getFilters();
         const response = await useFetch({
-            url:  api,
+            url:  this._link,
             data: Object.assign({ opc: 'showVentas' }, filters)
         });
 
@@ -278,7 +193,7 @@ class App extends Templates {
 
     async getVenta(id) {
         const response = await useFetch({
-            url:  api,
+            url:  this._link,
             data: { opc: 'getVenta', id }
         });
 
@@ -289,70 +204,8 @@ class App extends Templates {
         }
     }
 
-    // ── Layout ────────────────────────────────────────────────────────────
 
-    layout() {
-        const name = this.PROJECT_NAME;
 
-        const mainPanel = {
-            type:  'div',
-            id:    'mainPanel',
-            class: 'flex-1 flex flex-col overflow-hidden min-w-0',
-            children: [
-                {
-                    id:    'viewHeader',
-                    text:  '#viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
-                },
-                {
-                    id:    'filterBar',
-                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
-                },
-                {
-                    id:    'kpisRow',
-                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
-                },
-                {
-                    id:    'tableWrap',
-                    text:  '#tableWrap',
-                    class: 'p-3 flex-1 overflow-y-auto overflow-x-auto cs-scroll'
-                },
-                {
-                    id:    'viewFooter',
-                    text:  '#viewFooter',
-                    class: 'px-4 py-2 bg-[#141d2b] border-t border-[#374151] flex items-center justify-between flex-shrink-0'
-                }
-            ]
-        };
-
-        const detailPanel = {
-            type:  'aside',
-            id:    'detailPanel',
-            class: 'w-[420px] flex-shrink-0 bg-[#141d2b] border-l border-[#374151] flex flex-col overflow-hidden',
-            children: [
-                {
-                    id:    'emptyDetail',
-                    text:  '#emptyDetail',
-                    class: 'flex-1 flex flex-col items-center justify-center text-center px-6'
-                },
-                {
-                    id:    'detailContent',
-                    text:  '#detailContent',
-                    class: 'hidden flex-1 flex flex-col overflow-hidden'
-                }
-            ]
-        };
-
-        this.createLayout({
-            parent: 'root',
-            design: false,
-            data: {
-                id:        name,
-                class:     'mt-16 h-[calc(100vh-4rem)] flex overflow-hidden',
-                container: [mainPanel, detailPanel]
-            }
-        });
-    }
 
     // ── Render helpers ────────────────────────────────────────────────────
 
@@ -375,17 +228,63 @@ class App extends Templates {
         });
     }
 
-    filterBar(fields) {
+    filterBar() {
+
+        let filters = [
+
+            {
+                opc: 'select',
+                id: 'cash_shift_id',
+                lbl: 'Turno:',
+                class: 'col-12 col-md-3 col-lg-3',
+                onchange: 'app.onChangeFilters()',
+                data: []
+            },
+            // {
+            //     opc:      'select',
+            //     id:       'fTurno',
+            //     lbl:      'Periodo:',
+            //     class:    'col-12 col-md-3 col-lg-2',
+            //     onchange: 'app.onChangeFilters()',
+            //     data: [
+            //         { id: 'actual', valor: 'Turno actual' },
+            //         { id: 'dia',    valor: 'Dia actual'   },
+            //         { id: 'rango',  valor: 'Por rango de fecha' }
+            //     ]
+            // },
+            {
+                opc: 'input-calendar',
+                id: 'calendarPOSPedidos',
+                lbl: 'Rango de fecha:',
+                class: 'col-12 col-md-4 col-lg-3'
+            },
+            {
+                opc: 'select',
+                id: 'status',
+                lbl: 'Estatus:',
+                class: 'col-12 col-md-3 col-lg-3',
+                onchange: 'app.onChangeFilters()',
+                data: [
+                    { id: '1', valor: 'Pendiente' },
+                    { id: '2', valor: 'En proceso' },
+                    { id: '3', valor: 'Pagado' },
+                    { id: '4', valor: 'Cancelado' }
+                ]
+            }
+
+
+        ];
+
         this.createfilterBar({
             parent: 'filterBar',
-            data:   fields
+            data: filters
         });
 
         dataPicker({
             parent: `calendar${this.PROJECT_NAME}`,
             rangepicker: {
-                startDate:     moment().startOf('month'),
-                endDate:       moment().endOf('month'),
+                startDate:     moment('2026-04-01'),
+                endDate:       moment('2026-05-15'),
                 showDropdowns: true,
                 ranges: {
                     'Hoy':           [moment(), moment()],
@@ -427,7 +326,7 @@ class App extends Templates {
 
     async editVenta(id) {
         const response = await useFetch({
-            url:  api,
+            url:  this._link,
             data: { opc: 'editVenta', id }
         });
 

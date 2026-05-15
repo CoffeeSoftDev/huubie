@@ -2,43 +2,35 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
-require_once '../mdl/mdl-pos.php';
+require_once '../mdl/mdl-pos-pedidos.php';
 
 class ctrl extends mdl {
 
     function init() {
-        $sub_id   = $_SESSION['SUB'];
-        $products = $this->lsProducts([$sub_id]);
-        $turno    = $this->getOpenShiftBySubsidiary([$sub_id]);
-        $folio    = $this->getMaxOrderFolio();
-
-        $turnoData = null;
-        if ($turno) {
-            $metrics   = $this->getShiftMetrics([$turno['id']]);
-            $turnoData = [
-                'id'      => $turno['id'],
-                'nombre'  => $turno['shift_name'],
-                'ventas'  => (float)$metrics['total_sales'],
-                'ordenes' => (int)$metrics['total_orders']
-            ];
-        }
-
+        $subsidiaries_id = $_SESSION['SUB'] ?? '';
+        $sucursales = $this->lsSucursales();
+        $turnos     = $subsidiaries_id ? $this->lsCashShifts([$subsidiaries_id]) : [];
         return [
-            'products' => $products,
-            'turno'    => $turnoData,
-            'id_sub'    => $sub_id,
-            'sucursal' => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
-            'vendedor' => $turno ? $turno['employee_name'] : '',
-            'folio'    => $folio
+            'subsidiaries_id' => (int) $subsidiaries_id,
+            'sucursales'      => $sucursales,
+            'turnos'          => is_array($turnos) ? $turnos : []
+        ];
+    }
+
+    function getActiveShifts() {
+        $subsidiaries_id = $_POST['subsidiaries_id'] ?? '';
+        $turnos = $this->lsCashShifts([$subsidiaries_id]);
+        return [
+            'turnos' => is_array($turnos) ? $turnos : []
         ];
     }
 
     function lsVentas() {
         $subsidiaries_id = $_POST['subsidiaries_id'] ?? 4;
-        $cash_shift_id   = $_POST['cash_shift_id'] ?? 1;
-        $fi              = $_POST['fi'] ?? '2026-05-01';
+        $cash_shift_id   = $_POST['cash_shift_id'] ?? '';
+        $fi              = $_POST['fi'] ?? '2026-04-01';
         $ff              = $_POST['ff'] ?? '2026-05-15';
-        $status          = $_POST['status'] ?? 1;
+        $status          = $_POST['status'] ?? '';
 
         $ls = $this->listVentas([
             'subsidiaries_id' => $subsidiaries_id,
@@ -48,9 +40,11 @@ class ctrl extends mdl {
             'status'          => $status
         ]);
 
+        if (!is_array($ls)) $ls = [];
+
         $__row = [];
         foreach ($ls as $item) {
-            $isCancelled = $item['status'] === 'cancelada';
+            $isCancelled = (int)$item['status'] === 4;
 
             $a = [];
             $a[] = [
@@ -199,7 +193,7 @@ class ctrl extends mdl {
         $message = 'No se pudo cancelar la venta';
 
         $values = $this->util->sql([
-            'status'       => 'cancelada',
+            'status'       => 4,
             'cancelled_at' => date('Y-m-d H:i:s'),
             'id'           => $id
         ], 1);
@@ -222,12 +216,12 @@ class ctrl extends mdl {
 
 function statusVenta($status) {
     $map = [
-        'pagada'    => ['bg' => 'rgba(63,193,137,0.18)',  'color' => '#3FC189', 'label' => 'PAGADO'   ],
-        'cancelada' => ['bg' => 'rgba(224,36,36,0.18)',   'color' => '#E02424', 'label' => 'CANCELADO'],
-        'abierta'   => ['bg' => 'rgba(28,100,242,0.18)',  'color' => '#1C64F2', 'label' => 'ABIERTO'  ],
-        'pendiente' => ['bg' => 'rgba(251,191,36,0.18)',  'color' => '#FBBF24', 'label' => 'PENDIENTE'],
+        1 => ['bg' => 'rgba(251,191,36,0.18)',  'color' => '#FBBF24', 'label' => 'PENDIENTE'],
+        2 => ['bg' => 'rgba(28,100,242,0.18)',  'color' => '#1C64F2', 'label' => 'EN PROCESO'],
+        3 => ['bg' => 'rgba(63,193,137,0.18)',  'color' => '#3FC189', 'label' => 'PAGADO'   ],
+        4 => ['bg' => 'rgba(224,36,36,0.18)',   'color' => '#E02424', 'label' => 'CANCELADO'],
     ];
-    $v = $map[$status] ?? $map['pendiente'];
+    $v = $map[(int)$status] ?? $map[1];
     return '<span class="px-2 py-0.5 rounded text-[10px] font-bold" style="background:' . $v['bg'] . ';color:' . $v['color'] . ';">' . $v['label'] . '</span>';
 }
 
