@@ -42,6 +42,72 @@ debe llevar la siguiente nomenclatura
 - Los nombres de las funciones deben:
   - Estar en inglés.
   - Usar notación `camelCase`.
+
+### Comentarios y separadores de seccion
+
+**REGLA:** Los nombres `camelCase` ya documentan la intencion del metodo. NO agregar doc-lines descriptivas encima de cada metodo. Solo se permiten **separadores de seccion** para agrupar metodos por responsabilidad.
+
+**Formato canonico del separador:**
+
+```js
+// -- Nombre de seccion --
+```
+
+**Secciones tipicas en una clase `App extends Templates`:**
+
+```js
+class App extends Templates {
+
+    // -- Bootstrap --
+    constructor(link, divModule) { ... }
+    async init() { ... }
+    render() { ... }
+
+    // -- Layout --
+    layout() { ... }
+
+    // -- Filter bar --
+    filterBar() { ... }
+    getFilters() { ... }
+
+    // -- Data --
+    lsVentas() { ... }
+    getVenta(id) { ... }
+
+    // -- Render helpers --
+    renderHeader(data) { ... }
+
+    // -- Event handlers --
+    onChangeFilters() { ... }
+    cancelVenta(id) { ... }
+
+    // -- Components --
+    kpisRow(options) { ... }
+}
+```
+
+✅ **CORRECTO:**
+```js
+// -- Filter bar --
+filterBar() { ... }
+getFilters() { ... }
+```
+
+❌ **INCORRECTO** (doc-line por metodo):
+```js
+// Renderiza la barra de filtros del modulo.
+filterBar() { ... }
+```
+
+❌ **INCORRECTO** (banners decorativos largos):
+```js
+// ── Filter bar ────────────────────────────────────────────────────────
+```
+
+**Cuando SI se admite comentario inline corto:**
+- Workaround puntual no obvio del codigo
+- Constante magica que requiere contexto
+- Nunca para describir lo que el nombre del metodo ya dice.
 - **NO usar prefijo `_`** (guion bajo) en métodos ni propiedades de instancia de clases JS. Aunque sea convención común de JS para "uso interno", el framework CoffeeSoft no la aplica. Todos los identificadores van con nombre normal (`this.uid`, `this.parent`, `buildCards()`, `renderHeader()`), igual que en `Templates`, `Cards`, `Navbar`, `App`.
 
   ✅ **CORRECTO:**

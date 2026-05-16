@@ -118,7 +118,26 @@
       "Read(//c/Users/SomxDev/.claude/**)",
       "Bash(ls \"C:/Users/SomxDev/.claude/steering/\" 2>/dev/null; echo \"---\"; ls \"C:/Users/CoffeSoft/.claude/steering/\" 2>/dev/null)",
       "Read(//c/Users/CoffeSoft/.claude/**)",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "Bash(dir C:\\\\Users\\\\SomxDev\\\\.claude\\\\agents)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.claude\\\\agents\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell(Test-Path \"$env:USERPROFILE\\\\.claude\\\\agents\"; $env:USERPROFILE)",
+      "Bash(\"C:/wamp64/bin/mysql/mysql8.0.31/bin/mysql.exe\" -u root -e \"USE fayxzvov_reginas; SHOW TABLES LIKE '%order%';\")",
+      "Bash(ls /c/wamp64/bin/mysql/ 2>/dev/null)",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SHOW TABLES LIKE '%order%';\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SHOW COLUMNS FROM \\\\`order\\\\`;\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SHOW COLUMNS FROM \\\\`order_package\\\\`;\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SELECT id, total_pay, discount, info_discount, date_order, time_order, cash_shift_id, status FROM \\\\`order\\\\` WHERE discount IS NOT NULL AND discount > 0 ORDER BY id DESC LIMIT 10;\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SELECT COUNT\\(*\\) AS total, SUM\\(CASE WHEN discount > 0 THEN 1 ELSE 0 END\\) AS con_descuento, SUM\\(CASE WHEN info_discount IS NOT NULL AND info_discount != '' THEN 1 ELSE 0 END\\) AS con_info FROM \\\\`order\\\\`;\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SELECT id, total_pay, discount, info_discount FROM \\\\`order\\\\` WHERE info_discount IS NOT NULL AND info_discount != '' LIMIT 20;\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SELECT o.id, o.total_pay, o.discount, o.info_discount, SUM\\(op.price*op.quantity\\) AS subtotal_items FROM \\\\`order\\\\` o LEFT JOIN order_package op ON op.pedidos_id = o.id GROUP BY o.id HAVING subtotal_items > o.total_pay AND o.total_pay > 0 ORDER BY o.id DESC LIMIT 15;\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SHOW COLUMNS FROM order_payments;\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SHOW COLUMNS FROM order_custom; SHOW COLUMNS FROM order_custom_products;\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root -e \"USE fayxzvov_reginas; SELECT o.id, DATE_FORMAT\\(CONCAT\\(o.date_order, ' ', o.time_order\\), '%d/%m/%Y %h:%i %p'\\) AS fecha_formatted, IFNULL\\(o.discount, 0\\) AS discount FROM \\\\`order\\\\` o WHERE o.discount > 0 ORDER BY o.id DESC LIMIT 5;\")",
+      "Bash(./mysql.exe -u root fayxzvov_reginas -e \"SELECT id, discount, info_discount, total_pay, status FROM \\\\`order\\\\` WHERE id IN \\(378, 379, 380, 381\\);\")",
+      "Bash(ls /c/wamp64/bin/mysql/ 2>&1)",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas -e \"SELECT id, discount, info_discount, total_pay, status FROM \\\\`order\\\\` WHERE id IN \\(378, 379, 380, 381\\);\")",
+      "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas -e \"SELECT id, discount, total_pay, status FROM \\\\`order\\\\` WHERE discount IS NOT NULL AND discount != 0 ORDER BY id;\")"
     ]
   },
   "spinnerTipsEnabled": true

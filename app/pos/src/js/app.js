@@ -95,6 +95,11 @@ class App extends Templates {
                     <span class="text-[#374151]">|</span>
                     <span>Ordenes: <strong class="text-white">${ordenes}</strong></span>
                     <span class="text-[#374151]">|</span>
+                    <a href="pos-historial-ventas.php" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[rgba(28,100,242,0.12)] border border-[rgba(28,100,242,0.3)] text-[#76A9FA] hover:bg-[rgba(28,100,242,0.25)] hover:text-white transition-colors">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        <span class="font-semibold">Historial</span>
+                    </a>
+                    <span class="text-[#374151]">|</span>
                     <button id="btnCierreDay" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[rgba(124,58,237,0.12)] border border-[rgba(124,58,237,0.3)] text-[#c4b5fd] hover:bg-[rgba(124,58,237,0.25)] hover:text-white transition-colors">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         <span class="font-semibold">Cierre del dia</span>

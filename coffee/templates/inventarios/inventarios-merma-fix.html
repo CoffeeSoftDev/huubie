@@ -271,13 +271,15 @@
         </div>
       </div>
 
-      <div class="cs-tabs px-6 flex-shrink-0 border-b border-[#374151]">
-        <a href="inventarios-stock.html" class="cs-tab">Stock Actual</a>
-        <a href="inventarios-movimientos.html" class="cs-tab">Movimientos</a>
-        <a href="inventarios-entradas.html" class="cs-tab">Entradas</a>
-        <a href="inventarios-traspasos.html" class="cs-tab">Traspasos</a>
-        <a href="inventarios-ajustes.html" class="cs-tab">Ajustes</a>
-        <a href="inventarios-merma.html" class="cs-tab active">Merma</a>
+      <div class="px-6 py-2 flex-shrink-0 border-b border-[#374151]">
+        <div class="cs-tabs inline-flex">
+          <a href="inventarios-stock.html" class="cs-tab flex items-center gap-1.5"><i data-lucide="boxes" class="w-3.5 h-3.5"></i>Stock Actual</a>
+          <a href="inventarios-movimientos.html" class="cs-tab flex items-center gap-1.5"><i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i>Movimientos</a>
+          <a href="inventarios-entradas.html" class="cs-tab flex items-center gap-1.5"><i data-lucide="package-plus" class="w-3.5 h-3.5"></i>Entradas</a>
+          <a href="inventarios-traspasos.html" class="cs-tab flex items-center gap-1.5"><i data-lucide="truck" class="w-3.5 h-3.5"></i>Traspasos</a>
+          <a href="inventarios-ajustes.html" class="cs-tab flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>Ajustes</a>
+          <a href="inventarios-merma.html" class="cs-tab active flex items-center gap-1.5"><i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>Merma</a>
+        </div>
       </div>
 
       <div class="grid grid-cols-4 gap-2 px-6 py-2 flex-shrink-0">
@@ -630,5 +632,10 @@
     </div>
   </div>
 
+  <script>
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  </script>
 </body>
 </html>

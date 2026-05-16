@@ -50,7 +50,17 @@ class Ventas extends Templates {
             titulo:      'POS',
             descripcion: 'Punto de venta para registrar pedidos.',
             imagen:      '',
+            icon:        'shopping-cart',
             enlace:      '/app/pos/',
+            padding:     '',
+        });
+
+        cards.push({
+            titulo:      'Inventarios',
+            descripcion: 'Controla entradas, salidas y existencias de productos.',
+            imagen:      '',
+            icon:        'package',
+            enlace:      '/app/inventarios/',
             padding:     '',
         });
 

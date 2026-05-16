@@ -1,494 +1,478 @@
-[ 2026-05-16 09:59:39 ]
+[ 2026-05-16 16:37:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  UPDATE fayxzvov_reginas.order SET  WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WHERE id = '380'' at line 1
+
+
+[ 2026-05-16 16:25:11 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:25:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:23:35 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:21:53 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:21:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:20:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:18:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:18:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:13:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:09:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:07:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:07:12 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
 [ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
 [ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
 
 
-[ 2026-05-16 09:59:26 ]
+[ 2026-05-16 16:03:32 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:03:04 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 16:01:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:59:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:58:35 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:57:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:57:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:54:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:54:07 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:54:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:52:01 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:50:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:46:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:46:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 15:46:03 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
 [ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
 [ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
 
 
-[ 2026-05-15 18:38:40 ]
+[ 2026-05-16 15:46:02 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
 
 
-[ 2026-05-15 18:11:56 ]
+[ 2026-05-16 15:45:45 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
 
 
-[ 2026-05-15 18:11:33 ]
+[ 2026-05-16 15:44:39 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
 
 
-[ 2026-05-15 18:08:46 ]
+[ 2026-05-16 15:44:09 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
 
 
-[ 2026-05-15 18:08:39 ]
+[ 2026-05-16 15:44:06 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
 
 
-[ 2026-05-15 17:46:43 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:46:42 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:41:35 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:41:35 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:41:26 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:41:26 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:28:05 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:19:23 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:08:56 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:08:39 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:07:20 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:07:16 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:03:17 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 17:03:11 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 16:59:49 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 16:52:57 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 16:52:53 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 14:26:37 ]
+[ 2026-05-16 15:44:02 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
 [ INFO ] ::  
             SELECT
-                COUNT(o.id)                                                    AS total_ventas,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.total_pay ELSE 0 END), 0) AS total_monto,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.discount  ELSE 0 END), 0) AS total_descuentos,
-                COUNT(CASE WHEN o.status = 'cancelada' THEN 1 END)            AS total_canceladas
-            FROM fayxzvov_reginas.order o
-            WHERE 1=1 AND o.cash_shift_id = ? AND DATE(o.date_order) BETWEEN ? AND ?
-            AND o.is_pos = 1
+                COUNT(*)                    AS total_orders,
+                COALESCE(SUM(o.total_pay), 0) AS total_sales
+            FROM fayxzvov_reginas.`order` o
+            INNER JOIN fayxzvov_reginas.status_process sp ON o.status = sp.id
+            WHERE o.cash_shift_id = ?
+              AND sp.status != 'cancelada'
+              AND o.is_pos = 1
         
 [ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_pos' in 'where clause'
 
 
-[ 2026-05-15 14:26:35 ]
+[ 2026-05-16 15:44:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
+[ 2026-05-16 15:43:55 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
 [ INFO ] ::  
             SELECT
-                COUNT(o.id)                                                    AS total_ventas,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.total_pay ELSE 0 END), 0) AS total_monto,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.discount  ELSE 0 END), 0) AS total_descuentos,
-                COUNT(CASE WHEN o.status = 'cancelada' THEN 1 END)            AS total_canceladas
-            FROM fayxzvov_reginas.order o
-            WHERE 1=1 AND o.cash_shift_id = ? AND DATE(o.date_order) BETWEEN ? AND ?
-            AND o.is_pos = 1
+                COUNT(*)                    AS total_orders,
+                COALESCE(SUM(o.total_pay), 0) AS total_sales
+            FROM fayxzvov_reginas.`order` o
+            INNER JOIN fayxzvov_reginas.status_process sp ON o.status = sp.id
+            WHERE o.cash_shift_id = ?
+              AND sp.status != 'cancelada'
+              AND o.is_pos = 1
         
 [ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_pos' in 'where clause'
 
 
-[ 2026-05-15 14:26:33 ]
+[ 2026-05-16 15:43:55 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
+[ 2026-05-16 15:43:54 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
 [ INFO ] ::  
             SELECT
-                COUNT(o.id)                                                    AS total_ventas,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.total_pay ELSE 0 END), 0) AS total_monto,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.discount  ELSE 0 END), 0) AS total_descuentos,
-                COUNT(CASE WHEN o.status = 'cancelada' THEN 1 END)            AS total_canceladas
-            FROM fayxzvov_reginas.order o
-            WHERE 1=1 AND o.cash_shift_id = ? AND DATE(o.date_order) BETWEEN ? AND ?
-            AND o.is_pos = 1
+                COUNT(*)                    AS total_orders,
+                COALESCE(SUM(o.total_pay), 0) AS total_sales
+            FROM fayxzvov_reginas.`order` o
+            INNER JOIN fayxzvov_reginas.status_process sp ON o.status = sp.id
+            WHERE o.cash_shift_id = ?
+              AND sp.status != 'cancelada'
+              AND o.is_pos = 1
         
 [ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_pos' in 'where clause'
 
 
-[ 2026-05-15 14:24:59 ]
+[ 2026-05-16 15:43:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
+[ 2026-05-16 15:43:51 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
 [ INFO ] ::  
             SELECT
-                COUNT(o.id)                                                    AS total_ventas,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.total_pay ELSE 0 END), 0) AS total_monto,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.discount  ELSE 0 END), 0) AS total_descuentos,
-                COUNT(CASE WHEN o.status = 'cancelada' THEN 1 END)            AS total_canceladas
-            FROM fayxzvov_reginas.order o
-            WHERE 1=1 AND o.cash_shift_id = ? AND DATE(o.date_order) BETWEEN ? AND ?
-            AND o.is_pos = 1
+                COUNT(*)                    AS total_orders,
+                COALESCE(SUM(o.total_pay), 0) AS total_sales
+            FROM fayxzvov_reginas.`order` o
+            INNER JOIN fayxzvov_reginas.status_process sp ON o.status = sp.id
+            WHERE o.cash_shift_id = ?
+              AND sp.status != 'cancelada'
+              AND o.is_pos = 1
         
 [ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_pos' in 'where clause'
 
 
-[ 2026-05-15 14:24:59 ]
+[ 2026-05-16 15:43:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
+[ 2026-05-16 15:43:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
+[ 2026-05-16 15:42:40 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
 [ INFO ] ::  
             SELECT
-                o.id,
-                o.status,
-                o.total_pay,
-                o.discount,
-                o.note,
-                o.date_order,
-                o.time_order,
-                o.order_type,
-                o.cancelled_at,
-                o.client_id,
-                o.cash_shift_id,
-                oc.name  AS client_name,
-                oc.phone AS client_phone,
-                GROUP_CONCAT(DISTINCT pt.name ORDER BY pt.name SEPARATOR ', ') AS payment_methods
-            FROM fayxzvov_reginas.order o
-            LEFT JOIN fayxzvov_reginas.order_clients oc ON o.client_id = oc.id
-            LEFT JOIN fayxzvov_reginas.pos_order_payment pop ON o.id = pop.order_id AND pop.active = 1
-            LEFT JOIN fayxzvov_reginas.pos_payment_type pt ON pop.pos_payment_type_id = pt.id
-            WHERE 1=1 AND o.subsidiaries_id = ? AND o.cash_shift_id = ? AND DATE(o.date_order) BETWEEN ? AND ? AND o.status = ?
-            AND o.is_pos = 1
-            GROUP BY o.id
-            ORDER BY o.date_order DESC, o.time_order DESC
-        
-[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.pos_order_payment' doesn't exist
-
-
-[ 2026-05-15 14:24:48 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 14:21:29 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT
-                COUNT(o.id)                                                    AS total_ventas,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.total_pay ELSE 0 END), 0) AS total_monto,
-                IFNULL(SUM(CASE WHEN o.status != 'cancelada' THEN o.discount  ELSE 0 END), 0) AS total_descuentos,
-                COUNT(CASE WHEN o.status = 'cancelada' THEN 1 END)            AS total_canceladas
-            FROM fayxzvov_reginas.order o
-            WHERE 1=1 AND o.cash_shift_id = ? AND DATE(o.date_order) BETWEEN ? AND ?
-            AND o.is_pos = 1
+                COUNT(*)                    AS total_orders,
+                COALESCE(SUM(o.total_pay), 0) AS total_sales
+            FROM fayxzvov_reginas.`order` o
+            INNER JOIN fayxzvov_reginas.status_process sp ON o.status = sp.id
+            WHERE o.cash_shift_id = ?
+              AND sp.status != 'cancelada'
+              AND o.is_pos = 1
         
 [ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'o.is_pos' in 'where clause'
 
 
-[ 2026-05-15 14:21:29 ]
+[ 2026-05-16 15:42:40 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT
-                o.id,
-                o.status,
-                o.total_pay,
-                o.discount,
-                o.note,
-                o.date_order,
-                o.time_order,
-                o.order_type,
-                o.cancelled_at,
-                o.client_id,
-                o.cash_shift_id,
-                oc.name  AS client_name,
-                oc.phone AS client_phone,
-                GROUP_CONCAT(DISTINCT pt.name ORDER BY pt.name SEPARATOR ', ') AS payment_methods
-            FROM fayxzvov_reginas.order o
-            LEFT JOIN fayxzvov_reginas.order_clients oc ON o.client_id = oc.id
-            LEFT JOIN fayxzvov_reginas.pos_order_payment pop ON o.id = pop.order_id AND pop.active = 1
-            LEFT JOIN fayxzvov_reginas.pos_payment_type pt ON pop.pos_payment_type_id = pt.id
-            WHERE 1=1 AND o.subsidiaries_id = ? AND o.cash_shift_id = ? AND DATE(o.date_order) BETWEEN ? AND ? AND o.status = ?
-            AND o.is_pos = 1
-            GROUP BY o.id
-            ORDER BY o.date_order DESC, o.time_order DESC
-        
-[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.pos_order_payment' doesn't exist
-
-
-[ 2026-05-15 14:21:24 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 14:21:11 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 14:21:00 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 14:20:56 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
-[ INFO ] ::  
-            SELECT id, name AS valor
-            FROM fayxzvov_alpha.subsidiaries
-            WHERE active = 1
-            ORDER BY name ASC
-        
-[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
-
-
-[ 2026-05-15 09:24:58 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
-[ INFO ] ::  UPDATE fayxzvov_reginas.order SET  WHERE id = ?
-[ ERROR C.U.D. ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WHERE id = '1042'' at line 1
-
-
-[ 2026-05-15 09:24:57 ]
-[ UNIX_USR ] :: nt authority\system
-[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
-[ INFO ] ::  UPDATE fayxzvov_reginas.order SET  WHERE id = ?
-[ ERROR C.U.D. ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WHERE id = '1043'' at line 1
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
 
 

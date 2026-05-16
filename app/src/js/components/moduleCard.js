@@ -150,18 +150,27 @@ class ModuleCard {
         (s.cards || []).forEach((item, idx) => {
             $grid.append(this.buildCard(item, idx, s));
         });
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     buildCard(item, idx, s) {
         const bgClass = item.bg || `bg-[${s.colors.cardBg}] hover:bg-[${s.colors.cardHover}]`;
 
-        const $icon = item.imagen
-            ? $('<img>', {
-                class:  `w-12 h-12 ${item.padding || ''} rounded-xl p-1`,
-                src:    item.imagen,
-                alt:    item.titulo || '',
-              }).css('background-color', s.colors.iconBg)
-            : $('<div>', { class: 'w-12 h-12 rounded-xl' }).css('background-color', s.colors.iconBg);
+        let $icon;
+        if (item.imagen) {
+            $icon = $('<img>', {
+                class: `w-12 h-12 ${item.padding || ''} rounded-xl p-1`,
+                src:   item.imagen,
+                alt:   item.titulo || '',
+            }).css('background-color', s.colors.iconBg);
+        } else if (item.icon) {
+            $icon = $('<div>', {
+                class: 'w-12 h-12 rounded-xl flex items-center justify-center',
+                html:  `<i data-lucide="${item.icon}" class="w-6 h-6 text-white"></i>`,
+            }).css('background-color', s.colors.iconBg);
+        } else {
+            $icon = $('<div>', { class: 'w-12 h-12 rounded-xl' }).css('background-color', s.colors.iconBg);
+        }
 
         const $iconRow = $('<div>', { class: 'flex justify-between items-start' }).append($icon);
 
