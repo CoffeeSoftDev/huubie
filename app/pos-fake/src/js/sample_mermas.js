@@ -135,6 +135,24 @@ const SAMPLE_MERMAS_COUNTS = {
     motivo_top:      'Caducidad'
 };
 
+const SAMPLE_PRODUCT_CATALOG = [
+    { id: 1,  name: 'Leche entera 1L',          sku: 'LE-001', costo_unit:  32.50, stock: 24 },
+    { id: 2,  name: 'Leche deslactosada 1L',    sku: 'LE-002', costo_unit:  36.00, stock: 18 },
+    { id: 3,  name: 'Yogurt natural 250g',      sku: 'YN-022', costo_unit:  28.00, stock: 36 },
+    { id: 4,  name: 'Yogurt griego 200g',       sku: 'YG-015', costo_unit:  42.00, stock: 22 },
+    { id: 5,  name: 'Crema acida 200ml',        sku: 'CR-011', costo_unit:  24.00, stock: 30 },
+    { id: 6,  name: 'Queso panela 500g',        sku: 'QP-040', costo_unit:  78.00, stock: 14 },
+    { id: 7,  name: 'Queso oaxaca 400g',        sku: 'QO-041', costo_unit:  92.00, stock: 12 },
+    { id: 8,  name: 'Pastel 3 Leches',          sku: 'PT-3L1', costo_unit: 203.00, stock:  8 },
+    { id: 9,  name: 'Pastel de chocolate',      sku: 'PT-CH2', costo_unit: 215.00, stock:  6 },
+    { id: 10, name: 'Galletas avena pq',        sku: 'GA-101', costo_unit:  18.00, stock: 48 },
+    { id: 11, name: 'Pan integral 500g',        sku: 'PI-050', costo_unit:  45.00, stock: 20 },
+    { id: 12, name: 'Mantequilla 200g',         sku: 'MT-008', costo_unit:  54.00, stock: 16 },
+    { id: 13, name: 'Cafe molido 250g',         sku: 'CF-250', costo_unit: 125.00, stock: 25 },
+    { id: 14, name: 'Te verde caja 25 sobres',  sku: 'TV-025', costo_unit:  68.00, stock: 32 },
+    { id: 15, name: 'Mermelada fresa 300g',     sku: 'MF-300', costo_unit:  62.00, stock: 19 }
+];
+
 const SAMPLE_MERMA_DETAIL = {
     id: 4521,
     folio: 'M-4521',
