@@ -8,7 +8,7 @@ class mdl extends CRUD {
 
     public function __construct() {
         $this->util = new Utileria;
-        $this->bd   = 'rfwsmqex_reginas.';
+        $this->bd   = 'fayxzvov_reginas.';
     }
 
     // =========================================================================
@@ -18,7 +18,7 @@ class mdl extends CRUD {
     function lsSucursales() {
         $query = "
             SELECT
-                s.id   AS id,
+                s.id AS id,
                 CONCAT(c.social_name, ' — ', s.name) AS valor,
                 s.name AS sucursal,
                 c.social_name AS company
@@ -30,68 +30,70 @@ class mdl extends CRUD {
         return $this->_Read($query, null);
     }
 
+    // Productos — usa order_products + order_category (tablas reales del schema)
     function lsProducts($array) {
-        $query = "
-            SELECT
-                p.id,
-                p.name,
-                p.price,
-                p.stock,
-                p.image,
-                p.icon,
-                c.classification AS category
-            FROM {$this->bd}pos_products p
-            LEFT JOIN {$this->bd}pos_category c ON p.category_id = c.id
-            WHERE p.active = 1 AND p.subsidiary_id = ?
-            ORDER BY c.id, p.name
-        ";
-        return $this->_Read($query, $array);
+        $leftjoin = [
+            $this->bd . 'order_category' => 'order_products.category_id = order_category.id'
+        ];
+        return $this->_Select([
+            'table'    => $this->bd . 'order_products',
+            'values'   => 'order_products.id, order_products.name, order_products.price, order_products.description, order_products.image, order_category.classification AS category',
+            'leftjoin' => $leftjoin,
+            'where'    => 'order_products.active = 1 AND order_products.subsidiaries_id = ?',
+            'order'    => ['ASC' => 'order_category.id, order_products.name'],
+            'data'     => $array
+        ]);
     }
 
+    // Tipos de pago POS — pos_payment_type (columnas: code, name)
     function lsPaymentTypes() {
-        return $this->_Select([
-            'table'  => "{$this->bd}pos_payment_type",
-            'values' => 'id, code AS payment_code, name AS payment_name',
-            'where'  => 'active = 1',
-            'order'  => ['ASC' => 'id']
-        ]);
+        $query = "
+            SELECT id, code, name
+            FROM {$this->bd}pos_payment_type
+            WHERE active = 1
+            ORDER BY id
+        ";
+        return $this->_Read($query, null);
     }
 
+    // Motivos de descuento — pos_discount_reason (columnas: id, name)
     function lsDiscountReasons() {
-        return $this->_Select([
-            'table'  => "{$this->bd}pos_discount_reason",
-            'values' => 'id, name AS valor',
-            'where'  => 'active = 1',
-            'order'  => ['ASC' => 'name']
-        ]);
+        $query = "
+            SELECT id, name AS valor
+            FROM {$this->bd}pos_discount_reason
+            WHERE active = 1
+            ORDER BY name
+        ";
+        return $this->_Read($query, null);
     }
 
+    // Clientes — order_clients usa subsidiaries_id (no subsidiary_id)
     function lsClients($array) {
         $query = "
             SELECT id, name, phone, email
             FROM {$this->bd}order_clients
-            WHERE active = 1 AND subsidiary_id = ?
+            WHERE active = 1 AND subsidiaries_id = ?
             ORDER BY name
         ";
         return $this->_Read($query, $array);
     }
 
     function searchClients($array) {
+        $term  = '%' . $array[1] . '%';
         $query = "
             SELECT id, name, phone, email
             FROM {$this->bd}order_clients
             WHERE active = 1
-              AND subsidiary_id = ?
+              AND subsidiaries_id = ?
               AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)
             ORDER BY name
             LIMIT 10
         ";
-        $term = '%' . $array[1] . '%';
         return $this->_Read($query, [$array[0], $term, $term, $term]);
     }
 
     // =========================================================================
-    // Turno (cash_shift) — compartido con Pedidos
+    // Turno (cash_shift) — subsidiary_id es el nombre real en cash_shift
     // =========================================================================
 
     function getOpenShiftBySubsidiary($array) {
@@ -106,17 +108,19 @@ class mdl extends CRUD {
         return is_array($result) && !empty($result) ? $result[0] : null;
     }
 
+    // order.status es INT → join status_process para filtrar por label
     function getShiftMetrics($array) {
-        $shift_id = $array[0];
-
         $query = "
             SELECT
-                COUNT(*)               AS total_orders,
-                COALESCE(SUM(total_pay), 0) AS total_sales
-            FROM {$this->bd}`order`
-            WHERE cash_shift_id = ? AND status != 'cancelada' AND is_pos = 1
+                COUNT(*)                    AS total_orders,
+                COALESCE(SUM(o.total_pay), 0) AS total_sales
+            FROM {$this->bd}`order` o
+            INNER JOIN {$this->bd}status_process sp ON o.status = sp.id
+            WHERE o.cash_shift_id = ?
+              AND sp.status != 'cancelada'
+              AND o.is_pos = 1
         ";
-        $result = $this->_Read($query, [$shift_id]);
+        $result = $this->_Read($query, $array);
         return is_array($result) && !empty($result) ? $result[0] : ['total_orders' => 0, 'total_sales' => 0];
     }
 
@@ -127,9 +131,10 @@ class mdl extends CRUD {
     }
 
     // =========================================================================
-    // Ventas (consulta / listado)
+    // Ventas — listado
     // =========================================================================
 
+    // order.status es INT → join status_process para devolver el label al ctrl
     function listVentas($data) {
         $params = [
             $data['fi'] . ' 00:00:00',
@@ -139,7 +144,6 @@ class mdl extends CRUD {
         $query = "
             SELECT
                 o.id,
-                o.status,
                 o.total_pay,
                 o.discount,
                 o.note,
@@ -147,17 +151,19 @@ class mdl extends CRUD {
                 o.time_order,
                 o.cash_shift_id,
                 o.daily_closure_id,
-                oc.id    AS client_id,
-                oc.name  AS client_name,
-                oc.phone AS client_phone,
-                oc.email AS client_email,
-                s.name   AS sucursal_name,
-                GROUP_CONCAT(pt.code ORDER BY pt.id SEPARATOR ' / ') AS payment_methods
+                sp.status                                              AS status,
+                oc.id                                                  AS client_id,
+                oc.name                                                AS client_name,
+                oc.phone                                               AS client_phone,
+                oc.email                                               AS client_email,
+                s.name                                                 AS sucursal_name,
+                GROUP_CONCAT(pt.code ORDER BY pt.id SEPARATOR ' / ')  AS payment_methods
             FROM {$this->bd}`order` o
-            LEFT JOIN {$this->bd}order_clients  oc ON o.client_id       = oc.id
-            LEFT JOIN fayxzvov_alpha.subsidiaries s ON o.subsidiaries_id = s.id
-            LEFT JOIN {$this->bd}pos_order_payment pop ON pop.order_id  = o.id
-            LEFT JOIN {$this->bd}pos_payment_type  pt  ON pop.payment_type_id = pt.id
+            INNER JOIN {$this->bd}status_process sp         ON o.status          = sp.id
+            LEFT JOIN  {$this->bd}order_clients  oc         ON o.client_id       = oc.id
+            LEFT JOIN  fayxzvov_alpha.subsidiaries s         ON o.subsidiaries_id = s.id
+            LEFT JOIN  {$this->bd}pos_order_payment pop      ON pop.order_id      = o.id
+            LEFT JOIN  {$this->bd}pos_payment_type  pt       ON pop.pos_payment_type_id = pt.id
             WHERE o.is_pos = 1
               AND o.date_order BETWEEN ? AND ?
         ";
@@ -173,7 +179,7 @@ class mdl extends CRUD {
         }
 
         if (!empty($data['status'])) {
-            $query   .= ' AND o.status = ?';
+            $query   .= ' AND sp.status = ?';
             $params[] = $data['status'];
         }
 
@@ -182,6 +188,7 @@ class mdl extends CRUD {
         return $this->_Read($query, $params);
     }
 
+    // Conteos — join status_process para filtrar por label string
     function getVentaCounts($data) {
         $params = [
             $data['fi'] . ' 00:00:00',
@@ -190,23 +197,24 @@ class mdl extends CRUD {
 
         $query = "
             SELECT
-                COUNT(*)                                              AS total,
-                SUM(status = 'pagada')                               AS pagadas,
-                SUM(status = 'cancelada')                            AS canceladas,
-                SUM(status = 'abierta')                              AS abiertas,
-                COALESCE(SUM(CASE WHEN status != 'cancelada' THEN total_pay ELSE 0 END), 0) AS total_ventas,
-                COALESCE(SUM(CASE WHEN status != 'cancelada' THEN discount  ELSE 0 END), 0) AS total_descuentos
-            FROM {$this->bd}`order`
-            WHERE is_pos = 1 AND date_order BETWEEN ? AND ?
+                COUNT(*)                                                                              AS total,
+                SUM(sp.status = 'pagada')                                                            AS pagadas,
+                SUM(sp.status = 'cancelada')                                                         AS canceladas,
+                SUM(sp.status = 'abierta')                                                           AS abiertas,
+                COALESCE(SUM(CASE WHEN sp.status != 'cancelada' THEN o.total_pay ELSE 0 END), 0)    AS total_ventas,
+                COALESCE(SUM(CASE WHEN sp.status != 'cancelada' THEN o.discount  ELSE 0 END), 0)    AS total_descuentos
+            FROM {$this->bd}`order` o
+            INNER JOIN {$this->bd}status_process sp ON o.status = sp.id
+            WHERE o.is_pos = 1 AND o.date_order BETWEEN ? AND ?
         ";
 
         if (!empty($data['subsidiaries_id']) && $data['subsidiaries_id'] != 0) {
-            $query   .= ' AND subsidiaries_id = ?';
+            $query   .= ' AND o.subsidiaries_id = ?';
             $params[] = $data['subsidiaries_id'];
         }
 
         if (!empty($data['cash_shift_id']) && $data['cash_shift_id'] != 0) {
-            $query   .= ' AND cash_shift_id = ?';
+            $query   .= ' AND o.cash_shift_id = ?';
             $params[] = $data['cash_shift_id'];
         }
 
@@ -222,7 +230,6 @@ class mdl extends CRUD {
         $query = "
             SELECT
                 o.id,
-                o.status,
                 o.total_pay,
                 o.discount,
                 o.note,
@@ -230,56 +237,60 @@ class mdl extends CRUD {
                 o.time_order,
                 o.cash_shift_id,
                 o.daily_closure_id,
-                oc.id    AS client_id,
-                oc.name  AS client_name,
-                oc.phone AS client_phone,
-                oc.email AS client_email,
-                s.name   AS sucursal_name
+                sp.status               AS status,
+                oc.id                   AS client_id,
+                oc.name                 AS client_name,
+                oc.phone                AS client_phone,
+                oc.email                AS client_email,
+                s.name                  AS sucursal_name
             FROM {$this->bd}`order` o
-            LEFT JOIN {$this->bd}order_clients    oc ON o.client_id       = oc.id
-            LEFT JOIN fayxzvov_alpha.subsidiaries  s  ON o.subsidiaries_id = s.id
+            INNER JOIN {$this->bd}status_process    sp ON o.status          = sp.id
+            LEFT JOIN  {$this->bd}order_clients     oc ON o.client_id       = oc.id
+            LEFT JOIN  fayxzvov_alpha.subsidiaries   s  ON o.subsidiaries_id = s.id
             WHERE o.id = ? AND o.is_pos = 1
             LIMIT 1
         ";
         return $this->_Read($query, $array);
     }
 
+    // Items — usa order_package (pedidos_id = order_id) + order_products
     function getVentaItems($array) {
         $query = "
             SELECT
-                oi.id,
-                oi.quantity,
-                oi.price,
-                oi.dedication,
-                oi.order_details,
-                oi.product_id,
+                pkg.id,
+                pkg.quantity,
+                pkg.price,
+                pkg.dedication,
+                pkg.order_details,
+                pkg.product_id,
                 p.name AS product_name
-            FROM {$this->bd}pos_order_items oi
-            LEFT JOIN {$this->bd}pos_products p ON oi.product_id = p.id
-            WHERE oi.order_id = ?
-            ORDER BY oi.id ASC
+            FROM {$this->bd}order_package pkg
+            LEFT JOIN {$this->bd}order_products p ON pkg.product_id = p.id
+            WHERE pkg.pedidos_id = ?
+            ORDER BY pkg.id ASC
         ";
         return $this->_Read($query, $array);
     }
 
+    // Pagos POS — pos_order_payment usa pos_payment_type_id (no payment_type_id)
     function getVentaPagos($array) {
         $query = "
             SELECT
-                pt.code           AS payment_code,
-                pt.name           AS payment_name,
+                pt.code AS payment_code,
+                pt.name AS payment_name,
                 pop.amount,
                 pop.tendered_amount,
                 pop.change_amount
             FROM {$this->bd}pos_order_payment pop
-            INNER JOIN {$this->bd}pos_payment_type pt ON pop.payment_type_id = pt.id
-            WHERE pop.order_id = ?
+            INNER JOIN {$this->bd}pos_payment_type pt ON pop.pos_payment_type_id = pt.id
+            WHERE pop.order_id = ? AND pop.active = 1
             ORDER BY pop.id ASC
         ";
         return $this->_Read($query, $array);
     }
 
     // =========================================================================
-    // Crear / Actualizar venta
+    // Crear / Actualizar orden
     // =========================================================================
 
     function createVenta($array) {
@@ -306,12 +317,12 @@ class mdl extends CRUD {
     }
 
     // =========================================================================
-    // Items del ticket
+    // Items del ticket — order_package con pedidos_id como FK a order
     // =========================================================================
 
     function createOrderItem($array) {
         return $this->_Insert([
-            'table'  => "{$this->bd}pos_order_items",
+            'table'  => "{$this->bd}order_package",
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
@@ -319,20 +330,21 @@ class mdl extends CRUD {
 
     function updateOrderItem($array) {
         return $this->_Update([
-            'table'  => "{$this->bd}pos_order_items",
+            'table'  => "{$this->bd}order_package",
             'values' => $array['values'],
             'where'  => 'id = ?',
             'data'   => $array['data']
         ]);
     }
 
+    // Eliminar todos los items de una orden por pedidos_id
     function deleteOrderItems($array) {
-        $query = "DELETE FROM {$this->bd}pos_order_items WHERE order_id = ?";
+        $query = "DELETE FROM {$this->bd}order_package WHERE pedidos_id = ?";
         return $this->_CUD($query, $array);
     }
 
     // =========================================================================
-    // Pagos del ticket (HU-03)
+    // Pagos POS — pos_order_payment
     // =========================================================================
 
     function createOrderPayment($array) {
@@ -352,14 +364,14 @@ class mdl extends CRUD {
         $query = "
             SELECT COALESCE(SUM(amount), 0) AS total_paid
             FROM {$this->bd}pos_order_payment
-            WHERE order_id = ?
+            WHERE order_id = ? AND active = 1
         ";
         $result = $this->_Read($query, $array);
         return is_array($result) && !empty($result) ? (float)$result[0]['total_paid'] : 0.0;
     }
 
     // =========================================================================
-    // Descuentos (HU-04)
+    // Descuentos POS — pos_order_discount
     // =========================================================================
 
     function createOrderDiscount($array) {
@@ -376,7 +388,7 @@ class mdl extends CRUD {
     }
 
     // =========================================================================
-    // Clientes
+    // Clientes — order_clients
     // =========================================================================
 
     function createClient($array) {
@@ -388,11 +400,13 @@ class mdl extends CRUD {
     }
 
     function getClientById($array) {
-        return $this->_Select([
-            'table'  => "{$this->bd}order_clients",
-            'values' => 'id, name, phone, email',
-            'where'  => 'id = ?',
-            'data'   => $array
-        ])[0] ?? null;
+        $query = "
+            SELECT id, name, phone, email
+            FROM {$this->bd}order_clients
+            WHERE id = ?
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
     }
 }

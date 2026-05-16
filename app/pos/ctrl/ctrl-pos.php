@@ -7,13 +7,34 @@ require_once '../mdl/mdl-pos.php';
 class ctrl extends mdl {
 
     function init() {
-        $subsidiaries_id = $_SESSION['SUB'] ?? '';
         $sucursales = $this->lsSucursales();
-        $turnos     = $subsidiaries_id ? $this->lsCashShifts([$subsidiaries_id]) : [];
+        
+        $sub_id   = $_SESSION['SUB'];
+        $products = $this->lsProducts([$sub_id]);
+        $turno    = $this->getOpenShiftBySubsidiary([$sub_id]);
+        $folio    = $this->getMaxOrderFolio();
+        // $turnos     = $subsidiaries_id ? $this->lsCashShifts([$subsidiaries_id]) : [];
+
+        $turnoData = null;
+        if ($turno) {
+            $metrics   = $this->getShiftMetrics([$turno['id']]);
+            $turnoData = [
+                'id'      => $turno['id'],
+                'nombre'  => $turno['shift_name'],
+                'ventas'  => (float)$metrics['total_sales'],
+                'ordenes' => (int)$metrics['total_orders']
+            ];
+        }
         return [
-            'subsidiaries_id' => (int) $subsidiaries_id,
-            'sucursales'      => $sucursales,
-            'turnos'          => is_array($turnos) ? $turnos : []
+            'products' => $products,
+            'turno'    => $turnoData,
+            'id_sub'    => $sub_id,
+            'sucursal' => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
+            'vendedor' => $turno ? $turno['employee_name'] : '',
+            'folio'    => $folio,
+            // 'subsidiaries_id' => (int) $subsidiaries_id,
+            // 'sucursales'      => $sucursales,
+            // 'turnos'          => is_array($turnos) ? $turnos : []
         ];
     }
 
