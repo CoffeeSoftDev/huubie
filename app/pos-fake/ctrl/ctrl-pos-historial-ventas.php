@@ -2,7 +2,7 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
-require_once '../mdl/mdl-pos-pedidos.php';
+require_once '../mdl/mdl-pos-historial-ventas.php';
 
 class ctrl extends mdl {
 
@@ -50,7 +50,7 @@ class ctrl extends mdl {
             $a[] = [
                 'class'   => 'btn btn-sm btn-secondary me-1',
                 'html'    => '<i class="icon-eye"></i>',
-                'onclick' => 'app.onShowVenta(' . $item['id'] . ')'
+                'onclick' => 'app.getVenta(' . $item['id'] . ')'
             ];
 
             if ($isCancelled) {
@@ -60,12 +60,12 @@ class ctrl extends mdl {
                 $a[] = [
                     'class'   => 'btn btn-sm btn-primary me-1',
                     'html'    => '<i class="icon-pencil"></i>',
-                    'onclick' => 'app.editarVenta(' . $item['id'] . ')'
+                    'onclick' => 'app.editVenta(' . $item['id'] . ')'
                 ];
                 $a[] = [
                     'class'   => 'btn btn-sm btn-danger',
                     'html'    => '<i class="icon-trash-empty"></i>',
-                    'onclick' => 'app.cancelarVenta(' . $item['id'] . ')'
+                    'onclick' => 'app.cancelVenta(' . $item['id'] . ')'
                 ];
             }
 

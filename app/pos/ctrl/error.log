@@ -1,3 +1,17 @@
+[ 2026-05-16 09:59:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
+[ 2026-05-16 09:59:26 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
 [ 2026-05-15 18:38:40 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

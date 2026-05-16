@@ -1,6 +1,5 @@
-let api = 'ctrl/ctrl-pos-pedidos.php';
+let api = 'ctrl/ctrl-pos-historial-ventas.php';
 let app;
-let lsPOSPedidosData;
 
 let turno , subsidiaries_id ;
 
@@ -15,45 +14,44 @@ $(async () => {
 class App extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'POSPedidos';
-        this.activeSubsidiaryId = null;
+        this.PROJECT_NAME = 'POSHistorialVentas';
+        this.subId        = null;
     }
 
     async init() {
-        const data = await useFetch({
-            url:  this._link,
-            data: { opc: 'init' }
-        });
+        const res = await useFetch({ url:  this._link, data: { opc: 'init' }  });
 
-        lsPOSPedidosData = data || {};
-
-        this.activeSubsidiaryId = lsPOSPedidosData.subsidiaries_id || null;
-        subsidiaries_id         = this.activeSubsidiaryId;
+        this.dataInit   = res || {};
+        this.subId      = this.dataInit.subsidiaries_id || null;
+        subsidiaries_id = this.subId;
 
         this.render();
-
-        const sucursales = lsPOSPedidosData.sucursales || [];
-        if (sucursales.length) {
-            this.populateSelect('subsidiaries_id', sucursales);
-        }
-
-        const turnos = lsPOSPedidosData.turnos || [];
-        if (turnos.length) {
-            this.populateSelect('cash_shift_id', turnos);
-            turno = turnos[0];
-        }
-
-        this.lsVentas();
-        this.lsKpis();
     }
 
     render() {
         this.layout();
-        this.filterBar(SAMPLE_FILTERS);
+        this.filterBar();
         this.renderHeader(SAMPLE_VIEW_HEADER);
         this.renderFooter(SAMPLE_VIEW_FOOTER);
-        // this.renderInfoCards(SAMPLE_KPIS);
-        this.renderDetail(SAMPLE_SALE);
+
+
+        this.renderDetail();
+        this.populateFilters();
+        this.lsVentas();
+        this.lsKpis();
+    }
+
+    populateFilters() {
+        const sucursales = this.dataInit.sucursales || [];
+        if (sucursales.length) {
+            this.populateSelect('subsidiaries_id', sucursales);
+        }
+
+        const turnos = this.dataInit.turnos || [];
+        if (turnos.length) {
+            this.populateSelect('cash_shift_id', turnos);
+            turno = turnos[0];
+        }
     }
 
     layout() {
@@ -123,7 +121,7 @@ class App extends Templates {
     getFilters() {
         const range = getDataRangePicker(`calendar${this.PROJECT_NAME}`) || {};
         return {
-            subsidiaries_id: $('#subsidiaries_id').val() || this.activeSubsidiaryId || '',
+            subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
             cash_shift_id:   $('#cash_shift_id').val() || '',
             fi:              range.fi || '',
             ff:              range.ff || '',
@@ -144,7 +142,7 @@ class App extends Templates {
         this.createTable({
             parent:      'tableWrap',
             idFilterBar: 'filterBar',
-            data:        { opc: 'lsVentas', subsidiaries_id: this.activeSubsidiaryId || '' },
+            data:        { opc: 'lsVentas', subsidiaries_id: this.subId || '' },
             conf:        { datatable: true, pag: 15 },
             coffeesoft:  true,
             attr: {
@@ -254,7 +252,7 @@ class App extends Templates {
             // },
             {
                 opc: 'input-calendar',
-                id: 'calendarPOSPedidos',
+                id: 'calendarPOSHistorialVentas',
                 lbl: 'Rango de fecha:',
                 class: 'col-12 col-md-4 col-lg-3'
             },
@@ -554,7 +552,7 @@ class App extends Templates {
         const defaults = {
             parent: 'root',
             id: 'saleDetailPanel',
-            class: 'flex-shrink-0 bg-[var(--cs-bg-header,#141d2b)] border-l border-[var(--cs-border,#374151)] flex flex-col overflow-hidden',
+            class: 'w-full h-full flex-shrink-0 bg-[var(--cs-bg-header,#141d2b)] border-l border-[var(--cs-border,#374151)] flex flex-col overflow-hidden',
             json: null,
             currency: 'es-MX',
             labels: {
@@ -697,17 +695,15 @@ class App extends Templates {
         if (!opts.json) {
             aside.html(`
                 <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
-                    <div class="w-14 h-14 rounded-full bg-[var(--cs-bg-input,#1F2937)] border border-[var(--cs-border,#374151)] flex items-center justify-center mb-3">
-                        <svg class="w-6 h-6 text-[var(--cs-border,#374151)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
+                    <div class="w-16 h-16 rounded-full bg-[var(--cs-bg-input,#1F2937)] border border-[var(--cs-border,#374151)] flex items-center justify-center mb-3">
+                        <i data-lucide="sticker" class="w-8 h-8 text-[var(--cs-border,#374151)]"></i>
                     </div>
                     <p class="text-[11px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.emptyTitle)}</p>
                     <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
                 </div>
             `);
             $(`#${opts.parent}`).html(aside);
+            if (window.lucide) lucide.createIcons();
             return;
         }
 

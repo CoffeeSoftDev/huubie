@@ -103,6 +103,7 @@ class mdl extends CRUD {
                 o.cash_shift_id,
                 o.daily_closure_id,
                 o.subsidiaries_id,
+                o.client_id,
                 oc.name  AS client_name,
                 oc.phone AS client_phone,
                 oc.email AS client_email,

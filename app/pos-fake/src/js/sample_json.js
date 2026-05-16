@@ -1,26 +1,26 @@
 const SAMPLE_VIEW_HEADER = {
     title:    'Cuentas de Ventas',
     subtitle: 'Consulta los registros de ventas por sucursal, rango de fecha y turno',
-    toggles: [
-        {
-            key:   'rol',
-            label: 'Rol demo:',
-            value: 'admin',
-            options: [
-                { value: 'admin',    label: 'Administrador' },
-                { value: 'vendedor', label: 'Vendedor'      }
-            ]
-        },
-        {
-            key:   'dia',
-            label: 'Dia:',
-            value: 'abierto',
-            options: [
-                { value: 'abierto', label: 'Abierto' },
-                { value: 'cerrado', label: 'Cerrado' }
-            ]
-        }
-    ]
+    // toggles: [
+    //     {
+    //         key:   'rol',
+    //         label: 'Rol demo:',
+    //         value: 'admin',
+    //         options: [
+    //             { value: 'admin',    label: 'Administrador' },
+    //             { value: 'vendedor', label: 'Vendedor'      }
+    //         ]
+    //     },
+    //     {
+    //         key:   'dia',
+    //         label: 'Dia:',
+    //         value: 'abierto',
+    //         options: [
+    //             { value: 'abierto', label: 'Abierto' },
+    //             { value: 'cerrado', label: 'Cerrado' }
+    //         ]
+    //     }
+    // ]
 };
 
 const SAMPLE_VIEW_FOOTER = {
@@ -136,7 +136,7 @@ const SAMPLE_FILTERS = [
     // },
     {
         opc:   'input-calendar',
-        id:    'calendarPOSPedidos',
+        id:    'calendarPOSHistorialVentas',
         lbl:   'Rango de fecha:',
         class: 'col-12 col-md-4 col-lg-3'
     },

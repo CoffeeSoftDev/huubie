@@ -113,7 +113,12 @@
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -uroot fayxzvov_reginas -e \"SELECT o.id, o.date_order, o.time_order, o.status, o.total_pay, o.discount, oc.name AS client_name, GROUP_CONCAT\\(DISTINCT mp.method_pay\\) AS pm FROM \\\\`order\\\\` o LEFT JOIN order_clients oc ON o.client_id = oc.id LEFT JOIN order_payments op ON o.id = op.order_id LEFT JOIN method_pay mp ON op.method_pay_id = mp.id WHERE o.subsidiaries_id = 4 AND DATE\\(o.date_order\\) BETWEEN '2026-04-01' AND '2026-05-15' GROUP BY o.id ORDER BY o.date_order DESC LIMIT 10;\")",
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -uroot fayxzvov_reginas -e \"SELECT o.id, o.status, o.total_pay, o.discount, o.date_order, o.time_order, oc.name AS client_name, GROUP_CONCAT\\(DISTINCT mp.method_pay ORDER BY mp.method_pay SEPARATOR ', '\\) AS payment_methods FROM \\\\`order\\\\` o LEFT JOIN order_clients oc ON o.client_id = oc.id LEFT JOIN order_payments op ON o.id = op.order_id LEFT JOIN method_pay mp ON op.method_pay_id = mp.id WHERE 1=1 AND o.subsidiaries_id = 4 AND DATE\\(o.date_order\\) BETWEEN '2026-04-01' AND '2026-05-15' GROUP BY o.id ORDER BY o.date_order DESC, o.time_order DESC LIMIT 5;\")",
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -uroot fayxzvov_reginas -e \"SELECT COUNT\\(*\\) AS total, SUM\\(CASE WHEN status!=4 THEN total_pay ELSE 0 END\\) AS monto, SUM\\(CASE WHEN status!=4 THEN discount ELSE 0 END\\) AS desc_total, COUNT\\(CASE WHEN status=4 THEN 1 END\\) AS canceladas FROM \\\\`order\\\\` o WHERE o.subsidiaries_id = 4 AND DATE\\(o.date_order\\) BETWEEN '2026-04-01' AND '2026-05-15';\")",
-      "Bash(git log *)"
+      "Bash(git log *)",
+      "Bash(ls \"C:/Users/SomxDev/.claude/agents/\" 2>/dev/null; ls \"C:/Users/SomxDev/.claude/skills/\" 2>/dev/null)",
+      "Read(//c/Users/SomxDev/.claude/**)",
+      "Bash(ls \"C:/Users/SomxDev/.claude/steering/\" 2>/dev/null; echo \"---\"; ls \"C:/Users/CoffeSoft/.claude/steering/\" 2>/dev/null)",
+      "Read(//c/Users/CoffeSoft/.claude/**)",
+      "Bash(git mv *)"
     ]
   },
   "spinnerTipsEnabled": true
