@@ -9,7 +9,7 @@ window.updateSession = () => {};
 
 $(async () => {
     app = new App(api, 'root');
-    app.init();
+    await app.init();
 });
 
 class App extends Templates {
@@ -19,32 +19,32 @@ class App extends Templates {
         this.activeSubsidiaryId = null;
     }
 
-    init() {
-        useFetch({
+    async init() {
+        const data = await useFetch({
             url:  this._link,
             data: { opc: 'init' }
-        }).then((data) => {
-            lsPOSPedidosData = data || {};
-
-            this.activeSubsidiaryId = lsPOSPedidosData.subsidiaries_id || null;
-            subsidiaries_id         = this.activeSubsidiaryId;
-
-            this.render();
-
-            const sucursales = lsPOSPedidosData.sucursales || [];
-            if (sucursales.length) {
-                this.populateSelect('subsidiaries_id', sucursales);
-            }
-
-            const turnos = lsPOSPedidosData.turnos || [];
-            if (turnos.length) {
-                this.populateSelect('cash_shift_id', turnos);
-                turno = turnos[0];
-            }
-
-            this.lsVentas();
-            this.lsKpis();
         });
+
+        lsPOSPedidosData = data || {};
+
+        this.activeSubsidiaryId = lsPOSPedidosData.subsidiaries_id || null;
+        subsidiaries_id         = this.activeSubsidiaryId;
+
+        this.render();
+
+        const sucursales = lsPOSPedidosData.sucursales || [];
+        if (sucursales.length) {
+            this.populateSelect('subsidiaries_id', sucursales);
+        }
+
+        const turnos = lsPOSPedidosData.turnos || [];
+        if (turnos.length) {
+            this.populateSelect('cash_shift_id', turnos);
+            turno = turnos[0];
+        }
+
+        this.lsVentas();
+        this.lsKpis();
     }
 
     render() {
