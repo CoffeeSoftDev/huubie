@@ -64,6 +64,15 @@ class Ventas extends Templates {
             padding:     '',
         });
 
+        cards.push({
+            titulo:      'POS Inventario',
+            descripcion: 'Visores fake de stock, entradas, movimientos, traspasos y mermas.',
+            imagen:      '',
+            icon:        'boxes',
+            enlace:      '/app/pos-fake/menu-hub.php',
+            padding:     '',
+        });
+
         if (data['level'] == '1') {
             cards.push({
                 titulo:      'Reportes',
