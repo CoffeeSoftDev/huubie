@@ -48,25 +48,24 @@ class ctrl extends mdl {
         foreach ($ls as $item) {
             $isCancelled = (int)$item['status'] === 4;
 
+            $btnBase = 'inline-flex items-center justify-center w-7 h-7 rounded text-[12px] transition-colors me-1';
+            $btnView = $btnBase . ' bg-slate-600 hover:bg-slate-500 text-white';
+            $btnOff  = $btnBase . ' bg-red-600 hover:bg-red-500 text-white';
+            $btnDis  = $btnBase . ' bg-red-900/40 text-amber-300/50 cursor-not-allowed';
+
             $a = [];
             $a[] = [
-                'class'   => 'btn btn-sm btn-secondary me-1',
+                'class'   => $btnView,
                 'html'    => '<i class="icon-eye"></i>',
                 'onclick' => 'app.getVenta(' . $item['id'] . ')'
             ];
 
             if ($isCancelled) {
-                $a[] = ['class' => 'btn btn-sm btn-primary me-1 disabled',  'html' => '<i class="icon-pencil"></i>',      'onclick' => 'return false'];
-                $a[] = ['class' => 'btn btn-sm btn-danger disabled',         'html' => '<i class="icon-trash-empty"></i>', 'onclick' => 'return false'];
+                $a[] = ['class' => $btnDis, 'html' => '<i class="icon-block-1"></i>', 'onclick' => 'return false'];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                    'html'    => '<i class="icon-pencil"></i>',
-                    'onclick' => 'app.editVenta(' . $item['id'] . ')'
-                ];
-                $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-trash-empty"></i>',
+                    'class'   => $btnOff,
+                    'html'    => '<i class="icon-block-1"></i>',
                     'onclick' => 'app.cancelVenta(' . $item['id'] . ')'
                 ];
             }
@@ -196,27 +195,32 @@ class ctrl extends mdl {
     }
 
     function cancelVenta() {
-        $id     = $_POST['id'];
-        $status = 500;
-        $message = 'No se pudo cancelar la venta';
+        $id   = $_POST['id']   ?? '';
+        $user = $_POST['user'] ?? '';
+        $key  = $_POST['key']  ?? '';
+
+        if (empty($id) || empty($user) || empty($key)) {
+            return ['status' => 400, 'message' => 'Usuario y clave de administrador son requeridos'];
+        }
+
+        $admin = $this->validateAdminUser([$user, md5($key)]);
+
+        if (!$admin) {
+            return ['status' => 401, 'message' => 'Credenciales incorrectas o el usuario no es administrador'];
+        }
 
         $values = $this->util->sql([
             'status'       => 4,
             'cancelled_at' => date('Y-m-d H:i:s'),
+            'cancelled_by' => $admin['id'],
             'id'           => $id
         ], 1);
 
         $cancel = $this->updateVenta($values);
 
-        if ($cancel) {
-            $status  = 200;
-            $message = 'Venta cancelada correctamente';
-        }
-
-        return [
-            'status'  => $status,
-            'message' => $message
-        ];
+        return $cancel
+            ? ['status' => 200, 'message' => 'Venta cancelada correctamente']
+            : ['status' => 500, 'message' => 'No se pudo cancelar la venta'];
     }
 }
 

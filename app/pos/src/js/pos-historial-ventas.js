@@ -334,25 +334,46 @@ class App extends Templates {
         }
     }
 
-    cancelVenta(id) {
-        this.swalQuestion({
-            opts: {
-                title: '¿Cancelar venta?',
-                text:  'Esta accion no se puede deshacer',
-                icon:  'warning'
-            },
-            data: { opc: 'cancelVenta', id },
-            methods: {
-                send: async (response) => {
-                    if (response.status === 200) {
-                        alert({ icon: 'success', text: response.message });
-                        this.renderDetail(null);
-                        this.lsVentas();
-                        await this.lsKpis();
-                    }
+    async cancelVenta(id) {
+        const { value: creds } = await Swal.fire({
+            title: 'Autorización de administrador',
+            html: `
+                <p class="text-sm mb-3 text-gray-300">Esta venta será cancelada. Ingresa las credenciales de un administrador para continuar.</p>
+                <input id="swal-cancel-user" class="swal2-input" placeholder="Usuario" autocomplete="off">
+                <input id="swal-cancel-key"  class="swal2-input" type="password" placeholder="Clave" autocomplete="off">
+            `,
+            icon: 'warning',
+            showCancelButton:  true,
+            confirmButtonText: 'Cancelar venta',
+            cancelButtonText:  'Volver',
+            confirmButtonColor: '#E02424',
+            focusConfirm: false,
+            preConfirm: () => {
+                const user = document.getElementById('swal-cancel-user').value.trim();
+                const key  = document.getElementById('swal-cancel-key').value;
+                if (!user || !key) {
+                    Swal.showValidationMessage('Usuario y clave son requeridos');
+                    return false;
                 }
+                return { user, key };
             }
         });
+
+        if (!creds) return;
+
+        const response = await useFetch({
+            url:  this._link,
+            data: { opc: 'cancelVenta', id, user: creds.user, key: creds.key }
+        });
+
+        if (response && response.status === 200) {
+            alert({ icon: 'success', text: response.message });
+            this.renderDetail(null);
+            this.lsVentas();
+            await this.lsKpis();
+        } else {
+            alert({ icon: 'error', text: (response && response.message) || 'Error al cancelar la venta' });
+        }
     }
 
     // ── Components ────────────────────────────────────────────────────────

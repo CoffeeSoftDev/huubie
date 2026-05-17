@@ -249,4 +249,18 @@ class mdl extends CRUD {
             'data'   => $array['data'],
         ]);
     }
+
+    function validateAdminUser($array) {
+        $query = "
+            SELECT u.id, u.user, u.usr_rols_id
+            FROM fayxzvov_alpha.usr_users u
+            WHERE BINARY u.user = ?
+              AND u.key = ?
+              AND u.enabled = 1
+              AND u.usr_rols_id = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return !empty($result) ? $result[0] : null;
+    }
 }
