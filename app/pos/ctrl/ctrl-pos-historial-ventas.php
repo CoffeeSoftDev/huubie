@@ -84,7 +84,7 @@ class ctrl extends mdl {
                 'Descuento' => $descuento > 0
                                 ? '<span class="text-red-400">-$' . number_format($descuento, 2, '.', ',') . '</span>'
                                 : '$0.00',
-                'Pago'      => $item['payment_methods'] ?: '—',
+                'Pago'      => paymentBadges($item['payment_codes'], $item['payment_methods']),
                 'a'         => $a
             ];
         }
@@ -194,6 +194,35 @@ class ctrl extends mdl {
         ];
     }
 
+    function reopenVenta() {
+        $id   = $_POST['id']   ?? '';
+        $user = $_POST['user'] ?? '';
+        $key  = $_POST['key']  ?? '';
+
+        if (empty($id) || empty($user) || empty($key)) {
+            return ['status' => 400, 'message' => 'Usuario y clave de administrador son requeridos'];
+        }
+
+        $admin = $this->validateAdminUser([$user, md5($key)]);
+
+        if (!$admin) {
+            return ['status' => 401, 'message' => 'Credenciales incorrectas o el usuario no es administrador'];
+        }
+
+        $values = $this->util->sql([
+            'status'       => 2,
+            'cancelled_at' => null,
+            'cancelled_by' => null,
+            'id'           => $id
+        ], 1);
+
+        $reopen = $this->updateVenta($values);
+
+        return $reopen
+            ? ['status' => 200, 'message' => 'Venta reabierta correctamente']
+            : ['status' => 500, 'message' => 'No se pudo reabrir la venta'];
+    }
+
     function cancelVenta() {
         $id   = $_POST['id']   ?? '';
         $user = $_POST['user'] ?? '';
@@ -225,6 +254,19 @@ class ctrl extends mdl {
 }
 
 // Complements
+
+function paymentBadges($codes, $names) {
+    if (empty($codes)) return '—';
+
+    $arr   = array_filter(array_map('trim', explode(',', $codes)));
+    $title = htmlspecialchars((string)$names, ENT_QUOTES);
+    $html  = '<div class="inline-flex flex-wrap items-center gap-1" title="' . $title . '">';
+    foreach ($arr as $code) {
+        $html .= '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-600/40 text-gray-300 bg-gray-700/20">' . htmlspecialchars($code, ENT_QUOTES) . '</span>';
+    }
+    $html .= '</div>';
+    return $html;
+}
 
 function statusVenta($status) {
     $map = [

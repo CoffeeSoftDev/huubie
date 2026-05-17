@@ -103,7 +103,8 @@ class mdl extends CRUD {
                 o.cash_shift_id,
                 oc.name  AS client_name,
                 oc.phone AS client_phone,
-                GROUP_CONCAT(DISTINCT mp.method_pay ORDER BY mp.method_pay SEPARATOR ', ') AS payment_methods
+                GROUP_CONCAT(DISTINCT mp.method_pay ORDER BY mp.method_pay SEPARATOR ', ') AS payment_methods,
+                GROUP_CONCAT(DISTINCT UPPER(LEFT(mp.method_pay, 3)) ORDER BY mp.method_pay SEPARATOR ',') AS payment_codes
             FROM {$this->bd}order o
             LEFT JOIN {$this->bd}order_clients oc ON o.client_id = oc.id
             LEFT JOIN {$this->bd}order_payments op ON o.id = op.order_id

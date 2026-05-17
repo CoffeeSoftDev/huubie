@@ -16,7 +16,7 @@ $(async () => {
 
 class App extends Templates {
 
-    // -- Bootstrap --
+ 
 
     constructor(link, divModule) {
         super(link, divModule);
@@ -44,7 +44,7 @@ class App extends Templates {
         this.filterBar();
         stockView.renderHeader(SAMPLE_VIEW_HEADER_STOCK);
         stockView.renderFooter(SAMPLE_VIEW_FOOTER_STOCK);
-        stockView.renderTabs(this.PROJECT_NAME);
+        // stockView.renderTabs(this.PROJECT_NAME);
         stockView.renderDetail(null);
         this.populateFilters();
         stock.lsStock();
@@ -65,10 +65,10 @@ class App extends Templates {
                     text:  '#viewHeader',
                     class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
-                {
-                    id:    'tabsRow',
-                    class: 'px-4 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
-                },
+                // {
+                //     id:    'tabsRow',
+                //     class: 'px-4 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                // },
                 {
                     id:    'kpisRow',
                     class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
@@ -314,11 +314,11 @@ class Stock extends Templates {
         };
 
         const kpis = [
-            { id: 'kpiTotal',   label: 'Total Productos', value: c.total_productos || 0, tone: 'default' },
-            { id: 'kpiOk',      label: 'Stock OK',        value: c.total_ok        || 0, tone: 'success' },
-            { id: 'kpiBajo',    label: 'Stock Bajo',      value: c.total_bajo      || 0, tone: 'warning' },
-            { id: 'kpiAgotado', label: 'Agotado',         value: c.total_agotado   || 0, tone: 'danger'  },
-            { id: 'kpiVida',    label: 'Vida util',       value: c.total_vida      || 0, tone: 'purple'  }
+            { id: 'kpiTotal',   label: 'Total Productos', value: c.total_productos || 0, tone: 'default', icon: 'package'         },
+            { id: 'kpiOk',      label: 'Stock OK',        value: c.total_ok        || 0, tone: 'success', icon: 'check-circle-2'  },
+            { id: 'kpiBajo',    label: 'Stock Bajo',      value: c.total_bajo      || 0, tone: 'warning', icon: 'alert-triangle'  },
+            { id: 'kpiAgotado', label: 'Agotado',         value: c.total_agotado   || 0, tone: 'danger',  icon: 'x-circle'        },
+            { id: 'kpiVida',    label: 'Vida util',       value: c.total_vida      || 0, tone: 'purple',  icon: 'clock'           }
         ];
         stockView.renderInfoCards(kpis);
     }
@@ -414,29 +414,51 @@ class StockView extends Templates {
                 info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]',
                 purple:  'cs-text-purple  text-[var(--cs-accent-purple,#7C3AED)]'
             },
+            iconBgTones: {
+                default: 'bg-slate-500/15',
+                success: 'bg-emerald-500/15',
+                warning: 'bg-amber-500/15',
+                danger:  'bg-rose-500/15',
+                info:    'bg-blue-500/15',
+                purple:  'bg-purple-500/15'
+            },
             cardClass:  'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
             labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
             valueClass: 'cs-kpi-value text-sm font-bold',
+            iconWrapClass: 'w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0',
+            iconClass:     'w-3.5 h-3.5',
             onClick:    () => { }
         };
 
         const o    = options || {};
         const opts = Object.assign({}, defaults, o);
-        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
-        opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
+        opts.labels      = Object.assign({}, defaults.labels,      o.labels      || {});
+        opts.tones       = Object.assign({}, defaults.tones,       o.tones       || {});
+        opts.iconBgTones = Object.assign({}, defaults.iconBgTones, o.iconBgTones || {});
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
+        const toneClass   = (tone) => opts.tones[tone]       || opts.tones.default;
+        const iconBgClass = (tone) => opts.iconBgTones[tone] || opts.iconBgTones.default;
 
         const kpiCard = (kpi, idx) => {
             const cardId = kpi.id || `${opts.id}_${idx}`;
+            const iconHtml = kpi.icon ? `
+                <div class="${opts.iconWrapClass} ${iconBgClass(kpi.tone)}">
+                    <i data-lucide="${esc(kpi.icon)}" class="${opts.iconClass} ${toneClass(kpi.tone)}"></i>
+                </div>
+            ` : '';
             return `
                 <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
-                    <p class="${opts.labelClass}">${esc(kpi.label)}</p>
-                    <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="${opts.labelClass}">${esc(kpi.label)}</p>
+                            <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
+                        </div>
+                        ${iconHtml}
+                    </div>
                 </div>
             `;
         };
@@ -455,6 +477,7 @@ class StockView extends Templates {
 
         grid.html(opts.json.map((kpi, idx) => kpiCard(kpi, idx)).join(''));
         $(`#${opts.parent}`).html(grid);
+        if (window.lucide) lucide.createIcons();
 
         grid.find('[data-kpi-idx]').on('click', (e) => {
             const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);

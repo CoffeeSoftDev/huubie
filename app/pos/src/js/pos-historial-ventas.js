@@ -1,9 +1,9 @@
 let api = 'ctrl/ctrl-pos-historial-ventas.php';
 let app;
 
-let turno , subsidiaries_id ;
+let turno, subsidiaries_id;
 
-window.updateSession = () => {};
+window.updateSession = () => { };
 
 
 $(async () => {
@@ -12,17 +12,20 @@ $(async () => {
 });
 
 class App extends Templates {
+
+
+
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'POSHistorialVentas';
-        this.subId        = null;
+        this.subId = null;
     }
 
     async init() {
-        const res = await useFetch({ url:  this._link, data: { opc: 'init' }  });
+        const res = await useFetch({ url: this._link, data: { opc: 'init' } });
 
-        this.dataInit   = res || {};
-        this.subId      = this.dataInit.subsidiaries_id || null;
+        this.dataInit = res || {};
+        this.subId = this.dataInit.subsidiaries_id || null;
         subsidiaries_id = this.subId;
 
         this.render();
@@ -41,21 +44,10 @@ class App extends Templates {
         this.lsKpis();
     }
 
-    populateFilters() {
-        const sucursales = this.dataInit.sucursales || [];
-        if (sucursales.length) {
-            this.populateSelect('subsidiaries_id', sucursales);
-        }
-
-        const turnos = this.dataInit.turnos || [];
-        if (turnos.length) {
-            this.populateSelect('cash_shift_id', turnos);
-            turno = turnos[0];
-        }
-    }
+    // -- Layout --
 
     layout() {
-      
+
 
         const mainPanel = {
             type: 'div',
@@ -117,118 +109,23 @@ class App extends Templates {
         });
     }
 
-
-    getFilters() {
-        const range = getDataRangePicker(`calendar${this.PROJECT_NAME}`) || {};
-        return {
-            subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
-            cash_shift_id:   $('#cash_shift_id').val() || '',
-            fi:              range.fi || '',
-            ff:              range.ff || '',
-            status:          $('#status').val() || ''
-        };
-    }
-
-    populateSelect(id, data) {
-        const $sel = $(`#${id}`);
-        if (!$sel.length) return;
-        $sel.find('option:not(:first)').remove();
-        data.forEach(item => {
-            $sel.append(`<option value="${item.id}">${item.valor}</option>`);
-        });
-    }
-
-    lsVentas() {
-        this.createTable({
-            parent:      'tableWrap',
-            idFilterBar: 'filterBar',
-            data:        { opc: 'lsVentas', subsidiaries_id: this.subId || '' },
-            conf:        { datatable: true, pag: 15 },
-            coffeesoft:  true,
-            attr: {
-                id:           `tb${this.PROJECT_NAME}`,
-                theme:        'dark',
-                title:        '',
-                subtitle:     '',
-                extends:      true,
-                emptyMessage: 'No se encontraron ventas con los filtros aplicados',
-                emptyIcon:    'icon-doc-text',
-                f_size:       12
-            },
-            methods: {
-                send: (data) => {
-                    const total = data && data.row ? data.row.length : 0;
-                    this.updateFooterInfo(`Mostrando ${total} venta${total !== 1 ? 's' : ''}`);
-                }
-            }
-        });
-    }
-
-    async lsKpis() {
-        const filters  = this.getFilters();
-        const response = await useFetch({
-            url:  this._link,
-            data: Object.assign({ opc: 'showVentas' }, filters)
-        });
-
-        if (response && response.status === 200 && response.counts) {
-            const c    = response.counts;
-            const fmt  = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-            const kpis = [
-                { id:'kpiCount', label:'Ventas',      value: c.total_ventas     || 0,            tone:'default' },
-                { id:'kpiTotal', label:'Monto total', value: fmt(c.total_monto),                 tone:'success' },
-                { id:'kpiDesc',  label:'Descuentos',  value: fmt(c.total_descuentos),            tone:'warning' },
-                { id:'kpiCanc',  label:'Canceladas',  value: c.total_canceladas || 0,            tone:'danger'  }
-            ];
-            this.renderInfoCards(kpis);
-        } else {
-            this.renderInfoCards(SAMPLE_KPIS);
-        }
-    }
-
-    async getVenta(id) {
-        const response = await useFetch({
-            url:  this._link,
-            data: { opc: 'getVenta', id }
-        });
-
-        if (response && response.status === 200 && response.data) {
-            this.renderDetail(response.data);
-        } else {
-            this.renderDetail(SAMPLE_SALE);
-        }
-    }
-
-
-
-
-    // ── Render helpers ────────────────────────────────────────────────────
-
-    renderDetail(sale) {
-        this.saleDetailPanel({
-            parent:       'detailPanel',
-            json:         sale,
-            onClose:      ()  => this.renderDetail(null),
-            onReabrir:    (v) => console.log('[saleDetailPanel] reabrir',    v && v.folio),
-            onReimprimir: (v) => console.log('[saleDetailPanel] reimprimir', v && v.folio),
-            onCancelar:   (v) => { if (v) this.cancelVenta(v.id); }
-        });
-    }
-
-    renderInfoCards(rows) {
-        this.kpisRow({
-            parent:  'kpisRow',
-            json:    rows,
-            onClick: (kpi) => console.log('[kpisRow] click', kpi.id)
-        });
-    }
-
+    // -- Filter bar --
     filterBar() {
 
         let filters = [
+            {
+                opc: 'select',
+                id: 'fTurno',
+                lbl: 'Periodo:',
+                class: 'col-12 col-md-3 col-lg-2',
+                onchange: 'app.onChangePeriodo()',
+                value: 'actual',
+                data: [
+                    { id: 'actual', valor: 'Turno actual' },
+                    { id: 'dia', valor: 'Dia actual' },
+                    { id: 'rango', valor: 'Por rango de fecha' }
+                ]
+            },
 
             {
                 opc: 'select',
@@ -238,18 +135,13 @@ class App extends Templates {
                 onchange: 'app.onChangeFilters()',
                 data: []
             },
-            // {
-            //     opc:      'select',
-            //     id:       'fTurno',
-            //     lbl:      'Periodo:',
-            //     class:    'col-12 col-md-3 col-lg-2',
-            //     onchange: 'app.onChangeFilters()',
-            //     data: [
-            //         { id: 'actual', valor: 'Turno actual' },
-            //         { id: 'dia',    valor: 'Dia actual'   },
-            //         { id: 'rango',  valor: 'Por rango de fecha' }
-            //     ]
-            // },
+
+            {
+                opc: 'input-calendar',
+                id: 'dayPOSHistorialVentas',
+                lbl: 'Dia:',
+                class: 'col-12 col-md-3 col-lg-2'
+            },
             {
                 opc: 'input-calendar',
                 id: 'calendarPOSHistorialVentas',
@@ -262,7 +154,9 @@ class App extends Templates {
                 lbl: 'Estatus:',
                 class: 'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
+                value: '',
                 data: [
+                    { id: '', valor: 'Todos' },
                     { id: '1', valor: 'Pendiente' },
                     { id: '2', valor: 'En proceso' },
                     { id: '3', valor: 'Pagado' },
@@ -278,28 +172,177 @@ class App extends Templates {
             data: filters
         });
 
+        $('#fTurno').val('actual');
+
         dataPicker({
             parent: `calendar${this.PROJECT_NAME}`,
             rangepicker: {
-                startDate:     moment('2026-04-01'),
-                endDate:       moment('2026-05-15'),
+                startDate: moment('2026-04-01'),
+                endDate: moment('2026-05-15'),
                 showDropdowns: true,
                 ranges: {
-                    'Hoy':           [moment(), moment()],
-                    'Ayer':          [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-                    'Semana actual': [moment().startOf('week'),  moment().endOf('week')],
-                    'Mes actual':    [moment().startOf('month'), moment().endOf('month')],
-                    'Mes anterior':  [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                    'Hoy': [moment(), moment()],
+                    'Ayer': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Semana actual': [moment().startOf('week'), moment().endOf('week')],
+                    'Mes actual': [moment().startOf('month'), moment().endOf('month')],
+                    'Mes anterior': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
                 }
             },
             onSelect: () => this.onChangeFilters()
+        });
+
+        dataPicker({
+            parent: `day${this.PROJECT_NAME}`,
+            type: 'simple',
+            rangeDefault: {
+                startDate: moment(),
+                singleDatePicker: true,
+                showDropdowns: true,
+                autoApply: true,
+                locale: { format: 'DD-MM-YYYY' }
+            },
+            onSelect: () => this.onChangeFilters()
+        });
+
+        this.onChangePeriodo();
+    }
+
+    populateFilters() {
+        const sucursales = this.dataInit.sucursales || [];
+        if (sucursales.length) {
+            this.populateSelect('subsidiaries_id', sucursales);
+        }
+
+        const turnos = this.dataInit.turnos || [];
+        if (turnos.length) {
+            this.populateSelect('cash_shift_id', turnos);
+            turno = turnos[0];
+            $('#cash_shift_id').val(turnos[0].id);
+        } else {
+            $('#cash_shift_id').html('<option value="" selected disabled>-- Sin turno --</option>');
+        }
+    }
+
+    populateSelect(id, data) {
+        const $sel = $(`#${id}`);
+        if (!$sel.length) return;
+        $sel.find('option:not(:first)').remove();
+        data.forEach(item => {
+            $sel.append(`<option value="${item.id}">${item.valor}</option>`);
+        });
+    }
+
+    getFilters() {
+        const fTurno = $('#fTurno').val() || 'actual';
+        let fi = '';
+        let ff = '';
+
+        if (fTurno === 'dia') {
+            const day = getDataRangePicker(`day${this.PROJECT_NAME}`) || {};
+            fi = day.fi || '';
+            ff = day.fi || '';
+        } else if (fTurno === 'rango') {
+            const range = getDataRangePicker(`calendar${this.PROJECT_NAME}`) || {};
+            fi = range.fi || '';
+            ff = range.ff || '';
+        }
+
+        return {
+            subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
+            cash_shift_id: fTurno === 'actual' ? ($('#cash_shift_id').val() || '') : '',
+            fTurno: fTurno,
+            fi: fi,
+            ff: ff,
+            status: $('#status').val() || ''
+        };
+    }
+
+    // -- Data --
+    lsVentas() {
+        const filters = this.getFilters();
+        this.createTable({
+            parent: 'tableWrap',
+            idFilterBar: 'filterBar',
+            data: Object.assign({ opc: 'lsVentas' }, filters),
+            conf: { datatable: true, pag: 15 },
+            coffeesoft: true,
+            attr: {
+                id: `tb${this.PROJECT_NAME}`,
+                theme: 'dark',
+                title: '',
+                subtitle: '',
+                extends: true,
+                emptyMessage: 'No se encontraron ventas con los filtros aplicados',
+                emptyIcon: 'icon-doc-text',
+                f_size: 12
+            },
+            methods: {
+                send: (data) => {
+                    const total = data && data.row ? data.row.length : 0;
+                    this.updateFooterInfo(`Mostrando ${total} venta${total !== 1 ? 's' : ''}`);
+                }
+            }
+        });
+    }
+
+    async lsKpis() {
+        const filters = this.getFilters();
+        const response = await useFetch({
+            url: this._link,
+            data: Object.assign({ opc: 'showVentas' }, filters)
+        });
+
+
+        const c = response.counts;
+        const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        const kpis = [
+            { id: 'kpiCount', label: 'Ventas', value: c.total_ventas || 0, tone: 'default' },
+            { id: 'kpiTotal', label: 'Monto total', value: fmt(c.total_monto), tone: 'success' },
+            { id: 'kpiDesc', label: 'Descuentos', value: fmt(c.total_descuentos), tone: 'warning' },
+            { id: 'kpiCanc', label: 'Canceladas', value: c.total_canceladas || 0, tone: 'danger' }
+        ];
+        this.renderInfoCards(kpis);
+
+    }
+
+    async getVenta(id) {
+        this.saleDetailPanel({ parent: 'detailPanel', loading: true });
+        const [response] = await Promise.all([
+            useFetch({ url: this._link, data: { opc: 'getVenta', id } }),
+            new Promise(resolve => setTimeout(resolve, 1000))
+        ]);
+        this.renderDetail(response.data);
+
+    }
+
+    // -- Render helpers --
+
+    renderDetail(sale) {
+        this.saleDetailPanel({
+            parent: 'detailPanel',
+            json: sale,
+            onClose: () => this.renderDetail(null),
+            onReabrir: (v) => { if (v) this.reopenVenta(v.id); },
+            onReimprimir: (v) => { if (v) this.reprintTicket(v); },
+            onCancelar: (v) => { if (v) this.cancelVenta(v.id); }
+        });
+    }
+
+    renderInfoCards(rows) {
+        this.kpisRow({
+            parent: 'kpisRow',
+            json: rows,
+            onClick: (kpi) => console.log('[kpisRow] click', kpi.id)
         });
     }
 
     renderHeader(data) {
         this.viewHeader({
-            parent:   'viewHeader',
-            json:     data,
+            parent: 'viewHeader',
+            json: data,
             onToggle: (key, value) => console.log('[viewHeader] toggle', key, '→', value)
         });
     }
@@ -307,7 +350,7 @@ class App extends Templates {
     renderFooter(data) {
         this.viewFooter({
             parent: 'viewFooter',
-            json:   data
+            json: data
         });
     }
 
@@ -315,16 +358,38 @@ class App extends Templates {
         $('#viewFooter_info').text(text);
     }
 
-    // ── Event handlers ────────────────────────────────────────────────────
+    // -- Event handlers --
 
     async onChangeFilters() {
         this.lsVentas();
         await this.lsKpis();
     }
 
+    onChangePeriodo() {
+        const mode = $('#fTurno').val() || 'actual';
+
+        const $shiftWrap = $('#cash_shift_id').closest('[class*="col-"]');
+        const $dayWrap = $('#dayPOSHistorialVentas').closest('[class*="col-"]');
+        const $rangeWrap = $('#calendarPOSHistorialVentas').closest('[class*="col-"]');
+
+        $shiftWrap.hide();
+        $dayWrap.hide();
+        $rangeWrap.hide();
+
+        if (mode === 'actual') {
+            $shiftWrap.show();
+        } else if (mode === 'dia') {
+            $dayWrap.show();
+        } else if (mode === 'rango') {
+            $rangeWrap.show();
+        }
+
+        this.onChangeFilters();
+    }
+
     async editVenta(id) {
         const response = await useFetch({
-            url:  this._link,
+            url: this._link,
             data: { opc: 'editVenta', id }
         });
 
@@ -334,23 +399,29 @@ class App extends Templates {
         }
     }
 
-    async cancelVenta(id) {
-        const { value: creds } = await Swal.fire({
-            title: 'Autorización de administrador',
+    async askAdminCreds({ title, message, confirmText, icon }) {
+        const { value } = await Swal.fire({
+            title,
             html: `
-                <p class="text-sm mb-3 text-gray-300">Esta venta será cancelada. Ingresa las credenciales de un administrador para continuar.</p>
-                <input id="swal-cancel-user" class="swal2-input" placeholder="Usuario" autocomplete="off">
-                <input id="swal-cancel-key"  class="swal2-input" type="password" placeholder="Clave" autocomplete="off">
+                <p class="text-sm mb-3 text-gray-300">${message}</p>
+                <input id="swal-admin-user" class="swal2-input !bg-[#111928] !text-white !border !border-gray-600" placeholder="Usuario" autocomplete="off">
+                <input id="swal-admin-key"  class="swal2-input !bg-[#111928] !text-white !border !border-gray-600" type="password" placeholder="Clave" autocomplete="off">
             `,
-            icon: 'warning',
-            showCancelButton:  true,
-            confirmButtonText: 'Cancelar venta',
-            cancelButtonText:  'Volver',
-            confirmButtonColor: '#E02424',
+            icon,
+            showCancelButton: true,
+            confirmButtonText: confirmText,
+            cancelButtonText: 'Volver',
             focusConfirm: false,
+            customClass: {
+                popup:         'bg-[#1F2A37] text-white rounded-lg shadow-lg',
+                title:         'text-2xl font-semibold text-white',
+                htmlContainer: 'text-gray-300',
+                confirmButton: 'bg-[#1C64F2] hover:bg-[#0E9E6E] text-white py-2 px-4 rounded',
+                cancelButton:  'bg-transparent text-white border border-gray-500 py-2 px-4 rounded hover:bg-[#111928]'
+            },
             preConfirm: () => {
-                const user = document.getElementById('swal-cancel-user').value.trim();
-                const key  = document.getElementById('swal-cancel-key').value;
+                const user = document.getElementById('swal-admin-user').value.trim();
+                const key  = document.getElementById('swal-admin-key').value;
                 if (!user || !key) {
                     Swal.showValidationMessage('Usuario y clave son requeridos');
                     return false;
@@ -358,7 +429,16 @@ class App extends Templates {
                 return { user, key };
             }
         });
+        return value || null;
+    }
 
+    async cancelVenta(id) {
+        const creds = await this.askAdminCreds({
+            title:       'Autorización de administrador',
+            message:     'Esta venta será cancelada. Ingresa las credenciales de un administrador para continuar.',
+            confirmText: 'Cancelar venta',
+            icon:        'warning'
+        });
         if (!creds) return;
 
         const response = await useFetch({
@@ -376,14 +456,119 @@ class App extends Templates {
         }
     }
 
-    // ── Components ────────────────────────────────────────────────────────
+    async reopenVenta(id) {
+        const creds = await this.askAdminCreds({
+            title:       'Autorización de administrador',
+            message:     'Esta venta será reabierta y volverá a estado "En proceso". Ingresa las credenciales de un administrador.',
+            confirmText: 'Reabrir venta',
+            icon:        'question'
+        });
+        if (!creds) return;
+
+        const response = await useFetch({
+            url:  this._link,
+            data: { opc: 'reopenVenta', id, user: creds.user, key: creds.key }
+        });
+
+        if (response && response.status === 200) {
+            alert({ icon: 'success', text: response.message });
+            this.renderDetail(null);
+            this.lsVentas();
+            await this.lsKpis();
+        } else {
+            alert({ icon: 'error', text: (response && response.message) || 'Error al reabrir la venta' });
+        }
+    }
+
+    reprintTicket(v) {
+        if (!v) return;
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+        const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', {
+            minimumFractionDigits: 2, maximumFractionDigits: 2
+        });
+
+        const items     = v.items || [];
+        const pagos     = v.pagos || [];
+        const subtotal  = items.reduce((s, it) => s + (it.price || 0) * (it.qty || 0), 0);
+        const descuento = items.reduce((s, it) => s + (it.price || 0) * (it.qty || 0) * ((it.discount || 0) / 100), 0);
+        const total     = subtotal - descuento;
+
+        const f = v.fecha ? new Date(v.fecha) : new Date();
+        const fechaStr = `${String(f.getDate()).padStart(2,'0')}/${String(f.getMonth()+1).padStart(2,'0')}/${f.getFullYear()} ${String(f.getHours()).padStart(2,'0')}:${String(f.getMinutes()).padStart(2,'0')}`;
+
+        const itemsHtml = items.map(it => `
+            <tr>
+                <td style="text-align:left;">${esc(it.name)}<br><span style="font-size:10px;color:#666;">${it.qty} x ${fmt(it.price)}</span></td>
+                <td style="text-align:right;vertical-align:top;">${fmt((it.price || 0) * (it.qty || 0))}</td>
+            </tr>
+        `).join('');
+
+        const pagosHtml = pagos.map(p => `
+            <tr>
+                <td style="text-align:left;">${esc(p.name || p.clave)}</td>
+                <td style="text-align:right;">${fmt(p.amount)}</td>
+            </tr>
+        `).join('');
+
+        const html = `
+            <!DOCTYPE html>
+            <html><head><meta charset="UTF-8"><title>Ticket ${esc(v.folio || '')}</title>
+            <style>
+                body{font-family:'Courier New',monospace;width:280px;margin:10px auto;color:#000;font-size:12px;}
+                h1{font-size:14px;text-align:center;margin:0 0 4px;}
+                .sub{text-align:center;font-size:11px;margin-bottom:8px;}
+                hr{border:0;border-top:1px dashed #000;margin:6px 0;}
+                table{width:100%;border-collapse:collapse;}
+                td{padding:2px 0;font-size:11px;}
+                .total{font-size:14px;font-weight:bold;}
+                .right{text-align:right;}
+                .center{text-align:center;font-size:10px;margin-top:8px;}
+                @media print{body{margin:0;}}
+            </style></head><body>
+                <h1>${esc(v.folio || '')}</h1>
+                <div class="sub">
+                    ${esc(v.sucursal || '')}<br>
+                    ${fechaStr}<br>
+                    Estatus: ${esc(String(v.estatus || '').toUpperCase())}
+                </div>
+                ${v.cliente ? `<hr><div style="font-size:11px;">Cliente: ${esc(v.cliente.name)}${v.cliente.phone ? '<br>Tel: ' + esc(v.cliente.phone) : ''}</div>` : ''}
+                <hr>
+                <table>${itemsHtml}</table>
+                <hr>
+                <table>
+                    <tr><td>Subtotal</td><td class="right">${fmt(subtotal)}</td></tr>
+                    ${descuento > 0 ? `<tr><td>Descuento</td><td class="right">-${fmt(descuento)}</td></tr>` : ''}
+                    <tr><td class="total">TOTAL</td><td class="right total">${fmt(total)}</td></tr>
+                </table>
+                ${pagos.length ? `<hr><div style="font-size:10px;font-weight:bold;">Metodos de pago</div><table>${pagosHtml}</table>` : ''}
+                ${v.nota ? `<hr><div style="font-size:10px;">Nota: ${esc(v.nota)}</div>` : ''}
+                <div class="center">*** Reimpresion ***<br>Gracias por su preferencia</div>
+                <script>window.onload=function(){window.print();setTimeout(function(){window.close();},300);};<\/script>
+            </body></html>
+        `;
+
+        const blob = new Blob([html], { type: 'text/html' });
+        const url  = URL.createObjectURL(blob);
+        const w    = window.open(url, '_blank', 'width=400,height=600');
+        if (!w) {
+            URL.revokeObjectURL(url);
+            alert({ icon: 'warning', text: 'Permite las ventanas emergentes para imprimir el ticket' });
+            return;
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+
+    // -- Components --
 
     kpisRow(options) {
         const defaults = {
             parent: 'root',
-            id:     'kpisRow',
-            class:  'grid grid-cols-4 gap-3',
-            json:   [],
+            id: 'kpisRow',
+            class: 'grid grid-cols-4 gap-3',
+            json: [],
             labels: {
                 empty: 'Sin indicadores'
             },
@@ -391,20 +576,20 @@ class App extends Templates {
                 default: 'text-white',
                 success: 'cs-text-success text-[var(--cs-success,#3FC189)]',
                 warning: 'cs-text-warning text-[var(--cs-warning,#FBBF24)]',
-                danger:  'cs-text-danger  text-[var(--cs-danger,#E02424)]',
-                info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]',
-                purple:  'cs-text-purple  text-[var(--cs-accent-purple,#7C3AED)]'
+                danger: 'cs-text-danger  text-[var(--cs-danger,#E02424)]',
+                info: 'cs-text-info    text-[var(--cs-info,#1C64F2)]',
+                purple: 'cs-text-purple  text-[var(--cs-accent-purple,#7C3AED)]'
             },
-            cardClass:  'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)]  rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
+            cardClass: 'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)]  rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
             labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
             valueClass: 'cs-kpi-value text-sm font-bold',
-            onClick:    () => {}
+            onClick: () => { }
         };
 
-        const o    = options || {};
+        const o = options || {};
         const opts = Object.assign({}, defaults, o);
         opts.labels = Object.assign({}, defaults.labels, o.labels || {});
-        opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
+        opts.tones = Object.assign({}, defaults.tones, o.tones || {});
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -447,23 +632,23 @@ class App extends Templates {
     viewHeader(options) {
         const defaults = {
             parent: 'root',
-            id:     'viewHeader',
-            class:  'flex items-center justify-between w-full',
-            json:   { title: '', subtitle: '', toggles: [] },
+            id: 'viewHeader',
+            class: 'flex items-center justify-between w-full',
+            json: { title: '', subtitle: '', toggles: [] },
             classes: {
-                title:    'text-base font-bold text-white',
+                title: 'text-base font-bold text-white',
                 subtitle: 'text-[10px] text-[var(--cs-text-secondary,#D1D5DB)]',
                 groupLbl: 'text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-bold',
-                btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[var(--cs-border,#374151)] text-[var(--cs-text-secondary,#D1D5DB)] hover:bg-[var(--cs-bg-input,#1F2937)] transition-colors',
-                btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-[var(--cs-info,#1C64F2)] bg-[var(--cs-info,#1C64F2)]/15 text-white',
-                sep:      'text-[var(--cs-border,#374151)]'
+                btn: 'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[var(--cs-border,#374151)] text-[var(--cs-text-secondary,#D1D5DB)] hover:bg-[var(--cs-bg-input,#1F2937)] transition-colors',
+                btnActive: 'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-[var(--cs-info,#1C64F2)] bg-[var(--cs-info,#1C64F2)]/15 text-white',
+                sep: 'text-[var(--cs-border,#374151)]'
             },
-            onToggle: () => {}
+            onToggle: () => { }
         };
 
-        const o    = options || {};
+        const o = options || {};
         const opts = Object.assign({}, defaults, o);
-        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
+        opts.json = Object.assign({}, defaults.json, o.json || {});
         opts.classes = Object.assign({}, defaults.classes, o.classes || {});
 
         const state = {};
@@ -489,7 +674,7 @@ class App extends Templates {
             `;
         };
 
-        const wrap        = $('<div>', { id: opts.id, class: opts.class });
+        const wrap = $('<div>', { id: opts.id, class: opts.class });
         const togglesHtml = (opts.json.toggles || [])
             .map((g, i, arr) => toggleGroup(g) + (i < arr.length - 1 ? `<span class="${opts.classes.sep}">|</span>` : ''))
             .join('');
@@ -506,8 +691,8 @@ class App extends Templates {
 
         wrap.on('click', '[data-toggle-key]', (e) => {
             const $btn = $(e.currentTarget);
-            const key  = $btn.attr('data-toggle-key');
-            const val  = $btn.attr('data-toggle-value');
+            const key = $btn.attr('data-toggle-key');
+            const val = $btn.attr('data-toggle-value');
             state[key] = val;
 
             $btn.siblings('[data-toggle-key="' + key + '"]').addBack().each(function () {
@@ -522,35 +707,35 @@ class App extends Templates {
     viewFooter(options) {
         const defaults = {
             parent: 'root',
-            id:     'viewFooter',
-            class:  'flex items-center justify-between w-full',
-            json:   { info: '', legends: [] },
+            id: 'viewFooter',
+            class: 'flex items-center justify-between w-full',
+            json: { info: '', legends: [] },
             tones: {
                 default: '#9CA3AF',
                 success: 'var(--cs-success,#3FC189)',
                 warning: 'var(--cs-warning,#FBBF24)',
-                danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#1C64F2)',
-                purple:  'var(--cs-accent-purple,#7C3AED)'
+                danger: 'var(--cs-danger,#E02424)',
+                info: 'var(--cs-info,#1C64F2)',
+                purple: 'var(--cs-accent-purple,#7C3AED)'
             },
             classes: {
-                info:   'text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
+                info: 'text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
                 legend: 'flex items-center gap-3 text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
-                item:   'flex items-center gap-1'
+                item: 'flex items-center gap-1'
             }
         };
 
-        const o    = options || {};
+        const o = options || {};
         const opts = Object.assign({}, defaults, o);
-        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
-        opts.tones   = Object.assign({}, defaults.tones,   o.tones   || {});
+        opts.json = Object.assign({}, defaults.json, o.json || {});
+        opts.tones = Object.assign({}, defaults.tones, o.tones || {});
         opts.classes = Object.assign({}, defaults.classes, o.classes || {});
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        const toneColor  = (tone) => opts.tones[tone] || opts.tones.default;
+        const toneColor = (tone) => opts.tones[tone] || opts.tones.default;
         const legendItem = (lg) => `
             <span class="${opts.classes.item}">
                 <span class="w-2 h-2 rounded-full" style="background:${toneColor(lg.tone)};"></span>
@@ -558,7 +743,7 @@ class App extends Templates {
             </span>
         `;
 
-        const wrap        = $('<div>', { id: opts.id, class: opts.class });
+        const wrap = $('<div>', { id: opts.id, class: opts.class });
         const legendsHtml = (opts.json.legends || []).map(legendItem).join('');
 
         wrap.html(`
@@ -577,47 +762,48 @@ class App extends Templates {
             json: null,
             currency: 'es-MX',
             labels: {
-                emptyTitle:    'Selecciona una venta',
-                emptyHint:     'Haz click en cualquier fila de la tabla para ver el detalle completo aqui',
-                informacion:   'Informacion',
-                cliente:       'Cliente',
-                fechaHora:     'Fecha y hora',
-                items:         'Items - Productos',
-                nota:          'Nota de la venta',
-                metodosPago:   'Metodos de pago',
-                subtotal:      'Subtotal',
-                descuento:     'Descuento',
-                total:         'Total',
-                sinCliente:    'Sin cliente asociado',
-                naCliente:     'N/A',
-                sinNota:       'Sin nota',
-                sinPagos:      'Sin pagos registrados',
-                btnReabrir:    'Reabrir',
+                emptyTitle: 'Selecciona una venta',
+                emptyHint: 'Haz click en cualquier fila de la tabla para ver el detalle completo aqui',
+                informacion: 'Informacion',
+                cliente: 'Cliente',
+                fechaHora: 'Fecha y hora',
+                items: 'Items - Productos',
+                nota: 'Nota de la venta',
+                metodosPago: 'Metodos de pago',
+                subtotal: 'Subtotal',
+                descuento: 'Descuento',
+                total: 'Total',
+                sinCliente: 'Sin cliente asociado',
+                naCliente: 'N/A',
+                sinNota: 'Sin nota',
+                sinPagos: 'Sin pagos registrados',
+                btnReabrir: 'Reabrir',
                 btnReimprimir: 'Reimprimir',
-                btnCancelar:   'Cancelar',
-                folioPrefix:   'Venta'
+                btnCancelar: 'Cancelar',
+                folioPrefix: 'Venta'
             },
             sucursalLabels: {
-                kafeto:     'Reginas Kafeto',
-                central:    'Reginas Central',
+                kafeto: 'Reginas Kafeto',
+                central: 'Reginas Central',
                 pasteleria: 'Reginas Pasteleria'
             },
             turnoLabels: {
                 manana: 'Manana',
-                tarde:  'Tarde',
-                noche:  'Noche'
+                tarde: 'Tarde',
+                noche: 'Noche'
             },
-            onClose:      () => { },
-            onReabrir:    () => { },
+            onClose: () => { },
+            onReabrir: () => { },
             onReimprimir: () => { },
-            onCancelar:   () => { }
+            onCancelar: () => { },
+            loading: false
         };
 
-        const o    = options || {};
+        const o = options || {};
         const opts = Object.assign({}, defaults, o);
-        opts.labels         = Object.assign({}, defaults.labels,         o.labels         || {});
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
         opts.sucursalLabels = Object.assign({}, defaults.sucursalLabels, o.sucursalLabels || {});
-        opts.turnoLabels    = Object.assign({}, defaults.turnoLabels,    o.turnoLabels    || {});
+        opts.turnoLabels = Object.assign({}, defaults.turnoLabels, o.turnoLabels || {});
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -630,7 +816,7 @@ class App extends Templates {
 
         const parseDate = (iso) => {
             if (!iso) return { fecha: '—', hora: '—' };
-            const d  = new Date(iso);
+            const d = new Date(iso);
             const dd = String(d.getDate()).padStart(2, '0');
             const mm = String(d.getMonth() + 1).padStart(2, '0');
             const yy = d.getFullYear();
@@ -640,11 +826,11 @@ class App extends Templates {
         };
 
         const statusBadge = (estatus) => {
-            const v   = String(estatus || '').toLowerCase();
+            const v = String(estatus || '').toLowerCase();
             const map = {
-                pagado:    { bg: 'rgba(63,193,137,0.18)',  fg: 'var(--cs-success,#3FC189)', txt: 'PAGADO'    },
-                cancelado: { bg: 'rgba(224,36,36,0.18)',   fg: 'var(--cs-danger,#E02424)',  txt: 'CANCELADO' },
-                abierto:   { bg: 'rgba(28,100,242,0.18)',  fg: 'var(--cs-info,#1C64F2)',    txt: 'ABIERTO'   }
+                pagado: { bg: 'rgba(63,193,137,0.18)', fg: 'var(--cs-success,#3FC189)', txt: 'PAGADO' },
+                cancelado: { bg: 'rgba(224,36,36,0.18)', fg: 'var(--cs-danger,#E02424)', txt: 'CANCELADO' },
+                abierto: { bg: 'rgba(28,100,242,0.18)', fg: 'var(--cs-info,#1C64F2)', txt: 'ABIERTO' }
             };
             const c = map[v] || { bg: 'rgba(251,191,36,0.18)', fg: 'var(--cs-warning,#FBBF24)', txt: esc(estatus).toUpperCase() };
             return `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide" style="background:${c.bg};color:${c.fg};">${c.txt}</span>`;
@@ -665,8 +851,8 @@ class App extends Templates {
                 return `<p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic">Sin productos</p>`;
             }
             const rows = items.map(it => {
-                const bruto   = (it.price || 0) * (it.qty || 0);
-                const neto    = bruto * (1 - (it.discount || 0) / 100);
+                const bruto = (it.price || 0) * (it.qty || 0);
+                const neto = bruto * (1 - (it.discount || 0) / 100);
                 const hasDisc = (it.discount || 0) > 0;
                 const bgClass = hasDisc ? 'bg-[rgba(180,160,60,0.18)]' : '';
                 return `
@@ -705,13 +891,24 @@ class App extends Templates {
         };
 
         const calcTotals = (v) => {
-            const items     = v.items || [];
-            const subtotal  = items.reduce((sum, it) => sum + (it.price || 0) * (it.qty || 0), 0);
+            const items = v.items || [];
+            const subtotal = items.reduce((sum, it) => sum + (it.price || 0) * (it.qty || 0), 0);
             const descuento = items.reduce((sum, it) => sum + (it.price || 0) * (it.qty || 0) * ((it.discount || 0) / 100), 0);
             return { subtotal, descuento, total: subtotal - descuento };
         };
 
         const aside = $('<aside>', { id: opts.id, class: opts.class });
+
+        if (opts.loading) {
+            aside.html(`
+                <div class="flex-1 flex flex-col items-center justify-center text-center px-6 gap-3">
+                    <div class="w-10 h-10 rounded-full border-2 border-[var(--cs-border,#374151)] border-t-[var(--cs-info,#1C64F2)] animate-spin"></div>
+                    <p class="text-[11px] text-[var(--cs-text-muted,#9CA3AF)]">Cargando detalle...</p>
+                </div>
+            `);
+            $(`#${opts.parent}`).html(aside);
+            return;
+        }
 
         if (!opts.json) {
             aside.html(`
@@ -728,13 +925,13 @@ class App extends Templates {
             return;
         }
 
-        const v          = opts.json;
-        const t          = calcTotals(v);
-        const f          = parseDate(v.fecha);
-        const sucursal   = opts.sucursalLabels[v.sucursal] || v.sucursal || '—';
-        const turno      = opts.turnoLabels[v.turno]       || v.turno    || '—';
+        const v = opts.json;
+        const t = calcTotals(v);
+        const f = parseDate(v.fecha);
+        const sucursal = opts.sucursalLabels[v.sucursal] || v.sucursal || '—';
+        const turno = opts.turnoLabels[v.turno] || v.turno || '—';
         const estadoTurn = v.turnoCerrado ? '(cerrado)' : '(abierto)';
-        const items      = v.items || [];
+        const items = v.items || [];
 
         aside.html(`
             <div class="px-3 py-3 border-b border-[var(--cs-border,#374151)] flex-shrink-0">
@@ -827,9 +1024,9 @@ class App extends Templates {
 
         $(`#${opts.parent}`).html(aside);
 
-        $(`#${opts.id}_close`).on('click',         () => opts.onClose(v));
-        $(`#${opts.id}_btnReabrir`).on('click',    () => opts.onReabrir(v));
+        $(`#${opts.id}_close`).on('click', () => opts.onClose(v));
+        $(`#${opts.id}_btnReabrir`).on('click', () => opts.onReabrir(v));
         $(`#${opts.id}_btnReimprimir`).on('click', () => opts.onReimprimir(v));
-        $(`#${opts.id}_btnCancelar`).on('click',   () => opts.onCancelar(v));
+        $(`#${opts.id}_btnCancelar`).on('click', () => opts.onCancelar(v));
     }
 }
