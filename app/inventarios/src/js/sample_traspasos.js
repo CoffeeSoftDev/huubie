@@ -7,7 +7,8 @@
 
 const SAMPLE_VIEW_HEADER_TRASPASOS = {
     title:    'Traspasos entre Sucursales',
-    subtitle: 'Movimientos de producto entre almacenes con flujo de aprobacion y confirmacion'
+    subtitle: 'Movimientos de producto entre almacenes con flujo de aprobacion y confirmacion',
+    back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
 };
 
 const SAMPLE_VIEW_FOOTER_TRASPASOS = {

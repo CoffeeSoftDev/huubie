@@ -399,6 +399,37 @@ class App extends Templates {
         }
     }
 
+    async askAdminKey({ title, message, confirmText, icon }) {
+        const { value } = await Swal.fire({
+            title,
+            html: `
+                <p class="text-sm mb-3 text-gray-300">${message}</p>
+                <input id="swal-admin-key" class="swal2-input !bg-[#111928] !text-white !border !border-gray-600" type="password" placeholder="Clave de administrador" autocomplete="off">
+            `,
+            icon,
+            showCancelButton: true,
+            confirmButtonText: confirmText,
+            cancelButtonText: 'Volver',
+            focusConfirm: false,
+            customClass: {
+                popup:         'bg-[#1F2A37] text-white rounded-lg shadow-lg',
+                title:         'text-2xl font-semibold text-white',
+                htmlContainer: 'text-gray-300',
+                confirmButton: 'bg-[#1C64F2] hover:bg-[#0E9E6E] text-white py-2 px-4 rounded',
+                cancelButton:  'bg-transparent text-white border border-gray-500 py-2 px-4 rounded hover:bg-[#111928]'
+            },
+            preConfirm: () => {
+                const key = document.getElementById('swal-admin-key').value;
+                if (!key) {
+                    Swal.showValidationMessage('La clave es requerida');
+                    return false;
+                }
+                return { key };
+            }
+        });
+        return value || null;
+    }
+
     async askAdminCreds({ title, message, confirmText, icon }) {
         const { value } = await Swal.fire({
             title,
@@ -457,9 +488,9 @@ class App extends Templates {
     }
 
     async reopenVenta(id) {
-        const creds = await this.askAdminCreds({
+        const creds = await this.askAdminKey({
             title:       'Autorización de administrador',
-            message:     'Esta venta será reabierta y volverá a estado "En proceso". Ingresa las credenciales de un administrador.',
+            message:     'Esta venta será reabierta y volverá a estado "En proceso". Ingresa la clave de un administrador.',
             confirmText: 'Reabrir venta',
             icon:        'question'
         });
@@ -467,7 +498,7 @@ class App extends Templates {
 
         const response = await useFetch({
             url:  this._link,
-            data: { opc: 'reopenVenta', id, user: creds.user, key: creds.key }
+            data: { opc: 'reopenVenta', id, key: creds.key }
         });
 
         if (response && response.status === 200) {
@@ -634,22 +665,31 @@ class App extends Templates {
             parent: 'root',
             id: 'viewHeader',
             class: 'flex items-center justify-between w-full',
-            json: { title: '', subtitle: '', toggles: [] },
+            json: { title: '', subtitle: '', toggles: [], actions: [] },
             classes: {
                 title: 'text-base font-bold text-white',
                 subtitle: 'text-[10px] text-[var(--cs-text-secondary,#D1D5DB)]',
                 groupLbl: 'text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-bold',
                 btn: 'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[var(--cs-border,#374151)] text-[var(--cs-text-secondary,#D1D5DB)] hover:bg-[var(--cs-bg-input,#1F2937)] transition-colors',
                 btnActive: 'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-[var(--cs-info,#1C64F2)] bg-[var(--cs-info,#1C64F2)]/15 text-white',
+                action: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] border border-[var(--cs-border,#374151)] text-[var(--cs-text-secondary,#D1D5DB)] hover:bg-[var(--cs-bg-input,#1F2937)] transition-colors',
+                actionTones: {
+                    info:    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] border border-[var(--cs-info,#1C64F2)]/40 text-white bg-[var(--cs-info,#1C64F2)]/15 hover:bg-[var(--cs-info,#1C64F2)]/25 transition-colors',
+                    success: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] border border-[var(--cs-success,#3FC189)]/40 text-white bg-[var(--cs-success,#3FC189)]/15 hover:bg-[var(--cs-success,#3FC189)]/25 transition-colors',
+                    warning: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] border border-[var(--cs-warning,#FBBF24)]/40 text-white bg-[var(--cs-warning,#FBBF24)]/15 hover:bg-[var(--cs-warning,#FBBF24)]/25 transition-colors',
+                    danger:  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] border border-[var(--cs-danger,#E02424)]/40 text-white bg-[var(--cs-danger,#E02424)]/15 hover:bg-[var(--cs-danger,#E02424)]/25 transition-colors'
+                },
                 sep: 'text-[var(--cs-border,#374151)]'
             },
-            onToggle: () => { }
+            onToggle: () => { },
+            onAction: () => { }
         };
 
         const o = options || {};
         const opts = Object.assign({}, defaults, o);
         opts.json = Object.assign({}, defaults.json, o.json || {});
         opts.classes = Object.assign({}, defaults.classes, o.classes || {});
+        opts.classes.actionTones = Object.assign({}, defaults.classes.actionTones, (o.classes && o.classes.actionTones) || {});
 
         const state = {};
         (opts.json.toggles || []).forEach(g => { state[g.key] = g.value; });
@@ -657,6 +697,28 @@ class App extends Templates {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
+
+        const iconSvg = (key) => {
+            const icons = {
+                'external-link': '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 3h7v7m0-7L10 14m-4-4H5a2 2 0 00-2 2v7a2 2 0 002 2h7a2 2 0 002-2v-1"/></svg>',
+                'arrow-left':    '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>',
+                'arrow-right':   '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>',
+                'home':          '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>'
+            };
+            return icons[key] || '';
+        };
+
+        const actionItem = (act) => {
+            const cls = (act.tone && opts.classes.actionTones[act.tone]) || opts.classes.action;
+            const icon = act.icon ? iconSvg(act.icon) : '';
+            const label = `<span>${esc(act.label)}</span>`;
+            if (act.href) {
+                const target = act.target ? ` target="${esc(act.target)}"` : '';
+                const rel = act.target === '_blank' ? ' rel="noopener noreferrer"' : '';
+                return `<a href="${esc(act.href)}"${target}${rel} data-action-key="${esc(act.key || '')}" class="${cls}">${icon}${label}</a>`;
+            }
+            return `<button type="button" data-action-key="${esc(act.key || '')}" class="${cls}">${icon}${label}</button>`;
+        };
 
         const toggleGroup = (g) => {
             const buttons = (g.options || []).map(op => {
@@ -675,16 +737,18 @@ class App extends Templates {
         };
 
         const wrap = $('<div>', { id: opts.id, class: opts.class });
+        const actionsHtml = (opts.json.actions || []).map(actionItem).join('');
         const togglesHtml = (opts.json.toggles || [])
             .map((g, i, arr) => toggleGroup(g) + (i < arr.length - 1 ? `<span class="${opts.classes.sep}">|</span>` : ''))
             .join('');
+        const showSep = actionsHtml && togglesHtml ? `<span class="${opts.classes.sep}">|</span>` : '';
 
         wrap.html(`
             <div>
                 <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
                 ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
             </div>
-            <div class="flex items-center gap-4">${togglesHtml}</div>
+            <div class="flex items-center gap-3">${actionsHtml}${showSep}${togglesHtml}</div>
         `);
 
         $(`#${opts.parent}`).html(wrap);
@@ -701,6 +765,12 @@ class App extends Templates {
             });
 
             opts.onToggle(key, val, Object.assign({}, state));
+        });
+
+        wrap.on('click', 'button[data-action-key]', (e) => {
+            const key = $(e.currentTarget).attr('data-action-key');
+            const act = (opts.json.actions || []).find(a => (a.key || '') === key);
+            opts.onAction(key, act);
         });
     }
 
@@ -828,11 +898,12 @@ class App extends Templates {
         const statusBadge = (estatus) => {
             const v = String(estatus || '').toLowerCase();
             const map = {
-                pagado: { bg: 'rgba(63,193,137,0.18)', fg: 'var(--cs-success,#3FC189)', txt: 'PAGADO' },
-                cancelado: { bg: 'rgba(224,36,36,0.18)', fg: 'var(--cs-danger,#E02424)', txt: 'CANCELADO' },
-                abierto: { bg: 'rgba(28,100,242,0.18)', fg: 'var(--cs-info,#1C64F2)', txt: 'ABIERTO' }
+                pendiente: { bg: '#633112', fg: '#F2C215', txt: 'PENDIENTE' },
+                abierto:   { bg: '#9EBBDB', fg: '#2A55A3', txt: 'EN PROCESO' },
+                pagado:    { bg: '#014737', fg: '#3FC189', txt: 'PAGADO' },
+                cancelado: { bg: '#572A34', fg: '#E05562', txt: 'CANCELADO' }
             };
-            const c = map[v] || { bg: 'rgba(251,191,36,0.18)', fg: 'var(--cs-warning,#FBBF24)', txt: esc(estatus).toUpperCase() };
+            const c = map[v] || { bg: '#633112', fg: '#F2C215', txt: esc(estatus).toUpperCase() };
             return `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide" style="background:${c.bg};color:${c.fg};">${c.txt}</span>`;
         };
 
@@ -872,7 +943,7 @@ class App extends Templates {
                         </div>
                     </div>`;
             }).join('');
-            return `<div class="rounded-lg border border-[var(--cs-border,#374151)] overflow-hidden">${rows}</div>`;
+            return `<div class="rounded-lg border border-[var(--cs-border,#374151) bg-[var(--cs-bg-input,#1F2937)] overflow-hidden">${rows}</div>`;
         };
 
         const pagosHtml = (pagos) => {
@@ -893,8 +964,11 @@ class App extends Templates {
         const calcTotals = (v) => {
             const items = v.items || [];
             const subtotal = items.reduce((sum, it) => sum + (it.price || 0) * (it.qty || 0), 0);
-            const descuento = items.reduce((sum, it) => sum + (it.price || 0) * (it.qty || 0) * ((it.discount || 0) / 100), 0);
-            return { subtotal, descuento, total: subtotal - descuento };
+            const descuento = (v.descuento != null)
+                ? parseFloat(v.descuento) || 0
+                : items.reduce((sum, it) => sum + (it.price || 0) * (it.qty || 0) * ((it.discount || 0) / 100), 0);
+            const total = (v.total != null) ? parseFloat(v.total) || 0 : subtotal - descuento;
+            return { subtotal, descuento, total };
         };
 
         const aside = $('<aside>', { id: opts.id, class: opts.class });

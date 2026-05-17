@@ -128,11 +128,15 @@ class ctrl extends mdl {
 
         $itemsMapped = [];
         foreach ($items as $it) {
+            $unitPrice = (float)$it['price'];
+            if ($unitPrice <= 0) {
+                $unitPrice = (float)($it['product_price'] ?? 0);
+            }
             $itemsMapped[] = [
                 'id'           => $it['id'],
-                'name'         => $it['order_details'] ?: 'Producto #' . $it['product_id'],
+                'name'         => $it['product_name'] ?: ($it['order_details'] ?: 'Producto #' . $it['product_id']),
                 'qty'          => (int)$it['quantity'],
-                'price'        => (float)$it['price'],
+                'price'        => $unitPrice,
                 'discount'     => 0,
                 'dedication'   => $it['dedication']
             ];
@@ -169,6 +173,8 @@ class ctrl extends mdl {
                 'turno'        => $v['cash_shift_id'] ? 'Turno #' . $v['cash_shift_id'] : '—',
                 'turnoCerrado' => !empty($v['daily_closure_id']),
                 'nota'         => $v['note'],
+                'descuento'    => abs((float)$v['discount']),
+                'total'        => (float)$v['total_pay'],
                 'cliente'      => $cliente,
                 'items'        => $itemsMapped,
                 'pagos'        => $pagosMapped
@@ -195,18 +201,17 @@ class ctrl extends mdl {
     }
 
     function reopenVenta() {
-        $id   = $_POST['id']   ?? '';
-        $user = $_POST['user'] ?? '';
-        $key  = $_POST['key']  ?? '';
+        $id  = $_POST['id']  ?? '';
+        $key = $_POST['key'] ?? '';
 
-        if (empty($id) || empty($user) || empty($key)) {
-            return ['status' => 400, 'message' => 'Usuario y clave de administrador son requeridos'];
+        if (empty($id) || empty($key)) {
+            return ['status' => 400, 'message' => 'La clave de administrador es requerida'];
         }
 
-        $admin = $this->validateAdminUser([$user, md5($key)]);
+        $admin = $this->validateAdminKey([md5($key)]);
 
         if (!$admin) {
-            return ['status' => 401, 'message' => 'Credenciales incorrectas o el usuario no es administrador'];
+            return ['status' => 401, 'message' => 'Clave incorrecta o no corresponde a un administrador'];
         }
 
         $values = $this->util->sql([
@@ -270,13 +275,13 @@ function paymentBadges($codes, $names) {
 
 function statusVenta($status) {
     $map = [
-        1 => ['bg' => 'rgba(251,191,36,0.18)',  'color' => '#FBBF24', 'label' => 'PENDIENTE'],
-        2 => ['bg' => 'rgba(28,100,242,0.18)',  'color' => '#1C64F2', 'label' => 'EN PROCESO'],
-        3 => ['bg' => 'rgba(63,193,137,0.18)',  'color' => '#3FC189', 'label' => 'PAGADO'   ],
-        4 => ['bg' => 'rgba(224,36,36,0.18)',   'color' => '#E02424', 'label' => 'CANCELADO'],
+        1 => ['bg' => '#633112', 'color' => '#F2C215', 'label' => 'PENDIENTE'],
+        2 => ['bg' => '#9EBBDB', 'color' => '#2A55A3', 'label' => 'EN PROCESO'],
+        3 => ['bg' => '#014737', 'color' => '#3FC189', 'label' => 'PAGADO'],
+        4 => ['bg' => '#572A34', 'color' => '#E05562', 'label' => 'CANCELADO'],
     ];
     $v = $map[(int)$status] ?? $map[1];
-    return '<span class="px-2 py-0.5 rounded text-[10px] font-bold" style="background:' . $v['bg'] . ';color:' . $v['color'] . ';">' . $v['label'] . '</span>';
+    return '<span class="w-32 text-[10px] font-bold mr-2 px-3 py-1 rounded" style="background:' . $v['bg'] . ';color:' . $v['color'] . ';">' . $v['label'] . '</span>';
 }
 
 $obj = new ctrl();

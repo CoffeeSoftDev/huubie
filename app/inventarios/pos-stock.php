@@ -6,7 +6,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/app/src/img/logo/logo.ico" />
-    <title>POS — Visor de Movimientos</title>
+    <title>POS — Visor de Stock</title>
 
     <?php require_once(__DIR__ . '/../layout/head.php'); ?>
     <?php require_once(__DIR__ . '/../layout/core-libraries.php'); ?>
@@ -20,8 +20,8 @@
         <div class="bg-[#111928]" id="root"></div>
     </div>
 
-    <script src="/app/pos-fake/src/js/sample_movimientos.js?t=<?php echo time(); ?>"></script>
-    <script src="/app/pos-fake/src/js/pos-movimientos.js?t=<?php echo time(); ?>"></script>
+    <script src="/app/inventarios/src/js/sample_stock.js?t=<?php echo time(); ?>"></script>
+    <script src="/app/inventarios/src/js/pos-stock.js?t=<?php echo time(); ?>"></script>
 </body>
 
 </html>

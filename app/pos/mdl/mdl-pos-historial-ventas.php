@@ -164,8 +164,11 @@ class mdl extends CRUD {
                 op.order_details,
                 op.dedication,
                 op.product_id,
-                op.modifier_id
+                op.modifier_id,
+                p.name  AS product_name,
+                p.price AS product_price
             FROM {$this->bd}order_package op
+            LEFT JOIN {$this->bd}order_products p ON op.product_id = p.id
             WHERE op.pedidos_id = ?
             ORDER BY op.id ASC
         ";
@@ -257,6 +260,19 @@ class mdl extends CRUD {
             FROM fayxzvov_alpha.usr_users u
             WHERE BINARY u.user = ?
               AND u.key = ?
+              AND u.enabled = 1
+              AND u.usr_rols_id = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return !empty($result) ? $result[0] : null;
+    }
+
+    function validateAdminKey($array) {
+        $query = "
+            SELECT u.id, u.user, u.usr_rols_id
+            FROM fayxzvov_alpha.usr_users u
+            WHERE u.key = ?
               AND u.enabled = 1
               AND u.usr_rols_id = 1
             LIMIT 1

@@ -43,7 +43,7 @@ class App extends Templates {
         this.filterBar();
         traspasosView.renderHeader(SAMPLE_VIEW_HEADER_TRASPASOS);
         traspasosView.renderFooter(SAMPLE_VIEW_FOOTER_TRASPASOS);
-        traspasosView.renderTabs(this.PROJECT_NAME);
+        // traspasosView.renderTabs(this.PROJECT_NAME);
         traspasosView.renderDetail(null);
         this.populateFilters();
         traspasos.lsTraspasos();
@@ -64,10 +64,10 @@ class App extends Templates {
                     text:  '#viewHeader',
                     class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
-                {
-                    id:    'tabsRow',
-                    class: 'px-4 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
-                },
+                // {
+                //     id:    'tabsRow',
+                //     class: 'px-4 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                // },
                 {
                     id:    'kpisRow',
                     class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
@@ -487,11 +487,13 @@ class TraspasosView extends Templates {
             parent: 'root',
             id:     'viewHeader',
             class:  'flex items-center justify-between w-full',
-            json:   { title: '', subtitle: '' },
+            json:   { title: '', subtitle: '', back: null },
             classes: {
                 title:    'text-base font-bold text-white',
-                subtitle: 'text-[10px] text-[var(--cs-text-secondary,#D1D5DB)]'
-            }
+                subtitle: 'text-[10px] text-[var(--cs-text-secondary,#D1D5DB)]',
+                backBtn:  'w-8 h-8 rounded-full bg-[var(--cs-bg-input,#1F2937)] hover:bg-[var(--cs-accent-purple,#7C3AED)]/15 border border-[var(--cs-border,#374151)] hover:border-[var(--cs-accent-purple,#7C3AED)] flex items-center justify-center text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors flex-shrink-0'
+            },
+            onBack: null
         };
 
         const o    = options || {};
@@ -503,15 +505,35 @@ class TraspasosView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
+        const backCfg   = opts.json.back;
+        const backHref  = typeof backCfg === 'string' ? backCfg : (backCfg && backCfg.href) || '';
+        const backTitle = (backCfg && backCfg.title) || 'Regresar';
+        const backHtml  = backCfg ? `
+            <button type="button" id="${opts.id}_back" class="${opts.classes.backBtn}" title="${esc(backTitle)}">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+        ` : '';
+
         const wrap = $('<div>', { id: opts.id, class: opts.class });
         wrap.html(`
-            <div>
-                <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
-                ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
+            <div class="flex items-center gap-3">
+                ${backHtml}
+                <div>
+                    <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
+                    ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
+                </div>
             </div>
         `);
 
         $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
+
+        if (backCfg) {
+            $(`#${opts.id}_back`).on('click', () => {
+                if (typeof opts.onBack === 'function') return opts.onBack();
+                if (backHref) window.location.href = backHref;
+            });
+        }
     }
 
     viewFooter(options) {

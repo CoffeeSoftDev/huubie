@@ -124,14 +124,14 @@ class App extends Templates {
     filterBar() {
 
         let filters = [
-            {
-                opc:      'select',
-                id:       'subsidiaries_id',
-                lbl:      'Sucursal:',
-                class:    'col-12 col-md-3 col-lg-3',
-                onchange: 'app.onChangeSucursal()',
-                data:     []
-            },
+            // {
+            //     opc:      'select',
+            //     id:       'subsidiaries_id',
+            //     lbl:      'Sucursal:',
+            //     class:    'col-12 col-md-3 col-lg-3',
+            //     onchange: 'app.onChangeSucursal()',
+            //     data:     []
+            // },
             {
                 opc:      'select',
                 id:       'fCategoria',
@@ -145,19 +145,12 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fNivel',
                 lbl:      'Nivel:',
-                class:    'col-12 col-md-3 col-lg-2',
+                class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     SAMPLE_STOCK_NIVELES
             },
-            {
-                opc:        'input',
-                id:         'qBuscar',
-                lbl:        'Buscar:',
-                class:      'col-12 col-md-3 col-lg-3',
-                placeholder:'Producto o SKU...',
-                onkeyup:    'app.onChangeFilters()'
-            }
+           
         ];
 
         this.createfilterBar({
@@ -283,6 +276,7 @@ class Stock extends Templates {
             right:        [6, 7],
             extends:      true,
             scrollable:   false,
+            striped:true,
             f_size:       12,
             emptyMessage: 'No se encontraron productos con los filtros aplicados',
             emptyIcon:    'icon-cube',
@@ -410,17 +404,17 @@ class StockView extends Templates {
                 default: 'text-white',
                 success: 'cs-text-success text-[var(--cs-success,#3FC189)]',
                 warning: 'cs-text-warning text-[var(--cs-warning,#FBBF24)]',
-                danger:  'cs-text-danger  text-[var(--cs-danger,#E02424)]',
+                danger:  'cs-text-danger  text-[#FDA4AF]',
                 info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]',
-                purple:  'cs-text-purple  text-[var(--cs-accent-purple,#7C3AED)]'
+                purple:  'cs-text-purple  text-[#FCD34D]'
             },
             iconBgTones: {
                 default: 'bg-slate-500/15',
                 success: 'bg-emerald-500/15',
                 warning: 'bg-amber-500/15',
-                danger:  'bg-rose-500/15',
+                danger:  'bg-rose-500/28',
                 info:    'bg-blue-500/15',
-                purple:  'bg-purple-500/15'
+                purple:  'bg-amber-500/28'
             },
             cardClass:  'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
             labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
@@ -491,16 +485,18 @@ class StockView extends Templates {
             parent: 'root',
             id:     'viewHeader',
             class:  'flex items-center justify-between w-full',
-            json:   { title: '', subtitle: '', toggles: [] },
+            json:   { title: '', subtitle: '', toggles: [], back: null },
             classes: {
                 title:    'text-base font-bold text-white',
                 subtitle: 'text-[10px] text-[var(--cs-text-secondary,#D1D5DB)]',
                 groupLbl: 'text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-bold',
                 btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[var(--cs-border,#374151)] text-[var(--cs-text-secondary,#D1D5DB)] hover:bg-[var(--cs-bg-input,#1F2937)] transition-colors',
                 btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-[var(--cs-accent-purple,#7C3AED)] bg-[var(--cs-accent-purple,#7C3AED)]/15 text-white',
-                sep:      'text-[var(--cs-border,#374151)]'
+                sep:      'text-[var(--cs-border,#374151)]',
+                backBtn:  'w-8 h-8 rounded-full bg-[var(--cs-bg-input,#1F2937)] hover:bg-[var(--cs-accent-purple,#7C3AED)]/15 border border-[var(--cs-border,#374151)] hover:border-[var(--cs-accent-purple,#7C3AED)] flex items-center justify-center text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors flex-shrink-0'
             },
-            onToggle: () => { }
+            onToggle: () => { },
+            onBack:   null
         };
 
         const o    = options || {};
@@ -531,15 +527,27 @@ class StockView extends Templates {
             `;
         };
 
+        const backCfg  = opts.json.back;
+        const backHref = typeof backCfg === 'string' ? backCfg : (backCfg && backCfg.href) || '';
+        const backTitle = (backCfg && backCfg.title) || 'Regresar';
+        const backHtml = backCfg ? `
+            <button type="button" id="${opts.id}_back" class="${opts.classes.backBtn}" title="${esc(backTitle)}">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+        ` : '';
+
         const wrap = $('<div>', { id: opts.id, class: opts.class });
         const togglesHtml = (opts.json.toggles || [])
             .map((g, i, arr) => toggleGroup(g) + (i < arr.length - 1 ? `<span class="${opts.classes.sep}">|</span>` : ''))
             .join('');
 
         wrap.html(`
-            <div>
-                <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
-                ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
+            <div class="flex items-center gap-3">
+                ${backHtml}
+                <div>
+                    <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
+                    ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
+                </div>
             </div>
             <div class="flex items-center gap-4">
                 ${togglesHtml}
@@ -547,6 +555,7 @@ class StockView extends Templates {
         `);
 
         $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
 
         wrap.on('click', '[data-toggle-key]', (e) => {
             const $btn = $(e.currentTarget);
@@ -561,6 +570,13 @@ class StockView extends Templates {
 
             opts.onToggle(key, val, Object.assign({}, state));
         });
+
+        if (backCfg) {
+            $(`#${opts.id}_back`).on('click', () => {
+                if (typeof opts.onBack === 'function') return opts.onBack();
+                if (backHref) window.location.href = backHref;
+            });
+        }
     }
 
     viewFooter(options) {
@@ -775,7 +791,7 @@ class StockView extends Templates {
             return `
                 <div class="flex items-center justify-between bg-[var(--cs-bg-input,#1F2937)] rounded-md px-2.5 py-1.5 border ${active}">
                     <div class="flex items-center gap-2">
-                        <i data-lucide="store" class="w-3 h-3 ${q === 0 ? 'text-gray-500' : 'text-[#c4b5fd]'}"></i>
+                        <i data-lucide="store" class="w-5 h-5 ${q === 0 ? 'text-gray-500' : 'text-[#c4b5fd]'}"></i>
                         <span class="text-[11px] ${q === 0 ? 'text-gray-500' : 'text-white'}">${esc(s.name)}</span>
                     </div>
                     <span class="text-[11px] font-bold ${stockColor(q)}">${q}</span>
@@ -814,21 +830,6 @@ class StockView extends Templates {
                 </div>`;
         }).join('');
 
-        // -- Banner stock bajo / agotado
-        const banner = (p.estado === 'bajo' || p.estado === 'agotado') ? `
-            <div class="rounded-lg border ${p.estado === 'agotado' ? 'border-rose-500/25 bg-rose-500/8' : 'border-amber-500/25 bg-amber-500/8'} px-3 py-2 flex items-start gap-2">
-                <i data-lucide="bell-ring" class="w-4 h-4 ${p.estado === 'agotado' ? 'text-rose-300' : 'text-amber-300'} flex-shrink-0 mt-0.5"></i>
-                <div class="flex-1 min-w-0">
-                    <p class="text-[11px] font-bold ${p.estado === 'agotado' ? 'text-rose-300' : 'text-amber-300'}">
-                        ${esc(p.estado === 'agotado' ? opts.labels.stockAgotado : opts.labels.stockBajo)}
-                    </p>
-                    <p class="text-[10px] text-gray-400">
-                        ${esc(p.estado === 'agotado' ? opts.labels.msgAgotado : opts.labels.msgBajo(p.min))}
-                    </p>
-                </div>
-            </div>
-        ` : '';
-
         const subtitle = sucId ? `Existencias en ${esc(sucName)}` : 'Vista consolidada (todas las sucursales)';
 
         aside.html(`
@@ -845,8 +846,6 @@ class StockView extends Templates {
             </div>
 
             <div class="flex-1 overflow-y-auto cs-scroll px-4 py-3 space-y-3">
-                ${banner}
-
                 <!-- CARD producto + stock/min/max -->
                 <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-3 border border-[var(--cs-border,#374151)]">
                     <div class="flex items-center gap-2">

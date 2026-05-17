@@ -1,4 +1,4 @@
-let api = '/app/pos-fake/ctrl/ctrl-pos.php';
+let api = '/app/inventarios/ctrl/ctrl-pos.php';
 let menuHub;
 
 $(async () => {
@@ -24,7 +24,7 @@ class MenuHub extends Templates {
 
         new ModuleCard('#mainContainer', {
             header: {
-                title:    `Inventario POS - ${greet}`,
+                title:    `Sistema de Inventarios - ${greet}`,
                 subtitle: 'Gestiona stock, entradas, movimientos, mermas y traspasos del punto de venta.',
                 search: {
                     show:        true,
@@ -48,32 +48,33 @@ class MenuHub extends Templates {
                 titulo:      'Stock',
                 descripcion: 'Consulta existencias actuales por sucursal y categoria.',
                 icon:        'boxes',
-                enlace:      '/app/pos-fake/pos-stock.php',
+                enlace:      '/app/inventarios/pos-stock.php',
+            },
+            {
+                titulo: 'Traspasos',
+                descripcion: 'Envia y recibe mercancia entre sucursales.',
+                icon: 'truck',
+                enlace: '/app/inventarios/pos-traspasos.php',
             },
             {
                 titulo:      'Entradas',
                 descripcion: 'Registra y revisa entradas de mercancia al inventario.',
                 icon:        'package-plus',
-                enlace:      '/app/pos-fake/pos-entradas.php',
+                enlace:      '/app/inventarios/pos-entradas.php',
             },
             {
                 titulo:      'Movimientos',
                 descripcion: 'Historial de movimientos internos y ajustes de stock.',
                 icon:        'arrow-left-right',
-                enlace:      '/app/pos-fake/pos-movimientos.php',
+                enlace:      '/app/inventarios/pos-movimientos.php',
             },
             {
                 titulo:      'Mermas',
                 descripcion: 'Captura y monitorea perdidas, caducidades y daños.',
                 icon:        'trash-2',
-                enlace:      '/app/pos-fake/pos-mermas.php',
+                enlace:      '/app/inventarios/pos-mermas.php',
             },
-            {
-                titulo:      'Traspasos',
-                descripcion: 'Envia y recibe mercancia entre sucursales.',
-                icon:        'truck',
-                enlace:      '/app/pos-fake/pos-traspasos.php',
-            },
+            
         ];
     }
 }

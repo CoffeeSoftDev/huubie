@@ -7,7 +7,8 @@
 
 const SAMPLE_VIEW_HEADER_ENTRADAS = {
     title:    'Visor de Entradas',
-    subtitle: 'Recepciones de produccion, compras y transferencias por sucursal'
+    subtitle: 'Recepciones de produccion, compras y transferencias por sucursal',
+    back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
 };
 
 const SAMPLE_VIEW_FOOTER_ENTRADAS = {
@@ -71,7 +72,7 @@ const SAMPLE_ENTRADAS_DB = {
         origen:      'Produccion',
         sucursal:    'Reginas Kafeto',
         sucursalId:  'kafeto',
-        registrado:  'Carlos G.',
+        registrado:  'Somx',
         fechaIso:    '2026-04-04T08:30:00',
         estado:      'Aplicada',
         nota:        'Produccion matutina del turno de manana. Se produjeron cupcakes de chocolate y vainilla, pasteles 3 leches y galletas decoradas.',
@@ -86,7 +87,7 @@ const SAMPLE_ENTRADAS_DB = {
         origen:      'Proveedor',
         sucursal:    'Reginas Kafeto',
         sucursalId:  'kafeto',
-        registrado:  'Admin',
+        registrado:  'Rosy',
         fechaIso:    '2026-04-03T15:00:00',
         estado:      'Aplicada',
         nota:        'Recepcion de orden de compra OC-2024-115 de proveedor Lacteos del Valle.',
@@ -138,8 +139,8 @@ const _entradaRow = (e) => {
         Fecha:        `<span class="text-[10px] text-gray-500 whitespace-nowrap">${fechaCorta}</span>`,
         Estado:       _badgeEstadoEntrada(e.estado),
         a: [
-            { class: 'btn btn-sm btn-secondary', html: '<i class="icon-eye"></i>',    onclick: `app.selectEntrada('${e.folio}')` },
-            { class: 'btn btn-sm btn-warning',   html: '<i class="icon-pencil"></i>', onclick: `app.editEntrada('${e.folio}')`   }
+            { class: 'inline-flex items-center justify-center w-7 h-7 rounded text-[12px] transition-colors me-1 bg-slate-600 hover:bg-slate-500 text-white', html: '<i class="icon-eye"></i>',    onclick: `app.selectEntrada('${e.folio}')` },
+            { class: 'inline-flex items-center justify-center w-7 h-7 rounded text-[12px] transition-colors me-1 bg-red-600 hover:bg-red-500 text-white',    html: '<i class="icon-pencil"></i>', onclick: `app.editEntrada('${e.folio}')`   }
         ]
     };
 };

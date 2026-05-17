@@ -5,7 +5,8 @@
 
 const SAMPLE_VIEW_HEADER_MERMAS = {
     title:    'Visor de Mermas',
-    subtitle: 'Control de perdidas por sucursal, motivo y periodo'
+    subtitle: 'Control de perdidas por sucursal, motivo y periodo',
+    back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
 };
 
 const SAMPLE_VIEW_FOOTER_MERMAS = {

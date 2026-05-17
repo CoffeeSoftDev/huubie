@@ -7,7 +7,8 @@
 
 const SAMPLE_VIEW_HEADER_MOVIMIENTOS = {
     title:    'Historial de Movimientos',
-    subtitle: 'Bitacora completa de entradas, salidas, mermas, transferencias, ajustes y devoluciones'
+    subtitle: 'Bitacora completa de entradas, salidas, mermas, transferencias, ajustes y devoluciones',
+    back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
 };
 
 const SAMPLE_VIEW_FOOTER_MOVIMIENTOS = {

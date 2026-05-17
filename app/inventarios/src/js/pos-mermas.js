@@ -522,17 +522,19 @@ class MermasView extends Templates {
             parent: 'root',
             id:     'viewHeader',
             class:  'flex items-center justify-between w-full',
-            json:   { title: '', subtitle: '', toggles: [] },
+            json:   { title: '', subtitle: '', toggles: [], back: null },
             classes: {
                 title:     'text-base font-bold text-white',
                 subtitle:  'text-[10px] text-[var(--cs-text-secondary,#D1D5DB)]',
                 groupLbl:  'text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-bold',
                 btn:       'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[var(--cs-border,#374151)] text-[var(--cs-text-secondary,#D1D5DB)] hover:bg-[var(--cs-bg-input,#1F2937)] transition-colors',
                 btnActive: 'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-[var(--cs-danger,#E02424)] bg-[var(--cs-danger,#E02424)]/15 text-white',
-                sep:       'text-[var(--cs-border,#374151)]'
+                sep:       'text-[var(--cs-border,#374151)]',
+                backBtn:   'w-8 h-8 rounded-full bg-[var(--cs-bg-input,#1F2937)] hover:bg-[var(--cs-danger,#E02424)]/15 border border-[var(--cs-border,#374151)] hover:border-[var(--cs-danger,#E02424)] flex items-center justify-center text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors flex-shrink-0'
             },
             onToggle: () => { },
-            onNueva:  () => { }
+            onNueva:  () => { },
+            onBack:   null
         };
 
         const o    = options || {};
@@ -563,15 +565,27 @@ class MermasView extends Templates {
             `;
         };
 
+        const backCfg   = opts.json.back;
+        const backHref  = typeof backCfg === 'string' ? backCfg : (backCfg && backCfg.href) || '';
+        const backTitle = (backCfg && backCfg.title) || 'Regresar';
+        const backHtml  = backCfg ? `
+            <button type="button" id="${opts.id}_back" class="${opts.classes.backBtn}" title="${esc(backTitle)}">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+        ` : '';
+
         const wrap = $('<div>', { id: opts.id, class: opts.class });
         const togglesHtml = (opts.json.toggles || [])
             .map((g, i, arr) => toggleGroup(g) + (i < arr.length - 1 ? `<span class="${opts.classes.sep}">|</span>` : ''))
             .join('');
 
         wrap.html(`
-            <div>
-                <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
-                ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
+            <div class="flex items-center gap-3">
+                ${backHtml}
+                <div>
+                    <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
+                    ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
+                </div>
             </div>
             <div class="flex items-center gap-4">
                 <button id="btnNuevaMerma"
@@ -586,6 +600,7 @@ class MermasView extends Templates {
         `);
 
         $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
 
         wrap.on('click', '#btnNuevaMerma', () => opts.onNueva());
 
@@ -602,6 +617,13 @@ class MermasView extends Templates {
 
             opts.onToggle(key, val, Object.assign({}, state));
         });
+
+        if (backCfg) {
+            $(`#${opts.id}_back`).on('click', () => {
+                if (typeof opts.onBack === 'function') return opts.onBack();
+                if (backHref) window.location.href = backHref;
+            });
+        }
     }
 
     viewFooter(options) {

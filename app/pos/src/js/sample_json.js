@@ -1,6 +1,16 @@
 const SAMPLE_VIEW_HEADER = {
     title:    'Cuentas de Ventas',
     subtitle: 'Consulta los registros de ventas por sucursal, rango de fecha y turno',
+    actions: [
+        {
+            key:    'goPOS',
+            label:  'Ir al POS',
+            href:   'templates/pos-main.html',
+            target: '_blank',
+            icon:   'external-link',
+            tone:   'info'
+        }
+    ],
     // toggles: [
     //     {
     //         key:   'rol',

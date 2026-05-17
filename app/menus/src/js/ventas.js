@@ -69,7 +69,7 @@ class Ventas extends Templates {
             descripcion: 'Visores fake de stock, entradas, movimientos, traspasos y mermas.',
             imagen:      '',
             icon:        'boxes',
-            enlace:      '/app/pos-fake/menu-hub.php',
+            enlace:      '/app/inventarios/index.php',
             padding:     '',
         });
 

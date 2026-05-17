@@ -7,7 +7,8 @@
 
 const SAMPLE_VIEW_HEADER_STOCK = {
     title:    'Visor de Stock',
-    subtitle: 'Control de existencias por sucursal, categoria y nivel'
+    subtitle: 'Control de existencias por sucursal, categoria y nivel',
+    back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
 };
 
 const SAMPLE_VIEW_FOOTER_STOCK = {
@@ -23,43 +24,43 @@ const SAMPLE_VIEW_FOOTER_STOCK = {
 // Helpers reutilizables para badges
 const _badgeEstado = (estado) => {
     const map = {
-        'ok':      { bg: 'rgba(63,193,137,0.15)',  fg: '#3FC189', label: 'OK'      },
-        'bajo':    { bg: 'rgba(251,146,60,0.15)',  fg: '#FB923C', label: 'BAJO'    },
-        'agotado': { bg: 'rgba(244,63,94,0.15)',   fg: '#F43F5E', label: 'AGOTADO' }
+        'ok':      { bg: 'rgba(63,193,137,0.28)',  fg: '#6EE7B7', label: 'OK'      },
+        'bajo':    { bg: 'rgba(251,146,60,0.28)',  fg: '#FDBA74', label: 'BAJO'    },
+        'agotado': { bg: 'rgba(244,63,94,0.28)',   fg: '#FDA4AF', label: 'AGOTADO' }
     };
-    const c = map[estado] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF', label: estado.toUpperCase() };
+    const c = map[estado] || { bg: 'rgba(156,163,175,0.30)', fg: '#E5E7EB', label: estado.toUpperCase() };
     return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:${c.bg};color:${c.fg};">${c.label}</span>`;
 };
 
 const _badgeVida = (vida, dias) => {
     if (vida === 'na' || dias == null) {
-        return `<span class="text-[10px] text-gray-500">N/A</span>`;
+        return `<span class="text-[10px] text-gray-300">N/A</span>`;
     }
     const map = {
-        'critico': { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' },
-        'proximo': { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24' },
-        'ok':      { bg: 'rgba(63,193,137,0.15)', fg: '#3FC189' }
+        'critico': { bg: 'rgba(244,63,94,0.28)',  fg: '#FDA4AF' },
+        'proximo': { bg: 'rgba(251,191,36,0.28)', fg: '#FCD34D' },
+        'ok':      { bg: 'rgba(63,193,137,0.28)', fg: '#6EE7B7' }
     };
-    const c = map[vida] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
+    const c = map[vida] || { bg: 'rgba(156,163,175,0.30)', fg: '#E5E7EB' };
     return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:${c.bg};color:${c.fg};">${dias} dias</span>`;
 };
 
 const _badgeCategoria = (categoria) => {
     const map = {
-        'Tradicional': { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24' },
-        'Premium':     { bg: 'rgba(124,58,237,0.15)', fg: '#A78BFA' },
-        'Cupcakes':    { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24' },
-        'Galletas':    { bg: 'rgba(28,100,242,0.15)', fg: '#60A5FA' }
+        'Tradicional': { bg: 'rgba(251,191,36,0.28)', fg: '#FCD34D' },
+        'Premium':     { bg: 'rgba(124,58,237,0.28)', fg: '#C4B5FD' },
+        'Cupcakes':    { bg: 'rgba(251,191,36,0.28)', fg: '#FCD34D' },
+        'Galletas':    { bg: 'rgba(28,100,242,0.28)', fg: '#93C5FD' }
     };
-    const c = map[categoria] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
+    const c = map[categoria] || { bg: 'rgba(156,163,175,0.30)', fg: '#E5E7EB' };
     return `<span class="px-2 py-0.5 rounded text-[10px] font-bold" style="background:${c.bg};color:${c.fg};">${categoria}</span>`;
 };
 
 const _stockCell = (stock, estado) => {
     const map = {
-        'ok':      'text-green-400',
-        'bajo':    'text-orange-400',
-        'agotado': 'text-red-400'
+        'ok':      'text-emerald-300',
+        'bajo':    'text-orange-300',
+        'agotado': 'text-rose-300'
     };
     const color = map[estado] || 'text-white';
     return `<span class="text-xs font-bold ${color}">${stock}</span>`;
@@ -81,8 +82,8 @@ const SAMPLE_PRODUCTS_DB = {
         costo:     280,
         estado:    'bajo',
         vida:      { dias: 2, label: 'critico' },
-        iconBg:    'bg-amber-900/30',
-        iconText:  'text-amber-400',
+        iconBg:    'bg-[#1F2A37]',
+        iconText:  'text-gray-500',
         stockSuc: { '': 27, kafeto: 3, central: 14, norte: 10, sur: 0 },
         almacenes: [
             { name: 'ALM-Central', type: 'info'   },
@@ -116,8 +117,8 @@ const SAMPLE_PRODUCTS_DB = {
         costo:     140,
         estado:    'ok',
         vida:      { dias: 3, label: 'critico' },
-        iconBg:    'bg-red-900/30',
-        iconText:  'text-red-400',
+        iconBg:    'bg-[#1F2A37]',
+        iconText:  'text-gray-500',
         stockSuc: { '': 44, kafeto: 12, central: 18, norte: 9, sur: 5 },
         almacenes: [
             { name: 'ALM-Central', type: 'info'   },
@@ -140,8 +141,8 @@ const SAMPLE_PRODUCTS_DB = {
         costo:     22,
         estado:    'agotado',
         vida:      { dias: null, label: 'na' },
-        iconBg:    'bg-orange-900/30',
-        iconText:  'text-orange-400',
+        iconBg:    'bg-[#1F2A37]',
+        iconText:  'text-gray-500',
         stockSuc: { '': 0, kafeto: 0, central: 0, norte: 0, sur: 0 },
         almacenes: [
             { name: 'ALM-Central', type: 'info' }
@@ -162,8 +163,8 @@ const SAMPLE_PRODUCTS_DB = {
         costo:     240,
         estado:    'ok',
         vida:      { dias: 5, label: 'proximo' },
-        iconBg:    'bg-yellow-900/30',
-        iconText:  'text-yellow-400',
+        iconBg:    'bg-[#1F2A37]',
+        iconText:  'text-gray-500',
         stockSuc: { '': 25, kafeto: 8, central: 7, norte: 6, sur: 4 },
         almacenes: [
             { name: 'ALM-Central', type: 'info'   },
@@ -186,20 +187,20 @@ const _productRow = (p) => ({
                 <i data-lucide="cake" class="w-3.5 h-3.5"></i>
             </div>
             <div>
-                <p class="text-xs font-medium">${p.name}</p>
-                <p class="text-[9px] text-gray-500">SKU: ${p.sku}</p>
+                <p class="text-xs font-medium text-white">${p.name}</p>
+                <p class="text-[9px] text-gray-300">SKU: ${p.sku}</p>
             </div>
         </div>`,
     Categoria:    _badgeCategoria(p.categoria),
     Stock:        _stockCell(p.stock, p.estado),
-    Min:          `<span class="text-[10px] text-gray-500">${p.min}</span>`,
-    Max:          `<span class="text-[10px] text-gray-500">${p.max}</span>`,
-    Precio:       `<span class="text-xs font-semibold">$${p.precio.toLocaleString('es-MX')}</span>`,
-    Costo:        `<span class="text-xs text-gray-400">$${p.costo.toLocaleString('es-MX')}</span>`,
+    Min:          `<span class="text-[10px] text-gray-200">${p.min}</span>`,
+    Max:          `<span class="text-[10px] text-gray-200">${p.max}</span>`,
+    Precio:       `<span class="text-xs font-semibold text-white">$${p.precio.toLocaleString('es-MX')}</span>`,
+    Costo:        `<span class="text-xs text-gray-200">$${p.costo.toLocaleString('es-MX')}</span>`,
     Estado:       _badgeEstado(p.estado),
     'Vida util':  _badgeVida(p.vida.label, p.vida.dias),
     a: [
-        { class: 'btn btn-sm btn-secondary', html: '<i class="icon-eye"></i>', onclick: `app.selectProduct('${p.id}')` }
+        { class: 'inline-flex items-center justify-center w-7 h-7 rounded text-[12px] transition-colors me-1 bg-slate-600 hover:bg-slate-500 text-white', html: '<i class="icon-eye"></i>', onclick: `app.selectProduct('${p.id}')` }
     ]
 });
 

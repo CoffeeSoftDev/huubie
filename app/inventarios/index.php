@@ -25,7 +25,7 @@
     <script src="/app/src/js/components/moduleCard.js?t=<?php echo time(); ?>"></script>
 
     <!-- Modulo Scripts -->
-    <script src="/app/pos-fake/src/js/menu-hub.js?t=<?php echo time(); ?>"></script>
+    <script src="/app/inventarios/src/js/index.js?t=<?php echo time(); ?>"></script>
 
 </body>
 
