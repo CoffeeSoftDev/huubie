@@ -51,7 +51,8 @@ class Ventas extends Templates {
             descripcion: 'Punto de venta para registrar pedidos.',
             imagen:      '',
             icon:        'shopping-cart',
-            enlace:      '/app/pos/',
+            enlace:      '/app/pos/templates/pos-main.html',
+            // enlace:      '/app/pos/',
             padding:     '',
         });
 
@@ -64,14 +65,14 @@ class Ventas extends Templates {
             padding:     '',
         });
 
-        cards.push({
-            titulo:      'POS Inventario',
-            descripcion: 'Visores fake de stock, entradas, movimientos, traspasos y mermas.',
-            imagen:      '',
-            icon:        'boxes',
-            enlace:      '/app/inventarios/index.php',
-            padding:     '',
-        });
+        // cards.push({
+        //     titulo:      'POS Inventario',
+        //     descripcion: 'Visores fake de stock, entradas, movimientos, traspasos y mermas.',
+        //     imagen:      '',
+        //     icon:        'boxes',
+        //     enlace:      '/app/inventarios/index.php',
+        //     padding:     '',
+        // });
 
         if (data['level'] == '1') {
             cards.push({

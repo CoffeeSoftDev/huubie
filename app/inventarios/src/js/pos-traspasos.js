@@ -118,14 +118,14 @@ class App extends Templates {
     filterBar() {
 
         let filters = [
-            {
-                opc:      'select',
-                id:       'subsidiaries_id',
-                lbl:      'Sucursal actual:',
-                class:    'col-12 col-md-3 col-lg-3',
-                onchange: 'app.onChangeSucursal()',
-                data:     []
-            },
+            // {
+            //     opc:      'select',
+            //     id:       'subsidiaries_id',
+            //     lbl:      'Sucursal actual:',
+            //     class:    'col-12 col-md-3 col-lg-3',
+            //     onchange: 'app.onChangeSucursal()',
+            //     data:     []
+            // },
             {
                 opc:      'select',
                 id:       'fEstado',
@@ -160,6 +160,14 @@ class App extends Templates {
                 class:      'col-12 col-md-3 col-lg-3',
                 placeholder:'Folio, producto...',
                 onkeyup:    'app.onChangeFilters()'
+            },
+            {
+                opc:       'button',
+                id:        'btnNuevoTraspaso',
+                text:      'Nuevo Traspaso',
+                color_btn: ' bg-purple-600 text-white hover:bg-purple-800',
+                class:     'col-12 col-md-3 col-lg-2',
+                onClick:   () => traspasosView.openTraspasoForm()
             }
         ];
 
@@ -289,8 +297,8 @@ class Traspasos extends Templates {
             theme:        'dark',
             title:        '',
             subtitle:     '',
-            center:       [3, 6, 7, 11],
-            right:        [8],
+            center:       [3, 5, 6, 10],
+            right:        [7],
             extends:      true,
             scrollable:   false,
             f_size:       12,
@@ -349,8 +357,33 @@ class Traspasos extends Templates {
         app.selectTraspaso(folio);
     }
 
+    nuevoTraspaso(payload) {
+        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'nuevoTraspaso' }, payload) })
+        console.log('[nuevoTraspaso] payload:', payload);
+        this.lsTraspasos();
+        this.lsKpis();
+    }
+
     confirmTraspaso(folio) {
-        console.log('[confirmTraspaso]', folio);
+        // MODO FAKE: si hubiera backend -> useFetch({ data:{ opc:'confirmTraspaso', folio } })
+        const t = SAMPLE_TRASPASOS_DB[folio];
+        if (!t || t.estado !== 'En Transito') return;
+
+        const nowIso = new Date().toISOString().slice(0, 19);
+        t.estado    = 'Recibido';
+        t.timeline  = [
+            { estado: 'Recibido', usuario: (t.destino && t.destino.nombre) || 'Destino', fechaIso: nowIso },
+            ...(t.timeline || [])
+        ];
+
+        SAMPLE_TRASPASOS_TABLE.row = Object.values(SAMPLE_TRASPASOS_DB).map(_trasRow);
+
+        this.lsTraspasos();
+        this.lsKpis();
+        traspasosView.renderDetail(t);
+        app.selectedId = folio;
+
+        console.log('[confirmTraspaso] OK', folio);
     }
 
     rejectTraspaso(folio) {
@@ -366,6 +399,22 @@ class TraspasosView extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'POSTraspasos';
+    }
+
+    // -- Modal launchers --
+
+    openTraspasoForm() {
+        const sucursales = (SAMPLE_TRASPASOS_SUCURSALES || []).filter(s => s.id !== '');
+        this.traspasoFormModal({
+            parent: 'body',
+            json: {
+                sucursales:      sucursales,
+                productos:       SAMPLE_PRODUCTOS_DISPONIBLES,
+                origenIdInicial: app.subId || (sucursales[0] && sucursales[0].id) || ''
+            },
+            onClose: () => console.log('[traspasoFormModal] close'),
+            onSave:  (payload) => traspasos.nuevoTraspaso(payload)
+        });
     }
 
     // -- Render helpers --
@@ -727,8 +776,18 @@ class TraspasosView extends Templates {
                     <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
                 </div>
                 <div class="px-4 py-3 border-t border-[var(--cs-border,#374151)] flex gap-2 flex-shrink-0">
-                    <button class="cs-btn cs-btn-outline flex-1 cs-btn-sm" disabled>${esc(opts.labels.rechazar)}</button>
-                    <button class="cs-btn cs-btn-success flex-1 cs-btn-sm" disabled>${esc(opts.labels.confirmar)}</button>
+                    <button type="button"
+                            class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md border border-[rgba(244,63,94,0.35)] text-[#F43F5E] bg-[rgba(244,63,94,0.08)] inline-flex items-center justify-center gap-1.5 transition-colors opacity-40 cursor-not-allowed"
+                            disabled>
+                        <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                        ${esc(opts.labels.rechazar)}
+                    </button>
+                    <button type="button"
+                            class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md bg-[#3FC189] text-white inline-flex items-center justify-center gap-1.5 transition-colors opacity-40 cursor-not-allowed"
+                            disabled>
+                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                        ${esc(opts.labels.confirmar)}
+                    </button>
                 </div>
             `);
             $(`#${opts.parent}`).html(aside);
@@ -873,8 +932,18 @@ class TraspasosView extends Templates {
             </div>
 
             <div class="px-4 py-3 border-t border-[var(--cs-border,#374151)] flex gap-2 flex-shrink-0">
-                <button id="${opts.id}_reject" class="cs-btn cs-btn-outline flex-1 cs-btn-sm" ${showReject ? '' : 'disabled'}>${esc(opts.labels.rechazar)}</button>
-                <button id="${opts.id}_confirm" class="cs-btn cs-btn-success flex-1 cs-btn-sm" ${showConfirm ? '' : 'disabled'}>${esc(opts.labels.confirmar)}</button>
+                <button type="button" id="${opts.id}_reject"
+                        class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md border border-[rgba(244,63,94,0.35)] text-[#F43F5E] bg-[rgba(244,63,94,0.08)] hover:bg-[rgba(244,63,94,0.18)] hover:text-white hover:border-[#F43F5E] inline-flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[rgba(244,63,94,0.08)] disabled:hover:text-[#F43F5E] disabled:hover:border-[rgba(244,63,94,0.35)]"
+                        ${showReject ? '' : 'disabled'}>
+                    <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                    ${esc(opts.labels.rechazar)}
+                </button>
+                <button type="button" id="${opts.id}_confirm"
+                        class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md bg-[#3FC189] hover:bg-[#34A372] text-white inline-flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#3FC189]"
+                        ${showConfirm ? '' : 'disabled'}>
+                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                    ${esc(opts.labels.confirmar)}
+                </button>
             </div>
         `);
 
@@ -884,5 +953,330 @@ class TraspasosView extends Templates {
         $(`#${opts.id}_close`).on('click',   () => opts.onClose(t));
         $(`#${opts.id}_reject`).on('click',  () => opts.onReject(t));
         $(`#${opts.id}_confirm`).on('click', () => opts.onConfirm(t));
+    }
+
+    traspasoFormModal(options) {
+        const defaults = {
+            parent:   'body',
+            id:       'traspasoFormModal',
+            json:     { sucursales: [], productos: [], origenIdInicial: '' },
+            data:     null,
+            labels: {
+                title:       'Nuevo Traspaso',
+                subtitle:    'Mover producto entre sucursales',
+                origen:      'Sucursal Origen',
+                destino:     'Sucursal Destino',
+                selDestino:  'Seleccionar destino...',
+                productos:   'Productos a traspasar',
+                addItem:     'Agregar producto',
+                items:       'Items',
+                totUds:      'Total unidades',
+                costoTot:    'Costo total',
+                nota:        'Nota / Motivo',
+                notaPh:      'Ej: Reabastecimiento urgente por demanda...',
+                cant:        'Cant',
+                subtotal:    'Subtotal',
+                stockArrow:  'Stock→',
+                callout:     'Flujo de 2 pasos',
+                calloutMsg:  'Al crear el traspaso, el stock se descuenta del origen y queda "En Transito" hasta que la sucursal destino confirme la recepcion.',
+                cancelar:    'Cancelar',
+                crear:       'Crear y Enviar Traspaso',
+                errSucIgual: 'Origen y destino no pueden ser la misma sucursal',
+                errSinDest:  'Selecciona una sucursal destino',
+                errSinProd:  'Agrega al menos un producto'
+            },
+            onClose: () => {},
+            onSave:  () => {}
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json   = Object.assign({}, defaults.json,   o.json   || {});
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+
+        const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const fmtMoney = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // -- Estado local
+        let lineas = [];   // { uid, productId, cant }
+        let nextUid = 1;
+
+        // -- Helpers
+        const findProd = (id) => (opts.json.productos || []).find(p => p.id === id);
+
+        const stockOrigen = (prod, origenId) => {
+            if (!prod || !origenId) return 0;
+            return (prod.stockPorSuc && prod.stockPorSuc[origenId]) || 0;
+        };
+        const stockDestino = (prod, destinoId) => {
+            if (!prod || !destinoId) return 0;
+            return (prod.stockPorSuc && prod.stockPorSuc[destinoId]) || 0;
+        };
+
+        const sucursalSelectHtml = (id, selected, includePlaceholder, placeholder) => {
+            const opciones = (opts.json.sucursales || []).map(s =>
+                `<option value="${esc(s.id)}" ${s.id === selected ? 'selected' : ''}>${esc(s.valor)}</option>`
+            ).join('');
+            return `<select id="${id}" class="cs-select text-xs w-full bg-[#1F2937] border border-[#374151] rounded-md px-2 py-1.5 text-white">
+                ${includePlaceholder ? `<option value="">${esc(placeholder)}</option>` : ''}
+                ${opciones}
+            </select>`;
+        };
+
+        const productoSelectHtml = (uid, productId) => {
+            const opciones = (opts.json.productos || []).map(p =>
+                `<option value="${esc(p.id)}" ${p.id === productId ? 'selected' : ''}>${esc(p.nombre)} (${esc(p.sku)})</option>`
+            ).join('');
+            return `<select data-line-uid="${uid}" data-role="product" class="cs-select text-xs w-full bg-[#1F2937] border border-[#374151] rounded-md px-2 py-1.5 text-white">
+                <option value="">Selecciona producto...</option>
+                ${opciones}
+            </select>`;
+        };
+
+        const lineaHtml = (linea) => {
+            const prod        = findProd(linea.productId);
+            const origenId    = $(`#${opts.id}_origen`).val() || opts.json.origenIdInicial;
+            const destinoId   = $(`#${opts.id}_destino`).val() || '';
+            const stockO      = stockOrigen(prod, origenId);
+            const stockD      = stockDestino(prod, destinoId);
+            const stockOPost  = Math.max(stockO - Number(linea.cant || 0), 0);
+            const stockDPost  = stockD + Number(linea.cant || 0);
+            const subtotal    = prod ? Number(prod.costo || 0) * Number(linea.cant || 0) : 0;
+
+            return `
+                <div class="bg-[#1a2332] rounded-lg p-2 border border-[#374151]" data-line-uid="${linea.uid}">
+                    <div class="grid grid-cols-12 gap-2 items-center">
+                        <div class="col-span-5">${productoSelectHtml(linea.uid, linea.productId)}</div>
+                        <div class="col-span-2">
+                            <input type="number" min="1" data-line-uid="${linea.uid}" data-role="cant" value="${esc(linea.cant)}" placeholder="Cant" class="cs-input text-xs text-center w-full bg-[#1F2937] border border-[#374151] rounded-md px-2 py-1.5 text-white">
+                        </div>
+                        <div class="col-span-2 text-right">
+                            <p class="text-[9px] text-[#6B7280]">${esc(opts.labels.subtotal)}</p>
+                            <p class="text-xs font-bold text-white">${fmtMoney(subtotal)}</p>
+                        </div>
+                        <div class="col-span-2 text-right">
+                            <p class="text-[9px] text-[#6B7280]">${esc(opts.labels.stockArrow)}</p>
+                            <p class="text-[10px] font-bold"><span class="text-orange-400">${stockOPost}</span> / <span class="text-green-400">${stockDPost}</span></p>
+                        </div>
+                        <div class="col-span-1 text-center">
+                            <button type="button" data-line-uid="${linea.uid}" data-role="remove" class="text-[#6B7280] hover:text-red-400">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderLineas = () => {
+            const html = lineas.length
+                ? lineas.map(lineaHtml).join('')
+                : `<div class="text-[10px] text-gray-500 italic text-center py-3 border border-dashed border-[#374151] rounded-lg">Sin productos. Click en "${esc(opts.labels.addItem)}".</div>`;
+            $(`#${opts.id}_lineas`).html(html);
+            renderResumen();
+            if (window.lucide) lucide.createIcons();
+        };
+
+        const renderResumen = () => {
+            const items = lineas.length;
+            const uds   = lineas.reduce((s, l) => s + Number(l.cant || 0), 0);
+            const costo = lineas.reduce((s, l) => {
+                const p = findProd(l.productId);
+                return s + (p ? Number(p.costo || 0) * Number(l.cant || 0) : 0);
+            }, 0);
+            $(`#${opts.id}_resumen_items`).text(items);
+            $(`#${opts.id}_resumen_uds`).text(uds);
+            $(`#${opts.id}_resumen_costo`).text(fmtMoney(costo));
+        };
+
+        const addLinea = () => {
+            lineas.push({ uid: 'l' + (nextUid++), productId: '', cant: 1 });
+            renderLineas();
+        };
+
+        const removeLinea = (uid) => {
+            lineas = lineas.filter(l => l.uid !== uid);
+            renderLineas();
+        };
+
+        const close = () => {
+            $(`#${opts.id}_root`).remove();
+            opts.onClose();
+        };
+
+        const save = () => {
+            const origenId  = $(`#${opts.id}_origen`).val();
+            const destinoId = $(`#${opts.id}_destino`).val();
+            const nota      = $(`#${opts.id}_nota`).val().trim();
+
+            const $err = $(`#${opts.id}_error`);
+            $err.addClass('hidden').text('');
+
+            if (!destinoId)                 { $err.removeClass('hidden').text(opts.labels.errSinDest);  return; }
+            if (origenId === destinoId)     { $err.removeClass('hidden').text(opts.labels.errSucIgual); return; }
+            const productosPayload = lineas
+                .filter(l => l.productId && Number(l.cant) > 0)
+                .map(l => {
+                    const p = findProd(l.productId);
+                    return {
+                        productId:        l.productId,
+                        sku:              p.sku,
+                        nombre:           p.nombre,
+                        cant:             Number(l.cant),
+                        costo:            Number(p.costo),
+                        stockOrigenPrev:  stockOrigen(p, origenId),
+                        stockDestinoPrev: stockDestino(p, destinoId)
+                    };
+                });
+
+            if (!productosPayload.length) { $err.removeClass('hidden').text(opts.labels.errSinProd); return; }
+
+            const sucOrigen  = (opts.json.sucursales || []).find(s => s.id === origenId)  || { id: origenId,  valor: origenId  };
+            const sucDestino = (opts.json.sucursales || []).find(s => s.id === destinoId) || { id: destinoId, valor: destinoId };
+
+            const payload = {
+                origen:    { id: sucOrigen.id,  nombre: sucOrigen.valor  },
+                destino:   { id: sucDestino.id, nombre: sucDestino.valor },
+                productos: productosPayload,
+                nota:      nota
+            };
+
+            opts.onSave(payload);
+            close();
+        };
+
+        // -- Render base
+        const $existing = $(`#${opts.id}_root`);
+        if ($existing.length) $existing.remove();
+
+        const html = `
+            <div id="${opts.id}_root" class="fixed inset-0 z-[100]">
+                <div id="${opts.id}_backdrop" class="absolute inset-0 bg-black/70"></div>
+                <div class="relative w-full h-full flex items-center justify-center p-4">
+                    <div id="${opts.id}" class="bg-[#1F2A37] rounded-xl p-3 border border-[#374151] w-[640px] max-w-full max-h-[90vh] overflow-y-auto cs-scroll relative">
+
+                        <button type="button" id="${opts.id}_close" class="absolute top-2 right-2 text-[#6B7280] hover:text-white">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+
+                        <div class="mb-2 pb-2 border-b border-[#374151]">
+                            <h3 class="text-sm font-bold text-[#c4b5fd]">${esc(opts.labels.title)}</h3>
+                            <p class="text-[10px] text-[#6B7280]">${esc(opts.labels.subtitle)}</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${esc(opts.labels.origen)}</label>
+                                ${sucursalSelectHtml(opts.id + '_origen', opts.json.origenIdInicial, false, '')}
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${esc(opts.labels.destino)}</label>
+                                ${sucursalSelectHtml(opts.id + '_destino', '', true, opts.labels.selDestino)}
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${esc(opts.labels.productos)}</label>
+                            <div id="${opts.id}_lineas" class="space-y-1"></div>
+                            <div class="mt-1.5">
+                                <button type="button" id="${opts.id}_addItem" class="w-full text-[10px] text-[#c4b5fd] hover:text-white hover:bg-[rgba(124,58,237,0.08)] border border-dashed border-[#374151] hover:border-[rgba(124,58,237,0.4)] rounded-md py-1.5 flex items-center justify-center gap-1 transition-colors">
+                                    <i data-lucide="plus-circle" class="w-3 h-3"></i>
+                                    ${esc(opts.labels.addItem)}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-[rgba(124,58,237,0.08)] border border-[rgba(124,58,237,0.25)] rounded-md p-2 mb-2">
+                            <div class="grid grid-cols-3 gap-2">
+                                <div>
+                                    <p class="text-[9px] text-[#6B7280] uppercase leading-none">${esc(opts.labels.items)}</p>
+                                    <p class="text-xs font-bold text-white leading-tight" id="${opts.id}_resumen_items">0</p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-[#6B7280] uppercase leading-none">${esc(opts.labels.totUds)}</p>
+                                    <p class="text-xs font-bold text-white leading-tight" id="${opts.id}_resumen_uds">0</p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-[#6B7280] uppercase leading-none">${esc(opts.labels.costoTot)}</p>
+                                    <p class="text-xs font-bold text-[#c4b5fd] leading-tight" id="${opts.id}_resumen_costo">${fmtMoney(0)}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${esc(opts.labels.nota)}</label>
+                            <textarea id="${opts.id}_nota" rows="2" placeholder="${esc(opts.labels.notaPh)}" class="cs-textarea text-xs w-full bg-[#1F2937] border border-[#374151] rounded-md px-2 py-1 text-white"></textarea>
+                        </div>
+
+                        <div class="cs-callout cs-callout-info mb-2 bg-[rgba(28,100,242,0.08)] border border-[rgba(28,100,242,0.25)] rounded-md p-2">
+                            <strong class="block text-xs mb-0.5 text-white">${esc(opts.labels.callout)}</strong>
+                            <p class="text-[11px] text-gray-400 leading-tight">${esc(opts.labels.calloutMsg)}</p>
+                        </div>
+
+                        <p id="${opts.id}_error" class="hidden text-[11px] text-red-400 mb-2"></p>
+
+                        <div class="flex justify-end gap-2 pt-2 border-t border-[#374151]">
+                            <button type="button" id="${opts.id}_cancel" class="text-xs font-medium px-3 py-1.5 rounded-md border border-[#374151] text-[#D1D5DB] hover:bg-[#1F2937] hover:text-white transition-colors">
+                                ${esc(opts.labels.cancelar)}
+                            </button>
+                            <button type="button" id="${opts.id}_save" class="text-xs font-semibold px-3 py-1.5 rounded-md bg-[#7C3AED] hover:bg-[#6D28D9] text-white inline-flex items-center gap-1.5 transition-colors">
+                                <i data-lucide="send" class="w-3 h-3"></i>
+                                ${esc(opts.labels.crear)}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $(opts.parent === 'body' ? 'body' : `#${opts.parent}`).append(html);
+        if (window.lucide) lucide.createIcons();
+
+        // -- Eventos
+        $(`#${opts.id}_close`).on('click',    close);
+        $(`#${opts.id}_cancel`).on('click',   close);
+        $(`#${opts.id}_backdrop`).on('click', close);
+        $(`#${opts.id}_addItem`).on('click',  addLinea);
+        $(`#${opts.id}_save`).on('click',     save);
+
+        $(`#${opts.id}_origen, #${opts.id}_destino`).on('change', renderLineas);
+
+        $(`#${opts.id}_lineas`).on('change', '[data-role="product"]', function () {
+            const uid = $(this).attr('data-line-uid');
+            const ln  = lineas.find(l => l.uid === uid);
+            if (ln) ln.productId = $(this).val();
+            renderLineas();
+        });
+
+        $(`#${opts.id}_lineas`).on('input', '[data-role="cant"]', function () {
+            const uid = $(this).attr('data-line-uid');
+            const ln  = lineas.find(l => l.uid === uid);
+            if (ln) ln.cant = Number($(this).val()) || 0;
+            renderResumen();
+            const $row = $(`#${opts.id}_lineas`).find(`[data-line-uid="${uid}"]`).first();
+            const prod = findProd(ln && ln.productId);
+            if (prod) {
+                const origenId    = $(`#${opts.id}_origen`).val();
+                const destinoId   = $(`#${opts.id}_destino`).val();
+                const stockOPost  = Math.max(stockOrigen(prod, origenId) - Number(ln.cant || 0), 0);
+                const stockDPost  = stockDestino(prod, destinoId) + Number(ln.cant || 0);
+                const subtotal    = Number(prod.costo || 0) * Number(ln.cant || 0);
+                $row.find('.col-span-2.text-right').eq(0).find('p.font-bold').text(fmtMoney(subtotal));
+                $row.find('.col-span-2.text-right').eq(1).find('span.text-orange-400').text(stockOPost);
+                $row.find('.col-span-2.text-right').eq(1).find('span.text-green-400').text(stockDPost);
+            }
+        });
+
+        $(`#${opts.id}_lineas`).on('click', '[data-role="remove"]', function () {
+            removeLinea($(this).attr('data-line-uid'));
+        });
+
+        // -- Linea inicial
+        addLinea();
     }
 }

@@ -212,7 +212,6 @@ const _trasRow = (t) => {
         Origen:       _sucBadge(t.origen),
         '':           `<i data-lucide="arrow-right" class="w-3 h-3 text-[#c4b5fd] mx-auto"></i>`,
         Destino:      _sucBadge(t.destino),
-        Productos:    _productosResumen(t),
         Items:        `<span class="text-xs font-bold">${items}</span>`,
         Uds:          `<span class="text-xs font-bold ${udsColor}">${uds}</span>`,
         Costo:        `<span class="text-xs font-bold">${_fmtMoneyTras(costo)}</span>`,
@@ -220,7 +219,7 @@ const _trasRow = (t) => {
         Fecha:        `<span class="text-[10px] text-gray-500 whitespace-nowrap">${fechaCorta}</span>`,
         Estado:       _badgeEstadoTras(t.estado),
         a: [
-            { class: 'btn btn-sm btn-secondary', html: '<i class="icon-eye"></i>', onclick: `app.selectTraspaso('${t.folio}')` }
+            { class: 'inline-flex items-center justify-center w-7 h-7 rounded text-[12px] transition-colors me-1 bg-slate-600 hover:bg-slate-500 text-white', html: '<i class="icon-eye"></i>', onclick: `app.selectTraspaso('${t.folio}')` }
         ]
     };
 };
@@ -260,4 +259,16 @@ const SAMPLE_TRASPASOS_ESTADOS = [
     { id: 'En Transito', valor: 'En Transito'       },
     { id: 'Recibido',    valor: 'Recibido'          },
     { id: 'Rechazado',   valor: 'Rechazado'         }
+];
+
+// ──────────────────────────────────────────────────────────────────────
+//  Productos disponibles para Nuevo Traspaso (catalogo + stock por sucursal)
+// ──────────────────────────────────────────────────────────────────────
+const SAMPLE_PRODUCTOS_DISPONIBLES = [
+    { id: 'CHA-ALE-001', nombre: 'Choco Aleman',           sku: 'CHA-ALE-001', icon: 'candy',    bg: 'bg-yellow-900/30', color: 'text-yellow-400', costo: 240, stockPorSuc: { kafeto: 12, central: 7,  norte: 4,  sur: 6  } },
+    { id: 'PAY-FRE-001', nombre: 'Pay de Fresas',          sku: 'PAY-FRE-001', icon: 'cherry',   bg: 'bg-red-900/30',    color: 'text-red-400',    costo: 140, stockPorSuc: { kafeto: 8,  central: 12, norte: 5,  sur: 9  } },
+    { id: 'PAS-3LC-001', nombre: 'Pastel 3 Leches',        sku: 'PAS-3LC-001', icon: 'cake',     bg: 'bg-amber-900/30',  color: 'text-amber-400',  costo: 280, stockPorSuc: { kafeto: 4,  central: 6,  norte: 2,  sur: 3  } },
+    { id: 'CUP-DEC-001', nombre: 'Cupcake Decorado',       sku: 'CUP-DEC-001', icon: 'cup-soda', bg: 'bg-orange-900/30', color: 'text-orange-400', costo: 22,  stockPorSuc: { kafeto: 18, central: 22, norte: 14, sur: 11 } },
+    { id: 'GAL-CHO-001', nombre: 'Galleta Chocolate',      sku: 'GAL-CHO-001', icon: 'cookie',   bg: 'bg-teal-900/30',   color: 'text-teal-400',   costo: 20,  stockPorSuc: { kafeto: 35, central: 28, norte: 22, sur: 19 } },
+    { id: 'TLS-STR-001', nombre: 'Tres Leches Strawberry', sku: 'TLS-STR-001', icon: 'cake',     bg: 'bg-rose-900/30',   color: 'text-rose-400',   costo: 260, stockPorSuc: { kafeto: 3,  central: 5,  norte: 2,  sur: 4  } }
 ];

@@ -1283,7 +1283,7 @@ class EntradasView extends Templates {
                 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
                     ${renderConfigRow()}
                     <div class="flex flex-1 min-h-0">
-                        <div class="w-[260px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
+                        <div class="w-[300px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
                             ${renderSearchPanel()}
                             ${renderResumen()}
                         </div>
