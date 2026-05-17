@@ -231,7 +231,7 @@ class Access extends MAccess {
     }
       // SESSION
     function checkSession(){
-        define('SESSION_TIMEOUT', 1800);       // 30 minutos de inactividad
+        define('SESSION_TIMEOUT', 28800);      // 8 horas de inactividad
         define('WARNING_TIME', 300);           // 5 minutos antes de expirar por inactividad
         define('MAX_SESSION_DURATION', 28800); // 8 horas límite absoluto
 

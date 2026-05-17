@@ -1,8 +1,49 @@
+<<<<<<< HEAD
 [ 2026-05-16 22:27:37 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
 [ INFO ] ::  UPDATE fayxzvov_reginas.order SET  WHERE id = ?
 [ ERROR C.U.D. ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WHERE id = '368'' at line 1
+=======
+[ 2026-05-16 20:43:04 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
+[ 2026-05-16 20:42:53 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
+[ 2026-05-16 20:05:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+
+
+[ 2026-05-16 18:54:26 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-05-16 18:54:24 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT COALESCE(MAX(id), 0) + 1 AS next_folio FROM fayxzvov_reginas.`order` WHERE is_pos = 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_pos' in 'where clause'
+>>>>>>> fb066fe562d78e6b298802337dd6bfd8459110da
 
 
 [ 2026-05-16 16:37:46 ]

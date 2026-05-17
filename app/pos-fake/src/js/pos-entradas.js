@@ -1,5 +1,5 @@
-let api = 'ctrl/ctrl-pos-stock.php';
-let app, stock, stockView;
+let api = 'ctrl/ctrl-pos-entradas.php';
+let app, entradas, entradasView;
 
 let turno, subsidiaries_id;
 
@@ -7,9 +7,9 @@ window.updateSession = () => { };
 
 
 $(async () => {
-    stockView = new StockView(api, 'root');
-    stock     = new Stock(api, 'root');
-    app       = new App(api, 'root');
+    entradasView = new EntradasView(api, 'root');
+    entradas     = new Entradas(api, 'root');
+    app          = new App(api, 'root');
     await app.init();
 });
 
@@ -20,7 +20,7 @@ class App extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'POSStock';
+        this.PROJECT_NAME = 'POSEntradas';
         this.subId        = null;
         this.selectedId   = null;
     }
@@ -29,9 +29,9 @@ class App extends Templates {
         // MODO FAKE: si hubiera backend -> useFetch({ url:this._link, data:{ opc:'init' } })
         this.dataInit = {
             subsidiaries_id: '',
-            sucursales:  SAMPLE_STOCK_SUCURSALES,
-            categorias:  SAMPLE_STOCK_CATEGORIAS,
-            niveles:     SAMPLE_STOCK_NIVELES
+            sucursales:  SAMPLE_ENTRADAS_SUCURSALES,
+            origenes:    SAMPLE_ENTRADAS_ORIGENES,
+            estados:     SAMPLE_ENTRADAS_ESTADOS
         };
         this.subId      = this.dataInit.subsidiaries_id;
         subsidiaries_id = this.subId;
@@ -42,13 +42,13 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        stockView.renderHeader(SAMPLE_VIEW_HEADER_STOCK);
-        stockView.renderFooter(SAMPLE_VIEW_FOOTER_STOCK);
-        stockView.renderTabs(this.PROJECT_NAME);
-        stockView.renderDetail(null);
+        entradasView.renderHeader(SAMPLE_VIEW_HEADER_ENTRADAS);
+        entradasView.renderFooter(SAMPLE_VIEW_FOOTER_ENTRADAS);
+        entradasView.renderTabs(this.PROJECT_NAME);
+        entradasView.renderDetail(null);
         this.populateFilters();
-        stock.lsStock();
-        stock.lsKpis();
+        entradas.lsEntradas();
+        entradas.lsKpis();
     }
 
     // -- Layout --
@@ -134,28 +134,28 @@ class App extends Templates {
             },
             {
                 opc:      'select',
-                id:       'fCategoria',
-                lbl:      'Categoria:',
+                id:       'fOrigen',
+                lbl:      'Origen:',
                 class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
-                data:     SAMPLE_STOCK_CATEGORIAS
+                data:     SAMPLE_ENTRADAS_ORIGENES
             },
             {
                 opc:      'select',
-                id:       'fNivel',
-                lbl:      'Nivel:',
+                id:       'fEstado',
+                lbl:      'Estado:',
                 class:    'col-12 col-md-3 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
-                data:     SAMPLE_STOCK_NIVELES
+                data:     SAMPLE_ENTRADAS_ESTADOS
             },
             {
                 opc:        'input',
                 id:         'qBuscar',
                 lbl:        'Buscar:',
                 class:      'col-12 col-md-3 col-lg-3',
-                placeholder:'Producto o SKU...',
+                placeholder:'Folio, registrado, nota...',
                 onkeyup:    'app.onChangeFilters()'
             }
         ];
@@ -188,8 +188,8 @@ class App extends Templates {
     getFilters() {
         return {
             subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
-            categoria:       $('#fCategoria').val()     || '',
-            nivel:           $('#fNivel').val()         || '',
+            origen:          $('#fOrigen').val()        || '',
+            estado:          $('#fEstado').val()        || '',
             q:               $('#qBuscar').val()        || ''
         };
     }
@@ -197,30 +197,34 @@ class App extends Templates {
     // -- Event handlers --
 
     async onChangeFilters() {
-        stock.lsStock();
-        await stock.lsKpis();
+        entradas.lsEntradas();
+        await entradas.lsKpis();
 
-        // Si el producto seleccionado se filtra fuera, cerrar panel
+        // Si la entrada seleccionada se filtra fuera, cerrar panel
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
-            this.selectProduct(null);
+            this.selectEntrada(null);
         }
     }
 
     onChangeSucursal() {
-        // El cambio de sucursal solo refresca el panel derecho (stock por sucursal)
-        // y los KPIs; la tabla principal mantiene su listado base.
-        stock.lsKpis();
-        if (this.selectedId) stockView.renderDetail(SAMPLE_PRODUCTS_DB[this.selectedId]);
+        entradas.lsEntradas();
+        entradas.lsKpis();
+        if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
+            this.selectEntrada(null);
+        }
     }
 
-    isVisibleAfterFilters(productId) {
-        const p   = SAMPLE_PRODUCTS_DB[productId];
-        if (!p) return false;
+    isVisibleAfterFilters(folio) {
+        const e   = SAMPLE_ENTRADAS_DB[folio];
+        if (!e) return false;
         const f   = this.getFilters();
-        const cat = !f.categoria || p.categoria === f.categoria;
-        const niv = !f.nivel     || p.estado    === f.nivel;
-        const q   = !f.q         || (p.name + ' ' + p.sku).toLowerCase().includes(f.q.toLowerCase());
-        return cat && niv && q;
+        const suc = !f.subsidiaries_id || e.sucursalId === f.subsidiaries_id;
+        const ori = !f.origen          || e.origen     === f.origen;
+        const est = !f.estado          || e.estado     === f.estado;
+        const q   = !f.q || (e.folio + ' ' + e.registrado + ' ' + (e.nota || ''))
+                                .toLowerCase()
+                                .includes(f.q.toLowerCase());
+        return suc && ori && est && q;
     }
 
     updateFooterInfo(text) {
@@ -229,46 +233,55 @@ class App extends Templates {
 
     // -- Facade --
 
-    selectProduct(productId) {
-        this.selectedId = productId;
+    selectEntrada(folio) {
+        this.selectedId = folio;
         // Resaltar fila activa
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
-        if (productId) {
+        if (folio) {
             const $row = $(`#tb${this.PROJECT_NAME} tbody tr`).filter(function () {
-                return $(this).text().includes(SAMPLE_PRODUCTS_DB[productId].sku);
+                return $(this).text().includes(folio);
             });
             $row.addClass('row-active');
         }
-        stockView.renderDetail(productId ? SAMPLE_PRODUCTS_DB[productId] : null);
+        entradasView.renderDetail(folio ? SAMPLE_ENTRADAS_DB[folio] : null);
     }
 
-    renderDetail(producto) {
-        stockView.renderDetail(producto);
+    editEntrada(folio) {
+        console.log('[editEntrada]', folio);
+        // En modo fake solo seleccionamos
+        this.selectEntrada(folio);
+    }
+
+    renderDetail(entrada) {
+        entradasView.renderDetail(entrada);
     }
 }
 
 
-class Stock extends Templates {
+class Entradas extends Templates {
 
     // -- Bootstrap --
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'POSStock';
+        this.PROJECT_NAME = 'POSEntradas';
     }
 
     // -- Data --
 
-    lsStock() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'lsStock' }, app.getFilters()) })
+    lsEntradas() {
+        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'lsEntradas' }, app.getFilters()) })
         const f = app.getFilters();
-        const filteredRows = (SAMPLE_STOCK_TABLE.row || []).filter(r => {
-            const p = SAMPLE_PRODUCTS_DB[r.id];
-            if (!p) return true;
-            const cat = !f.categoria || p.categoria === f.categoria;
-            const niv = !f.nivel     || p.estado    === f.nivel;
-            const q   = !f.q         || (p.name + ' ' + p.sku).toLowerCase().includes(f.q.toLowerCase());
-            return cat && niv && q;
+        const filteredRows = (SAMPLE_ENTRADAS_TABLE.row || []).filter(r => {
+            const e = SAMPLE_ENTRADAS_DB[r.id];
+            if (!e) return true;
+            const suc = !f.subsidiaries_id || e.sucursalId === f.subsidiaries_id;
+            const ori = !f.origen          || e.origen     === f.origen;
+            const est = !f.estado          || e.estado     === f.estado;
+            const q   = !f.q || (e.folio + ' ' + e.registrado + ' ' + (e.nota || ''))
+                                    .toLowerCase()
+                                    .includes(f.q.toLowerCase());
+            return suc && ori && est && q;
         });
 
         const data = { row: filteredRows };
@@ -279,82 +292,90 @@ class Stock extends Templates {
             theme:        'dark',
             title:        '',
             subtitle:     '',
-            center:       [3, 4, 5, 8, 9],
-            right:        [6, 7],
+            center:       [2, 3, 7],
+            right:        [4],
             extends:      true,
             scrollable:   false,
             f_size:       12,
-            emptyMessage: 'No se encontraron productos con los filtros aplicados',
-            emptyIcon:    'icon-cube',
+            emptyMessage: 'No se encontraron entradas con los filtros aplicados',
+            emptyIcon:    'icon-arrow-down-to-line',
             data:         data
         });
 
         if (window.lucide) lucide.createIcons();
 
         const total = filteredRows.length;
-        app.updateFooterInfo(`Mostrando ${total} producto${total !== 1 ? 's' : ''}`);
+        app.updateFooterInfo(`Mostrando ${total} entrada${total !== 1 ? 's' : ''}`);
     }
 
     async lsKpis() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'showStock' }, app.getFilters()) })
+        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'showEntradas' }, app.getFilters()) })
         const f = app.getFilters();
-        const visible = Object.values(SAMPLE_PRODUCTS_DB).filter(p => {
-            const cat = !f.categoria || p.categoria === f.categoria;
-            const niv = !f.nivel     || p.estado    === f.nivel;
-            const q   = !f.q         || (p.name + ' ' + p.sku).toLowerCase().includes(f.q.toLowerCase());
-            return cat && niv && q;
+        const visible = Object.values(SAMPLE_ENTRADAS_DB).filter(e => {
+            const suc = !f.subsidiaries_id || e.sucursalId === f.subsidiaries_id;
+            const ori = !f.origen          || e.origen     === f.origen;
+            const est = !f.estado          || e.estado     === f.estado;
+            const q   = !f.q || (e.folio + ' ' + e.registrado + ' ' + (e.nota || ''))
+                                    .toLowerCase()
+                                    .includes(f.q.toLowerCase());
+            return suc && ori && est && q;
         });
 
-        const c = {
-            total_productos: visible.length,
-            total_ok:        visible.filter(p => p.estado === 'ok').length,
-            total_bajo:      visible.filter(p => p.estado === 'bajo').length,
-            total_agotado:   visible.filter(p => p.estado === 'agotado').length,
-            total_vida:      visible.filter(p => p.vida.label === 'critico' || p.vida.label === 'proximo').length
-        };
+        const origenCount = {};
+        let costoTot = 0;
+        visible.forEach(e => {
+            origenCount[e.origen] = (origenCount[e.origen] || 0) + 1;
+            costoTot += (e.productos || []).reduce((s, p) => s + Number(p.cant || 0) * Number(p.costo || 0), 0);
+        });
+        const principal = visible.length
+            ? Object.keys(origenCount).reduce((a, b) => (origenCount[a] > origenCount[b] ? a : b), Object.keys(origenCount)[0])
+            : '-';
 
         const kpis = [
-            { id: 'kpiTotal',   label: 'Total Productos', value: c.total_productos || 0, tone: 'default' },
-            { id: 'kpiOk',      label: 'Stock OK',        value: c.total_ok        || 0, tone: 'success' },
-            { id: 'kpiBajo',    label: 'Stock Bajo',      value: c.total_bajo      || 0, tone: 'warning' },
-            { id: 'kpiAgotado', label: 'Agotado',         value: c.total_agotado   || 0, tone: 'danger'  },
-            { id: 'kpiVida',    label: 'Vida util',       value: c.total_vida      || 0, tone: 'purple'  }
+            { id: 'kpiEntradas',  label: 'Entradas',      value: visible.length                                          || 0, tone: 'success' },
+            { id: 'kpiCosto',     label: 'Costo Total',   value: '$' + Math.round(costoTot).toLocaleString('en-US')           , tone: 'default' },
+            { id: 'kpiSemana',    label: 'Semana',        value: visible.length                                          || 0, tone: 'purple'  },
+            { id: 'kpiPrincipal', label: 'Origen Princ.', value: principal                                                    , tone: 'info'    }
         ];
-        stockView.renderInfoCards(kpis);
+        entradasView.renderInfoCards(kpis);
     }
 
-    async getProducto(id) {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:{ opc:'getProducto', id } })
-        stockView.renderDetail(SAMPLE_PRODUCTS_DB[id] || null);
+    async getEntrada(folio) {
+        // MODO FAKE: si hubiera backend -> useFetch({ data:{ opc:'getEntrada', folio } })
+        entradasView.renderDetail(SAMPLE_ENTRADAS_DB[folio] || null);
     }
 
     // -- Actions --
 
-    viewMovimientos(id) {
-        console.log('[viewMovimientos]', id);
-        app.selectProduct(id);
+    viewEntrada(folio) {
+        console.log('[viewEntrada]', folio);
+        app.selectEntrada(folio);
     }
 }
 
 
-class StockView extends Templates {
+class EntradasView extends Templates {
 
     // -- Bootstrap --
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'POSStock';
+        this.PROJECT_NAME = 'POSEntradas';
     }
 
     // -- Render helpers --
 
-    renderDetail(producto) {
-        this.productDetailPanel({
+    renderDetail(entrada) {
+        this.entradaDetailPanel({
             parent:  'detailPanel',
-            json:    producto,
-            sucursalId:   $('#subsidiaries_id').val() || '',
-            sucursalName: $('#subsidiaries_id option:selected').text() || 'Todas las sucursales',
-            onClose: () => { app.selectedId = null; this.renderDetail(null); $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active'); }
+            json:    entrada,
+            onClose: () => {
+                app.selectedId = null;
+                this.renderDetail(null);
+                $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
+            },
+            onPrint:   (e) => console.log('[entrada] imprimir', e && e.folio),
+            onReverse: (e) => console.log('[entrada] reversar', e && e.folio)
         });
     }
 
@@ -385,9 +406,9 @@ class StockView extends Templates {
         this.tabsBar({
             parent: 'tabsRow',
             json: [
-                { id: 'stock',        label: 'Stock Actual',  active: true  },
+                { id: 'stock',        label: 'Stock Actual',  active: false },
                 { id: 'movimientos',  label: 'Movimientos',   active: false },
-                { id: 'entradas',     label: 'Entradas',      active: false },
+                { id: 'entradas',     label: 'Entradas',      active: true  },
                 { id: 'traspasos',    label: 'Traspasos',     active: false },
                 { id: 'ajustes',      label: 'Ajustes',       active: false }
             ],
@@ -401,7 +422,7 @@ class StockView extends Templates {
         const defaults = {
             parent: 'root',
             id:     'kpisRow',
-            class:  'grid grid-cols-2 md:grid-cols-5 gap-3',
+            class:  'grid grid-cols-2 md:grid-cols-4 gap-3',
             json:   [],
             labels: {
                 empty: 'Sin indicadores'
@@ -633,79 +654,73 @@ class StockView extends Templates {
         });
     }
 
-    productDetailPanel(options) {
+    entradaDetailPanel(options) {
         const defaults = {
-            parent:       'root',
-            id:           'productDetailPanel',
-            class:        'w-full h-full flex-shrink-0 bg-[var(--cs-bg-header,#141d2b)] border-l border-[var(--cs-border,#374151)] flex flex-col overflow-hidden',
-            json:         null,
-            sucursalId:   '',
-            sucursalName: 'Todas las sucursales',
+            parent:    'root',
+            id:        'entradaDetailPanel',
+            class:     'w-full h-full flex-shrink-0 bg-[var(--cs-bg-header,#141d2b)] border-l border-[var(--cs-border,#374151)] flex flex-col overflow-hidden',
+            json:      null,
             labels: {
-                emptyTitle:   'Selecciona un producto',
-                emptyHint:    'Haz click en cualquier fila o en el icono ojo para ver el detalle aqui.',
-                comportLbl:   'Comportamiento e historial',
-                stockBajo:    'Atencion: stock bajo',
-                stockAgotado: 'Producto agotado',
-                msgBajo:      (min) => `Existencias por debajo del minimo (${min}). Considera reabastecer pronto.`,
-                msgAgotado:   'Sin existencias disponibles. Considera generar un reabastecimiento.',
-                existencias:  'Existencias por sucursal',
-                almacenes:    'Almacenes disponibles',
-                historial:    'Historial de movimientos',
-                stock:        'Stock',
-                min:          'Min',
-                max:          'Max',
-                vidaUtilLbl:  'Vida util'
+                emptyTitle:  'Selecciona una entrada',
+                emptyHint:   'Haz click en cualquier fila o en el icono ojo para ver el detalle aqui.',
+                subtitleLbl: 'Detalle de recepcion',
+                origen:      'Origen',
+                sucursal:    'Sucursal',
+                registrado:  'Registrado por',
+                productos:   'Productos',
+                costoTot:    'Costo total',
+                detalleLbl:  'Detalle de Productos',
+                notaLbl:     'Nota',
+                cant:        'Cant',
+                costo:       'Costo',
+                subtotal:    'Subtot.',
+                stockLbl:    'Stock',
+                imprimir:    'Imprimir',
+                reversar:    'Reversar'
             },
-            sucursales: [
-                { id: 'kafeto',  name: 'Reginas Kafeto'  },
-                { id: 'central', name: 'Reginas Central' },
-                { id: 'norte',   name: 'Reginas Norte'   },
-                { id: 'sur',     name: 'Reginas Sur'     }
-            ],
-            statusMap: {
-                ok:      { palette: 'emerald', icon: 'check-circle-2', label: 'Stock OK',   msg: 'Nivel saludable, dentro del rango optimo.',                stockColor: 'text-emerald-300' },
-                bajo:    { palette: 'orange',  icon: 'alert-triangle', label: 'Stock Bajo', msg: 'El nivel actual esta por debajo del minimo recomendado.', stockColor: 'text-orange-300'  },
-                agotado: { palette: 'rose',    icon: 'x-circle',       label: 'Agotado',    msg: 'No hay existencias disponibles.',                          stockColor: 'text-rose-300'    }
+            origenPalettes: {
+                'Produccion':    { bg: 'rgba(124,58,237,0.15)', fg: '#A78BFA' },
+                'Proveedor':     { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24' },
+                'Transferencia': { bg: 'rgba(28,100,242,0.15)', fg: '#60A5FA' },
+                'Devolucion':    { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' }
             },
-            statusPalettes: {
-                emerald: { bg: 'bg-emerald-500/8', border: 'border-emerald-500/20', text: 'text-emerald-300' },
-                orange:  { bg: 'bg-orange-500/8',  border: 'border-orange-500/20',  text: 'text-orange-300'  },
-                rose:    { bg: 'bg-rose-500/8',    border: 'border-rose-500/20',    text: 'text-rose-300'    }
+            estadoPalettes: {
+                'Aplicada':  { bg: 'rgba(63,193,137,0.15)', fg: '#3FC189' },
+                'Pendiente': { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24' },
+                'Reversada': { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' }
             },
-            vidaMap: {
-                critico: { palette: 'rose',    icon: 'alert-octagon', label: 'Critica',   msg: 'Caducidad inminente, prioriza la rotacion.' },
-                proximo: { palette: 'amber',   icon: 'clock',         label: 'Proxima',   msg: 'Cercano a su fecha de caducidad.'           },
-                ok:      { palette: 'emerald', icon: 'leaf',          label: 'Saludable', msg: 'Vida util dentro del rango optimo.'         },
-                na:      { palette: 'slate',   icon: 'minus',         label: 'No aplica', msg: 'Producto sin vida util registrada.'         }
-            },
-            vidaPalettes: {
-                rose:    { bg: 'bg-rose-500/8',    border: 'border-rose-500/20',    text: 'text-rose-300'    },
-                amber:   { bg: 'bg-amber-500/8',   border: 'border-amber-500/20',   text: 'text-amber-300'   },
-                emerald: { bg: 'bg-emerald-500/8', border: 'border-emerald-500/20', text: 'text-emerald-300' },
-                slate:   { bg: 'bg-slate-500/8',   border: 'border-slate-500/20',   text: 'text-slate-300'   }
-            },
-            movMap: {
-                in:     { bg: 'bg-green-500/15',  iconColor: 'text-green-400',  icon: 'arrow-down',  qtyColor: 'text-green-400'  },
-                out:    { bg: 'bg-red-500/15',    iconColor: 'text-red-400',    icon: 'arrow-up',    qtyColor: 'text-red-400'    },
-                tr:     { bg: 'bg-purple-500/15', iconColor: 'text-purple-400', icon: 'repeat',      qtyColor: 'text-purple-400' },
-                adjust: { bg: 'bg-orange-500/15', iconColor: 'text-orange-400', icon: 'settings-2',  qtyColor: 'text-orange-400' }
-            },
-            onClose: () => { }
+            onClose:   () => { },
+            onPrint:   () => { },
+            onReverse: () => { }
         };
 
         const o    = options || {};
         const opts = Object.assign({}, defaults, o);
         opts.labels         = Object.assign({}, defaults.labels,         o.labels         || {});
-        opts.statusMap      = Object.assign({}, defaults.statusMap,      o.statusMap      || {});
-        opts.statusPalettes = Object.assign({}, defaults.statusPalettes, o.statusPalettes || {});
-        opts.vidaMap        = Object.assign({}, defaults.vidaMap,        o.vidaMap        || {});
-        opts.vidaPalettes   = Object.assign({}, defaults.vidaPalettes,   o.vidaPalettes   || {});
-        opts.movMap         = Object.assign({}, defaults.movMap,         o.movMap         || {});
+        opts.origenPalettes = Object.assign({}, defaults.origenPalettes, o.origenPalettes || {});
+        opts.estadoPalettes = Object.assign({}, defaults.estadoPalettes, o.estadoPalettes || {});
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
+
+        const fmtMoney      = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtMoneyShort = (n) => '$' + Number(n).toLocaleString('en-US');
+
+        const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+        const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const fmtFecha = (iso) => {
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return iso || '';
+            const dow = DOW[d.getDay()];
+            const day = String(d.getDate()).padStart(2, '0');
+            const mon = MON[d.getMonth()];
+            let h     = d.getHours();
+            const m   = String(d.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'pm' : 'am';
+            h = h % 12 || 12;
+            return `${dow} ${day} ${mon} ${String(h).padStart(2, '0')}:${m} ${ampm}`;
+        };
 
         const aside = $('<aside>', { id: opts.id, class: opts.class });
 
@@ -714,16 +729,20 @@ class StockView extends Templates {
             aside.html(`
                 <div class="px-4 py-3 border-b border-[var(--cs-border,#374151)] flex-shrink-0 flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-bold text-white">Vista del Producto</h3>
-                        <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.comportLbl)}</p>
+                        <h3 class="text-sm font-bold text-white">Vista de la Entrada</h3>
+                        <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.subtitleLbl)}</p>
                     </div>
                 </div>
                 <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
                     <div class="w-14 h-14 rounded-full bg-[var(--cs-bg-input,#1F2937)] border border-[var(--cs-border,#374151)] flex items-center justify-center mb-3">
-                        <i data-lucide="package-search" class="w-6 h-6 text-[var(--cs-text-muted,#9CA3AF)]"></i>
+                        <i data-lucide="arrow-down-to-line" class="w-6 h-6 text-[var(--cs-text-muted,#9CA3AF)]"></i>
                     </div>
                     <p class="text-[11px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.emptyTitle)}</p>
                     <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
+                </div>
+                <div class="px-4 py-3 border-t border-[var(--cs-border,#374151)] flex gap-2 flex-shrink-0">
+                    <button id="${opts.id}_print" class="cs-btn cs-btn-outline flex-1 cs-btn-sm" disabled>${esc(opts.labels.imprimir)}</button>
+                    <button id="${opts.id}_reverse" class="cs-btn cs-btn-danger flex-1 cs-btn-sm" disabled>${esc(opts.labels.reversar)}</button>
                 </div>
             `);
             $(`#${opts.parent}`).html(aside);
@@ -731,173 +750,122 @@ class StockView extends Templates {
             return;
         }
 
-        // -- Render con producto
-        const p             = opts.json;
-        const sucId         = opts.sucursalId;
-        const sucName       = opts.sucursalName;
-        const stockVal      = (p.stockSuc || {})[sucId] != null ? p.stockSuc[sucId] : (p.stockSuc[''] || 0);
-        const status        = opts.statusMap[p.estado] || opts.statusMap.ok;
-        const statusPalette = opts.statusPalettes[status.palette];
-        const vidaCfg       = opts.vidaMap[(p.vida && p.vida.label) || 'na'];
-        const vidaPalette   = opts.vidaPalettes[vidaCfg.palette];
-        const vidaText      = p.vida && p.vida.dias != null ? `${p.vida.dias} dias restantes` : 'Sin caducidad activa';
+        // -- Render con entrada
+        const e         = opts.json;
+        const totals    = (() => {
+            const uds   = (e.productos || []).reduce((s, p) => s + Number(p.cant  || 0), 0);
+            const costo = (e.productos || []).reduce((s, p) => s + Number(p.cant  || 0) * Number(p.costo || 0), 0);
+            return { uds, costo };
+        })();
+        const origenC   = opts.origenPalettes[e.origen] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
+        const estadoC   = opts.estadoPalettes[e.estado] || { bg: 'rgba(63,193,137,0.15)',  fg: '#3FC189' };
+        const folioCol  = e.origen === 'Transferencia' ? 'text-blue-400' : 'text-green-400';
 
-        // -- Stock color por sucursal
-        const stockColor = (q) => q === 0 ? 'text-red-400' : (q < p.min ? 'text-orange-400' : 'text-green-400');
+        const origenBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${origenC.bg};color:${origenC.fg};">${esc(e.origen)}</span>`;
+        const estadoBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${estadoC.bg};color:${estadoC.fg};">${esc(e.estado)}</span>`;
 
-        // -- Lista de existencias por sucursal
-        const branchListHtml = (opts.sucursales || []).map(s => {
-            const q      = (p.stockSuc || {})[s.id] != null ? p.stockSuc[s.id] : 0;
-            const active = sucId === s.id ? 'border-[var(--cs-accent-purple,#7C3AED)]' : 'border-[var(--cs-border,#374151)]';
+        // -- Productos
+        const productosHtml = (e.productos || []).map(p => {
+            const subtotal   = Number(p.cant) * Number(p.costo);
+            const nuevoStock = Number(p.stockPrev || 0) + Number(p.cant || 0);
             return `
-                <div class="flex items-center justify-between bg-[var(--cs-bg-input,#1F2937)] rounded-md px-2.5 py-1.5 border ${active}">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="store" class="w-3 h-3 ${q === 0 ? 'text-gray-500' : 'text-[#c4b5fd]'}"></i>
-                        <span class="text-[11px] ${q === 0 ? 'text-gray-500' : 'text-white'}">${esc(s.name)}</span>
-                    </div>
-                    <span class="text-[11px] font-bold ${stockColor(q)}">${q}</span>
-                </div>`;
-        }).join('');
-
-        // -- Almacenes
-        const almTone = {
-            info:   { bg: 'rgba(28,100,242,0.15)',  fg: '#60A5FA' },
-            purple: { bg: 'rgba(124,58,237,0.15)',  fg: '#A78BFA' }
-        };
-        const almacenesHtml = (p.almacenes || []).map(a => {
-            const t = almTone[a.type] || almTone.info;
-            return `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${t.bg};color:${t.fg};">
-                <i data-lucide="warehouse" class="w-2.5 h-2.5 mr-1 inline"></i>${esc(a.name)}
-            </span>`;
-        }).join('');
-
-        // -- Historial (ultimos 10)
-        const movsAll    = p.movs || [];
-        const movsToShow = movsAll.slice(0, 10);
-        const movsHtml   = movsToShow.map(m => {
-            const cfg = opts.movMap[m.type] || opts.movMap.adjust;
-            return `
-                <div class="flex items-start gap-2 bg-[var(--cs-bg-input,#1F2937)] rounded-md px-2.5 py-1.5 border border-[var(--cs-border,#374151)]">
-                    <div class="w-5 h-5 rounded ${cfg.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <i data-lucide="${cfg.icon}" class="w-2.5 h-2.5 ${cfg.iconColor}"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between">
-                            <p class="text-[10px] font-medium text-white">${esc(m.label)}</p>
-                            <span class="text-[10px] font-bold ${cfg.qtyColor}">${esc(m.qty)}</span>
+                <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-md p-1.5 border border-[var(--cs-border,#374151)]">
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-6 h-6 rounded ${p.bg} flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="${p.icon}" class="w-3 h-3 ${p.color}"></i>
                         </div>
-                        <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(m.when)}</p>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[10px] font-bold leading-tight truncate text-white">${esc(p.nombre)}</p>
+                            <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] leading-tight">${esc(p.sku)}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1 mt-1.5 pt-1.5 border-t border-[var(--cs-border,#374151)]">
+                        <div>
+                            <p class="text-[7px] text-[var(--cs-text-muted,#9CA3AF)] uppercase leading-none">${esc(opts.labels.cant)}</p>
+                            <p class="text-[10px] font-bold text-green-400 leading-tight">+${p.cant}</p>
+                        </div>
+                        <div>
+                            <p class="text-[7px] text-[var(--cs-text-muted,#9CA3AF)] uppercase leading-none">${esc(opts.labels.costo)}</p>
+                            <p class="text-[10px] font-bold text-white leading-tight">${fmtMoney(p.costo)}</p>
+                        </div>
+                        <div>
+                            <p class="text-[7px] text-[var(--cs-text-muted,#9CA3AF)] uppercase leading-none">${esc(opts.labels.subtotal)}</p>
+                            <p class="text-[10px] font-bold text-white leading-tight">${fmtMoneyShort(subtotal)}</p>
+                        </div>
+                    </div>
+                    <div class="mt-1 text-[8px] leading-tight">
+                        <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.stockLbl)}: ${p.stockPrev || 0} &rarr; <strong class="text-green-400">${nuevoStock}</strong></span>
                     </div>
                 </div>`;
         }).join('');
-
-        // -- Banner stock bajo / agotado
-        const banner = (p.estado === 'bajo' || p.estado === 'agotado') ? `
-            <div class="rounded-lg border ${p.estado === 'agotado' ? 'border-rose-500/25 bg-rose-500/8' : 'border-amber-500/25 bg-amber-500/8'} px-3 py-2 flex items-start gap-2">
-                <i data-lucide="bell-ring" class="w-4 h-4 ${p.estado === 'agotado' ? 'text-rose-300' : 'text-amber-300'} flex-shrink-0 mt-0.5"></i>
-                <div class="flex-1 min-w-0">
-                    <p class="text-[11px] font-bold ${p.estado === 'agotado' ? 'text-rose-300' : 'text-amber-300'}">
-                        ${esc(p.estado === 'agotado' ? opts.labels.stockAgotado : opts.labels.stockBajo)}
-                    </p>
-                    <p class="text-[10px] text-gray-400">
-                        ${esc(p.estado === 'agotado' ? opts.labels.msgAgotado : opts.labels.msgBajo(p.min))}
-                    </p>
-                </div>
-            </div>
-        ` : '';
-
-        const subtitle = sucId ? `Existencias en ${esc(sucName)}` : 'Vista consolidada (todas las sucursales)';
 
         aside.html(`
             <div class="px-4 py-3 border-b border-[var(--cs-border,#374151)] flex-shrink-0 flex items-center justify-between">
                 <div>
-                    <h3 class="text-sm font-bold text-white">Vista del Producto</h3>
-                    <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)]" id="${opts.id}_subtitle">${subtitle}</p>
+                    <h3 class="text-sm font-bold ${folioCol}">Entrada ${esc(e.folio)}</h3>
+                    <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(fmtFecha(e.fechaIso))}</p>
                 </div>
-                <button id="${opts.id}_close" class="text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors p-1" title="Cerrar">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
+                <div class="flex items-center gap-2">
+                    ${estadoBadge}
+                    <button id="${opts.id}_close" class="text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors p-1" title="Cerrar">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <div class="flex-1 overflow-y-auto cs-scroll px-4 py-3 space-y-3">
-                ${banner}
 
-                <!-- CARD producto + stock/min/max -->
+                <!-- Resumen -->
+                <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-3 border border-[var(--cs-border,#374151)] space-y-1.5">
+                    <div class="flex justify-between items-center text-[11px]">
+                        <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.origen)}</span>
+                        ${origenBadge}
+                    </div>
+                    <div class="flex justify-between text-[11px]">
+                        <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.sucursal)}</span>
+                        <span class="text-white">${esc(e.sucursal || '-')}</span>
+                    </div>
+                    <div class="flex justify-between text-[11px]">
+                        <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.registrado)}</span>
+                        <span class="text-white">${esc(e.registrado || '-')}</span>
+                    </div>
+                    <div class="flex justify-between text-[11px]">
+                        <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.productos)}</span>
+                        <span class="text-white font-bold">${e.productos.length} tipos / ${totals.uds} uds</span>
+                    </div>
+                    <div class="flex justify-between text-[11px]">
+                        <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.costoTot)}</span>
+                        <span class="font-bold text-green-400">${fmtMoney(totals.costo)}</span>
+                    </div>
+                </div>
+
+                <!-- Detalle de productos -->
+                <div>
+                    <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider mb-2">${esc(opts.labels.detalleLbl)}</p>
+                    <div class="space-y-1">${productosHtml || '<p class="text-[10px] text-gray-500 italic">Sin productos</p>'}</div>
+                </div>
+
+                <!-- Nota -->
+                ${e.nota ? `
                 <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-3 border border-[var(--cs-border,#374151)]">
-                    <div class="flex items-center gap-2">
-                        <div class="w-10 h-10 rounded-lg ${p.iconBg} flex items-center justify-center ${p.iconText}">
-                            <i data-lucide="cake" class="w-5 h-5"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-xs font-bold text-white truncate">${esc(p.name)}</p>
-                            <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)]">SKU: ${esc(p.sku)} · ${esc(p.categoria)}</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2 mt-3 pt-2 border-t border-[var(--cs-border,#374151)]">
-                        <div class="text-center">
-                            <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] uppercase">${esc(opts.labels.stock)}</p>
-                            <p class="text-sm font-bold ${status.stockColor}">${stockVal}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] uppercase">${esc(opts.labels.min)}</p>
-                            <p class="text-sm font-bold text-white">${p.min}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] uppercase">${esc(opts.labels.max)}</p>
-                            <p class="text-sm font-bold text-white">${p.max}</p>
-                        </div>
-                    </div>
-                </div>
+                    <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider mb-1">${esc(opts.labels.notaLbl)}</p>
+                    <p class="text-[11px] text-gray-300">${esc(e.nota)}</p>
+                </div>` : ''}
+            </div>
 
-                <!-- Bloque ESTADO -->
-                <div class="rounded-lg border ${statusPalette.border} ${statusPalette.bg} px-3 py-2 flex items-start gap-2">
-                    <i data-lucide="${status.icon}" class="w-4 h-4 ${statusPalette.text} flex-shrink-0 mt-0.5"></i>
-                    <div class="flex-1 min-w-0">
-                        <strong class="block text-xs ${statusPalette.text}">Estado: ${esc(status.label)}</strong>
-                        <p class="text-[10px] text-gray-400">${esc(status.msg)}</p>
-                    </div>
-                </div>
-
-                <!-- Bloque VIDA UTIL -->
-                <div class="rounded-lg border ${vidaPalette.border} ${vidaPalette.bg} px-3 py-2 flex items-start gap-2">
-                    <i data-lucide="${vidaCfg.icon}" class="w-4 h-4 ${vidaPalette.text} flex-shrink-0 mt-0.5"></i>
-                    <div class="flex-1 min-w-0">
-                        <strong class="block text-xs ${vidaPalette.text}">${esc(opts.labels.vidaUtilLbl)}: ${esc(vidaCfg.label)} · ${esc(vidaText)}</strong>
-                        <p class="text-[10px] text-gray-400">${esc(vidaCfg.msg)}</p>
-                    </div>
-                </div>
-
-                <!-- EXISTENCIAS POR SUCURSAL -->
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.existencias)}</h4>
-                        <span class="text-[9px] text-gray-500">Total: ${(p.stockSuc && p.stockSuc[''] != null) ? p.stockSuc[''] : 0}</span>
-                    </div>
-                    <div class="space-y-1.5">${branchListHtml}</div>
-                </div>
-
-                <!-- ALMACENES -->
-                <div>
-                    <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[var(--cs-text-muted,#9CA3AF)] mb-1.5">${esc(opts.labels.almacenes)}</h4>
-                    <div class="flex flex-wrap gap-1.5">${almacenesHtml}</div>
-                </div>
-
-                <!-- HISTORIAL DE MOVIMIENTOS -->
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.historial)}</h4>
-                        <span class="text-[9px] text-gray-500">${movsToShow.length} de ${movsAll.length}${movsAll.length > 10 ? ' (ultimos 10)' : ''}</span>
-                    </div>
-                    <div class="space-y-1.5">${movsHtml || '<p class="text-[10px] text-gray-500 italic">Sin movimientos</p>'}</div>
-                </div>
+            <div class="px-4 py-3 border-t border-[var(--cs-border,#374151)] flex gap-2 flex-shrink-0">
+                <button id="${opts.id}_print" class="cs-btn cs-btn-outline flex-1 cs-btn-sm">${esc(opts.labels.imprimir)}</button>
+                <button id="${opts.id}_reverse" class="cs-btn cs-btn-danger flex-1 cs-btn-sm">${esc(opts.labels.reversar)}</button>
             </div>
         `);
 
         $(`#${opts.parent}`).html(aside);
         if (window.lucide) lucide.createIcons();
 
-        $(`#${opts.id}_close`).on('click', () => opts.onClose(p));
+        $(`#${opts.id}_close`).on('click',   () => opts.onClose(e));
+        $(`#${opts.id}_print`).on('click',   () => opts.onPrint(e));
+        $(`#${opts.id}_reverse`).on('click', () => opts.onReverse(e));
     }
 }
