@@ -1,0 +1,14 @@
+[ 2026-05-18 13:04:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT id, code, name, is_cash, is_visible, active, DATE_FORMAT(created_at, '%Y-%m-%d') as created_at FROM fayxzvov_reginas.pos_payment_type   WHERE active = ?  ORDER BY id DESC 
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.pos_payment_type' doesn't exist
+
+
+[ 2026-05-18 13:04:15 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  SELECT id, code, name, is_cash, is_visible, active, DATE_FORMAT(created_at, '%Y-%m-%d') as created_at FROM fayxzvov_reginas.pos_payment_type   WHERE active = ?  ORDER BY id DESC 
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.pos_payment_type' doesn't exist
+
+

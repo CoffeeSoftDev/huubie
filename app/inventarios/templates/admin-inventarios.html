@@ -55,8 +55,8 @@
     .btn-ghost:hover { color: #fff; background: rgba(255,255,255,.06); }
     .submenu ul { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out; }
 
-    .cs-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 90; }
-    .cs-modal { position: fixed; z-index: 100; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 100%; display: flex; flex-direction: column; background: #111928; border: 1px solid rgba(55,65,81,0.6); border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); overflow: hidden; }
+    .cs-modal-backdrop { background: rgba(0,0,0,0.55); }
+    .cs-modal { width: 100%; max-height: 90vh; display: flex; flex-direction: column; background: #111928; border: 1px solid rgba(55,65,81,0.6); border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); overflow: hidden; }
     .cs-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(55,65,81,0.6); background: #141d2b; flex-shrink: 0; }
     .cs-modal-title { font-size: 14px; font-weight: 700; color: #fff; }
     .cs-modal-body { padding: 0; flex: 1; overflow: hidden; min-height: 0; }
@@ -223,7 +223,7 @@
       <div id="tab-productos" class="tab-content flex-1 flex flex-col min-h-0">
         <div class="px-6 pb-3 pt-2 flex-shrink-0">
           <div class="flex items-center justify-between">
-            <select class="cs-select text-xs">
+            <select class="cs-select text-xs w-1/4">
               <option>Activos</option>
               <option>Inactivos</option>
             </select>
@@ -328,7 +328,7 @@
       <div id="tab-almacenes" class="tab-content hidden flex-1 flex flex-col min-h-0">
         <div class="px-6 pb-3 pt-2 flex-shrink-0">
           <div class="flex items-center justify-between">
-            <select class="cs-select text-xs">
+            <select class="cs-select text-xs w-1/4">
               <option>Activos</option>
               <option>Inactivos</option>
             </select>
@@ -418,9 +418,9 @@
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- Modal Producto                                              -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <div id="modalProducto" class="hidden">
-    <div class="cs-modal-backdrop" data-modal-close></div>
-    <div class="cs-modal" style="max-width: 520px;">
+  <div id="modalProducto" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="cs-modal-backdrop absolute inset-0" data-modal-close></div>
+    <div class="cs-modal relative" style="max-width: 520px;">
       <div class="cs-modal-header">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center"><i data-lucide="box" class="w-4 h-4 text-white"></i></div>
@@ -458,9 +458,9 @@
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- Modal Almacen                                               -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <div id="modalAlmacen" class="hidden">
-    <div class="cs-modal-backdrop" data-modal-close></div>
-    <div class="cs-modal" style="max-width: 480px;">
+  <div id="modalAlmacen" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="cs-modal-backdrop absolute inset-0" data-modal-close></div>
+    <div class="cs-modal relative" style="max-width: 480px;">
       <div class="cs-modal-header">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center"><i data-lucide="warehouse" class="w-4 h-4 text-white"></i></div>
