@@ -38,7 +38,7 @@ class App extends Templates {
             design: false,
             data: {
                 id: this.PROJECT_NAME,
-                class: 'w-full min-h-screen p-4',
+                class: 'w-full min-h-screen p-3',
                 container: [
                     {
                         type: 'div',
@@ -75,23 +75,31 @@ class App extends Templates {
             json: [
                 {
                     id: "tab-company",
-                    tab: `<i data-lucide="building-2" class="w-4 h-4"></i> Empresa`,
+                    tab: "Empresa",
+                    lucideIcon: "building-2",
+                    iconColor: "text-white",
                     active: true,
                     onClick: () => company.render()
                 },
                 {
                     id: "tab-usuarios",
-                    tab: `<i data-lucide="users" class="w-4 h-4"></i> Usuarios`,
+                    tab: "Usuarios",
+                    lucideIcon: "users",
+                    iconColor: "text-white",
                     onClick: () => usuarios.render()
                 },
                 {
                     id: "tab-sucursales",
-                    tab: `<i data-lucide="map-pin" class="w-4 h-4"></i> Sucursal`,
+                    tab: "Sucursal",
+                    lucideIcon: "map-pin",
+                    iconColor: "text-white",
                     onClick: () => sucursales.render()
                 },
                 {
                     id: "tab-clausules",
-                    tab: `<i data-lucide="file-text" class="w-4 h-4"></i> Clausulas`,
+                    tab: "Clausulas",
+                    lucideIcon: "file-text",
+                    iconColor: "text-white",
                     onClick: () => clausulas.ls()
                 },
             ],

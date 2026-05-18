@@ -368,6 +368,67 @@ class mdl extends CRUD {
         ]);
     }
 
+    // pos_payment_type.
+
+    function lsPaymentType($array) {
+        return $this->_Select([
+            'table'  => "{$this->bd}pos_payment_type",
+            'values' => 'id, code, name, is_cash, is_visible, active, DATE_FORMAT(created_at, \'%Y-%m-%d\') as created_at',
+            'where'  => 'active = ?',
+            'order'  => ['DESC' => 'id'],
+            'data'   => $array
+        ]);
+    }
+
+    function getPaymentTypeById($array) {
+        return $this->_Select([
+            'table'  => "{$this->bd}pos_payment_type",
+            'values' => '*',
+            'where'  => 'id = ?',
+            'data'   => $array
+        ])[0];
+    }
+
+    function existsPaymentTypeByCode($array) {
+        $query = "
+            SELECT id
+            FROM {$this->bd}pos_payment_type
+            WHERE LOWER(code) = LOWER(?)
+            AND active = 1
+        ";
+        $result = $this->_Read($query, $array);
+        return count($result) > 0;
+    }
+
+    function existsOtherPaymentTypeByCode($array) {
+        $query = "
+            SELECT id
+            FROM {$this->bd}pos_payment_type
+            WHERE LOWER(code) = LOWER(?)
+            AND id != ?
+            AND active = 1
+        ";
+        $result = $this->_Read($query, $array);
+        return count($result) > 0;
+    }
+
+    function createPaymentType($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}pos_payment_type",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    function updatePaymentType($array) {
+        return $this->_Update([
+            'table'  => "{$this->bd}pos_payment_type",
+            'values' => $array['values'],
+            'where'  => 'id = ?',
+            'data'   => $array['data']
+        ]);
+    }
+
     // payment.
     function registerPayment($array) {
         return $this->_Update([

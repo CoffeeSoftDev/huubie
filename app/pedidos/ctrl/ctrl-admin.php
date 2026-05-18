@@ -755,7 +755,134 @@
             ];
         }
 
+        // Payment Type.
 
+        function listPaymentType() {
+            $__row  = [];
+            $active = $_POST['active'];
+            $ls     = $this->lsPaymentType([$active]);
+
+            foreach ($ls as $key) {
+                $a = [];
+
+                if ($key['active'] == 1) {
+                    $a[] = [
+                        'class'   => 'btn btn-sm btn-primary me-1',
+                        'html'    => '<i class="icon-pencil"></i>',
+                        'onclick' => 'payment.editPaymentType(' . $key['id'] . ')'
+                    ];
+
+                    $a[] = [
+                        'class'   => 'btn btn-sm btn-danger',
+                        'html'    => '<i class="icon-toggle-on"></i>',
+                        'onclick' => 'payment.statusPaymentType(' . $key['id'] . ', ' . $key['active'] . ')'
+                    ];
+                } else {
+                    $a[] = [
+                        'class'   => 'btn btn-sm btn-outline-danger',
+                        'html'    => '<i class="icon-toggle-off"></i>',
+                        'onclick' => 'payment.statusPaymentType(' . $key['id'] . ', ' . $key['active'] . ')'
+                    ];
+                }
+
+                $isCashBadge = $key['is_cash'] == 1
+                    ? '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189]">Si</span>'
+                    : '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#1F2A37] text-gray-400">No</span>';
+
+                $isVisibleToggle = $key['is_visible'] == 1
+                    ? '<button onclick="payment.toggleVisible(event, ' . $key['id'] . ', 1)" class="px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189] hover:opacity-80 cursor-pointer"><i class="icon-eye"></i> Visible</button>'
+                    : '<button onclick="payment.toggleVisible(event, ' . $key['id'] . ', 0)" class="px-2 py-1 rounded-md text-sm font-semibold bg-[#1F2A37] text-gray-400 hover:opacity-80 cursor-pointer"><i class="icon-eye-off"></i> Oculto</button>';
+
+                $__row[] = [
+                    'id'               => $key['id'],
+                    'Codigo'           => '<span class="font-mono bg-[#1a2332] px-2 py-1 rounded text-sm">' . htmlspecialchars($key['code']) . '</span>',
+                    'Nombre'           => $key['name'],
+                    'Efectivo en Caja' => $isCashBadge,
+                    'Visible en POS'   => $isVisibleToggle,
+                    'Estado'           => renderStatus($key['active']),
+                    'a'                => $a
+                ];
+            }
+
+            return ['row' => $__row, 'ls' => $ls];
+        }
+
+        function addPaymentType() {
+            $exists = $this->existsPaymentTypeByCode([strtoupper($_POST['code'])]);
+
+            if ($exists) {
+                return [
+                    'status'  => 409,
+                    'message' => 'Ya existe un tipo de pago con ese codigo.'
+                ];
+            }
+
+            $_POST['code']       = strtoupper($_POST['code']);
+            $_POST['active']     = 1;
+            $_POST['created_at'] = date('Y-m-d H:i:s');
+
+            $create = $this->createPaymentType($this->util->sql($_POST));
+
+            return [
+                'status'  => $create ? 200 : 500,
+                'message' => $create ? 'Tipo de pago agregado correctamente.' : 'No se pudo agregar.'
+            ];
+        }
+
+        function getPaymentType() {
+            $data = $this->getPaymentTypeById([$_POST['id']]);
+
+            return [
+                'status'  => $data ? 200 : 500,
+                'message' => $data ? 'Datos obtenidos.' : 'No encontrado.',
+                'data'    => $data
+            ];
+        }
+
+        function editPaymentType() {
+            $id = $_POST['id'];
+
+            $exists = $this->existsOtherPaymentTypeByCode([strtoupper($_POST['code']), $id]);
+
+            if ($exists) {
+                return [
+                    'status'  => 409,
+                    'message' => 'Ya existe otro tipo de pago con ese codigo.'
+                ];
+            }
+
+            $_POST['code']       = strtoupper($_POST['code']);
+            $_POST['updated_at'] = date('Y-m-d H:i:s');
+
+            $edit = $this->updatePaymentType($this->util->sql($_POST, 1));
+
+            return [
+                'status'  => $edit ? 200 : 500,
+                'message' => $edit ? 'Tipo de pago actualizado correctamente.' : 'No se pudo actualizar.'
+            ];
+        }
+
+        function statusPaymentType() {
+            $update = $this->updatePaymentType($this->util->sql($_POST, 1));
+
+            return [
+                'status'  => $update ? 200 : 500,
+                'message' => $update ? 'Estado actualizado.' : 'Error al actualizar estado.'
+            ];
+        }
+
+        function toggleVisiblePaymentType() {
+            $update = $this->updatePaymentType($this->util->sql([
+                'is_visible' => $_POST['is_visible'],
+                'updated_at' => date('Y-m-d H:i:s'),
+                'id'         => $_POST['id']
+            ], 1));
+
+            return [
+                'status'  => $update ? 200 : 500,
+                'message' => $update ? 'Visibilidad actualizada.' : 'Error al actualizar visibilidad.'
+            ];
+        }
 
 
 
@@ -766,18 +893,21 @@
 
 
   function renderProductImage($foto, $nombre) {
-    $src = !empty($foto) ? 'https://huubie.com.mx/' . $foto : '';
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host   = $scheme . '://' . $_SERVER['HTTP_HOST'];
+    $src    = !empty($foto) ? $host . '/' . ltrim($foto, '/') : '';
+    $label  = ucwords(mb_strtolower(trim($nombre)));
 
     $img = !empty($src)
-        ? '<img src="' . $src . '" alt="Imagen Producto" class="w-14 h-14 bg-gray-500 rounded-md object-cover" />'
-        : '<div class="w-12 h-12 bg-[#1F2A37] rounded-md flex items-center justify-center">
-                <i class=" icon-birthday text-gray-500"></i>
-        </div>';
+        ? '<img src="' . $src . '" alt="Producto" class="w-10 h-10 rounded-md object-cover bg-gray-700" />'
+        : '<div class="w-10 h-10 bg-[#1F2A37] rounded-md flex items-center justify-center">
+                <i class="icon-birthday text-gray-500 text-lg"></i>
+           </div>';
 
     return '
-        <div class="flex items-center justify-start gap-2">
+        <div class="flex items-center gap-3">
             ' . $img . '
-            <div class="text-sm text-white">' . htmlspecialchars($nombre) . '</div>
+            <span class="text-sm text-white">' . $label . '</span>
         </div>';
   }
 

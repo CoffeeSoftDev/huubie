@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traspasos entre Almacenes — Dual Warehouse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #111928; color: #fff; }
+        .card-demo { background: #1F2A37; border: 1px solid rgba(55,65,81,.6); border-radius: 12px; transition: .15s; }
+        .input-modal { background: #1a2332; border: 1px solid #374151; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #d1d5db; width: 100%; transition: border-color .15s; }
+        .input-modal:focus { outline: none; border-color: #7c3aed; }
+        .input-modal::placeholder { color: #6b7280; }
+        .badge-base { font-size: 11px; padding: 2px 10px; border-radius: 9999px; font-weight: 500; }
+        .tab-pill { background: #1a2332; border: 1px solid #374151; color: #9ca3af; padding: 6px 14px; border-radius: 9999px; font-size: 12px; font-weight: 500; cursor: pointer; transition: .15s; }
+        .tab-pill:hover { border-color: #7c3aed; color: white; }
+        .tab-pill.active { background: #1c64f2; color: white; border-color: #1c64f2; }
+        .step-line { position: absolute; top: 20px; left: 16px; right: 16px; height: 2px; background: #374151; z-index: 0; }
+        .step-line-progress { height: 100%; background: #1c64f2; transition: width .3s ease; }
+        .step-dot { width: 40px; height: 40px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; position: relative; z-index: 1; transition: .15s; }
+        .step-dot.done { background: #1c64f2; color: white; }
+        .step-dot.active { background: #1F2A37; border: 2px solid #1c64f2; color: #1c64f2; }
+        .step-dot.pending { background: #1F2A37; border: 2px solid #374151; color: #6b7280; }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Sidebar -->
+    <div class="fixed left-0 top-0 h-full w-56 bg-[#0f172a] border-r border-gray-800 flex flex-col z-20">
+        <div class="h-16 flex items-center px-4 border-b border-gray-800">
+            <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center mr-3">
+                <i data-lucide="package" class="w-5 h-5 text-white"></i>
+            </div>
+            <span class="font-bold text-sm">Inventarios</span>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+            <a href="dual-warehouse-hub.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-[#1a2332] hover:text-white transition-colors">
+                <i data-lucide="layout-grid" class="w-4 h-4"></i> Propuesta Dual WH
+            </a>
+            <a href="dual-warehouse-almacenes.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-[#1a2332] hover:text-white transition-colors">
+                <i data-lucide="warehouse" class="w-4 h-4"></i> Almacenes
+            </a>
+            <a href="dual-warehouse-stock.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-[#1a2332] hover:text-white transition-colors">
+                <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Stock Dual
+            </a>
+            <a href="dual-warehouse-traspaso.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm bg-[#1a2332] text-white border-l-2 border-blue-600">
+                <i data-lucide="arrow-left-right" class="w-4 h-4"></i> Traspasos
+            </a>
+        </nav>
+    </div>
+
+    <!-- Header -->
+    <div class="fixed top-0 left-56 right-0 h-16 bg-[#141d2b] border-b border-gray-800 flex items-center justify-between px-6 z-10">
+        <div class="flex items-center gap-3">
+            <a href="dual-warehouse-hub.html" class="text-gray-400 hover:text-white transition-colors">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <h1 class="text-lg font-bold flex items-center gap-2">
+                <i data-lucide="arrow-left-right" class="w-5 h-5 text-purple-400"></i> Traspasos entre Almacenes
+            </h1>
+        </div>
+        <span class="text-xs text-gray-400">Propuesta / Traspasos</span>
+    </div>
+
+    <!-- Main Content -->
+    <div class="ml-56 pt-16 min-h-screen p-6">
+        <!-- Tabs de estado -->
+        <div class="flex gap-2 mb-6">
+            <button class="tab-pill active">Borradores</button>
+            <button class="tab-pill">En transito</button>
+            <button class="tab-pill">Completados</button>
+            <button class="tab-pill">Cancelados</button>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <!-- Lista de traspasos -->
+            <div class="xl:col-span-2 space-y-4">
+                <div class="mb-4 flex flex-col md:flex-row gap-3 items-center">
+                    <div class="flex-1 w-full">
+                        <input type="text" class="input-modal" placeholder="Buscar por folio...">
+                    </div>
+                    <button onclick="document.getElementById('modalTraspaso').classList.remove('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Traspaso
+                    </button>
+                </div>
+
+                <!-- Card traspaso 1 -->
+                <div class="card-demo p-4">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-orange-900/30 flex items-center justify-center text-orange-400">
+                                <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-white">TRX-00124</div>
+                                <div class="text-[11px] text-gray-500">Creado hace 2 horas por Juan Perez</div>
+                            </div>
+                        </div>
+                        <span class="badge-base bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">En transito</span>
+                    </div>
+                    <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-800 mb-3">
+                        <div class="flex items-center gap-4">
+                            <div class="flex-1">
+                                <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Origen</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="badge-base bg-blue-500/15 text-blue-400 border border-blue-500/30">POS Kafeto</span>
+                                </div>
+                            </div>
+                            <div class="text-gray-600">
+                                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Destino</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="badge-base bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Personal Kafeto</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="text-xs text-gray-400">
+                            <span class="text-gray-500">Items:</span> 5 <span class="mx-1">|</span>
+                            <span class="text-gray-500">Cantidad total:</span> 120 unidades
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600/20 text-green-400 border border-green-600/30 hover:bg-green-600/30 transition-colors flex items-center gap-1.5">
+                                <i data-lucide="check" class="w-3 h-3"></i> Recibir
+                            </button>
+                            <button class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-[#1a2332] transition-colors">
+                                Ver detalle
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card traspaso 2 -->
+                <div class="card-demo p-4">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-blue-900/30 flex items-center justify-center text-blue-400">
+                                <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-white">TRX-00123</div>
+                                <div class="text-[11px] text-gray-500">Creado ayer por Maria Lopez</div>
+                            </div>
+                        </div>
+                        <span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Completado</span>
+                    </div>
+                    <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-800 mb-3">
+                        <div class="flex items-center gap-4">
+                            <div class="flex-1">
+                                <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Origen</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="badge-base bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Personal Central Gpe</span>
+                                </div>
+                            </div>
+                            <div class="text-gray-600">
+                                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Destino</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="badge-base bg-blue-500/15 text-blue-400 border border-blue-500/30">POS Central Gpe</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="text-xs text-gray-400">
+                            <span class="text-gray-500">Items:</span> 3 <span class="mx-1">|</span>
+                            <span class="text-gray-500">Cantidad total:</span> 45 unidades
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-[#1a2332] transition-colors">
+                                Ver detalle
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel lateral: Wizard conceptual -->
+            <div class="xl:col-span-1">
+                <div class="card-demo p-4 sticky top-20">
+                    <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                        <i data-lucide="route" class="w-4 h-4 text-purple-400"></i> Flujo de Traspaso
+                    </h3>
+
+                    <!-- Steps -->
+                    <div class="relative">
+                        <div class="step-line">
+                            <div class="step-line-progress" style="width: 66%"></div>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <div class="flex flex-col items-center">
+                                <div class="step-dot done">
+                                    <i data-lucide="check" class="w-4 h-4"></i>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <div class="step-dot done">
+                                    <i data-lucide="check" class="w-4 h-4"></i>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <div class="step-dot active">3</div>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <div class="step-dot pending">4</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between text-[10px]">
+                            <span class="text-gray-400 text-center w-16">Borrador</span>
+                            <span class="text-gray-400 text-center w-16">Enviado</span>
+                            <span class="text-blue-400 text-center w-16 font-medium">En transito</span>
+                            <span class="text-gray-600 text-center w-16">Recibido</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 space-y-3">
+                        <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-800">
+                            <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Reglas de negocio</div>
+                            <ul class="space-y-2 text-xs text-gray-400">
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-green-400 shrink-0 mt-0.5"></i>
+                                    <span>Origen y destino deben ser de la <strong class="text-white">misma sucursal</strong>.</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-green-400 shrink-0 mt-0.5"></i>
+                                    <span>Se valida stock suficiente en el almacen <strong class="text-white">origen</strong> antes de enviar.</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-green-400 shrink-0 mt-0.5"></i>
+                                    <span>Al enviar, el stock se descuenta del origen y queda en estado <strong class="text-white">en transito</strong>.</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-green-400 shrink-0 mt-0.5"></i>
+                                    <span>Al recibir, el stock se suma al almacen <strong class="text-white">destino</strong> y se cierra el traspaso.</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-green-400 shrink-0 mt-0.5"></i>
+                                    <span>Si se cancela en transito, el stock regresa al <strong class="text-white">origen</strong>.</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nuevo Traspaso -->
+    <div id="modalTraspaso" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-[#1F2A37] border border-gray-700 rounded-xl w-full max-w-[720px] mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+                <h3 class="text-sm font-bold flex items-center gap-2">
+                    <i data-lucide="arrow-left-right" class="w-5 h-5 text-purple-400"></i> Nuevo Traspaso
+                </h3>
+                <button onclick="document.getElementById('modalTraspaso').classList.add('hidden')" class="w-8 h-8 rounded-lg hover:bg-[#1a2332] flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <!-- Origen / Destino -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[11px] text-gray-500 uppercase tracking-wider">Almacen Origen</label>
+                        <select class="input-modal">
+                            <option>Selecciona origen</option>
+                            <option>POS Kafeto</option>
+                            <option>Personal Kafeto</option>
+                            <option>POS Central Gpe</option>
+                            <option>Personal Central Gpe</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] text-gray-500 uppercase tracking-wider">Almacen Destino</label>
+                        <select class="input-modal">
+                            <option>Selecciona destino</option>
+                            <option>POS Kafeto</option>
+                            <option>Personal Kafeto</option>
+                            <option>POS Central Gpe</option>
+                            <option>Personal Central Gpe</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Notas -->
+                <div class="space-y-1">
+                    <label class="text-[11px] text-gray-500 uppercase tracking-wider">Notas</label>
+                    <textarea class="input-modal" rows="2" placeholder="Motivo del traspaso..."></textarea>
+                </div>
+
+                <!-- Divider -->
+                <div class="border-t border-gray-800 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-medium text-white">Insumos a trasladar</span>
+                        <button class="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3 h-3"></i> Agregar insumo
+                        </button>
+                    </div>
+
+                    <!-- Line items -->
+                    <div class="space-y-2">
+                        <div class="grid grid-cols-12 gap-2 items-end bg-[#1a2332] rounded-lg p-3 border border-gray-800">
+                            <div class="col-span-5">
+                                <label class="block text-[10px] text-gray-500 mb-1">Insumo</label>
+                                <select class="input-modal">
+                                    <option>Leche Entera 1L</option>
+                                    <option>Arroz Integral 1kg</option>
+                                    <option>Pollo Congelado 2kg</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-[10px] text-gray-500 mb-1">Stock origen</label>
+                                <input type="text" class="input-modal bg-gray-800/50" value="145" disabled>
+                            </div>
+                            <div class="col-span-3">
+                                <label class="block text-[10px] text-gray-500 mb-1">Cantidad</label>
+                                <input type="number" class="input-modal" placeholder="0">
+                            </div>
+                            <div class="col-span-2 flex justify-end">
+                                <button class="w-8 h-8 rounded-lg hover:bg-red-900/30 flex items-center justify-center text-gray-400 hover:text-red-400 transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-12 gap-2 items-end bg-[#1a2332] rounded-lg p-3 border border-gray-800">
+                            <div class="col-span-5">
+                                <label class="block text-[10px] text-gray-500 mb-1">Insumo</label>
+                                <select class="input-modal">
+                                    <option>Arroz Integral 1kg</option>
+                                    <option>Leche Entera 1L</option>
+                                    <option>Pollo Congelado 2kg</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-[10px] text-gray-500 mb-1">Stock origen</label>
+                                <input type="text" class="input-modal bg-gray-800/50" value="1,200" disabled>
+                            </div>
+                            <div class="col-span-3">
+                                <label class="block text-[10px] text-gray-500 mb-1">Cantidad</label>
+                                <input type="number" class="input-modal" placeholder="0">
+                            </div>
+                            <div class="col-span-2 flex justify-end">
+                                <button class="w-8 h-8 rounded-lg hover:bg-red-900/30 flex items-center justify-center text-gray-400 hover:text-red-400 transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-800 flex items-center justify-between">
+                    <div class="text-xs text-gray-400">
+                        <span class="text-gray-500">Total items:</span> 2
+                    </div>
+                    <div class="text-sm font-bold text-white">
+                        <span class="text-gray-500 font-normal text-xs mr-2">Cantidad total:</span>
+                        0 unidades
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-800">
+                <button onclick="document.getElementById('modalTraspaso').classList.add('hidden')" class="px-4 py-2 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-[#1a2332] transition-colors">Cancelar</button>
+                <button class="bg-blue-600/50 text-gray-300 text-xs font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2 cursor-not-allowed">
+                    <i data-lucide="save" class="w-4 h-4"></i> Guardar borrador
+                </button>
+                <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                    <i data-lucide="send" class="w-4 h-4"></i> Enviar traspaso
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>

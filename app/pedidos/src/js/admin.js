@@ -1,4 +1,4 @@
-let app, category, client, mod, product;
+let app, category, client, mod, product, payment;
 
 let cat, modifier;
 const api = "../pedidos/ctrl/ctrl-admin.php";
@@ -14,6 +14,7 @@ $(async () => {
     client   = new Client(api, "root");
     mod      = new Modifier(api, "root");
     product  = new ProductModifier(api, "root");
+    payment  = new PaymentType(api, "root");
 
     app.render();
 
@@ -39,20 +40,20 @@ class App extends Templates {
             design: false,
             data: {
                 id: this.PROJECT_NAME,
-                class: 'w-full min-h-screen p-4',
+                class: 'w-full p-3',
                 container: [
                     {
                         type: 'div',
                         id: `container${this.PROJECT_NAME}`,
-                        class: 'w-full bg-[#1F2A37] rounded-lg p-3 min-h-screen',
+                        class: 'w-full bg-[#1F2A37] rounded-lg p-3',
                         children: [
                             {
                                 id: 'titleAdmin',
-                                class: 'px-4 pt-3 pb-3'
+                                class: 'px-2 pt-3 pb-3'
                             },
                             {
                                 id: `tabs${this.PROJECT_NAME}`,
-                                class: 'w-full p-3 '
+                                class: 'w-full'
                             }
                         ]
                     }
@@ -73,35 +74,44 @@ class App extends Templates {
             content: { class: "" },
             theme: "dark",
             type: "short",
+            showBorder: false,
             json: [
                 {
                     id: "productos",
-                    tab: `<i data-lucide="package" class="w-4 h-4"></i> Productos`,
-                    class: "mb-1",
+                    tab: "Productos",
+                    lucideIcon: "package",
                     active: true,
                     onClick: () => this.lsProductos(),
                 },
                 {
                     id: "categoria",
-                    tab: `<i data-lucide="tag" class="w-4 h-4"></i> Categoría`,
+                    tab: "Categoría",
+                    lucideIcon: "tag",
                     onClick: () => category.lsCategory(),
                 },
                 {
                     id: "modifier",
-                    tab: `<i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Modificadores`,
-                    class: "mb-1",
+                    tab: "Modificadores",
+                    lucideIcon: "sliders-horizontal",
                     onClick: () => mod.lsModifiers(),
                 },
                 {
                     id: "productsModifier",
-                    tab: `<i data-lucide="puzzle" class="w-4 h-4"></i> Productos Modificadores`,
-                    class: "mb-1",
+                    tab: "Productos Modificadores",
+                    lucideIcon: "puzzle",
                     onClick: () => product.ls(),
                 },
                 {
                     id: "cliente",
-                    tab: `<i data-lucide="users" class="w-4 h-4"></i> Clientes`,
+                    tab: "Clientes",
+                    lucideIcon: "users",
                     onClick: () => client.lsClient(),
+                },
+                {
+                    id: "paymentType",
+                    tab: "Tipos de Pago",
+                    lucideIcon: "credit-card",
+                    onClick: () => payment.lsPaymentType(),
                 },
             ],
         });
@@ -118,11 +128,15 @@ class App extends Templates {
         client.lsClient();
         mod.filterBarModifiers();
         product.filterBar();
+        payment.filterBarPaymentType();
     }
 
     filterBarProductos() {
         const container = $("#container-productos");
-        container.html('<div id="filterbar-productos" class="mb-2"></div><div class="h-100" id="tabla-productos"></div>');
+        container.html(`
+            <div id="filterbar-productos" class="mb-2"></div>
+            <div id="tabla-productos" class="w-full overflow-x-auto"></div>
+        `);
 
         this.createfilterBar({
             parent: "filterbar-productos",
@@ -179,16 +193,15 @@ class App extends Templates {
                 right : [2],
                 f_size:12,
                 striped:true,
-                bordered:true,
+            
                 center: [1, 3, 6]
             }
         });
 
         setTimeout(() => {
             $('#tbProductos thead th:last-child, #tbProductos tbody td:last-child').css({
-                'width': '420px',
-                'min-width': '420px',
-                'max-width': '420px'
+                'min-width': '120px',
+                'white-space': 'nowrap'
             });
         }, 100);
     }
@@ -1644,6 +1657,218 @@ class Modifier extends App {
     }
 
 
+
+}
+
+class PaymentType extends Templates {
+
+    constructor(link, div_modulo) {
+        super(link, div_modulo);
+        this.PROJECT_NAME = "PaymentType";
+    }
+
+    filterBarPaymentType() {
+        const container = $("#container-paymentType");
+        container.html('<div id="filterbar-payment" class="mb-2"></div><div id="table-payment"></div>');
+
+        this.createfilterBar({
+            parent: "filterbar-payment",
+            data: [
+                {
+                    opc: "select",
+                    id: "active",
+                    class: "col-12 col-md-2",
+                    data: [
+                        { id: "1", valor: "Activos" },
+                        { id: "0", valor: "Inactivos" }
+                    ],
+                    onchange: 'payment.lsPaymentType()'
+                },
+                {
+                    opc: "button",
+                    class: "col-12 col-md-3",
+                    id: "btnNewPaymentType",
+                    text: "Nuevo Tipo de Pago",
+                    onClick: () => this.addPaymentType(),
+                },
+            ],
+        });
+    }
+
+    lsPaymentType() {
+        this.createTable({
+            parent: "table-payment",
+            idFilterBar: "filterbar-payment",
+            data: { opc: "listPaymentType" },
+            coffeesoft: true,
+            conf: { datatable: true, pag: 10 },
+            attr: {
+                id     : "tbPayment",
+                theme  : 'dark',
+                striped: true,
+                center : [3, 4, 5]
+            }
+        });
+    }
+
+    addPaymentType() {
+        this.createModalForm({
+            id: 'formPaymentTypeAdd',
+            data: { opc: 'addPaymentType' },
+            bootbox: {
+                title: 'Nuevo Tipo de Pago',
+            },
+            json: [
+                {
+                    opc: "input",
+                    id: "code",
+                    lbl: "Codigo (max. 10 caracteres)",
+                    class: "col-12 mb-3"
+                },
+                {
+                    opc: "input",
+                    id: "name",
+                    lbl: "Nombre",
+                    class: "col-12 mb-3"
+                },
+                {
+                    opc: "select",
+                    id: "is_cash",
+                    lbl: "Efectivo en Caja",
+                    class: "col-12 mb-3",
+                    data: [
+                        { id: 0, valor: "No" },
+                        { id: 1, valor: "Si" }
+                    ]
+                },
+                {
+                    opc: "select",
+                    id: "is_visible",
+                    lbl: "Visible en panel de cobro",
+                    class: "col-12 mb-3",
+                    data: [
+                        { id: 1, valor: "Si" },
+                        { id: 0, valor: "No" }
+                    ]
+                }
+            ],
+            success: (response) => {
+                if (response.status === 200) {
+                    alert({ icon: "success", text: response.message });
+                    this.lsPaymentType();
+                } else {
+                    alert({ icon: "info", title: "Oops!...", text: response.message, btn1: true, btn1Text: "Ok" });
+                }
+            }
+        });
+    }
+
+    async editPaymentType(id) {
+        const request = await useFetch({
+            url: this._link,
+            data: { opc: "getPaymentType", id: id },
+        });
+
+        const data = request.data;
+
+        this.createModalForm({
+            id: 'formPaymentTypeEdit',
+            data: { opc: 'editPaymentType', id: id },
+            bootbox: {
+                title: 'Editar Tipo de Pago',
+            },
+            autofill: data,
+            json: [
+                {
+                    opc: "input",
+                    id: "code",
+                    lbl: "Codigo (max. 10 caracteres)",
+                    class: "col-12 mb-3"
+                },
+                {
+                    opc: "input",
+                    id: "name",
+                    lbl: "Nombre",
+                    class: "col-12 mb-3"
+                },
+                {
+                    opc: "select",
+                    id: "is_cash",
+                    lbl: "Efectivo en Caja",
+                    class: "col-12 mb-3",
+                    data: [
+                        { id: 0, valor: "No" },
+                        { id: 1, valor: "Si" }
+                    ]
+                },
+                {
+                    opc: "select",
+                    id: "is_visible",
+                    lbl: "Visible en panel de cobro",
+                    class: "col-12 mb-3",
+                    data: [
+                        { id: 1, valor: "Si" },
+                        { id: 0, valor: "No" }
+                    ]
+                }
+            ],
+            success: (response) => {
+                if (response.status === 200) {
+                    alert({ icon: "success", text: response.message });
+                    this.lsPaymentType();
+                } else {
+                    alert({ icon: "info", title: "Oops!...", text: response.message, btn1: true, btn1Text: "Ok" });
+                }
+            }
+        });
+    }
+
+    statusPaymentType(id, active) {
+        this.swalQuestion({
+            opts: {
+                title: "¿Desea cambiar el estado del tipo de pago?",
+                text: "Esta accion activara o desactivara el tipo de pago.",
+                icon: "warning",
+            },
+            data: {
+                opc: "statusPaymentType",
+                active: active === 1 ? 0 : 1,
+                id: id,
+            },
+            methods: {
+                send: () => this.lsPaymentType(),
+            },
+        });
+    }
+
+    async toggleVisible(event, id, current) {
+        const btn      = event.currentTarget;
+        const newState = current === 1 ? 0 : 1;
+
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+
+        const response = await useFetch({
+            url: this._link,
+            data: { opc: "toggleVisiblePaymentType", id: id, is_visible: newState }
+        });
+
+        btn.disabled = false;
+        btn.style.opacity = '';
+
+        if (response.status === 200) {
+            if (newState === 1) {
+                btn.className = 'px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189] hover:opacity-80 cursor-pointer';
+                btn.innerHTML = '<i class="icon-eye"></i> Visible';
+            } else {
+                btn.className = 'px-2 py-1 rounded-md text-sm font-semibold bg-[#1F2A37] text-gray-400 hover:opacity-80 cursor-pointer';
+                btn.innerHTML = '<i class="icon-eye-off"></i> Oculto';
+            }
+            btn.setAttribute('onclick', `payment.toggleVisible(event, ${id}, ${newState})`);
+        } else {
+            alert({ icon: "error", title: "Error", text: response.message, btn1: true, btn1Text: "Ok" });
+        }
+    }
 
 }
 

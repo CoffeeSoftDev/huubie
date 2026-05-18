@@ -71,6 +71,17 @@ class ctrl extends mdl {
             }
 
             $descuento = abs((float) $item['discount']);
+            $bruto     = (float) $item['total_pay'];
+            $neto      = $bruto - $descuento;
+
+            if ($descuento > 0) {
+                $totalHtml = '<div class="leading-tight">'
+                           .   '<div class="font-semibold">' . evaluar($neto) . '</div>'
+                           .   '<div class="text-gray-400 line-through text-[10px]">' . evaluar($bruto) . '</div>'
+                           . '</div>';
+            } else {
+                $totalHtml = evaluar($bruto);
+            }
 
             $__row[] = [
                 'id'        => $item['id'],
@@ -80,10 +91,8 @@ class ctrl extends mdl {
                                 : '<span class="italic text-gray-400">N/A</span>',
                 'Estatus'   => statusVenta($item['status']),
                 'Fecha'     => $item['fecha_formatted'],
-                'Total'     => evaluar($item['total_pay']),
-                'Descuento' => $descuento > 0
-                                ? '<span class="text-red-400">-$' . number_format($descuento, 2, '.', ',') . '</span>'
-                                : '$0.00',
+                'Total'     => $totalHtml,
+                'Descuento' => evaluar($descuento),
                 'Pago'      => paymentBadges($item['payment_codes'], $item['payment_methods']),
                 'a'         => $a
             ];
@@ -229,18 +238,17 @@ class ctrl extends mdl {
     }
 
     function cancelVenta() {
-        $id   = $_POST['id']   ?? '';
-        $user = $_POST['user'] ?? '';
-        $key  = $_POST['key']  ?? '';
+        $id  = $_POST['id']  ?? '';
+        $key = $_POST['key'] ?? '';
 
-        if (empty($id) || empty($user) || empty($key)) {
-            return ['status' => 400, 'message' => 'Usuario y clave de administrador son requeridos'];
+        if (empty($id) || empty($key)) {
+            return ['status' => 400, 'message' => 'La clave de administrador es requerida'];
         }
 
-        $admin = $this->validateAdminUser([$user, md5($key)]);
+        $admin = $this->validateAdminKey([md5($key)]);
 
         if (!$admin) {
-            return ['status' => 401, 'message' => 'Credenciales incorrectas o el usuario no es administrador'];
+            return ['status' => 401, 'message' => 'Clave incorrecta o no corresponde a un administrador'];
         }
 
         $values = $this->util->sql([

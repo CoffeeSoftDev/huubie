@@ -20,5 +20,6 @@
     },
     "peacock.color": "#1F224E",
     "folder-color.pathColors": [],
-    "html.autoClosingTags": false
+    "html.autoClosingTags": false,
+    "livePreview.defaultPreviewPath": "/app/inventarios/templates/admin-almacenes.html"
 }

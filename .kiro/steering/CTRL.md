@@ -739,3 +739,101 @@ La ruta del `require_once` de `coffeSoft.php` se calcula automáticamente según
 | `DEV/modulo/ctrl/` | `../../conf/coffeSoft.php` |
 | `DEV/modulo/sub/ctrl/` | `../../../conf/coffeSoft.php` |
 | `DEV/modulo/sub/sub2/ctrl/` | `../../../../conf/coffeSoft.php` |
+
+## Helpers de render fuera de la clase
+
+Las funciones helper de renderizado HTML se declaran **fuera** de la clase `ctrl`, después del cierre `}` de la clase y antes de la instanciación final `$obj = new ctrl();`. Se agrupan bajo el comentario `// Complements.`.
+
+### Reglas
+
+- Se ubican siempre **después** del cierre de la clase, nunca dentro.
+- Se agrupan bajo `// Complements.` como bloque separado.
+- Reciben datos crudos (`string`, `int`, `array`) y retornan strings HTML.
+- Usan clases Tailwind del sistema Huubie dark (`bg-[#1F2A37]`, `text-white`, `rounded-md`, etc.).
+- Se invocan desde los métodos `list*` de la clase al construir las celdas de la tabla.
+- El nombre debe describir qué renderizan: `renderProductImage`, `renderUserCard`, `renderStatus`, etc.
+
+### Estructura del archivo
+
+```php
+class ctrl extends mdl {
+    // ... métodos de la clase
+}
+
+// Complements.
+
+function renderProductImage($foto, $nombre) { ... }
+function renderUserCard($name, $color = '#2563EB') { ... }
+function renderStatus($estatus) { ... }
+
+$obj = new ctrl();
+```
+
+### Ejemplo completo de referencia
+
+Extraído de `app/pedidos/ctrl/ctrl-admin.php`:
+
+```php
+// Complements.
+
+function renderProductImage($foto, $nombre) {
+    $src = !empty($foto) ? 'https://erp-varoch.com/' . $foto : '';
+    $label = ucwords(mb_strtolower(trim($nombre)));
+
+    $img = !empty($src)
+        ? '<img src="' . $src . '" alt="Producto" class="w-10 h-10 rounded-md object-cover bg-gray-700" />'
+        : '<div class="w-10 h-10 bg-[#1F2A37] rounded-md flex items-center justify-center">
+                <i class="icon-birthday text-gray-500 text-lg"></i>
+           </div>';
+
+    return '
+        <div class="flex items-center gap-3">
+            ' . $img . '
+            <span class="text-sm text-white">' . $label . '</span>
+        </div>';
+}
+
+function renderUserCard($name, $color = '#2563EB') {
+    $nameParts = explode(' ', trim($name));
+    $initials = count($nameParts) >= 2
+        ? strtoupper(substr($nameParts[0], 0, 1) . substr($nameParts[1], 0, 1))
+        : strtoupper(substr($name, 0, 2));
+
+    return '<div class="flex items-center gap-3">
+        <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
+             style="background-color: ' . $color . ';">
+            ' . $initials . '
+        </div>
+        <div class="flex flex-col">
+            <span class="text-xs font-semibold ">' . $name . '</span>
+        </div>
+    </div>';
+}
+
+function renderStatus($estatus) {
+    switch ($estatus) {
+        case 1:
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189]">Activo</span>';
+        case 0:
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#721c24] text-[#ba464d]">Inactivo</span>';
+        case 2:
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#8a4600] text-[#f0ad28]">Borrador</span>';
+        default:
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-gray-500 text-white">Desconocido</span>';
+    }
+}
+```
+
+### Invocación desde dentro de la clase
+
+```php
+$rows[] = [
+    'id'       => $item['id'],
+    'Producto' => [
+        'class' => ' justify-start px-2 py-2 ',
+        'html'  => renderProductImage($item['image'], $item['valor'])
+    ],
+    'Cliente' => renderUserCard($item['cliente']),
+    'Estado'  => renderStatus($item['active']),
+];
+```

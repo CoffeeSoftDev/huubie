@@ -203,8 +203,7 @@ class Navbar {
             .branch-card.selected .radio-mark { border-color: #A855F7; }
             .radio-mark .inner { width: 7px; height: 7px; border-radius: 9999px; background: #A855F7; opacity: 0; transition: opacity .2s ease; }
             .branch-card.selected .radio-mark .inner { opacity: 1; }
-            .toast-card { position: relative; background: #1F2A37; border-radius: 14px; padding: 14px 18px; overflow: hidden; }
-            .toast-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, #7C3AED 0%, #A855F7 100%); border-radius: 14px 0 0 14px; }
+            .toast-card { position: relative; background: #1F2A37; border: 1px solid rgba(55,65,81,.55); border-radius: 14px; padding: 14px 18px; overflow: hidden; }
             @keyframes branchSlideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
             .toast-anim { animation: branchSlideIn .35s ease-out; }
             @keyframes branchFadeOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(20px); } }
@@ -506,5 +505,6 @@ $(async () => {
         $('#toggleSidebar').hide();
         $('#menu-navbar a[href="/app/menu/"]').hide();
         $('#menu-sidebar').hide();
+        $('#btnUserMenu').hide();
     }
 });

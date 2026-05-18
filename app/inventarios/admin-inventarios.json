@@ -1,0 +1,158 @@
+{
+  "module": "admin-inventarios",
+  "title": "Administrador de Inventarios",
+  "subtitle": "Productos y almacenes",
+  "theme": "huubie-dark",
+  "layout": {
+    "navbar": true,
+    "sidebar": true,
+    "tabs": true
+  },
+  "tabs": [
+    {
+      "id": "productos",
+      "label": "Productos",
+      "icon": "boxes",
+      "filterBar": {
+        "layout": "flex items-center justify-between",
+        "controls": [
+          {
+            "type": "select",
+            "id": "filtroEstadoProductos",
+            "label": "Estado",
+            "options": ["Activos", "Inactivos"],
+            "default": "Activos"
+          },
+          {
+            "type": "button",
+            "id": "btnNuevoProducto",
+            "label": "Nuevo Producto",
+            "icon": "plus",
+            "style": "primary",
+            "action": "openModal",
+            "target": "modalProducto"
+          }
+        ]
+      },
+      "table": {
+        "id": "tablaProductos",
+        "columns": [
+          { "key": "producto", "label": "Producto", "type": "compound", "icon": "box", "subfield": "categoria", "align": "left" },
+          { "key": "sku", "label": "SKU", "type": "text", "style": "mono", "align": "left", "width": "w-24" },
+          { "key": "area", "label": "Area", "type": "badge", "align": "left", "width": "w-28" },
+          { "key": "maximo", "label": "Maximo", "type": "number", "align": "center", "width": "w-20" },
+          { "key": "minimo", "label": "Minimo", "type": "number", "align": "center", "width": "w-20" },
+          { "key": "costo_produccion", "label": "Costo prod.", "type": "currency", "align": "right", "width": "w-24" },
+          { "key": "vida_util", "label": "Vida util", "type": "text", "align": "center", "width": "w-24" },
+          { "key": "estado", "label": "Estado", "type": "badge", "align": "center", "width": "w-20" },
+          { "key": "op", "label": "Op.", "type": "actions", "align": "center", "width": "w-20" }
+        ],
+        "actions": [
+          { "icon": "pencil", "title": "Editar", "style": "purple" },
+          { "icon": "toggle-right", "title": "Desactivar", "style": "red", "condition": "estado == 'Activo'" },
+          { "icon": "toggle-left", "title": "Activar", "style": "green", "condition": "estado == 'Inactivo'" }
+        ]
+      }
+    },
+    {
+      "id": "almacenes",
+      "label": "Almacenes",
+      "icon": "warehouse",
+      "filterBar": {
+        "layout": "flex items-center justify-between",
+        "controls": [
+          {
+            "type": "select",
+            "id": "filtroEstadoAlmacenes",
+            "label": "Estado",
+            "options": ["Activos", "Inactivos"],
+            "default": "Activos"
+          },
+          {
+            "type": "button",
+            "id": "btnNuevoAlmacen",
+            "label": "Nuevo Almacen",
+            "icon": "plus",
+            "style": "primary",
+            "action": "openModal",
+            "target": "modalAlmacen"
+          }
+        ]
+      },
+      "table": {
+        "id": "tablaAlmacenes",
+        "columns": [
+          { "key": "almacen", "label": "Almacen", "type": "compound", "icon": "warehouse", "subfield": "direccion", "align": "left" },
+          { "key": "sucursal", "label": "Sucursal", "type": "badge", "align": "left", "width": "w-24" },
+          { "key": "general_default", "label": "General por defecto", "type": "checkbox", "align": "center", "width": "w-32" },
+          { "key": "estado", "label": "Estado", "type": "badge", "align": "center", "width": "w-20" },
+          { "key": "op", "label": "Op.", "type": "actions", "align": "center", "width": "w-20" }
+        ],
+        "actions": [
+          { "icon": "pencil", "title": "Editar", "style": "purple" },
+          { "icon": "toggle-right", "title": "Desactivar", "style": "red", "condition": "estado == 'Activo'" },
+          { "icon": "toggle-left", "title": "Activar", "style": "green", "condition": "estado == 'Inactivo'" }
+        ]
+      }
+    }
+  ],
+  "modals": [
+    {
+      "id": "modalProducto",
+      "title": "Nuevo Producto",
+      "subtitle": "Completa la informacion del producto",
+      "icon": "box",
+      "iconGradient": ["blue-500", "purple-500"],
+      "size": "max-w-[520px]",
+      "fields": [
+        { "type": "text", "id": "sku", "label": "SKU", "placeholder": "SKU-00001", "grid": "1/2" },
+        { "type": "text", "id": "nombre", "label": "Nombre del producto", "placeholder": "Ej. Leche Entera 1L", "grid": "1/2" },
+        { "type": "select", "id": "area", "label": "Area de almacen", "options": ["Selecciona un area", "Refrigerados", "Secos", "Congelados"], "grid": "full" },
+        { "type": "number", "id": "maximo", "label": "Maximo", "placeholder": "0", "grid": "1/3" },
+        { "type": "number", "id": "minimo", "label": "Minimo", "placeholder": "0", "grid": "1/3" },
+        { "type": "number", "id": "vida_util", "label": "Vida util (dias)", "placeholder": "0", "grid": "1/3" },
+        { "type": "currency", "id": "costo_produccion", "label": "Costo de produccion", "placeholder": "$0.00", "grid": "full" }
+      ],
+      "footer": {
+        "note": "Los cambios afectaran el catalogo de inventarios.",
+        "buttons": [
+          { "label": "Cancelar", "style": "ghost", "action": "close" },
+          { "label": "Guardar", "style": "primary", "icon": "check", "action": "save" }
+        ]
+      }
+    },
+    {
+      "id": "modalAlmacen",
+      "title": "Nuevo Almacen",
+      "subtitle": "Configura el almacen y su sucursal",
+      "icon": "warehouse",
+      "iconGradient": ["purple-500", "pink-500"],
+      "size": "max-w-[480px]",
+      "fields": [
+        { "type": "text", "id": "nombre", "label": "Nombre del almacen", "placeholder": "Ej. Almacen Principal Centro", "grid": "full" },
+        { "type": "select", "id": "sucursal", "label": "Sucursal", "options": ["Selecciona una sucursal", "Centro", "Norte", "Sur"], "grid": "full" },
+        { "type": "text", "id": "direccion", "label": "Direccion / Ubicacion", "placeholder": "Ej. Calle Hidalgo 102", "grid": "full" },
+        { "type": "checkbox", "id": "general_default", "label": "Almacen general por defecto en esta sucursal", "grid": "full" }
+      ],
+      "footer": {
+        "note": "Solo puede haber un almacen general por sucursal.",
+        "buttons": [
+          { "label": "Cancelar", "style": "ghost", "action": "close" },
+          { "label": "Guardar", "style": "primary", "icon": "check", "action": "save" }
+        ]
+      }
+    }
+  ],
+  "assets": {
+    "css": [
+      "https://cdn.tailwindcss.com",
+      "../../../app/ui/css/ui-kit.css"
+    ],
+    "js": [
+      "../../../app/src/plugins/lucide/lucide.min.js"
+    ],
+    "fonts": [
+      "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    ]
+  }
+}
