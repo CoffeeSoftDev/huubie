@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modal — Nuevo Traspaso</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../../../app/ui/css/ui-kit.css">
+  <script src="../../../../app/src/plugins/lucide/lucide.min.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Scrollbar custom */
+    .cs-scroll::-webkit-scrollbar { width: 6px; }
+    .cs-scroll::-webkit-scrollbar-track { background: transparent; }
+    .cs-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+
+    /* Tabs internos del modal */
+    .tab-btn {
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: .15s;
+    }
+    .tab-btn:hover { color: #d1d5db; }
+    .tab-btn.active {
+      color: #c4b5fd;
+      border-bottom-color: #7c3aed;
+    }
+
+    /* Header card: origen / destino */
+    .endpoint-card {
+      background: #1a2332;
+      border: 1px solid rgba(55,65,81,.6);
+      border-left: 3px solid transparent;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .endpoint-card.origin   { border-left-color: #7c3aed; }
+    .endpoint-card.dest     { border-left-color: #3fc189; }
+    .endpoint-card.category { border-left-color: #f59e0b; }
+
+    /* Segmented button group (GEN / ALM / VTA) */
+    .seg-group {
+      display: inline-flex;
+      background: #111928;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .seg-btn {
+      padding: 4px 12px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      color: #6b7280;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: .15s;
+      background: transparent;
+    }
+    .seg-btn:hover { color: #d1d5db; }
+    .seg-btn.active-purple {
+      background: #7c3aed;
+      color: #fff;
+      box-shadow: 0 1px 3px rgba(124,58,237,.4);
+    }
+    .seg-btn.active-green {
+      background: #3fc189;
+      color: #fff;
+      box-shadow: 0 1px 3px rgba(63,193,137,.35);
+    }
+
+    /* Category chips (Todas / Pasteles / ...) */
+    .cat-chip {
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      background: #1a2332;
+      border: 1px solid #374151;
+      cursor: pointer;
+      transition: .15s;
+      white-space: nowrap;
+    }
+    .cat-chip:hover { color: #d1d5db; border-color: #4b5563; }
+    .cat-chip.active {
+      background: #7c3aed;
+      color: #fff;
+      border-color: #7c3aed;
+    }
+
+    /* Product row (panel izquierdo) */
+    .product-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #1a2332;
+      border: 1px solid rgba(55,65,81,.5);
+      cursor: pointer;
+      transition: .15s;
+    }
+    .product-row:hover {
+      border-color: #4b5563;
+      background: #1e293b;
+    }
+    .product-row.selected {
+      border-color: #7c3aed;
+      background: rgba(124,58,237,.08);
+    }
+
+    /* Stepper de cantidad */
+    .stepper {
+      display: inline-flex;
+      align-items: center;
+      background: #111928;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .stepper button {
+      width: 26px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      cursor: pointer;
+      transition: .15s;
+    }
+    .stepper button:hover { background: #1f2937; color: #fff; }
+    .stepper input {
+      width: 38px;
+      height: 28px;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      outline: none;
+    }
+
+    /* Footer/header pill stock transition */
+    .stock-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 8px;
+      border-radius: 9999px;
+      font-size: 9px;
+      font-weight: 700;
+      background: rgba(63,193,137,.12);
+      color: #3fc189;
+      border: 1px solid rgba(63,193,137,.3);
+    }
+
+    /* Footer botones */
+    .btn-primary-grad {
+      background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+      color: #fff;
+      padding: 9px 18px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: .2s;
+      box-shadow: 0 4px 12px rgba(124,58,237,.35);
+    }
+    .btn-primary-grad:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(124,58,237,.45);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid #4b5563;
+      color: #d1d5db;
+      padding: 9px 18px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: .15s;
+    }
+    .btn-ghost:hover { background: rgba(75,85,99,.2); }
+
+    /* Badge contador */
+    .badge-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 6px;
+      border-radius: 9999px;
+      background: #7c3aed;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+  <!-- Backdrop -->
+  <div class="fixed inset-0 bg-black/70 backdrop-blur-sm"></div>
+
+  <!-- Modal contenedor -->
+  <div class="fixed inset-0 flex items-center justify-center p-4 z-10">
+    <div class="bg-[#1F2A37] rounded-2xl border border-gray-700/80 shadow-2xl w-full max-w-[1180px] flex flex-col" style="max-height: 92vh;">
+
+      <!-- ═══════════════════ HEADER ═══════════════════ -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); box-shadow: 0 4px 12px rgba(124,58,237,.4);">
+            <i data-lucide="arrow-left-right" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white leading-tight">Nuevo traspaso</h3>
+            <p class="text-[11px] text-gray-500">Mueve producto entre sucursales o almacenes</p>
+          </div>
+        </div>
+        <button class="w-9 h-9 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500 transition" onclick="window.close()">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- ═══════════════════ TABS ═══════════════════ -->
+      <div class="px-6 pt-3 border-b border-gray-800 flex items-center gap-1">
+        <button class="tab-btn active">
+          <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i>
+          Traspaso
+        </button>
+        <button class="tab-btn">
+          <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+          Transformación
+        </button>
+      </div>
+
+      <!-- ═══════════════════ CARDS SUPERIORES ═══════════════════ -->
+      <div class="px-6 py-4 border-b border-gray-800">
+        <div class="grid grid-cols-12 gap-3 items-stretch">
+
+          <!-- ── Origen ── -->
+          <div class="col-span-4">
+            <div class="endpoint-card origin h-full">
+              <div class="flex items-center gap-2 mb-2.5">
+                <div class="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center">
+                  <i data-lucide="arrow-up" class="w-3.5 h-3.5 text-green-400"></i>
+                </div>
+                <div>
+                  <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Sucursal origen</p>
+                  <p class="text-[10px] text-gray-400">Sale el producto desde</p>
+                </div>
+              </div>
+              <select class="cs-select text-xs mb-2">
+                <option>Reginas Matriz</option>
+                <option>Reginas Centro</option>
+                <option>Reginas Kafeto</option>
+              </select>
+              <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-1">Almacén</p>
+              <div class="seg-group w-full justify-between">
+                <button class="seg-btn active-purple flex-1">GEN</button>
+                <button class="seg-btn flex-1">ALM</button>
+                <button class="seg-btn flex-1">VTA</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Flecha conector ── -->
+          <div class="col-span-1 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-full bg-[#1a2332] border border-gray-700 flex items-center justify-center">
+              <i data-lucide="arrow-right" class="w-5 h-5 text-purple-400"></i>
+            </div>
+          </div>
+
+          <!-- ── Destino ── -->
+          <div class="col-span-4">
+            <div class="endpoint-card dest h-full">
+              <div class="flex items-center gap-2 mb-2.5">
+                <div class="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center">
+                  <i data-lucide="arrow-down" class="w-3.5 h-3.5 text-green-400"></i>
+                </div>
+                <div>
+                  <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Sucursal destino</p>
+                  <p class="text-[10px] text-gray-400">Entra el producto en</p>
+                </div>
+              </div>
+              <select class="cs-select text-xs mb-2">
+                <option>Reginas Centro</option>
+                <option>Reginas Matriz</option>
+                <option>Reginas Kafeto</option>
+              </select>
+              <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-1">Almacén</p>
+              <div class="seg-group w-full justify-between">
+                <button class="seg-btn active-green flex-1">GEN</button>
+                <button class="seg-btn flex-1">ALM</button>
+                <button class="seg-btn flex-1">VTA</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Categoría ── -->
+          <div class="col-span-3">
+            <div class="endpoint-card category h-full">
+              <div class="flex items-center gap-2 mb-2.5">
+                <div class="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                  <i data-lucide="tag" class="w-3.5 h-3.5 text-amber-400"></i>
+                </div>
+                <div>
+                  <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Categoría</p>
+                  <p class="text-[10px] text-gray-400">Motivo del traspaso</p>
+                </div>
+              </div>
+              <select class="cs-select text-xs mb-2">
+                <option>Reabastecimiento</option>
+                <option>Ajuste de stock</option>
+                <option>Préstamo entre sucursales</option>
+                <option>Promoción / evento</option>
+              </select>
+              <p class="text-[10px] text-gray-500 leading-relaxed">Mover stock entre sucursales para cubrir demanda.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═══════════════════ SPLIT INFERIOR ═══════════════════ -->
+      <div class="flex flex-1 min-h-0">
+
+        <!-- ─────── Columna izquierda: BUSCAR PRODUCTOS ─────── -->
+        <div class="w-[440px] flex flex-col border-r border-gray-800 flex-shrink-0">
+
+          <!-- Header columna -->
+          <div class="px-5 pt-4 pb-3">
+            <div class="flex items-center gap-2 mb-3">
+              <i data-lucide="search" class="w-4 h-4 text-purple-400"></i>
+              <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold">Buscar productos</p>
+            </div>
+
+            <!-- Input búsqueda -->
+            <div class="relative mb-3">
+              <span class="cs-input-group-icon">
+                <i data-lucide="search" class="w-4 h-4"></i>
+              </span>
+              <input type="text" placeholder="Nombre o SKU..." class="cs-input pl-10 text-xs">
+            </div>
+
+            <!-- Chips categorías -->
+            <div class="flex items-center gap-1.5 overflow-x-auto cs-scroll pb-1">
+              <button class="cat-chip active">Todas</button>
+              <button class="cat-chip">Pasteles</button>
+              <button class="cat-chip">Rebanadas</button>
+              <button class="cat-chip">Galletas</button>
+              <button class="cat-chip">Panadería</button>
+              <button class="cat-chip">Insumos</button>
+            </div>
+          </div>
+
+          <!-- Lista de productos -->
+          <div class="flex-1 overflow-y-auto px-5 pb-3 space-y-2 cs-scroll">
+
+            <!-- Producto seleccionado 1 -->
+            <div class="product-row selected">
+              <div class="w-10 h-10 rounded-lg bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-5 h-5 text-amber-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-white truncate">Pastel Tradicional 22cm</p>
+                <div class="flex items-center gap-2 text-[10px] text-gray-400">
+                  <span class="font-mono">PAST-TRAD-22</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="text-white font-semibold">$245.00</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="inline-flex items-center gap-1">
+                    <i data-lucide="package" class="w-3 h-3 text-gray-500"></i>
+                    14
+                  </span>
+                </div>
+              </div>
+              <div class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>
+              </div>
+            </div>
+
+            <!-- Producto seleccionado 2 -->
+            <div class="product-row selected">
+              <div class="w-10 h-10 rounded-lg bg-orange-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-5 h-5 text-orange-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-white truncate">Pastel de Chocolate 22cm</p>
+                <div class="flex items-center gap-2 text-[10px] text-gray-400">
+                  <span class="font-mono">PAST-CHOC-22</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="text-white font-semibold">$285.00</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="inline-flex items-center gap-1">
+                    <i data-lucide="package" class="w-3 h-3 text-gray-500"></i>
+                    8
+                  </span>
+                </div>
+              </div>
+              <div class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>
+              </div>
+            </div>
+
+            <!-- Producto disponible 3 -->
+            <div class="product-row">
+              <div class="w-10 h-10 rounded-lg bg-pink-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cookie" class="w-5 h-5 text-pink-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-white truncate">Galleta de Vainilla</p>
+                <div class="flex items-center gap-2 text-[10px] text-gray-400">
+                  <span class="font-mono">GAL-VAI-001</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="text-white font-semibold">$18.00</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="inline-flex items-center gap-1">
+                    <i data-lucide="package" class="w-3 h-3 text-gray-500"></i>
+                    42
+                  </span>
+                </div>
+              </div>
+              <div class="w-6 h-6 rounded-full border-2 border-gray-600 flex-shrink-0"></div>
+            </div>
+
+            <!-- Producto disponible 4 -->
+            <div class="product-row">
+              <div class="w-10 h-10 rounded-lg bg-teal-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="croissant" class="w-5 h-5 text-teal-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-white truncate">Concha de Vainilla</p>
+                <div class="flex items-center gap-2 text-[10px] text-gray-400">
+                  <span class="font-mono">PAN-CON-001</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="text-white font-semibold">$12.00</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="inline-flex items-center gap-1">
+                    <i data-lucide="package" class="w-3 h-3 text-gray-500"></i>
+                    36
+                  </span>
+                </div>
+              </div>
+              <div class="w-6 h-6 rounded-full border-2 border-gray-600 flex-shrink-0"></div>
+            </div>
+
+            <!-- Producto disponible 5 -->
+            <div class="product-row">
+              <div class="w-10 h-10 rounded-lg bg-purple-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake-slice" class="w-5 h-5 text-purple-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-white truncate">Rebanada Red Velvet</p>
+                <div class="flex items-center gap-2 text-[10px] text-gray-400">
+                  <span class="font-mono">REB-RED-001</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="text-white font-semibold">$48.00</span>
+                  <span class="text-gray-600">·</span>
+                  <span class="inline-flex items-center gap-1">
+                    <i data-lucide="package" class="w-3 h-3 text-gray-500"></i>
+                    24
+                  </span>
+                </div>
+              </div>
+              <div class="w-6 h-6 rounded-full border-2 border-gray-600 flex-shrink-0"></div>
+            </div>
+
+          </div>
+
+          <!-- Footer columna izquierda: totales seleccionados -->
+          <div class="px-5 py-3 border-t border-gray-800 bg-[#141d2b]">
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-4">
+                <div>
+                  <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Productos</p>
+                  <p class="text-sm font-bold text-white">2</p>
+                </div>
+                <div class="h-7 w-px bg-gray-700"></div>
+                <div>
+                  <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Unidades</p>
+                  <p class="text-sm font-bold text-white">16</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Costo total</p>
+                <p class="text-base font-bold text-green-400">$4,080.00</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─────── Columna derecha: PRODUCTOS SELECCIONADOS ─────── -->
+        <div class="flex-1 flex flex-col min-w-0">
+
+          <!-- Header columna -->
+          <div class="px-5 pt-4 pb-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="list" class="w-4 h-4 text-purple-400"></i>
+              <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold">Productos</p>
+              <span class="badge-count">2</span>
+            </div>
+            <button class="text-[11px] text-gray-400 hover:text-red-400 font-semibold inline-flex items-center gap-1.5 transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              Limpiar
+            </button>
+          </div>
+
+          <!-- Tabla productos seleccionados -->
+          <div class="flex-1 overflow-y-auto px-5 cs-scroll">
+            <!-- Header tabla -->
+            <div class="grid grid-cols-[1fr_120px_120px_140px_70px] gap-3 px-3 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold border-b border-gray-800">
+              <div>Producto</div>
+              <div class="text-center">Cantidad</div>
+              <div class="text-center">Costo</div>
+              <div class="text-right">Subtotal</div>
+              <div class="text-right">Acciones</div>
+            </div>
+
+            <!-- Fila producto 1 -->
+            <div class="grid grid-cols-[1fr_120px_120px_140px_70px] gap-3 px-3 py-3 items-center border-b border-gray-800/60 hover:bg-[#1a2332]/40 transition">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-full bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="cake" class="w-5 h-5 text-amber-400"></i>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-bold text-white truncate">Pastel Tradicional 22cm</p>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-[10px] font-mono text-gray-500">PAST-TRAD-22</span>
+                    <span class="stock-pill">
+                      <span>2</span>
+                      <i data-lucide="arrow-right" class="w-2.5 h-2.5"></i>
+                      <span>14</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex justify-center">
+                <div class="stepper">
+                  <button><i data-lucide="minus" class="w-3 h-3"></i></button>
+                  <input type="number" value="12">
+                  <button><i data-lucide="plus" class="w-3 h-3"></i></button>
+                </div>
+              </div>
+              <div class="flex justify-center">
+                <div class="relative">
+                  <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">$</span>
+                  <input type="number" value="245" class="bg-[#111928] border border-gray-700 rounded-lg pl-5 pr-2 py-1.5 w-[90px] text-xs text-white font-semibold text-right focus:outline-none focus:border-purple-500">
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-bold text-green-400">$2,940.00</p>
+                <p class="text-[9px] text-gray-500">12 × $245.00</p>
+              </div>
+              <div class="flex items-center justify-end gap-1">
+                <button class="w-7 h-7 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-purple-500 transition" title="Escanear">
+                  <i data-lucide="scan-line" class="w-3.5 h-3.5"></i>
+                </button>
+                <button class="w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 hover:bg-red-500 hover:text-white transition" title="Eliminar">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Fila producto 2 -->
+            <div class="grid grid-cols-[1fr_120px_120px_140px_70px] gap-3 px-3 py-3 items-center border-b border-gray-800/60 hover:bg-[#1a2332]/40 transition">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-full bg-orange-900/30 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="cake" class="w-5 h-5 text-orange-400"></i>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-bold text-white truncate">Pastel de Chocolate 22cm</p>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-[10px] font-mono text-gray-500">PAST-CHOC-22</span>
+                    <span class="stock-pill">
+                      <span>4</span>
+                      <i data-lucide="arrow-right" class="w-2.5 h-2.5"></i>
+                      <span>8</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex justify-center">
+                <div class="stepper">
+                  <button><i data-lucide="minus" class="w-3 h-3"></i></button>
+                  <input type="number" value="4">
+                  <button><i data-lucide="plus" class="w-3 h-3"></i></button>
+                </div>
+              </div>
+              <div class="flex justify-center">
+                <div class="relative">
+                  <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">$</span>
+                  <input type="number" value="285" class="bg-[#111928] border border-gray-700 rounded-lg pl-5 pr-2 py-1.5 w-[90px] text-xs text-white font-semibold text-right focus:outline-none focus:border-purple-500">
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-bold text-green-400">$1,140.00</p>
+                <p class="text-[9px] text-gray-500">4 × $285.00</p>
+              </div>
+              <div class="flex items-center justify-end gap-1">
+                <button class="w-7 h-7 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-purple-500 transition" title="Escanear">
+                  <i data-lucide="scan-line" class="w-3.5 h-3.5"></i>
+                </button>
+                <button class="w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 hover:bg-red-500 hover:text-white transition" title="Eliminar">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ═══════════════════ FOOTER GENERAL ═══════════════════ -->
+      <div class="px-6 py-4 border-t border-gray-800 bg-[#141d2b] rounded-b-2xl">
+        <div class="flex items-center gap-4">
+
+          <!-- Nota -->
+          <div class="flex-1">
+            <label class="block text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-1">Nota</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+              </span>
+              <input type="text" placeholder="Motivo o referencia (opcional)..." class="cs-input pl-9 text-xs">
+            </div>
+          </div>
+
+          <!-- Resumen -->
+          <div class="flex items-center gap-5 px-5 py-2.5 rounded-xl bg-[#1a2332] border border-gray-700/60">
+            <div>
+              <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Items</p>
+              <p class="text-sm font-bold text-white">2</p>
+            </div>
+            <div class="h-8 w-px bg-gray-700"></div>
+            <div>
+              <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Total unidades</p>
+              <p class="text-sm font-bold text-white">16</p>
+            </div>
+            <div class="h-8 w-px bg-gray-700"></div>
+            <div>
+              <p class="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Costo total</p>
+              <p class="text-base font-bold text-green-400">$4,080.00</p>
+            </div>
+          </div>
+
+          <!-- Botones -->
+          <div class="flex items-center gap-2">
+            <button class="btn-ghost" onclick="window.close()">Cancelar</button>
+            <button class="btn-primary-grad">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+              Crear y enviar traspaso
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    // Toggle de tabs (Traspaso / Transformación)
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // Toggle segmented (Origen)
+    document.querySelectorAll('.endpoint-card.origin .seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.endpoint-card.origin .seg-btn').forEach(b => b.classList.remove('active-purple'));
+        btn.classList.add('active-purple');
+      });
+    });
+
+    // Toggle segmented (Destino)
+    document.querySelectorAll('.endpoint-card.dest .seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.endpoint-card.dest .seg-btn').forEach(b => b.classList.remove('active-green'));
+        btn.classList.add('active-green');
+      });
+    });
+
+    // Chips de categorías
+    document.querySelectorAll('.cat-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
