@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventarios &mdash; Selector de Ambito (Wireframe)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; min-height: 100vh; }
+        @keyframes float-blob { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(20px, -30px) scale(1.05); } }
+        .scope-card { transition: all .3s cubic-bezier(.4,0,.2,1); }
+        .scope-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,.4); }
+        .scope-card.pos:hover { border-color: #3B82F6; box-shadow: 0 20px 40px rgba(59,130,246,.25); }
+        .scope-card.supply:hover { border-color: #10B981; box-shadow: 0 20px 40px rgba(16,185,129,.25); }
+        .blob-1 { animation: float-blob 8s ease-in-out infinite; }
+        .blob-2 { animation: float-blob 10s ease-in-out infinite reverse; }
+    </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Wireframe: SELECTOR DE AMBITO (Entry-point gate)            -->
+    <!--  Aparece la primera vez que el usuario entra a inventarios   -->
+    <!--  o cuando hace click en "cambiar ambito" desde el navbar     -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Navbar minimal -->
+    <nav class="fixed top-0 left-0 w-full h-16 z-50 flex items-center px-4 border-b shadow-lg" style="background-color:#141d2b;border-bottom-color:rgba(28,100,242,0.3);">
+        <div class="flex items-center gap-3">
+            <i data-lucide="boxes" class="w-5 h-5 text-blue-400"></i>
+            <span class="text-sm font-semibold">Huubie &middot; Inventarios</span>
+        </div>
+    </nav>
+
+    <!-- Background blobs decorativos -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="blob-1 absolute top-32 left-1/4 w-96 h-96 rounded-full opacity-10" style="background:radial-gradient(circle,#3B82F6 0%,transparent 70%);"></div>
+        <div class="blob-2 absolute bottom-32 right-1/4 w-96 h-96 rounded-full opacity-10" style="background:radial-gradient(circle,#10B981 0%,transparent 70%);"></div>
+    </div>
+
+    <!-- Contenido -->
+    <div class="relative pt-24 pb-12 px-6 max-w-6xl mx-auto">
+
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-3xl md:text-4xl font-bold mb-3">Sistema de Inventarios &mdash; <span class="text-blue-400">Buen dia</span></h1>
+            <p class="text-sm md:text-base text-gray-400 max-w-2xl mx-auto leading-relaxed">
+                Elige sobre que <span class="text-white font-semibold">dimension de inventario</span> quieres operar.
+                Las bases de productos son distintas y cada una tiene su propio catalogo, motivos y reglas.
+            </p>
+        </div>
+
+        <!-- Grid de eleccion -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+
+            <!-- ═══════════════════════════════════════════════════ -->
+            <!-- Card POS                                            -->
+            <!-- ═══════════════════════════════════════════════════ -->
+            <div class="scope-card pos relative bg-gradient-to-br from-[#1F2A37] to-[#172033] rounded-2xl p-8 border-2 border-[#374151] cursor-pointer overflow-hidden">
+
+                <!-- Fondo decorativo -->
+                <div class="absolute -top-12 -right-12 w-48 h-48 rounded-full opacity-10" style="background:#3B82F6;"></div>
+
+                <!-- Header del card -->
+                <div class="relative flex items-start justify-between mb-6">
+                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg" style="background:linear-gradient(135deg,#3B82F6 0%,#1E40AF 100%);box-shadow:0 8px 24px rgba(59,130,246,.3);">
+                        <i data-lucide="cake" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-1 rounded">EXISTENTE</span>
+                </div>
+
+                <!-- Titulo + descripcion -->
+                <div class="relative mb-6">
+                    <h2 class="text-2xl font-bold text-white mb-2">Inventario POS</h2>
+                    <p class="text-sm text-gray-400 leading-relaxed">
+                        Productos terminados vendibles del punto de venta. Lo que el cliente compra: pasteles,
+                        cupcakes, cafe, sandwiches, panes.
+                    </p>
+                </div>
+
+                <!-- Ejemplos visuales -->
+                <div class="relative mb-6">
+                    <p class="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-2">Ejemplos de items</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="cake" class="w-3 h-3 text-amber-400"></i> Pastel 3 Leches
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="cup-soda" class="w-3 h-3 text-orange-400"></i> Cupcake
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="coffee" class="w-3 h-3 text-stone-400"></i> Cafe Americano
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="cherry" class="w-3 h-3 text-red-400"></i> Pay de Fresas
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="cookie" class="w-3 h-3 text-teal-400"></i> Galletas
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Submodulos -->
+                <div class="relative mb-6">
+                    <p class="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-2">Submodulos disponibles</p>
+                    <div class="grid grid-cols-3 gap-1.5 text-[10px]">
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="boxes" class="w-3 h-3"></i> Stock</div>
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="package-plus" class="w-3 h-3"></i> Entradas</div>
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="arrow-left-right" class="w-3 h-3"></i> Movimientos</div>
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="trash-2" class="w-3 h-3"></i> Mermas</div>
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="truck" class="w-3 h-3"></i> Traspasos</div>
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="settings" class="w-3 h-3"></i> Admin</div>
+                    </div>
+                </div>
+
+                <!-- CTA -->
+                <button class="relative w-full bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-4 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+                    Entrar a POS
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Stats compactos -->
+                <div class="relative mt-4 pt-4 border-t border-[#374151] flex items-center justify-between text-[10px] text-gray-500">
+                    <span><span class="text-white font-bold">142</span> productos</span>
+                    <span><span class="text-white font-bold">5</span> sucursales</span>
+                    <span><span class="text-white font-bold">3,420</span> uds en stock</span>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════ -->
+            <!-- Card INSUMOS                                        -->
+            <!-- ═══════════════════════════════════════════════════ -->
+            <div class="scope-card supply relative bg-gradient-to-br from-[#1F2A37] to-[#172816] rounded-2xl p-8 border-2 border-[#374151] cursor-pointer overflow-hidden">
+
+                <!-- Badge NEW -->
+                <span class="absolute top-4 right-4 px-2 py-1 rounded text-[9px] font-bold bg-emerald-600/30 text-emerald-300 border border-emerald-500/50 z-10">NUEVO</span>
+
+                <!-- Fondo decorativo -->
+                <div class="absolute -top-12 -right-12 w-48 h-48 rounded-full opacity-10" style="background:#10B981;"></div>
+
+                <!-- Header del card -->
+                <div class="relative flex items-start justify-between mb-6">
+                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg" style="background:linear-gradient(135deg,#10B981 0%,#047857 100%);box-shadow:0 8px 24px rgba(16,185,129,.3);">
+                        <i data-lucide="sprout" class="w-8 h-8 text-white"></i>
+                    </div>
+                </div>
+
+                <!-- Titulo + descripcion -->
+                <div class="relative mb-6">
+                    <h2 class="text-2xl font-bold text-white mb-2">Inventario Insumos</h2>
+                    <p class="text-sm text-gray-400 leading-relaxed">
+                        Materia prima y consumibles de operacion. Lo que se usa para producir o sostener la operacion:
+                        ingredientes, papeleria, limpieza, empaque.
+                    </p>
+                </div>
+
+                <!-- Ejemplos visuales -->
+                <div class="relative mb-6">
+                    <p class="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-2">Ejemplos de items</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="wheat" class="w-3 h-3 text-amber-400"></i> Harina T55
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="candy" class="w-3 h-3 text-orange-400"></i> Azucar
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="milk" class="w-3 h-3 text-yellow-400"></i> Mantequilla
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="spray-can" class="w-3 h-3 text-cyan-400"></i> Detergente
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="package" class="w-3 h-3 text-blue-400"></i> Servilletas
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-[#0E1521] rounded text-[10px] text-gray-300 border border-[#374151]">
+                            <i data-lucide="coffee" class="w-3 h-3 text-stone-400"></i> Cafe en grano
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Submodulos -->
+                <div class="relative mb-6">
+                    <p class="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-2">Submodulos disponibles</p>
+                    <div class="grid grid-cols-3 gap-1.5 text-[10px]">
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="boxes" class="w-3 h-3"></i> Stock</div>
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="package-plus" class="w-3 h-3"></i> Entradas</div>
+                        <div class="flex items-center gap-1 text-emerald-400 font-semibold"><i data-lucide="package-minus" class="w-3 h-3"></i> Salidas</div>
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="arrow-left-right" class="w-3 h-3"></i> Movimientos</div>
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="trash-2" class="w-3 h-3"></i> Mermas</div>
+                        <div class="flex items-center gap-1 text-gray-400"><i data-lucide="truck" class="w-3 h-3"></i> Traspasos</div>
+                    </div>
+                </div>
+
+                <!-- CTA -->
+                <button class="relative w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg px-4 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+                    Entrar a Insumos
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Stats compactos -->
+                <div class="relative mt-4 pt-4 border-t border-[#374151] flex items-center justify-between text-[10px] text-gray-500">
+                    <span><span class="text-white font-bold">38</span> insumos</span>
+                    <span><span class="text-white font-bold">5</span> areas destino</span>
+                    <span><span class="text-white font-bold">820</span> uds en stock</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Checkbox recordar + nota legal -->
+        <div class="flex items-center justify-center gap-2 mb-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked class="accent-blue-500 w-3.5 h-3.5">
+                <span class="text-xs text-gray-400">Recordar mi eleccion (sessionStorage)</span>
+            </label>
+        </div>
+
+        <!-- Bloque informativo -->
+        <div class="mt-8 p-4 bg-[#1F2A37]/50 rounded-lg border border-[#374151] max-w-3xl mx-auto">
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="info" class="w-4 h-4 text-blue-400"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-white mb-1">Como funciona el dual-tracking</p>
+                    <p class="text-xs text-gray-400 leading-relaxed">
+                        El modulo opera en dos dimensiones <em>independientes</em>. Cada una tiene su propio
+                        catalogo, motivos y reglas — pero comparten almacenes fisicos, sucursales y usuarios.
+                        Puedes alternar entre dimensiones desde el toggle en el navbar sin perder tu trabajo.
+                        Las bitacoras de movimientos NO se mezclan entre POS e Insumos.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        if (window.lucide) lucide.createIcons();
+    </script>
+</body>
+</html>

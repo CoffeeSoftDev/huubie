@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Inventarios &mdash; Tab Insumos (Wireframe)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; min-height: 100vh; }
+        .cs-scroll::-webkit-scrollbar { width: 6px; }
+        .cs-scroll::-webkit-scrollbar-track { background: transparent; }
+        .cs-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Wireframe: Admin Inventarios con TERCERA TAB "Insumos"     -->
+    <!--  Extiende admin-inventarios.html que hoy tiene 2 tabs       -->
+    <!--  (Productos + Almacenes). Aqui se anade la tercera.         -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Navbar con toggle persistente de scope -->
+    <nav class="fixed top-0 left-0 w-full h-16 z-50 flex items-center justify-between px-4 border-b shadow-lg" style="background-color:#141d2b;border-bottom-color:rgba(28,100,242,0.3);">
+
+        <!-- Breadcrumb + badge de scope -->
+        <div class="flex items-center gap-3">
+            <i data-lucide="boxes" class="w-5 h-5 text-blue-400"></i>
+            <span class="text-sm font-semibold">Huubie &middot; Inventarios</span>
+            <span class="text-gray-500">/</span>
+            <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold bg-emerald-600/15 text-emerald-400 border border-emerald-500/30">
+                <i data-lucide="sprout" class="w-3 h-3"></i>
+                INSUMOS
+            </div>
+            <span class="text-gray-500">/</span>
+            <span class="text-sm text-gray-300">Admin</span>
+        </div>
+
+        <!-- Toggle persistente (Admin se considera neutral pero el toggle sigue presente) -->
+        <div class="flex items-center gap-2">
+            <span class="text-[10px] uppercase tracking-wider text-gray-500 font-bold hidden md:inline">Ambito</span>
+            <div class="inline-flex gap-0.5 p-0.5 bg-[#0E1521] border border-[#374151] rounded-full">
+                <button class="px-3 py-1 rounded-full text-[10px] font-bold text-gray-400 hover:text-white inline-flex items-center gap-1">
+                    <i data-lucide="cake" class="w-3 h-3"></i> POS
+                </button>
+                <button class="px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-600 text-white inline-flex items-center gap-1 shadow-[0_4px_12px_rgba(16,185,129,.35)]">
+                    <i data-lucide="sprout" class="w-3 h-3"></i> Insumos
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="mt-16 p-3">
+        <div class="w-full bg-[#1F2A37] rounded-lg p-3 min-h-screen">
+
+            <!-- Titulo -->
+            <div class="px-4 pt-3 pb-3">
+                <h2 class="text-2xl font-semibold text-white">📦 Administrador de Inventarios</h2>
+                <p class="text-gray-400">Gestiona productos, almacenes e insumos del catalogo.</p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="w-full p-3">
+                <div class="flex gap-2 border-b border-[#374151] pb-0 mb-4">
+                    <button class="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-gray-400 hover:text-white border-b-2 border-transparent transition-colors">
+                        <i data-lucide="box" class="w-3.5 h-3.5"></i> Productos
+                    </button>
+                    <button class="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-gray-400 hover:text-white border-b-2 border-transparent transition-colors">
+                        <i data-lucide="warehouse" class="w-3.5 h-3.5"></i> Almacenes
+                    </button>
+                    <button class="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-emerald-400 border-b-2 border-emerald-500 transition-colors">
+                        <i data-lucide="sprout" class="w-3.5 h-3.5"></i> Insumos
+                        <span class="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-600/30 text-emerald-300">NEW</span>
+                    </button>
+                </div>
+
+                <!-- Filter bar -->
+                <div id="filterbar-insumos" class="mb-3">
+                    <div class="grid grid-cols-12 gap-3 items-end">
+                        <div class="col-span-12 md:col-span-3">
+                            <label class="block text-[10px] font-bold text-[#9CA3AF] uppercase mb-1">Estado:</label>
+                            <select class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                                <option>Activos</option>
+                                <option>Inactivos</option>
+                            </select>
+                        </div>
+                        <div class="col-span-12 md:col-span-3">
+                            <label class="block text-[10px] font-bold text-[#9CA3AF] uppercase mb-1">Categoria:</label>
+                            <select class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                                <option>Todas las categorias</option>
+                                <option>Materia prima</option>
+                                <option>Limpieza</option>
+                                <option>Papeleria</option>
+                                <option>Empaque</option>
+                                <option>Insumo de cocina</option>
+                            </select>
+                        </div>
+                        <div class="col-span-12 md:col-span-2">
+                            <label class="block text-[10px] font-bold text-[#9CA3AF] uppercase mb-1">Unidad:</label>
+                            <select class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                                <option>Todas</option>
+                                <option>kg</option>
+                                <option>lt</option>
+                                <option>pza</option>
+                                <option>caja</option>
+                                <option>pq</option>
+                                <option>m</option>
+                            </select>
+                        </div>
+                        <div class="col-span-12 md:col-span-2">
+                            <label class="block text-[10px] font-bold text-[#9CA3AF] uppercase mb-1">Buscar:</label>
+                            <input type="text" placeholder="SKU, nombre..." class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs placeholder-[#6B7280]">
+                        </div>
+                        <div class="col-span-12 md:col-span-2">
+                            <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded px-3 py-1.5 text-xs font-bold flex items-center justify-center gap-1">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo Insumo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de insumos -->
+                <div id="tabla-insumos">
+                    <div class="bg-[#0E1521] rounded-lg overflow-hidden border border-[#374151]">
+                        <table class="w-full text-xs">
+                            <thead class="bg-[#1a2332] border-b border-[#374151]">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-[9px] uppercase font-bold text-[#9CA3AF]">Insumo</th>
+                                    <th class="px-3 py-2 text-left text-[9px] uppercase font-bold text-[#9CA3AF]">SKU</th>
+                                    <th class="px-3 py-2 text-left text-[9px] uppercase font-bold text-[#9CA3AF]">Categoria</th>
+                                    <th class="px-3 py-2 text-center text-[9px] uppercase font-bold text-[#9CA3AF]">Unidad</th>
+                                    <th class="px-3 py-2 text-right text-[9px] uppercase font-bold text-[#9CA3AF]">Costo unit.</th>
+                                    <th class="px-3 py-2 text-right text-[9px] uppercase font-bold text-[#9CA3AF]">Stock min.</th>
+                                    <th class="px-3 py-2 text-right text-[9px] uppercase font-bold text-[#9CA3AF]">Stock max.</th>
+                                    <th class="px-3 py-2 text-left text-[9px] uppercase font-bold text-[#9CA3AF]">Proveedor</th>
+                                    <th class="px-3 py-2 text-center text-[9px] uppercase font-bold text-[#9CA3AF]">Estado</th>
+                                    <th class="px-3 py-2 text-center text-[9px] uppercase font-bold text-[#9CA3AF]">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-[#1a2332]">
+
+                                <tr class="hover:bg-[#1a2332] transition-colors">
+                                    <td class="px-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded bg-amber-900/30 flex items-center justify-center">
+                                                <i data-lucide="wheat" class="w-3 h-3 text-amber-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[11px] font-bold text-white leading-tight">Harina T55</p>
+                                                <p class="text-[9px] text-gray-500 leading-tight">Harina trigo refinada</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2"><span class="text-[10px] text-gray-400 font-mono">INS-001</span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(251,191,36,0.15);color:#FBBF24;">Materia prima</span></td>
+                                    <td class="px-3 py-2 text-center"><span class="text-[10px] text-gray-300 font-mono">kg</span></td>
+                                    <td class="px-3 py-2 text-right text-[11px] font-bold text-white">$42.00</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">20</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">200</td>
+                                    <td class="px-3 py-2 text-[10px] text-gray-400">Molinos del Bajio</td>
+                                    <td class="px-3 py-2 text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:rgba(63,193,137,0.15);color:#3FC189;">ACTIVO</span></td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-purple-600 hover:bg-purple-500 text-white me-1"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-red-600 hover:bg-red-500 text-white"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-[#1a2332] transition-colors">
+                                    <td class="px-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded bg-orange-900/30 flex items-center justify-center">
+                                                <i data-lucide="candy" class="w-3 h-3 text-orange-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[11px] font-bold text-white leading-tight">Azucar Estandar</p>
+                                                <p class="text-[9px] text-gray-500 leading-tight">Azucar refinada blanca</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2"><span class="text-[10px] text-gray-400 font-mono">INS-002</span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(251,191,36,0.15);color:#FBBF24;">Materia prima</span></td>
+                                    <td class="px-3 py-2 text-center"><span class="text-[10px] text-gray-300 font-mono">kg</span></td>
+                                    <td class="px-3 py-2 text-right text-[11px] font-bold text-white">$25.00</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">30</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">300</td>
+                                    <td class="px-3 py-2 text-[10px] text-gray-400">Zucarmex</td>
+                                    <td class="px-3 py-2 text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:rgba(63,193,137,0.15);color:#3FC189;">ACTIVO</span></td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-purple-600 hover:bg-purple-500 text-white me-1"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-red-600 hover:bg-red-500 text-white"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-[#1a2332] transition-colors">
+                                    <td class="px-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded bg-yellow-900/30 flex items-center justify-center">
+                                                <i data-lucide="milk" class="w-3 h-3 text-yellow-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[11px] font-bold text-white leading-tight">Mantequilla</p>
+                                                <p class="text-[9px] text-gray-500 leading-tight">Mantequilla sin sal</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2"><span class="text-[10px] text-gray-400 font-mono">INS-003</span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(251,191,36,0.15);color:#FBBF24;">Materia prima</span></td>
+                                    <td class="px-3 py-2 text-center"><span class="text-[10px] text-gray-300 font-mono">kg</span></td>
+                                    <td class="px-3 py-2 text-right text-[11px] font-bold text-white">$110.00</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">5</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">40</td>
+                                    <td class="px-3 py-2 text-[10px] text-gray-400">Lacteos del Valle</td>
+                                    <td class="px-3 py-2 text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:rgba(63,193,137,0.15);color:#3FC189;">ACTIVO</span></td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-purple-600 hover:bg-purple-500 text-white me-1"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-red-600 hover:bg-red-500 text-white"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-[#1a2332] transition-colors">
+                                    <td class="px-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded bg-cyan-900/30 flex items-center justify-center">
+                                                <i data-lucide="spray-can" class="w-3 h-3 text-cyan-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[11px] font-bold text-white leading-tight">Detergente Multiuso</p>
+                                                <p class="text-[9px] text-gray-500 leading-tight">Limpiador concentrado</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2"><span class="text-[10px] text-gray-400 font-mono">INS-004</span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(34,211,238,0.15);color:#22D3EE;">Limpieza</span></td>
+                                    <td class="px-3 py-2 text-center"><span class="text-[10px] text-gray-300 font-mono">lt</span></td>
+                                    <td class="px-3 py-2 text-right text-[11px] font-bold text-white">$180.00</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">3</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">25</td>
+                                    <td class="px-3 py-2 text-[10px] text-gray-400">Quimica Apolo</td>
+                                    <td class="px-3 py-2 text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:rgba(63,193,137,0.15);color:#3FC189;">ACTIVO</span></td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-purple-600 hover:bg-purple-500 text-white me-1"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-red-600 hover:bg-red-500 text-white"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-[#1a2332] transition-colors">
+                                    <td class="px-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded bg-blue-900/30 flex items-center justify-center">
+                                                <i data-lucide="package" class="w-3 h-3 text-blue-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[11px] font-bold text-white leading-tight">Servilletas</p>
+                                                <p class="text-[9px] text-gray-500 leading-tight">Servilletas papel 33x33</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2"><span class="text-[10px] text-gray-400 font-mono">INS-005</span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(28,100,242,0.15);color:#60A5FA;">Papeleria</span></td>
+                                    <td class="px-3 py-2 text-center"><span class="text-[10px] text-gray-300 font-mono">pq</span></td>
+                                    <td class="px-3 py-2 text-right text-[11px] font-bold text-white">$35.00</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">10</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">100</td>
+                                    <td class="px-3 py-2 text-[10px] text-gray-400">Papelmex</td>
+                                    <td class="px-3 py-2 text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:rgba(63,193,137,0.15);color:#3FC189;">ACTIVO</span></td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-purple-600 hover:bg-purple-500 text-white me-1"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-red-600 hover:bg-red-500 text-white"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-[#1a2332] transition-colors">
+                                    <td class="px-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded bg-stone-800/50 flex items-center justify-center">
+                                                <i data-lucide="coffee" class="w-3 h-3 text-stone-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[11px] font-bold text-white leading-tight">Cafe Grano Verde</p>
+                                                <p class="text-[9px] text-gray-500 leading-tight">Cafe sin tostar arabica</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2"><span class="text-[10px] text-gray-400 font-mono">INS-006</span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(251,191,36,0.15);color:#FBBF24;">Materia prima</span></td>
+                                    <td class="px-3 py-2 text-center"><span class="text-[10px] text-gray-300 font-mono">kg</span></td>
+                                    <td class="px-3 py-2 text-right text-[11px] font-bold text-white">$320.00</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">10</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">80</td>
+                                    <td class="px-3 py-2 text-[10px] text-gray-400">Cafe de Veracruz</td>
+                                    <td class="px-3 py-2 text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:rgba(63,193,137,0.15);color:#3FC189;">ACTIVO</span></td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-purple-600 hover:bg-purple-500 text-white me-1"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-red-600 hover:bg-red-500 text-white"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-[#1a2332] transition-colors">
+                                    <td class="px-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded bg-green-900/30 flex items-center justify-center">
+                                                <i data-lucide="leaf" class="w-3 h-3 text-green-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[11px] font-bold text-white leading-tight">Cocoa Pura</p>
+                                                <p class="text-[9px] text-gray-500 leading-tight">Cocoa amarga sin azucar</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2"><span class="text-[10px] text-gray-400 font-mono">INS-007</span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(251,191,36,0.15);color:#FBBF24;">Materia prima</span></td>
+                                    <td class="px-3 py-2 text-center"><span class="text-[10px] text-gray-300 font-mono">kg</span></td>
+                                    <td class="px-3 py-2 text-right text-[11px] font-bold text-white">$280.00</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">2</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">20</td>
+                                    <td class="px-3 py-2 text-[10px] text-gray-400">Chocolate Mayordomo</td>
+                                    <td class="px-3 py-2 text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:rgba(63,193,137,0.15);color:#3FC189;">ACTIVO</span></td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-purple-600 hover:bg-purple-500 text-white me-1"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-red-600 hover:bg-red-500 text-white"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-[#1a2332] transition-colors opacity-60">
+                                    <td class="px-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded bg-pink-900/30 flex items-center justify-center">
+                                                <i data-lucide="cherry" class="w-3 h-3 text-pink-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[11px] font-bold text-white leading-tight">Color Vegetal Rojo</p>
+                                                <p class="text-[9px] text-gray-500 leading-tight">Colorante alimenticio</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2"><span class="text-[10px] text-gray-400 font-mono">INS-008</span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(251,191,36,0.15);color:#FBBF24;">Materia prima</span></td>
+                                    <td class="px-3 py-2 text-center"><span class="text-[10px] text-gray-300 font-mono">lt</span></td>
+                                    <td class="px-3 py-2 text-right text-[11px] font-bold text-white">$95.00</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">1</td>
+                                    <td class="px-3 py-2 text-right text-[11px] text-white">8</td>
+                                    <td class="px-3 py-2 text-[10px] text-gray-400">Insumos Pasteleros</td>
+                                    <td class="px-3 py-2 text-center"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:rgba(244,63,94,0.15);color:#F43F5E;">INACTIVO</span></td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-purple-600 hover:bg-purple-500 text-white me-1"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                                        <button class="inline-flex items-center justify-center w-7 h-7 rounded text-[12px] bg-green-600 hover:bg-green-500 text-white"><i data-lucide="toggle-left" class="w-3 h-3"></i></button>
+                                    </td>
+                                </tr>
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Footer info -->
+                <div class="mt-3 flex items-center justify-between px-2">
+                    <p class="text-[11px] text-gray-400">Mostrando 8 insumos del catalogo</p>
+                    <div class="flex items-center gap-3 text-[10px]">
+                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#FBBF24"></span><span class="text-gray-400">Materia prima</span></span>
+                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#22D3EE"></span><span class="text-gray-400">Limpieza</span></span>
+                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#60A5FA"></span><span class="text-gray-400">Papeleria</span></span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        if (window.lucide) lucide.createIcons();
+    </script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventarios &mdash; MenuHub con Toggle (Wireframe)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; min-height: 100vh; }
+        .scope-toggle { background: #0E1521; border: 1px solid #374151; border-radius: 9999px; padding: 3px; display: inline-flex; gap: 2px; }
+        .scope-toggle-btn { padding: 6px 14px; border-radius: 9999px; font-size: 11px; font-weight: 700; transition: all .2s ease; color: #9CA3AF; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+        .scope-toggle-btn.active.pos { background: #3B82F6; color: white; box-shadow: 0 4px 12px rgba(59,130,246,.35); }
+        .scope-toggle-btn.active.supply { background: #10B981; color: white; box-shadow: 0 4px 12px rgba(16,185,129,.35); }
+        .scope-toggle-btn:not(.active):hover { color: white; background: rgba(255,255,255,.04); }
+        .scope-badge { position: relative; }
+        .scope-badge::before { content: ''; position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px; border-radius: inherit; opacity: .3; z-index: -1; filter: blur(8px); }
+        .scope-badge.supply::before { background: #10B981; }
+        .scope-badge.pos::before { background: #3B82F6; }
+    </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Wireframe: MenuHub con TOGGLE PERSISTENTE de ambito         -->
+    <!--  Estado mostrado: scope = "supply" (insumos)                 -->
+    <!--  Comentado al final: como se ve cuando scope = "pos"         -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Navbar con badge de scope -->
+    <nav class="fixed top-0 left-0 w-full h-16 z-50 flex items-center justify-between px-4 border-b shadow-lg" style="background-color:#141d2b;border-bottom-color:rgba(28,100,242,0.3);">
+
+        <div class="flex items-center gap-3">
+            <i data-lucide="boxes" class="w-5 h-5 text-blue-400"></i>
+            <span class="text-sm font-semibold">Huubie &middot; Inventarios</span>
+
+            <!-- Breadcrumb del scope -->
+            <span class="text-gray-500">/</span>
+            <div class="scope-badge supply inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold bg-emerald-600/15 text-emerald-400 border border-emerald-500/30">
+                <i data-lucide="sprout" class="w-3 h-3"></i>
+                INSUMOS
+            </div>
+        </div>
+
+        <!-- Toggle persistente de scope -->
+        <div class="flex items-center gap-3">
+            <span class="text-[10px] uppercase tracking-wider text-gray-500 font-bold hidden md:inline">Ambito</span>
+            <div class="scope-toggle">
+                <button class="scope-toggle-btn pos">
+                    <i data-lucide="cake" class="w-3 h-3"></i> POS
+                </button>
+                <button class="scope-toggle-btn supply active">
+                    <i data-lucide="sprout" class="w-3 h-3"></i> Insumos
+                </button>
+            </div>
+            <button class="text-gray-400 hover:text-white text-[10px] flex items-center gap-1" title="Cambiar ambito (volver al selector)">
+                <i data-lucide="repeat" class="w-3 h-3"></i> Cambiar
+            </button>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <div class="pt-24 pb-12 px-8 max-w-7xl mx-auto w-full">
+
+        <!-- Header con search bar -->
+        <div class="w-full mb-6">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-2">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-[10px] uppercase tracking-widest font-bold text-emerald-400">Inventario Insumos</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    </div>
+                    <h2 class="text-xl md:text-2xl font-semibold leading-tight text-white">
+                        Buen dia
+                    </h2>
+                    <p class="text-xs md:text-sm mt-1 text-[#9CA3AF]">
+                        Operando sobre <span class="text-emerald-400 font-semibold">materia prima e insumos</span>.
+                        Para gestionar productos terminados, cambia a POS desde el toggle superior.
+                    </p>
+                </div>
+                <div class="relative w-full md:w-[380px]">
+                    <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" placeholder="Buscar submodulo de insumos..." class="w-full bg-[#1F2A37] border border-[#374151] rounded-lg pl-9 pr-12 py-2.5 text-sm placeholder-[#6B7280]">
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono bg-[#111928] text-gray-400 border border-[#374151]">Ctrl+K</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Grid de cards: 6 cards (5 estandar + Salidas exclusivo) -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div class="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-3 gap-y-6 content-start auto-rows-min">
+
+            <!-- Card 1: Stock -->
+            <div class="module-card-item w-full h-[180px] bg-[#1F2A37] hover:bg-[#273343] rounded-2xl shadow-md p-4 flex flex-col cursor-pointer transition duration-300 hover:scale-[1.02]">
+                <div class="flex justify-between items-start">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color:#065F46">
+                        <i data-lucide="boxes" class="w-6 h-6 text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-auto flex flex-col gap-1">
+                    <h2 class="text-base md:text-lg font-semibold leading-tight text-white">Stock</h2>
+                    <p class="text-xs md:text-sm leading-snug line-clamp-2 min-h-[2.5rem] text-[#9CA3AF]">Existencias de insumos por almacen, con stock min/max y alertas.</p>
+                </div>
+            </div>
+
+            <!-- Card 2: Entradas -->
+            <div class="module-card-item w-full h-[180px] bg-[#1F2A37] hover:bg-[#273343] rounded-2xl shadow-md p-4 flex flex-col cursor-pointer transition duration-300 hover:scale-[1.02]">
+                <div class="flex justify-between items-start">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color:#047857">
+                        <i data-lucide="package-plus" class="w-6 h-6 text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-auto flex flex-col gap-1">
+                    <h2 class="text-base md:text-lg font-semibold leading-tight text-white">Entradas</h2>
+                    <p class="text-xs md:text-sm leading-snug line-clamp-2 min-h-[2.5rem] text-[#9CA3AF]">Recepcion de compras de insumos a proveedores o transferencias.</p>
+                </div>
+            </div>
+
+            <!-- ════════════════════════════════════════════════════ -->
+            <!-- Card 3: SALIDAS — solo en scope=supply               -->
+            <!-- ════════════════════════════════════════════════════ -->
+            <div class="module-card-item w-full h-[180px] bg-[#1F2A37] hover:bg-[#273343] rounded-2xl shadow-md p-4 flex flex-col cursor-pointer transition duration-300 hover:scale-[1.02] relative border-2 border-emerald-500/40">
+                <!-- Badge SCOPE EXCLUSIVE -->
+                <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-600/30 text-emerald-300 border border-emerald-500/50">EXCLUSIVO INSUMOS</span>
+
+                <div class="flex justify-between items-start">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color:#059669">
+                        <i data-lucide="package-minus" class="w-6 h-6 text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-auto flex flex-col gap-1">
+                    <h2 class="text-base md:text-lg font-semibold leading-tight text-white">Salidas</h2>
+                    <p class="text-xs md:text-sm leading-snug line-clamp-2 min-h-[2.5rem] text-[#9CA3AF]">Entregas de insumos a areas de consumo (cocina, barra, panaderia).</p>
+                </div>
+            </div>
+
+            <!-- Card 4: Movimientos -->
+            <div class="module-card-item w-full h-[180px] bg-[#1F2A37] hover:bg-[#273343] rounded-2xl shadow-md p-4 flex flex-col cursor-pointer transition duration-300 hover:scale-[1.02]">
+                <div class="flex justify-between items-start">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color:#0F766E">
+                        <i data-lucide="arrow-left-right" class="w-6 h-6 text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-auto flex flex-col gap-1">
+                    <h2 class="text-base md:text-lg font-semibold leading-tight text-white">Movimientos</h2>
+                    <p class="text-xs md:text-sm leading-snug line-clamp-2 min-h-[2.5rem] text-[#9CA3AF]">Bitacora unificada de eventos sobre insumos (solo este ambito).</p>
+                </div>
+            </div>
+
+            <!-- Card 5: Mermas -->
+            <div class="module-card-item w-full h-[180px] bg-[#1F2A37] hover:bg-[#273343] rounded-2xl shadow-md p-4 flex flex-col cursor-pointer transition duration-300 hover:scale-[1.02]">
+                <div class="flex justify-between items-start">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color:#B45309">
+                        <i data-lucide="trash-2" class="w-6 h-6 text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-auto flex flex-col gap-1">
+                    <h2 class="text-base md:text-lg font-semibold leading-tight text-white">Mermas</h2>
+                    <p class="text-xs md:text-sm leading-snug line-clamp-2 min-h-[2.5rem] text-[#9CA3AF]">Bajas de insumos por caducidad, derrame, contaminacion o faltante.</p>
+                </div>
+            </div>
+
+            <!-- Card 6: Traspasos -->
+            <div class="module-card-item w-full h-[180px] bg-[#1F2A37] hover:bg-[#273343] rounded-2xl shadow-md p-4 flex flex-col cursor-pointer transition duration-300 hover:scale-[1.02]">
+                <div class="flex justify-between items-start">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color:#1E40AF">
+                        <i data-lucide="truck" class="w-6 h-6 text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-auto flex flex-col gap-1">
+                    <h2 class="text-base md:text-lg font-semibold leading-tight text-white">Traspasos</h2>
+                    <p class="text-xs md:text-sm leading-snug line-clamp-2 min-h-[2.5rem] text-[#9CA3AF]">Envia insumos entre sucursales con flujo de aprobacion.</p>
+                </div>
+            </div>
+
+            <!-- Card 7: Admin (siempre visible, neutral al scope) -->
+            <div class="module-card-item w-full h-[180px] bg-[#1F2A37] hover:bg-[#273343] rounded-2xl shadow-md p-4 flex flex-col cursor-pointer transition duration-300 hover:scale-[1.02]">
+                <div class="flex justify-between items-start">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color:#5B21B6">
+                        <i data-lucide="settings" class="w-6 h-6 text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-auto flex flex-col gap-1">
+                    <h2 class="text-base md:text-lg font-semibold leading-tight text-white">Admin</h2>
+                    <p class="text-xs md:text-sm leading-snug line-clamp-2 min-h-[2.5rem] text-[#9CA3AF]">Catalogo de insumos, almacenes, categorias y motivos.</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ─────────────────────────────────────────────────────── -->
+        <!-- Strip de comparativa entre POS e Insumos                 -->
+        <!-- ─────────────────────────────────────────────────────── -->
+        <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-3">
+
+            <!-- Scope actual -->
+            <div class="p-4 bg-emerald-900/20 rounded-lg border border-emerald-500/30">
+                <div class="flex items-start gap-3 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-600/30 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Estas aqui</p>
+                        <p class="text-sm font-semibold text-white">Inventario Insumos</p>
+                    </div>
+                </div>
+                <div class="text-[11px] text-gray-400 space-y-1 ml-11">
+                    <p><span class="text-white font-semibold">Catalogo:</span> 38 insumos (harina, azucar, papel, detergente...)</p>
+                    <p><span class="text-white font-semibold">Submodulos:</span> 7 (incluye Salidas exclusivo)</p>
+                    <p><span class="text-white font-semibold">Folios:</span> ENT-INS, SAL-INS, MER-INS, TRA-INS</p>
+                </div>
+            </div>
+
+            <!-- Scope alterno -->
+            <div class="p-4 bg-[#1F2A37]/50 rounded-lg border border-[#374151] cursor-pointer hover:border-blue-500/40 transition-colors">
+                <div class="flex items-start gap-3 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="cake" class="w-4 h-4 text-blue-400"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-xs font-bold text-blue-400 uppercase tracking-wider">Cambiar a</p>
+                        <p class="text-sm font-semibold text-white flex items-center gap-2">
+                            Inventario POS
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-gray-500"></i>
+                        </p>
+                    </div>
+                </div>
+                <div class="text-[11px] text-gray-400 space-y-1 ml-11">
+                    <p><span class="text-white font-semibold">Catalogo:</span> 142 productos (pastel, cupcake, cafe...)</p>
+                    <p><span class="text-white font-semibold">Submodulos:</span> 6 (sin Salidas dedicado)</p>
+                    <p><span class="text-white font-semibold">Folios:</span> ENT, MER, TRA</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─────────────────────────────────────────────────────── -->
+        <!-- Wireframe alterno: vista cuando scope = POS              -->
+        <!-- ─────────────────────────────────────────────────────── -->
+        <div class="mt-12 pt-8 border-t border-dashed border-[#374151]">
+            <p class="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-3">Vista alterna &mdash; cuando scope = "pos"</p>
+
+            <div class="p-4 bg-[#0E1521] rounded-lg border border-[#374151]">
+
+                <!-- Mini navbar reproducido -->
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-[#374151]">
+                    <div class="flex items-center gap-2 text-[11px]">
+                        <i data-lucide="boxes" class="w-3.5 h-3.5 text-blue-400"></i>
+                        <span class="text-gray-300">Huubie &middot; Inventarios</span>
+                        <span class="text-gray-500">/</span>
+                        <div class="scope-badge pos inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold bg-blue-600/15 text-blue-400 border border-blue-500/30">
+                            <i data-lucide="cake" class="w-3 h-3"></i> POS
+                        </div>
+                    </div>
+                    <div class="scope-toggle">
+                        <button class="scope-toggle-btn pos active">
+                            <i data-lucide="cake" class="w-3 h-3"></i> POS
+                        </button>
+                        <button class="scope-toggle-btn supply">
+                            <i data-lucide="sprout" class="w-3 h-3"></i> Insumos
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mini grid de cards POS -->
+                <div class="grid grid-cols-6 gap-2">
+                    <div class="h-20 bg-[#1F2A37] rounded p-2 flex flex-col justify-between">
+                        <i data-lucide="boxes" class="w-4 h-4 text-blue-400"></i>
+                        <p class="text-[9px] font-bold">Stock</p>
+                    </div>
+                    <div class="h-20 bg-[#1F2A37] rounded p-2 flex flex-col justify-between">
+                        <i data-lucide="package-plus" class="w-4 h-4 text-blue-400"></i>
+                        <p class="text-[9px] font-bold">Entradas</p>
+                    </div>
+                    <div class="h-20 bg-[#1F2A37] rounded p-2 flex flex-col justify-between border border-red-500/30 opacity-50">
+                        <i data-lucide="package-minus" class="w-4 h-4 text-gray-600"></i>
+                        <p class="text-[9px] font-bold text-gray-600">Salidas <span class="text-[8px] text-red-400">N/A</span></p>
+                    </div>
+                    <div class="h-20 bg-[#1F2A37] rounded p-2 flex flex-col justify-between">
+                        <i data-lucide="arrow-left-right" class="w-4 h-4 text-blue-400"></i>
+                        <p class="text-[9px] font-bold">Movimientos</p>
+                    </div>
+                    <div class="h-20 bg-[#1F2A37] rounded p-2 flex flex-col justify-between">
+                        <i data-lucide="trash-2" class="w-4 h-4 text-blue-400"></i>
+                        <p class="text-[9px] font-bold">Mermas</p>
+                    </div>
+                    <div class="h-20 bg-[#1F2A37] rounded p-2 flex flex-col justify-between">
+                        <i data-lucide="truck" class="w-4 h-4 text-blue-400"></i>
+                        <p class="text-[9px] font-bold">Traspasos</p>
+                    </div>
+                </div>
+
+                <p class="text-[10px] text-gray-500 mt-3 ml-1">
+                    Diferencias clave en scope=POS:
+                    <span class="text-blue-400">azul</span> en lugar de verde,
+                    card de Salidas oculta (no aplica),
+                    cards muestran texto orientado a "productos terminados".
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        if (window.lucide) lucide.createIcons();
+    </script>
+</body>
+</html>

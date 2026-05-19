@@ -55,8 +55,8 @@
     .btn-ghost:hover { color: #fff; background: rgba(255,255,255,.06); }
     .submenu ul { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out; }
 
-    .cs-modal-backdrop { background: rgba(0,0,0,0.55); }
-    .cs-modal { width: 100%; max-height: 90vh; display: flex; flex-direction: column; background: #111928; border: 1px solid rgba(55,65,81,0.6); border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); overflow: hidden; }
+    .cs-modal-backdrop { background: rgba(0,0,0,0.55); position: absolute !important; inset: 0 !important; }
+    .cs-modal { width: 100%; max-height: 90vh; display: flex; flex-direction: column; background: #111928; border: 1px solid rgba(55,65,81,0.6); border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); overflow: hidden; position: relative !important; top: auto !important; left: auto !important; transform: none !important; }
     .cs-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(55,65,81,0.6); background: #141d2b; flex-shrink: 0; }
     .cs-modal-title { font-size: 14px; font-weight: 700; color: #fff; }
     .cs-modal-body { padding: 0; flex: 1; overflow: hidden; min-height: 0; }
@@ -227,7 +227,7 @@
               <option>Activos</option>
               <option>Inactivos</option>
             </select>
-            <button onclick="document.getElementById('modalProducto').classList.remove('hidden')" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
+            <button id="btnNuevoProducto" type="button" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i>
               <span>Nuevo Producto</span>
             </button>
@@ -251,71 +251,7 @@
                     <th class="text-center w-20">Op.</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr class="cursor-pointer hover:bg-[#1a2332]/40 transition">
-                    <td>
-                      <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded bg-blue-900/30 flex items-center justify-center"><i data-lucide="box" class="w-3 h-3 text-blue-400"></i></div>
-                        <div><p class="text-[10px] font-bold text-white">Leche Entera 1L</p><p class="text-[8px] text-gray-500">Lacteos</p></div>
-                      </div>
-                    </td>
-                    <td class="text-[9px] text-gray-400 font-mono">SKU-00124</td>
-                    <td><span class="badge-base bg-blue-500/15 text-blue-400 border border-blue-500/30">Refrigerados</span></td>
-                    <td class="text-center">500</td>
-                    <td class="text-center">50</td>
-                    <td class="text-right">$18.50</td>
-                    <td class="text-center">14 dias</td>
-                    <td class="text-center"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activo</span></td>
-                    <td class="text-center">
-                      <div class="inline-flex items-center gap-1">
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-purple-300 hover:text-purple-100 transition" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-red-300 hover:text-red-100 transition" title="Desactivar"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr class="cursor-pointer hover:bg-[#1a2332]/40 transition">
-                    <td>
-                      <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded bg-orange-900/30 flex items-center justify-center"><i data-lucide="box" class="w-3 h-3 text-orange-400"></i></div>
-                        <div><p class="text-[10px] font-bold text-white">Arroz Integral 1kg</p><p class="text-[8px] text-gray-500">Granos</p></div>
-                      </div>
-                    </td>
-                    <td class="text-[9px] text-gray-400 font-mono">SKU-00451</td>
-                    <td><span class="badge-base bg-orange-500/15 text-orange-400 border border-orange-500/30">Secos</span></td>
-                    <td class="text-center">1,200</td>
-                    <td class="text-center">100</td>
-                    <td class="text-right">$24.00</td>
-                    <td class="text-center">365 dias</td>
-                    <td class="text-center"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activo</span></td>
-                    <td class="text-center">
-                      <div class="inline-flex items-center gap-1">
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-purple-300 hover:text-purple-100 transition" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-red-300 hover:text-red-100 transition" title="Desactivar"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr class="cursor-pointer hover:bg-[#1a2332]/40 transition">
-                    <td>
-                      <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded bg-cyan-900/30 flex items-center justify-center"><i data-lucide="box" class="w-3 h-3 text-cyan-400"></i></div>
-                        <div><p class="text-[10px] font-bold text-white">Pollo Congelado 2kg</p><p class="text-[8px] text-gray-500">Carnes</p></div>
-                      </div>
-                    </td>
-                    <td class="text-[9px] text-gray-400 font-mono">SKU-00982</td>
-                    <td><span class="badge-base bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">Congelados</span></td>
-                    <td class="text-center">300</td>
-                    <td class="text-center">30</td>
-                    <td class="text-right">$65.00</td>
-                    <td class="text-center">90 dias</td>
-                    <td class="text-center"><span class="badge-base bg-red-500/15 text-red-400 border border-red-500/30">Inactivo</span></td>
-                    <td class="text-center">
-                      <div class="inline-flex items-center gap-1">
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-purple-300 hover:text-purple-100 transition" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-green-300 hover:text-green-100 transition" title="Activar"><i data-lucide="toggle-left" class="w-3 h-3"></i></button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
+                <tbody id="tbodyProductos"></tbody>
               </table>
             </div>
           </div>
@@ -332,7 +268,7 @@
               <option>Activos</option>
               <option>Inactivos</option>
             </select>
-            <button onclick="document.getElementById('modalAlmacen').classList.remove('hidden')" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
+            <button id="btnNuevoAlmacen" type="button" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i>
               <span>Nuevo Almacen</span>
             </button>
@@ -352,59 +288,7 @@
                     <th class="text-center w-20">Op.</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr class="cursor-pointer hover:bg-[#1a2332]/40 transition">
-                    <td>
-                      <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded bg-[#1a2332] flex items-center justify-center"><i data-lucide="warehouse" class="w-3 h-3 text-gray-400"></i></div>
-                        <div><p class="text-[10px] font-bold text-white">Almacen Principal Centro</p><p class="text-[8px] text-gray-500">Calle Hidalgo 102</p></div>
-                      </div>
-                    </td>
-                    <td><span class="badge-base bg-purple-500/15 text-purple-400 border border-purple-500/30">Centro</span></td>
-                    <td class="text-center"><input type="checkbox" checked disabled class="accent-blue-600 w-4 h-4 cursor-default"></td>
-                    <td class="text-center"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activo</span></td>
-                    <td class="text-center">
-                      <div class="inline-flex items-center gap-1">
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-purple-300 hover:text-purple-100 transition" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-red-300 hover:text-red-100 transition" title="Desactivar"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr class="cursor-pointer hover:bg-[#1a2332]/40 transition">
-                    <td>
-                      <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded bg-[#1a2332] flex items-center justify-center"><i data-lucide="warehouse" class="w-3 h-3 text-gray-400"></i></div>
-                        <div><p class="text-[10px] font-bold text-white">Almacen Norte</p><p class="text-[8px] text-gray-500">Blvd. Lopez Mateos 88</p></div>
-                      </div>
-                    </td>
-                    <td><span class="badge-base bg-blue-500/15 text-blue-400 border border-blue-500/30">Norte</span></td>
-                    <td class="text-center"><input type="checkbox" checked disabled class="accent-blue-600 w-4 h-4 cursor-default"></td>
-                    <td class="text-center"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activo</span></td>
-                    <td class="text-center">
-                      <div class="inline-flex items-center gap-1">
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-purple-300 hover:text-purple-100 transition" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-red-300 hover:text-red-100 transition" title="Desactivar"><i data-lucide="toggle-right" class="w-3 h-3"></i></button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr class="cursor-pointer hover:bg-[#1a2332]/40 transition">
-                    <td>
-                      <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded bg-[#1a2332] flex items-center justify-center"><i data-lucide="warehouse" class="w-3 h-3 text-gray-400"></i></div>
-                        <div><p class="text-[10px] font-bold text-white">Almacen Sur</p><p class="text-[8px] text-gray-500">Calle Morelos 12</p></div>
-                      </div>
-                    </td>
-                    <td><span class="badge-base bg-orange-500/15 text-orange-400 border border-orange-500/30">Sur</span></td>
-                    <td class="text-center"><input type="checkbox" checked disabled class="accent-blue-600 w-4 h-4 cursor-default"></td>
-                    <td class="text-center"><span class="badge-base bg-red-500/15 text-red-400 border border-red-500/30">Inactivo</span></td>
-                    <td class="text-center">
-                      <div class="inline-flex items-center gap-1">
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-purple-300 hover:text-purple-100 transition" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>
-                        <button class="w-6 h-6 rounded flex items-center justify-center text-green-300 hover:text-green-100 transition" title="Activar"><i data-lucide="toggle-left" class="w-3 h-3"></i></button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
+                <tbody id="tbodyAlmacenes"></tbody>
               </table>
             </div>
           </div>
@@ -430,26 +314,26 @@
       </div>
       <div class="cs-modal-body p-4 space-y-3">
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-[10px] text-gray-500 mb-1">SKU</label><input type="text" class="cs-input text-xs w-full" placeholder="SKU-00001"></div>
-          <div><label class="block text-[10px] text-gray-500 mb-1">Nombre del producto</label><input type="text" class="cs-input text-xs w-full" placeholder="Ej. Leche Entera 1L"></div>
+          <div><label class="block text-[10px] text-gray-500 mb-1">SKU</label><input id="prodSku" type="text" class="cs-input text-xs w-full" placeholder="SKU-00001"></div>
+          <div><label class="block text-[10px] text-gray-500 mb-1">Nombre del producto</label><input id="prodName" type="text" class="cs-input text-xs w-full" placeholder="Ej. Leche Entera 1L"></div>
         </div>
         <div><label class="block text-[10px] text-gray-500 mb-1">Area de almacen</label>
-          <select class="cs-select text-xs w-full">
-            <option>Selecciona un area</option><option>Refrigerados</option><option>Secos</option><option>Congelados</option>
+          <select id="prodArea" class="cs-select text-xs w-full">
+            <option value="">Selecciona un area</option><option>Refrigerados</option><option>Secos</option><option>Congelados</option>
           </select>
         </div>
         <div class="grid grid-cols-3 gap-3">
-          <div><label class="block text-[10px] text-gray-500 mb-1">Maximo</label><input type="text" class="cs-input text-xs w-full" placeholder="0"></div>
-          <div><label class="block text-[10px] text-gray-500 mb-1">Minimo</label><input type="text" class="cs-input text-xs w-full" placeholder="0"></div>
-          <div><label class="block text-[10px] text-gray-500 mb-1">Vida util (dias)</label><input type="text" class="cs-input text-xs w-full" placeholder="0"></div>
+          <div><label class="block text-[10px] text-gray-500 mb-1">Maximo</label><input id="prodMax" type="text" class="cs-input text-xs w-full" placeholder="0"></div>
+          <div><label class="block text-[10px] text-gray-500 mb-1">Minimo</label><input id="prodMin" type="text" class="cs-input text-xs w-full" placeholder="0"></div>
+          <div><label class="block text-[10px] text-gray-500 mb-1">Vida util (dias)</label><input id="prodVida" type="text" class="cs-input text-xs w-full" placeholder="0"></div>
         </div>
-        <div><label class="block text-[10px] text-gray-500 mb-1">Costo de produccion</label><input type="text" class="cs-input text-xs w-full" placeholder="$0.00"></div>
+        <div><label class="block text-[10px] text-gray-500 mb-1">Costo de produccion</label><input id="prodCosto" type="text" class="cs-input text-xs w-full" placeholder="$0.00"></div>
       </div>
       <div class="cs-modal-footer">
         <div class="text-[10px] text-gray-500">Los cambios afectaran el catalogo de inventarios.</div>
         <div class="flex gap-2">
           <button class="cs-btn cs-btn-ghost cs-btn-sm" data-modal-close>Cancelar</button>
-          <button class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i>Guardar</button>
+          <button id="btnSaveProducto" type="button" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i>Guardar</button>
         </div>
       </div>
     </div>
@@ -469,29 +353,47 @@
         <button class="w-7 h-7 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white" data-modal-close><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
       </div>
       <div class="cs-modal-body p-4 space-y-3">
-        <div><label class="block text-[10px] text-gray-500 mb-1">Nombre del almacen</label><input type="text" class="cs-input text-xs w-full" placeholder="Ej. Almacen Principal Centro"></div>
+        <div><label class="block text-[10px] text-gray-500 mb-1">Nombre del almacen</label><input id="almName" type="text" class="cs-input text-xs w-full" placeholder="Ej. Almacen Principal Centro"></div>
         <div><label class="block text-[10px] text-gray-500 mb-1">Sucursal</label>
-          <select class="cs-select text-xs w-full">
-            <option>Selecciona una sucursal</option><option>Centro</option><option>Norte</option><option>Sur</option>
+          <select id="almSucursal" class="cs-select text-xs w-full">
+            <option value="">Selecciona una sucursal</option><option>Centro</option><option>Norte</option><option>Sur</option>
           </select>
         </div>
-        <div><label class="block text-[10px] text-gray-500 mb-1">Direccion / Ubicacion</label><input type="text" class="cs-input text-xs w-full" placeholder="Ej. Calle Hidalgo 102"></div>
+        <div><label class="block text-[10px] text-gray-500 mb-1">Direccion / Ubicacion</label><input id="almAddress" type="text" class="cs-input text-xs w-full" placeholder="Ej. Calle Hidalgo 102"></div>
         <div class="flex items-center gap-2">
-          <input type="checkbox" id="generalDefault" class="accent-blue-600 w-4 h-4">
-          <label for="generalDefault" class="text-[11px] text-gray-300 cursor-pointer">Almacen general por defecto en esta sucursal</label>
+          <input type="checkbox" id="almGeneralDefault" class="accent-blue-600 w-4 h-4">
+          <label for="almGeneralDefault" class="text-[11px] text-gray-300 cursor-pointer">Almacen general por defecto en esta sucursal</label>
         </div>
       </div>
       <div class="cs-modal-footer">
         <div class="text-[10px] text-gray-500">Solo puede haber un almacen general por sucursal.</div>
         <div class="flex gap-2">
           <button class="cs-btn cs-btn-ghost cs-btn-sm" data-modal-close>Cancelar</button>
-          <button class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i>Guardar</button>
+          <button id="btnSaveAlmacen" type="button" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i>Guardar</button>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Toast generico de feedback -->
+  <div id="notifyToast" class="fixed bottom-6 right-6 z-[200] w-[320px] hidden">
+    <div id="notifyCard" class="relative bg-[#1F2A37] rounded-[14px] py-[14px] px-[18px] overflow-hidden border border-gray-700/60 shadow-[0_12px_32px_rgba(0,0,0,0.5)]" style="border-left: 3px solid #22C55E;">
+      <div class="flex items-start gap-3">
+        <div id="notifyIconWrap" class="w-9 h-9 rounded-xl flex items-center justify-center border bg-[#22C55E]/15 border-[#22C55E]/25 shrink-0">
+          <i id="notifyIcon" data-lucide="check" class="w-4 h-4 text-[#22C55E]"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p id="notifyText" class="text-[12px] font-semibold text-white">Operacion exitosa</p>
+        </div>
+        <button id="btnNotifyClose" class="text-gray-500 hover:text-white transition shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    console.log('[admin-inv] script init');
     // ═══════════════════════════════════════════════════════════
     // Sidebar toggle
     // ═══════════════════════════════════════════════════════════
@@ -521,22 +423,338 @@
     });
 
     // ═══════════════════════════════════════════════════════════
-    // Modales
+    // Modales (cierre)
     // ═══════════════════════════════════════════════════════════
+    function closeModal(modal) {
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.style.display = '';
+    }
     document.querySelectorAll('[data-modal-close]').forEach(el => {
-      el.addEventListener('click', () => {
-        el.closest('.hidden')?.classList?.add('hidden');
-        const modal = el.closest('.cs-modal')?.parentElement;
-        if (modal) modal.classList.add('hidden');
-      });
+      el.addEventListener('click', () => closeModal(el.closest('.fixed.inset-0')));
     });
     document.querySelectorAll('.cs-modal-backdrop').forEach(el => {
-      el.addEventListener('click', () => el.parentElement.classList.add('hidden'));
+      el.addEventListener('click', () => closeModal(el.closest('.fixed.inset-0')));
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        document.getElementById('modalProducto').classList.add('hidden');
-        document.getElementById('modalAlmacen').classList.add('hidden');
+        closeModal(document.getElementById('modalProducto'));
+        closeModal(document.getElementById('modalAlmacen'));
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // SAMPLE data
+    // ═══════════════════════════════════════════════════════════
+    const SAMPLE_PRODUCTOS = [
+      { id: 1, sku: 'SKU-00124', name: 'Leche Entera 1L',     category: 'Lacteos', area: 'Refrigerados', max: 500,  min: 50,  costo: 18.50, vida_util: 14,  active: 1 },
+      { id: 2, sku: 'SKU-00451', name: 'Arroz Integral 1kg',  category: 'Granos',  area: 'Secos',        max: 1200, min: 100, costo: 24.00, vida_util: 365, active: 1 },
+      { id: 3, sku: 'SKU-00982', name: 'Pollo Congelado 2kg', category: 'Carnes',  area: 'Congelados',   max: 300,  min: 30,  costo: 65.00, vida_util: 90,  active: 0 },
+    ];
+    const SAMPLE_ALMACENES = [
+      { id: 1, name: 'Almacen Principal Centro', address: 'Calle Hidalgo 102',     sucursal: 'Centro', general_default: 1, active: 1 },
+      { id: 2, name: 'Almacen Norte',            address: 'Blvd. Lopez Mateos 88', sucursal: 'Norte',  general_default: 1, active: 1 },
+      { id: 3, name: 'Almacen Sur',              address: 'Calle Morelos 12',      sucursal: 'Sur',    general_default: 1, active: 0 },
+    ];
+
+    // Mapas estaticos para que Tailwind CDN no purgue clases dinamicas.
+    const AREA_THEME = {
+      Refrigerados: { iconBg: 'bg-blue-900/30',   iconText: 'text-blue-400',   badge: 'bg-blue-500/15 text-blue-400 border border-blue-500/30',     category: 'Lacteos' },
+      Secos:        { iconBg: 'bg-orange-900/30', iconText: 'text-orange-400', badge: 'bg-orange-500/15 text-orange-400 border border-orange-500/30', category: 'Granos'  },
+      Congelados:   { iconBg: 'bg-cyan-900/30',   iconText: 'text-cyan-400',   badge: 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30',     category: 'Carnes'  },
+    };
+    const SUCURSAL_BADGE = {
+      Centro: 'bg-purple-500/15 text-purple-400 border border-purple-500/30',
+      Norte:  'bg-blue-500/15 text-blue-400 border border-blue-500/30',
+      Sur:    'bg-orange-500/15 text-orange-400 border border-orange-500/30',
+    };
+    const ACTIVE_BADGE   = '<span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activo</span>';
+    const INACTIVE_BADGE = '<span class="badge-base bg-red-500/15 text-red-400 border border-red-500/30">Inactivo</span>';
+
+    let editingProductoId = null;
+    let editingAlmacenId  = null;
+
+    // ═══════════════════════════════════════════════════════════
+    // Notify toast (success / error)
+    // ═══════════════════════════════════════════════════════════
+    let notifyTimer = null;
+    function notify(msg, type) {
+      type = type || 'success';
+      const toast = document.getElementById('notifyToast');
+      const card  = document.getElementById('notifyCard');
+      const wrap  = document.getElementById('notifyIconWrap');
+      const icon  = document.getElementById('notifyIcon');
+      const text  = document.getElementById('notifyText');
+      const conf = type === 'error'
+        ? { color: '#EF4444', icon: 'alert-circle' }
+        : { color: '#22C55E', icon: 'check' };
+      card.style.borderLeftColor = conf.color;
+      wrap.style.background = conf.color + '26';
+      wrap.style.borderColor = conf.color + '40';
+      icon.setAttribute('data-lucide', conf.icon);
+      icon.style.color = conf.color;
+      text.textContent = msg;
+      toast.classList.remove('hidden', 'toast-fade-out');
+      toast.classList.add('toast-anim');
+      if (window.lucide) lucide.createIcons();
+      if (notifyTimer) clearTimeout(notifyTimer);
+      notifyTimer = setTimeout(hideNotify, 2800);
+    }
+    function hideNotify() {
+      const toast = document.getElementById('notifyToast');
+      toast.classList.remove('toast-anim');
+      toast.classList.add('toast-fade-out');
+      const handler = () => { toast.classList.add('hidden'); toast.classList.remove('toast-fade-out'); toast.removeEventListener('animationend', handler); };
+      toast.addEventListener('animationend', handler);
+    }
+    document.getElementById('btnNotifyClose').addEventListener('click', hideNotify);
+
+    // ═══════════════════════════════════════════════════════════
+    // Render: Productos
+    // ═══════════════════════════════════════════════════════════
+    function renderProductos() {
+      const fallback = { iconBg: 'bg-gray-700/30', iconText: 'text-gray-400', badge: 'bg-gray-500/15 text-gray-400 border border-gray-500/30' };
+      const tbody = document.getElementById('tbodyProductos');
+      if (!SAMPLE_PRODUCTOS.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-[11px] text-gray-500 py-6">Sin productos registrados</td></tr>';
+        return;
+      }
+      tbody.innerHTML = SAMPLE_PRODUCTOS.map(p => {
+        const t = AREA_THEME[p.area] || fallback;
+        const stateBadge  = p.active ? ACTIVE_BADGE : INACTIVE_BADGE;
+        const toggleIcon  = p.active ? 'toggle-right' : 'toggle-left';
+        const toggleClass = p.active ? 'text-red-300 hover:text-red-100' : 'text-green-300 hover:text-green-100';
+        const toggleTitle = p.active ? 'Desactivar' : 'Activar';
+        return `
+          <tr class="cursor-pointer hover:bg-[#1a2332]/40 transition" data-id="${p.id}">
+            <td>
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded ${t.iconBg} flex items-center justify-center"><i data-lucide="box" class="w-3 h-3 ${t.iconText}"></i></div>
+                <div><p class="text-[10px] font-bold text-white">${p.name}</p><p class="text-[8px] text-gray-500">${p.category || ''}</p></div>
+              </div>
+            </td>
+            <td class="text-[9px] text-gray-400 font-mono">${p.sku}</td>
+            <td><span class="badge-base ${t.badge}">${p.area}</span></td>
+            <td class="text-center">${Number(p.max).toLocaleString()}</td>
+            <td class="text-center">${p.min}</td>
+            <td class="text-right">$${Number(p.costo).toFixed(2)}</td>
+            <td class="text-center">${p.vida_util} dias</td>
+            <td class="text-center">${stateBadge}</td>
+            <td class="text-center">
+              <div class="inline-flex items-center gap-1">
+                <button class="w-6 h-6 rounded flex items-center justify-center text-purple-300 hover:text-purple-100 transition" title="Editar" data-action="edit-producto" data-id="${p.id}"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                <button class="w-6 h-6 rounded flex items-center justify-center ${toggleClass} transition" title="${toggleTitle}" data-action="toggle-producto" data-id="${p.id}"><i data-lucide="${toggleIcon}" class="w-3 h-3"></i></button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Render: Almacenes
+    // ═══════════════════════════════════════════════════════════
+    function renderAlmacenes() {
+      const tbody = document.getElementById('tbodyAlmacenes');
+      if (!SAMPLE_ALMACENES.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-[11px] text-gray-500 py-6">Sin almacenes registrados</td></tr>';
+        return;
+      }
+      tbody.innerHTML = SAMPLE_ALMACENES.map(a => {
+        const badge = SUCURSAL_BADGE[a.sucursal] || 'bg-gray-500/15 text-gray-400 border border-gray-500/30';
+        const stateBadge  = a.active ? ACTIVE_BADGE : INACTIVE_BADGE;
+        const toggleIcon  = a.active ? 'toggle-right' : 'toggle-left';
+        const toggleClass = a.active ? 'text-red-300 hover:text-red-100' : 'text-green-300 hover:text-green-100';
+        const toggleTitle = a.active ? 'Desactivar' : 'Activar';
+        return `
+          <tr class="cursor-pointer hover:bg-[#1a2332]/40 transition" data-id="${a.id}">
+            <td>
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded bg-[#1a2332] flex items-center justify-center"><i data-lucide="warehouse" class="w-3 h-3 text-gray-400"></i></div>
+                <div><p class="text-[10px] font-bold text-white">${a.name}</p><p class="text-[8px] text-gray-500">${a.address || ''}</p></div>
+              </div>
+            </td>
+            <td><span class="badge-base ${badge}">${a.sucursal}</span></td>
+            <td class="text-center"><input type="checkbox" ${a.general_default ? 'checked' : ''} disabled class="accent-blue-600 w-4 h-4 cursor-default"></td>
+            <td class="text-center">${stateBadge}</td>
+            <td class="text-center">
+              <div class="inline-flex items-center gap-1">
+                <button class="w-6 h-6 rounded flex items-center justify-center text-purple-300 hover:text-purple-100 transition" title="Editar" data-action="edit-almacen" data-id="${a.id}"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                <button class="w-6 h-6 rounded flex items-center justify-center ${toggleClass} transition" title="${toggleTitle}" data-action="toggle-almacen" data-id="${a.id}"><i data-lucide="${toggleIcon}" class="w-3 h-3"></i></button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Modal Producto
+    // ═══════════════════════════════════════════════════════════
+    function openProductoModal(id) {
+      console.log('[openProductoModal] id=', id);
+      editingProductoId = id != null ? id : null;
+      const modal = document.getElementById('modalProducto');
+      const title = modal.querySelector('.cs-modal-title');
+      const sub   = modal.querySelector('.cs-modal-header p');
+      const fSku = document.getElementById('prodSku');
+      const fName = document.getElementById('prodName');
+      const fArea = document.getElementById('prodArea');
+      const fMax = document.getElementById('prodMax');
+      const fMin = document.getElementById('prodMin');
+      const fVida = document.getElementById('prodVida');
+      const fCosto = document.getElementById('prodCosto');
+      if (id != null) {
+        const p = SAMPLE_PRODUCTOS.find(x => x.id === id);
+        if (!p) return;
+        title.textContent = 'Editar Producto';
+        sub.textContent = 'Modifica la informacion del producto';
+        fSku.value = p.sku; fName.value = p.name; fArea.value = p.area;
+        fMax.value = p.max; fMin.value = p.min; fVida.value = p.vida_util;
+        fCosto.value = Number(p.costo).toFixed(2);
+      } else {
+        title.textContent = 'Nuevo Producto';
+        sub.textContent = 'Completa la informacion del producto';
+        fSku.value = ''; fName.value = ''; fArea.value = '';
+        fMax.value = ''; fMin.value = ''; fVida.value = ''; fCosto.value = '';
+      }
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+      const r = modal.getBoundingClientRect();
+      console.log('[openProductoModal] rect=', r.width, 'x', r.height, '@', r.top, r.left);
+    }
+    function saveProducto() {
+      const data = {
+        sku: document.getElementById('prodSku').value.trim(),
+        name: document.getElementById('prodName').value.trim(),
+        area: document.getElementById('prodArea').value,
+        max: parseInt(document.getElementById('prodMax').value, 10) || 0,
+        min: parseInt(document.getElementById('prodMin').value, 10) || 0,
+        vida_util: parseInt(document.getElementById('prodVida').value, 10) || 0,
+        costo: parseFloat(String(document.getElementById('prodCosto').value).replace(/[^0-9.\-]/g, '')) || 0,
+      };
+      const faltan = [];
+      if (!data.sku)  faltan.push('SKU');
+      if (!data.name) faltan.push('Nombre');
+      if (!data.area) faltan.push('Area');
+      if (faltan.length) { notify('Falta completar: ' + faltan.join(', '), 'error'); return; }
+      data.category = (AREA_THEME[data.area] && AREA_THEME[data.area].category) || '';
+      if (editingProductoId != null) {
+        const i = SAMPLE_PRODUCTOS.findIndex(p => p.id === editingProductoId);
+        SAMPLE_PRODUCTOS[i] = Object.assign({}, SAMPLE_PRODUCTOS[i], data);
+        notify('Producto actualizado');
+      } else {
+        const newId = SAMPLE_PRODUCTOS.reduce((m, p) => Math.max(m, p.id), 0) + 1;
+        SAMPLE_PRODUCTOS.push(Object.assign({ id: newId, active: 1 }, data));
+        notify('Producto agregado');
+      }
+      closeModal(document.getElementById('modalProducto'));
+      renderProductos();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Modal Almacen
+    // ═══════════════════════════════════════════════════════════
+    function openAlmacenModal(id) {
+      console.log('[openAlmacenModal] id=', id);
+      editingAlmacenId = id != null ? id : null;
+      const modal = document.getElementById('modalAlmacen');
+      const title = modal.querySelector('.cs-modal-title');
+      const sub   = modal.querySelector('.cs-modal-header p');
+      const fName = document.getElementById('almName');
+      const fSuc  = document.getElementById('almSucursal');
+      const fAddr = document.getElementById('almAddress');
+      const fDef  = document.getElementById('almGeneralDefault');
+      if (id != null) {
+        const a = SAMPLE_ALMACENES.find(x => x.id === id);
+        if (!a) return;
+        title.textContent = 'Editar Almacen';
+        sub.textContent = 'Modifica la configuracion del almacen';
+        fName.value = a.name; fSuc.value = a.sucursal; fAddr.value = a.address || '';
+        fDef.checked = !!a.general_default;
+      } else {
+        title.textContent = 'Nuevo Almacen';
+        sub.textContent = 'Configura el almacen y su sucursal';
+        fName.value = ''; fSuc.value = ''; fAddr.value = ''; fDef.checked = false;
+      }
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+      const r = modal.getBoundingClientRect();
+      console.log('[openAlmacenModal] rect=', r.width, 'x', r.height, '@', r.top, r.left);
+    }
+    function saveAlmacen() {
+      const data = {
+        name: document.getElementById('almName').value.trim(),
+        sucursal: document.getElementById('almSucursal').value,
+        address: document.getElementById('almAddress').value.trim(),
+        general_default: document.getElementById('almGeneralDefault').checked ? 1 : 0,
+      };
+      const faltan = [];
+      if (!data.name)     faltan.push('Nombre');
+      if (!data.sucursal) faltan.push('Sucursal');
+      if (faltan.length) { notify('Falta completar: ' + faltan.join(', '), 'error'); return; }
+      // Solo un general por sucursal: si marca general, desmarca otros de la misma sucursal.
+      if (data.general_default) {
+        SAMPLE_ALMACENES.forEach(a => {
+          if (a.sucursal === data.sucursal && a.id !== editingAlmacenId) a.general_default = 0;
+        });
+      }
+      if (editingAlmacenId != null) {
+        const i = SAMPLE_ALMACENES.findIndex(a => a.id === editingAlmacenId);
+        SAMPLE_ALMACENES[i] = Object.assign({}, SAMPLE_ALMACENES[i], data);
+        notify('Almacen actualizado');
+      } else {
+        const newId = SAMPLE_ALMACENES.reduce((m, a) => Math.max(m, a.id), 0) + 1;
+        SAMPLE_ALMACENES.push(Object.assign({ id: newId, active: 1 }, data));
+        notify('Almacen agregado');
+      }
+      closeModal(document.getElementById('modalAlmacen'));
+      renderAlmacenes();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Botones modulo Inventarios (enganchado temprano para no depender del navbar)
+    // ═══════════════════════════════════════════════════════════
+    const _bind = (id, fn) => {
+      const el = document.getElementById(id);
+      if (!el) { console.warn('[admin-inv] no encontrado:', id); return; }
+      el.addEventListener('click', fn);
+      console.log('[admin-inv] bound', id);
+    };
+    _bind('btnNuevoProducto', () => openProductoModal());
+    _bind('btnNuevoAlmacen',  () => openAlmacenModal());
+    _bind('btnSaveProducto',  saveProducto);
+    _bind('btnSaveAlmacen',   saveAlmacen);
+
+    // ═══════════════════════════════════════════════════════════
+    // Delegacion de eventos: editar / toggle
+    // ═══════════════════════════════════════════════════════════
+    document.getElementById('tbodyProductos').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const id = Number(btn.getAttribute('data-id'));
+      const action = btn.getAttribute('data-action');
+      if (action === 'edit-producto') { openProductoModal(id); return; }
+      if (action === 'toggle-producto') {
+        const p = SAMPLE_PRODUCTOS.find(x => x.id === id);
+        if (!p) return;
+        p.active = p.active ? 0 : 1;
+        renderProductos();
+        notify(p.active ? 'Producto activado' : 'Producto desactivado');
+      }
+    });
+    document.getElementById('tbodyAlmacenes').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const id = Number(btn.getAttribute('data-id'));
+      const action = btn.getAttribute('data-action');
+      if (action === 'edit-almacen') { openAlmacenModal(id); return; }
+      if (action === 'toggle-almacen') {
+        const a = SAMPLE_ALMACENES.find(x => x.id === id);
+        if (!a) return;
+        a.active = a.active ? 0 : 1;
+        renderAlmacenes();
+        notify(a.active ? 'Almacen activado' : 'Almacen desactivado');
       }
     });
 
@@ -629,7 +847,10 @@
     $('btnLogout').addEventListener('click', () => { console.log('Cerrar sesion'); });
 
     renderBranchList();
+    renderProductos();
+    renderAlmacenes();
     lucide.createIcons();
+    console.log('[admin-inv] script end');
   </script>
 </body>
 </html>

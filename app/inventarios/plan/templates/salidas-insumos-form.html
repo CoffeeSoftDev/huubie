@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modal Nueva Salida de Insumos &mdash; Wireframe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { background: rgba(0,0,0,.7); font-family: 'Inter', system-ui, sans-serif; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .cs-scroll::-webkit-scrollbar { width: 6px; }
+        .cs-scroll::-webkit-scrollbar-track { background: transparent; }
+        .cs-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .modal-shell { width: 100%; max-width: 1100px; max-height: 90vh; background: #111928; border: 1px solid rgba(55,65,81,.6); border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,.6); display: flex; flex-direction: column; overflow: hidden; }
+        .qty-input { width: 60px; background: #1a2332; border: 1px solid #374151; border-radius: 4px; padding: 4px 6px; font-size: 11px; color: #fff; text-align: right; }
+        .qty-input:focus { outline: none; border-color: #10B981; }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Wireframe: Modal Nueva Salida de Insumos                   -->
+    <!--  Espejo del entradaForm pero para CATALOGO DE INSUMOS       -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="modal-shell">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#374151] bg-[#141d2b]">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded bg-emerald-900/30 flex items-center justify-center">
+                    <i data-lucide="package-minus" class="w-4 h-4 text-emerald-400"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white">Nueva Salida de Insumos</h2>
+                    <p class="text-[10px] text-gray-400">Registra salida de almacen hacia area de consumo</p>
+                </div>
+            </div>
+            <button class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+
+        <!-- Body: dos columnas -->
+        <div class="flex flex-1 overflow-hidden min-h-[520px]">
+
+            <!-- ═══════════════════════════════════════════════════ -->
+            <!-- COLUMNA IZQUIERDA: catalogo de insumos              -->
+            <!-- ═══════════════════════════════════════════════════ -->
+            <div class="w-1/2 flex flex-col border-r border-[#374151] bg-[#0E1521]">
+
+                <!-- Buscador / filtro -->
+                <div class="px-4 py-3 border-b border-[#374151]">
+                    <div class="grid grid-cols-12 gap-2">
+                        <div class="col-span-7 relative">
+                            <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                            <input type="text" placeholder="Buscar insumo..." class="w-full bg-[#1a2332] border border-[#374151] rounded pl-7 pr-2 py-1.5 text-xs placeholder-[#6B7280]">
+                        </div>
+                        <div class="col-span-5">
+                            <select class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                                <option>Todas las categorias</option>
+                                <option>Materia prima</option>
+                                <option>Limpieza</option>
+                                <option>Papeleria</option>
+                                <option>Empaque</option>
+                                <option>Insumo de cocina</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de insumos -->
+                <div class="flex-1 overflow-auto cs-scroll p-3 space-y-2">
+
+                    <!-- Insumo 1 -->
+                    <label class="flex items-center gap-2 p-2 bg-[#1F2937] hover:bg-[#374151] rounded cursor-pointer transition-colors">
+                        <input type="checkbox" checked class="accent-emerald-500">
+                        <div class="w-8 h-8 rounded bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="wheat" class="w-4 h-4 text-amber-400"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[12px] font-bold text-white leading-tight">Harina T55</p>
+                            <p class="text-[10px] text-gray-500">INS-001 &middot; <span class="text-amber-400">Materia prima</span> &middot; $42.00/kg</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400">Stock</p>
+                            <p class="text-[11px] font-bold text-emerald-400">80 kg</p>
+                        </div>
+                    </label>
+
+                    <!-- Insumo 2 -->
+                    <label class="flex items-center gap-2 p-2 bg-[#1F2937] hover:bg-[#374151] rounded cursor-pointer transition-colors">
+                        <input type="checkbox" checked class="accent-emerald-500">
+                        <div class="w-8 h-8 rounded bg-orange-900/30 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="candy" class="w-4 h-4 text-orange-400"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[12px] font-bold text-white leading-tight">Azucar Estandar</p>
+                            <p class="text-[10px] text-gray-500">INS-002 &middot; <span class="text-amber-400">Materia prima</span> &middot; $25.00/kg</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400">Stock</p>
+                            <p class="text-[11px] font-bold text-emerald-400">120 kg</p>
+                        </div>
+                    </label>
+
+                    <!-- Insumo 3 -->
+                    <label class="flex items-center gap-2 p-2 bg-[#1F2937] hover:bg-[#374151] rounded cursor-pointer transition-colors">
+                        <input type="checkbox" checked class="accent-emerald-500">
+                        <div class="w-8 h-8 rounded bg-yellow-900/30 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="milk" class="w-4 h-4 text-yellow-400"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[12px] font-bold text-white leading-tight">Mantequilla</p>
+                            <p class="text-[10px] text-gray-500">INS-003 &middot; <span class="text-amber-400">Materia prima</span> &middot; $110.00/kg</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400">Stock</p>
+                            <p class="text-[11px] font-bold text-emerald-400">18 kg</p>
+                        </div>
+                    </label>
+
+                    <!-- Insumo 4 -->
+                    <label class="flex items-center gap-2 p-2 bg-[#1F2937] hover:bg-[#374151] rounded cursor-pointer transition-colors">
+                        <input type="checkbox" class="accent-emerald-500">
+                        <div class="w-8 h-8 rounded bg-cyan-900/30 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="spray-can" class="w-4 h-4 text-cyan-400"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[12px] font-bold text-white leading-tight">Detergente Multiuso</p>
+                            <p class="text-[10px] text-gray-500">INS-004 &middot; <span class="text-cyan-400">Limpieza</span> &middot; $180.00/lt</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400">Stock</p>
+                            <p class="text-[11px] font-bold text-emerald-400">12 lt</p>
+                        </div>
+                    </label>
+
+                    <!-- Insumo 5 -->
+                    <label class="flex items-center gap-2 p-2 bg-[#1F2937] hover:bg-[#374151] rounded cursor-pointer transition-colors">
+                        <input type="checkbox" class="accent-emerald-500">
+                        <div class="w-8 h-8 rounded bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="package" class="w-4 h-4 text-blue-400"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[12px] font-bold text-white leading-tight">Servilletas</p>
+                            <p class="text-[10px] text-gray-500">INS-005 &middot; <span class="text-blue-400">Papeleria</span> &middot; $35.00/pq</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400">Stock</p>
+                            <p class="text-[11px] font-bold text-emerald-400">65 pq</p>
+                        </div>
+                    </label>
+
+                    <!-- Insumo 6 -->
+                    <label class="flex items-center gap-2 p-2 bg-[#1F2937] hover:bg-[#374151] rounded cursor-pointer transition-colors">
+                        <input type="checkbox" class="accent-emerald-500">
+                        <div class="w-8 h-8 rounded bg-stone-800/50 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="coffee" class="w-4 h-4 text-stone-400"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[12px] font-bold text-white leading-tight">Cafe Grano Verde</p>
+                            <p class="text-[10px] text-gray-500">INS-006 &middot; <span class="text-amber-400">Materia prima</span> &middot; $320.00/kg</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400">Stock</p>
+                            <p class="text-[11px] font-bold text-emerald-400">25 kg</p>
+                        </div>
+                    </label>
+
+                    <!-- Insumo 7 -->
+                    <label class="flex items-center gap-2 p-2 bg-[#1F2937] hover:bg-[#374151] rounded cursor-pointer transition-colors">
+                        <input type="checkbox" class="accent-emerald-500">
+                        <div class="w-8 h-8 rounded bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="leaf" class="w-4 h-4 text-green-400"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[12px] font-bold text-white leading-tight">Cocoa Pura</p>
+                            <p class="text-[10px] text-gray-500">INS-007 &middot; <span class="text-amber-400">Materia prima</span> &middot; $280.00/kg</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400">Stock</p>
+                            <p class="text-[11px] font-bold text-emerald-400">8 kg</p>
+                        </div>
+                    </label>
+
+                </div>
+
+                <!-- Hint -->
+                <div class="px-4 py-2 border-t border-[#374151] text-[10px] text-gray-500 flex items-center gap-2">
+                    <i data-lucide="info" class="w-3 h-3"></i>
+                    Marca los insumos a entregar. Define cantidad en la columna derecha.
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════ -->
+            <!-- COLUMNA DERECHA: datos generales + carrito          -->
+            <!-- ═══════════════════════════════════════════════════ -->
+            <div class="w-1/2 flex flex-col bg-[#141d2b]">
+
+                <!-- Datos generales -->
+                <div class="px-4 py-3 border-b border-[#374151]">
+                    <p class="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-2">Datos de la salida</p>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Almacen origen</label>
+                            <select class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                                <option>Almacen Centro</option>
+                                <option>Almacen Norte</option>
+                                <option>Almacen Sur</option>
+                                <option>Almacen Este Refrigerado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Area destino</label>
+                            <select class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                                <option>Cocina</option>
+                                <option>Barra</option>
+                                <option>Panaderia</option>
+                                <option>Mantenimiento</option>
+                                <option>Oficina</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Motivo</label>
+                            <select class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                                <option>Consumo interno</option>
+                                <option>Transferencia area</option>
+                                <option>Baja por caducidad</option>
+                                <option>Donativo</option>
+                                <option>Ajuste fisico</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Fecha</label>
+                            <input type="date" value="2026-05-19" class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Autorizo</label>
+                            <select class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                                <option>Rosy</option>
+                                <option>Somx</option>
+                                <option>Admin</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Recibe</label>
+                            <select class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs">
+                                <option>Chef Luis &middot; Cocina</option>
+                                <option>Maria Barra</option>
+                                <option>Pedro Panaderia</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Carrito de insumos seleccionados -->
+                <div class="flex-1 flex flex-col overflow-hidden">
+                    <div class="px-4 py-2 flex items-center justify-between border-b border-[#374151]">
+                        <p class="text-[10px] uppercase tracking-wider font-bold text-gray-400">Insumos seleccionados</p>
+                        <span class="text-[10px] text-emerald-400 font-bold">3 items</span>
+                    </div>
+
+                    <div class="flex-1 overflow-auto cs-scroll p-3 space-y-2">
+
+                        <!-- Item carrito 1 -->
+                        <div class="flex items-center gap-2 p-2 bg-[#1F2937] rounded">
+                            <div class="w-7 h-7 rounded bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="wheat" class="w-3.5 h-3.5 text-amber-400"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[11px] font-bold text-white leading-tight">Harina T55</p>
+                                <p class="text-[9px] text-gray-500">$42/kg</p>
+                            </div>
+                            <input type="number" value="3" step="0.1" class="qty-input">
+                            <span class="text-[10px] text-gray-400">kg</span>
+                            <p class="text-[11px] font-bold text-emerald-400 w-14 text-right">$126</p>
+                            <button class="text-red-400 hover:text-red-300"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                        </div>
+
+                        <!-- Item carrito 2 -->
+                        <div class="flex items-center gap-2 p-2 bg-[#1F2937] rounded">
+                            <div class="w-7 h-7 rounded bg-orange-900/30 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="candy" class="w-3.5 h-3.5 text-orange-400"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[11px] font-bold text-white leading-tight">Azucar Estandar</p>
+                                <p class="text-[9px] text-gray-500">$25/kg</p>
+                            </div>
+                            <input type="number" value="2" step="0.1" class="qty-input">
+                            <span class="text-[10px] text-gray-400">kg</span>
+                            <p class="text-[11px] font-bold text-emerald-400 w-14 text-right">$50</p>
+                            <button class="text-red-400 hover:text-red-300"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                        </div>
+
+                        <!-- Item carrito 3 -->
+                        <div class="flex items-center gap-2 p-2 bg-[#1F2937] rounded">
+                            <div class="w-7 h-7 rounded bg-yellow-900/30 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="milk" class="w-3.5 h-3.5 text-yellow-400"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[11px] font-bold text-white leading-tight">Mantequilla</p>
+                                <p class="text-[9px] text-gray-500">$110/kg</p>
+                            </div>
+                            <input type="number" value="1.5" step="0.1" class="qty-input">
+                            <span class="text-[10px] text-gray-400">kg</span>
+                            <p class="text-[11px] font-bold text-emerald-400 w-14 text-right">$165</p>
+                            <button class="text-red-400 hover:text-red-300"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                        </div>
+
+                    </div>
+
+                    <!-- Nota -->
+                    <div class="px-4 py-2 border-t border-[#374151]">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Nota</label>
+                        <textarea rows="2" class="w-full bg-[#1a2332] border border-[#374151] rounded px-2 py-1.5 text-xs placeholder-[#6B7280] resize-none" placeholder="Detalles adicionales...">Produccion turno matutino. Salida para preparar cupcakes y galletas de la jornada.</textarea>
+                    </div>
+
+                    <!-- Totales -->
+                    <div class="px-4 py-3 bg-[#0E1521] border-t border-[#374151] flex items-center justify-between">
+                        <div>
+                            <p class="text-[9px] uppercase text-gray-500">Total uds</p>
+                            <p class="text-sm font-bold text-emerald-400">6.5</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[9px] uppercase text-gray-500">Costo total</p>
+                            <p class="text-sm font-bold text-white">$341.00</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-3 border-t border-[#374151] bg-[#141d2b] flex items-center justify-between">
+            <p class="text-[10px] text-gray-500">Folio asignado al aplicar: <span class="text-white font-mono">SAL-INS-015</span></p>
+            <div class="flex gap-2">
+                <button class="bg-[#1F2937] hover:bg-[#374151] text-white rounded px-4 py-1.5 text-xs font-semibold">Cancelar</button>
+                <button class="bg-emerald-600 hover:bg-emerald-500 text-white rounded px-4 py-1.5 text-xs font-bold flex items-center gap-1">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Aplicar Salida
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        if (window.lucide) lucide.createIcons();
+    </script>
+</body>
+</html>

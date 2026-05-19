@@ -25,11 +25,11 @@ class App extends Templates {
         this.primaryLayout({
             parent: "root",
             id: this.PROJECT_NAME,
-            class: 'flex mx-2 ',
+            class: 'flex mx-2 sm:mx-1 p-2 sm:p-3',
             heightPreset: 'full',
             card: {
                 filterBar: { class: 'w-full ', id: 'filterBar' },
-                container: { class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
+                container: { class: 'w-full bg-[#1F2A37] min-h-[calc(100vh-120px)] sm:h-screen rounded p-1 sm:p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
             }
         });
 
@@ -60,22 +60,35 @@ class App extends Templates {
                 <div class="mt-10 flex items-center gap-2 text-gray-500 text-sm">
                     <i data-lucide="shield-check" class="w-4 h-4"></i>
                     <span>Sesión segura ·</span>
-                    <a href="#" id="btnLogout" class="text-gray-300 hover:text-white transition-colors">Cerrar sesión</a>
+                    <a href="#" id="btnLogoutSubsidiaries" class="text-gray-300 hover:text-white transition-colors">Cerrar sesión</a>
                 </div>
             </div>
         `);
 
+        const SHIFT_STYLES = {
+            open:          { dot: 'bg-green-400',  text: 'text-green-400'   },
+            open_stale:    { dot: 'bg-orange-400', text: 'text-orange-400'  },
+            pending_close: { dot: 'bg-amber-400',  text: 'text-amber-400'   },
+            closed:        { dot: 'bg-blue-400',   text: 'text-blue-400'    },
+            no_shift:      { dot: 'bg-gray-500',   text: 'text-gray-400'    }
+        };
+
         branches.forEach(branch => {
             const isSelected = branch.selected === 1;
-            const statusHtml = branch.active > 0
-                ? `<div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span><span class="text-green-400">Abierta</span></div>`
-                : `<div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span><span class="text-red-400">Cerrada</span></div>`;
+            const shiftKey   = branch.shift_status || 'no_shift';
+            const shiftStyle = SHIFT_STYLES[shiftKey] || SHIFT_STYLES.no_shift;
+            const shiftLabel = branch.shift_label || 'Sin turno hoy';
+            const statusHtml = `
+                <div class="flex items-center gap-1 whitespace-nowrap">
+                    <span class="w-2 h-2 rounded-full ${shiftStyle.dot} inline-block shrink-0"></span>
+                    <span class="${shiftStyle.text}">${shiftLabel}</span>
+                </div>`;
 
             const card = `
                 <div class="branch-card cursor-pointer rounded-xl p-5 text-left transition-all duration-200 select-none
                     ${isSelected
-                        ? 'bg-[#111928] border-2 border-teal-400 hover:border-teal-300'
-                        : 'bg-[#111928] border border-[#374151] hover:border-[#4B5563]'
+                        ? 'bg-[#111928] border-2 border-teal-400 hover:!border-[#7C3AED]'
+                        : 'bg-[#111928] border border-[#374151] hover:!border-[#7C3AED]'
                     }" data-id="${branch.id}">
                     <div class="flex items-start justify-between mb-4">
                         <div class="bg-blue-600 rounded-xl p-3 flex-shrink-0">
@@ -107,17 +120,51 @@ class App extends Templates {
 
         if (window.lucide) lucide.createIcons();
 
-        $(document).off('click.branch').on('click.branch', '.branch-card', function () {
-            const id = $(this).data('id');
-            fn_ajax({ opc: 'switchBranch', id }, '/app/access/ctrl/ctrl-access.php').then(res => {
-                if (res.status === 200) window.location.href = '/app/ventas/';
-            });
-        });
+        const grid = document.getElementById('subsidiariesGrid');
+        if (grid) {
+            grid.addEventListener('click', (e) => {
+                const card = e.target.closest('.branch-card');
+                if (!card || !grid.contains(card)) return;
+                e.stopPropagation();
+                e.preventDefault();
+                const id = card.getAttribute('data-id');
+                fn_ajax({ opc: 'switchBranch', id }, '/app/access/ctrl/ctrl-access.php').then(res => {
+                    if (res.status === 200) window.location.href = '/app/ventas/';
+                });
+            }, true);
+        }
 
-        $('#btnLogout').off('click').on('click', function (e) {
+        $('#btnLogoutSubsidiaries').off('click').on('click', function (e) {
             e.preventDefault();
-            fn_ajax({ opc: 'logout' }, '/app/access/ctrl/ctrl-access.php').then(() => {
-                window.location.href = '/app/';
+
+            Swal.fire({
+                title: '¿Cerrar sesión?',
+                text: 'Se cerrará tu sesión actual y volverás al inicio.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, cerrar sesión',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#7C3AED',
+                cancelButtonColor: '#374151',
+                background: '#111928',
+                color: '#fff',
+                reverseButtons: true
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+
+                Swal.fire({
+                    title: 'Cerrando sesión...',
+                    background: '#111928',
+                    color: '#fff',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                fn_ajax({ opc: 'logout' }, '/app/access/ctrl/ctrl-access.php')
+                    .then(() => { window.location.href = '/app/'; })
+                    .catch(() => { window.location.href = '/app/'; });
             });
         });
     }
