@@ -97,9 +97,13 @@
             <option>Reginas Kafeto (actual)</option>
             <option>Todas las sucursales</option>
           </select>
-          <button onclick="document.getElementById('modalTraspaso').classList.remove('hidden'); document.getElementById('modalTraspaso').classList.add('flex');" class="cs-btn cs-btn-primary cs-btn-sm">
+          <button onclick="document.getElementById('modalTraspaso').classList.remove('hidden'); document.getElementById('modalTraspaso').classList.add('flex');" class="cs-btn cs-btn-outline cs-btn-sm">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
             Nuevo Traspaso
+          </button>
+          <button onclick="document.getElementById('modalTraspasoV2').classList.remove('hidden'); document.getElementById('modalTraspasoV2').classList.add('flex');" class="cs-btn cs-btn-primary cs-btn-sm">
+            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i>
+            Nuevo Traspaso v2
           </button>
         </div>
       </div>
@@ -666,6 +670,378 @@
           <i data-lucide="send" class="w-3 h-3"></i>
           Crear y Enviar Traspaso
         </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL V2: Nuevo Traspaso (con buscador + carrito) -->
+  <div id="modalTraspasoV2" class="hidden fixed inset-0 bg-black/70 z-[60] items-center justify-center p-4">
+    <div class="bg-[#141d2b] rounded-2xl border border-[#374151] w-[1100px] max-w-full max-h-[92vh] flex flex-col relative overflow-hidden">
+
+      <!-- Header -->
+      <div class="px-5 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-[rgba(124,58,237,0.15)] flex items-center justify-center">
+            <i data-lucide="arrow-left-right" class="w-4 h-4 text-[#c4b5fd]"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Nuevo traspaso</h3>
+            <p class="text-[10px] text-[#6B7280]">Mueve producto entre sucursales o almacenes</p>
+          </div>
+        </div>
+        <button onclick="document.getElementById('modalTraspasoV2').classList.add('hidden'); document.getElementById('modalTraspasoV2').classList.remove('flex');" class="text-[#6B7280] hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Tabs Traspaso / Transformación -->
+      <div class="px-5 pt-3 flex-shrink-0">
+        <div class="cs-tabs border-b border-[#374151]">
+          <button class="cs-tab active flex items-center gap-1.5">
+            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i>
+            Traspaso
+          </button>
+          <button class="cs-tab flex items-center gap-1.5">
+            <i data-lucide="recycle" class="w-3.5 h-3.5"></i>
+            Transformación
+          </button>
+        </div>
+      </div>
+
+      <!-- Selectores: Origen / Destino / Categoría -->
+      <div class="px-5 py-3 grid grid-cols-[1fr_auto_1fr_1fr] gap-3 items-start flex-shrink-0">
+
+        <!-- Sucursal Origen -->
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3">
+          <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1.5">
+            <i data-lucide="arrow-up" class="w-3 h-3"></i>
+            Sucursal Origen
+          </label>
+          <select class="cs-select text-xs w-full mb-2">
+            <option>Reginas Matriz</option>
+            <option>Reginas Centro</option>
+            <option>Suc. Norte</option>
+            <option>Suc. Sur</option>
+          </select>
+          <p class="text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">Almacén</p>
+          <div class="grid grid-cols-3 gap-1">
+            <button class="cs-btn cs-btn-sm cs-btn-primary !py-1 !text-[10px]">GEN</button>
+            <button class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[10px]">ALM</button>
+            <button class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[10px]">VTA</button>
+          </div>
+        </div>
+
+        <!-- Flecha -->
+        <div class="flex items-center justify-center h-full pt-8">
+          <div class="w-7 h-7 rounded-full bg-[rgba(124,58,237,0.15)] flex items-center justify-center">
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-[#c4b5fd]"></i>
+          </div>
+        </div>
+
+        <!-- Sucursal Destino -->
+        <div class="bg-[#1F2A37] border border-green-700/40 rounded-lg p-3">
+          <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-green-400 mb-1.5">
+            <i data-lucide="arrow-down" class="w-3 h-3"></i>
+            Sucursal Destino
+          </label>
+          <select class="cs-select text-xs w-full mb-2">
+            <option>Reginas Centro</option>
+            <option>Reginas Matriz</option>
+            <option>Suc. Norte</option>
+            <option>Suc. Sur</option>
+          </select>
+          <p class="text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">Almacén</p>
+          <div class="grid grid-cols-3 gap-1">
+            <button class="cs-btn cs-btn-sm cs-btn-success !py-1 !text-[10px]">GEN</button>
+            <button class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[10px]">ALM</button>
+            <button class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[10px]">VTA</button>
+          </div>
+        </div>
+
+        <!-- Categoría -->
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3">
+          <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1.5">
+            <i data-lucide="tag" class="w-3 h-3"></i>
+            Categoría
+          </label>
+          <select class="cs-select text-xs w-full mb-2">
+            <option>Reabastecimiento</option>
+            <option>Devolución</option>
+            <option>Préstamo</option>
+            <option>Apertura</option>
+          </select>
+          <p class="text-[9px] text-[#6B7280] leading-tight">Mover stock entre sucursales para cubrir demanda.</p>
+        </div>
+      </div>
+
+      <!-- Cuerpo: Buscador + Carrito -->
+      <div class="flex-1 px-5 pb-3 grid grid-cols-[320px_1fr] gap-3 overflow-hidden min-h-0">
+
+        <!-- Columna izquierda: Buscar productos -->
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 flex flex-col overflow-hidden min-h-0">
+          <p class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] mb-2">
+            <i data-lucide="search" class="w-3 h-3"></i>
+            Buscar productos
+          </p>
+          <div class="relative mb-2 flex-shrink-0">
+            <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+            <input type="text" placeholder="Nombre o SKU..." class="cs-input pl-10 text-xs w-full">
+          </div>
+
+          <!-- Chips de categoría -->
+          <div class="flex flex-wrap gap-1 mb-2 flex-shrink-0">
+            <button class="cs-badge cs-badge-primary !text-[9px] !px-2 !py-0.5">Todas</button>
+            <button class="cs-badge !text-[9px] !px-2 !py-0.5 !bg-[#1a2332] !text-gray-400 border border-[#374151]">Pasteles</button>
+            <button class="cs-badge !text-[9px] !px-2 !py-0.5 !bg-[#1a2332] !text-gray-400 border border-[#374151]">Rebanadas</button>
+            <button class="cs-badge !text-[9px] !px-2 !py-0.5 !bg-[#1a2332] !text-gray-400 border border-[#374151]">Galletas</button>
+            <button class="cs-badge !text-[9px] !px-2 !py-0.5 !bg-[#1a2332] !text-gray-400 border border-[#374151]">Panadería</button>
+            <button class="cs-badge !text-[9px] !px-2 !py-0.5 !bg-[#1a2332] !text-gray-400 border border-[#374151]">Insumos</button>
+          </div>
+
+          <!-- Lista de productos -->
+          <div class="flex-1 overflow-y-auto cs-scroll space-y-1.5 min-h-0">
+            <!-- Producto seleccionado -->
+            <div class="bg-[rgba(124,58,237,0.12)] border border-[rgba(124,58,237,0.35)] rounded-lg p-2 flex items-center gap-2 cursor-pointer">
+              <div class="w-9 h-9 rounded bg-rose-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-4 h-4 text-rose-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[11px] font-bold truncate">Pastel Tradicional 22cm</p>
+                <div class="flex items-center gap-1.5 text-[9px] text-[#6B7280]">
+                  <span>PAST-TRAD-22</span>
+                  <span>·</span>
+                  <span class="font-semibold text-white">$245.00</span>
+                  <span class="cs-badge cs-badge-success !text-[8px] !px-1 !py-0">14</span>
+                </div>
+              </div>
+              <div class="w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center flex-shrink-0">
+                <i data-lucide="check" class="w-3 h-3 text-white"></i>
+              </div>
+            </div>
+
+            <!-- Producto seleccionado -->
+            <div class="bg-[rgba(124,58,237,0.12)] border border-[rgba(124,58,237,0.35)] rounded-lg p-2 flex items-center gap-2 cursor-pointer">
+              <div class="w-9 h-9 rounded bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-4 h-4 text-amber-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[11px] font-bold truncate">Pastel de Chocolate 22cm</p>
+                <div class="flex items-center gap-1.5 text-[9px] text-[#6B7280]">
+                  <span>PGT-CHOC-22</span>
+                  <span>·</span>
+                  <span class="font-semibold text-white">$285.00</span>
+                  <span class="cs-badge cs-badge-success !text-[8px] !px-1 !py-0">8</span>
+                </div>
+              </div>
+              <div class="w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center flex-shrink-0">
+                <i data-lucide="check" class="w-3 h-3 text-white"></i>
+              </div>
+            </div>
+
+            <!-- Producto no seleccionado -->
+            <div class="bg-[#1a2332] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:border-[rgba(124,58,237,0.35)]">
+              <div class="w-9 h-9 rounded bg-yellow-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="candy" class="w-4 h-4 text-yellow-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[11px] font-bold truncate">Pay de Limón</p>
+                <div class="flex items-center gap-1.5 text-[9px] text-[#6B7280]">
+                  <span>PAY-LIM-001</span>
+                  <span>·</span>
+                  <span class="font-semibold text-white">$220.00</span>
+                  <span class="cs-badge cs-badge-warning !text-[8px] !px-1 !py-0">5</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-[#1a2332] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:border-[rgba(124,58,237,0.35)]">
+              <div class="w-9 h-9 rounded bg-teal-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cookie" class="w-4 h-4 text-teal-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[11px] font-bold truncate">Galleta Chispas Choco</p>
+                <div class="flex items-center gap-1.5 text-[9px] text-[#6B7280]">
+                  <span>GAL-CCH-002</span>
+                  <span>·</span>
+                  <span class="font-semibold text-white">$18.00</span>
+                  <span class="cs-badge cs-badge-success !text-[8px] !px-1 !py-0">42</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-[#1a2332] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:border-[rgba(124,58,237,0.35)]">
+              <div class="w-9 h-9 rounded bg-orange-900/30 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="croissant" class="w-4 h-4 text-orange-400"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[11px] font-bold truncate">Concha Vainilla</p>
+                <div class="flex items-center gap-1.5 text-[9px] text-[#6B7280]">
+                  <span>PAN-CON-VAI</span>
+                  <span>·</span>
+                  <span class="font-semibold text-white">$15.00</span>
+                  <span class="cs-badge cs-badge-success !text-[8px] !px-1 !py-0">28</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer izquierdo: totales del buscador -->
+          <div class="mt-2 pt-2 border-t border-[#374151] grid grid-cols-2 gap-2 flex-shrink-0">
+            <div>
+              <p class="text-[8px] text-[#6B7280] uppercase">Productos</p>
+              <p class="text-sm font-bold text-white">2</p>
+            </div>
+            <div>
+              <p class="text-[8px] text-[#6B7280] uppercase">Unidades</p>
+              <p class="text-sm font-bold text-white">14</p>
+            </div>
+            <div class="col-span-2">
+              <p class="text-[8px] text-[#6B7280] uppercase">Costo Total</p>
+              <p class="text-base font-bold text-[#3FC189]">$3,590.00</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna derecha: Productos agregados -->
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg flex flex-col overflow-hidden min-h-0">
+
+          <!-- Header carrito -->
+          <div class="px-3 py-2 border-b border-[#374151] flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="package" class="w-3.5 h-3.5 text-[#c4b5fd]"></i>
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-[#c4b5fd]">Productos</span>
+              <span class="cs-badge cs-badge-primary !text-[9px] !px-1.5 !py-0">2</span>
+            </div>
+            <button class="text-[10px] text-[#6B7280] hover:text-red-400 flex items-center gap-1">
+              <i data-lucide="trash-2" class="w-3 h-3"></i>
+              Limpiar
+            </button>
+          </div>
+
+          <!-- Header de columnas -->
+          <div class="px-3 py-1.5 grid grid-cols-[1fr_120px_90px_120px_60px] gap-2 text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] border-b border-[#374151] flex-shrink-0">
+            <div>Producto</div>
+            <div class="text-center">Cantidad</div>
+            <div class="text-center">Costo</div>
+            <div class="text-right">Subtotal</div>
+            <div></div>
+          </div>
+
+          <!-- Filas de productos -->
+          <div class="flex-1 overflow-y-auto cs-scroll px-3 py-2 space-y-2 min-h-0">
+
+            <!-- Item 1 -->
+            <div class="grid grid-cols-[1fr_120px_90px_120px_60px] gap-2 items-center bg-[#1a2332] border border-[#374151] rounded-lg p-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="w-8 h-8 rounded bg-rose-900/30 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="cake" class="w-4 h-4 text-rose-400"></i>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-[11px] font-bold truncate">Pastel Tradicional 22cm</p>
+                  <p class="text-[9px] text-[#6B7280] flex items-center gap-1">
+                    <span>PAST-TRAD-22</span>
+                    <span class="cs-badge !bg-orange-500/15 !text-orange-400 !text-[8px] !px-1 !py-0">2 → 12</span>
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-0.5 justify-center">
+                <button class="w-6 h-6 rounded bg-[#1F2A37] border border-[#374151] text-white hover:bg-[#374151]">−</button>
+                <input type="number" value="10" class="cs-input text-xs text-center w-12 !px-1">
+                <button class="w-6 h-6 rounded bg-[#1F2A37] border border-[#374151] text-white hover:bg-[#374151]">+</button>
+              </div>
+              <div class="flex items-center justify-center">
+                <span class="text-[10px] text-[#6B7280] mr-0.5">$</span>
+                <input type="number" value="245" class="cs-input text-xs text-center w-14 !px-1">
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-bold text-[#3FC189]">$2,450.00</p>
+                <p class="text-[9px] text-[#6B7280]">10 × $245.00</p>
+              </div>
+              <div class="flex items-center justify-end gap-1">
+                <button class="text-[#6B7280] hover:text-[#c4b5fd]" title="Detalles">
+                  <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                </button>
+                <button class="text-[#6B7280] hover:text-red-400" title="Eliminar">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Item 2 -->
+            <div class="grid grid-cols-[1fr_120px_90px_120px_60px] gap-2 items-center bg-[#1a2332] border border-[#374151] rounded-lg p-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="w-8 h-8 rounded bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="cake" class="w-4 h-4 text-amber-400"></i>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-[11px] font-bold truncate">Pastel de Chocolate 22cm</p>
+                  <p class="text-[9px] text-[#6B7280] flex items-center gap-1">
+                    <span>PGT-CHOC-22</span>
+                    <span class="cs-badge !bg-orange-500/15 !text-orange-400 !text-[8px] !px-1 !py-0">1 → 5</span>
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-0.5 justify-center">
+                <button class="w-6 h-6 rounded bg-[#1F2A37] border border-[#374151] text-white hover:bg-[#374151]">−</button>
+                <input type="number" value="4" class="cs-input text-xs text-center w-12 !px-1">
+                <button class="w-6 h-6 rounded bg-[#1F2A37] border border-[#374151] text-white hover:bg-[#374151]">+</button>
+              </div>
+              <div class="flex items-center justify-center">
+                <span class="text-[10px] text-[#6B7280] mr-0.5">$</span>
+                <input type="number" value="285" class="cs-input text-xs text-center w-14 !px-1">
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-bold text-[#3FC189]">$1,140.00</p>
+                <p class="text-[9px] text-[#6B7280]">4 × $285.00</p>
+              </div>
+              <div class="flex items-center justify-end gap-1">
+                <button class="text-[#6B7280] hover:text-[#c4b5fd]" title="Detalles">
+                  <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                </button>
+                <button class="text-[#6B7280] hover:text-red-400" title="Eliminar">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Nota -->
+          <div class="px-3 py-2 border-t border-[#374151] flex-shrink-0">
+            <div class="flex items-center gap-2">
+              <label class="text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] flex-shrink-0">Nota</label>
+              <input type="text" placeholder="Motivo o referencia (opcional)..." class="cs-input text-xs w-full">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer: totales + acciones -->
+      <div class="px-5 py-3 border-t border-[#374151] bg-[#0f172a] flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-5">
+          <div>
+            <p class="text-[8px] text-[#6B7280] uppercase tracking-wider">Items</p>
+            <p class="text-sm font-bold text-white">2</p>
+          </div>
+          <div class="h-7 w-px bg-[#374151]"></div>
+          <div>
+            <p class="text-[8px] text-[#6B7280] uppercase tracking-wider">Total Unidades</p>
+            <p class="text-sm font-bold text-white">14</p>
+          </div>
+          <div class="h-7 w-px bg-[#374151]"></div>
+          <div>
+            <p class="text-[8px] text-[#6B7280] uppercase tracking-wider">Costo Total</p>
+            <p class="text-base font-bold text-[#3FC189]">$3,590.00</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="document.getElementById('modalTraspasoV2').classList.add('hidden'); document.getElementById('modalTraspasoV2').classList.remove('flex');" class="cs-btn cs-btn-outline cs-btn-sm">Cancelar</button>
+          <button class="cs-btn cs-btn-primary cs-btn-sm">
+            <i data-lucide="send" class="w-3 h-3"></i>
+            Crear y enviar traspaso
+          </button>
+        </div>
       </div>
 
     </div>
