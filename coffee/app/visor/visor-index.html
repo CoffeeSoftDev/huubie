@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visor de Agentes — CoffeeSoft</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../../app/ui/css/ui-kit.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #111928;
+      font-family: 'Inter', system-ui, sans-serif;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .cs-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .cs-scroll::-webkit-scrollbar-track { background: transparent; }
+    .cs-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    .cs-scroll::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+
+    .cs-input, .cs-select { padding: 6px 10px !important; font-size: 11px !important; min-height: 0 !important; }
+    .cs-input.pl-9 { padding-left: 30px !important; }
+    .cs-input-group-icon { width: 28px !important; }
+    .cs-input-group-icon .w-4 { width: 0.8rem !important; height: 0.8rem !important; }
+
+    .cs-btn { padding: 5px 10px !important; font-size: 10px !important; }
+    .cs-btn-sm { padding: 3px 8px !important; font-size: 9px !important; }
+    .cs-badge { padding: 1px 7px !important; font-size: 9px !important; line-height: 1.4; font-weight: 600; }
+
+    .cs-tabs .cs-tab { padding: 7px 14px !important; font-size: 11px !important; }
+
+    .visor-logo {
+      width: 32px; height: 32px; border-radius: 9px;
+      background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 13px; letter-spacing: .5px; color: #fff;
+      box-shadow: 0 4px 12px rgba(124,58,237,.35);
+    }
+
+    .user-avatar {
+      width: 34px; height: 34px; border-radius: 9999px;
+      background: linear-gradient(135deg, #1C64F2 0%, #7C3AED 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 11px; color: #fff;
+    }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px 6px;
+      font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+      color: #6B7280;
+    }
+
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px;
+      font-size: 11.5px; color: #D1D5DB;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: all .12s ease;
+    }
+    .sidebar-item:hover { background: #1a2332; color: #fff; }
+    .sidebar-item.active {
+      background: linear-gradient(90deg, rgba(124,58,237,.18) 0%, rgba(124,58,237,0) 100%);
+      border-left-color: #7C3AED;
+      color: #fff;
+    }
+    .sidebar-item .file-icon {
+      width: 14px; height: 14px; color: #6B7280; flex-shrink: 0;
+    }
+    .sidebar-item.active .file-icon { color: #A855F7; }
+    .sidebar-item .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar-item .file-size { font-size: 9px; color: #6B7280; }
+
+    .badge-count {
+      background: rgba(124,58,237,.15);
+      color: #C4B5FD;
+      border: 1px solid rgba(124,58,237,.3);
+      font-size: 9px; font-weight: 700;
+      padding: 1px 6px; border-radius: 9999px;
+    }
+    .badge-backup {
+      background: rgba(107,114,128,.18);
+      color: #9CA3AF;
+      border: 1px solid rgba(107,114,128,.35);
+      font-size: 8px; font-weight: 600;
+      padding: 1px 5px; border-radius: 4px;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    .badge-primary {
+      background: rgba(124,58,237,.18);
+      color: #C4B5FD;
+      border: 1px solid rgba(124,58,237,.35);
+    }
+    .badge-success {
+      background: rgba(63,193,137,.15);
+      color: #3FC189;
+      border: 1px solid rgba(63,193,137,.3);
+    }
+    .badge-secondary {
+      background: rgba(107,114,128,.18);
+      color: #9CA3AF;
+      border: 1px solid rgba(107,114,128,.35);
+    }
+
+    .breadcrumb { font-size: 11px; color: #9CA3AF; display: flex; align-items: center; gap: 6px; }
+    .breadcrumb .sep { color: #4B5563; }
+    .breadcrumb .current { color: #fff; font-weight: 500; }
+
+    .frontmatter-card {
+      background: #1F2A37;
+      border: 1px solid rgba(55,65,81,.6);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .fm-row { display: flex; gap: 14px; padding: 5px 0; font-size: 11.5px; }
+    .fm-key { color: #9CA3AF; min-width: 90px; font-weight: 500; }
+    .fm-val { color: #E5E7EB; flex: 1; }
+    .fm-val.model { color: #A855F7; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+
+    .md-rendered { font-size: 13px; line-height: 1.7; color: #D1D5DB; max-width: 900px; }
+    .md-rendered h1 { font-size: 22px; font-weight: 700; color: #fff; margin: 18px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #374151; }
+    .md-rendered h2 { font-size: 17px; font-weight: 700; color: #fff; margin: 22px 0 10px; }
+    .md-rendered h3 { font-size: 14px; font-weight: 600; color: #E5E7EB; margin: 18px 0 8px; }
+    .md-rendered h4 { font-size: 12px; font-weight: 600; color: #C4B5FD; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+    .md-rendered p { margin: 10px 0; }
+    .md-rendered ul, .md-rendered ol { margin: 10px 0; padding-left: 22px; }
+    .md-rendered li { margin: 4px 0; }
+    .md-rendered ul li::marker { color: #7C3AED; }
+    .md-rendered code {
+      background: #141d2b; color: #C4B5FD;
+      padding: 2px 6px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+      border: 1px solid rgba(124,58,237,.18);
+    }
+    .md-rendered pre {
+      background: #0d1420; border: 1px solid #1F2A37;
+      border-radius: 8px; padding: 14px 16px;
+      margin: 12px 0; overflow-x: auto;
+    }
+    .md-rendered pre code {
+      background: transparent; border: none; padding: 0;
+      color: #E5E7EB; font-size: 11px;
+    }
+    .md-rendered blockquote {
+      border-left: 3px solid #7C3AED;
+      background: rgba(124,58,237,.06);
+      padding: 8px 14px; margin: 12px 0;
+      color: #C4B5FD; font-style: italic;
+      border-radius: 0 6px 6px 0;
+    }
+    .md-rendered strong { color: #fff; font-weight: 600; }
+    .md-rendered em { color: #C4B5FD; }
+    .md-rendered a { color: #A855F7; text-decoration: none; border-bottom: 1px dashed rgba(168,85,247,.4); }
+    .md-rendered a:hover { color: #C4B5FD; border-bottom-style: solid; }
+    .md-rendered table {
+      width: 100%; border-collapse: collapse; margin: 12px 0;
+      font-size: 11.5px;
+    }
+    .md-rendered table th {
+      background: #1a2332; color: #fff; font-weight: 600;
+      padding: 8px 12px; text-align: left;
+      border-bottom: 1px solid #374151;
+    }
+    .md-rendered table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid rgba(55,65,81,.4);
+    }
+    .md-rendered hr { border: none; border-top: 1px solid #374151; margin: 18px 0; }
+
+    .md-raw {
+      background: #0d1420;
+      border: 1px solid #1F2A37;
+      border-radius: 10px;
+      padding: 18px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px; line-height: 1.7;
+      color: #D1D5DB;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 60px 20px; color: #6B7280; text-align: center;
+    }
+    .empty-state svg { color: #4B5563; margin-bottom: 12px; }
+
+    .global-search-input {
+      width: 320px;
+      background: #1F2A37;
+      border: 1px solid rgba(55,65,81,.6);
+      border-radius: 9px;
+      padding: 7px 12px 7px 34px;
+      font-size: 11.5px; color: #E5E7EB;
+      transition: all .15s ease;
+    }
+    .global-search-input::placeholder { color: #6B7280; }
+    .global-search-input:focus { outline: none; border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+  </style>
+</head>
+<body class="flex flex-col">
+
+  <!-- HEADER -->
+  <header class="flex items-center justify-between px-5 h-14 border-b shadow-lg shadow-black/30 flex-shrink-0" style="background-color: #141d2b; border-bottom-color: rgba(124,58,237,0.18);">
+    <div class="flex items-center gap-3">
+      <div class="visor-logo">VS</div>
+      <div class="flex flex-col leading-tight">
+        <span class="text-[13px] font-bold text-white">Visor de Agentes</span>
+        <span class="text-[9.5px] text-gray-500 tracking-wider uppercase">CoffeeSoft Library</span>
+      </div>
+      <div class="hidden md:flex items-center gap-1 ml-6">
+        <span class="text-[10px] text-gray-500 px-2.5 py-1 rounded bg-[#1F2A37] border border-gray-700/40">
+          <span id="totalCountChip">15</span> archivos
+        </span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+        </svg>
+        <input id="globalSearch" type="text" placeholder="Buscar en todos los archivos..." class="global-search-input">
+      </div>
+
+      <button class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Refrescar">
+        <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+        Refrescar
+      </button>
+
+      <div class="flex items-center gap-2 pl-3 border-l border-gray-700/60">
+        <div class="user-avatar">RV</div>
+        <div class="flex flex-col leading-tight">
+          <span class="text-[11px] font-semibold text-white">Rosy V.</span>
+          <span class="text-[9px] text-gray-500">Guardiana</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-[280px] flex flex-col border-r flex-shrink-0" style="background-color: #141d2b; border-right-color: rgba(55,65,81,.6);">
+
+      <div class="p-3 border-b" style="border-bottom-color: rgba(55,65,81,.4);">
+        <div class="cs-input-group">
+          <span class="cs-input-group-icon">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+            </svg>
+          </span>
+          <input id="sidebarSearch" type="text" placeholder="Filtrar archivos..." class="cs-input pl-9 w-full">
+        </div>
+      </div>
+
+      <div id="sidebarList" class="flex-1 overflow-y-auto cs-scroll py-2">
+        <!-- Items inyectados por JS -->
+      </div>
+
+      <div class="px-3 py-2.5 border-t flex items-center justify-between" style="border-top-color: rgba(55,65,81,.4);">
+        <span class="text-[9.5px] text-gray-500 uppercase tracking-wider">Local</span>
+        <span class="text-[10px] text-gray-400 font-mono">.claude/agents</span>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+
+      <!-- Breadcrumb -->
+      <div class="px-6 py-3 border-b flex items-center justify-between flex-shrink-0" style="border-bottom-color: rgba(55,65,81,.4);">
+        <nav class="breadcrumb">
+          <i data-lucide="folder" class="w-3.5 h-3.5"></i>
+          <span id="breadcrumbSection">agents</span>
+          <span class="sep">/</span>
+          <span id="breadcrumbFile" class="current">CoffeeIA.md</span>
+        </nav>
+        <div class="flex items-center gap-2">
+          <button class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5">
+            <i data-lucide="copy" class="w-3 h-3"></i>
+            Copiar ruta
+          </button>
+          <button class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5">
+            <i data-lucide="external-link" class="w-3 h-3"></i>
+            Abrir en editor
+          </button>
+        </div>
+      </div>
+
+      <!-- Content area -->
+      <div class="flex-1 overflow-y-auto cs-scroll px-6 py-5">
+
+        <!-- Frontmatter card -->
+        <div id="frontmatterCard" class="frontmatter-card mb-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2.5">
+              <i data-lucide="file-code-2" class="w-4 h-4 text-purple-400"></i>
+              <h2 class="text-[13px] font-bold text-white">Frontmatter</h2>
+              <span id="fmFileBadge" class="cs-badge badge-primary">agente</span>
+            </div>
+            <span id="fmSizeBadge" class="text-[10px] text-gray-500 font-mono">31 KB</span>
+          </div>
+          <div id="frontmatterBody">
+            <!-- filas inyectadas por JS -->
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex items-center justify-between mb-3">
+          <div class="cs-tabs">
+            <button class="cs-tab active" data-tab="rendered">
+              <i data-lucide="eye" class="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5"></i>
+              Renderizado
+            </button>
+            <button class="cs-tab" data-tab="raw">
+              <i data-lucide="code-2" class="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5"></i>
+              Raw
+            </button>
+          </div>
+          <span id="lineCountChip" class="text-[10px] text-gray-500 font-mono">~ 0 lineas</span>
+        </div>
+
+        <!-- Rendered Markdown -->
+        <article id="md-rendered" class="md-rendered"></article>
+
+        <!-- Raw Markdown -->
+        <pre id="md-raw" class="md-raw hidden"></pre>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="flex items-center justify-between px-5 py-2 border-t text-[10px] text-gray-500 flex-shrink-0" style="background-color: #141d2b; border-top-color: rgba(55,65,81,.4);">
+    <div class="flex items-center gap-4">
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="files" class="w-3 h-3"></i>
+        Total: <span id="footerTotal" class="text-gray-300 font-semibold">15</span> archivos
+      </span>
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="bot" class="w-3 h-3"></i>
+        Agentes: <span class="text-gray-300 font-semibold">9</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="book-open" class="w-3 h-3"></i>
+        Grimorios: <span class="text-gray-300 font-semibold">6</span>
+      </span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-gray-500">Seleccionado:</span>
+      <span id="footerFile" class="text-purple-300 font-mono font-semibold">CoffeeIA.md</span>
+      <span class="text-gray-600">|</span>
+      <span id="footerSize" class="text-gray-300 font-mono">31 KB</span>
+    </div>
+  </footer>
+
+  <script>
+    const SAMPLE_AGENTS = {
+      agents: [
+        {
+          name: 'CoffeeIA',
+          file: 'CoffeeIA.md',
+          section: 'agentes',
+          size: '31 KB',
+          frontmatter: {
+            name: 'CoffeeIA',
+            description: 'Agente principal del framework CoffeeSoft para arquitectura full-stack PHP/JS',
+            model: 'opus'
+          },
+          raw: `---
+name: CoffeeIA
+description: Agente principal del framework CoffeeSoft para arquitectura full-stack PHP/JS
+model: opus
+---
+
+# CoffeeIA
+
+> Agente maestro del ecosistema **CoffeeSoft** para generacion de modulos full-stack siguiendo el framework propio (clase Templates + helpers).
+
+## Rol
+
+CoffeeIA orquesta la creacion de modulos completos respetando la arquitectura tripartita:
+
+1. \`class App extends Templates\` — orquesta init/render/layout/filterBar
+2. \`class {Entidad} extends Templates\` — capa data (lsXxx, save, toggle)
+3. \`class {Entidad}View extends Templates\` — vistas (render*)
+
+## Workflow obligatorio
+
+Sigue las fases descritas en \`WORKFLOW.md\`:
+
+- **Fase 1** — Analisis y diseno
+- **Fase 2** — DB + Modelo + Controlador
+- **Fase 3** — Frontend JS (tripartita)
+- **Fase 4** — Integracion y pruebas
+
+## Reglas duras
+
+- NUNCA saltarse fases bajo presion de "haz todo ya"
+- SIEMPRE consultar \`grimorio-fuente.md\` antes de generar JS
+- Componentes locales NO heredados: portarlos 1:1 desde el pivote
+- Sin banners \`// ════\` ni descriptores \`// Clase: X hace Y\`
+
+## Pivotes canonicos
+
+| Capa | Pivote |
+|---|---|
+| JS modulo | \`app/inventarios/src/js/pos-entradas.js\` |
+| JS sample | \`app/inventarios/src/js/sample_entradas.js\` |
+| PHP entry | \`app/inventarios/pos-entradas.php\` |
+
+## Ejemplo de invocacion
+
+\`\`\`
+/coffee-ia genera modulo "Recepciones" con campos:
+  - folio, fecha, almacen, proveedor, status
+  - detail: producto, cantidad, costo_unit
+\`\`\`
+
+CoffeeIA respondera con los 4 archivos (DB.sql, mdl-recepciones.php, ctrl-recepciones.php, recepciones.js + sample) listos para integrar.
+`
+        },
+        {
+          name: 'CoffeeMagic',
+          file: 'CoffeeMagic.md',
+          section: 'agentes',
+          size: '26 KB',
+          frontmatter: {
+            name: 'CoffeeMagic',
+            description: 'Conjurador de interfaces HTML estaticas con Tailwind y tema Huubie dark',
+            model: 'opus'
+          },
+          raw: `---
+name: CoffeeMagic
+description: Conjurador de interfaces HTML estaticas con Tailwind y tema Huubie dark
+model: opus
+---
+
+# CoffeeMagic
+
+Soy **CoffeeMagic**, el conjurador de interfaces del ecosistema CoffeeSoft. Materializo UIs completas en HTML estatico con Tailwind CSS, listas para integrarse con el backend PHP/JS.
+
+## Spells disponibles
+
+1. **conjure table** — tabla con filtros y paginacion
+2. **conjure detail** — vista detalle con panel lateral
+3. **conjure cards** — dashboard con KPI cards
+4. **conjure form** — formulario centrado o modal
+5. **conjure modal** — modal reutilizable
+6. **conjure selector** — modal de seleccion tipo grid
+7. **conjure hub** — pagina indice de navegacion
+8. **conjure recibo** — vista de documento/recibo
+9. **conjure grid** — grid interactivo tipo calendario
+10. **conjure sidebar** — sidebar de navegacion
+11. **transmute** — HTML aprobado a modulo JS coffeeSoft
+
+## Tema base
+
+- Paleta: \`#111928\`, \`#1F2A37\`, \`#141d2b\`
+- Acento: \`#7C3AED\` (purpura), \`#3FC189\` (verde)
+- Tipografia: Inter
+
+## Grimorios cargables
+
+> Los grimorios son archivos MD con snippets reutilizables. CoffeeMagic los carga ANTES de generar HTML.
+
+- \`grimorio-finanzas.md\`
+- \`grimorio-rrhh.md\`
+- \`grimorio-huubie-ui.md\`
+- \`grimorio-coffee-varoch.md\`
+- \`grimorio-fuente.md\`
+`
+        },
+        {
+          name: 'CoffeeArcher',
+          file: 'CoffeeArcher.md',
+          section: 'agentes',
+          size: '7 KB',
+          frontmatter: {
+            name: 'CoffeeArcher',
+            description: 'QA del ERP-GV con 47 reglas de validacion estructural',
+            model: 'opus'
+          },
+          raw: `---
+name: CoffeeArcher
+description: QA del ERP-GV con 47 reglas de validacion estructural
+model: opus
+---
+
+# CoffeeArcher
+
+Agente de control de calidad del **ERP-GV** (Grupo Varoch). Aplica 47 reglas duras sobre cualquier modulo.
+
+## Categorias de reglas
+
+| Categoria | Reglas |
+|---|---|
+| Estructura DB | 12 |
+| Modelos PHP | 9 |
+| Controladores | 7 |
+| Frontend JS | 11 |
+| HTML / UI | 5 |
+| Seguridad | 3 |
+
+## Ejemplo de reglas
+
+- **R-DB-01**: Todo amount/subtotal/tax/total va como DOUBLE, no DECIMAL
+- **R-DB-04**: FKs al final, despues de active y timestamps
+- **R-JS-03**: Prohibido \`// ════\` y \`// Clase: X\` sobre \`class X\`
+- **R-UI-02**: Tablas en tema light con fondo blanco \`#ffffff\`
+
+## Output
+
+CoffeeArcher genera un reporte tipo:
+
+\`\`\`
+[OK] R-DB-01 montos en DOUBLE
+[OK] R-DB-04 FKs al final
+[FAIL] R-JS-03 banner detectado en pos-entradas.js linea 47
+\`\`\`
+`
+        },
+        {
+          name: 'coffee-intelligence',
+          file: 'coffee-intelligence.md',
+          section: 'agentes',
+          size: '11 KB',
+          frontmatter: {
+            name: 'coffee-intelligence',
+            description: 'Analisis de BD desde templates HTML aprobados, emite diagrama de relaciones',
+            model: 'opus'
+          },
+          raw: `---
+name: coffee-intelligence
+description: Analisis de BD desde templates HTML aprobados, emite diagrama de relaciones
+model: opus
+---
+
+# coffee-intelligence
+
+Analiza templates HTML aprobados y propone:
+
+1. **Estructura de BD** (tablas, campos, tipos, FKs)
+2. **Diagrama de relaciones** en texto plano (seccion 2.bis)
+3. **Modelo de datos** alineado con db-rules.md
+
+## Convencion del diagrama
+
+- Caja **doble** = tabla del esquema actual
+- Caja **simple** = tabla cross-schema (otro modulo)
+- Cardinalidades junto a flechas
+- Tabla aparte con leyenda de cada relacion
+
+## Ejemplo
+
+\`\`\`
+╔═══════════════╗      1:N    ┌──────────────┐
+║  recepciones  ║◄────────────│   almacenes  │
+╚═══════════════╝             └──────────────┘
+        │ 1:N
+        ▼
+╔══════════════════╗
+║ detail_recepcion ║
+╚══════════════════╝
+\`\`\`
+`
+        },
+        {
+          name: 'KIRBY',
+          file: 'KIRBY.md',
+          section: 'agentes',
+          size: '8 KB',
+          frontmatter: {
+            name: 'KIRBY',
+            description: 'Absorbedor de proyectos: lee codigo legacy y genera documentacion exhaustiva',
+            model: 'opus'
+          },
+          raw: `---
+name: KIRBY
+description: Absorbedor de proyectos legacy y generador de documentacion
+model: opus
+---
+
+# KIRBY
+
+> Como el personaje, **absorbe** cualquier proyecto y devuelve sus poderes en forma de documentacion.
+
+## Capacidades
+
+- Escanea directorios completos y extrae arquitectura
+- Identifica patrones de framework (CoffeeSoft, Laravel, plain PHP, etc.)
+- Genera \`README.md\`, \`ARCHITECTURE.md\`, \`API.md\` y \`SCHEMA.md\`
+- Mapea relaciones entre modulos
+
+## Output tipico
+
+\`\`\`
+docs/
+├── README.md          (overview + setup)
+├── ARCHITECTURE.md    (capas y flujo)
+├── API.md             (endpoints + payloads)
+└── SCHEMA.md          (BD + relaciones)
+\`\`\`
+
+## Casos de uso
+
+- Migrar de un ERP legacy a CoffeeSoft
+- Documentar codigo heredado sin documentacion
+- Generar onboarding para devs nuevos
+`
+        },
+        {
+          name: 'CTRL',
+          file: 'CTRL.md',
+          section: 'agentes',
+          size: '5 KB',
+          frontmatter: {
+            name: 'CTRL',
+            description: 'Generador de controladores PHP CoffeeSoft (clase Controllers + actions)',
+            model: 'opus'
+          },
+          raw: `---
+name: CTRL
+description: Generador de controladores PHP CoffeeSoft
+model: opus
+---
+
+# CTRL
+
+Agente especializado en generar controladores PHP que extienden \`Controllers\`.
+
+## Patron canonico
+
+\`\`\`php
+class CtrlRecepciones extends Controllers {
+    function ls() { /* listado */ }
+    function save() { /* alta/edicion */ }
+    function toggle() { /* baja logica */ }
+    function detail() { /* renglones */ }
+}
+\`\`\`
+
+## Reglas
+
+- Cada action retorna JSON con \`{ status, data, msg }\`
+- Validacion de input ANTES de llamar al modelo
+- Errores capturados con try/catch y registrados en log
+
+## Cabecera fija
+
+\`\`\`php
+<?php
+require_once("../../conf/_Rutes.php");
+require_once(MDL . 'mdl-recepciones.php');
+\`\`\`
+`
+        },
+        {
+          name: 'FRONT-JS',
+          file: 'FRONT-JS.md',
+          section: 'agentes',
+          size: '6 KB',
+          frontmatter: {
+            name: 'FRONT-JS',
+            description: 'Reglas y patrones para JavaScript de modulos CoffeeSoft',
+            model: 'opus'
+          },
+          raw: `---
+name: FRONT-JS
+description: Reglas FRONT-JS para CoffeeSoft
+model: opus
+---
+
+# FRONT-JS
+
+## Reglas duras
+
+1. Arquitectura tripartita (App + Entidad + View)
+2. SAMPLE_* declarado al top del archivo
+3. Sin banners decorativos \`// ════\`
+4. Sin descriptores \`// Clase: X hace Y\`
+5. Sin tildes en strings
+6. Prefijo \`_\` solo para helpers de modulo, NO para metodos de clase
+7. \`Object.assign\` para merge de root con arrays (NO \`this.ObjectMerge\`)
+
+## Estructura recomendada
+
+\`\`\`js
+let api = 'ctrl/ctrl-modulo.php';
+let app, entidad, entidadView;
+
+$(async () => {
+    entidadView = new EntidadView(api, 'root');
+    entidad = new Entidad(api, 'root');
+    app = new App(api, 'root');
+    await app.init();
+});
+
+class App extends Templates { /* ... */ }
+class Entidad extends Templates { /* ... */ }
+class EntidadView extends Templates { /* ... */ }
+\`\`\`
+`
+        },
+        {
+          name: 'MDL',
+          file: 'MDL.md',
+          section: 'agentes',
+          size: '5 KB',
+          frontmatter: {
+            name: 'MDL',
+            description: 'Generador de modelos PHP CoffeeSoft (clase Models con CRUD canonico)',
+            model: 'opus'
+          },
+          raw: `---
+name: MDL
+description: Reglas MDL para modelos PHP
+model: opus
+---
+
+# MDL
+
+## Patron canonico
+
+\`\`\`php
+class MdlRecepciones extends Models {
+    public $table = 'recepciones';
+    public $primary = 'recepciones_id';
+
+    function ls($f) { /* SELECT con joins */ }
+    function save($p) { /* INSERT / UPDATE */ }
+    function toggle($id) { /* active = !active */ }
+}
+\`\`\`
+
+## Convenciones
+
+- Tabla en plural minuscula
+- PK con sufijo \`_id\`
+- \`detail_\` solo para renglones de transaccion raiz
+- Pivotes N:M sin prefijo
+- Montos en \`DOUBLE\`, NO \`DECIMAL\`
+- Orden de columnas: business cols → FKs (*_id) → active → timestamps
+`
+        },
+        {
+          name: 'CoffeeIA.backup-2026-04-28',
+          file: 'CoffeeIA.backup-2026-04-28.md',
+          section: 'agentes',
+          size: '28 KB',
+          isBackup: true,
+          frontmatter: {
+            name: 'CoffeeIA (backup)',
+            description: 'Respaldo del agente CoffeeIA al 28-abril-2026 (no usar en produccion)',
+            model: 'opus'
+          },
+          raw: `---
+name: CoffeeIA (backup)
+description: Respaldo del agente CoffeeIA al 28-abril-2026
+model: opus
+---
+
+# CoffeeIA — Backup 2026-04-28
+
+> ESTE ARCHIVO ES UN RESPALDO HISTORICO. No es la version vigente del agente.
+
+## Razon del respaldo
+
+Antes de la refactorizacion grande del 28 de abril 2026 que migro CoffeeIA a la nueva arquitectura tripartita estricta (App + Entidad + View), se guardo este snapshot.
+
+## Diferencias clave vs version actual
+
+- No exigia \`sample_*.js\` en archivo separado
+- Permitia banners \`// ════\` decorativos
+- Componentes locales podian declararse en \`Templates\` (ahora prohibido)
+- No tenia el spell \`transmute\`
+
+## Cuando consultar este backup
+
+Solo si necesitas entender decisiones historicas o restaurar un comportamiento previo.
+`
+        }
+      ],
+      grimoires: [
+        {
+          name: 'db-rules',
+          file: 'db-rules.md',
+          section: 'grimorios',
+          size: '14 KB',
+          frontmatter: {
+            name: 'db-rules',
+            description: 'Reglas canonicas de base de datos del ecosistema CoffeeSoft',
+            model: 'opus'
+          },
+          raw: `---
+name: db-rules
+description: Reglas canonicas de BD CoffeeSoft
+model: opus
+---
+
+# DB Rules — CoffeeSoft
+
+## Naming
+
+- Tablas: plural minusculas con guion bajo (\`detail_recepciones\`)
+- PK: \`{tabla}_id\` (singular + \`_id\`)
+- FKs: igual al PK de la tabla referenciada
+
+## Tipos canonicos
+
+| Concepto | Tipo |
+|---|---|
+| Monto (amount/subtotal/tax/total) | **DOUBLE** |
+| Cantidad | DOUBLE |
+| Stock | DOUBLE |
+| Estado active | TINYINT(1) |
+| Fechas | DATETIME |
+
+## Orden de columnas
+
+1. PK (\`*_id\` AUTO_INCREMENT)
+2. Columnas de negocio (folio, fecha, descripcion)
+3. Montos (amount, tax, total)
+4. \`active TINYINT(1) DEFAULT 1\`
+5. Timestamps (\`created_at\`, \`updated_at\`)
+6. FKs (\`*_id\` al final)
+
+## Prefijo detail_
+
+- \`detail_recepciones\` ✓ (renglones de la recepcion raiz)
+- \`almacenes_productos\` ✓ (pivote N:M, sin prefijo)
+- \`detail_almacenes_productos\` ✗ (incorrecto)
+`
+        },
+        {
+          name: 'grimorio-coffee-varoch',
+          file: 'grimorio-coffee-varoch.md',
+          section: 'grimorios',
+          size: '100 KB',
+          frontmatter: {
+            name: 'grimorio-coffee-varoch',
+            description: 'Patrones de UI del sistema institucional Grupo Varoch (.cv-* classes)',
+            model: 'opus'
+          },
+          raw: `---
+name: grimorio-coffee-varoch
+description: Patrones UI Grupo Varoch (.cv-*)
+model: opus
+---
+
+# Grimorio Coffee-Varoch
+
+> Sistema de diseno **institucional** del Grupo Varoch / ERP-GV. Soporta light + dark con header azul \`#003360\` + sidebar blanco.
+
+## Paleta institucional
+
+| Token | Valor | Uso |
+|---|---|---|
+| \`--cv-primary\` | **\`#003360\`** | Azul institucional Varoch |
+| \`--cv-secondary\` | **\`#F24444\`** | Rojo Varoch |
+| \`--cv-success\` | \`#7AAB20\` | Verde oliva |
+| \`--cv-danger\` | \`#9E1B32\` | Rojo oscuro |
+| \`--cv-action\` | \`#2563EB\` | Azul accion (botones, enlaces) |
+
+## Estructura canonica
+
+\`\`\`html
+<body class="coffee-varoch">
+  <header class="cv-header cv-header-primary">...</header>
+  <main class="flex flex-1">
+    <section class="cv-sidebar">...</section>
+    <div id="main__content">
+      <nav><ol class="cv-module-breadcrumb">...</ol></nav>
+      <div class="cv-main-container" id="root">...</div>
+    </div>
+  </main>
+</body>
+\`\`\`
+
+## Reglas duras
+
+1. Header SIEMPRE azul (\`cv-header-primary\`) — NO blanco
+2. Sidebar SIEMPRE blanco (\`cv-sidebar\`) — NO azul
+3. Breadcrumb DEBAJO del header, dentro de \`#main__content\`
+4. Tablas y tabs usan **Tailwind puro** (NO \`.cv-*\`), identico al output de coffeeSoft.js
+
+## Componentes \`.cv-*\` clave
+
+- \`.cv-card\`, \`.cv-card-hover\`
+- \`.cv-kpi\` + \`-label/-value/-foot\`
+- \`.cv-btn\` + \`-primary/-action/-success/-danger\`
+- \`.cv-badge\` + variantes
+- \`.cv-input\`, \`.cv-select\`, \`.cv-textarea\`
+- \`.cv-modal-overlay\` + \`.cv-modal\`
+`
+        },
+        {
+          name: 'grimorio-fuente',
+          file: 'grimorio-fuente.md',
+          section: 'grimorios',
+          size: '45 KB',
+          frontmatter: {
+            name: 'grimorio-fuente',
+            description: 'Pivotes canonicos para el spell transmute (HTML -> JS coffeeSoft)',
+            model: 'opus'
+          },
+          raw: `---
+name: grimorio-fuente
+description: Pivotes canonicos para transmute
+model: opus
+---
+
+# Grimorio Fuente
+
+> Contiene los **pivotes canonicos** del spell \`transmute\` (HTML aprobado a modulo JS coffeeSoft). Tema agnostico.
+
+## Arquitectura tripartita obligatoria
+
+\`\`\`
+class App extends Templates           // orquesta (init/render/layout)
+class {Entidad} extends Templates     // data (lsXxx, save, toggle)
+class {Entidad}View extends Templates // vistas (render*)
+\`\`\`
+
+## Pivotes por defecto
+
+| Capa | Pivote |
+|---|---|
+| JS modulo | \`app/inventarios/src/js/pos-entradas.js\` |
+| JS sample | \`app/inventarios/src/js/sample_entradas.js\` |
+| PHP entry | \`app/inventarios/pos-entradas.php\` |
+
+## Formato del SAMPLE
+
+\`\`\`js
+const SAMPLE_VIEW_HEADER_ENTIDAD = { title, subtitle, back };
+const SAMPLE_ENTIDAD_DB = { 'KEY-001': { ... } };
+const _entidadRow = (e) => ({ id, Col1, Col2, a: [acciones] });
+const SAMPLE_ENTIDAD_TABLE = { row: Object.values(SAMPLE_ENTIDAD_DB).map(_entidadRow) };
+\`\`\`
+
+## Reglas duras
+
+1. Componentes locales (\`viewHeader\`, \`viewFooter\`, \`tabsBar\`, \`kpisRow\`) viven en el modulo, NO en \`Templates\`
+2. NUNCA asumir herencia: \`Grep\` en coffeeSoft.js antes de invocar \`this.X(...)\`
+3. \`SAMPLE_*\` siempre en archivo separado \`sample_{modulo}.js\`
+4. Sin banners \`// ════\`, sin tildes en strings
+`
+        },
+        {
+          name: 'grimorio-finanzas',
+          file: 'grimorio-finanzas.md',
+          section: 'grimorios',
+          size: '38 KB',
+          frontmatter: {
+            name: 'grimorio-finanzas',
+            description: 'Patrones UI del modulo CoffeeSoft Finanzas (ingresos, egresos, compras)',
+            model: 'opus'
+          },
+          raw: `---
+name: grimorio-finanzas
+description: Patrones UI modulo Finanzas
+model: opus
+---
+
+# Grimorio Finanzas
+
+> Patrones extraidos del modulo **CoffeeSoft Finanzas**.
+
+## Spells cubiertos
+
+- \`conjure table\` — tabla con filtros, status badges, paginacion
+- \`conjure detail\` — vista detalle con panel lateral
+- \`conjure cards\` — dashboard con KPIs
+- \`conjure form\` — formulario centrado
+- \`conjure hub\` — pagina indice navegacion
+- \`conjure modal\` — modales (form, confirmacion, selector)
+- \`conjure selector\` — modal seleccion tipo grid
+
+## Status badges
+
+| Estatus | Clases |
+|---|---|
+| Pagado | \`bg-green-500/15 text-green-400 border border-green-500/30\` |
+| Pendiente | \`bg-yellow-500/15 text-yellow-400 border border-yellow-500/30\` |
+| Cancelado | \`bg-red-500/15 text-red-400 border border-red-500/30\` |
+| Abierta | \`bg-blue-500/15 text-blue-400 border border-blue-500/30\` |
+
+## Referencias
+
+- \`finanzas-ingresos.html\`
+- \`finanzas-compras.html\`
+- \`finanzas-compras-detalle.html\`
+- \`finanzas-index-navegacion.html\`
+`
+        },
+        {
+          name: 'grimorio-rrhh',
+          file: 'grimorio-rrhh.md',
+          section: 'grimorios',
+          size: '42 KB',
+          frontmatter: {
+            name: 'grimorio-rrhh',
+            description: 'Patrones UI del modulo CoffeeSoft RRHH (personal, nomina, asistencia)',
+            model: 'opus'
+          },
+          raw: `---
+name: grimorio-rrhh
+description: Patrones UI modulo RRHH
+model: opus
+---
+
+# Grimorio RRHH
+
+> Patrones extraidos del modulo **CoffeeSoft RRHH**.
+
+## Spells cubiertos
+
+- \`conjure table\` — listado de personal con filtros
+- \`conjure cards\` — KPIs (nomina, asistencia, vacaciones)
+- \`conjure grid\` — grid de incidencias por semana
+- \`conjure recibo\` — recibo de nomina
+- \`conjure form\` — alta de empleado
+- \`conjure modal\` — modales de permisos / vacaciones
+
+## Status badges RRHH
+
+| Estatus | Color |
+|---|---|
+| Activo | verde |
+| Vacaciones | amarillo |
+| Permiso | azul |
+| Baja | rojo |
+| Suspendido | gris |
+
+## Badges de puesto
+
+\`\`\`
+purple : bg-purple-500/15 text-purple-400
+blue   : bg-blue-500/15 text-blue-400
+orange : bg-orange-500/15 text-orange-400
+pink   : bg-pink-500/15 text-pink-400
+\`\`\`
+
+## Referencias
+
+- \`rrhh-personal.html\`
+- \`rrhh-nomina-recibo.html\`
+- \`rrhh-incidencia-personalizado.html\`
+- \`rrhh-permisos.html\`
+- \`rrhh-resumen.html\`
+`
+        },
+        {
+          name: 'grimorio-huubie-ui',
+          file: 'grimorio-huubie-ui.md',
+          section: 'grimorios',
+          size: '32 KB',
+          frontmatter: {
+            name: 'grimorio-huubie-ui',
+            description: 'Sistema de diseno Huubie UI (.cs-* classes, dark unico, hub en coffee/ui/index.html)',
+            model: 'opus'
+          },
+          raw: `---
+name: grimorio-huubie-ui
+description: Sistema de diseno Huubie UI
+model: opus
+---
+
+# Grimorio Huubie UI
+
+> Sistema de diseno **cerrado** con clases \`.cs-*\` declaradas en \`coffee/ui/css/ui-kit.css\`.
+> Es dark **unico** (no light/dark toggle).
+
+## Tokens principales
+
+| Token | Valor |
+|---|---|
+| Fondo base | \`#111928\` |
+| Fondo card | \`#1F2A37\` |
+| Fondo header | \`#141d2b\` |
+| Acento purpura | \`#7C3AED\` |
+| Acento verde | \`#3FC189\` |
+| Texto secundario | \`#9CA3AF\` |
+
+## Spells cubiertos
+
+- layout, navbar, sidebar
+- table, form, modal
+- badges (success/danger/warning/info/purple)
+- toast, toggle, avatar
+- pagination, empty, progress
+
+## Clases canonicas
+
+- \`.cs-card\`, \`.cs-card-hover\`
+- \`.cs-input\`, \`.cs-input-group\`, \`.cs-input-group-icon\`
+- \`.cs-select\`, \`.cs-textarea\`
+- \`.cs-btn\` + \`-primary/-secondary/-success/-danger/-outline/-ghost\`
+- \`.cs-badge\` + \`-success/-danger/-warning/-info/-purple\`
+- \`.cs-tabs\` + \`.cs-tab\` (con \`.active\`)
+- \`.cs-table\`
+- \`.cs-scroll\` (scrollbar custom)
+
+## Referencias
+
+- Hub navegable: \`coffee/ui/index.html\`
+- Doc maestro: \`app/ui/docs/grimorio-ui-kit.md\`
+`
+        }
+      ]
+    };
+
+    let currentFile = null;
+    let allFiles = [...SAMPLE_AGENTS.agents, ...SAMPLE_AGENTS.grimoires];
+
+    function getFileById(file) {
+      return allFiles.find(f => f.file === file);
+    }
+
+    function renderSidebar(filter = '') {
+      const list = document.getElementById('sidebarList');
+      const term = filter.trim().toLowerCase();
+
+      const filterFn = (item) => {
+        if (!term) return true;
+        const haystack = `${item.name} ${item.frontmatter?.description || ''}`.toLowerCase();
+        return haystack.includes(term);
+      };
+
+      const agentsFiltered = SAMPLE_AGENTS.agents.filter(filterFn);
+      const grimoiresFiltered = SAMPLE_AGENTS.grimoires.filter(filterFn);
+
+      const buildSection = (title, items, icon) => {
+        if (!items.length) return '';
+        return `
+          <div class="section-header">
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="${icon}" class="w-3 h-3 text-gray-500"></i>
+              ${title}
+            </span>
+            <span class="badge-count">${items.length}</span>
+          </div>
+          <div>
+            ${items.map(item => `
+              <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}">
+                <i data-lucide="${item.isBackup ? 'archive' : 'file-text'}" class="file-icon"></i>
+                <span class="file-name">${item.name}.md</span>
+                ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
+                <span class="file-size">${item.size}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      };
+
+      list.innerHTML = `
+        ${buildSection('Agentes', agentsFiltered, 'bot')}
+        ${buildSection('Grimorios', grimoiresFiltered, 'book-open')}
+        ${(!agentsFiltered.length && !grimoiresFiltered.length) ? `
+          <div class="empty-state">
+            <i data-lucide="search-x" class="w-8 h-8"></i>
+            <p class="text-xs">Sin resultados</p>
+          </div>
+        ` : ''}
+      `;
+
+      list.querySelectorAll('.sidebar-item').forEach(el => {
+        el.addEventListener('click', () => loadFile(el.dataset.file));
+      });
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function loadFile(fileName) {
+      const file = getFileById(fileName);
+      if (!file) return;
+      currentFile = fileName;
+
+      document.querySelectorAll('.sidebar-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.file === fileName);
+      });
+
+      document.getElementById('breadcrumbSection').textContent = file.section === 'agentes' ? 'agents' : 'agents/grimorios';
+      document.getElementById('breadcrumbFile').textContent = file.file;
+
+      const fmBadge = document.getElementById('fmFileBadge');
+      if (file.isBackup) {
+        fmBadge.textContent = 'backup';
+        fmBadge.className = 'cs-badge badge-secondary';
+      } else if (file.section === 'agentes') {
+        fmBadge.textContent = 'agente';
+        fmBadge.className = 'cs-badge badge-primary';
+      } else {
+        fmBadge.textContent = 'grimorio';
+        fmBadge.className = 'cs-badge badge-success';
+      }
+
+      document.getElementById('fmSizeBadge').textContent = file.size;
+
+      const fm = file.frontmatter || {};
+      document.getElementById('frontmatterBody').innerHTML = `
+        <div class="fm-row">
+          <span class="fm-key">name</span>
+          <span class="fm-val">${fm.name || '—'}</span>
+        </div>
+        <div class="fm-row">
+          <span class="fm-key">description</span>
+          <span class="fm-val">${fm.description || '—'}</span>
+        </div>
+        <div class="fm-row">
+          <span class="fm-key">model</span>
+          <span class="fm-val model">${fm.model || '—'}</span>
+        </div>
+      `;
+
+      const rendered = document.getElementById('md-rendered');
+      const raw = document.getElementById('md-raw');
+
+      const body = file.raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+      rendered.innerHTML = (typeof marked !== 'undefined' && marked.parse)
+        ? marked.parse(body)
+        : `<pre style="white-space:pre-wrap;">${body.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</pre>`;
+      raw.textContent = file.raw;
+
+      const lineCount = file.raw.split('\n').length;
+      document.getElementById('lineCountChip').textContent = `~ ${lineCount} lineas`;
+
+      document.getElementById('footerFile').textContent = file.file;
+      document.getElementById('footerSize').textContent = file.size;
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function bindTabs() {
+      document.querySelectorAll('.cs-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.cs-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          const target = tab.dataset.tab;
+          document.getElementById('md-rendered').classList.toggle('hidden', target !== 'rendered');
+          document.getElementById('md-raw').classList.toggle('hidden', target !== 'raw');
+        });
+      });
+    }
+
+    function bindSearch() {
+      document.getElementById('sidebarSearch').addEventListener('input', (e) => {
+        renderSidebar(e.target.value);
+      });
+      document.getElementById('globalSearch').addEventListener('input', (e) => {
+        const term = e.target.value.trim().toLowerCase();
+        if (!term) {
+          renderSidebar('');
+          return;
+        }
+        const match = allFiles.find(f => {
+          const hay = `${f.name} ${f.frontmatter?.description || ''} ${f.raw}`.toLowerCase();
+          return hay.includes(term);
+        });
+        renderSidebar(term);
+        if (match) loadFile(match.file);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderSidebar();
+      bindTabs();
+      bindSearch();
+      loadFile('CoffeeIA.md');
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

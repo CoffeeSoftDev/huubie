@@ -105,6 +105,10 @@
             <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i>
             Nuevo Traspaso v2
           </button>
+          <button onclick="document.getElementById('modalTraspasoV3').classList.remove('hidden'); document.getElementById('modalTraspasoV3').classList.add('flex');" class="cs-btn cs-btn-primary cs-btn-sm" style="background:linear-gradient(135deg,#7C3AED,#a855f7);border-color:#7C3AED;">
+            <i data-lucide="repeat" class="w-3.5 h-3.5"></i>
+            Nuevo Traspaso v3
+          </button>
         </div>
       </div>
 
@@ -1047,6 +1051,312 @@
     </div>
   </div>
 
+  <!-- ================================================================ -->
+  <!-- MODAL V3: Nuevo Traspaso (con transformacion expandible)         -->
+  <!-- ================================================================ -->
+  <div id="modalTraspasoV3" class="hidden fixed inset-0 bg-black/70 z-[70] items-center justify-center p-4">
+    <div class="bg-[#141d2b] rounded-2xl border border-[#374151] w-[1200px] max-w-full max-h-[92vh] flex flex-col relative overflow-hidden shadow-2xl">
+
+      <!-- Header -->
+      <div class="px-5 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-[#141d2b] to-[#1a2438]">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-md bg-[rgba(124,58,237,0.18)] border border-[#7C3AED]/40 flex items-center justify-center">
+            <i data-lucide="arrow-left-right" class="w-4 h-4 text-[#c4b5fd]"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              Nuevo Traspaso
+              <span class="cs-badge cs-badge-primary !text-[8px] !px-1.5">V3</span>
+            </h3>
+            <p class="text-[10px] text-[#6B7280]">Movimiento de inventario entre sucursales, almacenes y categorias</p>
+          </div>
+        </div>
+        <button onclick="document.getElementById('modalTraspasoV3').classList.add('hidden'); document.getElementById('modalTraspasoV3').classList.remove('flex');" class="text-[#6B7280] hover:text-white p-1 rounded hover:bg-[#1F2A37] transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- ================================================ -->
+      <!-- ================================================ -->
+      <!-- SECCION 1: Barra de filtros (Origen / Destino / Categoria) -->
+      <!-- ================================================ -->
+      <style>
+        #modalTraspasoV3 .cs-select:focus {
+          border-color: var(--cs-border);
+          box-shadow: none;
+        }
+      </style>
+      <div class="px-5 py-3 grid grid-cols-3 gap-3 flex-shrink-0 bg-[#0f172a]/40 border-b border-[#374151]">
+
+        <!-- A) Sucursal ORIGEN -->
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
+          <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Origen</div>
+          <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#9CA3AF] mb-2 mt-0.5">
+            <i data-lucide="arrow-up-from-line" class="w-3 h-3"></i>
+            Sucursal Origen
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">Sucursal</p>
+              <select class="cs-select !text-xs !py-2 w-full">
+                <option selected>Reginas Matriz</option>
+                <option>Reginas Centro</option>
+                <option>Suc. Norte</option>
+                <option>Suc. Sur</option>
+              </select>
+            </div>
+            <div>
+              <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">Almacen</p>
+              <select class="cs-select !text-xs !py-2 w-full">
+                <option selected>General</option>
+                <option>Refrigerado</option>
+                <option>Vitrina</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- B) Sucursal DESTINO -->
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
+          <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Destino</div>
+          <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#9CA3AF] mb-2 mt-0.5">
+            <i data-lucide="arrow-down-to-line" class="w-3 h-3"></i>
+            Sucursal Destino
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">Sucursal</p>
+              <select class="cs-select !text-xs !py-2 w-full">
+                <option>Reginas Matriz</option>
+                <option selected>Reginas Centro</option>
+                <option>Suc. Norte</option>
+                <option>Suc. Sur</option>
+              </select>
+            </div>
+            <div>
+              <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">Almacen</p>
+              <select class="cs-select !text-xs !py-2 w-full">
+                <option selected>General</option>
+                <option>Refrigerado</option>
+                <option>Vitrina</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- C) CATEGORIA -->
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
+          <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Categoria</div>
+          <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#9CA3AF] mb-2 mt-0.5">
+            <i data-lucide="tag" class="w-3 h-3"></i>
+            Categoria de Traspaso
+          </label>
+          <div>
+            <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">Tipo</p>
+            <select class="cs-select !text-xs !py-2 w-full">
+              <option selected>Reabastecimiento</option>
+              <option>Devolucion</option>
+              <option>Prestamo</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================ -->
+      <!-- SECCION 2: Cuerpo principal (2 columnas)         -->
+      <!-- ================================================ -->
+      <div class="flex-1 px-5 pb-3 pt-3 grid grid-cols-[320px_1fr] gap-3 overflow-hidden min-h-0">
+
+        <!-- COLUMNA IZQUIERDA: Selector de productos -->
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg flex flex-col overflow-hidden min-h-0">
+
+          <!-- Header columna izquierda -->
+          <div class="px-3 py-2.5 border-b border-[#374151] flex-shrink-0 bg-[#141d2b]/60">
+            <p class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#c4b5fd] mb-2">
+              <i data-lucide="search" class="w-3 h-3"></i>
+              Buscar Productos
+            </p>
+            <div class="relative mb-2">
+              <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+              <input type="text" placeholder="Nombre o SKU..." class="cs-input pl-10 text-xs w-full">
+            </div>
+          </div>
+
+          <!-- Lista de productos (scroll) -->
+          <div id="traspasoProductList" class="flex-1 overflow-y-auto cs-scroll p-2 space-y-1.5 min-h-0">
+
+            <!-- Producto 1 -->
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-[#1a2332] transition" data-prod-id="1" data-prod-name="Pastel Tradicional 22cm" data-prod-cat="Pasteles" data-prod-price="245" data-prod-stock="14">
+              <div class="w-9 h-9 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-4 h-4 text-[#9CA3AF]"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-semibold text-white truncate">Pastel Tradicional 22cm</p>
+                <p class="text-[9px] text-[#6B7280]">Pasteles · $245.00</p>
+              </div>
+              <div class="flex flex-col items-end gap-0.5 flex-shrink-0">
+                <span class="cs-badge cs-badge-success !text-[8px] !px-1.5">14</span>
+              </div>
+            </div>
+
+            <!-- Producto 2 -->
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-[#1a2332] transition" data-prod-id="2" data-prod-name="Pastel de Chocolate" data-prod-cat="Pasteles" data-prod-price="320" data-prod-stock="8">
+              <div class="w-9 h-9 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-4 h-4 text-[#9CA3AF]"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-semibold text-white truncate">Pastel de Chocolate</p>
+                <p class="text-[9px] text-[#6B7280]">Pasteles · $320.00</p>
+              </div>
+              <div class="flex flex-col items-end gap-0.5 flex-shrink-0">
+                <span class="cs-badge cs-badge-success !text-[8px] !px-1.5">8</span>
+              </div>
+            </div>
+
+            <!-- Producto 3 -->
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-[#1a2332] transition" data-prod-id="3" data-prod-name="Pay de Limon" data-prod-cat="Pasteles" data-prod-price="180" data-prod-stock="3">
+              <div class="w-9 h-9 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-4 h-4 text-[#9CA3AF]"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-semibold text-white truncate">Pay de Limon</p>
+                <p class="text-[9px] text-[#6B7280]">Pasteles · $180.00</p>
+              </div>
+              <div class="flex flex-col items-end gap-0.5 flex-shrink-0">
+                <span class="cs-badge cs-badge-warning !text-[8px] !px-1.5">3</span>
+              </div>
+            </div>
+
+            <!-- Producto 4 -->
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-[#1a2332] transition" data-prod-id="4" data-prod-name="Brownie Doble Choco" data-prod-cat="Galletas" data-prod-price="65" data-prod-stock="22">
+              <div class="w-9 h-9 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-4 h-4 text-[#9CA3AF]"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-semibold text-white truncate">Brownie Doble Choco</p>
+                <p class="text-[9px] text-[#6B7280]">Galletas · $65.00</p>
+              </div>
+              <div class="flex flex-col items-end gap-0.5 flex-shrink-0">
+                <span class="cs-badge cs-badge-success !text-[8px] !px-1.5">22</span>
+              </div>
+            </div>
+
+            <!-- Producto 5 -->
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-[#1a2332] transition" data-prod-id="5" data-prod-name="Galleta Avena Pasas" data-prod-cat="Galletas" data-prod-price="25" data-prod-stock="48">
+              <div class="w-9 h-9 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-4 h-4 text-[#9CA3AF]"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-semibold text-white truncate">Galleta Avena Pasas</p>
+                <p class="text-[9px] text-[#6B7280]">Galletas · $25.00</p>
+              </div>
+              <div class="flex flex-col items-end gap-0.5 flex-shrink-0">
+                <span class="cs-badge cs-badge-success !text-[8px] !px-1.5">48</span>
+              </div>
+            </div>
+
+            <!-- Producto 6 -->
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-[#1a2332] transition" data-prod-id="6" data-prod-name="Harina Premium 1kg" data-prod-cat="Insumos" data-prod-price="32" data-prod-stock="120">
+              <div class="w-9 h-9 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                <i data-lucide="cake" class="w-4 h-4 text-[#9CA3AF]"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-semibold text-white truncate">Harina Premium 1kg</p>
+                <p class="text-[9px] text-[#6B7280]">Insumos · $32.00</p>
+              </div>
+              <div class="flex flex-col items-end gap-0.5 flex-shrink-0">
+                <span class="cs-badge cs-badge-success !text-[8px] !px-1.5">120</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Pie de pagina columna izquierda -->
+        </div>
+
+        <!-- COLUMNA DERECHA: Productos seleccionados (carrito) -->
+        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg flex flex-col overflow-hidden min-h-0">
+
+          <!-- Header columna derecha -->
+          <div class="px-3 py-2.5 border-b border-[#374151] flex-shrink-0 bg-[#141d2b]/60 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <p class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#c4b5fd]">
+                <i data-lucide="shopping-cart" class="w-3 h-3"></i>
+                Productos Seleccionados
+              </p>
+              <span id="cartBadgeCount" class="cs-badge cs-badge-primary !text-[8px] !px-1.5 !py-0.5">0</span>
+            </div>
+            <button id="btnLimpiarCarrito" class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[9px] hover:!bg-[rgba(234,2,52,0.15)] hover:!border-[#EA0234] hover:!text-[#EA0234] transition">
+              <i data-lucide="trash-2" class="w-2.5 h-2.5"></i>
+              Limpiar
+            </button>
+          </div>
+
+          <!-- Tabla del carrito (scroll) -->
+          <div class="flex-1 overflow-y-auto cs-scroll min-h-0">
+            <table class="cs-table w-full">
+              <thead class="sticky top-0 bg-[#141d2b] z-10">
+                <tr class="border-b border-[#374151]">
+                  <th class="text-left text-[#9CA3AF]">Producto</th>
+                  <th class="text-center text-[#9CA3AF]">Cantidad</th>
+                  <th class="text-right text-[#9CA3AF]">Costo</th>
+                  <th class="text-right text-[#9CA3AF]">Subtotal</th>
+                  <th class="text-center text-[#9CA3AF]">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="cartTableBody">
+                <tr id="cartEmptyRow">
+                  <td colspan="5" class="text-center !py-8">
+                    <p class="text-[10px] text-[#6B7280] italic">Selecciona productos de la lista para agregarlos</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Resumen del traspaso -->
+          <div class="px-3 py-2 border-t border-[#374151] flex-shrink-0 bg-[#0f172a]/40">
+            <div class="grid grid-cols-3 gap-2">
+              <div class="text-center">
+                <p class="text-[8px] text-[#6B7280] uppercase tracking-wider leading-none mb-0.5">Items</p>
+                <p id="footerItems" class="text-xs font-bold text-white">0</p>
+              </div>
+              <div class="text-center border-x border-[#374151]">
+                <p class="text-[8px] text-[#6B7280] uppercase tracking-wider leading-none mb-0.5">Unidades</p>
+                <p id="footerUnidades" class="text-xs font-bold text-white">0</p>
+              </div>
+              <div class="text-center">
+                <p class="text-[8px] text-[#6B7280] uppercase tracking-wider leading-none mb-0.5">Costo Total</p>
+                <p id="footerCosto" class="text-xs font-bold text-[#3FC189]">$0.00</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nota -->
+          <div class="px-3 py-2.5 border-t border-[#374151] flex-shrink-0 bg-[#0f172a]/40">
+            <label class="text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1 block">Nota</label>
+            <textarea class="cs-textarea text-xs w-full" rows="1" placeholder="Motivo o referencia del traspaso (opcional)..."></textarea>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ================================================ -->
+      <!-- SECCION 3: Pie del modal (totales + acciones)    -->
+      <!-- ================================================ -->
+      <div class="px-5 py-3 border-t border-[#374151] bg-[#0f172a] flex items-center justify-end flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <button onclick="document.getElementById('modalTraspasoV3').classList.add('hidden'); document.getElementById('modalTraspasoV3').classList.remove('flex');" class="cs-btn cs-btn-outline cs-btn-sm">Cancelar</button>
+          <button class="cs-btn cs-btn-primary cs-btn-sm" style="background:linear-gradient(135deg,#7C3AED,#a855f7);border-color:#7C3AED;">
+            <i data-lucide="send" class="w-3 h-3"></i>
+            Crear y enviar traspaso
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <script>
     lucide.createIcons();
 
@@ -1063,6 +1373,266 @@
       document.querySelectorAll('tbody tr').forEach(r => r.classList.remove('selected-row'));
       row.classList.add('selected-row');
     }
+
+    // -- Carrito de Traspaso --
+    const cart = [];
+
+    // Productos destino para transformacion (por producto origen)
+    const transformOptionsMap = {
+      '1': [
+        { id: 't1-1', name: 'Rebanada Pastel Tradicional', piezasDefault: 8 },
+        { id: 't1-2', name: 'Porcion Individual Tradicional', piezasDefault: 12 },
+      ],
+      '2': [
+        { id: 't2-1', name: 'Rebanada Pastel Chocolate', piezasDefault: 8 },
+        { id: 't2-2', name: 'Mini Pastel Chocolate', piezasDefault: 4 },
+      ],
+      '3': [
+        { id: 't3-1', name: 'Rebanada Pay de Limon', piezasDefault: 8 },
+        { id: 't3-2', name: 'Porcion Individual Limon', piezasDefault: 10 },
+      ],
+      '4': [
+        { id: 't4-1', name: 'Brownie Individual', piezasDefault: 6 },
+      ],
+      '5': [
+        { id: 't5-1', name: 'Galleta Avena Unidad', piezasDefault: 1 },
+      ],
+      '6': []
+    };
+
+    function fmtMoney(n) {
+      return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function addToCart(id, name, cat, price, stock) {
+      const existing = cart.find(item => item.id === id);
+      if (existing) {
+        if (existing.cant < existing.stock) existing.cant++;
+      } else {
+        cart.push({ id, name, cat, price: Number(price), stock: Number(stock), cant: 1, transform: null, transformOpen: false });
+      }
+      renderCart();
+    }
+
+    function removeFromCart(id) {
+      const idx = cart.findIndex(item => item.id === id);
+      if (idx > -1) cart.splice(idx, 1);
+      renderCart();
+    }
+
+    function updateQty(id, delta) {
+      const item = cart.find(i => i.id === id);
+      if (!item) return;
+      if (item.transform) return;
+      const newQty = item.cant + delta;
+      if (newQty < 1) return removeFromCart(id);
+      if (newQty > item.stock) return;
+      item.cant = newQty;
+      renderCart();
+    }
+
+    function toggleTransformPanel(id) {
+      const item = cart.find(i => i.id === id);
+      if (!item) return;
+      if (item.transform) return;
+      const options = transformOptionsMap[id] || [];
+      if (!options.length) return;
+      item.transformOpen = !item.transformOpen;
+      renderCart();
+    }
+
+    function applyTransform(id) {
+      const item = cart.find(i => i.id === id);
+      if (!item) return;
+      const select = document.querySelector(`[data-transform-select="${id}"]`);
+      const input = document.querySelector(`[data-transform-qty="${id}"]`);
+      if (!select || !input) return;
+      const optId = select.value;
+      const options = transformOptionsMap[id] || [];
+      const opt = options.find(o => o.id === optId);
+      const piezas = parseInt(input.value) || 1;
+      item.transform = { producto: opt ? opt.name : select.options[select.selectedIndex].text, piezas };
+      item.transformOpen = false;
+      renderCart();
+    }
+
+    function cancelTransform(id) {
+      const item = cart.find(i => i.id === id);
+      if (!item) return;
+      item.transformOpen = false;
+      renderCart();
+    }
+
+    function revertTransform(id) {
+      const item = cart.find(i => i.id === id);
+      if (!item) return;
+      item.transform = null;
+      renderCart();
+    }
+
+    function updatePiezasDefault(id) {
+      const select = document.querySelector(`[data-transform-select="${id}"]`);
+      const input = document.querySelector(`[data-transform-qty="${id}"]`);
+      if (!select || !input) return;
+      const options = transformOptionsMap[id] || [];
+      const opt = options.find(o => o.id === select.value);
+      if (opt) input.value = opt.piezasDefault;
+    }
+
+    function clearCart() {
+      cart.length = 0;
+      renderCart();
+    }
+
+    function renderCart() {
+      const tbody = document.getElementById('cartTableBody');
+      if (!cart.length) {
+        tbody.innerHTML = `<tr id="cartEmptyRow"><td colspan="5" class="text-center !py-8"><p class="text-[10px] text-[#6B7280] italic">Selecciona productos de la lista para agregarlos</p></td></tr>`;
+      } else {
+        tbody.innerHTML = cart.map(item => {
+          const subtotal = item.cant * item.price;
+          const isTransformed = !!item.transform;
+          const isOpen = item.transformOpen;
+
+          let rowHtml = `
+            <tr class="border-b ${isTransformed ? 'border-[#06b6d4]/25 bg-[rgba(6,182,212,0.03)]' : 'border-[#374151]/60 hover:bg-[#1a2332]/40'} transition" data-cart-id="${item.id}">
+              <td>
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="cake" class="w-3.5 h-3.5 text-[#9CA3AF]"></i>
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-semibold text-white leading-tight">${item.name}${isTransformed ? ' <span class="cs-badge cs-badge-info !text-[7px] !px-1.5">TRANSFORMADO</span>' : ''}</p>
+                    <p class="text-[8px] text-[#6B7280]">${item.cat} · Stock: ${item.stock}</p>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="flex items-center justify-center gap-0.5">
+                  <button onclick="updateQty('${item.id}', -1)" class="w-5 h-5 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] ${isTransformed ? 'opacity-30 cursor-not-allowed' : 'hover:bg-[#1F2A37] hover:text-white'} transition flex items-center justify-center text-xs">−</button>
+                  <span class="w-8 text-center text-[10px] font-bold text-white">${item.cant}</span>
+                  <button onclick="updateQty('${item.id}', 1)" class="w-5 h-5 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] ${isTransformed || item.cant >= item.stock ? 'opacity-30 cursor-not-allowed' : 'hover:bg-[#1F2A37] hover:text-white'} transition flex items-center justify-center text-xs">+</button>
+                </div>
+              </td>
+              <td class="text-right">
+                <p class="text-[10px] text-[#9CA3AF]">${fmtMoney(item.price)}</p>
+              </td>
+              <td class="text-right">
+                <p class="text-[11px] font-bold text-[#3FC189]">${fmtMoney(subtotal)}</p>
+                <p class="text-[8px] text-[#6B7280]">${item.cant} x ${fmtMoney(item.price)}</p>
+              </td>
+              <td>
+                <div class="flex items-center justify-center gap-1">
+                  <button onclick="toggleTransformPanel('${item.id}')" class="w-6 h-6 rounded ${isTransformed ? 'bg-[#06b6d4]/15 border border-[#06b6d4]/40 text-[#22d3ee] cursor-not-allowed' : isOpen ? 'bg-[#1C64F2]/20 border border-[#1C64F2] text-[#76A9FA]' : !(transformOptionsMap[item.id] || []).length ? 'bg-[#1a2332] border border-[#374151] text-[#9CA3AF]/30 cursor-not-allowed' : 'bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:bg-[#1C64F2]/15 hover:text-[#76A9FA] hover:border-[#1C64F2]'} transition flex items-center justify-center" title="Transformar">
+                    <i data-lucide="recycle" class="w-3 h-3"></i>
+                  </button>
+                  <button onclick="removeFromCart('${item.id}')" class="w-6 h-6 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:bg-[rgba(234,2,52,0.15)] hover:text-[#EA0234] hover:border-[#EA0234] transition flex items-center justify-center" title="Quitar">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+
+          // Panel de transformacion expandido
+          if (isOpen && !isTransformed) {
+            const options = transformOptionsMap[item.id] || [];
+            const selectOpts = options.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+            const defaultPiezas = options.length ? options[0].piezasDefault : 8;
+            rowHtml += `
+              <tr class="border-b border-[#1C64F2]/30 bg-[rgba(28,100,242,0.06)]">
+                <td colspan="5" class="!py-2.5 !px-4">
+                  <div class="flex items-center gap-3 flex-wrap">
+                    <div class="flex items-center gap-1.5 text-[#76A9FA]">
+                      <i data-lucide="recycle" class="w-3.5 h-3.5"></i>
+                      <span class="text-[10px] font-semibold uppercase tracking-wider">Transformar en:</span>
+                    </div>
+                    <select data-transform-select="${item.id}" class="cs-select text-xs !w-52" onchange="updatePiezasDefault('${item.id}')">
+                      ${selectOpts}
+                    </select>
+                    <div class="flex items-center gap-1">
+                      <span class="text-[9px] text-[#9CA3AF]">Piezas:</span>
+                      <input type="number" value="${defaultPiezas}" min="1" data-transform-qty="${item.id}" class="cs-input !w-14 !text-center !px-1 !text-[10px]">
+                    </div>
+                    <div class="flex items-center gap-1 ml-auto">
+                      <button onclick="cancelTransform('${item.id}')" class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[9px]">Cancelar</button>
+                      <button onclick="applyTransform('${item.id}')" class="cs-btn cs-btn-sm cs-btn-primary !py-1 !text-[9px]">
+                        <i data-lucide="check" class="w-2.5 h-2.5"></i>
+                        Aplicar
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }
+
+          // Banner de transformacion aplicada
+          if (isTransformed) {
+            rowHtml += `
+              <tr class="border-b border-[#06b6d4]/25 bg-[rgba(6,182,212,0.05)]">
+                <td colspan="5" class="!py-2 !px-4">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <div class="w-6 h-6 rounded-full bg-[#06b6d4]/15 border border-[#06b6d4]/35 flex items-center justify-center flex-shrink-0">
+                      <i data-lucide="recycle" class="w-3 h-3 text-[#22d3ee]"></i>
+                    </div>
+                    <span class="text-[10px] text-[#67e8f9]">
+                      Se transforma en <span class="font-bold">${item.transform.piezas} piezas</span> de <span class="font-bold">${item.transform.producto}</span>
+                    </span>
+                    <button onclick="revertTransform('${item.id}')" class="ml-auto text-[9px] px-2 py-1 bg-[#06b6d4]/12 text-[#67e8f9] border border-[#06b6d4]/35 rounded hover:bg-[#06b6d4]/20 transition flex items-center gap-1">
+                      <i data-lucide="undo" class="w-2.5 h-2.5"></i>
+                      Revertir
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }
+
+          return rowHtml;
+        }).join('');
+      }
+
+      // Totales
+      const items = cart.length;
+      const uds = cart.reduce((s, i) => s + i.cant, 0);
+      const costo = cart.reduce((s, i) => s + (i.cant * i.price), 0);
+
+      document.getElementById('cartBadgeCount').textContent = items;
+      document.getElementById('footerItems').textContent = items;
+      document.getElementById('footerUnidades').textContent = uds;
+      document.getElementById('footerCosto').textContent = fmtMoney(costo);
+
+      // Highlight productos agregados en la lista izquierda
+      document.querySelectorAll('#traspasoProductList [data-prod-id]').forEach(el => {
+        const id = el.getAttribute('data-prod-id');
+        const inCart = cart.find(i => i.id === id);
+        if (inCart) {
+          el.classList.add('!border-[#3FC189]/40');
+          el.classList.remove('border-[#374151]');
+        } else {
+          el.classList.remove('!border-[#3FC189]/40');
+          el.classList.add('border-[#374151]');
+        }
+      });
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // Click en producto de la lista izquierda
+    document.getElementById('traspasoProductList').addEventListener('click', (e) => {
+      const item = e.target.closest('[data-prod-id]');
+      if (!item) return;
+      const id    = item.getAttribute('data-prod-id');
+      const name  = item.getAttribute('data-prod-name');
+      const cat   = item.getAttribute('data-prod-cat');
+      const price = item.getAttribute('data-prod-price');
+      const stock = item.getAttribute('data-prod-stock');
+      addToCart(id, name, cat, price, stock);
+    });
+
+    // Boton limpiar
+    document.getElementById('btnLimpiarCarrito').addEventListener('click', clearCart);
   </script>
 </body>
 </html>
