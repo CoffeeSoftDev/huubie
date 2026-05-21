@@ -405,14 +405,17 @@ class TraspasosView extends Templates {
 
     openTraspasoForm() {
         const sucursales = (SAMPLE_TRASPASOS_SUCURSALES || []).filter(s => s.id !== '');
-        this.traspasoFormModal({
+        this.traspasoFormModalV3({
             parent: 'body',
             json: {
                 sucursales:      sucursales,
+                almacenes:       SAMPLE_TRASPASOS_ALMACENES,
+                categorias:      SAMPLE_TRASPASOS_CATEGORIAS,
                 productos:       SAMPLE_PRODUCTOS_DISPONIBLES,
+                transformMap:    SAMPLE_TRASPASOS_TRANSFORM,
                 origenIdInicial: app.subId || (sucursales[0] && sucursales[0].id) || ''
             },
-            onClose: () => console.log('[traspasoFormModal] close'),
+            onClose: () => console.log('[traspasoFormModalV3] close'),
             onSave:  (payload) => traspasos.nuevoTraspaso(payload)
         });
     }
@@ -955,35 +958,60 @@ class TraspasosView extends Templates {
         $(`#${opts.id}_confirm`).on('click', () => opts.onConfirm(t));
     }
 
-    traspasoFormModal(options) {
+    traspasoFormModalV3(options) {
         const defaults = {
             parent:   'body',
-            id:       'traspasoFormModal',
-            json:     { sucursales: [], productos: [], origenIdInicial: '' },
-            data:     null,
+            id:       'traspasoFormModalV3',
+            json:     {
+                sucursales:      [],
+                almacenes:       [],
+                categorias:      [],
+                productos:       [],
+                transformMap:    {},
+                origenIdInicial: ''
+            },
             labels: {
-                title:       'Nuevo Traspaso',
-                subtitle:    'Mover producto entre sucursales',
-                origen:      'Sucursal Origen',
-                destino:     'Sucursal Destino',
-                selDestino:  'Seleccionar destino...',
-                productos:   'Productos a traspasar',
-                addItem:     'Agregar producto',
-                items:       'Items',
-                totUds:      'Total unidades',
-                costoTot:    'Costo total',
-                nota:        'Nota / Motivo',
-                notaPh:      'Ej: Reabastecimiento urgente por demanda...',
-                cant:        'Cant',
-                subtotal:    'Subtotal',
-                stockArrow:  'Stock→',
-                callout:     'Flujo de 2 pasos',
-                calloutMsg:  'Al crear el traspaso, el stock se descuenta del origen y queda "En Transito" hasta que la sucursal destino confirme la recepcion.',
-                cancelar:    'Cancelar',
-                crear:       'Crear y Enviar Traspaso',
-                errSucIgual: 'Origen y destino no pueden ser la misma sucursal',
-                errSinDest:  'Selecciona una sucursal destino',
-                errSinProd:  'Agrega al menos un producto'
+                title:        'Nuevo Traspaso',
+                badge:        'V3',
+                subtitle:     'Movimiento de inventario entre sucursales, almacenes y categorias',
+                origen:       'Origen',
+                origenLbl:    'Sucursal Origen',
+                destino:      'Destino',
+                destinoLbl:   'Sucursal Destino',
+                categoria:    'Categoria',
+                categoriaLbl: 'Categoria de Traspaso',
+                sucursal:     'Sucursal',
+                almacen:      'Almacen',
+                tipo:         'Tipo',
+                buscar:       'Buscar Productos',
+                buscarPh:     'Nombre o SKU...',
+                cart:         'Productos Seleccionados',
+                cartEmpty:    'Selecciona productos de la lista para agregarlos',
+                limpiar:      'Limpiar',
+                cant:         'Cantidad',
+                costo:        'Costo',
+                subtotal:     'Subtotal',
+                acciones:     'Acciones',
+                producto:     'Producto',
+                items:        'Items',
+                unidades:     'Unidades',
+                costoTot:     'Costo Total',
+                nota:         'Nota',
+                notaPh:       'Motivo o referencia del traspaso (opcional)...',
+                cancelar:     'Cancelar',
+                crear:        'Crear y enviar traspaso',
+                transformar:  'Transformar en:',
+                piezas:       'Piezas:',
+                aplicar:      'Aplicar',
+                cancelarTr:   'Cancelar',
+                revertir:     'Revertir',
+                transformOk:  'Se transforma en',
+                transformOf:  'piezas de',
+                badgeTr:      'TRANSFORMADO',
+                stockLbl:     'Stock:',
+                errSucIgual:  'Origen y destino no pueden ser la misma sucursal',
+                errSinDest:   'Selecciona una sucursal destino',
+                errSinProd:   'Agrega al menos un producto'
             },
             onClose: () => {},
             onSave:  () => {}
@@ -1000,11 +1028,10 @@ class TraspasosView extends Templates {
 
         const fmtMoney = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        // -- Estado local
-        let lineas = [];   // { uid, productId, cant }
-        let nextUid = 1;
+        // -- Estado local del carrito
+        const cart = [];   // { id, name, sku, cat, price, stock, icon, bg, color, cant, transform, transformOpen }
+        const transformMap = opts.json.transformMap || {};
 
-        // -- Helpers
         const findProd = (id) => (opts.json.productos || []).find(p => p.id === id);
 
         const stockOrigen = (prod, origenId) => {
@@ -1016,91 +1043,317 @@ class TraspasosView extends Templates {
             return (prod.stockPorSuc && prod.stockPorSuc[destinoId]) || 0;
         };
 
-        const sucursalSelectHtml = (id, selected, includePlaceholder, placeholder) => {
-            const opciones = (opts.json.sucursales || []).map(s =>
-                `<option value="${esc(s.id)}" ${s.id === selected ? 'selected' : ''}>${esc(s.valor)}</option>`
-            ).join('');
-            return `<select id="${id}" class="cs-select text-xs w-full bg-[#1F2937] border border-[#374151] rounded-md px-2 py-1.5 text-white">
-                ${includePlaceholder ? `<option value="">${esc(placeholder)}</option>` : ''}
-                ${opciones}
-            </select>`;
-        };
+        const optionsHtml = (list, selectedId) => (list || []).map(it =>
+            `<option value="${esc(it.id)}" ${it.id === selectedId ? 'selected' : ''}>${esc(it.valor)}</option>`
+        ).join('');
 
-        const productoSelectHtml = (uid, productId) => {
-            const opciones = (opts.json.productos || []).map(p =>
-                `<option value="${esc(p.id)}" ${p.id === productId ? 'selected' : ''}>${esc(p.nombre)} (${esc(p.sku)})</option>`
-            ).join('');
-            return `<select data-line-uid="${uid}" data-role="product" class="cs-select text-xs w-full bg-[#1F2937] border border-[#374151] rounded-md px-2 py-1.5 text-white">
-                <option value="">Selecciona producto...</option>
-                ${opciones}
-            </select>`;
-        };
+        const selectBox = (id, list, selectedId) => `
+            <select id="${id}" class="cs-select !text-xs !py-2 w-full">
+                ${optionsHtml(list, selectedId)}
+            </select>
+        `;
 
-        const lineaHtml = (linea) => {
-            const prod        = findProd(linea.productId);
-            const origenId    = $(`#${opts.id}_origen`).val() || opts.json.origenIdInicial;
-            const destinoId   = $(`#${opts.id}_destino`).val() || '';
-            const stockO      = stockOrigen(prod, origenId);
-            const stockD      = stockDestino(prod, destinoId);
-            const stockOPost  = Math.max(stockO - Number(linea.cant || 0), 0);
-            const stockDPost  = stockD + Number(linea.cant || 0);
-            const subtotal    = prod ? Number(prod.costo || 0) * Number(linea.cant || 0) : 0;
+        // -- Lista de productos (columna izquierda)
 
+        const productCardHtml = (p) => {
+            const origenId = $(`#${opts.id}_origenSuc`).val() || opts.json.origenIdInicial;
+            const stock    = stockOrigen(p, origenId);
+            const badgeTone = stock <= 0 ? 'cs-badge-danger' : (stock < 5 ? 'cs-badge-warning' : 'cs-badge-success');
             return `
-                <div class="bg-[#1a2332] rounded-lg p-2 border border-[#374151]" data-line-uid="${linea.uid}">
-                    <div class="grid grid-cols-12 gap-2 items-center">
-                        <div class="col-span-5">${productoSelectHtml(linea.uid, linea.productId)}</div>
-                        <div class="col-span-2">
-                            <input type="number" min="1" data-line-uid="${linea.uid}" data-role="cant" value="${esc(linea.cant)}" placeholder="Cant" class="cs-input text-xs text-center w-full bg-[#1F2937] border border-[#374151] rounded-md px-2 py-1.5 text-white">
-                        </div>
-                        <div class="col-span-2 text-right">
-                            <p class="text-[9px] text-[#6B7280]">${esc(opts.labels.subtotal)}</p>
-                            <p class="text-xs font-bold text-white">${fmtMoney(subtotal)}</p>
-                        </div>
-                        <div class="col-span-2 text-right">
-                            <p class="text-[9px] text-[#6B7280]">${esc(opts.labels.stockArrow)}</p>
-                            <p class="text-[10px] font-bold"><span class="text-orange-400">${stockOPost}</span> / <span class="text-green-400">${stockDPost}</span></p>
-                        </div>
-                        <div class="col-span-1 text-center">
-                            <button type="button" data-line-uid="${linea.uid}" data-role="remove" class="text-[#6B7280] hover:text-red-400">
-                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            </button>
-                        </div>
+                <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-[#1a2332] transition"
+                     data-prod-id="${esc(p.id)}">
+                    <div class="w-9 h-9 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="${esc(p.icon || 'package')}" class="w-4 h-4 ${esc(p.color || 'text-[#9CA3AF]')}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] font-semibold text-white truncate">${esc(p.nombre)}</p>
+                        <p class="text-[9px] text-[#6B7280]">${esc(p.categoria || p.sku)} &middot; ${fmtMoney(p.costo)}</p>
+                    </div>
+                    <div class="flex flex-col items-end gap-0.5 flex-shrink-0">
+                        <span class="cs-badge ${badgeTone} !text-[8px] !px-1.5">${stock}</span>
                     </div>
                 </div>
             `;
         };
 
-        const renderLineas = () => {
-            const html = lineas.length
-                ? lineas.map(lineaHtml).join('')
-                : `<div class="text-[10px] text-gray-500 italic text-center py-3 border border-dashed border-[#374151] rounded-lg">Sin productos. Click en "${esc(opts.labels.addItem)}".</div>`;
-            $(`#${opts.id}_lineas`).html(html);
-            renderResumen();
+        const renderProductList = () => {
+            const q          = ($(`#${opts.id}_search`).val() || '').toLowerCase().trim();
+            const catSelId   = $(`#${opts.id}_categoria`).val() || '';
+            const catSel     = (opts.json.categorias || []).find(c => c.id === catSelId);
+            const catValor   = (catSel && catSel.valor) || '';
+
+            const list = (opts.json.productos || []).filter(p => {
+                const matchQ   = !q || (p.nombre + ' ' + p.sku).toLowerCase().includes(q);
+                const matchCat = !catValor || (p.categoria || '').toLowerCase() === catValor.toLowerCase();
+                return matchQ && matchCat;
+            });
+
+            const html = list.length
+                ? list.map(productCardHtml).join('')
+                : `<div class="text-[10px] text-gray-500 italic text-center py-4">Sin productos para los filtros aplicados.</div>`;
+            $(`#${opts.id}_productList`).html(html);
+            highlightCartRows();
             if (window.lucide) lucide.createIcons();
         };
 
-        const renderResumen = () => {
-            const items = lineas.length;
-            const uds   = lineas.reduce((s, l) => s + Number(l.cant || 0), 0);
-            const costo = lineas.reduce((s, l) => {
-                const p = findProd(l.productId);
-                return s + (p ? Number(p.costo || 0) * Number(l.cant || 0) : 0);
-            }, 0);
-            $(`#${opts.id}_resumen_items`).text(items);
-            $(`#${opts.id}_resumen_uds`).text(uds);
-            $(`#${opts.id}_resumen_costo`).text(fmtMoney(costo));
+        // -- Carrito (columna derecha)
+
+        const addToCart = (id) => {
+            const prod = findProd(id);
+            if (!prod) return;
+            const origenId = $(`#${opts.id}_origenSuc`).val() || opts.json.origenIdInicial;
+            const stock    = stockOrigen(prod, origenId);
+            if (stock <= 0) return;
+
+            const existing = cart.find(i => i.id === id);
+            if (existing) {
+                if (existing.transform) return;
+                if (existing.cant < existing.stock) existing.cant++;
+            } else {
+                cart.push({
+                    id:    prod.id,
+                    name:  prod.nombre,
+                    sku:   prod.sku,
+                    cat:   prod.categoria || '-',
+                    icon:  prod.icon || 'package',
+                    bg:    prod.bg    || 'bg-gray-700',
+                    color: prod.color || 'text-gray-400',
+                    price: Number(prod.costo || 0),
+                    stock: stock,
+                    cant:  1,
+                    transform:     null,
+                    transformOpen: false
+                });
+            }
+            renderCart();
         };
 
-        const addLinea = () => {
-            lineas.push({ uid: 'l' + (nextUid++), productId: '', cant: 1 });
-            renderLineas();
+        const removeFromCart = (id) => {
+            const idx = cart.findIndex(i => i.id === id);
+            if (idx > -1) cart.splice(idx, 1);
+            renderCart();
         };
 
-        const removeLinea = (uid) => {
-            lineas = lineas.filter(l => l.uid !== uid);
-            renderLineas();
+        const updateQty = (id, delta) => {
+            const item = cart.find(i => i.id === id);
+            if (!item || item.transform) return;
+            const next = item.cant + delta;
+            if (next < 1) return removeFromCart(id);
+            if (next > item.stock) return;
+            item.cant = next;
+            renderCart();
         };
+
+        const toggleTransformPanel = (id) => {
+            const item = cart.find(i => i.id === id);
+            if (!item || item.transform) return;
+            const opts2 = transformMap[id] || [];
+            if (!opts2.length) return;
+            item.transformOpen = !item.transformOpen;
+            renderCart();
+        };
+
+        const applyTransform = (id) => {
+            const item = cart.find(i => i.id === id);
+            if (!item) return;
+            const $sel  = $(`[data-transform-select="${id}"]`);
+            const $qty  = $(`[data-transform-qty="${id}"]`);
+            if (!$sel.length || !$qty.length) return;
+            const optId  = $sel.val();
+            const list   = transformMap[id] || [];
+            const opt    = list.find(o2 => o2.id === optId);
+            const piezas = parseInt($qty.val(), 10) || 1;
+            item.transform     = { id: optId, producto: opt ? opt.nombre : $sel.find('option:selected').text(), piezas };
+            item.transformOpen = false;
+            renderCart();
+        };
+
+        const cancelTransform = (id) => {
+            const item = cart.find(i => i.id === id);
+            if (!item) return;
+            item.transformOpen = false;
+            renderCart();
+        };
+
+        const revertTransform = (id) => {
+            const item = cart.find(i => i.id === id);
+            if (!item) return;
+            item.transform = null;
+            renderCart();
+        };
+
+        const updatePiezasDefault = (id) => {
+            const $sel = $(`[data-transform-select="${id}"]`);
+            const $qty = $(`[data-transform-qty="${id}"]`);
+            if (!$sel.length || !$qty.length) return;
+            const list = transformMap[id] || [];
+            const opt  = list.find(o2 => o2.id === $sel.val());
+            if (opt) $qty.val(opt.piezasDefault);
+        };
+
+        const clearCart = () => {
+            cart.length = 0;
+            renderCart();
+        };
+
+        const cartRowHtml = (item) => {
+            const subtotal = item.cant * item.price;
+            const isTr     = !!item.transform;
+            const isOpen   = item.transformOpen;
+            const trList   = transformMap[item.id] || [];
+            const trBtnCls = isTr
+                ? 'bg-[#06b6d4]/15 border border-[#06b6d4]/40 text-[#22d3ee] cursor-not-allowed'
+                : isOpen
+                    ? 'bg-[#1C64F2]/20 border border-[#1C64F2] text-[#76A9FA]'
+                    : (!trList.length
+                        ? 'bg-[#1a2332] border border-[#374151] text-[#9CA3AF]/30 cursor-not-allowed'
+                        : 'bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:bg-[#1C64F2]/15 hover:text-[#76A9FA] hover:border-[#1C64F2]');
+            const minusCls = isTr
+                ? 'opacity-30 cursor-not-allowed'
+                : 'hover:bg-[#1F2A37] hover:text-white';
+            const plusCls  = isTr || item.cant >= item.stock
+                ? 'opacity-30 cursor-not-allowed'
+                : 'hover:bg-[#1F2A37] hover:text-white';
+
+            let rowHtml = `
+                <tr class="border-b ${isTr ? 'border-[#06b6d4]/25 bg-[rgba(6,182,212,0.03)]' : 'border-[#374151]/60 hover:bg-[#1a2332]/40'} transition" data-cart-id="${esc(item.id)}">
+                    <td>
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="${esc(item.icon)}" class="w-3.5 h-3.5 ${esc(item.color)}"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-semibold text-white leading-tight">
+                                    ${esc(item.name)}${isTr ? ` <span class="cs-badge cs-badge-info !text-[7px] !px-1.5">${esc(opts.labels.badgeTr)}</span>` : ''}
+                                </p>
+                                <p class="text-[8px] text-[#6B7280]">${esc(item.cat)} &middot; ${esc(opts.labels.stockLbl)} ${item.stock}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="flex items-center justify-center gap-0.5">
+                            <button type="button" data-cart-id="${esc(item.id)}" data-role="minus" class="w-5 h-5 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] ${minusCls} transition flex items-center justify-center text-xs">&minus;</button>
+                            <span class="w-8 text-center text-[10px] font-bold text-white">${item.cant}</span>
+                            <button type="button" data-cart-id="${esc(item.id)}" data-role="plus" class="w-5 h-5 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] ${plusCls} transition flex items-center justify-center text-xs">+</button>
+                        </div>
+                    </td>
+                    <td class="text-right">
+                        <p class="text-[10px] text-[#9CA3AF]">${fmtMoney(item.price)}</p>
+                    </td>
+                    <td class="text-right">
+                        <p class="text-[11px] font-bold text-[#3FC189]">${fmtMoney(subtotal)}</p>
+                        <p class="text-[8px] text-[#6B7280]">${item.cant} x ${fmtMoney(item.price)}</p>
+                    </td>
+                    <td>
+                        <div class="flex items-center justify-center gap-1">
+                            <button type="button" data-cart-id="${esc(item.id)}" data-role="transform"
+                                    class="w-6 h-6 rounded ${trBtnCls} transition flex items-center justify-center" title="${esc(opts.labels.transformar)}">
+                                <i data-lucide="recycle" class="w-3 h-3"></i>
+                            </button>
+                            <button type="button" data-cart-id="${esc(item.id)}" data-role="remove"
+                                    class="w-6 h-6 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:bg-[rgba(234,2,52,0.15)] hover:text-[#EA0234] hover:border-[#EA0234] transition flex items-center justify-center" title="Quitar">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+            if (isOpen && !isTr) {
+                const selectOpts = trList.map(o2 =>
+                    `<option value="${esc(o2.id)}">${esc(o2.nombre)}</option>`
+                ).join('');
+                const defaultPiezas = trList.length ? trList[0].piezasDefault : 8;
+                rowHtml += `
+                    <tr class="border-b border-[#1C64F2]/30 bg-[rgba(28,100,242,0.06)]">
+                        <td colspan="5" class="!py-2.5 !px-4">
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <div class="flex items-center gap-1.5 text-[#76A9FA]">
+                                    <i data-lucide="recycle" class="w-3.5 h-3.5"></i>
+                                    <span class="text-[10px] font-semibold uppercase tracking-wider">${esc(opts.labels.transformar)}</span>
+                                </div>
+                                <select data-transform-select="${esc(item.id)}" class="cs-select text-xs !w-52">
+                                    ${selectOpts}
+                                </select>
+                                <div class="flex items-center gap-1">
+                                    <span class="text-[9px] text-[#9CA3AF]">${esc(opts.labels.piezas)}</span>
+                                    <input type="number" value="${defaultPiezas}" min="1" data-transform-qty="${esc(item.id)}" class="cs-input !w-14 !text-center !px-1 !text-[10px]">
+                                </div>
+                                <div class="flex items-center gap-1 ml-auto">
+                                    <button type="button" data-cart-id="${esc(item.id)}" data-role="cancel-transform" class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[9px]">${esc(opts.labels.cancelarTr)}</button>
+                                    <button type="button" data-cart-id="${esc(item.id)}" data-role="apply-transform" class="cs-btn cs-btn-sm cs-btn-primary !py-1 !text-[9px]">
+                                        <i data-lucide="check" class="w-2.5 h-2.5"></i>
+                                        ${esc(opts.labels.aplicar)}
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            if (isTr) {
+                rowHtml += `
+                    <tr class="border-b border-[#06b6d4]/25 bg-[rgba(6,182,212,0.05)]">
+                        <td colspan="5" class="!py-2 !px-4">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <div class="w-6 h-6 rounded-full bg-[#06b6d4]/15 border border-[#06b6d4]/35 flex items-center justify-center flex-shrink-0">
+                                    <i data-lucide="recycle" class="w-3 h-3 text-[#22d3ee]"></i>
+                                </div>
+                                <span class="text-[10px] text-[#67e8f9]">
+                                    ${esc(opts.labels.transformOk)} <span class="font-bold">${item.transform.piezas} ${esc(opts.labels.piezas).replace(':','').toLowerCase()}</span> ${esc(opts.labels.transformOf)} <span class="font-bold">${esc(item.transform.producto)}</span>
+                                </span>
+                                <button type="button" data-cart-id="${esc(item.id)}" data-role="revert-transform" class="ml-auto text-[9px] px-2 py-1 bg-[#06b6d4]/12 text-[#67e8f9] border border-[#06b6d4]/35 rounded hover:bg-[#06b6d4]/20 transition flex items-center gap-1">
+                                    <i data-lucide="undo" class="w-2.5 h-2.5"></i>
+                                    ${esc(opts.labels.revertir)}
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            return rowHtml;
+        };
+
+        const highlightCartRows = () => {
+            $(`#${opts.id}_productList [data-prod-id]`).each(function () {
+                const id     = $(this).attr('data-prod-id');
+                const inCart = cart.find(i => i.id === id);
+                if (inCart) {
+                    $(this).addClass('!border-[#3FC189]/40').removeClass('border-[#374151]');
+                } else {
+                    $(this).removeClass('!border-[#3FC189]/40').addClass('border-[#374151]');
+                }
+            });
+        };
+
+        const renderCart = () => {
+            const $tbody = $(`#${opts.id}_cartBody`);
+            if (!cart.length) {
+                $tbody.html(`
+                    <tr><td colspan="5" class="text-center !py-8">
+                        <p class="text-[10px] text-[#6B7280] italic">${esc(opts.labels.cartEmpty)}</p>
+                    </td></tr>
+                `);
+            } else {
+                $tbody.html(cart.map(cartRowHtml).join(''));
+            }
+
+            const items = cart.length;
+            const uds   = cart.reduce((s, i) => s + Number(i.cant || 0), 0);
+            const costo = cart.reduce((s, i) => s + Number(i.cant || 0) * Number(i.price || 0), 0);
+
+            $(`#${opts.id}_cartCount`).text(items);
+            $(`#${opts.id}_footerItems`).text(items);
+            $(`#${opts.id}_footerUds`).text(uds);
+            $(`#${opts.id}_footerCosto`).text(fmtMoney(costo));
+
+            highlightCartRows();
+            if (window.lucide) lucide.createIcons();
+        };
+
+        // -- Cierre y guardado
 
         const close = () => {
             $(`#${opts.id}_root`).remove();
@@ -1108,38 +1361,48 @@ class TraspasosView extends Templates {
         };
 
         const save = () => {
-            const origenId  = $(`#${opts.id}_origen`).val();
-            const destinoId = $(`#${opts.id}_destino`).val();
-            const nota      = $(`#${opts.id}_nota`).val().trim();
+            const origenId    = $(`#${opts.id}_origenSuc`).val();
+            const origenAlm   = $(`#${opts.id}_origenAlm`).val();
+            const destinoId   = $(`#${opts.id}_destinoSuc`).val();
+            const destinoAlm  = $(`#${opts.id}_destinoAlm`).val();
+            const categoriaId = $(`#${opts.id}_categoria`).val();
+            const nota        = ($(`#${opts.id}_nota`).val() || '').trim();
 
             const $err = $(`#${opts.id}_error`);
             $err.addClass('hidden').text('');
 
-            if (!destinoId)                 { $err.removeClass('hidden').text(opts.labels.errSinDest);  return; }
-            if (origenId === destinoId)     { $err.removeClass('hidden').text(opts.labels.errSucIgual); return; }
-            const productosPayload = lineas
-                .filter(l => l.productId && Number(l.cant) > 0)
-                .map(l => {
-                    const p = findProd(l.productId);
-                    return {
-                        productId:        l.productId,
-                        sku:              p.sku,
-                        nombre:           p.nombre,
-                        cant:             Number(l.cant),
-                        costo:            Number(p.costo),
-                        stockOrigenPrev:  stockOrigen(p, origenId),
-                        stockDestinoPrev: stockDestino(p, destinoId)
-                    };
-                });
+            if (!destinoId)              { $err.removeClass('hidden').text(opts.labels.errSinDest);  return; }
+            if (origenId === destinoId)  { $err.removeClass('hidden').text(opts.labels.errSucIgual); return; }
+
+            const productosPayload = cart.map(i => {
+                const p = findProd(i.id);
+                return {
+                    productId:        i.id,
+                    sku:              p ? p.sku : i.sku,
+                    nombre:           i.name,
+                    icon:             i.icon,
+                    bg:               i.bg,
+                    color:            i.color,
+                    cant:             Number(i.cant),
+                    costo:            Number(i.price),
+                    stockOrigenPrev:  stockOrigen(p, origenId),
+                    stockDestinoPrev: stockDestino(p, destinoId),
+                    transform:        i.transform
+                };
+            });
 
             if (!productosPayload.length) { $err.removeClass('hidden').text(opts.labels.errSinProd); return; }
 
-            const sucOrigen  = (opts.json.sucursales || []).find(s => s.id === origenId)  || { id: origenId,  valor: origenId  };
-            const sucDestino = (opts.json.sucursales || []).find(s => s.id === destinoId) || { id: destinoId, valor: destinoId };
+            const sucOrigen   = (opts.json.sucursales || []).find(s => s.id === origenId)    || { id: origenId,   valor: origenId   };
+            const sucDestino  = (opts.json.sucursales || []).find(s => s.id === destinoId)   || { id: destinoId,  valor: destinoId  };
+            const almOrigen   = (opts.json.almacenes  || []).find(a => a.id === origenAlm)   || { id: origenAlm,  valor: origenAlm  };
+            const almDestino  = (opts.json.almacenes  || []).find(a => a.id === destinoAlm)  || { id: destinoAlm, valor: destinoAlm };
+            const categoria   = (opts.json.categorias || []).find(c => c.id === categoriaId) || { id: categoriaId, valor: categoriaId };
 
             const payload = {
-                origen:    { id: sucOrigen.id,  nombre: sucOrigen.valor  },
-                destino:   { id: sucDestino.id, nombre: sucDestino.valor },
+                origen:    { id: sucOrigen.id,  nombre: sucOrigen.valor,  almacen: { id: almOrigen.id,  nombre: almOrigen.valor  } },
+                destino:   { id: sucDestino.id, nombre: sucDestino.valor, almacen: { id: almDestino.id, nombre: almDestino.valor } },
+                categoria: { id: categoria.id,  nombre: categoria.valor },
                 productos: productosPayload,
                 nota:      nota
             };
@@ -1149,82 +1412,172 @@ class TraspasosView extends Templates {
         };
 
         // -- Render base
+
         const $existing = $(`#${opts.id}_root`);
         if ($existing.length) $existing.remove();
 
+        const cats     = opts.json.categorias || [];
+        const alms     = opts.json.almacenes  || [];
+        const firstCat = cats[0] && cats[0].id;
+        const firstAlm = alms[0] && alms[0].id;
+        const sucsFiltradas = opts.json.sucursales || [];
+
         const html = `
-            <div id="${opts.id}_root" class="fixed inset-0 z-[100]">
+            <div id="${opts.id}_root" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div id="${opts.id}_backdrop" class="absolute inset-0 bg-black/70"></div>
-                <div class="relative w-full h-full flex items-center justify-center p-4">
-                    <div id="${opts.id}" class="bg-[#1F2A37] rounded-xl p-3 border border-[#374151] w-[640px] max-w-full max-h-[90vh] overflow-y-auto cs-scroll relative">
+                <div id="${opts.id}" class="bg-[#141d2b] rounded-2xl border border-[#374151] w-[1200px] max-w-full max-h-[92vh] flex flex-col relative overflow-hidden shadow-2xl">
 
-                        <button type="button" id="${opts.id}_close" class="absolute top-2 right-2 text-[#6B7280] hover:text-white">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
+                    <!-- Header -->
+                    <div class="px-5 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-[#141d2b] to-[#1a2438]">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-md bg-[rgba(124,58,237,0.18)] border border-[#7C3AED]/40 flex items-center justify-center">
+                                <i data-lucide="arrow-left-right" class="w-4 h-4 text-[#c4b5fd]"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    ${esc(opts.labels.title)}
+                                    <span class="cs-badge cs-badge-primary !text-[8px] !px-1.5">${esc(opts.labels.badge)}</span>
+                                </h3>
+                                <p class="text-[10px] text-[#6B7280]">${esc(opts.labels.subtitle)}</p>
+                            </div>
+                        </div>
+                        <button type="button" id="${opts.id}_close" class="text-[#6B7280] hover:text-white p-1 rounded hover:bg-[#1F2A37] transition">
+                            <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
+                    </div>
 
-                        <div class="mb-2 pb-2 border-b border-[#374151]">
-                            <h3 class="text-sm font-bold text-[#c4b5fd]">${esc(opts.labels.title)}</h3>
-                            <p class="text-[10px] text-[#6B7280]">${esc(opts.labels.subtitle)}</p>
+                    <!-- Filtros: Origen / Destino / Categoria -->
+                    <div class="px-5 py-3 grid grid-cols-3 gap-3 flex-shrink-0 bg-[#0f172a]/40 border-b border-[#374151]">
+
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
+                            <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">${esc(opts.labels.origen)}</div>
+                            <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#9CA3AF] mb-2 mt-0.5">
+                                <i data-lucide="arrow-up-from-line" class="w-3 h-3"></i>
+                                ${esc(opts.labels.origenLbl)}
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.sucursal)}</p>
+                                    ${selectBox(opts.id + '_origenSuc', sucsFiltradas, opts.json.origenIdInicial)}
+                                </div>
+                                <div>
+                                    <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.almacen)}</p>
+                                    ${selectBox(opts.id + '_origenAlm', alms, firstAlm)}
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-2 mb-2">
-                            <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${esc(opts.labels.origen)}</label>
-                                ${sucursalSelectHtml(opts.id + '_origen', opts.json.origenIdInicial, false, '')}
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${esc(opts.labels.destino)}</label>
-                                ${sucursalSelectHtml(opts.id + '_destino', '', true, opts.labels.selDestino)}
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
+                            <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">${esc(opts.labels.destino)}</div>
+                            <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#9CA3AF] mb-2 mt-0.5">
+                                <i data-lucide="arrow-down-to-line" class="w-3 h-3"></i>
+                                ${esc(opts.labels.destinoLbl)}
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.sucursal)}</p>
+                                    ${selectBox(opts.id + '_destinoSuc', sucsFiltradas, '')}
+                                </div>
+                                <div>
+                                    <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.almacen)}</p>
+                                    ${selectBox(opts.id + '_destinoAlm', alms, firstAlm)}
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mb-2">
-                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${esc(opts.labels.productos)}</label>
-                            <div id="${opts.id}_lineas" class="space-y-1"></div>
-                            <div class="mt-1.5">
-                                <button type="button" id="${opts.id}_addItem" class="w-full text-[10px] text-[#c4b5fd] hover:text-white hover:bg-[rgba(124,58,237,0.08)] border border-dashed border-[#374151] hover:border-[rgba(124,58,237,0.4)] rounded-md py-1.5 flex items-center justify-center gap-1 transition-colors">
-                                    <i data-lucide="plus-circle" class="w-3 h-3"></i>
-                                    ${esc(opts.labels.addItem)}
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
+                            <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">${esc(opts.labels.categoria)}</div>
+                            <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#9CA3AF] mb-2 mt-0.5">
+                                <i data-lucide="tag" class="w-3 h-3"></i>
+                                ${esc(opts.labels.categoriaLbl)}
+                            </label>
+                            <div>
+                                <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.tipo)}</p>
+                                ${selectBox(opts.id + '_categoria', cats, firstCat)}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cuerpo (2 columnas) -->
+                    <div class="flex-1 px-5 pb-3 pt-3 grid grid-cols-[320px_1fr] gap-3 overflow-hidden min-h-0">
+
+                        <!-- Columna izquierda: buscador + lista -->
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg flex flex-col overflow-hidden min-h-0">
+                            <div class="px-3 py-2.5 border-b border-[#374151] flex-shrink-0 bg-[#141d2b]/60">
+                                <p class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#c4b5fd] mb-2">
+                                    <i data-lucide="search" class="w-3 h-3"></i>
+                                    ${esc(opts.labels.buscar)}
+                                </p>
+                                <div class="relative mb-2">
+                                    <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+                                    <input id="${opts.id}_search" type="text" placeholder="${esc(opts.labels.buscarPh)}" class="cs-input pl-10 text-xs w-full">
+                                </div>
+                            </div>
+                            <div id="${opts.id}_productList" class="flex-1 overflow-y-auto cs-scroll p-2 space-y-1.5 min-h-0"></div>
+                        </div>
+
+                        <!-- Columna derecha: carrito -->
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg flex flex-col overflow-hidden min-h-0">
+
+                            <div class="px-3 py-2.5 border-b border-[#374151] flex-shrink-0 bg-[#141d2b]/60 flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <p class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#c4b5fd]">
+                                        <i data-lucide="shopping-cart" class="w-3 h-3"></i>
+                                        ${esc(opts.labels.cart)}
+                                    </p>
+                                    <span id="${opts.id}_cartCount" class="cs-badge cs-badge-primary !text-[8px] !px-1.5 !py-0.5">0</span>
+                                </div>
+                                <button type="button" id="${opts.id}_clearCart" class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[9px] hover:!bg-[rgba(234,2,52,0.15)] hover:!border-[#EA0234] hover:!text-[#EA0234] transition">
+                                    <i data-lucide="trash-2" class="w-2.5 h-2.5"></i>
+                                    ${esc(opts.labels.limpiar)}
                                 </button>
                             </div>
-                        </div>
 
-                        <div class="bg-[rgba(124,58,237,0.08)] border border-[rgba(124,58,237,0.25)] rounded-md p-2 mb-2">
-                            <div class="grid grid-cols-3 gap-2">
-                                <div>
-                                    <p class="text-[9px] text-[#6B7280] uppercase leading-none">${esc(opts.labels.items)}</p>
-                                    <p class="text-xs font-bold text-white leading-tight" id="${opts.id}_resumen_items">0</p>
-                                </div>
-                                <div>
-                                    <p class="text-[9px] text-[#6B7280] uppercase leading-none">${esc(opts.labels.totUds)}</p>
-                                    <p class="text-xs font-bold text-white leading-tight" id="${opts.id}_resumen_uds">0</p>
-                                </div>
-                                <div>
-                                    <p class="text-[9px] text-[#6B7280] uppercase leading-none">${esc(opts.labels.costoTot)}</p>
-                                    <p class="text-xs font-bold text-[#c4b5fd] leading-tight" id="${opts.id}_resumen_costo">${fmtMoney(0)}</p>
+                            <div class="flex-1 overflow-y-auto cs-scroll min-h-0">
+                                <table class="cs-table w-full">
+                                    <thead class="sticky top-0 bg-[#141d2b] z-10">
+                                        <tr class="border-b border-[#374151]">
+                                            <th class="text-left text-[#9CA3AF]">${esc(opts.labels.producto)}</th>
+                                            <th class="text-center text-[#9CA3AF]">${esc(opts.labels.cant)}</th>
+                                            <th class="text-right text-[#9CA3AF]">${esc(opts.labels.costo)}</th>
+                                            <th class="text-right text-[#9CA3AF]">${esc(opts.labels.subtotal)}</th>
+                                            <th class="text-center text-[#9CA3AF]">${esc(opts.labels.acciones)}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="${opts.id}_cartBody"></tbody>
+                                </table>
+                            </div>
+
+                            <div class="px-3 py-2 border-t border-[#374151] flex-shrink-0 bg-[#0f172a]/40">
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div class="text-center">
+                                        <p class="text-[8px] text-[#6B7280] uppercase tracking-wider leading-none mb-0.5">${esc(opts.labels.items)}</p>
+                                        <p id="${opts.id}_footerItems" class="text-xs font-bold text-white">0</p>
+                                    </div>
+                                    <div class="text-center border-x border-[#374151]">
+                                        <p class="text-[8px] text-[#6B7280] uppercase tracking-wider leading-none mb-0.5">${esc(opts.labels.unidades)}</p>
+                                        <p id="${opts.id}_footerUds" class="text-xs font-bold text-white">0</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-[8px] text-[#6B7280] uppercase tracking-wider leading-none mb-0.5">${esc(opts.labels.costoTot)}</p>
+                                        <p id="${opts.id}_footerCosto" class="text-xs font-bold text-[#3FC189]">${fmtMoney(0)}</p>
+                                    </div>
                                 </div>
                             </div>
+
+                            <div class="px-3 py-2.5 border-t border-[#374151] flex-shrink-0 bg-[#0f172a]/40">
+                                <label class="text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1 block">${esc(opts.labels.nota)}</label>
+                                <textarea id="${opts.id}_nota" class="cs-textarea text-xs w-full" rows="1" placeholder="${esc(opts.labels.notaPh)}"></textarea>
+                            </div>
                         </div>
+                    </div>
 
-                        <div class="mb-2">
-                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${esc(opts.labels.nota)}</label>
-                            <textarea id="${opts.id}_nota" rows="2" placeholder="${esc(opts.labels.notaPh)}" class="cs-textarea text-xs w-full bg-[#1F2937] border border-[#374151] rounded-md px-2 py-1 text-white"></textarea>
-                        </div>
-
-                        <div class="cs-callout cs-callout-info mb-2 bg-[rgba(28,100,242,0.08)] border border-[rgba(28,100,242,0.25)] rounded-md p-2">
-                            <strong class="block text-xs mb-0.5 text-white">${esc(opts.labels.callout)}</strong>
-                            <p class="text-[11px] text-gray-400 leading-tight">${esc(opts.labels.calloutMsg)}</p>
-                        </div>
-
-                        <p id="${opts.id}_error" class="hidden text-[11px] text-red-400 mb-2"></p>
-
-                        <div class="flex justify-end gap-2 pt-2 border-t border-[#374151]">
-                            <button type="button" id="${opts.id}_cancel" class="text-xs font-medium px-3 py-1.5 rounded-md border border-[#374151] text-[#D1D5DB] hover:bg-[#1F2937] hover:text-white transition-colors">
-                                ${esc(opts.labels.cancelar)}
-                            </button>
-                            <button type="button" id="${opts.id}_save" class="text-xs font-semibold px-3 py-1.5 rounded-md bg-[#7C3AED] hover:bg-[#6D28D9] text-white inline-flex items-center gap-1.5 transition-colors">
+                    <!-- Pie -->
+                    <div class="px-5 py-3 border-t border-[#374151] bg-[#0f172a] flex items-center justify-between flex-shrink-0">
+                        <p id="${opts.id}_error" class="hidden text-[11px] text-red-400"></p>
+                        <div class="flex items-center gap-2 ml-auto">
+                            <button type="button" id="${opts.id}_cancel" class="cs-btn cs-btn-outline cs-btn-sm">${esc(opts.labels.cancelar)}</button>
+                            <button type="button" id="${opts.id}_save" class="cs-btn cs-btn-primary cs-btn-sm" style="background:linear-gradient(135deg,#7C3AED,#a855f7);border-color:#7C3AED;">
                                 <i data-lucide="send" class="w-3 h-3"></i>
                                 ${esc(opts.labels.crear)}
                             </button>
@@ -1241,42 +1594,32 @@ class TraspasosView extends Templates {
         $(`#${opts.id}_close`).on('click',    close);
         $(`#${opts.id}_cancel`).on('click',   close);
         $(`#${opts.id}_backdrop`).on('click', close);
-        $(`#${opts.id}_addItem`).on('click',  addLinea);
         $(`#${opts.id}_save`).on('click',     save);
+        $(`#${opts.id}_clearCart`).on('click', clearCart);
 
-        $(`#${opts.id}_origen, #${opts.id}_destino`).on('change', renderLineas);
-
-        $(`#${opts.id}_lineas`).on('change', '[data-role="product"]', function () {
-            const uid = $(this).attr('data-line-uid');
-            const ln  = lineas.find(l => l.uid === uid);
-            if (ln) ln.productId = $(this).val();
-            renderLineas();
+        $(`#${opts.id}_origenSuc, #${opts.id}_destinoSuc`).on('change', () => {
+            renderProductList();
+            renderCart();
         });
 
-        $(`#${opts.id}_lineas`).on('input', '[data-role="cant"]', function () {
-            const uid = $(this).attr('data-line-uid');
-            const ln  = lineas.find(l => l.uid === uid);
-            if (ln) ln.cant = Number($(this).val()) || 0;
-            renderResumen();
-            const $row = $(`#${opts.id}_lineas`).find(`[data-line-uid="${uid}"]`).first();
-            const prod = findProd(ln && ln.productId);
-            if (prod) {
-                const origenId    = $(`#${opts.id}_origen`).val();
-                const destinoId   = $(`#${opts.id}_destino`).val();
-                const stockOPost  = Math.max(stockOrigen(prod, origenId) - Number(ln.cant || 0), 0);
-                const stockDPost  = stockDestino(prod, destinoId) + Number(ln.cant || 0);
-                const subtotal    = Number(prod.costo || 0) * Number(ln.cant || 0);
-                $row.find('.col-span-2.text-right').eq(0).find('p.font-bold').text(fmtMoney(subtotal));
-                $row.find('.col-span-2.text-right').eq(1).find('span.text-orange-400').text(stockOPost);
-                $row.find('.col-span-2.text-right').eq(1).find('span.text-green-400').text(stockDPost);
-            }
+        $(`#${opts.id}_categoria`).on('change', renderProductList);
+        $(`#${opts.id}_search`).on('input', renderProductList);
+
+        $(`#${opts.id}_productList`).on('click', '[data-prod-id]', function () {
+            addToCart($(this).attr('data-prod-id'));
         });
 
-        $(`#${opts.id}_lineas`).on('click', '[data-role="remove"]', function () {
-            removeLinea($(this).attr('data-line-uid'));
-        });
+        const $cartBody = $(`#${opts.id}_cartBody`);
+        $cartBody.on('click', '[data-role="minus"]',             function () { updateQty($(this).attr('data-cart-id'), -1); });
+        $cartBody.on('click', '[data-role="plus"]',              function () { updateQty($(this).attr('data-cart-id'),  1); });
+        $cartBody.on('click', '[data-role="remove"]',            function () { removeFromCart($(this).attr('data-cart-id')); });
+        $cartBody.on('click', '[data-role="transform"]',         function () { toggleTransformPanel($(this).attr('data-cart-id')); });
+        $cartBody.on('click', '[data-role="apply-transform"]',   function () { applyTransform($(this).attr('data-cart-id')); });
+        $cartBody.on('click', '[data-role="cancel-transform"]',  function () { cancelTransform($(this).attr('data-cart-id')); });
+        $cartBody.on('click', '[data-role="revert-transform"]',  function () { revertTransform($(this).attr('data-cart-id')); });
+        $cartBody.on('change', '[data-transform-select]',        function () { updatePiezasDefault($(this).attr('data-transform-select')); });
 
-        // -- Linea inicial
-        addLinea();
+        renderProductList();
+        renderCart();
     }
 }
