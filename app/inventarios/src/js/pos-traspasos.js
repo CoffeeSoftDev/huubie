@@ -153,26 +153,21 @@ class App extends Templates {
                 value:    '',
                 data:     SAMPLE_TRASPASOS_SUCURSALES
             },
-            {
-                opc:        'input',
-                id:         'qBuscar',
-                lbl:        'Buscar:',
-                class:      'col-12 col-md-3 col-lg-3',
-                placeholder:'Folio, producto...',
-                onkeyup:    'app.onChangeFilters()'
-            },
+           
             {
                 opc:       'button',
                 id:        'btnNuevoTraspaso',
                 text:      'Nuevo Traspaso',
-                color_btn: ' bg-purple-600 text-white hover:bg-purple-800',
-                class:     'col-12 col-md-3 col-lg-2',
+                
+                class:     'col-12 col-md-3 col-lg-3',
                 onClick:   () => traspasosView.openTraspasoForm()
             }
         ];
 
         this.createfilterBar({
             parent: 'filterBar',
+            coffeesoft:true,
+            theme:'dark',
             data:   filters
         });
     }
@@ -1048,7 +1043,7 @@ class TraspasosView extends Templates {
         ).join('');
 
         const selectBox = (id, list, selectedId) => `
-            <select id="${id}" class="cs-select !text-xs !py-2 w-full">
+            <select id="${id}" class="tw-input w-full rounded-lg px-3 py-2 text-sm outline-none appearance-none cursor-pointer border border-gray-600 text-gray-200 focus:border-[#0a4a85] bg-gray-700">
                 ${optionsHtml(list, selectedId)}
             </select>
         `;
@@ -1077,15 +1072,10 @@ class TraspasosView extends Templates {
         };
 
         const renderProductList = () => {
-            const q          = ($(`#${opts.id}_search`).val() || '').toLowerCase().trim();
-            const catSelId   = $(`#${opts.id}_categoria`).val() || '';
-            const catSel     = (opts.json.categorias || []).find(c => c.id === catSelId);
-            const catValor   = (catSel && catSel.valor) || '';
+            const q = ($(`#${opts.id}_search`).val() || '').toLowerCase().trim();
 
             const list = (opts.json.productos || []).filter(p => {
-                const matchQ   = !q || (p.nombre + ' ' + p.sku).toLowerCase().includes(q);
-                const matchCat = !catValor || (p.categoria || '').toLowerCase() === catValor.toLowerCase();
-                return matchQ && matchCat;
+                return !q || (p.nombre + ' ' + p.sku).toLowerCase().includes(q);
             });
 
             const html = list.length
@@ -1272,12 +1262,12 @@ class TraspasosView extends Templates {
                                     <i data-lucide="recycle" class="w-3.5 h-3.5"></i>
                                     <span class="text-[10px] font-semibold uppercase tracking-wider">${esc(opts.labels.transformar)}</span>
                                 </div>
-                                <select data-transform-select="${esc(item.id)}" class="cs-select text-xs !w-52">
+                                <select data-transform-select="${esc(item.id)}" class="tw-input rounded-lg px-3 py-2 text-sm outline-none appearance-none cursor-pointer border border-gray-600 text-gray-200 focus:border-[#0a4a85] bg-gray-700 !w-52">
                                     ${selectOpts}
                                 </select>
                                 <div class="flex items-center gap-1">
                                     <span class="text-[9px] text-[#9CA3AF]">${esc(opts.labels.piezas)}</span>
-                                    <input type="number" value="${defaultPiezas}" min="1" data-transform-qty="${esc(item.id)}" class="cs-input !w-14 !text-center !px-1 !text-[10px]">
+                                    <input type="number" value="${defaultPiezas}" min="1" data-transform-qty="${esc(item.id)}" class="tw-input rounded-lg py-2 text-sm outline-none border border-gray-600 text-gray-200 placeholder-gray-500 focus:border-[#0a4a85] bg-gray-700 !w-14 !text-center !px-1 !text-[10px]">
                                 </div>
                                 <div class="flex items-center gap-1 ml-auto">
                                     <button type="button" data-cart-id="${esc(item.id)}" data-role="cancel-transform" class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[9px]">${esc(opts.labels.cancelarTr)}</button>
@@ -1425,7 +1415,7 @@ class TraspasosView extends Templates {
         const html = `
             <div id="${opts.id}_root" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div id="${opts.id}_backdrop" class="absolute inset-0 bg-black/70"></div>
-                <div id="${opts.id}" class="bg-[#141d2b] rounded-2xl border border-[#374151] w-[1200px] max-w-full max-h-[92vh] flex flex-col relative overflow-hidden shadow-2xl">
+                <div id="${opts.id}" class="bg-[#141d2b] rounded-2xl border border-[#374151] w-[980px] max-w-full max-h-[88vh] flex flex-col relative overflow-hidden shadow-2xl">
 
                     <!-- Header -->
                     <div class="px-5 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-[#141d2b] to-[#1a2438]">
@@ -1447,7 +1437,7 @@ class TraspasosView extends Templates {
                     </div>
 
                     <!-- Filtros: Origen / Destino / Categoria -->
-                    <div class="px-5 py-3 grid grid-cols-3 gap-3 flex-shrink-0 bg-[#0f172a]/40 border-b border-[#374151]">
+                    <div class="px-3 py-3 grid grid-cols-3 gap-3 flex-shrink-0 bg-[#0f172a]/40 border-b border-[#374151]">
 
                         <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
                             <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">${esc(opts.labels.origen)}</div>
@@ -1499,7 +1489,7 @@ class TraspasosView extends Templates {
                     </div>
 
                     <!-- Cuerpo (2 columnas) -->
-                    <div class="flex-1 px-5 pb-3 pt-3 grid grid-cols-[320px_1fr] gap-3 overflow-hidden min-h-0">
+                    <div class="flex-1 px-3 pb-3 pt-3 grid grid-cols-[320px_1fr] gap-3 overflow-hidden min-h-0">
 
                         <!-- Columna izquierda: buscador + lista -->
                         <div class="bg-[#1F2A37] border border-[#374151] rounded-lg flex flex-col overflow-hidden min-h-0">
@@ -1510,7 +1500,7 @@ class TraspasosView extends Templates {
                                 </p>
                                 <div class="relative mb-2">
                                     <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
-                                    <input id="${opts.id}_search" type="text" placeholder="${esc(opts.labels.buscarPh)}" class="cs-input pl-10 text-xs w-full">
+                                    <input id="${opts.id}_search" type="text" placeholder="${esc(opts.labels.buscarPh)}" class="tw-input w-full rounded-lg pl-10 pr-3 py-2 text-sm outline-none border border-gray-600 text-gray-200 placeholder-gray-500 focus:border-[#0a4a85] bg-gray-700">
                                 </div>
                             </div>
                             <div id="${opts.id}_productList" class="flex-1 overflow-y-auto cs-scroll p-2 space-y-1.5 min-h-0"></div>
@@ -1567,7 +1557,7 @@ class TraspasosView extends Templates {
 
                             <div class="px-3 py-2.5 border-t border-[#374151] flex-shrink-0 bg-[#0f172a]/40">
                                 <label class="text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1 block">${esc(opts.labels.nota)}</label>
-                                <textarea id="${opts.id}_nota" class="cs-textarea text-xs w-full" rows="1" placeholder="${esc(opts.labels.notaPh)}"></textarea>
+                                <textarea id="${opts.id}_nota" class="tw-input w-full rounded-lg px-3 py-2 text-sm outline-none resize-y border border-gray-600 text-gray-200 placeholder-gray-500 focus:border-[#0a4a85] bg-gray-700" rows="1" placeholder="${esc(opts.labels.notaPh)}"></textarea>
                             </div>
                         </div>
                     </div>
@@ -1602,7 +1592,6 @@ class TraspasosView extends Templates {
             renderCart();
         });
 
-        $(`#${opts.id}_categoria`).on('change', renderProductList);
         $(`#${opts.id}_search`).on('input', renderProductList);
 
         $(`#${opts.id}_productList`).on('click', '[data-prod-id]', function () {
