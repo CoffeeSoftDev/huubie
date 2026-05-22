@@ -51,8 +51,7 @@ class Ventas extends Templates {
             descripcion: 'Punto de venta para registrar pedidos.',
             imagen:      '',
             icon:        'shopping-cart',
-            enlace:      '/app/pos/templates/pos-main.html',
-            // enlace:      '/app/pos/',
+            enlace:      '/app/pos/',
             padding:     '',
         });
 

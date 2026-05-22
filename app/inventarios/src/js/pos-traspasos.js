@@ -400,7 +400,7 @@ class TraspasosView extends Templates {
 
     openTraspasoForm() {
         const sucursales = (SAMPLE_TRASPASOS_SUCURSALES || []).filter(s => s.id !== '');
-        this.traspasoFormModalV3({
+        this.traspasoModal({
             parent: 'body',
             json: {
                 sucursales:      sucursales,
@@ -410,7 +410,7 @@ class TraspasosView extends Templates {
                 transformMap:    SAMPLE_TRASPASOS_TRANSFORM,
                 origenIdInicial: app.subId || (sucursales[0] && sucursales[0].id) || ''
             },
-            onClose: () => console.log('[traspasoFormModalV3] close'),
+            onClose: () => console.log('[traspasoModal] close'),
             onSave:  (payload) => traspasos.nuevoTraspaso(payload)
         });
     }
@@ -953,10 +953,10 @@ class TraspasosView extends Templates {
         $(`#${opts.id}_confirm`).on('click', () => opts.onConfirm(t));
     }
 
-    traspasoFormModalV3(options) {
+    traspasoModal(options) {
         const defaults = {
             parent:   'body',
-            id:       'traspasoFormModalV3',
+            id:       'traspasoModal',
             json:     {
                 sucursales:      [],
                 almacenes:       [],
@@ -983,11 +983,6 @@ class TraspasosView extends Templates {
                 cart:         'Productos Seleccionados',
                 cartEmpty:    'Selecciona productos de la lista para agregarlos',
                 limpiar:      'Limpiar',
-                cant:         'Cantidad',
-                costo:        'Costo',
-                subtotal:     'Subtotal',
-                acciones:     'Acciones',
-                producto:     'Producto',
                 items:        'Items',
                 unidades:     'Unidades',
                 costoTot:     'Costo Total',
@@ -1023,6 +1018,21 @@ class TraspasosView extends Templates {
 
         const fmtMoney = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+        // -- Clases Tailwind reutilizables (diseno premium dark Huubie)
+        const cls = {
+            label:  'block text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1',
+            input:  'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all placeholder:text-gray-600',
+            select: 'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all cursor-pointer appearance-none bg-no-repeat bg-[length:14px_14px] bg-[right_8px_center] pr-7',
+            search: 'w-full pl-8 pr-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all placeholder:text-gray-600',
+            btnOut: 'px-3 py-1.5 text-[11px] font-medium text-gray-300 bg-transparent border border-gray-700/60 rounded-md hover:bg-gray-700/30 hover:text-white hover:border-gray-600 transition-all',
+            btnOk:  'px-3 py-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 border border-purple-500/40 rounded-md hover:from-purple-500 hover:to-pink-500 hover:shadow-lg hover:shadow-purple-500/20 transition-all flex items-center gap-1.5',
+            badge:  'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold leading-none',
+            scroll: '[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent'
+        };
+
+        // Caret SVG inline para selects
+        const caretBg = "background-image: url(\"data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e\");";
+
         // -- Estado local del carrito
         const cart = [];   // { id, name, sku, cat, price, stock, icon, bg, color, cant, transform, transformOpen }
         const transformMap = opts.json.transformMap || {};
@@ -1042,30 +1052,29 @@ class TraspasosView extends Templates {
             `<option value="${esc(it.id)}" ${it.id === selectedId ? 'selected' : ''}>${esc(it.valor)}</option>`
         ).join('');
 
-        const selectBox = (id, list, selectedId) => `
-            <select id="${id}" class="tw-input w-full rounded-lg px-3 py-2 text-sm outline-none appearance-none cursor-pointer border border-gray-600 text-gray-200 focus:border-[#0a4a85] bg-gray-700">
-                ${optionsHtml(list, selectedId)}
-            </select>
-        `;
-
         // -- Lista de productos (columna izquierda)
 
         const productCardHtml = (p) => {
             const origenId = $(`#${opts.id}_origenSuc`).val() || opts.json.origenIdInicial;
             const stock    = stockOrigen(p, origenId);
-            const badgeTone = stock <= 0 ? 'cs-badge-danger' : (stock < 5 ? 'cs-badge-warning' : 'cs-badge-success');
+            const stockColor = stock <= 0 ? 'text-red-400' : stock < 5 ? 'text-orange-400' : 'text-green-400';
+            const stockBg    = stock <= 0 ? 'bg-red-500/10' : stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
+            const disabled   = stock <= 0;
             return `
-                <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:bg-[#1a2332] transition"
-                     data-prod-id="${esc(p.id)}">
-                    <div class="w-9 h-9 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
-                        <i data-lucide="${esc(p.icon || 'package')}" class="w-4 h-4 ${esc(p.color || 'text-[#9CA3AF]')}"></i>
+                <div class="flex items-center gap-2.5 px-3 py-2 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent'} border-b border-gray-800/40 last:border-b-0 transition-all group" data-prod-id="${esc(p.id)}">
+                    <div class="w-8 h-8 rounded-lg ${esc(p.bg || 'bg-gray-700/40')} flex items-center justify-center flex-shrink-0 ring-1 ring-white/5">
+                        <i data-lucide="${esc(p.icon || 'package')}" class="w-4 h-4 ${esc(p.color || 'text-gray-400')}"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-[10px] font-semibold text-white truncate">${esc(p.nombre)}</p>
-                        <p class="text-[9px] text-[#6B7280]">${esc(p.categoria || p.sku)} &middot; ${fmtMoney(p.costo)}</p>
+                        <p class="text-[11px] font-semibold text-white truncate">${esc(p.nombre)}</p>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span class="text-[9px] text-gray-500 font-mono">${esc(p.sku)}</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded ${stockBg} ${stockColor} font-bold">Stock ${stock}</span>
+                            <span class="text-[9px] text-gray-500">. ${fmtMoney(p.costo)}</span>
+                        </div>
                     </div>
-                    <div class="flex flex-col items-end gap-0.5 flex-shrink-0">
-                        <span class="cs-badge ${badgeTone} !text-[8px] !px-1.5">${stock}</span>
+                    <div class="w-7 h-7 rounded-lg bg-purple-600/15 border border-purple-500/30 flex items-center justify-center text-purple-400 flex-shrink-0 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-500 transition-all">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                     </div>
                 </div>
             `;
@@ -1080,7 +1089,14 @@ class TraspasosView extends Templates {
 
             const html = list.length
                 ? list.map(productCardHtml).join('')
-                : `<div class="text-[10px] text-gray-500 italic text-center py-4">Sin productos para los filtros aplicados.</div>`;
+                : `
+                    <div class="flex flex-col items-center justify-center py-8 text-center px-2">
+                        <div class="w-10 h-10 rounded-lg bg-gray-800/40 border border-gray-700/50 flex items-center justify-center mb-2">
+                            <i data-lucide="search-x" class="w-5 h-5 text-gray-600"></i>
+                        </div>
+                        <p class="text-[10px] text-gray-500">${q ? 'Sin resultados' : 'Sin productos disponibles'}</p>
+                    </div>
+                `;
             $(`#${opts.id}_productList`).html(html);
             highlightCartRows();
             if (window.lucide) lucide.createIcons();
@@ -1187,62 +1203,69 @@ class TraspasosView extends Templates {
         };
 
         const cartRowHtml = (item) => {
-            const subtotal = item.cant * item.price;
-            const isTr     = !!item.transform;
-            const isOpen   = item.transformOpen;
-            const trList   = transformMap[item.id] || [];
+            const subtotal    = item.cant * item.price;
+            const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const isTr        = !!item.transform;
+            const isOpen      = item.transformOpen;
+            const trList      = transformMap[item.id] || [];
+            const stockColor  = item.stock === 0 ? 'text-red-400' : item.stock < 5 ? 'text-orange-400' : 'text-green-400';
+
             const trBtnCls = isTr
-                ? 'bg-[#06b6d4]/15 border border-[#06b6d4]/40 text-[#22d3ee] cursor-not-allowed'
+                ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 cursor-not-allowed'
                 : isOpen
-                    ? 'bg-[#1C64F2]/20 border border-[#1C64F2] text-[#76A9FA]'
+                    ? 'bg-blue-500/20 border-blue-500 text-blue-300'
                     : (!trList.length
-                        ? 'bg-[#1a2332] border border-[#374151] text-[#9CA3AF]/30 cursor-not-allowed'
-                        : 'bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:bg-[#1C64F2]/15 hover:text-[#76A9FA] hover:border-[#1C64F2]');
+                        ? 'bg-[#0f1825] border-gray-800/60 text-gray-600 cursor-not-allowed'
+                        : 'bg-[#0f1825] border-gray-700/60 text-gray-400 hover:bg-blue-500/15 hover:text-blue-300 hover:border-blue-500/50');
             const minusCls = isTr
                 ? 'opacity-30 cursor-not-allowed'
-                : 'hover:bg-[#1F2A37] hover:text-white';
-            const plusCls  = isTr || item.cant >= item.stock
+                : 'hover:bg-purple-500/15 hover:text-white hover:border-purple-500/40';
+            const plusCls  = (isTr || item.cant >= item.stock)
                 ? 'opacity-30 cursor-not-allowed'
-                : 'hover:bg-[#1F2A37] hover:text-white';
+                : 'hover:bg-purple-500/15 hover:text-white hover:border-purple-500/40';
 
             let rowHtml = `
-                <tr class="border-b ${isTr ? 'border-[#06b6d4]/25 bg-[rgba(6,182,212,0.03)]' : 'border-[#374151]/60 hover:bg-[#1a2332]/40'} transition" data-cart-id="${esc(item.id)}">
-                    <td>
-                        <div class="flex items-center gap-2">
-                            <div class="w-7 h-7 rounded-md bg-[#1a2332] border border-[#374151] flex items-center justify-center flex-shrink-0">
+                <tr class="border-b border-gray-800/40 last:border-b-0 hover:bg-purple-500/[0.04] transition-colors ${isTr ? 'bg-cyan-500/[0.04]' : ''}" data-cart-id="${esc(item.id)}">
+                    <td class="px-3 py-2 align-middle">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div class="w-7 h-7 rounded-lg ${esc(item.bg)} flex items-center justify-center flex-shrink-0 ring-1 ring-white/5">
                                 <i data-lucide="${esc(item.icon)}" class="w-3.5 h-3.5 ${esc(item.color)}"></i>
                             </div>
-                            <div>
-                                <p class="text-[10px] font-semibold text-white leading-tight">
-                                    ${esc(item.name)}${isTr ? ` <span class="cs-badge cs-badge-info !text-[7px] !px-1.5">${esc(opts.labels.badgeTr)}</span>` : ''}
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-semibold text-white truncate leading-tight">
+                                    ${esc(item.name)}${isTr ? ` <span class="${cls.badge} bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">${esc(opts.labels.badgeTr)}</span>` : ''}
                                 </p>
-                                <p class="text-[8px] text-[#6B7280]">${esc(item.cat)} &middot; ${esc(opts.labels.stockLbl)} ${item.stock}</p>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <span class="text-[9px] text-gray-500 font-mono">${esc(item.cat)}</span>
+                                    <span class="text-gray-700">.</span>
+                                    <span class="text-[9px] text-gray-400">${esc(opts.labels.stockLbl)} <strong class="${stockColor}">${item.stock}</strong></span>
+                                </div>
                             </div>
                         </div>
                     </td>
-                    <td>
-                        <div class="flex items-center justify-center gap-0.5">
-                            <button type="button" data-cart-id="${esc(item.id)}" data-role="minus" class="w-5 h-5 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] ${minusCls} transition flex items-center justify-center text-xs">&minus;</button>
-                            <span class="w-8 text-center text-[10px] font-bold text-white">${item.cant}</span>
-                            <button type="button" data-cart-id="${esc(item.id)}" data-role="plus" class="w-5 h-5 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] ${plusCls} transition flex items-center justify-center text-xs">+</button>
+                    <td class="px-2 py-2 align-middle">
+                        <div class="flex items-center justify-center gap-1">
+                            <button type="button" data-cart-id="${esc(item.id)}" data-role="minus" class="w-6 h-6 rounded-md bg-[#0f1825] border border-gray-700/60 text-gray-400 ${minusCls} transition flex items-center justify-center text-xs">&minus;</button>
+                            <span class="w-8 text-center text-[11px] font-bold text-white">${item.cant}</span>
+                            <button type="button" data-cart-id="${esc(item.id)}" data-role="plus" class="w-6 h-6 rounded-md bg-[#0f1825] border border-gray-700/60 text-gray-400 ${plusCls} transition flex items-center justify-center text-xs">+</button>
                         </div>
                     </td>
-                    <td class="text-right">
-                        <p class="text-[10px] text-[#9CA3AF]">${fmtMoney(item.price)}</p>
+                    <td class="px-2 py-2 align-middle text-right">
+                        <span class="text-[11px] text-gray-300">${fmtMoney(item.price)}</span>
                     </td>
-                    <td class="text-right">
-                        <p class="text-[11px] font-bold text-[#3FC189]">${fmtMoney(subtotal)}</p>
-                        <p class="text-[8px] text-[#6B7280]">${item.cant} x ${fmtMoney(item.price)}</p>
+                    <td class="px-2 py-2 align-middle text-right">
+                        <span class="text-green-400 font-bold text-[12px]">$${subtotalFmt}</span>
+                        <p class="text-[8px] text-gray-600 leading-none mt-0.5">${item.cant} x ${fmtMoney(item.price)}</p>
                     </td>
-                    <td>
+                    <td class="px-2 py-2 align-middle">
                         <div class="flex items-center justify-center gap-1">
                             <button type="button" data-cart-id="${esc(item.id)}" data-role="transform"
-                                    class="w-6 h-6 rounded ${trBtnCls} transition flex items-center justify-center" title="${esc(opts.labels.transformar)}">
+                                    class="w-6 h-6 rounded-md border ${trBtnCls} transition flex items-center justify-center" title="${esc(opts.labels.transformar)}">
                                 <i data-lucide="recycle" class="w-3 h-3"></i>
                             </button>
                             <button type="button" data-cart-id="${esc(item.id)}" data-role="remove"
-                                    class="w-6 h-6 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:bg-[rgba(234,2,52,0.15)] hover:text-[#EA0234] hover:border-[#EA0234] transition flex items-center justify-center" title="Quitar">
-                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                    class="w-6 h-6 rounded-md bg-[#0f1825] border border-gray-700/60 text-gray-500 hover:text-red-400 hover:bg-red-500/15 hover:border-red-500/40 transition flex items-center justify-center" title="Quitar">
+                                <i data-lucide="x" class="w-3 h-3"></i>
                             </button>
                         </div>
                     </td>
@@ -1255,25 +1278,24 @@ class TraspasosView extends Templates {
                 ).join('');
                 const defaultPiezas = trList.length ? trList[0].piezasDefault : 8;
                 rowHtml += `
-                    <tr class="border-b border-[#1C64F2]/30 bg-[rgba(28,100,242,0.06)]">
-                        <td colspan="5" class="!py-2.5 !px-4">
+                    <tr class="bg-blue-500/[0.05] border-b border-blue-500/30">
+                        <td colspan="5" class="px-4 py-2.5">
                             <div class="flex items-center gap-3 flex-wrap">
-                                <div class="flex items-center gap-1.5 text-[#76A9FA]">
+                                <div class="flex items-center gap-1.5 text-blue-300">
                                     <i data-lucide="recycle" class="w-3.5 h-3.5"></i>
-                                    <span class="text-[10px] font-semibold uppercase tracking-wider">${esc(opts.labels.transformar)}</span>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider">${esc(opts.labels.transformar)}</span>
                                 </div>
-                                <select data-transform-select="${esc(item.id)}" class="tw-input rounded-lg px-3 py-2 text-sm outline-none appearance-none cursor-pointer border border-gray-600 text-gray-200 focus:border-[#0a4a85] bg-gray-700 !w-52">
+                                <select data-transform-select="${esc(item.id)}" class="${cls.select} !w-52" style="${caretBg}">
                                     ${selectOpts}
                                 </select>
-                                <div class="flex items-center gap-1">
-                                    <span class="text-[9px] text-[#9CA3AF]">${esc(opts.labels.piezas)}</span>
-                                    <input type="number" value="${defaultPiezas}" min="1" data-transform-qty="${esc(item.id)}" class="tw-input rounded-lg py-2 text-sm outline-none border border-gray-600 text-gray-200 placeholder-gray-500 focus:border-[#0a4a85] bg-gray-700 !w-14 !text-center !px-1 !text-[10px]">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[9px] text-gray-400 uppercase tracking-wider">${esc(opts.labels.piezas)}</span>
+                                    <input type="number" value="${defaultPiezas}" min="1" data-transform-qty="${esc(item.id)}" class="${cls.input} !w-14 !text-center !px-1 !font-bold">
                                 </div>
-                                <div class="flex items-center gap-1 ml-auto">
-                                    <button type="button" data-cart-id="${esc(item.id)}" data-role="cancel-transform" class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[9px]">${esc(opts.labels.cancelarTr)}</button>
-                                    <button type="button" data-cart-id="${esc(item.id)}" data-role="apply-transform" class="cs-btn cs-btn-sm cs-btn-primary !py-1 !text-[9px]">
-                                        <i data-lucide="check" class="w-2.5 h-2.5"></i>
-                                        ${esc(opts.labels.aplicar)}
+                                <div class="flex items-center gap-1.5 ml-auto">
+                                    <button type="button" data-cart-id="${esc(item.id)}" data-role="cancel-transform" class="${cls.btnOut} !py-1 !text-[10px]">${esc(opts.labels.cancelarTr)}</button>
+                                    <button type="button" data-cart-id="${esc(item.id)}" data-role="apply-transform" class="${cls.btnOk} !py-1 !text-[10px]">
+                                        <i data-lucide="check" class="w-3 h-3"></i>${esc(opts.labels.aplicar)}
                                     </button>
                                 </div>
                             </div>
@@ -1284,18 +1306,17 @@ class TraspasosView extends Templates {
 
             if (isTr) {
                 rowHtml += `
-                    <tr class="border-b border-[#06b6d4]/25 bg-[rgba(6,182,212,0.05)]">
-                        <td colspan="5" class="!py-2 !px-4">
+                    <tr class="bg-cyan-500/[0.05] border-b border-cyan-500/30">
+                        <td colspan="5" class="px-4 py-2">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <div class="w-6 h-6 rounded-full bg-[#06b6d4]/15 border border-[#06b6d4]/35 flex items-center justify-center flex-shrink-0">
-                                    <i data-lucide="recycle" class="w-3 h-3 text-[#22d3ee]"></i>
+                                <div class="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/35 flex items-center justify-center flex-shrink-0">
+                                    <i data-lucide="recycle" class="w-3 h-3 text-cyan-300"></i>
                                 </div>
-                                <span class="text-[10px] text-[#67e8f9]">
-                                    ${esc(opts.labels.transformOk)} <span class="font-bold">${item.transform.piezas} ${esc(opts.labels.piezas).replace(':','').toLowerCase()}</span> ${esc(opts.labels.transformOf)} <span class="font-bold">${esc(item.transform.producto)}</span>
+                                <span class="text-[10px] text-cyan-200">
+                                    ${esc(opts.labels.transformOk)} <span class="font-bold text-white">${item.transform.piezas} ${esc(opts.labels.piezas).replace(':','').toLowerCase()}</span> ${esc(opts.labels.transformOf)} <span class="font-bold text-white">${esc(item.transform.producto)}</span>
                                 </span>
-                                <button type="button" data-cart-id="${esc(item.id)}" data-role="revert-transform" class="ml-auto text-[9px] px-2 py-1 bg-[#06b6d4]/12 text-[#67e8f9] border border-[#06b6d4]/35 rounded hover:bg-[#06b6d4]/20 transition flex items-center gap-1">
-                                    <i data-lucide="undo" class="w-2.5 h-2.5"></i>
-                                    ${esc(opts.labels.revertir)}
+                                <button type="button" data-cart-id="${esc(item.id)}" data-role="revert-transform" class="ml-auto text-[10px] px-2 py-1 bg-cyan-500/15 text-cyan-200 border border-cyan-500/35 rounded-md hover:bg-cyan-500/25 transition flex items-center gap-1">
+                                    <i data-lucide="undo" class="w-3 h-3"></i>${esc(opts.labels.revertir)}
                                 </button>
                             </div>
                         </td>
@@ -1310,11 +1331,8 @@ class TraspasosView extends Templates {
             $(`#${opts.id}_productList [data-prod-id]`).each(function () {
                 const id     = $(this).attr('data-prod-id');
                 const inCart = cart.find(i => i.id === id);
-                if (inCart) {
-                    $(this).addClass('!border-[#3FC189]/40').removeClass('border-[#374151]');
-                } else {
-                    $(this).removeClass('!border-[#3FC189]/40').addClass('border-[#374151]');
-                }
+                if (inCart) $(this).addClass('!bg-purple-500/10');
+                else        $(this).removeClass('!bg-purple-500/10');
             });
         };
 
@@ -1322,8 +1340,13 @@ class TraspasosView extends Templates {
             const $tbody = $(`#${opts.id}_cartBody`);
             if (!cart.length) {
                 $tbody.html(`
-                    <tr><td colspan="5" class="text-center !py-8">
-                        <p class="text-[10px] text-[#6B7280] italic">${esc(opts.labels.cartEmpty)}</p>
+                    <tr><td colspan="5" class="px-3 py-10">
+                        <div class="flex flex-col items-center justify-center text-center">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/25 flex items-center justify-center mb-2">
+                                <i data-lucide="shopping-cart" class="w-6 h-6 text-purple-400/70"></i>
+                            </div>
+                            <p class="text-[11px] font-semibold text-gray-300">${esc(opts.labels.cartEmpty)}</p>
+                        </div>
                     </td></tr>
                 `);
             } else {
@@ -1413,163 +1436,159 @@ class TraspasosView extends Templates {
         const sucsFiltradas = opts.json.sucursales || [];
 
         const html = `
-            <div id="${opts.id}_root" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                <div id="${opts.id}_backdrop" class="absolute inset-0 bg-black/70"></div>
-                <div id="${opts.id}" class="bg-[#141d2b] rounded-2xl border border-[#374151] w-[980px] max-w-full max-h-[88vh] flex flex-col relative overflow-hidden shadow-2xl">
+            <div id="${opts.id}_root" class="fixed inset-0 z-[100] flex items-center justify-center">
+                <div id="${opts.id}_backdrop" class="absolute inset-0 bg-black/60"></div>
+                <div id="${opts.id}" class="relative z-10 w-full max-w-[1080px] max-h-[92vh] mx-3 bg-[#111928] border border-gray-700/60 rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col">
 
                     <!-- Header -->
-                    <div class="px-5 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-[#141d2b] to-[#1a2438]">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-md bg-[rgba(124,58,237,0.18)] border border-[#7C3AED]/40 flex items-center justify-center">
-                                <i data-lucide="arrow-left-right" class="w-4 h-4 text-[#c4b5fd]"></i>
+                    <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-700/60 bg-[#141d2b] flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                                <i data-lucide="arrow-left-right" class="w-5 h-5 text-white"></i>
                             </div>
                             <div>
                                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                                     ${esc(opts.labels.title)}
-                                    <span class="cs-badge cs-badge-primary !text-[8px] !px-1.5">${esc(opts.labels.badge)}</span>
+                                    <span class="${cls.badge} bg-purple-500/20 text-purple-300 border border-purple-500/30">${esc(opts.labels.badge)}</span>
                                 </h3>
-                                <p class="text-[10px] text-[#6B7280]">${esc(opts.labels.subtitle)}</p>
+                                <p class="text-[11px] text-gray-500">${esc(opts.labels.subtitle)}</p>
                             </div>
                         </div>
-                        <button type="button" id="${opts.id}_close" class="text-[#6B7280] hover:text-white p-1 rounded hover:bg-[#1F2A37] transition">
+                        <button type="button" id="${opts.id}_close" class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500 transition">
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
                     </div>
 
                     <!-- Filtros: Origen / Destino / Categoria -->
-                    <div class="px-3 py-3 grid grid-cols-3 gap-3 flex-shrink-0 bg-[#0f172a]/40 border-b border-[#374151]">
+                    <div class="px-5 pt-4 pb-3 border-b border-gray-800/70 bg-[#0f1825]/40">
+                        <div class="grid grid-cols-3 gap-3">
 
-                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
-                            <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">${esc(opts.labels.origen)}</div>
-                            <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#9CA3AF] mb-2 mt-0.5">
-                                <i data-lucide="arrow-up-from-line" class="w-3 h-3"></i>
-                                ${esc(opts.labels.origenLbl)}
-                            </label>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.sucursal)}</p>
-                                    ${selectBox(opts.id + '_origenSuc', sucsFiltradas, opts.json.origenIdInicial)}
-                                </div>
-                                <div>
-                                    <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.almacen)}</p>
-                                    ${selectBox(opts.id + '_origenAlm', alms, firstAlm)}
+                            <div class="bg-[#0f172a]/60 border border-gray-700/60 rounded-lg p-3 relative">
+                                <div class="absolute -top-2 left-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider shadow-md shadow-purple-500/20">${esc(opts.labels.origen)}</div>
+                                <label class="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2 mt-0.5">
+                                    <i data-lucide="arrow-up-from-line" class="w-3 h-3"></i>${esc(opts.labels.origenLbl)}
+                                </label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.sucursal)}</p>
+                                        <select id="${opts.id}_origenSuc" class="${cls.select}" style="${caretBg}">${optionsHtml(sucsFiltradas, opts.json.origenIdInicial)}</select>
+                                    </div>
+                                    <div>
+                                        <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.almacen)}</p>
+                                        <select id="${opts.id}_origenAlm" class="${cls.select}" style="${caretBg}">${optionsHtml(alms, firstAlm)}</select>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
-                            <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">${esc(opts.labels.destino)}</div>
-                            <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#9CA3AF] mb-2 mt-0.5">
-                                <i data-lucide="arrow-down-to-line" class="w-3 h-3"></i>
-                                ${esc(opts.labels.destinoLbl)}
-                            </label>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.sucursal)}</p>
-                                    ${selectBox(opts.id + '_destinoSuc', sucsFiltradas, '')}
-                                </div>
-                                <div>
-                                    <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.almacen)}</p>
-                                    ${selectBox(opts.id + '_destinoAlm', alms, firstAlm)}
+                            <div class="bg-[#0f172a]/60 border border-gray-700/60 rounded-lg p-3 relative">
+                                <div class="absolute -top-2 left-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider shadow-md shadow-purple-500/20">${esc(opts.labels.destino)}</div>
+                                <label class="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2 mt-0.5">
+                                    <i data-lucide="arrow-down-to-line" class="w-3 h-3"></i>${esc(opts.labels.destinoLbl)}
+                                </label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.sucursal)}</p>
+                                        <select id="${opts.id}_destinoSuc" class="${cls.select}" style="${caretBg}">${optionsHtml(sucsFiltradas, '')}</select>
+                                    </div>
+                                    <div>
+                                        <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.almacen)}</p>
+                                        <select id="${opts.id}_destinoAlm" class="${cls.select}" style="${caretBg}">${optionsHtml(alms, firstAlm)}</select>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg p-3 relative">
-                            <div class="absolute -top-2 left-3 bg-[#374151] text-[#9CA3AF] text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">${esc(opts.labels.categoria)}</div>
-                            <label class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#9CA3AF] mb-2 mt-0.5">
-                                <i data-lucide="tag" class="w-3 h-3"></i>
-                                ${esc(opts.labels.categoriaLbl)}
-                            </label>
-                            <div>
-                                <p class="text-[8px] uppercase tracking-wider text-[#6B7280] mb-0.5">${esc(opts.labels.tipo)}</p>
-                                ${selectBox(opts.id + '_categoria', cats, firstCat)}
+                            <div class="bg-[#0f172a]/60 border border-gray-700/60 rounded-lg p-3 relative">
+                                <div class="absolute -top-2 left-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider shadow-md shadow-purple-500/20">${esc(opts.labels.categoria)}</div>
+                                <label class="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2 mt-0.5">
+                                    <i data-lucide="tag" class="w-3 h-3"></i>${esc(opts.labels.categoriaLbl)}
+                                </label>
+                                <div>
+                                    <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.tipo)}</p>
+                                    <select id="${opts.id}_categoria" class="${cls.select}" style="${caretBg}">${optionsHtml(cats, firstCat)}</select>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Cuerpo (2 columnas) -->
-                    <div class="flex-1 px-3 pb-3 pt-3 grid grid-cols-[320px_1fr] gap-3 overflow-hidden min-h-0">
+                    <div class="flex flex-1 min-h-0">
 
                         <!-- Columna izquierda: buscador + lista -->
-                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg flex flex-col overflow-hidden min-h-0">
-                            <div class="px-3 py-2.5 border-b border-[#374151] flex-shrink-0 bg-[#141d2b]/60">
-                                <p class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#c4b5fd] mb-2">
-                                    <i data-lucide="search" class="w-3 h-3"></i>
-                                    ${esc(opts.labels.buscar)}
-                                </p>
-                                <div class="relative mb-2">
-                                    <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
-                                    <input id="${opts.id}_search" type="text" placeholder="${esc(opts.labels.buscarPh)}" class="tw-input w-full rounded-lg pl-10 pr-3 py-2 text-sm outline-none border border-gray-600 text-gray-200 placeholder-gray-500 focus:border-[#0a4a85] bg-gray-700">
+                        <div class="w-[320px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
+                            <div class="flex-shrink-0">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">${esc(opts.labels.buscar)}</p>
+                                <div class="relative">
+                                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center">
+                                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                                    </span>
+                                    <input id="${opts.id}_search" type="text" placeholder="${esc(opts.labels.buscarPh)}" class="${cls.search}" autocomplete="off">
                                 </div>
                             </div>
-                            <div id="${opts.id}_productList" class="flex-1 overflow-y-auto cs-scroll p-2 space-y-1.5 min-h-0"></div>
+                            <div id="${opts.id}_productList" class="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 bg-[#0f172a]/40 border border-gray-800/60 rounded-lg ${cls.scroll}"></div>
                         </div>
 
                         <!-- Columna derecha: carrito -->
-                        <div class="bg-[#1F2A37] border border-[#374151] rounded-lg flex flex-col overflow-hidden min-h-0">
+                        <div class="flex-1 flex flex-col min-w-0 min-h-0">
 
-                            <div class="px-3 py-2.5 border-b border-[#374151] flex-shrink-0 bg-[#141d2b]/60 flex items-center justify-between">
+                            <div class="px-4 py-2.5 border-b border-gray-800/70 flex items-center justify-between flex-shrink-0 bg-gradient-to-b from-[#0f1825]/60 to-transparent">
                                 <div class="flex items-center gap-2">
-                                    <p class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#c4b5fd]">
-                                        <i data-lucide="shopping-cart" class="w-3 h-3"></i>
-                                        ${esc(opts.labels.cart)}
-                                    </p>
-                                    <span id="${opts.id}_cartCount" class="cs-badge cs-badge-primary !text-[8px] !px-1.5 !py-0.5">0</span>
+                                    <div class="w-6 h-6 rounded-md bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
+                                        <i data-lucide="shopping-cart" class="w-3.5 h-3.5 text-purple-400"></i>
+                                    </div>
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-300">${esc(opts.labels.cart)}</p>
+                                    <span id="${opts.id}_cartCount" class="${cls.badge} bg-gradient-to-br from-purple-500/25 to-fuchsia-500/15 text-purple-300 border border-purple-500/40">0</span>
                                 </div>
-                                <button type="button" id="${opts.id}_clearCart" class="cs-btn cs-btn-sm cs-btn-outline !py-1 !text-[9px] hover:!bg-[rgba(234,2,52,0.15)] hover:!border-[#EA0234] hover:!text-[#EA0234] transition">
-                                    <i data-lucide="trash-2" class="w-2.5 h-2.5"></i>
-                                    ${esc(opts.labels.limpiar)}
+                                <button type="button" id="${opts.id}_clearCart" class="text-[10px] text-gray-500 hover:text-red-400 transition flex items-center gap-1 px-2 py-1 rounded-md hover:bg-red-500/10">
+                                    <i data-lucide="trash-2" class="w-3 h-3"></i>${esc(opts.labels.limpiar)}
                                 </button>
                             </div>
 
-                            <div class="flex-1 overflow-y-auto cs-scroll min-h-0">
-                                <table class="cs-table w-full">
-                                    <thead class="sticky top-0 bg-[#141d2b] z-10">
-                                        <tr class="border-b border-[#374151]">
-                                            <th class="text-left text-[#9CA3AF]">${esc(opts.labels.producto)}</th>
-                                            <th class="text-center text-[#9CA3AF]">${esc(opts.labels.cant)}</th>
-                                            <th class="text-right text-[#9CA3AF]">${esc(opts.labels.costo)}</th>
-                                            <th class="text-right text-[#9CA3AF]">${esc(opts.labels.subtotal)}</th>
-                                            <th class="text-center text-[#9CA3AF]">${esc(opts.labels.acciones)}</th>
+                            <div class="flex-1 min-h-0 overflow-y-auto ${cls.scroll}">
+                                <table class="w-full border-collapse">
+                                    <thead class="sticky top-0 z-10 bg-[#0f1825] border-b border-gray-700/60">
+                                        <tr>
+                                            <th class="text-left px-3 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
+                                            <th class="text-center px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-28">Cantidad</th>
+                                            <th class="text-right px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Costo</th>
+                                            <th class="text-right px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-28">Subtotal</th>
+                                            <th class="text-center px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-20">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody id="${opts.id}_cartBody"></tbody>
                                 </table>
                             </div>
 
-                            <div class="px-3 py-2 border-t border-[#374151] flex-shrink-0 bg-[#0f172a]/40">
+                            <div class="px-4 py-2 border-t border-gray-800/70 flex-shrink-0 bg-[#0f1825]/40">
                                 <div class="grid grid-cols-3 gap-2">
                                     <div class="text-center">
-                                        <p class="text-[8px] text-[#6B7280] uppercase tracking-wider leading-none mb-0.5">${esc(opts.labels.items)}</p>
+                                        <p class="text-[8px] text-gray-500 uppercase tracking-wider leading-none mb-0.5">${esc(opts.labels.items)}</p>
                                         <p id="${opts.id}_footerItems" class="text-xs font-bold text-white">0</p>
                                     </div>
-                                    <div class="text-center border-x border-[#374151]">
-                                        <p class="text-[8px] text-[#6B7280] uppercase tracking-wider leading-none mb-0.5">${esc(opts.labels.unidades)}</p>
+                                    <div class="text-center border-x border-gray-800/60">
+                                        <p class="text-[8px] text-gray-500 uppercase tracking-wider leading-none mb-0.5">${esc(opts.labels.unidades)}</p>
                                         <p id="${opts.id}_footerUds" class="text-xs font-bold text-white">0</p>
                                     </div>
                                     <div class="text-center">
-                                        <p class="text-[8px] text-[#6B7280] uppercase tracking-wider leading-none mb-0.5">${esc(opts.labels.costoTot)}</p>
-                                        <p id="${opts.id}_footerCosto" class="text-xs font-bold text-[#3FC189]">${fmtMoney(0)}</p>
+                                        <p class="text-[8px] text-gray-500 uppercase tracking-wider leading-none mb-0.5">${esc(opts.labels.costoTot)}</p>
+                                        <p id="${opts.id}_footerCosto" class="text-xs font-bold text-green-400">${fmtMoney(0)}</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="px-3 py-2.5 border-t border-[#374151] flex-shrink-0 bg-[#0f172a]/40">
-                                <label class="text-[9px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1 block">${esc(opts.labels.nota)}</label>
-                                <textarea id="${opts.id}_nota" class="tw-input w-full rounded-lg px-3 py-2 text-sm outline-none resize-y border border-gray-600 text-gray-200 placeholder-gray-500 focus:border-[#0a4a85] bg-gray-700" rows="1" placeholder="${esc(opts.labels.notaPh)}"></textarea>
+                            <div class="px-4 py-2.5 border-t border-gray-800/70 flex-shrink-0 bg-[#0f1825]/40">
+                                <label class="${cls.label}">${esc(opts.labels.nota)}</label>
+                                <textarea id="${opts.id}_nota" class="${cls.input} resize-y" rows="1" placeholder="${esc(opts.labels.notaPh)}"></textarea>
                             </div>
                         </div>
                     </div>
 
                     <!-- Pie -->
-                    <div class="px-5 py-3 border-t border-[#374151] bg-[#0f172a] flex items-center justify-between flex-shrink-0">
-                        <p id="${opts.id}_error" class="hidden text-[11px] text-red-400"></p>
-                        <div class="flex items-center gap-2 ml-auto">
-                            <button type="button" id="${opts.id}_cancel" class="cs-btn cs-btn-outline cs-btn-sm">${esc(opts.labels.cancelar)}</button>
-                            <button type="button" id="${opts.id}_save" class="cs-btn cs-btn-primary cs-btn-sm" style="background:linear-gradient(135deg,#7C3AED,#a855f7);border-color:#7C3AED;">
-                                <i data-lucide="send" class="w-3 h-3"></i>
-                                ${esc(opts.labels.crear)}
+                    <div class="flex items-center justify-between px-[18px] py-3 border-t border-gray-700/60 bg-[#141d2b] flex-shrink-0">
+                        <p id="${opts.id}_error" class="hidden text-[11px] font-semibold text-red-400"></p>
+                        <div class="flex gap-2 ml-auto">
+                            <button type="button" id="${opts.id}_cancel" class="${cls.btnOut}">${esc(opts.labels.cancelar)}</button>
+                            <button type="button" id="${opts.id}_save" class="${cls.btnOk}">
+                                <i data-lucide="send" class="w-3.5 h-3.5"></i><span>${esc(opts.labels.crear)}</span>
                             </button>
                         </div>
                     </div>

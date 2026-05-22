@@ -151,26 +151,21 @@ class App extends Templates {
                 value:    '',
                 data:     SAMPLE_ENTRADAS_ESTADOS
             },
-            {
-                opc:        'input',
-                id:         'qBuscar',
-                lbl:        'Buscar:',
-                class:      'col-12 col-md-3 col-lg-3',
-                placeholder:'Folio, registrado, nota...',
-                onkeyup:    'app.onChangeFilters()'
-            },
+          
             {
                 opc:       'button',
                 id:        'btnNuevaEntrada',
                 text:      'Agregar Entrada',
-                color_btn: ' bg-purple-600 text-white hover:bg-purple-800',
-                class:     'col-12 col-md-3 col-lg-2',
+                color_btn: 'primary',
+                class:     'col-12 col-md-3 col-lg-3',
                 onClick:   () => entradasView.openEntradaForm()
             }
         ];
 
         this.createfilterBar({
             parent: 'filterBar',
+            coffeesoft:true,
+            theme:'dark',
             data:   filters
         });
     }

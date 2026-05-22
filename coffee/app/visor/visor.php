@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Visor de Agentes — CoffeeSoft</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../../../app/ui/css/ui-kit.css">
-    <link rel="stylesheet" href="src/css/visor.css">
+    <link rel="stylesheet" href="/app/ui/css/ui-kit.css">
+    <link rel="stylesheet" href="/coffee/app/visor/src/css/visor.css?t=<?php echo time(); ?>">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -155,7 +155,7 @@
         </div>
     </footer>
 
-    <script src="src/js/sample_visor.js"></script>
-    <script src="src/js/visor.js"></script>
+    <script src="/coffee/app/visor/src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
+    <script src="/coffee/app/visor/src/js/visor.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>
