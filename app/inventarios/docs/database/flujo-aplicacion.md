@@ -38,11 +38,10 @@ Huubie (POS-1)
 | Actor | Rol en el flujo |
 |---|---|
 | **Empresa (tenant)** | Reginas (`companies_id = 4` en `fayxzvov_admin.companies`). Cobija todas las sucursales y catalogos. |
-| **Sucursal** | Tienda fisica (Marinni Centro, Kafeto, Central Gpe, Cuarta, Altozano, Club Campestre, Club Campestre Tap). Cada evento ocurre **en una sucursal**. Vive en `fayxzvov_alpha.subsidiaries`. |
-| **Almacen** | Espacio fisico dentro de una sucursal. Una sucursal puede tener varios; uno marcado como **general por defecto**. Tabla nueva `rfwsmqex_inventarios.warehouse`. |
-| **Usuario** | Quien registra eventos. Aparece como "registrado por", "autorizo", "envio", "recibio". Vive en `fayxzvov_alpha.usr_users`. |
-| **Empleado** | Persona fisica con datos de RRHH (codigo, nss, puesto). Cuando se requiere atribucion de RRHH (por ejemplo, "el almacenista responsable"). Vive en `fayxzvov_rrhh.rrhh_empleados`. |
-| **Proveedor** | Externo. Suministra mercancia en entradas tipo Proveedor. Catalogo `rfwsmqex_inventarios.supplier`. |
+| **Sucursal** | Tienda fisica de Reginas. Las 3 sucursales activas con `companies_id = 4` son: **Reginas guadalupe** (`id = 4`), **Regina´s cuarta** (`id = 22`) y **Reginas kafeto** (`id = 25`). Cada evento ocurre **en una sucursal**. Vive en `fayxzvov_alpha.subsidiaries`. |
+| **Almacen** | Espacio fisico dentro de una sucursal. Una sucursal puede tener varios; uno marcado como **general por defecto**. Tabla nueva `fayxzvov_reginas.inv_warehouse`. |
+| **Usuario** | Quien registra eventos. Aparece como "registrado por", "autorizo", "envio", "recibio". Vive en `fayxzvov_alpha.usr_users`. **Hoy es la unica fuente de personas** — no existe un catalogo separado de empleados/RRHH para Reginas. |
+| **Proveedor** | Externo. Suministra mercancia en entradas tipo Proveedor. Catalogo `fayxzvov_reginas.inv_supplier`. |
 | **Cliente final** | Consume via POS (no aparece en inventarios, pero las ventas POS disparan salidas que el visor de movimientos refleja). |
 
 ---
@@ -56,13 +55,13 @@ Cada producto tiene dos partes:
 | Fuente | Atributos | Esquema |
 |---|---|---|
 | **Catalogo POS** | id, name, price, category_id, image, subsidiaries_id, companies_id | `fayxzvov_reginas.order_products` (97 productos reales) |
-| **Extension inventory** | sku, cost_unit, stock_min, stock_max, shelf_life_days, warehouse_area_id, unit_id | `rfwsmqex_inventarios.product_attribute` (1:1 con order_products) |
+| **Extension inventory** | sku, cost_unit, stock_min, stock_max, shelf_life_days, warehouse_area_id, unit_id | `fayxzvov_reginas.inv_product_attribute` (1:1 con order_products) |
 
 > El producto POS no se duplica. Se le anade una "ficha de inventario" con FK 1:1. Si el producto se desactiva en el POS, su extension queda inactiva tambien (CASCADE).
 
 ### 3.2 Stock
 
-El stock es la **cantidad disponible de un producto en un almacen especifico**. La tabla `stock` mantiene saldo vivo `(order_product_id, warehouse_id) → quantity`.
+El stock es la **cantidad disponible de un producto en un almacen especifico**. La tabla `inv_stock` mantiene saldo vivo `(order_product_id, warehouse_id) → quantity`.
 
 Estados derivados (calculados en la UI, no almacenados):
 - **OK** - `quantity >= stock_min`.
@@ -76,18 +75,18 @@ Todo cambio de stock se materializa como un **evento** con folio unico, fecha-ho
 
 | Tipo | Tabla raiz | Detalle | Signo | Folio | Origen del cambio |
 |---|---|---|---|---|---|
-| **ENTRADA** | `inventory_inflow` | `detail_inventory_inflow` | + | `ENT-####` | Recepcion (produccion, proveedor, transferencia entrante, devolucion cliente). |
-| **MERMA** | `inventory_shrinkage` | `detail_inventory_shrinkage` | − | `M-####` | Producto dado de baja (caducidad, daniado, robo, error produccion). |
-| **TRASPASO** | `inventory_transfer` | `detail_inventory_transfer` + `inventory_transfer_history` | ± | `TRA-####` | Movimiento entre sucursales (sale de origen, entra a destino). |
-| **AJUSTE** | `inventory_adjustment` | `detail_inventory_adjustment` | ± | `AJU-####` / `INV-FIS-####` | Conteo fisico que corrige el sistema (faltante, sobrante, cierre mensual). |
+| **ENTRADA** | `inv_inflow` | `inv_inflow_detail` | + | `ENT-####` | Recepcion (produccion, proveedor, transferencia entrante, devolucion cliente). |
+| **MERMA** | `inv_shrinkage` | `inv_shrinkage_detail` | − | `M-####` | Producto dado de baja (caducidad, daniado, robo, error produccion). |
+| **TRASPASO** | `inv_transfer` | `inv_transfer_detail` + `inv_transfer_history` | ± | `TRA-####` | Movimiento entre sucursales (sale de origen, entra a destino). |
+| **AJUSTE** | `inv_adjustment` | `inv_adjustment_detail` | ± | `AJU-####` / `INV-FIS-####` | Conteo fisico que corrige el sistema (faltante, sobrante, cierre mensual). |
 | **SALIDA POS** | (vive en `fayxzvov_reginas.order` + `order_products`) | — | − | implicito en venta | Venta registrada en el POS. **No vive en este esquema.** |
-| **DEVOLUCION** | `inventory_inflow` con `inflow_origin = devolucion` | `detail_inventory_inflow` | + | `ENT-####` | Cliente devuelve producto - reentra al inventario. |
+| **DEVOLUCION** | `inv_inflow` con `inflow_origin = devolucion` | `inv_inflow_detail` | + | `ENT-####` | Cliente devuelve producto - reentra al inventario. |
 
 Cada detalle mantiene `previous_stock` / `resulting_stock` por renglon - reconstruye la trazabilidad completa del producto en cualquier momento.
 
 ### 3.4 Vista unificada
 
-`inventory_movement` (VIEW) hace UNION ALL de los renglones de los 4 tipos de evento - alimenta el visor de Movimientos. Una merma con 3 productos produce 3 filas en la vista.
+`inv_movement` (VIEW) hace UNION ALL de los renglones de los 4 tipos de evento - alimenta el visor de Movimientos. Una merma con 3 productos produce 3 filas en la vista.
 
 ---
 
@@ -147,9 +146,9 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 **Eventos que dispara:** ninguno (solo lectura).
 
 **Tablas consultadas:**
-- `stock` (saldo).
-- `warehouse` (para filtros por almacen).
-- `product_attribute` (min/max/vida util/sku/costo).
+- `inv_stock` (saldo).
+- `inv_warehouse` (para filtros por almacen).
+- `inv_product_attribute` (min/max/vida util/sku/costo).
 - `fayxzvov_reginas.order_products` (nombre, precio, categoria).
 - `fayxzvov_alpha.subsidiaries` (nombre de sucursal).
 
@@ -157,7 +156,7 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 
 **Proposito:** registrar y consultar recepciones de mercancia.
 
-**Origenes (catalogo `inflow_origin`):**
+**Origenes (catalogo `inv_inflow_origin`):**
 - **Produccion** - la propia panaderia produjo cupcakes, pasteles, galletas.
 - **Proveedor** - recepcion de orden de compra externa. Requiere `supplier_id` (flag `requires_supplier = 1`).
 - **Transferencia** - entro desde otra sucursal (cierra el ciclo de un traspaso).
@@ -172,7 +171,7 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 - `subsidiaries_id`.
 - `user_id` (quien registro).
 - Nota libre (referencia a OC, cliente, etc.).
-- `status`: Pendiente / Aplicada / Reversada.
+- `status`: Pendiente / Aplicada / Cancelada.
 - Totales calculados: `total_products`, `total_units`, `total_cost`.
 
 **Datos por renglon (detalle):**
@@ -198,11 +197,11 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 - El costo unitario no puede ser negativo.
 
 **Eventos que dispara:**
-- INSERT en `inventory_inflow` + N INSERTs en `detail_inventory_inflow`.
-- UPDATE en `stock` (`quantity += renglon.quantity`).
+- INSERT en `inv_inflow` + N INSERTs en `inv_inflow_detail`.
+- UPDATE en `inv_stock` (`quantity += renglon.quantity`).
 
 **Reversibilidad:**
-- Cambiar `status` a `Reversada` genera entradas espejo (cantidades negativas) o se aplica como detail con `quantity` inverso. **Nunca se borra fisicamente.**
+- Cambiar `status` a `Cancelada` genera entradas espejo (cantidades negativas) o se aplica como detail con `quantity` inverso. **Nunca se borra fisicamente.**
 
 ### 5.3 Movimientos (`pos-movimientos.php`)
 
@@ -223,26 +222,26 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 
 **Eventos que dispara:** ninguno (solo lectura).
 
-**Fuente de datos:** la vista `inventory_movement` (UNION ALL de los 4 tipos). Salidas POS (cuando se conecten) saldran del esquema `fayxzvov_reginas` via JOIN cross-schema.
+**Fuente de datos:** la vista `inv_movement` (UNION ALL de los 4 tipos). Salidas POS (cuando se conecten) saldran del esquema `fayxzvov_reginas` via JOIN cross-schema.
 
 **Tipos visibles:**
 
 | Tipo | Tabla origen | Signo |
 |---|---|---|
-| ENTRADA | `detail_inventory_inflow` | + |
-| MERMA | `detail_inventory_shrinkage` | − |
-| TRANSFERENCIA (OUT) | `detail_inventory_transfer` (al `date_sent`) | − |
-| TRANSFERENCIA (IN) | `detail_inventory_transfer` (al `date_received`) | + |
-| AJUSTE | `detail_inventory_adjustment` (`difference`) | +/− |
+| ENTRADA | `inv_inflow_detail` | + |
+| MERMA | `inv_shrinkage_detail` | − |
+| TRANSFERENCIA (OUT) | `inv_transfer_detail` (al `date_sent`) | − |
+| TRANSFERENCIA (IN) | `inv_transfer_detail` (al `date_received`) | + |
+| AJUSTE | `inv_adjustment_detail` (`difference`) | +/− |
 | SALIDA POS | `fayxzvov_reginas.order_products` + `order` (futuro) | − |
 | SALIDA PED | `fayxzvov_reginas.order` (pedidos despachados, futuro) | − |
-| DEVOLUCION | `detail_inventory_inflow` con `inflow_origin.code = 'devolucion'` | + |
+| DEVOLUCION | `inv_inflow_detail` con `inflow_origin.code = 'devolucion'` | + |
 
 ### 5.4 Mermas (`pos-mermas.php`)
 
 **Proposito:** registrar perdidas (producto que ya no se puede vender).
 
-**Motivos (catalogo `shrinkage_reason`):**
+**Motivos (catalogo `inv_shrinkage_reason`):**
 - **Caducidad** - vencimiento.
 - **Daniado** - golpeado, roto, derramado.
 - **Error produccion** - salio mal del horno.
@@ -256,7 +255,7 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 - `warehouse_id`, `subsidiaries_id`, `user_id`, `companies_id`.
 - `evidence_url` (foto opcional).
 - Nota libre.
-- `status`: Aplicada / Reversada.
+- `status`: Aplicada / Cancelada.
 - Totales calculados: `total_products`, `total_units`, `total_cost_loss`.
 
 **Datos por renglon:**
@@ -276,8 +275,8 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 - El costo unitario default es el `product_attribute.cost_unit` actual, pero se permite override.
 
 **Eventos que dispara:**
-- INSERT en `inventory_shrinkage` + N INSERTs en `detail_inventory_shrinkage`.
-- UPDATE en `stock` (`quantity -= renglon.quantity`).
+- INSERT en `inv_shrinkage` + N INSERTs en `inv_shrinkage_detail`.
+- UPDATE en `inv_stock` (`quantity -= renglon.quantity`).
 
 **Conexion con contabilidad:**
 - `total_cost_loss` se alimenta como perdida operativa en reportes de mermas.
@@ -286,7 +285,7 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 
 **Proposito:** mover mercancia entre sucursales con flujo de aprobacion.
 
-**Estados (catalogo `transfer_status`):**
+**Estados (catalogo `inv_transfer_status`):**
 
 | Orden | Estado | `is_terminal` | Significado |
 |---|---|---|---|
@@ -310,7 +309,7 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 - `origin_stock_prev` / `origin_stock_post`.
 - `destination_stock_prev` / `destination_stock_post` (NULL hasta que se recibe).
 
-**Timeline (`inventory_transfer_history`):**
+**Timeline (`inv_transfer_history`):**
 - Un row por cada transicion de estado.
 - Campos: `transitioned_at`, `note`, `transfer_status_id`, `user_id`.
 
@@ -324,7 +323,7 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 **Validaciones de negocio:**
 - `origin_warehouse_id` y `destination_warehouse_id` deben ser distintos.
 - `origin_subsidiaries_id` y `destination_subsidiaries_id` pueden ser iguales (traspaso intra-sucursal entre almacenes) o distintas.
-- Para pasar a `En Transito`: validar que `stock` origen >= `quantity` solicitada.
+- Para pasar a `En Transito`: validar que `inv_stock` origen >= `quantity` solicitada.
 - Una vez en estado terminal (`Recibido` o `Rechazado`), no se permiten mas transiciones.
 - El timeline se llena automaticamente con cada cambio de estado.
 
@@ -332,10 +331,10 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 
 | Transicion | Tabla(s) afectada(s) |
 |---|---|
-| → Solicitado | INSERT en `inventory_transfer` + N en `detail_inventory_transfer` + INSERT en `inventory_transfer_history`. |
+| → Solicitado | INSERT en `inv_transfer` + N en `inv_transfer_detail` + INSERT en `inv_transfer_history`. |
 | → Autorizado | UPDATE `transfer_status_id` + UPDATE `date_authorized` + UPDATE `authorized_user_id` + INSERT en history. |
-| → En Transito | UPDATE `transfer_status_id` + UPDATE `date_sent` + UPDATE `stock` (origen baja) + UPDATE `detail.origin_stock_prev/post` + INSERT en history. |
-| → Recibido | UPDATE `transfer_status_id` + UPDATE `date_received` + UPDATE `received_user_id` + UPDATE `stock` (destino sube) + UPDATE `detail.destination_stock_prev/post` + INSERT en history. |
+| → En Transito | UPDATE `transfer_status_id` + UPDATE `date_sent` + UPDATE `inv_stock` (origen baja) + UPDATE `detail.origin_stock_prev/post` + INSERT en history. |
+| → Recibido | UPDATE `transfer_status_id` + UPDATE `date_received` + UPDATE `received_user_id` + UPDATE `inv_stock` (destino sube) + UPDATE `detail.destination_stock_prev/post` + INSERT en history. |
 | → Rechazado | UPDATE `transfer_status_id` + INSERT en history. (Stock no se toca.) |
 
 ### 5.6 Configuracion / Admin (`admin-inventarios.php`)
@@ -345,7 +344,7 @@ Cada tarjeta lleva a un submodulo independiente. El layout es el canonico Huubie
 **Tabs actuales:**
 
 #### Tab Productos
-Alta/edicion/baja de la **extension de inventario** sobre el catalogo POS (`product_attribute`).
+Alta/edicion/baja de la **extension de inventario** sobre el catalogo POS (`inv_product_attribute`).
 
 **Campos editables:**
 - SKU.
@@ -359,7 +358,7 @@ Alta/edicion/baja de la **extension de inventario** sobre el catalogo POS (`prod
 **No editable desde aqui:** nombre, precio, categoria, imagen - viven en `fayxzvov_reginas.order_products` y se editan desde el modulo POS.
 
 #### Tab Almacenes
-Alta/edicion/baja de `warehouse` (almacenes fisicos por sucursal).
+Alta/edicion/baja de `inv_warehouse` (almacenes fisicos por sucursal).
 
 **Campos:**
 - Nombre.
@@ -390,9 +389,9 @@ Alta/edicion/baja de `warehouse` (almacenes fisicos por sucursal).
 6. Confirma.
 7. **Sistema:**
    - Genera folio `ENT-090`.
-   - Crea `inventory_inflow` con `status = 'Aplicada'`.
-   - Crea 3 `detail_inventory_inflow`.
-   - Actualiza `stock` (suma cantidades a los 3 productos en el almacen).
+   - Crea `inv_inflow` con `status = 'Aplicada'`.
+   - Crea 3 `inv_inflow_detail`.
+   - Actualiza `inv_stock` (suma cantidades a los 3 productos en el almacen).
    - Muestra toast "Entrada ENT-090 registrada".
 8. La fila aparece en el visor de Entradas.
 9. Las 3 lineas aparecen en el visor de Movimientos con tipo `ENTRADA` y signo +.
@@ -410,18 +409,18 @@ Alta/edicion/baja de `warehouse` (almacenes fisicos por sucursal).
 7. Confirma.
 8. **Sistema:**
    - Genera folio `M-4521`.
-   - Crea `inventory_shrinkage` con `total_cost_loss = -$1,240.00`.
-   - Crea 3 `detail_inventory_shrinkage`.
-   - Actualiza `stock` (resta cantidades).
+   - Crea `inv_shrinkage` con `total_cost_loss = -$1,240.00`.
+   - Crea 3 `inv_shrinkage_detail`.
+   - Actualiza `inv_stock` (resta cantidades).
    - Muestra alerta si algun producto queda en estado `Agotado`.
 9. La fila aparece en el visor de Mermas con badge rojo `CADUCIDAD`.
 
 ### Caso 3: Traspaso entre sucursales
 
-**Actor:** Andrea (Sucursal Norte) solicita reabasto a Kafeto.
+**Actor:** Andrea (Reginas guadalupe) solicita reabasto a Reginas kafeto.
 
 1. Andrea entra a `pos-traspasos.php` y click "Solicitar traspaso".
-2. Origen = `Reginas Kafeto`, destino = `Suc. Norte` (su sucursal).
+2. Origen = `Reginas kafeto` (`subsidiaries_id = 25`), destino = `Reginas guadalupe` (`subsidiaries_id = 4`).
 3. Captura productos solicitados.
 4. Confirma → folio `TRA-042`, estado `Solicitado`. **Stock NO se mueve.**
 
@@ -430,11 +429,11 @@ Carlos (Kafeto) ve la solicitud:
 5. Click "Autorizar" → estado `Autorizado`. Timeline registra la transicion con `Carlos G.` y timestamp.
 6. Carlos despacha → click "Marcar como En Transito" → estado `En Transito`. `date_sent` se llena. **Stock Kafeto baja.**
 
-Llega a Suc. Norte:
+Llega a Reginas guadalupe:
 
-7. Andrea click "Confirmar recepcion" → estado `Recibido`. `date_received` se llena. **Stock Suc. Norte sube.**
+7. Andrea click "Confirmar recepcion" → estado `Recibido`. `date_received` se llena. **Stock Reginas guadalupe sube.**
 8. **Sistema:**
-   - Crea evento espejo en `inventory_movement` (vista): una linea `TR-OUT-` con signo − en Kafeto + una linea `TR-IN-` con signo + en Suc. Norte.
+   - Crea evento espejo en `inv_movement` (vista): una linea `TR-OUT-` con signo − en Kafeto + una linea `TR-IN-` con signo + en Reginas guadalupe.
    - Timeline tiene 4 entries: Solicitado, Autorizado, En Transito, Recibido.
 
 ### Caso 4: Ajuste por conteo fisico (cierre mensual)
@@ -449,8 +448,8 @@ Llega a Suc. Norte:
 6. Confirma.
 7. **Sistema:**
    - Genera folio `INV-FIS-2026-05`.
-   - Crea `inventory_adjustment` con `adjustment_type = 'fisico'`.
-   - Crea N `detail_inventory_adjustment`.
+   - Crea `inv_adjustment` con `adjustment_type = 'fisico'`.
+   - Crea N `inv_adjustment_detail`.
    - Para cada renglon, ajusta `stock.quantity` con `difference`.
    - `total_diff_cost` agrega el impacto monetario.
 
@@ -462,7 +461,7 @@ Llega a Suc. Norte:
 Cada sucursal tiene **exactamente uno** almacen marcado `is_default_general = 1`. Es donde caen movimientos cuando no se especifica almacen explicito. UNIQUE constraint compuesto en DDL + logica de servicio.
 
 ### 7.2 Stock es por (producto, almacen)
-Un mismo SKU en dos almacenes son dos saldos distintos. La vista de Stock consolida con filtros. UNIQUE constraint `(order_product_id, warehouse_id)` en `stock`.
+Un mismo SKU en dos almacenes son dos saldos distintos. La vista de Stock consolida con filtros. UNIQUE constraint `(order_product_id, warehouse_id)` en `inv_stock`.
 
 ### 7.3 Folios prefijados por tipo
 - `ENT-####` entradas.
@@ -475,10 +474,10 @@ Un mismo SKU en dos almacenes son dos saldos distintos. La vista de Stock consol
 Unicos por empresa (UNIQUE `(folio, companies_id)`).
 
 ### 7.4 Reversibilidad
-Cada evento tiene `status` con valor `Aplicada` / `Reversada`. **Reversar NO borra fisicamente** - genera un evento espejo de signo opuesto. Auditabilidad total.
+Cada evento tiene `status` con valor `Aplicada` / `Cancelada`. **Cancelar NO borra fisicamente** - genera un evento espejo de signo opuesto. Auditabilidad total.
 
 ### 7.5 Snapshots por renglon
-Cada `detail_*` guarda `previous_stock` + `resulting_stock` + `cost_unit_snap` para reconstruir el estado del producto en ese momento. No depende del estado actual del catalogo.
+Cada `inv_*_detail` guarda `previous_stock` + `resulting_stock` + `cost_unit_snap` para reconstruir el estado del producto en ese momento. No depende del estado actual del catalogo.
 
 ### 7.6 Aprobacion obligatoria en traspasos
 Stock no se mueve hasta `En Transito` (origen) o `Recibido` (destino). Si se rechaza antes, no hay impacto.
@@ -487,7 +486,7 @@ Stock no se mueve hasta `En Transito` (origen) o `Recibido` (destino). Si se rec
 El `total_cost_loss` se materializa como perdida operativa, alimenta reportes de mermas.
 
 ### 7.8 Ajustes requieren motivo categorizado
-Catalogo `adjustment_reason` con 5 valores iniciales. No se ajusta sin razon clasificada.
+Catalogo `inv_adjustment_reason` con 5 valores iniciales. No se ajusta sin razon clasificada.
 
 ### 7.9 Caducidad gatilla merma sugerida
 Productos con `shelf_life_days` proximos a vencer aparecen en alertas de Stock. Al vencer, el sistema puede generar una merma sugerida con motivo `Caducidad`.
@@ -504,15 +503,15 @@ Excepto pivotes puros (no hay en esta version). Toda lectura filtra `WHERE activ
 
 ### 8.1 Catalogos minimos (seed automatico)
 
-- `unit`: 7 valores (pza, kg, lt, caja, pq, gr, ml).
-- `inflow_origin`: 4 valores (Produccion, Proveedor, Transferencia, Devolucion).
-- `shrinkage_reason`: 5 valores (Caducidad, Daniado, Error produccion, Robo, Devolucion).
-- `adjustment_reason`: 5 valores (Faltante, Sobrante, Conteo fisico, Cierre mensual, Entrada no registrada).
-- `transfer_status`: 5 valores (Solicitado, Autorizado, En Transito, Recibido, Rechazado).
-- `warehouse_area`: 4 valores para Reginas (Refrigerados, Secos, Congelados, Panaderia).
+- `inv_unit`: 7 valores (pza, kg, lt, caja, pq, gr, ml).
+- `inv_inflow_origin`: 4 valores (Produccion, Proveedor, Transferencia, Devolucion).
+- `inv_shrinkage_reason`: 5 valores (Caducidad, Daniado, Error produccion, Robo, Devolucion).
+- `inv_adjustment_reason`: 5 valores (Faltante, Sobrante, Conteo fisico, Cierre mensual, Entrada no registrada).
+- `inv_transfer_status`: 5 valores (Solicitado, Autorizado, En Transito, Recibido, Rechazado).
+- `inv_warehouse_area`: 4 valores para Reginas (Refrigerados, Secos, Congelados, Panaderia).
 
 ### 8.2 Productos
-97 productos reales heredados de `fayxzvov_reginas.order_products` (subsidiaries_id = 4). Se les genera `product_attribute` 1:1 con SKU autogenerado (`RG-001` a `RG-097`).
+97 productos reales heredados de `fayxzvov_reginas.order_products` (tenant Reginas, `companies_id = 4`). Se les genera `inv_product_attribute` 1:1 con SKU autogenerado (`RG-001` a `RG-097`).
 
 Distribucion por categoria (datos observados):
 - Pasteles Tradicionales: 27
@@ -526,17 +525,15 @@ Distribucion por categoria (datos observados):
 - Otros: 7
 
 ### 8.3 Almacenes
-7 almacenes generales (uno por sucursal activa de Reginas):
-- Marinni Centro.
-- Club Campestre.
-- Reginas Central Gpe.
-- Altozano.
-- Club campestre tap.
-- Reginas cuarta.
-- Reginas kafeto.
+3 almacenes generales (uno por sucursal activa de Reginas, `companies_id = 4`):
+- Reginas guadalupe (`subsidiaries_id = 4`).
+- Regina´s cuarta (`subsidiaries_id = 22`).
+- Reginas kafeto (`subsidiaries_id = 25`).
+
+> Las sucursales Marinni Centro (`companies_id = 1`, Marini), Club Campestre, Altozano y Club campestre tap (`companies_id = 2`, Club Campestre) **no pertenecen a Reginas** y no deben sembrarse en este esquema.
 
 ### 8.4 Stock
-Registros en cero para cada (producto x almacen general) - 97 x 7 = 679 filas iniciales.
+Registros en cero para cada (producto x almacen general) - 97 x 3 = 291 filas iniciales.
 
 ### 8.5 Datos transaccionales
 Vacios. Se van llenando conforme se usa la aplicacion. Los `sample_*.js` actuales son para desarrollo offline; al conectar backend se reemplazan por queries reales.
@@ -549,10 +546,10 @@ Vacios. Se van llenando conforme se usa la aplicacion. Los `sample_*.js` actuale
 |---|---|
 | **Ventas POS** | Cada venta genera una **SALIDA POS** automatica por cada producto vendido (consume stock). Hoy vive en `fayxzvov_reginas.order` + `order_products` - el visor de Movimientos la consume via JOIN cuando se conecte. |
 | **Pedidos / Eventos** | Cada pedido despachado genera una **SALIDA PED**. Misma logica que ventas. |
-| **Devoluciones POS** | Cada devolucion de cliente reingresa stock como `inventory_inflow` con `inflow_origin = devolucion`. |
-| **Produccion** | Cada batch de horneado genera una `inventory_inflow` con `inflow_origin = produccion`. |
-| **Compras / Proveedores** | Cada recepcion de OC genera una `inventory_inflow` con `inflow_origin = proveedor` y `supplier_id` requerido. |
-| **RRHH** | Aporta el catalogo de empleados (`fayxzvov_rrhh.rrhh_empleados`). Cuando el modulo evolucione para registrar "almacenista responsable", se usara `employee_id`. |
+| **Devoluciones POS** | Cada devolucion de cliente reingresa stock como `inv_inflow` con `inflow_origin = devolucion`. |
+| **Produccion** | Cada batch de horneado genera una `inv_inflow` con `inflow_origin = produccion`. |
+| **Compras / Proveedores** | Cada recepcion de OC genera una `inv_inflow` con `inflow_origin = proveedor` y `supplier_id` requerido. |
+| **RRHH** | **Hoy no aplica.** No existe un catalogo de empleados/RRHH para Reginas; todas las atribuciones de persona (registrado por, autorizo, envio, recibio) usan `fayxzvov_alpha.usr_users`. Si en el futuro se crea una tabla de empleados dentro del tenant, se anadira FK opcional `employee_id`. |
 | **Contabilidad** | Las mermas (`total_cost_loss`) y ajustes (`total_diff_cost`) alimentan reportes de perdidas operativas. |
 | **Sucursales / Empresa** | Maestros cross-schema (`fayxzvov_alpha.subsidiaries`, `fayxzvov_admin.companies`). |
 
@@ -560,7 +557,7 @@ Vacios. Se van llenando conforme se usa la aplicacion. Los `sample_*.js` actuale
 
 ## 10. Estados y transiciones
 
-### 10.1 Estados de `inventory_inflow.status`
+### 10.1 Estados de `inv_inflow.status`
 
 ```
                     ┌──────────────┐
@@ -571,14 +568,14 @@ Vacios. Se van llenando conforme se usa la aplicacion. Los `sample_*.js` actuale
                     ┌──────────────┐
                     │   Aplicada   │   (default - impacta stock al insertar)
                     └──────┬───────┘
-                           │ (admin reversa)
+                           │ (admin cancela)
                            ▼
                     ┌──────────────┐
-                    │   Reversada  │
+                    │   Cancelada  │
                     └──────────────┘
 ```
 
-### 10.2 Estados de `inventory_shrinkage.status`
+### 10.2 Estados de `inv_shrinkage.status`
 
 ```
                     ┌──────────────┐
@@ -587,11 +584,11 @@ Vacios. Se van llenando conforme se usa la aplicacion. Los `sample_*.js` actuale
                            │
                            ▼
                     ┌──────────────┐
-                    │   Reversada  │
+                    │   Cancelada  │
                     └──────────────┘
 ```
 
-### 10.3 Estados de `inventory_transfer.transfer_status_id` (catalogo)
+### 10.3 Estados de `inv_transfer.transfer_status_id` (catalogo)
 
 ```
                     ┌──────────────┐
@@ -615,7 +612,7 @@ Vacios. Se van llenando conforme se usa la aplicacion. Los `sample_*.js` actuale
          └──────────────┘
 ```
 
-### 10.4 Estados de `inventory_adjustment.status`
+### 10.4 Estados de `inv_adjustment.status`
 
 ```
                     ┌──────────────┐
@@ -629,7 +626,7 @@ Vacios. Se van llenando conforme se usa la aplicacion. Los `sample_*.js` actuale
                            │
                            ▼
                     ┌──────────────┐
-                    │  Reversado   │
+                    │  Cancelado   │
                     └──────────────┘
 ```
 
@@ -646,7 +643,7 @@ Vacios. Se van llenando conforme se usa la aplicacion. Los `sample_*.js` actuale
 
 ### 11.2 Backend (en construccion)
 - `ctrl-inventarios.php` recibe `opc` por POST y dispatcha (patron coffeeSoft).
-- `mdl-inventarios.php` con consultas tipadas a `rfwsmqex_inventarios.*`.
+- `mdl-inventarios.php` con consultas tipadas a `fayxzvov_reginas.inv_*`.
 - Para dimension dual: dispatcher por `$_POST['scope']` o `$_SESSION['inventory_scope']`.
 
 ### 11.3 Convencion de archivos
@@ -700,11 +697,11 @@ app/inventarios/
 | # | Pregunta | Estado actual |
 |---|---|---|
 | 1 | ¿Se renombran `pos-*.php` a `inv-*.php` para neutralidad al scope? | Pendiente (plan/propuesta-salida-insumos.md §9.1). |
-| 2 | ¿Almacenes pueden contener simultaneamente productos POS e insumos? | Asumido **si**. No se necesita campo `scope` en `warehouse`. |
+| 2 | ¿Almacenes pueden contener simultaneamente productos POS e insumos? | Asumido **si**. No se necesita campo `scope` en `inv_warehouse`. |
 | 3 | ¿Default de scope: forzar gate cada sesion o respetar ultimo uso? | Pendiente. |
 | 4 | Submodulo formal "Salidas" en POS, ¿se justifica? | **No** - lo cubren Ventas, Mermas y Traspasos. Solo Insumos lo necesita. |
-| 5 | Esquema target: `rfwsmqex_inventarios` o `fayxzvov_inventario`? | `rfwsmqex_inventarios` propuesto. Pendiente confirmacion del data steward. |
-| 6 | ¿Triggers SQL o capa de servicio para mantener `stock`? | Decision tomada: **capa de servicio** (`mdl-inventarios.php`). Los snapshots en detalles son la auditoria. |
+| 5 | Esquema target del modulo | **Decision tomada:** las tablas viven dentro de `fayxzvov_reginas` con prefijo `inv_*` (mismo patron que `mtto_*` en `fayxzvov_mtto`). Si llega otro tenant, se replica la BD bajo su prefijo correspondiente. |
+| 6 | ¿Triggers SQL o capa de servicio para mantener `inv_stock`? | Decision tomada: **capa de servicio** (`mdl-inventarios.php`). Los snapshots en detalles son la auditoria. |
 | 7 | Politica de FK cross-schema en produccion (¿quedan o se manejan a nivel de aplicacion?) | Pendiente. Si los esquemas se mueven a servidores distintos, hay que remover FK. |
 | 8 | ¿Quien hace el conteo fisico mensual y como se integra con cierres contables? | Pendiente - depende del calendario contable de Reginas. |
 | 9 | Reversibilidad de traspasos terminales (`Recibido`/`Rechazado`) | Pendiente - hoy son terminales pero podria haber casos excepcionales (devolucion del traspaso). |
@@ -713,7 +710,7 @@ app/inventarios/
 
 ## 13. Resumen ejecutivo
 
-El modulo `app/inventarios` es un **gestor multi-sucursal con bitacora de eventos** organizado en 6 submodulos navegables. Cada cambio de stock se materializa como un evento con folio unico (`ENT-/M-/TRA-/AJU-`) que pertenece a 1 de 4 transacciones raiz (`inventory_inflow`, `inventory_shrinkage`, `inventory_transfer`, `inventory_adjustment`). Los renglones de cada evento guardan snapshots (`previous_stock`, `resulting_stock`, `cost_unit_snap`) para auditabilidad total. El saldo vivo se mantiene en `stock` (saldo por producto x almacen). Una vista unificada `inventory_movement` alimenta el visor de Movimientos con UNION ALL de los 4 tipos. El modulo se construye en `rfwsmqex_inventarios` (nuevo) y reusa via FK cross-schema 6 maestros corporativos (`companies`, `subsidiaries`, `usr_users`, `rrhh_empleados`, `order_products`, `order_category`). Hoy opera 100% en modo FAKE con `sample_*.js`; al conectar el backend (`mdl-inventarios.php`) se vuelve operativo sin cambios en la UI.
+El modulo `app/inventarios` es un **gestor multi-sucursal con bitacora de eventos** organizado en 6 submodulos navegables. Cada cambio de stock se materializa como un evento con folio unico (`ENT-/M-/TRA-/AJU-`) que pertenece a 1 de 4 transacciones raiz (`inv_inflow`, `inv_shrinkage`, `inv_transfer`, `inv_adjustment`). Los renglones de cada evento guardan snapshots (`previous_stock`, `resulting_stock`, `cost_unit_snap`) para auditabilidad total. El saldo vivo se mantiene en `inv_stock` (saldo por producto x almacen). Una vista unificada `inv_movement` alimenta el visor de Movimientos con UNION ALL de los 4 tipos. El modulo se construye dentro de `fayxzvov_reginas` (las nuevas tablas usan prefijo `inv_*` y conviven con las tablas POS existentes) y reusa via FK cross-schema 5 maestros corporativos (`fayxzvov_admin.companies`, `fayxzvov_alpha.subsidiaries`, `fayxzvov_alpha.usr_users`, `fayxzvov_reginas.order_products`, `fayxzvov_reginas.order_category`). Si entra otro tenant, se replica el DDL bajo su prefijo correspondiente (`[prefijo]_[posdb].inv_*`). Hoy opera 100% en modo FAKE con `sample_*.js`; al conectar el backend (`mdl-inventarios.php`) se vuelve operativo sin cambios en la UI.
 
 ---
 

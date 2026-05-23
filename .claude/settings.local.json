@@ -138,7 +138,8 @@
       "Bash(ls /c/wamp64/bin/mysql/ 2>&1)",
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas -e \"SELECT id, discount, info_discount, total_pay, status FROM \\\\`order\\\\` WHERE id IN \\(378, 379, 380, 381\\);\")",
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas -e \"SELECT id, discount, total_pay, status FROM \\\\`order\\\\` WHERE discount IS NOT NULL AND discount != 0 ORDER BY id;\")",
-      "Bash(cmd *)"
+      "Bash(cmd *)",
+      "PowerShell($files = @\\( 'c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\docs\\\\database\\\\propuesta-db.md', 'c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\docs\\\\database\\\\flujo-aplicacion.md', 'c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\docs\\\\database\\\\db-implementacion.md' \\); $renames = @\\( @\\('inv_inv_','inv_'\\), @\\('Reversada','Cancelada'\\), @\\('Reversado','Cancelado'\\), @\\('Reversar','Cancelar'\\), @\\('admin reversa','admin cancela'\\) \\); foreach \\($f in $files\\) { $content = [IO.File]::ReadAllText\\($f\\); foreach \\($r in $renames\\) { $content = $content.Replace\\($r[0], $r[1]\\) }; [IO.File]::WriteAllText\\($f, $content\\) }; Write-Output \"Done\")"
     ]
   },
   "spinnerTipsEnabled": true
