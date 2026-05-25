@@ -454,13 +454,14 @@ html, body { height: 100%; }
 /* ── Markdown renderizado — modo papel sepia (documento, INTACTO) ── */
 
 .md-rendered {
+    --vsr-doc-zoom: 1;
     background: #FAF7F2;
     color: #2C2416;
     font-family: 'Lora', 'Source Serif Pro', 'Georgia', 'Times New Roman', serif;
-    font-size: 16px;
+    font-size: calc(16px * var(--vsr-doc-zoom));
     line-height: 1.85;
     width: 100%;
-    max-width: 860px;
+    max-width: 1000px;
     margin: 0 auto;
     padding: 56px 72px 72px;
     border-radius: 10px;
@@ -482,7 +483,7 @@ html, body { height: 100%; }
 
 .md-rendered h1 {
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 30px; font-weight: 800;
+    font-size: 1.875em; font-weight: 800;
     color: #1A1208;
     margin: 4px 0 18px;
     padding-bottom: 12px;
@@ -491,7 +492,7 @@ html, body { height: 100%; }
 }
 .md-rendered h2 {
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 22px; font-weight: 700;
+    font-size: 1.375em; font-weight: 700;
     color: #1A1208;
     margin: 32px 0 12px;
     padding-bottom: 6px;
@@ -499,13 +500,13 @@ html, body { height: 100%; }
 }
 .md-rendered h3 {
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 18px; font-weight: 700;
+    font-size: 1.125em; font-weight: 700;
     color: #3A2D17;
     margin: 24px 0 10px;
 }
 .md-rendered h4 {
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 13px; font-weight: 700;
+    font-size: 0.8125em; font-weight: 700;
     color: #7C3AED;
     margin: 18px 0 6px;
     text-transform: uppercase; letter-spacing: .08em;
@@ -522,21 +523,22 @@ html, body { height: 100%; }
     padding: 2px 7px;
     border-radius: 4px;
     font-family: 'JetBrains Mono', 'Consolas', monospace;
-    font-size: 13px;
+    font-size: 0.8125em;
     border: 1px solid #E0D3B0;
 }
 .md-rendered pre {
-    background: #1a1208;
-    border: 1px solid #3A2D17;
+    background: #F4ECDA;
+    border: 1px solid #E0D3B0;
     border-radius: 8px;
     padding: 16px 20px;
     margin: 16px 0;
     overflow-x: auto;
-    box-shadow: 0 2px 8px rgba(26,18,8,.18) inset;
+    box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
 }
 .md-rendered pre code {
     background: transparent; border: none; padding: 0;
-    color: #F1E9D6; font-size: 12.5px;
+    color: #3A2D17;
+    font-size: 0.781em;
     font-family: 'JetBrains Mono', 'Consolas', monospace;
 }
 .md-rendered blockquote {
@@ -560,7 +562,7 @@ html, body { height: 100%; }
 
 .md-rendered table {
     width: 100%; border-collapse: collapse; margin: 18px 0;
-    font-size: 13.5px;
+    font-size: 0.844em;
     font-family: 'Inter', system-ui, sans-serif;
     border: 1px solid #D4C9B3;
     border-radius: 6px;
@@ -604,28 +606,28 @@ html, body { height: 100%; }
     background: #FFFFFF;
     color: #1F2328;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-    font-size: 15px;
+    font-size: calc(15px * var(--vsr-doc-zoom));
     line-height: 1.6;
     border: 1px solid #D0D7DE;
 }
 .md-rendered[data-style="github"]::before { display: none; }
 
 .md-rendered[data-style="github"] h1 {
-    font-family: inherit; font-size: 26px; font-weight: 600;
+    font-family: inherit; font-size: 1.733em; font-weight: 600;
     color: #1F2328; border-bottom: 1px solid #D0D7DE;
     padding-bottom: 10px; margin: 0 0 16px;
 }
 .md-rendered[data-style="github"] h2 {
-    font-family: inherit; font-size: 20px; font-weight: 600;
+    font-family: inherit; font-size: 1.333em; font-weight: 600;
     color: #1F2328; border-bottom: 1px solid #D0D7DE;
     padding-bottom: 8px; margin: 24px 0 12px;
 }
 .md-rendered[data-style="github"] h3 {
-    font-family: inherit; font-size: 16px; font-weight: 600;
+    font-family: inherit; font-size: 1.067em; font-weight: 600;
     color: #1F2328; margin: 24px 0 8px; border: none;
 }
 .md-rendered[data-style="github"] h4 {
-    font-family: inherit; font-size: 14px; font-weight: 600;
+    font-family: inherit; font-size: 0.933em; font-weight: 600;
     color: #1F2328; margin: 18px 0 6px;
     text-transform: none; letter-spacing: 0;
 }
@@ -676,28 +678,28 @@ html, body { height: 100%; }
     background: #FFFFFF;
     color: #37352F;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 16px;
+    font-size: calc(16px * var(--vsr-doc-zoom));
     line-height: 1.65;
     border: 1px solid #EFEFEE;
 }
 .md-rendered[data-style="notion"]::before { display: none; }
 
 .md-rendered[data-style="notion"] h1 {
-    font-family: inherit; font-size: 32px; font-weight: 700;
+    font-family: inherit; font-size: 2em; font-weight: 700;
     color: #1F1F1F; border: none;
     padding: 0; margin: 0 0 18px; letter-spacing: -0.01em;
 }
 .md-rendered[data-style="notion"] h2 {
-    font-family: inherit; font-size: 24px; font-weight: 700;
+    font-family: inherit; font-size: 1.5em; font-weight: 700;
     color: #1F1F1F; border: none; padding: 0;
     margin: 32px 0 8px;
 }
 .md-rendered[data-style="notion"] h3 {
-    font-family: inherit; font-size: 19px; font-weight: 700;
+    font-family: inherit; font-size: 1.1875em; font-weight: 700;
     color: #1F1F1F; margin: 24px 0 6px;
 }
 .md-rendered[data-style="notion"] h4 {
-    font-family: inherit; font-size: 15px; font-weight: 700;
+    font-family: inherit; font-size: 0.9375em; font-weight: 700;
     color: #37352F; margin: 18px 0 4px;
     text-transform: none; letter-spacing: 0;
 }
@@ -734,7 +736,39 @@ html, body { height: 100%; }
 .md-rendered[data-style="notion"] table td { color: #37352F; border-bottom: 1px solid #EFEFEE; }
 .md-rendered[data-style="notion"] hr { border-top: 1px solid #EFEFEE; }
 
-/* ── Doc style selector (al lado de los tabs) ─────────────── */
+/* ── Doc toolbar (tabs + estilo + zoom + acciones) ────────── */
+
+.doc-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.doc-main-meta {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.cs-tabs-inline {
+    padding: 3px !important;
+    background: var(--vsr-bg-input) !important;
+    border: 1px solid var(--vsr-border-input) !important;
+    border-radius: 8px !important;
+}
+.cs-tabs-inline .cs-tab {
+    padding: 5px 12px !important;
+    font-size: 11px !important;
+    border-radius: 5px !important;
+}
+
+.doc-toolbar-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--vsr-border);
+    margin: 0 2px;
+}
 
 .doc-style-select {
     background: var(--vsr-bg-input);
@@ -746,9 +780,42 @@ html, body { height: 100%; }
     font-family: 'Inter', sans-serif;
     cursor: pointer;
     outline: none;
+    height: 28px;
 }
 .doc-style-select option { background: var(--vsr-bg-card); color: var(--vsr-text-soft); }
 .doc-style-select:focus { border-color: var(--vsr-accent); box-shadow: 0 0 0 2px var(--vsr-accent-tint); }
+
+.doc-zoom {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border-input);
+    border-radius: 7px;
+    padding: 2px;
+    height: 28px;
+}
+.doc-zoom button {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; border-radius: 5px;
+    color: var(--vsr-text-soft); cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+}
+.doc-zoom button:hover:not(:disabled) {
+    background: var(--vsr-bg-hover);
+    color: var(--vsr-accent-soft);
+}
+.doc-zoom button:disabled { opacity: .35; cursor: not-allowed; }
+.doc-zoom #docZoomValue {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--vsr-text-soft);
+    min-width: 36px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    user-select: none;
+}
 
 .md-raw.hidden, .md-rendered.hidden { display: none; }
 
@@ -892,6 +959,22 @@ html, body { height: 100%; }
 .visor-toast[data-tone='success'] { border-color: rgba(63,193,137,.5);  }
 .visor-toast[data-tone='warn']    { border-color: rgba(251,191,36,.5);  }
 .visor-toast[data-tone='error']   { border-color: rgba(244,63,94,.55);  }
+
+/* ── TOC (Table of Contents) ─────────────────────────────── */
+
+.toc-body { font-size: 12px; }
+.toc-body ul { list-style: none; padding: 0; margin: 0; }
+.toc-body li { padding: 4px 0 4px 0; cursor: pointer; color: var(--vsr-text-muted); transition: color .12s ease; line-height: 1.4; }
+.toc-body li:hover { color: var(--vsr-accent-soft); }
+.toc-body li.toc-active { color: var(--vsr-accent); font-weight: 600; border-left: 2px solid var(--vsr-accent); padding-left: 8px; }
+.toc-body li.toc-h3 { padding-left: 12px; font-size: 11.5px; }
+.toc-body li.toc-h3.toc-active { padding-left: 20px; }
+.toc-body .toc-empty { color: var(--vsr-text-mute2); font-size: 11px; padding: 8px 0; }
+
+/* ── Highlight.js overrides ──────────────────────────────── */
+
+.md-rendered pre code { color: inherit; background: transparent; }
+.hljs { background: transparent !important; }
 
 /* ── Spinner para boton Refrescar ─────────────────────────── */
 

@@ -8,11 +8,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../../app/ui/css/ui-kit.css">
-    <link rel="stylesheet" href="src/css/visor.css?v=5">
+    <link rel="stylesheet" href="src/css/visor.css?v=7">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link id="hljsTheme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 </head>
 
 <body class="visor-body" data-theme="dark">
@@ -96,7 +98,29 @@
                     <span class="sep">/</span>
                     <span id="breadcrumbFile" class="current">—</span>
                 </nav>
-                <div class="flex items-center gap-2">
+                <div class="doc-toolbar">
+                    <div class="cs-tabs cs-tabs-inline">
+                        <button class="cs-tab active" data-tab="rendered">
+                            <i data-lucide="eye" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i>
+                            Renderizado
+                        </button>
+                        <button class="cs-tab" data-tab="raw">
+                            <i data-lucide="code-2" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i>
+                            Raw
+                        </button>
+                    </div>
+                    <span class="doc-toolbar-sep"></span>
+                    <select id="docStyleSelect" class="doc-style-select" title="Estilo de lectura">
+                        <option value="sepia">Papel sepia</option>
+                        <option value="github">GitHub</option>
+                        <option value="notion">Notion</option>
+                    </select>
+                    <div class="doc-zoom" title="Tama&ntilde;o de texto">
+                        <button id="btnZoomOut" type="button" title="Disminuir texto"><i data-lucide="minus" class="w-3 h-3"></i></button>
+                        <span id="docZoomValue">100%</span>
+                        <button id="btnZoomIn" type="button" title="Aumentar texto"><i data-lucide="plus" class="w-3 h-3"></i></button>
+                    </div>
+                    <span class="doc-toolbar-sep"></span>
                     <button id="btnCopyPath" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Copiar ruta relativa al portapapeles">
                         <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                         Copiar ruta
@@ -110,32 +134,6 @@
 
             <div class="main-content">
                 <div class="doc-layout">
-
-                    <div class="doc-main">
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="cs-tabs">
-                                <button class="cs-tab active" data-tab="rendered">
-                                    <i data-lucide="eye" class="w-4 h-4 inline-block mr-1.5 -mt-0.5"></i>
-                                    Renderizado
-                                </button>
-                                <button class="cs-tab" data-tab="raw">
-                                    <i data-lucide="code-2" class="w-4 h-4 inline-block mr-1.5 -mt-0.5"></i>
-                                    Raw
-                                </button>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <select id="docStyleSelect" class="doc-style-select" title="Estilo de lectura">
-                                    <option value="sepia">Papel sepia</option>
-                                    <option value="github">GitHub</option>
-                                    <option value="notion">Notion</option>
-                                </select>
-                                <span id="lineCountChip">~ 0 lineas</span>
-                            </div>
-                        </div>
-
-                        <article id="md-rendered" class="md-rendered"></article>
-                        <pre id="md-raw" class="md-raw hidden"></pre>
-                    </div>
 
                     <aside class="doc-meta">
                         <div id="frontmatterCard" class="frontmatter-card">
@@ -151,7 +149,26 @@
                                 <span id="fmSizeBadge">—</span>
                             </div>
                         </div>
+
+                        <div id="tocCard" class="frontmatter-card" style="margin-top:16px;">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2.5">
+                                    <i data-lucide="list" class="vsr-fm-icon w-4 h-4"></i>
+                                    <h2>Contenido</h2>
+                                </div>
+                            </div>
+                            <nav id="tocBody" class="toc-body"></nav>
+                        </div>
                     </aside>
+
+                    <div class="doc-main">
+                        <div class="doc-main-meta">
+                            <span id="lineCountChip">~ 0 lineas</span>
+                        </div>
+
+                        <article id="md-rendered" class="md-rendered"></article>
+                        <pre id="md-raw" class="md-raw hidden"></pre>
+                    </div>
 
                 </div>
             </div>
@@ -183,7 +200,7 @@
 
     <div id="visorToast" class="visor-toast"></div>
 
-    <script src="src/js/sample_visor.js?v=5"></script>
-    <script src="src/js/visor.js?v=5"></script>
+    <script src="src/js/sample_visor.js?v=7"></script>
+    <script src="src/js/visor.js?v=7"></script>
 </body>
 </html>

@@ -23,16 +23,18 @@ class App {
 
     loadSettings() {
         const validStyles = ['sepia', 'github', 'notion'];
-        const fallback = { folder: 'agents', customPath: '', theme: 'dark', docStyle: 'sepia' };
+        const fallback = { folder: 'agents', customPath: '', theme: 'dark', docStyle: 'sepia', docZoom: 1 };
         try {
             const raw = localStorage.getItem(VISOR_STORAGE_KEY);
             if (!raw) return fallback;
             const parsed = JSON.parse(raw);
+            const zoom = Number(parsed.docZoom);
             return {
                 folder:     parsed.folder     || 'agents',
                 customPath: parsed.customPath || '',
                 theme:      parsed.theme === 'light' ? 'light' : 'dark',
-                docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'sepia'
+                docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'sepia',
+                docZoom:    (isFinite(zoom) && zoom >= 0.7 && zoom <= 1.8) ? zoom : 1
             };
         } catch (e) {
             return fallback;
@@ -47,6 +49,7 @@ class App {
     async init() {
         visorView.applyTheme(this.settings.theme);
         visorView.applyDocStyle(this.settings.docStyle);
+        visorView.applyDocZoom(this.settings.docZoom);
 
         const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
         if (data) {
@@ -105,6 +108,7 @@ class App {
         this.bindFolderPicker();
         this.bindThemeToggle();
         this.bindDocStyle();
+        this.bindToc();
     }
 
     bindDocStyle() {
@@ -113,6 +117,18 @@ class App {
             this.saveSettings();
             visorView.applyDocStyle(this.settings.docStyle);
         });
+
+        $('#btnZoomOut').off('click').on('click', () => this.changeZoom(-0.1));
+        $('#btnZoomIn').off('click').on('click', () => this.changeZoom(+0.1));
+    }
+
+    changeZoom(delta) {
+        const current = Number(this.settings.docZoom) || 1;
+        const next    = Math.min(1.8, Math.max(0.7, Math.round((current + delta) * 100) / 100));
+        if (next === current) return;
+        this.settings.docZoom = next;
+        this.saveSettings();
+        visorView.applyDocZoom(next);
     }
 
     bindActions() {
@@ -164,6 +180,40 @@ class App {
             this.saveSettings();
             visorView.applyTheme(this.settings.theme);
             if (window.lucide) lucide.createIcons();
+        });
+    }
+
+    bindToc() {
+        $('#tocBody').off('click').on('click', 'li[data-toc-target]', function () {
+            const target = $(this).data('toc-target');
+            const $el = $('#md-rendered').find('#' + target);
+            if ($el.length) {
+                $el[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+
+        const $main = $('.main-content');
+        if (!$main.length) return;
+
+        let ticking = false;
+        $main.off('scroll.tocspy').on('scroll.tocspy', () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                let current = null;
+                const parentTop = $main[0].getBoundingClientRect().top;
+                $('#md-rendered').find('h2, h3').each(function () {
+                    const rect = this.getBoundingClientRect();
+                    if (rect.top - parentTop <= 120) {
+                        current = this.id;
+                    }
+                });
+                $('#tocBody li').removeClass('toc-active');
+                if (current) {
+                    $('#tocBody li[data-toc-target="' + current + '"]').addClass('toc-active');
+                }
+                ticking = false;
+            });
         });
     }
 
@@ -359,6 +409,21 @@ class VisorView {
     applyDocStyle(style) {
         const valid = ['sepia', 'github', 'notion'].includes(style) ? style : 'sepia';
         $('#md-rendered').attr('data-style', valid);
+        const hljsTheme = document.getElementById('hljsTheme');
+        if (hljsTheme) {
+            hljsTheme.href = valid === 'sepia'
+                ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css'
+                : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+        }
+    }
+
+    applyDocZoom(zoom) {
+        const z = Math.min(1.8, Math.max(0.7, Number(zoom) || 1));
+        const el = document.getElementById('md-rendered');
+        if (el) el.style.setProperty('--vsr-doc-zoom', String(z));
+        $('#docZoomValue').text(Math.round(z * 100) + '%');
+        $('#btnZoomOut').prop('disabled', z <= 0.7);
+        $('#btnZoomIn').prop('disabled',  z >= 1.8);
     }
 
     renderHeader(header, totalCount) {
@@ -484,6 +549,38 @@ class VisorView {
             ? marked.parse(body)
             : `<pre style="white-space:pre-wrap;">${body.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</pre>`;
         $('#md-rendered').html(rendered);
+
+        let tocHtml = '<ul>';
+        let hasAny = false;
+        const usedSlugs = new Set();
+
+        $('#md-rendered').find('h2, h3').each(function () {
+            const $h = $(this);
+            const text = $h.text().trim();
+            let slug = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').substring(0, 60);
+            let finalSlug = slug;
+            let counter = 1;
+            while (usedSlugs.has(finalSlug)) {
+                finalSlug = slug + '-' + counter++;
+            }
+            usedSlugs.add(finalSlug);
+            $h.attr('id', finalSlug);
+
+            const level = this.tagName === 'H2' ? 2 : 3;
+            const cls = level === 2 ? 'toc-h2' : 'toc-h3';
+            tocHtml += `<li class="${cls}" data-toc-target="${finalSlug}">${text}</li>`;
+            hasAny = true;
+        });
+
+        tocHtml += '</ul>';
+        $('#tocBody').html(hasAny ? tocHtml : '<span class="toc-empty">Sin secciones</span>');
+
+        if (typeof hljs !== 'undefined') {
+            $('#md-rendered pre code').each(function (i, block) {
+                hljs.highlightElement(block);
+            });
+        }
+
         $('#md-raw').text(file.raw);
         $('#lineCountChip').text(`~ ${visor.countLines(file.raw)} lineas`);
     }
@@ -500,6 +597,7 @@ class VisorView {
         $('#breadcrumbFile').text('—');
         $('#frontmatterBody').html('');
         $('#fmSizeBadge').text('—');
+        $('#tocBody').html('<span class="toc-empty">Sin secciones</span>');
         $('#footerFile').text('—');
         $('#footerSize').text('—');
     }

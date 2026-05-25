@@ -260,7 +260,9 @@ Cross-schema:
 
 ---
 
-## §3. DDL completo
+## §3. Estructura de tablas
+
+> **Formato.** Cada tabla se describe como una caja monoespaciada con sus columnas agrupadas por sección (Negocio, Montos, Timestamps, Status, FK cross-schema, FK locales, Soft-delete) siguiendo el orden de [db-rules.md §3.1](../../../../Users/CoffeSoft/.claude/agents/grimorios/db-rules.md). El `CREATE TABLE` se omite a propósito: las claves, índices y motor se derivan de las reglas de la casa (`InnoDB`, `utf8mb4_0900_ai_ci`, `KEY` con el mismo nombre de la columna, `CONSTRAINT <tabla>_ibfk_<n>`). Si se necesita el DDL ejecutable se genera bajo demanda.
 
 ### §3.1 Creación del esquema
 
@@ -274,558 +276,559 @@ USE `fayxzvov_inventario`;
 
 ### §3.2 Catálogos del módulo
 
-```sql
--- ════════════════════════════════════════════════════════════════
---  warehouse — almacenes físicos por sucursal
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `warehouse` (
-    `id`                  INT NOT NULL AUTO_INCREMENT,
-    `name`                VARCHAR(120) NOT NULL,
-    `address`             VARCHAR(255) NULL,
-    `is_default_general`  TINYINT(1) NOT NULL DEFAULT 0
-        COMMENT 'Solo un warehouse por subsidiaries_id puede tener is_default_general=1',
-    `active`              TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`          DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    `warehouse_area_id`   INT NULL,
-    `subsidiaries_id`     INT NOT NULL,
-    `companies_id`        INT NOT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_warehouse_default_per_subsidiary` (`subsidiaries_id`, `is_default_general`),
-    KEY `idx_warehouse_subsidiary` (`subsidiaries_id`),
-    KEY `idx_warehouse_company` (`companies_id`),
-    KEY `idx_warehouse_area` (`warehouse_area_id`),
-    KEY `idx_warehouse_active` (`active`),
-    CONSTRAINT `fk_warehouse_area`
-        FOREIGN KEY (`warehouse_area_id`) REFERENCES `warehouse_area`(`id`) ON DELETE SET NULL,
-    CONSTRAINT `fk_warehouse_subsidiary`
-        FOREIGN KEY (`subsidiaries_id`) REFERENCES `fayxzvov_alpha`.`subsidiaries`(`id`),
-    CONSTRAINT `fk_warehouse_company`
-        FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_admin`.`companies`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ warehouse  (catálogo — almacenes físicos por sucursal)               │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  name                   VARCHAR(120)   nombre visible del almacén    │
+│  address                VARCHAR(255)   NULL · dirección física       │
+│  is_default_general     TINYINT(1)     único por subsidiaries_id     │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│  updated_at             DATETIME       ON UPDATE · última edición    │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  warehouse_area_id      → warehouse_area  SET NULL · área asignada   │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  warehouse_area — áreas físicas: Refrigerados, Secos, Congelados
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `warehouse_area` (
-    `id`           INT NOT NULL AUTO_INCREMENT,
-    `name`         VARCHAR(80) NOT NULL,
-    `description`  VARCHAR(255) NULL,
-    `color_hex`    VARCHAR(7) NULL,
-    `active`       TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `companies_id` INT NOT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_warehouse_area_name_company` (`name`, `companies_id`),
-    KEY `idx_warehouse_area_company` (`companies_id`),
-    CONSTRAINT `fk_warehouse_area_company`
-        FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_admin`.`companies`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ warehouse_area  (catálogo — Refrigerados, Secos, Congelados, …)      │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  name                   VARCHAR(80)    único por compañía · etiqueta │
+│  description            VARCHAR(255)   NULL · qué se guarda aquí     │
+│  color_hex              VARCHAR(7)     NULL · #RRGGBB del chip       │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  product_attribute — extensión 1:1 de fayxzvov_reginas.order_products
---  Contiene los datos inventory-specific que no caben en el catálogo POS.
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `product_attribute` (
-    `id`                INT NOT NULL AUTO_INCREMENT,
-    `sku`               VARCHAR(40) NOT NULL,
-    `cost_unit`         DOUBLE NOT NULL DEFAULT 0,
-    `stock_min`         DOUBLE NOT NULL DEFAULT 0,
-    `stock_max`         DOUBLE NOT NULL DEFAULT 0,
-    `shelf_life_days`   INT NULL COMMENT 'Vida útil en días',
-    `description`       VARCHAR(255) NULL,
-    `active`            TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`        DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    `order_product_id`  INT NOT NULL,
-    `warehouse_area_id` INT NULL,
-    `unit_id`           INT NOT NULL,
-    `companies_id`      INT NOT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_product_attribute_order_product` (`order_product_id`),
-    UNIQUE KEY `uq_product_attribute_sku_company` (`sku`, `companies_id`),
-    KEY `idx_product_attribute_area` (`warehouse_area_id`),
-    KEY `idx_product_attribute_unit` (`unit_id`),
-    KEY `idx_product_attribute_company` (`companies_id`),
-    KEY `idx_product_attribute_active` (`active`),
-    CONSTRAINT `fk_product_attribute_order_product`
-        FOREIGN KEY (`order_product_id`) REFERENCES `fayxzvov_reginas`.`order_products`(`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_product_attribute_area`
-        FOREIGN KEY (`warehouse_area_id`) REFERENCES `warehouse_area`(`id`) ON DELETE SET NULL,
-    CONSTRAINT `fk_product_attribute_unit`
-        FOREIGN KEY (`unit_id`) REFERENCES `unit`(`id`),
-    CONSTRAINT `fk_product_attribute_company`
-        FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_admin`.`companies`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ product_attribute  (sub-catálogo — extensión 1:1 de order_products)  │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  sku                    VARCHAR(40)    único por compañía · código   │
+│  description            VARCHAR(255)   NULL · texto largo            │
+│  shelf_life_days        INT            NULL · vida útil en días      │
+│                                                                      │
+│  ── Montos ──                                                        │
+│  cost_unit              DOUBLE         costo unitario base           │
+│  stock_min              DOUBLE         umbral de alerta              │
+│  stock_max              DOUBLE         tope recomendado              │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│  updated_at             DATETIME       ON UPDATE · última edición    │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  order_product_id       → fayxzvov_reginas.order_products  CASCADE   │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  warehouse_area_id      → warehouse_area  SET NULL · área default    │
+│  unit_id                → unit                · unidad por defecto   │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  supplier — proveedores externos
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `supplier` (
-    `id`           INT NOT NULL AUTO_INCREMENT,
-    `name`         VARCHAR(180) NOT NULL,
-    `contact_name` VARCHAR(120) NULL,
-    `phone`        VARCHAR(40) NULL,
-    `email`        VARCHAR(120) NULL,
-    `address`      VARCHAR(255) NULL,
-    `rfc`          VARCHAR(13) NULL,
-    `active`       TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `companies_id` INT NOT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_supplier_company` (`companies_id`),
-    KEY `idx_supplier_active` (`active`),
-    CONSTRAINT `fk_supplier_company`
-        FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_admin`.`companies`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ supplier  (catálogo — proveedores externos)                          │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  name                   VARCHAR(180)   razón social / comercial      │
+│  contact_name           VARCHAR(120)   NULL · persona de contacto    │
+│  phone                  VARCHAR(40)    NULL · teléfono principal     │
+│  email                  VARCHAR(120)   NULL · correo de facturación  │
+│  address                VARCHAR(255)   NULL · domicilio fiscal       │
+│  rfc                    VARCHAR(13)    NULL · RFC para CFDI          │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  unit — unidades de medida (pza, kg, lt, caja, paquete)
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `unit` (
-    `id`          INT NOT NULL AUTO_INCREMENT,
-    `code`        VARCHAR(10) NOT NULL COMMENT 'pza, kg, lt, caja, pq',
-    `name`        VARCHAR(40) NOT NULL,
-    `decimals`    TINYINT NOT NULL DEFAULT 0 COMMENT 'cuántos decimales se permiten para esta unidad',
-    `active`      TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_unit_code` (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ unit  (catálogo — unidades de medida: pza, kg, lt, caja, pq)         │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  code                   VARCHAR(10)    único · pza, kg, lt, caja, pq │
+│  name                   VARCHAR(40)    etiqueta larga visible        │
+│  decimals               TINYINT        decimales permitidos en qty   │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  inflow_origin — Produccion, Proveedor, Transferencia, Devolucion
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `inflow_origin` (
-    `id`           INT NOT NULL AUTO_INCREMENT,
-    `code`         VARCHAR(30) NOT NULL,
-    `name`         VARCHAR(80) NOT NULL,
-    `icon`         VARCHAR(40) NULL,
-    `color_hex`    VARCHAR(7) NULL,
-    `requires_supplier` TINYINT(1) NOT NULL DEFAULT 0,
-    `active`       TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_inflow_origin_code` (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ inflow_origin  (sub-catálogo — Producción, Proveedor, …)             │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  code                   VARCHAR(30)    único · llave técnica         │
+│  name                   VARCHAR(80)    etiqueta visible              │
+│  icon                   VARCHAR(40)    NULL · ícono lucide-react     │
+│  color_hex              VARCHAR(7)     NULL · #RRGGBB del chip       │
+│  requires_supplier      TINYINT(1)     1 fuerza supplier_id          │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  shrinkage_reason — Caducidad, Daniado, Error produccion, Robo, ...
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `shrinkage_reason` (
-    `id`           INT NOT NULL AUTO_INCREMENT,
-    `code`         VARCHAR(30) NOT NULL,
-    `name`         VARCHAR(80) NOT NULL,
-    `icon`         VARCHAR(40) NULL,
-    `color_hex`    VARCHAR(7) NULL,
-    `active`       TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_shrinkage_reason_code` (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ shrinkage_reason  (sub-catálogo — Caducidad, Dañado, Robo, …)        │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  code                   VARCHAR(30)    único · llave técnica         │
+│  name                   VARCHAR(80)    etiqueta visible              │
+│  icon                   VARCHAR(40)    NULL · ícono lucide-react     │
+│  color_hex              VARCHAR(7)     NULL · #RRGGBB del chip       │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  adjustment_reason — Faltante sin explicar, Conteo fisico, ...
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `adjustment_reason` (
-    `id`           INT NOT NULL AUTO_INCREMENT,
-    `code`         VARCHAR(30) NOT NULL,
-    `name`         VARCHAR(80) NOT NULL,
-    `icon`         VARCHAR(40) NULL,
-    `color_hex`    VARCHAR(7) NULL,
-    `affects_cost` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Si el ajuste contabiliza pérdida/ganancia',
-    `active`       TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_adjustment_reason_code` (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ adjustment_reason  (sub-catálogo — Faltante, Conteo físico, …)       │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  code                   VARCHAR(30)    único · llave técnica         │
+│  name                   VARCHAR(80)    etiqueta visible              │
+│  icon                   VARCHAR(40)    NULL · ícono lucide-react     │
+│  color_hex              VARCHAR(7)     NULL · #RRGGBB del chip       │
+│  affects_cost           TINYINT(1)     contabiliza pérdida/ganancia  │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  transfer_status — Solicitado, Autorizado, En Transito, Recibido, Rechazado
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `transfer_status` (
-    `id`            INT NOT NULL AUTO_INCREMENT,
-    `code`          VARCHAR(30) NOT NULL,
-    `name`          VARCHAR(60) NOT NULL,
-    `order_index`   TINYINT NOT NULL DEFAULT 0 COMMENT 'Orden en el flujo (1=Solicitado, 2=Autorizado, ...)',
-    `is_terminal`   TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Si bloquea más transiciones (Recibido / Rechazado)',
-    `color_hex`     VARCHAR(7) NULL,
-    `active`        TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_transfer_status_code` (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ transfer_status  (sub-catálogo — flujo del traspaso)                 │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  code                   VARCHAR(30)    único · llave técnica         │
+│  name                   VARCHAR(60)    etiqueta visible              │
+│  order_index            TINYINT        1=Solicitado, 2=Autorizado, … │
+│  is_terminal            TINYINT(1)     1 bloquea más transiciones    │
+│  color_hex              VARCHAR(7)     NULL · #RRGGBB del chip       │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### §3.3 Stock (saldo vivo)
 
-```sql
--- ════════════════════════════════════════════════════════════════
---  stock — saldo por producto / almacén
---  Actualizado por la capa de servicio cuando se aplica un evento.
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `stock` (
-    `id`                  INT NOT NULL AUTO_INCREMENT,
-    `quantity`            DOUBLE NOT NULL DEFAULT 0,
-    `last_movement_at`    DATETIME NULL,
-    `last_inventory_at`   DATETIME NULL COMMENT 'Última vez que se hizo conteo físico',
-    `active`              TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`          DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    `order_product_id`    INT NOT NULL,
-    `warehouse_id`        INT NOT NULL,
-    `companies_id`        INT NOT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_stock_product_warehouse` (`order_product_id`, `warehouse_id`),
-    KEY `idx_stock_warehouse` (`warehouse_id`),
-    KEY `idx_stock_company` (`companies_id`),
-    CONSTRAINT `fk_stock_product`
-        FOREIGN KEY (`order_product_id`) REFERENCES `fayxzvov_reginas`.`order_products`(`id`),
-    CONSTRAINT `fk_stock_warehouse`
-        FOREIGN KEY (`warehouse_id`) REFERENCES `warehouse`(`id`),
-    CONSTRAINT `fk_stock_company`
-        FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_admin`.`companies`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+> Actualizado por la capa de servicio cuando se aplica un evento. Único por `(order_product_id, warehouse_id)`.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ stock  (saldo — quantity por producto × almacén)                     │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Montos ──                                                        │
+│  quantity               DOUBLE         saldo vivo en unidades        │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  last_movement_at       DATETIME       NULL · último evento aplicado │
+│  last_inventory_at      DATETIME       NULL · último conteo físico   │
+│  created_at             DATETIME       auditoría · alta              │
+│  updated_at             DATETIME       ON UPDATE · cada movimiento   │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  warehouse_id           → warehouse  único con order_product_id      │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### §3.4 Eventos POS — pares raíz + renglones
 
 #### §3.4.1 Entradas
 
-```sql
--- ════════════════════════════════════════════════════════════════
---  inventory_inflow — entradas (ENT-####)
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `inventory_inflow` (
-    `id`               INT NOT NULL AUTO_INCREMENT,
-    `folio`            VARCHAR(20) NOT NULL,
-    `date_inflow`      DATE NOT NULL,
-    `time_inflow`      TIME NOT NULL,
-    `note`             VARCHAR(500) NULL,
-    `status`           ENUM('Pendiente','Aplicada','Reversada') NOT NULL DEFAULT 'Aplicada',
-    `total_products`   INT NOT NULL DEFAULT 0,
-    `total_units`      DOUBLE NOT NULL DEFAULT 0,
-    `total_cost`       DOUBLE NOT NULL DEFAULT 0,
-    `active`           TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`       DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    `inflow_origin_id` INT NOT NULL,
-    `warehouse_id`     INT NOT NULL,
-    `supplier_id`      INT NULL,
-    `subsidiaries_id`  INT NOT NULL,
-    `user_id`          INT NOT NULL,
-    `companies_id`     INT NOT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_inflow_folio_company` (`folio`, `companies_id`),
-    KEY `idx_inflow_date` (`date_inflow`),
-    KEY `idx_inflow_origin` (`inflow_origin_id`),
-    KEY `idx_inflow_warehouse` (`warehouse_id`),
-    KEY `idx_inflow_supplier` (`supplier_id`),
-    KEY `idx_inflow_subsidiary` (`subsidiaries_id`),
-    KEY `idx_inflow_user` (`user_id`),
-    KEY `idx_inflow_company` (`companies_id`),
-    KEY `idx_inflow_status` (`status`),
-    CONSTRAINT `fk_inflow_origin`
-        FOREIGN KEY (`inflow_origin_id`) REFERENCES `inflow_origin`(`id`),
-    CONSTRAINT `fk_inflow_warehouse`
-        FOREIGN KEY (`warehouse_id`) REFERENCES `warehouse`(`id`),
-    CONSTRAINT `fk_inflow_supplier`
-        FOREIGN KEY (`supplier_id`) REFERENCES `supplier`(`id`) ON DELETE SET NULL,
-    CONSTRAINT `fk_inflow_subsidiary`
-        FOREIGN KEY (`subsidiaries_id`) REFERENCES `fayxzvov_alpha`.`subsidiaries`(`id`),
-    CONSTRAINT `fk_inflow_user`
-        FOREIGN KEY (`user_id`) REFERENCES `fayxzvov_alpha`.`usr_users`(`id`),
-    CONSTRAINT `fk_inflow_company`
-        FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_admin`.`companies`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ inventory_inflow  (transacción raíz — folios ENT-####)               │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  folio                  VARCHAR(20)    único por companies_id        │
+│  note                   VARCHAR(500)   NULL · observaciones libres   │
+│                                                                      │
+│  ── Montos (los recalcula la capa de servicio) ──                    │
+│  total_products         INT            número de renglones           │
+│  total_units            DOUBLE         suma de quantity              │
+│  total_cost             DOUBLE         suma de subtotal              │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  date_inflow            DATE           fecha del evento              │
+│  time_inflow            TIME           hora del evento               │
+│  created_at             DATETIME       auditoría · alta              │
+│  updated_at             DATETIME       ON UPDATE · última edición    │
+│                                                                      │
+│  ── Status ──                                                        │
+│  status                 ENUM           Pendiente|Aplicada|Reversada  │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
+│  user_id                → fayxzvov_alpha.usr_users   · quién registra│
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  inflow_origin_id       → inflow_origin       · origen tipificado    │
+│  warehouse_id           → warehouse           · almacén destino      │
+│  supplier_id            → supplier  SET NULL · solo si origin=SUPP   │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  detail_inventory_inflow — renglones de cada entrada
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `detail_inventory_inflow` (
-    `id`                    INT NOT NULL AUTO_INCREMENT,
-    `quantity`              DOUBLE NOT NULL,
-    `cost_unit_snap`        DOUBLE NOT NULL COMMENT 'Snapshot del costo en el momento del registro',
-    `subtotal`              DOUBLE NOT NULL,
-    `previous_stock`        DOUBLE NOT NULL,
-    `resulting_stock`       DOUBLE NOT NULL,
-    `expires_at`            DATE NULL COMMENT 'Caducidad declarada al recibir',
-    `batch_code`            VARCHAR(40) NULL COMMENT 'Lote del proveedor o producción',
-    `active`                TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `inventory_inflow_id`   INT NOT NULL,
-    `order_product_id`      INT NOT NULL,
-    `unit_id`               INT NOT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_detail_inflow_root` (`inventory_inflow_id`),
-    KEY `idx_detail_inflow_product` (`order_product_id`),
-    KEY `idx_detail_inflow_unit` (`unit_id`),
-    CONSTRAINT `fk_detail_inflow_root`
-        FOREIGN KEY (`inventory_inflow_id`) REFERENCES `inventory_inflow`(`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_detail_inflow_product`
-        FOREIGN KEY (`order_product_id`) REFERENCES `fayxzvov_reginas`.`order_products`(`id`),
-    CONSTRAINT `fk_detail_inflow_unit`
-        FOREIGN KEY (`unit_id`) REFERENCES `unit`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ detail_inventory_inflow  (detalle — renglones de cada entrada)       │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  batch_code             VARCHAR(40)    NULL · lote del proveedor     │
+│                                                                      │
+│  ── Montos (snapshot al aplicar) ──                                  │
+│  quantity               DOUBLE         unidades recibidas            │
+│  cost_unit_snap         DOUBLE         costo unitario congelado      │
+│  subtotal               DOUBLE         quantity × cost_unit_snap     │
+│  previous_stock         DOUBLE         stock antes del movimiento    │
+│  resulting_stock        DOUBLE         stock después del movimiento  │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  expires_at             DATE           NULL · caducidad declarada    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  inventory_inflow_id    → inventory_inflow  CASCADE · header padre   │
+│  unit_id                → unit              · unidad del renglón     │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 #### §3.4.2 Mermas
 
-```sql
--- ════════════════════════════════════════════════════════════════
---  inventory_shrinkage — mermas (M-####)
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `inventory_shrinkage` (
-    `id`                  INT NOT NULL AUTO_INCREMENT,
-    `folio`               VARCHAR(20) NOT NULL,
-    `date_shrinkage`      DATE NOT NULL,
-    `time_shrinkage`      TIME NOT NULL,
-    `note`                VARCHAR(500) NULL,
-    `evidence_url`        VARCHAR(255) NULL COMMENT 'Foto de la merma',
-    `status`              ENUM('Aplicada','Reversada') NOT NULL DEFAULT 'Aplicada',
-    `total_products`      INT NOT NULL DEFAULT 0,
-    `total_units`         DOUBLE NOT NULL DEFAULT 0,
-    `total_cost_loss`     DOUBLE NOT NULL DEFAULT 0,
-    `active`              TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`          DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    `shrinkage_reason_id` INT NOT NULL,
-    `warehouse_id`        INT NOT NULL,
-    `subsidiaries_id`     INT NOT NULL,
-    `user_id`             INT NOT NULL,
-    `companies_id`        INT NOT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_shrinkage_folio_company` (`folio`, `companies_id`),
-    KEY `idx_shrinkage_date` (`date_shrinkage`),
-    KEY `idx_shrinkage_reason` (`shrinkage_reason_id`),
-    KEY `idx_shrinkage_warehouse` (`warehouse_id`),
-    KEY `idx_shrinkage_subsidiary` (`subsidiaries_id`),
-    KEY `idx_shrinkage_user` (`user_id`),
-    KEY `idx_shrinkage_company` (`companies_id`),
-    KEY `idx_shrinkage_status` (`status`),
-    CONSTRAINT `fk_shrinkage_reason`
-        FOREIGN KEY (`shrinkage_reason_id`) REFERENCES `shrinkage_reason`(`id`),
-    CONSTRAINT `fk_shrinkage_warehouse`
-        FOREIGN KEY (`warehouse_id`) REFERENCES `warehouse`(`id`),
-    CONSTRAINT `fk_shrinkage_subsidiary`
-        FOREIGN KEY (`subsidiaries_id`) REFERENCES `fayxzvov_alpha`.`subsidiaries`(`id`),
-    CONSTRAINT `fk_shrinkage_user`
-        FOREIGN KEY (`user_id`) REFERENCES `fayxzvov_alpha`.`usr_users`(`id`),
-    CONSTRAINT `fk_shrinkage_company`
-        FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_admin`.`companies`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ inventory_shrinkage  (transacción raíz — folios M-####)              │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  folio                  VARCHAR(20)    único por companies_id        │
+│  note                   VARCHAR(500)   NULL · observaciones libres   │
+│  evidence_url           VARCHAR(255)   NULL · foto de la merma       │
+│                                                                      │
+│  ── Montos (los recalcula la capa de servicio) ──                    │
+│  total_products         INT            número de renglones           │
+│  total_units            DOUBLE         suma de quantity              │
+│  total_cost_loss        DOUBLE         pérdida monetaria total       │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  date_shrinkage         DATE           fecha del evento              │
+│  time_shrinkage         TIME           hora del evento               │
+│  created_at             DATETIME       auditoría · alta              │
+│  updated_at             DATETIME       ON UPDATE · última edición    │
+│                                                                      │
+│  ── Status ──                                                        │
+│  status                 ENUM           Aplicada|Reversada            │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
+│  user_id                → fayxzvov_alpha.usr_users   · quién registra│
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  shrinkage_reason_id    → shrinkage_reason    · motivo tipificado    │
+│  warehouse_id           → warehouse           · almacén afectado     │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  detail_inventory_shrinkage — renglones de cada merma
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `detail_inventory_shrinkage` (
-    `id`                       INT NOT NULL AUTO_INCREMENT,
-    `quantity`                 DOUBLE NOT NULL,
-    `cost_unit_snap`           DOUBLE NOT NULL,
-    `subtotal_loss`            DOUBLE NOT NULL,
-    `previous_stock`           DOUBLE NOT NULL,
-    `resulting_stock`          DOUBLE NOT NULL,
-    `active`                   TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `inventory_shrinkage_id`   INT NOT NULL,
-    `order_product_id`         INT NOT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_detail_shrinkage_root` (`inventory_shrinkage_id`),
-    KEY `idx_detail_shrinkage_product` (`order_product_id`),
-    CONSTRAINT `fk_detail_shrinkage_root`
-        FOREIGN KEY (`inventory_shrinkage_id`) REFERENCES `inventory_shrinkage`(`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_detail_shrinkage_product`
-        FOREIGN KEY (`order_product_id`) REFERENCES `fayxzvov_reginas`.`order_products`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ detail_inventory_shrinkage  (detalle — renglones de cada merma)      │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Montos (snapshot al aplicar) ──                                  │
+│  quantity               DOUBLE         unidades dadas de baja        │
+│  cost_unit_snap         DOUBLE         costo unitario congelado      │
+│  subtotal_loss          DOUBLE         quantity × cost_unit_snap     │
+│  previous_stock         DOUBLE         stock antes del movimiento    │
+│  resulting_stock        DOUBLE         stock después del movimiento  │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  inventory_shrinkage_id → inventory_shrinkage   CASCADE · header    │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 #### §3.4.3 Traspasos
 
-```sql
--- ════════════════════════════════════════════════════════════════
---  inventory_transfer — traspasos entre sucursales (TRA-####)
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `inventory_transfer` (
-    `id`                       INT NOT NULL AUTO_INCREMENT,
-    `folio`                    VARCHAR(20) NOT NULL,
-    `date_request`             DATETIME NOT NULL,
-    `date_authorized`          DATETIME NULL,
-    `date_sent`                DATETIME NULL,
-    `date_received`            DATETIME NULL,
-    `note`                     VARCHAR(500) NULL,
-    `total_products`           INT NOT NULL DEFAULT 0,
-    `total_units`              DOUBLE NOT NULL DEFAULT 0,
-    `total_cost`               DOUBLE NOT NULL DEFAULT 0,
-    `active`                   TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`               DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    `transfer_status_id`       INT NOT NULL,
-    `origin_warehouse_id`      INT NOT NULL,
-    `destination_warehouse_id` INT NOT NULL,
-    `origin_subsidiaries_id`   INT NOT NULL,
-    `destination_subsidiaries_id` INT NOT NULL,
-    `requested_user_id`        INT NOT NULL,
-    `authorized_user_id`       INT NULL,
-    `received_user_id`         INT NULL,
-    `companies_id`             INT NOT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_transfer_folio_company` (`folio`, `companies_id`),
-    KEY `idx_transfer_status` (`transfer_status_id`),
-    KEY `idx_transfer_origin_wh` (`origin_warehouse_id`),
-    KEY `idx_transfer_dest_wh` (`destination_warehouse_id`),
-    KEY `idx_transfer_origin_sub` (`origin_subsidiaries_id`),
-    KEY `idx_transfer_dest_sub` (`destination_subsidiaries_id`),
-    KEY `idx_transfer_requested_user` (`requested_user_id`),
-    KEY `idx_transfer_authorized_user` (`authorized_user_id`),
-    KEY `idx_transfer_received_user` (`received_user_id`),
-    KEY `idx_transfer_company` (`companies_id`),
-    KEY `idx_transfer_date_request` (`date_request`),
-    CONSTRAINT `fk_transfer_status`
-        FOREIGN KEY (`transfer_status_id`) REFERENCES `transfer_status`(`id`),
-    CONSTRAINT `fk_transfer_origin_wh`
-        FOREIGN KEY (`origin_warehouse_id`) REFERENCES `warehouse`(`id`),
-    CONSTRAINT `fk_transfer_dest_wh`
-        FOREIGN KEY (`destination_warehouse_id`) REFERENCES `warehouse`(`id`),
-    CONSTRAINT `fk_transfer_origin_sub`
-        FOREIGN KEY (`origin_subsidiaries_id`) REFERENCES `fayxzvov_alpha`.`subsidiaries`(`id`),
-    CONSTRAINT `fk_transfer_dest_sub`
-        FOREIGN KEY (`destination_subsidiaries_id`) REFERENCES `fayxzvov_alpha`.`subsidiaries`(`id`),
-    CONSTRAINT `fk_transfer_requested_user`
-        FOREIGN KEY (`requested_user_id`) REFERENCES `fayxzvov_alpha`.`usr_users`(`id`),
-    CONSTRAINT `fk_transfer_authorized_user`
-        FOREIGN KEY (`authorized_user_id`) REFERENCES `fayxzvov_alpha`.`usr_users`(`id`),
-    CONSTRAINT `fk_transfer_received_user`
-        FOREIGN KEY (`received_user_id`) REFERENCES `fayxzvov_alpha`.`usr_users`(`id`),
-    CONSTRAINT `fk_transfer_company`
-        FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_admin`.`companies`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ inventory_transfer  (transacción raíz — folios TRA-####)             │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  folio                  VARCHAR(20)    único por companies_id        │
+│  note                   VARCHAR(500)   NULL · observaciones libres   │
+│                                                                      │
+│  ── Montos (los recalcula la capa de servicio) ──                    │
+│  total_products         INT            renglones del traspaso        │
+│  total_units            DOUBLE         suma de quantity              │
+│  total_cost             DOUBLE         costo total snapshot          │
+│                                                                      │
+│  ── Timestamps (timeline del flujo) ──                               │
+│  date_request           DATETIME       cuándo se solicitó            │
+│  date_authorized        DATETIME       NULL · cuándo se autorizó     │
+│  date_sent              DATETIME       NULL · cuándo salió origen    │
+│  date_received          DATETIME       NULL · cuándo llegó destino   │
+│  created_at             DATETIME       auditoría · alta              │
+│  updated_at             DATETIME       ON UPDATE · última edición    │
+│                                                                      │
+│  ── Status ──                                                        │
+│  transfer_status_id     → transfer_status · estado actual del flujo  │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  origin_subsidiaries_id      → fayxzvov_alpha.subsidiaries · origen  │
+│  destination_subsidiaries_id → fayxzvov_alpha.subsidiaries · destino │
+│  requested_user_id      → fayxzvov_alpha.usr_users  · solicitante    │
+│  authorized_user_id     → fayxzvov_alpha.usr_users  · NULL · autoriza│
+│  received_user_id       → fayxzvov_alpha.usr_users  · NULL · recibe  │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  origin_warehouse_id        → warehouse        almacén origen        │
+│  destination_warehouse_id   → warehouse        almacén destino       │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  detail_inventory_transfer — renglones de cada traspaso
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `detail_inventory_transfer` (
-    `id`                       INT NOT NULL AUTO_INCREMENT,
-    `quantity`                 DOUBLE NOT NULL,
-    `cost_unit_snap`           DOUBLE NOT NULL,
-    `subtotal`                 DOUBLE NOT NULL,
-    `origin_stock_prev`        DOUBLE NOT NULL,
-    `origin_stock_post`        DOUBLE NOT NULL,
-    `destination_stock_prev`   DOUBLE NULL COMMENT 'Se llena al recibir',
-    `destination_stock_post`   DOUBLE NULL,
-    `active`                   TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `inventory_transfer_id`    INT NOT NULL,
-    `order_product_id`         INT NOT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_detail_transfer_root` (`inventory_transfer_id`),
-    KEY `idx_detail_transfer_product` (`order_product_id`),
-    CONSTRAINT `fk_detail_transfer_root`
-        FOREIGN KEY (`inventory_transfer_id`) REFERENCES `inventory_transfer`(`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_detail_transfer_product`
-        FOREIGN KEY (`order_product_id`) REFERENCES `fayxzvov_reginas`.`order_products`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ detail_inventory_transfer  (detalle — renglones de cada traspaso)    │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Montos (doble snapshot: origen al enviar, destino al recibir) ── │
+│  quantity               DOUBLE         unidades trasladadas          │
+│  cost_unit_snap         DOUBLE         costo al momento del envío    │
+│  subtotal               DOUBLE         quantity × cost_unit_snap     │
+│  origin_stock_prev      DOUBLE         stock origen antes            │
+│  origin_stock_post      DOUBLE         stock origen después          │
+│  destination_stock_prev DOUBLE         NULL · se llena al recibir    │
+│  destination_stock_post DOUBLE         NULL · se llena al recibir    │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  inventory_transfer_id  → inventory_transfer  CASCADE · header padre │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  inventory_transfer_history — timeline de transiciones del flujo
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `inventory_transfer_history` (
-    `id`                      INT NOT NULL AUTO_INCREMENT,
-    `note`                    VARCHAR(500) NULL,
-    `transitioned_at`         DATETIME NOT NULL,
-    `active`                  TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `inventory_transfer_id`   INT NOT NULL,
-    `transfer_status_id`      INT NOT NULL,
-    `user_id`                 INT NOT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_transfer_history_transfer` (`inventory_transfer_id`),
-    KEY `idx_transfer_history_status` (`transfer_status_id`),
-    KEY `idx_transfer_history_user` (`user_id`),
-    KEY `idx_transfer_history_date` (`transitioned_at`),
-    CONSTRAINT `fk_transfer_history_transfer`
-        FOREIGN KEY (`inventory_transfer_id`) REFERENCES `inventory_transfer`(`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_transfer_history_status`
-        FOREIGN KEY (`transfer_status_id`) REFERENCES `transfer_status`(`id`),
-    CONSTRAINT `fk_transfer_history_user`
-        FOREIGN KEY (`user_id`) REFERENCES `fayxzvov_alpha`.`usr_users`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ inventory_transfer_history  (histórico — timeline de transiciones)   │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  note                   VARCHAR(500)   NULL · motivo del cambio      │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  transitioned_at        DATETIME       cuándo ocurrió la transición  │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── Status ──                                                        │
+│  transfer_status_id     → transfer_status · nuevo estado del flujo   │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  user_id                → fayxzvov_alpha.usr_users  · quién transita │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  inventory_transfer_id  → inventory_transfer  CASCADE · header padre │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 #### §3.4.4 Ajustes
 
-```sql
--- ════════════════════════════════════════════════════════════════
---  inventory_adjustment — ajustes (AJU-#### / INV-FIS-####)
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `inventory_adjustment` (
-    `id`                       INT NOT NULL AUTO_INCREMENT,
-    `folio`                    VARCHAR(20) NOT NULL,
-    `date_adjustment`          DATE NOT NULL,
-    `time_adjustment`          TIME NOT NULL,
-    `note`                     VARCHAR(500) NULL,
-    `adjustment_type`          ENUM('individual','fisico') NOT NULL DEFAULT 'individual',
-    `status`                   ENUM('Pendiente','Aplicado','Reversado') NOT NULL DEFAULT 'Aplicado',
-    `total_products`           INT NOT NULL DEFAULT 0,
-    `total_diff_units`         DOUBLE NOT NULL DEFAULT 0,
-    `total_diff_cost`          DOUBLE NOT NULL DEFAULT 0,
-    `active`                   TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`               DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    `adjustment_reason_id`     INT NOT NULL,
-    `warehouse_id`             INT NOT NULL,
-    `subsidiaries_id`          INT NOT NULL,
-    `registered_user_id`       INT NOT NULL,
-    `authorized_user_id`       INT NULL,
-    `companies_id`             INT NOT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_adjustment_folio_company` (`folio`, `companies_id`),
-    KEY `idx_adjustment_date` (`date_adjustment`),
-    KEY `idx_adjustment_reason` (`adjustment_reason_id`),
-    KEY `idx_adjustment_warehouse` (`warehouse_id`),
-    KEY `idx_adjustment_subsidiary` (`subsidiaries_id`),
-    KEY `idx_adjustment_registered_user` (`registered_user_id`),
-    KEY `idx_adjustment_authorized_user` (`authorized_user_id`),
-    KEY `idx_adjustment_company` (`companies_id`),
-    KEY `idx_adjustment_type` (`adjustment_type`),
-    KEY `idx_adjustment_status` (`status`),
-    CONSTRAINT `fk_adjustment_reason`
-        FOREIGN KEY (`adjustment_reason_id`) REFERENCES `adjustment_reason`(`id`),
-    CONSTRAINT `fk_adjustment_warehouse`
-        FOREIGN KEY (`warehouse_id`) REFERENCES `warehouse`(`id`),
-    CONSTRAINT `fk_adjustment_subsidiary`
-        FOREIGN KEY (`subsidiaries_id`) REFERENCES `fayxzvov_alpha`.`subsidiaries`(`id`),
-    CONSTRAINT `fk_adjustment_registered_user`
-        FOREIGN KEY (`registered_user_id`) REFERENCES `fayxzvov_alpha`.`usr_users`(`id`),
-    CONSTRAINT `fk_adjustment_authorized_user`
-        FOREIGN KEY (`authorized_user_id`) REFERENCES `fayxzvov_alpha`.`usr_users`(`id`),
-    CONSTRAINT `fk_adjustment_company`
-        FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_admin`.`companies`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ inventory_adjustment  (transacción raíz — AJU-#### / INV-FIS-####)   │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  folio                  VARCHAR(20)    único por companies_id        │
+│  note                   VARCHAR(500)   NULL · observaciones libres   │
+│  adjustment_type        ENUM           individual | fisico           │
+│                                                                      │
+│  ── Montos (diferencia entre sistema y físico) ──                    │
+│  total_products         INT            renglones del ajuste          │
+│  total_diff_units       DOUBLE         + sobrante / − faltante       │
+│  total_diff_cost        DOUBLE         impacto monetario del ajuste  │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  date_adjustment        DATE           fecha del ajuste              │
+│  time_adjustment        TIME           hora del ajuste               │
+│  created_at             DATETIME       auditoría · alta              │
+│  updated_at             DATETIME       ON UPDATE · última edición    │
+│                                                                      │
+│  ── Status ──                                                        │
+│  status                 ENUM           Pendiente|Aplicado|Reversado  │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
+│  registered_user_id     → fayxzvov_alpha.usr_users  · quién registró │
+│  authorized_user_id     → fayxzvov_alpha.usr_users  · NULL · autoriza│
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  adjustment_reason_id   → adjustment_reason · motivo tipificado      │
+│  warehouse_id           → warehouse         · almacén ajustado       │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
--- ════════════════════════════════════════════════════════════════
---  detail_inventory_adjustment — renglones de cada ajuste
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE `detail_inventory_adjustment` (
-    `id`                       INT NOT NULL AUTO_INCREMENT,
-    `system_quantity`          DOUBLE NOT NULL COMMENT 'Lo que el sistema decía',
-    `physical_quantity`        DOUBLE NOT NULL COMMENT 'Lo que se contó físicamente',
-    `difference`               DOUBLE NOT NULL COMMENT '+ sobrante / - faltante',
-    `cost_unit_snap`           DOUBLE NOT NULL,
-    `cost_diff`                DOUBLE NOT NULL,
-    `previous_stock`           DOUBLE NOT NULL,
-    `resulting_stock`          DOUBLE NOT NULL,
-    `active`                   TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `inventory_adjustment_id`  INT NOT NULL,
-    `order_product_id`         INT NOT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_detail_adjustment_root` (`inventory_adjustment_id`),
-    KEY `idx_detail_adjustment_product` (`order_product_id`),
-    CONSTRAINT `fk_detail_adjustment_root`
-        FOREIGN KEY (`inventory_adjustment_id`) REFERENCES `inventory_adjustment`(`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_detail_adjustment_product`
-        FOREIGN KEY (`order_product_id`) REFERENCES `fayxzvov_reginas`.`order_products`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ detail_inventory_adjustment  (detalle — renglones de cada ajuste)    │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Montos (sistema vs físico) ──                                    │
+│  system_quantity        DOUBLE         lo que el sistema decía       │
+│  physical_quantity      DOUBLE         lo que se contó físicamente   │
+│  difference             DOUBLE         + sobrante / − faltante       │
+│  cost_unit_snap         DOUBLE         costo al momento del ajuste   │
+│  cost_diff              DOUBLE         difference × cost_unit_snap   │
+│  previous_stock         DOUBLE         stock antes del ajuste        │
+│  resulting_stock        DOUBLE         stock después del ajuste      │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  inventory_adjustment_id → inventory_adjustment  CASCADE · header    │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### §3.5 Bitácora unificada (vista)

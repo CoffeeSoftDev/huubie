@@ -3,7 +3,9 @@
     "allow": [
       "Bash(cp /tmp/marked.min.js c:/tmp/marked.min.js && ls c:/tmp/marked.min.js)",
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" \"C:/wamp64/www/huubie/coffee/app/visor/ctrl/ctrl-visor.php\")",
-      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -r \"echo json_encode\\(json_decode\\(stream_get_contents\\(STDIN\\)\\)->agents[0], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES\\);\")"
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -r \"echo json_encode\\(json_decode\\(stream_get_contents\\(STDIN\\)\\)->agents[0], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES\\);\")",
+      "Bash(awk 'BEGIN { RS=\"\\\\n\"; FS=\"\" } /^[│┌├└]/ { n=length\\($0\\); print NR\": \"n\" chars  |  \"$0 }' \"c:/wamp64/www/huubie/app/inventarios/docs/propuesta-bd.md\")",
+      "Bash(awk -F\"chars\" '{ n=$1; sub\\(/^[0-9]+: /, \"\", n\\); split\\(n,a,\" \"\\); if \\(a[1] != \"72\" && a[1] != \"70\"\\) print }')"
     ],
     "additionalDirectories": [
       "\\tmp"
