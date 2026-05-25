@@ -5,12 +5,25 @@
 //    coffee/app/visor/visor-index.html
 // ──────────────────────────────────────────────────────────────────────
 
+const SAMPLE_CLAUDE_HOME = 'C:/Users/SomxDev/.claude';
+
 const SAMPLE_VISOR_HEADER = {
-    title:     'Visor de Agentes',
-    subtitle:  'CoffeeSoft Library',
-    user:      { initials: 'RV', name: 'Rosy V.', role: 'Guardiana' },
-    pathLabel: '.claude/agents',
-    source:    'Local'
+    title:        'Visor de Agentes',
+    subtitle:     'CoffeeSoft Library',
+    user:         { initials: 'RV', name: 'Rosy V.', role: 'Guardiana' },
+    pathLabel:    '.claude/agents',
+    source:       'Local',
+    currentKey:   'agents',
+    currentLabel: 'Agentes',
+    currentPath:  SAMPLE_CLAUDE_HOME + '/agents',
+    valid:        true,
+    sectionLabel: 'Grimorios',
+    presets: [
+        { key: 'agents',    label: 'Agentes',        path: SAMPLE_CLAUDE_HOME + '/agents',           exists: true  },
+        { key: 'commands',  label: 'Comandos',       path: SAMPLE_CLAUDE_HOME + '/commands',         exists: false },
+        { key: 'steering',  label: 'Steering',       path: SAMPLE_CLAUDE_HOME + '/steering',         exists: false },
+        { key: 'grimoires', label: 'Solo Grimorios', path: SAMPLE_CLAUDE_HOME + '/agents/grimorios', exists: true  }
+    ]
 };
 
 const SAMPLE_VISOR_AGENTS = {
@@ -20,6 +33,8 @@ const SAMPLE_VISOR_AGENTS = {
             file: 'CoffeeIA.md',
             section: 'agentes',
             size: '31 KB',
+            relPath:  '.claude/agents/CoffeeIA.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/CoffeeIA.md',
             frontmatter: {
                 name: 'CoffeeIA',
                 description: 'Agente principal del framework CoffeeSoft para arquitectura full-stack PHP/JS',
@@ -83,6 +98,8 @@ CoffeeIA respondera con los 4 archivos (DB.sql, mdl-recepciones.php, ctrl-recepc
             file: 'CoffeeMagic.md',
             section: 'agentes',
             size: '26 KB',
+            relPath:  '.claude/agents/CoffeeMagic.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/CoffeeMagic.md',
             frontmatter: {
                 name: 'CoffeeMagic',
                 description: 'Conjurador de interfaces HTML estaticas con Tailwind y tema Huubie dark',
@@ -134,6 +151,8 @@ Soy **CoffeeMagic**, el conjurador de interfaces del ecosistema CoffeeSoft. Mate
             file: 'CoffeeArcher.md',
             section: 'agentes',
             size: '7 KB',
+            relPath:  '.claude/agents/CoffeeArcher.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/CoffeeArcher.md',
             frontmatter: {
                 name: 'CoffeeArcher',
                 description: 'QA del ERP-GV con 47 reglas de validacion estructural',
@@ -183,6 +202,8 @@ CoffeeArcher genera un reporte tipo:
             file: 'coffee-intelligence.md',
             section: 'agentes',
             size: '11 KB',
+            relPath:  '.claude/agents/coffee-intelligence.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/coffee-intelligence.md',
             frontmatter: {
                 name: 'coffee-intelligence',
                 description: 'Analisis de BD desde templates HTML aprobados, emite diagrama de relaciones',
@@ -228,6 +249,8 @@ Analiza templates HTML aprobados y propone:
             file: 'KIRBY.md',
             section: 'agentes',
             size: '8 KB',
+            relPath:  '.claude/agents/KIRBY.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/KIRBY.md',
             frontmatter: {
                 name: 'KIRBY',
                 description: 'Absorbedor de proyectos: lee codigo legacy y genera documentacion exhaustiva',
@@ -272,6 +295,8 @@ docs/
             file: 'CTRL.md',
             section: 'agentes',
             size: '5 KB',
+            relPath:  '.claude/agents/CTRL.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/CTRL.md',
             frontmatter: {
                 name: 'CTRL',
                 description: 'Generador de controladores PHP CoffeeSoft (clase Controllers + actions)',
@@ -318,6 +343,8 @@ require_once(MDL . 'mdl-recepciones.php');
             file: 'FRONT-JS.md',
             section: 'agentes',
             size: '6 KB',
+            relPath:  '.claude/agents/FRONT-JS.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/FRONT-JS.md',
             frontmatter: {
                 name: 'FRONT-JS',
                 description: 'Reglas y patrones para JavaScript de modulos CoffeeSoft',
@@ -365,6 +392,8 @@ class EntidadView extends Templates { /* ... */ }
             file: 'MDL.md',
             section: 'agentes',
             size: '5 KB',
+            relPath:  '.claude/agents/MDL.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/MDL.md',
             frontmatter: {
                 name: 'MDL',
                 description: 'Generador de modelos PHP CoffeeSoft (clase Models con CRUD canonico)',
@@ -407,6 +436,8 @@ class MdlRecepciones extends Models {
             section: 'agentes',
             size: '28 KB',
             isBackup: true,
+            relPath:  '.claude/agents/CoffeeIA.backup-2026-04-28.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/CoffeeIA.backup-2026-04-28.md',
             frontmatter: {
                 name: 'CoffeeIA (backup)',
                 description: 'Respaldo del agente CoffeeIA al 28-abril-2026 (no usar en produccion)',
@@ -445,6 +476,8 @@ Solo si necesitas entender decisiones historicas o restaurar un comportamiento p
             file: 'db-rules.md',
             section: 'grimorios',
             size: '14 KB',
+            relPath:  '.claude/agents/grimorios/db-rules.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/grimorios/db-rules.md',
             frontmatter: {
                 name: 'db-rules',
                 description: 'Reglas canonicas de base de datos del ecosistema CoffeeSoft',
@@ -495,6 +528,8 @@ model: opus
             file: 'grimorio-coffee-varoch.md',
             section: 'grimorios',
             size: '100 KB',
+            relPath:  '.claude/agents/grimorios/grimorio-coffee-varoch.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/grimorios/grimorio-coffee-varoch.md',
             frontmatter: {
                 name: 'grimorio-coffee-varoch',
                 description: 'Patrones de UI del sistema institucional Grupo Varoch (.cv-* classes)',
@@ -557,6 +592,8 @@ model: opus
             file: 'grimorio-fuente.md',
             section: 'grimorios',
             size: '45 KB',
+            relPath:  '.claude/agents/grimorios/grimorio-fuente.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/grimorios/grimorio-fuente.md',
             frontmatter: {
                 name: 'grimorio-fuente',
                 description: 'Pivotes canonicos para el spell transmute (HTML -> JS coffeeSoft)',
@@ -610,6 +647,8 @@ const SAMPLE_ENTIDAD_TABLE = { row: Object.values(SAMPLE_ENTIDAD_DB).map(_entida
             file: 'grimorio-finanzas.md',
             section: 'grimorios',
             size: '38 KB',
+            relPath:  '.claude/agents/grimorios/grimorio-finanzas.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/grimorios/grimorio-finanzas.md',
             frontmatter: {
                 name: 'grimorio-finanzas',
                 description: 'Patrones UI del modulo CoffeeSoft Finanzas (ingresos, egresos, compras)',
@@ -657,6 +696,8 @@ model: opus
             file: 'grimorio-rrhh.md',
             section: 'grimorios',
             size: '42 KB',
+            relPath:  '.claude/agents/grimorios/grimorio-rrhh.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/grimorios/grimorio-rrhh.md',
             frontmatter: {
                 name: 'grimorio-rrhh',
                 description: 'Patrones UI del modulo CoffeeSoft RRHH (personal, nomina, asistencia)',
@@ -714,6 +755,8 @@ pink   : bg-pink-500/15 text-pink-400
             file: 'grimorio-huubie-ui.md',
             section: 'grimorios',
             size: '32 KB',
+            relPath:  '.claude/agents/grimorios/grimorio-huubie-ui.md',
+            fullPath: SAMPLE_CLAUDE_HOME + '/agents/grimorios/grimorio-huubie-ui.md',
             frontmatter: {
                 name: 'grimorio-huubie-ui',
                 description: 'Sistema de diseno Huubie UI (.cs-* classes, dark unico, hub en coffee/ui/index.html)',
