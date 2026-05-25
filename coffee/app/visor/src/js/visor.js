@@ -1,37 +1,79 @@
+let api = 'ctrl/ctrl-visor.php';
 let visor, visorView, app;
 
-$(() => {
+const VISOR_STORAGE_KEY = 'visor:settings:v1';
+
+$(async () => {
     visorView = new VisorView('root');
-    visor     = new Visor('root');
-    app       = new App('root');
-    app.init();
+    visor     = new Visor(api, 'root');
+    app       = new App(api, 'root');
+    await app.init();
 });
 
 
 class App {
 
-    constructor(rootId) {
+    constructor(link, rootId) {
+        this._link        = link;
         this.rootId       = rootId;
         this.PROJECT_NAME = 'Visor';
         this.currentFile  = null;
+        this.settings     = this.loadSettings();
     }
 
-    init() {
-        this.dataInit = {
-            agents:    SAMPLE_VISOR_AGENTS.agents,
-            grimoires: SAMPLE_VISOR_AGENTS.grimoires,
-            header:    SAMPLE_VISOR_HEADER
-        };
+    loadSettings() {
+        const validStyles = ['sepia', 'github', 'notion'];
+        const fallback = { folder: 'agents', customPath: '', theme: 'dark', docStyle: 'sepia' };
+        try {
+            const raw = localStorage.getItem(VISOR_STORAGE_KEY);
+            if (!raw) return fallback;
+            const parsed = JSON.parse(raw);
+            return {
+                folder:     parsed.folder     || 'agents',
+                customPath: parsed.customPath || '',
+                theme:      parsed.theme === 'light' ? 'light' : 'dark',
+                docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'sepia'
+            };
+        } catch (e) {
+            return fallback;
+        }
+    }
+
+    saveSettings() {
+        try { localStorage.setItem(VISOR_STORAGE_KEY, JSON.stringify(this.settings)); }
+        catch (e) { /* quota / private mode — ignorar */ }
+    }
+
+    async init() {
+        visorView.applyTheme(this.settings.theme);
+        visorView.applyDocStyle(this.settings.docStyle);
+
+        const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
+        if (data) {
+            this.dataInit = {
+                agents:    data.agents,
+                grimoires: data.grimoires,
+                header:    data.header
+            };
+        } else {
+            this.dataInit = {
+                agents:    SAMPLE_VISOR_AGENTS.agents,
+                grimoires: SAMPLE_VISOR_AGENTS.grimoires,
+                header:    SAMPLE_VISOR_HEADER
+            };
+        }
         this.allFiles = [...this.dataInit.agents, ...this.dataInit.grimoires];
-        this.render();
+        const initial = this.allFiles[0]?.file || 'CoffeeIA.md';
+        this.render(initial);
         this.bind();
     }
 
-    render() {
+    render(initialFile) {
         visorView.renderHeader(this.dataInit.header, this.allFiles.length);
         visorView.renderFooter(this.dataInit);
         visorView.renderSidebar(this.dataInit, this.currentFile, '');
-        this.loadFile('CoffeeIA.md');
+        visorView.renderFolderPicker(this.dataInit.header, this.settings);
+        this.loadFile(initialFile);
         if (window.lucide) lucide.createIcons();
     }
 
@@ -59,6 +101,151 @@ class App {
 
         this.bindSidebarClicks();
         this.bindTabs();
+        this.bindActions();
+        this.bindFolderPicker();
+        this.bindThemeToggle();
+        this.bindDocStyle();
+    }
+
+    bindDocStyle() {
+        $('#docStyleSelect').val(this.settings.docStyle).off('change').on('change', (e) => {
+            this.settings.docStyle = e.target.value;
+            this.saveSettings();
+            visorView.applyDocStyle(this.settings.docStyle);
+        });
+    }
+
+    bindActions() {
+        $('#btnRefresh').off('click').on('click', () => this.refresh());
+        $('#btnCopyPath').off('click').on('click', () => this.copyPath());
+        $('#btnOpenEditor').off('click').on('click', () => this.openInEditor());
+    }
+
+    bindFolderPicker() {
+        $('#folderSelect').off('change').on('change', (e) => {
+            const val = e.target.value;
+            if (val === 'custom') {
+                $('#folderCustomPath').removeClass('hidden').val(this.settings.customPath || '').focus();
+                $('#btnFolderApply').removeClass('hidden');
+                if (window.lucide) lucide.createIcons();
+            } else {
+                $('#folderCustomPath').addClass('hidden');
+                $('#btnFolderApply').addClass('hidden');
+                this.settings.folder = val;
+                this.settings.customPath = '';
+                this.saveSettings();
+                this.reloadLibrary();
+            }
+        });
+
+        $('#btnFolderApply').off('click').on('click', () => this.applyCustomPath());
+        $('#folderCustomPath').off('keydown').on('keydown', (e) => {
+            if (e.key === 'Enter') this.applyCustomPath();
+            if (e.key === 'Escape') {
+                $('#folderCustomPath').addClass('hidden');
+                $('#btnFolderApply').addClass('hidden');
+                $('#folderSelect').val(this.settings.folder);
+            }
+        });
+    }
+
+    applyCustomPath() {
+        const path = $('#folderCustomPath').val().trim();
+        if (!path) { visorView.toast('Ingresa una ruta absoluta', 'warn'); return; }
+        this.settings.folder = 'custom';
+        this.settings.customPath = path;
+        this.saveSettings();
+        this.reloadLibrary();
+    }
+
+    bindThemeToggle() {
+        $('#btnThemeToggle').off('click').on('click', () => {
+            this.settings.theme = this.settings.theme === 'dark' ? 'light' : 'dark';
+            this.saveSettings();
+            visorView.applyTheme(this.settings.theme);
+            if (window.lucide) lucide.createIcons();
+        });
+    }
+
+    async reloadLibrary() {
+        const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
+        if (!data) {
+            visorView.toast('Carpeta no accesible o sin .md', 'error');
+            return;
+        }
+        if (!data.header.valid) {
+            visorView.toast('Ruta invalida: ' + data.header.currentPath, 'error');
+            return;
+        }
+        this.dataInit = { agents: data.agents, grimoires: data.grimoires, header: data.header };
+        this.allFiles = [...data.agents, ...data.grimoires];
+        this.currentFile = null;
+        const target = this.allFiles[0]?.file;
+
+        visorView.renderHeader(this.dataInit.header, this.allFiles.length);
+        visorView.renderFooter(this.dataInit);
+        visorView.renderSidebar(this.dataInit, this.currentFile, '');
+        visorView.renderFolderPicker(this.dataInit.header, this.settings);
+        this.bindSidebarClicks();
+        if (target) this.loadFile(target);
+        else        visorView.renderEmptyMain();
+        visorView.toast(data.header.currentLabel + ': ' + this.allFiles.length + ' archivos', 'success');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    async refresh() {
+        const $btn = $('#btnRefresh');
+        const $icon = $btn.find('i');
+        $btn.prop('disabled', true);
+        $icon.addClass('visor-spin');
+        $btn.find('.btn-label').text('Refrescando...');
+
+        const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
+        if (data) {
+            this.dataInit = { agents: data.agents, grimoires: data.grimoires, header: data.header };
+            this.allFiles = [...data.agents, ...data.grimoires];
+            const stillExists = this.allFiles.find(f => f.file === this.currentFile);
+            const target      = stillExists ? this.currentFile : this.allFiles[0]?.file;
+
+            visorView.renderHeader(this.dataInit.header, this.allFiles.length);
+            visorView.renderFooter(this.dataInit);
+            visorView.renderSidebar(this.dataInit, this.currentFile, '');
+            this.bindSidebarClicks();
+            if (target) this.loadFile(target);
+            visorView.toast('Biblioteca actualizada (' + this.allFiles.length + ' archivos)', 'success');
+        } else {
+            visorView.toast('Backend no disponible — sin cambios', 'warn');
+        }
+
+        $btn.prop('disabled', false);
+        $icon.removeClass('visor-spin');
+        $btn.find('.btn-label').text('Refrescar');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    copyPath() {
+        const file = visor.getFile(this.allFiles, this.currentFile);
+        if (!file) { visorView.toast('Sin archivo seleccionado', 'warn'); return; }
+        const text = file.relPath || ('.claude/agents/' + file.file);
+
+        const done = (ok) => visorView.toast(ok ? ('Ruta copiada: ' + text) : 'No se pudo copiar', ok ? 'success' : 'error');
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => done(true)).catch(() => done(false));
+        } else {
+            const $ta = $('<textarea>').val(text).css({ position: 'fixed', top: '-9999px' }).appendTo('body');
+            $ta[0].select();
+            try { document.execCommand('copy'); done(true); } catch (e) { done(false); }
+            $ta.remove();
+        }
+    }
+
+    openInEditor() {
+        const file = visor.getFile(this.allFiles, this.currentFile);
+        if (!file)            { visorView.toast('Sin archivo seleccionado', 'warn'); return; }
+        if (!file.fullPath)   { visorView.toast('Ruta absoluta no disponible (modo SAMPLE)', 'warn'); return; }
+        window.location.href = 'vscode://file/' + file.fullPath;
+        visorView.toast('Abriendo en VS Code...', 'success');
     }
 
     bindSidebarClicks() {
@@ -88,7 +275,7 @@ class App {
             $(this).toggleClass('active', $(this).data('file') === fileName);
         });
 
-        visorView.renderBreadcrumb(file);
+        visorView.renderBreadcrumb(file, this.dataInit.header);
         visorView.renderFrontmatter(file);
         visorView.renderContent(file);
         visorView.renderFooterSelection(file);
@@ -100,8 +287,27 @@ class App {
 
 class Visor {
 
-    constructor(rootId) {
+    constructor(link, rootId) {
+        this._link  = link;
         this.rootId = rootId;
+    }
+
+    async fetchLibrary(folderKey, customPath) {
+        try {
+            const params = new URLSearchParams({ folder: folderKey || 'agents' });
+            if (folderKey === 'custom' && customPath) params.set('path', customPath);
+            const url = this._link + '?' + params.toString();
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (!data || !Array.isArray(data.agents) || !Array.isArray(data.grimoires)) {
+                throw new Error('payload invalido');
+            }
+            return data;
+        } catch (err) {
+            console.warn('[visor] backend no disponible, usando SAMPLE:', err.message);
+            return null;
+        }
     }
 
     getFile(allFiles, fileName) {
@@ -141,13 +347,46 @@ class VisorView {
         this.rootId = rootId;
     }
 
+    applyTheme(theme) {
+        const t = theme === 'light' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.body.setAttribute('data-theme', t);
+        const iconName = t === 'dark' ? 'sun' : 'moon';
+        $('#btnThemeToggle').html(`<i data-lucide="${iconName}" class="w-4 h-4"></i>`);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    applyDocStyle(style) {
+        const valid = ['sepia', 'github', 'notion'].includes(style) ? style : 'sepia';
+        $('#md-rendered').attr('data-style', valid);
+    }
+
     renderHeader(header, totalCount) {
         $('#headerTitle').text(header.title);
-        $('#headerSubtitle').text(header.subtitle);
+        $('#headerSubtitle').text(header.currentLabel || header.subtitle);
         $('#userInitials').text(header.user.initials);
         $('#userName').text(header.user.name);
         $('#userRole').text(header.user.role);
         $('#totalCountChip').text(totalCount);
+    }
+
+    renderFolderPicker(header, settings) {
+        const presets = Array.isArray(header.presets) ? header.presets : [];
+        const $sel    = $('#folderSelect');
+        const opts    = presets.map(p =>
+            `<option value="${p.key}" ${p.exists ? '' : 'disabled'}>${p.label}${p.exists ? '' : ' (no existe)'}</option>`
+        ).join('');
+        $sel.html(opts + `<option value="custom">Custom...</option>`);
+
+        if (settings.folder === 'custom') {
+            $sel.val('custom');
+            $('#folderCustomPath').removeClass('hidden').val(settings.customPath || '');
+            $('#btnFolderApply').removeClass('hidden');
+        } else {
+            $sel.val(settings.folder);
+            $('#folderCustomPath').addClass('hidden');
+            $('#btnFolderApply').addClass('hidden');
+        }
     }
 
     renderFooter(data) {
@@ -162,6 +401,8 @@ class VisorView {
     renderSidebar(data, currentFile, filter) {
         const agentsFiltered     = visor.filterFiles(data.agents, filter);
         const grimoiresFiltered  = visor.filterFiles(data.grimoires, filter);
+        const mainLabel          = data.header.currentLabel || 'Archivos';
+        const subLabel           = data.header.sectionLabel;
 
         const buildSection = (title, items, icon) => {
             if (!items.length) return '';
@@ -193,14 +434,18 @@ class VisorView {
         ` : '';
 
         $('#sidebarList').html(`
-            ${buildSection('Agentes', agentsFiltered, 'bot')}
-            ${buildSection('Grimorios', grimoiresFiltered, 'book-open')}
+            ${buildSection(mainLabel, agentsFiltered, 'bot')}
+            ${subLabel ? buildSection(subLabel, grimoiresFiltered, 'book-open') : ''}
             ${empty}
         `);
     }
 
-    renderBreadcrumb(file) {
-        $('#breadcrumbSection').text(file.section === 'agentes' ? 'agents' : 'agents/grimorios');
+    renderBreadcrumb(file, header) {
+        const root = header?.currentLabel || (file.section === 'agentes' ? 'agents' : 'agents/grimorios');
+        const path = file.section === 'grimorios' && header?.sectionLabel
+            ? `${root} / ${header.sectionLabel.toLowerCase()}`
+            : root;
+        $('#breadcrumbSection').text(path);
         $('#breadcrumbFile').text(file.file);
     }
 
@@ -243,8 +488,32 @@ class VisorView {
         $('#lineCountChip').text(`~ ${visor.countLines(file.raw)} lineas`);
     }
 
+    renderEmptyMain() {
+        $('#md-rendered').html(`
+            <div class="empty-state" style="padding:80px 20px;">
+                <i data-lucide="folder-x" class="w-10 h-10"></i>
+                <p class="text-sm" style="margin-top:8px;">Carpeta vacia o sin archivos .md</p>
+            </div>
+        `);
+        $('#md-raw').text('');
+        $('#lineCountChip').text('~ 0 lineas');
+        $('#breadcrumbFile').text('—');
+        $('#frontmatterBody').html('');
+        $('#fmSizeBadge').text('—');
+        $('#footerFile').text('—');
+        $('#footerSize').text('—');
+    }
+
     renderFooterSelection(file) {
         $('#footerFile').text(file.file);
         $('#footerSize').text(file.size);
+    }
+
+    toast(msg, tone = 'success') {
+        const $t = $('#visorToast');
+        if (!$t.length) return;
+        $t.text(msg).attr('data-tone', tone).addClass('visible');
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => $t.removeClass('visible'), 2400);
     }
 }

@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cp /tmp/marked.min.js c:/tmp/marked.min.js && ls c:/tmp/marked.min.js)"
+      "Bash(cp /tmp/marked.min.js c:/tmp/marked.min.js && ls c:/tmp/marked.min.js)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" \"C:/wamp64/www/huubie/coffee/app/visor/ctrl/ctrl-visor.php\")",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -r \"echo json_encode\\(json_decode\\(stream_get_contents\\(STDIN\\)\\)->agents[0], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES\\);\")"
     ],
     "additionalDirectories": [
       "\\tmp"
