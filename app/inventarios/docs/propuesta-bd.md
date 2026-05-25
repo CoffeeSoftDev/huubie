@@ -284,22 +284,20 @@ USE `fayxzvov_inventario`;
 │                                                                      │
 │  ── Negocio ──                                                       │
 │  name                   VARCHAR(120)   nombre visible del almacén    │
-│  address                VARCHAR(255)   NULL · dirección física       │
-│  is_default_general     TINYINT(1)     único por subsidiaries_id     │
+│  is_default             TINYINT(1)     único por subsidiaries_id     │
 │                                                                      │
 │  ── Timestamps ──                                                    │
 │  created_at             DATETIME       auditoría · alta              │
-│  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
-│  ── FK cross-schema ──                                               │
-│  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
-│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
 │                                                                      │
 │  ── FK locales ──                                                    │
 │  warehouse_area_id      → warehouse_area  SET NULL · área asignada   │
 │                                                                      │
-│  ── Soft-delete ──                                                   │
-│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+│  ── FK cross-schema ──                                               │
+│  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1046,7 +1044,7 @@ supply_stock (saldo: supply_id + warehouse_id + quantity)
 | **InnoDB + utf8mb4_0900_ai_ci** | ✅ | Declarado en todas las tablas y a nivel CREATE DATABASE. |
 | **Cross-schema FKs identificadas** | ✅ | `subsidiaries_id`, `companies_id`, `user_id` y `order_product_id` referencian otros esquemas. Constraints declaradas (`fayxzvov_alpha.subsidiaries`, `fayxzvov_admin.companies`, `fayxzvov_alpha.usr_users`, `fayxzvov_reginas.order_products`). |
 | **Excepción a la regla singular para FKs cross-schema** | ⚠️ | Se mantienen `subsidiaries_id` y `companies_id` plurales por consistencia con el ecosistema ya en producción. Las FKs propias del esquema sí siguen singular (`product_id`, `warehouse_id`, etc.). Documentado en §1. |
-| **Unique keys donde aplica** | ✅ | `(folio, companies_id)` por evento, `(sku, companies_id)` en product_attribute, `(order_product_id, warehouse_id)` en stock, `(subsidiaries_id, is_default_general)` para almacén general único. |
+| **Unique keys donde aplica** | ✅ | `(folio, companies_id)` por evento, `(sku, companies_id)` en product_attribute, `(order_product_id, warehouse_id)` en stock, `(subsidiaries_id, is_default)` para almacén default único por sucursal. |
 | **Indices en columnas filtrables** | ✅ | `date_*`, `status`, FKs y `active` indexados en cada raíz. |
 | **ON DELETE / ON UPDATE explícitos** | ✅ | CASCADE en raíz→detalle. SET NULL en FKs opcionales (supplier_id, warehouse_area_id). RESTRICT/default en cross-schema (no propagar borrados desde otros esquemas). |
 | **Bitácora unificada como vista** | ✅ | `inventory_movement` es VIEW (no materializada). Evita drift. Si crece mucho, migrar a tabla materializada con triggers. |
