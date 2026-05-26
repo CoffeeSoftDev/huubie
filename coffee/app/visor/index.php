@@ -7,8 +7,8 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/app/ui/css/ui-kit.css">
-    <link rel="stylesheet" href="/coffee/app/visor/src/css/visor.css?t=<?php echo time(); ?>">
+    <link rel="stylesheet" href="src/css/ui-kit.css?t=<?php echo time(); ?>">
+    <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -200,7 +200,7 @@
 
     <div id="visorToast" class="visor-toast"></div>
 
-    <script src="/coffee/app/visor/src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
-    <script src="/coffee/app/visor/src/js/visor.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

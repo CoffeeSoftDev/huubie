@@ -2,7 +2,8 @@
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-$CLAUDE_HOME = 'C:/Users/CoffeSoft/.claude';
+$userHome    = getenv('USERPROFILE') ?: getenv('HOME') ?: '';
+$CLAUDE_HOME = str_replace('\\', '/', $userHome) . '/.claude';
 
 $PRESETS = [
     'agents' => [

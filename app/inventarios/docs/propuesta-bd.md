@@ -367,8 +367,6 @@ USE `fayxzvov_inventario`;
 │  contact_name           VARCHAR(120)   NULL · persona de contacto    │
 │  phone                  VARCHAR(40)    NULL · teléfono principal     │
 │  email                  VARCHAR(120)   NULL · correo de facturación  │
-│  address                VARCHAR(255)   NULL · domicilio fiscal       │
-│  rfc                    VARCHAR(13)    NULL · RFC para CFDI          │
 │                                                                      │
 │  ── Timestamps ──                                                    │
 │  created_at             DATETIME       auditoría · alta              │
@@ -390,7 +388,6 @@ USE `fayxzvov_inventario`;
 │  ── Negocio ──                                                       │
 │  code                   VARCHAR(10)    único · pza, kg, lt, caja, pq │
 │  name                   VARCHAR(40)    etiqueta larga visible        │
-│  decimals               TINYINT        decimales permitidos en qty   │
 │                                                                      │
 │  ── Timestamps ──                                                    │
 │  created_at             DATETIME       auditoría · alta              │
@@ -966,13 +963,13 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
 --  Catálogos sembrados — alineados con los SAMPLE_* del módulo
 -- ════════════════════════════════════════════════════════════════
 
-INSERT INTO `unit` (`code`, `name`, `decimals`) VALUES
-    ('pza',  'Pieza',     0),
-    ('kg',   'Kilogramo', 3),
-    ('lt',   'Litro',     3),
-    ('caja', 'Caja',      0),
-    ('pq',   'Paquete',   0),
-    ('m',    'Metro',     2);
+INSERT INTO `unit` (`code`, `name`) VALUES
+    ('pza',  'Pieza'),
+    ('kg',   'Kilogramo'),
+    ('lt',   'Litro'),
+    ('caja', 'Caja'),
+    ('pq',   'Paquete'),
+    ('m',    'Metro');
 
 INSERT INTO `inflow_origin` (`code`, `name`, `icon`, `color_hex`, `requires_supplier`) VALUES
     ('PRODUCTION',    'Produccion',    'factory',  '#A78BFA', 0),
