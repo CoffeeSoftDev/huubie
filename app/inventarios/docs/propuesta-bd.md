@@ -535,7 +535,6 @@ USE `fayxzvov_inventario`;
 │                                                                      │
 │  ── Timestamps ──                                                    │
 │  date_inflow            DATE           fecha del evento              │
-│  time_inflow            TIME           hora del evento               │
 │  created_at             DATETIME       auditoría · alta              │
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
@@ -555,6 +554,7 @@ USE `fayxzvov_inventario`;
 │  ── Soft-delete ──                                                   │
 │  active                 TINYINT(1)     1=activo / 0=baja lógica      │
 └──────────────────────────────────────────────────────────────────────┘
+
 ```
 
 ```
@@ -850,7 +850,7 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
         d.resulting_stock                   AS stock_post,
         d.cost_unit_snap                    AS cost_unit,
         d.subtotal                          AS cost_total,
-        CONCAT(r.date_inflow, ' ', r.time_inflow) AS occurred_at,
+        r.date_inflow                       AS occurred_at,
         r.warehouse_id                      AS warehouse_id,
         r.subsidiaries_id                   AS subsidiaries_id,
         r.user_id                           AS user_id,
@@ -1052,7 +1052,7 @@ supply_stock (saldo: supply_id + warehouse_id + quantity)
 | **ENUMs para estados internos del módulo** | ✅ | Status de eventos: `inflow.status`, `shrinkage.status`, `adjustment.status`. Estados del traspaso son catálogo (`transfer_status`) porque tienen flujo. |
 | **No se duplica catálogo POS** | ✅ | `product_attribute` extiende `order_products` 1:1 vía FK cross-schema. |
 | **Folios prefijados por tipo** | ✅ | `ENT-`, `M-`, `TRA-`, `AJU-`, `INV-FIS-` documentados. UNIQUE por `(folio, companies_id)`. |
-| **Timestamps de auditoría** | ✅ | `created_at` en todas; `updated_at` en mutables; campos de fecha de evento separados de `created_at` (date_inflow + time_inflow vs created_at). |
+| **Timestamps de auditoría** | ✅ | `created_at` en todas; `updated_at` en mutables; campos de fecha de evento separados de `created_at` (date_inflow vs created_at). |
 | **Cardinalidad documentada** | ✅ | Tabla aparte en §2.bis con todas las relaciones y cardinalidades. |
 | **Diagrama texto plano según regla §2.bis** | ✅ | Cajas doble borde para esquema actual, simple para cross-schema, cardinalidades pegadas a flechas, tabla de cardinalidades aparte. |
 
