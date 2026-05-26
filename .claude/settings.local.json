@@ -139,7 +139,15 @@
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas -e \"SELECT id, discount, info_discount, total_pay, status FROM \\\\`order\\\\` WHERE id IN \\(378, 379, 380, 381\\);\")",
       "Bash(/c/wamp64/bin/mysql/mysql5.7.36/bin/mysql.exe -u root fayxzvov_reginas -e \"SELECT id, discount, total_pay, status FROM \\\\`order\\\\` WHERE discount IS NOT NULL AND discount != 0 ORDER BY id;\")",
       "Bash(cmd *)",
-      "PowerShell($files = @\\( 'c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\docs\\\\database\\\\propuesta-db.md', 'c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\docs\\\\database\\\\flujo-aplicacion.md', 'c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\docs\\\\database\\\\db-implementacion.md' \\); $renames = @\\( @\\('inv_inv_','inv_'\\), @\\('Reversada','Cancelada'\\), @\\('Reversado','Cancelado'\\), @\\('Reversar','Cancelar'\\), @\\('admin reversa','admin cancela'\\) \\); foreach \\($f in $files\\) { $content = [IO.File]::ReadAllText\\($f\\); foreach \\($r in $renames\\) { $content = $content.Replace\\($r[0], $r[1]\\) }; [IO.File]::WriteAllText\\($f, $content\\) }; Write-Output \"Done\")"
+      "PowerShell($files = @\\( 'c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\docs\\\\database\\\\propuesta-db.md', 'c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\docs\\\\database\\\\flujo-aplicacion.md', 'c:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\docs\\\\database\\\\db-implementacion.md' \\); $renames = @\\( @\\('inv_inv_','inv_'\\), @\\('Reversada','Cancelada'\\), @\\('Reversado','Cancelado'\\), @\\('Reversar','Cancelar'\\), @\\('admin reversa','admin cancela'\\) \\); foreach \\($f in $files\\) { $content = [IO.File]::ReadAllText\\($f\\); foreach \\($r in $renames\\) { $content = $content.Replace\\($r[0], $r[1]\\) }; [IO.File]::WriteAllText\\($f, $content\\) }; Write-Output \"Done\")",
+      "Bash(php -l \"c:/wamp64/www/huubie/coffee/app/visor/ctrl/ctrl-visor.php\")",
+      "PowerShell(try { $r = Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost/coffee/app/visor/ctrl/ctrl-visor.php?folder=documents' -TimeoutSec 10; $r.Content.Substring\\(0, [Math]::Min\\(2500, $r.Content.Length\\)\\) } catch { Write-Output \\(\"ERROR: \" + $_.Exception.Message\\) })",
+      "PowerShell(try { $r = Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost/huubie/coffee/app/visor/ctrl/ctrl-visor.php?folder=documents' -TimeoutSec 10; $r.Content.Substring\\(0, [Math]::Min\\(3000, $r.Content.Length\\)\\) } catch { Write-Output \\(\"ERROR: \" + $_.Exception.Message\\) })",
+      "Bash(curl *)",
+      "Bash(start chrome *)",
+      "Bash(Get-ChildItem -Recurse -File C:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor)",
+      "Bash(Select-Object FullName)",
+      "Bash(icacls \"C:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\documents\")"
     ]
   },
   "spinnerTipsEnabled": true

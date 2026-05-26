@@ -53,19 +53,36 @@ class App {
 
         const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
         if (data) {
-            this.dataInit = {
-                agents:    data.agents,
-                grimoires: data.grimoires,
-                header:    data.header
-            };
+            if (data.documents && typeof data.documents === 'object') {
+                let allFiles = [];
+                for (const proj in data.documents) {
+                    for (const tipo in data.documents[proj]) {
+                        allFiles.push(...data.documents[proj][tipo]);
+                    }
+                }
+                this.dataInit = {
+                    documents: data.documents,
+                    agents:    [],
+                    grimoires: [],
+                    header:    data.header
+                };
+                this.allFiles = allFiles;
+            } else {
+                this.dataInit = {
+                    agents:    data.agents,
+                    grimoires: data.grimoires,
+                    header:    data.header
+                };
+                this.allFiles = [...data.agents, ...data.grimoires];
+            }
         } else {
             this.dataInit = {
                 agents:    SAMPLE_VISOR_AGENTS.agents,
                 grimoires: SAMPLE_VISOR_AGENTS.grimoires,
                 header:    SAMPLE_VISOR_HEADER
             };
+            this.allFiles = [...this.dataInit.agents, ...this.dataInit.grimoires];
         }
-        this.allFiles = [...this.dataInit.agents, ...this.dataInit.grimoires];
         const initial = this.allFiles[0]?.file || 'CoffeeIA.md';
         this.render(initial);
         this.bind();
@@ -184,8 +201,16 @@ class App {
     }
 
     bindToc() {
-        $('#tocBody').off('click').on('click', 'li[data-toc-target]', function () {
-            const target = $(this).data('toc-target');
+        $('#tocBody').off('click').on('click', 'li[data-toc-target]', function (e) {
+            e.stopPropagation();
+            const $li = $(this);
+
+            if ($li.hasClass('has-children')) {
+                $li.toggleClass('collapsed');
+                $li.children('ul.toc-children').toggleClass('collapsed');
+            }
+
+            const target = $li.data('toc-target');
             const $el = $('#md-rendered').find('#' + target);
             if ($el.length) {
                 $el[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -227,8 +252,19 @@ class App {
             visorView.toast('Ruta invalida: ' + data.header.currentPath, 'error');
             return;
         }
-        this.dataInit = { agents: data.agents, grimoires: data.grimoires, header: data.header };
-        this.allFiles = [...data.agents, ...data.grimoires];
+        if (data.documents && typeof data.documents === 'object') {
+            let allFiles = [];
+            for (const proj in data.documents) {
+                for (const tipo in data.documents[proj]) {
+                    allFiles.push(...data.documents[proj][tipo]);
+                }
+            }
+            this.dataInit = { documents: data.documents, agents: [], grimoires: [], header: data.header };
+            this.allFiles = allFiles;
+        } else {
+            this.dataInit = { agents: data.agents, grimoires: data.grimoires, header: data.header };
+            this.allFiles = [...data.agents, ...data.grimoires];
+        }
         this.currentFile = null;
         const target = this.allFiles[0]?.file;
 
@@ -252,8 +288,19 @@ class App {
 
         const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
         if (data) {
-            this.dataInit = { agents: data.agents, grimoires: data.grimoires, header: data.header };
-            this.allFiles = [...data.agents, ...data.grimoires];
+            if (data.documents && typeof data.documents === 'object') {
+                let allFiles = [];
+                for (const proj in data.documents) {
+                    for (const tipo in data.documents[proj]) {
+                        allFiles.push(...data.documents[proj][tipo]);
+                    }
+                }
+                this.dataInit = { documents: data.documents, agents: [], grimoires: [], header: data.header };
+                this.allFiles = allFiles;
+            } else {
+                this.dataInit = { agents: data.agents, grimoires: data.grimoires, header: data.header };
+                this.allFiles = [...data.agents, ...data.grimoires];
+            }
             const stillExists = this.allFiles.find(f => f.file === this.currentFile);
             const target      = stillExists ? this.currentFile : this.allFiles[0]?.file;
 
@@ -350,7 +397,7 @@ class Visor {
             const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
-            if (!data || !Array.isArray(data.agents) || !Array.isArray(data.grimoires)) {
+            if (!data || (!Array.isArray(data.agents) && !Array.isArray(data.grimoires) && typeof data.documents !== 'object')) {
                 throw new Error('payload invalido');
             }
             return data;
@@ -455,15 +502,30 @@ class VisorView {
     }
 
     renderFooter(data) {
-        const total = data.agents.length + data.grimoires.length;
+        let total = 0;
+        if (data.documents && typeof data.documents === 'object') {
+            for (const proj in data.documents) {
+                for (const tipo in data.documents[proj]) {
+                    total += data.documents[proj][tipo].length;
+                }
+            }
+            $('#footerAgentsCount').text(0);
+            $('#footerGrimoiresCount').text(0);
+        } else {
+            total = data.agents.length + data.grimoires.length;
+            $('#footerAgentsCount').text(data.agents.length);
+            $('#footerGrimoiresCount').text(data.grimoires.length);
+        }
         $('#footerTotal').text(total);
-        $('#footerAgentsCount').text(data.agents.length);
-        $('#footerGrimoiresCount').text(data.grimoires.length);
         $('#footerPath').text(data.header.pathLabel);
         $('#footerSource').text(data.header.source);
     }
 
     renderSidebar(data, currentFile, filter) {
+        if (data.documents && typeof data.documents === 'object') {
+            return this.renderSidebarTree(data.documents, currentFile, filter);
+        }
+
         const agentsFiltered     = visor.filterFiles(data.agents, filter);
         const grimoiresFiltered  = visor.filterFiles(data.grimoires, filter);
         const mainLabel          = data.header.currentLabel || 'Archivos';
@@ -505,12 +567,118 @@ class VisorView {
         `);
     }
 
+    renderSidebarTree(documents, currentFile, filter) {
+        const f = (filter || '').trim().toLowerCase();
+        let collapsed = [];
+        try {
+            collapsed = JSON.parse(localStorage.getItem('visor:tree:collapsed') || '[]');
+        } catch (e) { collapsed = []; }
+
+        const filterMatch = (item) => {
+            if (!f) return true;
+            const hay = `${item.name} ${item.frontmatter?.description || ''} ${item.project || ''} ${item.type || ''}`.toLowerCase();
+            return hay.includes(f);
+        };
+
+        let hasAny = false;
+        let html = '';
+
+        for (const proj of Object.keys(documents).sort((a, b) => a.localeCompare(b))) {
+            const types = documents[proj];
+            let projTotal = 0;
+            let projHtml = '';
+
+            for (const tipo of Object.keys(types).sort((a, b) => {
+                if (a === '(sin clasificar)') return 1;
+                if (b === '(sin clasificar)') return -1;
+                return a.localeCompare(b);
+            })) {
+                const items = types[tipo];
+                const matched = f ? items.filter(filterMatch) : items;
+                if (!matched.length) continue;
+                projTotal += matched.length;
+
+                const typeRows = matched.map(item => `
+                    <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}">
+                        <i data-lucide="${item.isBackup ? 'archive' : 'file-text'}" class="file-icon"></i>
+                        <span class="file-name">${item.name}.md</span>
+                        ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
+                        <span class="file-size">${item.size}</span>
+                    </div>
+                `).join('');
+
+                projHtml += `
+                    <div class="tree-type-header">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="tag" class="w-3 h-3 text-gray-500"></i>
+                            ${tipo}
+                        </span>
+                        <span class="badge-count">${matched.length}</span>
+                    </div>
+                    <div class="tree-files-wrap">${typeRows}</div>
+                `;
+            }
+
+            if (!projTotal) continue;
+            hasAny = true;
+            const isCollapsed = collapsed.includes(proj);
+
+            html += `
+                <div class="tree-project-header ${isCollapsed ? 'collapsed' : ''}" data-project="${proj}">
+                    <span class="flex items-center gap-1.5">
+                        <i data-lucide="folder-tree" class="w-3.5 h-3.5 text-gray-500"></i>
+                        <span class="font-semibold">${proj}</span>
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="badge-count">${projTotal}</span>
+                        <i data-lucide="chevron-right" class="tree-chevron"></i>
+                    </span>
+                </div>
+                <div class="tree-project-body ${isCollapsed ? 'collapsed' : ''}">${projHtml}</div>
+            `;
+        }
+
+        const empty = !hasAny ? `
+            <div class="empty-state">
+                <i data-lucide="search-x" class="w-8 h-8"></i>
+                <p class="text-xs">Sin resultados</p>
+            </div>
+        ` : '';
+
+        $('#sidebarList').html(html + empty);
+
+        // Bind collapse toggle
+        $('#sidebarList .tree-project-header').off('click').on('click', (e) => {
+            const $header = $(e.currentTarget);
+            const proj = $header.data('project');
+            $header.toggleClass('collapsed');
+            $header.next('.tree-project-body').toggleClass('collapsed');
+            let collapsedState = [];
+            try {
+                collapsedState = JSON.parse(localStorage.getItem('visor:tree:collapsed') || '[]');
+            } catch (e) { collapsedState = []; }
+            if ($header.hasClass('collapsed')) {
+                if (!collapsedState.includes(proj)) collapsedState.push(proj);
+            } else {
+                collapsedState = collapsedState.filter(p => p !== proj);
+            }
+            localStorage.setItem('visor:tree:collapsed', JSON.stringify(collapsedState));
+            if (window.lucide) lucide.createIcons();
+        });
+    }
+
     renderBreadcrumb(file, header) {
-        const root = header?.currentLabel || (file.section === 'agentes' ? 'agents' : 'agents/grimorios');
-        const path = file.section === 'grimorios' && header?.sectionLabel
-            ? `${root} / ${header.sectionLabel.toLowerCase()}`
-            : root;
-        $('#breadcrumbSection').text(path);
+        if (file.section === 'documents' || file.project) {
+            const proj = file.project || '—';
+            const tipo = file.type || '—';
+            $('#breadcrumbSection').text(`documents / ${proj.toLowerCase()} / ${tipo.toLowerCase()}`);
+        } else {
+            const root = header?.currentLabel || (file.section === 'agentes' ? 'agents' : 'agents/grimorios');
+            const path = file.section === 'grimorios' && header?.sectionLabel
+                ? `${root} / ${header.sectionLabel.toLowerCase()}`
+                : root;
+            $('#breadcrumbSection').text(path);
+        }
         $('#breadcrumbFile').text(file.file);
     }
 
@@ -518,6 +686,8 @@ class VisorView {
         const $badge = $('#fmFileBadge');
         if (file.isBackup) {
             $badge.text('backup').attr('class', 'cs-badge badge-secondary');
+        } else if (file.section === 'documents') {
+            $badge.text('documento').attr('class', 'cs-badge badge-info');
         } else if (file.section === 'agentes') {
             $badge.text('agente').attr('class', 'cs-badge badge-primary');
         } else {
@@ -527,6 +697,11 @@ class VisorView {
         $('#fmSizeBadge').text(file.size);
 
         const fm = file.frontmatter || {};
+        const chips = [];
+        if (fm.type) chips.push(`<span class="cs-badge badge-info">${fm.type}</span>`);
+        if (fm.project) chips.push(`<span class="cs-badge" style="background:rgba(124,58,237,.18);color:#C4B5FD;border:1px solid rgba(124,58,237,.35)">${fm.project}</span>`);
+        $('#fmChipsWrap').html(chips.join(' '));
+
         $('#frontmatterBody').html(`
             <div class="fm-row">
                 <span class="fm-key">name</span>
@@ -540,6 +715,8 @@ class VisorView {
                 <span class="fm-key">model</span>
                 <span class="fm-val model">${fm.model || '—'}</span>
             </div>
+            ${fm.status ? `<div class="fm-row"><span class="fm-key">status</span><span class="fm-val">${fm.status}</span></div>` : ''}
+            ${fm.date ? `<div class="fm-row"><span class="fm-key">date</span><span class="fm-val">${fm.date}</span></div>` : ''}
         `);
     }
 
@@ -550,8 +727,7 @@ class VisorView {
             : `<pre style="white-space:pre-wrap;">${body.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</pre>`;
         $('#md-rendered').html(rendered);
 
-        let tocHtml = '<ul>';
-        let hasAny = false;
+        const tocItems = [];
         const usedSlugs = new Set();
 
         $('#md-rendered').find('h2, h3').each(function () {
@@ -566,14 +742,19 @@ class VisorView {
             usedSlugs.add(finalSlug);
             $h.attr('id', finalSlug);
 
-            const level = this.tagName === 'H2' ? 2 : 3;
-            const cls = level === 2 ? 'toc-h2' : 'toc-h3';
-            tocHtml += `<li class="${cls}" data-toc-target="${finalSlug}">${text}</li>`;
-            hasAny = true;
+            if (this.tagName === 'H2') {
+                tocItems.push({ level: 2, slug: finalSlug, text, children: [] });
+            } else {
+                const last = tocItems[tocItems.length - 1];
+                if (last && last.level === 2) {
+                    last.children.push({ slug: finalSlug, text });
+                } else {
+                    tocItems.push({ level: 3, slug: finalSlug, text });
+                }
+            }
         });
 
-        tocHtml += '</ul>';
-        $('#tocBody').html(hasAny ? tocHtml : '<span class="toc-empty">Sin secciones</span>');
+        $('#tocBody').html(this.buildTocHtml(tocItems));
 
         if (typeof hljs !== 'undefined') {
             $('#md-rendered pre code').each(function (i, block) {
@@ -583,6 +764,32 @@ class VisorView {
 
         $('#md-raw').text(file.raw);
         $('#lineCountChip').text(`~ ${visor.countLines(file.raw)} lineas`);
+
+        const $main = $('.main-content');
+        if ($main.length) $main.scrollTop(0);
+    }
+
+    buildTocHtml(items) {
+        if (!items.length) return '<span class="toc-empty">Sin secciones</span>';
+        const rows = items.map(it => {
+            if (it.level === 3) {
+                return `<li class="toc-h3" data-toc-target="${it.slug}"><span class="toc-text">${it.text}</span></li>`;
+            }
+            if (!it.children.length) {
+                return `<li class="toc-h2" data-toc-target="${it.slug}"><span class="toc-chevron-slot"></span><span class="toc-text">${it.text}</span></li>`;
+            }
+            const children = it.children.map(c =>
+                `<li class="toc-h3" data-toc-target="${c.slug}"><span class="toc-text">${c.text}</span></li>`
+            ).join('');
+            return `
+                <li class="toc-h2 has-children collapsed" data-toc-target="${it.slug}">
+                    <i data-lucide="chevron-right" class="toc-chevron"></i>
+                    <span class="toc-text">${it.text}</span>
+                    <ul class="toc-children collapsed">${children}</ul>
+                </li>
+            `;
+        }).join('');
+        return `<ul class="toc-tree">${rows}</ul>`;
     }
 
     renderEmptyMain() {

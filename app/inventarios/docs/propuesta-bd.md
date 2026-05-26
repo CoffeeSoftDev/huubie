@@ -25,7 +25,7 @@ Cross-schema:
 - `subsidiaries_id` → `fayxzvov_alpha.subsidiaries(id)`
 - `user_id` → `fayxzvov_alpha.usr_users(id)`
 - `employee_id` → `fayxzvov_rrhh.rrhh_empleados(id)`
-- `order_product_id` → `fayxzvov_reginas.order_products(id)`
+- `product_id` → `fayxzvov_reginas.order_products(id)`
 
 > **Nota sobre convención de nombres de FK.** El manual `db-rules.md` prescribe singular (`subsidiary_id`, `company_id`). Sin embargo el ecosistema Huubie tiene en producción `subsidiaries_id` y `companies_id` plurales (ver `fayxzvov_alpha.subsidiaries.companies_id`, `fayxzvov_reginas.order_products.subsidiaries_id`). En esta propuesta se **respeta la convención existente del ecosistema** (plural) por consistencia operativa; las FK nuevas a tablas del propio módulo sí usan singular (`product_id`, `warehouse_id`, etc.).
 
@@ -62,7 +62,7 @@ Cross-schema:
 
 | # | Tabla | Tipo | Descripción |
 |---|---|---|---|
-| 10 | `stock` | Saldo | `(order_product_id, warehouse_id) → quantity`. Estado vivo del inventario. Actualizado por triggers/lógica de los eventos. |
+| 10 | `stock` | Saldo | `(product_id, warehouse_id) → quantity`. Estado vivo del inventario. Actualizado por triggers/lógica de los eventos. |
 
 ### §2.4 Eventos POS (productos terminados) — pares raíz + renglones
 
@@ -344,7 +344,7 @@ USE `fayxzvov_inventario`;
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
-│  order_product_id       → fayxzvov_reginas.order_products  CASCADE   │
+│  product_id             → fayxzvov_reginas.order_products  CASCADE   │
 │  companies_id           → fayxzvov_admin.companies   · tenant        │
 │                                                                      │
 │  ── FK locales ──                                                    │
@@ -469,7 +469,7 @@ USE `fayxzvov_inventario`;
 │  code                   VARCHAR(30)    único · llave técnica         │
 │  name                   VARCHAR(60)    etiqueta visible              │
 │  order_index            TINYINT        1=Solicitado, 2=Autorizado, … │
-│  is_terminal            TINYINT(1)     1 bloquea más transiciones    │
+│  is_terminal (*)        TINYINT(1)     1 bloquea más transiciones    │
 │  color_hex              VARCHAR(7)     NULL · #RRGGBB del chip       │
 │                                                                      │
 │  ── Timestamps ──                                                    │
@@ -478,11 +478,16 @@ USE `fayxzvov_inventario`;
 │  ── Soft-delete ──                                                   │
 │  active                 TINYINT(1)     1=activo / 0=baja lógica      │
 └──────────────────────────────────────────────────────────────────────┘
+
+ (*) is_terminal — marca estados que cierran el ciclo (Recibido, Rechazado).
+                   La UI oculta botones de acción y el backend rechaza más
+                   transiciones cuando el estado actual tiene is_terminal=1.
+                   Permite agregar estados finales nuevos sin tocar código.
 ```
 
 ### §3.3 Stock (saldo vivo)
 
-> Actualizado por la capa de servicio cuando se aplica un evento. Único por `(order_product_id, warehouse_id)`.
+> Actualizado por la capa de servicio cuando se aplica un evento. Único por `(product_id, warehouse_id)`.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -500,11 +505,11 @@ USE `fayxzvov_inventario`;
 │  updated_at             DATETIME       ON UPDATE · cada movimiento   │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
-│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│  product_id             → fayxzvov_reginas.order_products · producto │
 │  companies_id           → fayxzvov_admin.companies   · tenant        │
 │                                                                      │
 │  ── FK locales ──                                                    │
-│  warehouse_id           → warehouse  único con order_product_id      │
+│  warehouse_id           → warehouse  único con product_id            │
 │                                                                      │
 │  ── Soft-delete ──                                                   │
 │  active                 TINYINT(1)     1=activo / 0=baja lógica      │
@@ -536,7 +541,7 @@ USE `fayxzvov_inventario`;
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
 │  ── Status ──                                                        │
-│  status                 ENUM           Pendiente|Aplicada|Reversada  │
+│  status                 ENUM           Pendiente|Aplicada|Revertida  │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
 │  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
@@ -561,12 +566,12 @@ USE `fayxzvov_inventario`;
 │  id                     INT PK         identificador único           │
 │                                                                      │
 │  ── Negocio ──                                                       │
-│  batch_code             VARCHAR(40)    NULL · lote del proveedor     │
+│  batch_code (*)         VARCHAR(40)    NULL · lote del proveedor     │
 │                                                                      │
 │  ── Montos (snapshot al aplicar) ──                                  │
 │  quantity               DOUBLE         unidades recibidas            │
-│  cost_unit_snap         DOUBLE         costo unitario congelado      │
-│  subtotal               DOUBLE         quantity × cost_unit_snap     │
+│  cost (**)              DOUBLE         costo unitario congelado      │
+│  subtotal               DOUBLE         quantity × cost               │
 │  previous_stock         DOUBLE         stock antes del movimiento    │
 │  resulting_stock        DOUBLE         stock después del movimiento  │
 │                                                                      │
@@ -575,7 +580,7 @@ USE `fayxzvov_inventario`;
 │  created_at             DATETIME       auditoría · alta              │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
-│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│  product_id             → fayxzvov_reginas.order_products · producto │
 │                                                                      │
 │  ── FK locales ──                                                    │
 │  inventory_inflow_id    → inventory_inflow  CASCADE · header padre   │
@@ -584,6 +589,11 @@ USE `fayxzvov_inventario`;
 │  ── Soft-delete ──                                                   │
 │  active                 TINYINT(1)     1=activo / 0=baja lógica      │
 └──────────────────────────────────────────────────────────────────────┘
+
+ (*)  batch_code      — lote/serie con que el proveedor identifica la mercancía.
+                        Permite trazar caducidad y aplicar FEFO en la salida.
+ (**) cost            — costo unitario congelado al aplicar la entrada.
+                        Conserva el valor histórico del renglón; no se recalcula.
 ```
 
 #### §3.4.2 Mermas
@@ -605,13 +615,11 @@ USE `fayxzvov_inventario`;
 │  total_cost_loss        DOUBLE         pérdida monetaria total       │
 │                                                                      │
 │  ── Timestamps ──                                                    │
-│  date_shrinkage         DATE           fecha del evento              │
-│  time_shrinkage         TIME           hora del evento               │
 │  created_at             DATETIME       auditoría · alta              │
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
 │  ── Status ──                                                        │
-│  status                 ENUM           Aplicada|Reversada            │
+│  status                 ENUM           Aplicada|Revertida            │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
 │  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
@@ -635,8 +643,8 @@ USE `fayxzvov_inventario`;
 │                                                                      │
 │  ── Montos (snapshot al aplicar) ──                                  │
 │  quantity               DOUBLE         unidades dadas de baja        │
-│  cost_unit_snap         DOUBLE         costo unitario congelado      │
-│  subtotal_loss          DOUBLE         quantity × cost_unit_snap     │
+│  cost                   DOUBLE         costo unitario congelado      │
+│  subtotal_loss          DOUBLE         quantity × cost               │
 │  previous_stock         DOUBLE         stock antes del movimiento    │
 │  resulting_stock        DOUBLE         stock después del movimiento  │
 │                                                                      │
@@ -644,7 +652,7 @@ USE `fayxzvov_inventario`;
 │  created_at             DATETIME       auditoría · alta              │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
-│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│  product_id             → fayxzvov_reginas.order_products · producto │
 │                                                                      │
 │  ── FK locales ──                                                    │
 │  inventory_shrinkage_id → inventory_shrinkage   CASCADE · header    │
@@ -707,8 +715,8 @@ USE `fayxzvov_inventario`;
 │                                                                      │
 │  ── Montos (doble snapshot: origen al enviar, destino al recibir) ── │
 │  quantity               DOUBLE         unidades trasladadas          │
-│  cost_unit_snap         DOUBLE         costo al momento del envío    │
-│  subtotal               DOUBLE         quantity × cost_unit_snap     │
+│  cost                   DOUBLE         costo al momento del envío    │
+│  subtotal               DOUBLE         quantity × cost               │
 │  origin_stock_prev      DOUBLE         stock origen antes            │
 │  origin_stock_post      DOUBLE         stock origen después          │
 │  destination_stock_prev DOUBLE         NULL · se llena al recibir    │
@@ -718,7 +726,7 @@ USE `fayxzvov_inventario`;
 │  created_at             DATETIME       auditoría · alta              │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
-│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│  product_id             → fayxzvov_reginas.order_products · producto │
 │                                                                      │
 │  ── FK locales ──                                                    │
 │  inventory_transfer_id  → inventory_transfer  CASCADE · header padre │
@@ -780,7 +788,7 @@ USE `fayxzvov_inventario`;
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
 │  ── Status ──                                                        │
-│  status                 ENUM           Pendiente|Aplicado|Reversado  │
+│  status                 ENUM           Pendiente|Aplicado|Revertido  │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
 │  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
@@ -807,8 +815,8 @@ USE `fayxzvov_inventario`;
 │  system_quantity        DOUBLE         lo que el sistema decía       │
 │  physical_quantity      DOUBLE         lo que se contó físicamente   │
 │  difference             DOUBLE         + sobrante / − faltante       │
-│  cost_unit_snap         DOUBLE         costo al momento del ajuste   │
-│  cost_diff              DOUBLE         difference × cost_unit_snap   │
+│  cost                   DOUBLE         costo al momento del ajuste   │
+│  cost_diff              DOUBLE         difference × cost             │
 │  previous_stock         DOUBLE         stock antes del ajuste        │
 │  resulting_stock        DOUBLE         stock después del ajuste      │
 │                                                                      │
@@ -816,7 +824,7 @@ USE `fayxzvov_inventario`;
 │  created_at             DATETIME       auditoría · alta              │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
-│  order_product_id       → fayxzvov_reginas.order_products · producto │
+│  product_id             → fayxzvov_reginas.order_products · producto │
 │                                                                      │
 │  ── FK locales ──                                                    │
 │  inventory_adjustment_id → inventory_adjustment  CASCADE · header    │
@@ -841,11 +849,11 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
         CONCAT('IN-', d.id)                 AS movement_uid,
         'ENTRADA'                           AS movement_type,
         r.folio                             AS folio,
-        d.order_product_id                  AS order_product_id,
+        d.product_id                        AS product_id,
         d.quantity                          AS quantity,
         d.previous_stock                    AS stock_prev,
         d.resulting_stock                   AS stock_post,
-        d.cost_unit_snap                    AS cost_unit,
+        d.cost                              AS cost_unit,
         d.subtotal                          AS cost_total,
         r.date_inflow                       AS occurred_at,
         r.warehouse_id                      AS warehouse_id,
@@ -865,13 +873,13 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
         CONCAT('SH-', d.id),
         'MERMA',
         r.folio,
-        d.order_product_id,
+        d.product_id,
         d.quantity,
         d.previous_stock,
         d.resulting_stock,
-        d.cost_unit_snap,
+        d.cost,
         d.subtotal_loss,
-        CONCAT(r.date_shrinkage, ' ', r.time_shrinkage),
+        r.created_at,
         r.warehouse_id,
         r.subsidiaries_id,
         r.user_id,
@@ -889,11 +897,11 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
         CONCAT('TR-OUT-', d.id),
         'TRANSFERENCIA',
         r.folio,
-        d.order_product_id,
+        d.product_id,
         -d.quantity,                            -- salida del origen
         d.origin_stock_prev,
         d.origin_stock_post,
-        d.cost_unit_snap,
+        d.cost,
         -d.subtotal,
         r.date_sent,
         r.origin_warehouse_id,
@@ -913,11 +921,11 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
         CONCAT('TR-IN-', d.id),
         'TRANSFERENCIA',
         r.folio,
-        d.order_product_id,
+        d.product_id,
         d.quantity,
         d.destination_stock_prev,
         d.destination_stock_post,
-        d.cost_unit_snap,
+        d.cost,
         d.subtotal,
         r.date_received,
         r.destination_warehouse_id,
@@ -938,11 +946,11 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
         CONCAT('AD-', d.id),
         'AJUSTE',
         r.folio,
-        d.order_product_id,
+        d.product_id,
         d.difference,
         d.previous_stock,
         d.resulting_stock,
-        d.cost_unit_snap,
+        d.cost,
         d.cost_diff,
         CONCAT(r.date_adjustment, ' ', r.time_adjustment),
         r.warehouse_id,
@@ -1034,18 +1042,18 @@ supply_stock (saldo: supply_id + warehouse_id + quantity)
 |---|---|---|
 | **Singular inglés snake_case** | ✅ | Todas las tablas en singular: `warehouse`, `inventory_inflow`, `detail_inventory_inflow`. |
 | **`detail_` solo en renglones de raíz** | ✅ | Solo `detail_inventory_inflow`, `detail_inventory_shrinkage`, `detail_inventory_transfer`, `detail_inventory_adjustment`. Sub-catálogos (`shrinkage_reason`, `inflow_origin`, etc.) NO usan prefijo `detail_`. |
-| **Montos en DOUBLE** | ✅ | `cost_unit`, `cost_unit_snap`, `subtotal`, `total_cost`, `subtotal_loss`, `total_diff_cost` — todos DOUBLE. |
+| **Montos en DOUBLE** | ✅ | `cost_unit`, `cost`, `subtotal`, `total_cost`, `subtotal_loss`, `total_diff_cost` — todos DOUBLE. |
 | **FKs al final (después de active + timestamps)** | ✅ | Patrón aplicado consistentemente: campos de negocio → `active` → `created_at` → `updated_at` → FKs (`*_id`). |
 | **Columnas obligatorias `active` + `created_at`** | ✅ | Presentes en todas las tablas (catálogos, raíces y detalles). |
 | **`updated_at` con ON UPDATE CURRENT_TIMESTAMP** | ✅ | En tablas mutables (warehouse, product_attribute, eventos raíz). |
 | **InnoDB + utf8mb4_0900_ai_ci** | ✅ | Declarado en todas las tablas y a nivel CREATE DATABASE. |
-| **Cross-schema FKs identificadas** | ✅ | `subsidiaries_id`, `companies_id`, `user_id` y `order_product_id` referencian otros esquemas. Constraints declaradas (`fayxzvov_alpha.subsidiaries`, `fayxzvov_admin.companies`, `fayxzvov_alpha.usr_users`, `fayxzvov_reginas.order_products`). |
+| **Cross-schema FKs identificadas** | ✅ | `subsidiaries_id`, `companies_id`, `user_id` y `product_id` referencian otros esquemas. Constraints declaradas (`fayxzvov_alpha.subsidiaries`, `fayxzvov_admin.companies`, `fayxzvov_alpha.usr_users`, `fayxzvov_reginas.order_products`). |
 | **Excepción a la regla singular para FKs cross-schema** | ⚠️ | Se mantienen `subsidiaries_id` y `companies_id` plurales por consistencia con el ecosistema ya en producción. Las FKs propias del esquema sí siguen singular (`product_id`, `warehouse_id`, etc.). Documentado en §1. |
-| **Unique keys donde aplica** | ✅ | `(folio, companies_id)` por evento, `(sku, companies_id)` en product_attribute, `(order_product_id, warehouse_id)` en stock, `(subsidiaries_id, is_default)` para almacén default único por sucursal. |
+| **Unique keys donde aplica** | ✅ | `(folio, companies_id)` por evento, `(sku, companies_id)` en product_attribute, `(product_id, warehouse_id)` en stock, `(subsidiaries_id, is_default)` para almacén default único por sucursal. |
 | **Indices en columnas filtrables** | ✅ | `date_*`, `status`, FKs y `active` indexados en cada raíz. |
 | **ON DELETE / ON UPDATE explícitos** | ✅ | CASCADE en raíz→detalle. SET NULL en FKs opcionales (supplier_id, warehouse_area_id). RESTRICT/default en cross-schema (no propagar borrados desde otros esquemas). |
 | **Bitácora unificada como vista** | ✅ | `inventory_movement` es VIEW (no materializada). Evita drift. Si crece mucho, migrar a tabla materializada con triggers. |
-| **Snapshots por renglón** | ✅ | Cada `detail_*` guarda `previous_stock`, `resulting_stock`, `cost_unit_snap` para auditoría. |
+| **Snapshots por renglón** | ✅ | Cada `detail_*` guarda `previous_stock`, `resulting_stock`, `cost` para auditoría. |
 | **ENUMs para estados internos del módulo** | ✅ | Status de eventos: `inflow.status`, `shrinkage.status`, `adjustment.status`. Estados del traspaso son catálogo (`transfer_status`) porque tienen flujo. |
 | **No se duplica catálogo POS** | ✅ | `product_attribute` extiende `order_products` 1:1 vía FK cross-schema. |
 | **Folios prefijados por tipo** | ✅ | `ENT-`, `M-`, `TRA-`, `AJU-`, `INV-FIS-` documentados. UNIQUE por `(folio, companies_id)`. |
@@ -1069,7 +1077,7 @@ Cuando un evento pasa a `Aplicada` / `Aplicado`, la capa de servicio debe:
 
 1. Validar que el stock origen sea suficiente (en mermas, traspasos, salidas).
 2. Generar las filas `detail_*` con `previous_stock` y `resulting_stock` calculados.
-3. Actualizar `stock.quantity` por cada par `(order_product_id, warehouse_id)`.
+3. Actualizar `stock.quantity` por cada par `(product_id, warehouse_id)`.
 4. Tocar `stock.last_movement_at = NOW()`.
 5. Recalcular totales del header (`total_units`, `total_cost`, etc.).
 
@@ -1097,7 +1105,7 @@ Para sembrar productos reales:
 ```sql
 -- product_attribute para todos los productos de Reginas (companies_id=4)
 INSERT INTO product_attribute (sku, cost_unit, stock_min, stock_max, shelf_life_days,
-                               order_product_id, warehouse_area_id, unit_id, companies_id)
+                               product_id, warehouse_area_id, unit_id, companies_id)
 SELECT
     CONCAT('RG-', LPAD(op.id, 3, '0')) AS sku,
     op.price * 0.55                    AS cost_unit,    -- margen estimado
@@ -1126,7 +1134,7 @@ SELECT s.quantity, w.name AS warehouse, sub.name AS subsidiary, op.name AS produ
 FROM stock s
 JOIN warehouse w ON w.id = s.warehouse_id
 JOIN fayxzvov_alpha.subsidiaries sub ON sub.id = w.subsidiaries_id
-JOIN fayxzvov_reginas.order_products op ON op.id = s.order_product_id
+JOIN fayxzvov_reginas.order_products op ON op.id = s.product_id
 WHERE sub.id = :subsidiary_id;
 ```
 
@@ -1134,8 +1142,8 @@ WHERE sub.id = :subsidiary_id;
 ```sql
 SELECT op.name, pa.sku, s.quantity, pa.stock_min, w.name AS warehouse
 FROM stock s
-JOIN product_attribute pa ON pa.order_product_id = s.order_product_id
-JOIN fayxzvov_reginas.order_products op ON op.id = s.order_product_id
+JOIN product_attribute pa ON pa.product_id = s.product_id
+JOIN fayxzvov_reginas.order_products op ON op.id = s.product_id
 JOIN warehouse w ON w.id = s.warehouse_id
 WHERE s.quantity < pa.stock_min AND s.active = 1;
 ```
@@ -1144,7 +1152,7 @@ WHERE s.quantity < pa.stock_min AND s.active = 1;
 ```sql
 SELECT *
 FROM inventory_movement
-WHERE order_product_id = :product_id
+WHERE product_id = :product_id
 ORDER BY occurred_at DESC
 LIMIT 50;
 ```

@@ -53,6 +53,11 @@
                 <span class="btn-label">Refrescar</span>
             </button>
 
+            <a href="documents-admin.php" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Administrar documentos">
+                <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                Admin
+            </a>
+
             <button id="btnThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">
                 <i data-lucide="moon" class="w-4 h-4"></i>
             </button>
@@ -145,6 +150,7 @@
                                 <span id="fmFileBadge" class="cs-badge badge-primary">agente</span>
                             </div>
                             <div id="frontmatterBody"></div>
+                            <div id="fmChipsWrap" class="flex flex-wrap gap-1.5 mt-2"></div>
                             <div class="fm-foot">
                                 <span id="fmSizeBadge">—</span>
                             </div>
