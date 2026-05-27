@@ -2,6 +2,11 @@ let api = 'ctrl/ctrl-visor.php';
 let visor, visorView, app;
 
 const VISOR_STORAGE_KEY = 'visor:settings:v1';
+const EDITABLE_EXTS = [
+    'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
+    'html','htm','css','scss','js','ts','php','py','rb','go','rs',
+    'java','c','cpp','cs','sh','sql','ini','conf','log','env'
+];
 
 $(async () => {
     visorView = new VisorView('root');
@@ -18,7 +23,12 @@ class App {
         this.rootId       = rootId;
         this.PROJECT_NAME = 'Visor';
         this.currentFile  = null;
+        this.isEditing    = false;
         this.settings     = this.loadSettings();
+    }
+
+    isDriveFolder(folder) {
+        return typeof folder === 'string' && (folder === 'drive' || folder.startsWith('drive:'));
     }
 
     loadSettings() {
@@ -29,8 +39,10 @@ class App {
             if (!raw) return fallback;
             const parsed = JSON.parse(raw);
             const zoom = Number(parsed.docZoom);
+            // Drive es volatil (depende del SA) — nunca lo restauramos desde localStorage
+            const folder = (parsed.folder && !this.isDriveFolder(parsed.folder)) ? parsed.folder : 'agents';
             return {
-                folder:     parsed.folder     || 'agents',
+                folder,
                 customPath: parsed.customPath || '',
                 theme:      parsed.theme === 'light' ? 'light' : 'dark',
                 docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'sepia',
@@ -42,8 +54,17 @@ class App {
     }
 
     saveSettings() {
-        try { localStorage.setItem(VISOR_STORAGE_KEY, JSON.stringify(this.settings)); }
-        catch (e) { /* quota / private mode — ignorar */ }
+        try {
+            const toSave = { ...this.settings };
+            // No persistir selecciones de Drive: conservar el ultimo folder local guardado
+            if (this.isDriveFolder(toSave.folder)) {
+                let prev = {};
+                try { prev = JSON.parse(localStorage.getItem(VISOR_STORAGE_KEY) || '{}'); } catch (e) {}
+                toSave.folder     = (prev.folder && !this.isDriveFolder(prev.folder)) ? prev.folder : 'agents';
+                toSave.customPath = prev.customPath || '';
+            }
+            localStorage.setItem(VISOR_STORAGE_KEY, JSON.stringify(toSave));
+        } catch (e) { /* quota / private mode — ignorar */ }
     }
 
     async init() {
@@ -152,6 +173,123 @@ class App {
         $('#btnRefresh').off('click').on('click', () => this.refresh());
         $('#btnCopyPath').off('click').on('click', () => this.copyPath());
         $('#btnOpenEditor').off('click').on('click', () => this.openInEditor());
+        $('#btnEdit').off('click').on('click', () => this.enterEditMode());
+        $('#btnSave').off('click').on('click', () => this.saveFile());
+        $('#btnCancel').off('click').on('click', () => this.exitEditMode(false));
+
+        // Ctrl+S dentro del textarea de edicion
+        $('#md-edit').off('keydown.save').on('keydown.save', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                this.saveFile();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                this.exitEditMode(false);
+            }
+        });
+    }
+
+    canEdit(file) {
+        if (!file)            return false;
+        if (file.lazyDrive)   return false;  // Drive aun no soportado en write
+        if (!file.fullPath)   return false;  // modo SAMPLE
+        const parts = (file.file || '').split('.');
+        if (parts.length < 2) return false;
+        const ext = parts.pop().toLowerCase();
+        return EDITABLE_EXTS.includes(ext);
+    }
+
+    updateEditButton() {
+        const file = visor.getFile(this.allFiles, this.currentFile);
+        const can  = this.canEdit(file);
+        $('#btnEdit').prop('disabled', !can)
+                     .attr('title', can ? 'Editar en el visor' : 'Archivo no editable en el visor');
+    }
+
+    enterEditMode() {
+        const file = visor.getFile(this.allFiles, this.currentFile);
+        if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
+
+        this.isEditing = true;
+        $('#md-edit').val(file.raw);
+        $('#md-rendered').addClass('hidden');
+        $('#md-raw').addClass('hidden');
+        $('#md-edit').removeClass('hidden').focus();
+
+        $('#btnEdit, #btnOpenEditor, #btnCopyPath').addClass('hidden');
+        $('#btnSave, #btnCancel').removeClass('hidden');
+        $('.cs-tab').prop('disabled', true).css('opacity', 0.5);
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    exitEditMode(saved) {
+        this.isEditing = false;
+        $('#md-edit').addClass('hidden').val('');
+        $('#md-rendered').removeClass('hidden');
+        $('#md-raw').addClass('hidden');
+
+        $('#btnSave, #btnCancel').addClass('hidden');
+        $('#btnEdit, #btnOpenEditor, #btnCopyPath').removeClass('hidden');
+        $('.cs-tab').prop('disabled', false).css('opacity', 1);
+        $('.cs-tab[data-tab="rendered"]').addClass('active');
+        $('.cs-tab[data-tab="raw"]').removeClass('active');
+
+        if (!saved) {
+            // descartar: re-render desde file.raw original
+            const file = visor.getFile(this.allFiles, this.currentFile);
+            if (file) visorView.renderContent(file);
+        }
+        this.updateEditButton();
+        if (window.lucide) lucide.createIcons();
+    }
+
+    async saveFile() {
+        const file = visor.getFile(this.allFiles, this.currentFile);
+        if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
+
+        const content = $('#md-edit').val();
+        const $btn    = $('#btnSave');
+        $btn.prop('disabled', true).find('i').attr('data-lucide', 'loader-2').addClass('visor-spin');
+        if (window.lucide) lucide.createIcons();
+
+        try {
+            const form = new FormData();
+            form.append('action',     'save');
+            form.append('fullPath',   file.fullPath);
+            form.append('customPath', this.settings.customPath || '');
+            form.append('content',    content);
+
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+
+            if (!data.success) {
+                visorView.toast(data.message || 'Error al guardar', 'error');
+                $btn.prop('disabled', false).find('i').attr('data-lucide', 'save').removeClass('visor-spin');
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            // Actualizar estado en memoria
+            file.raw         = content;
+            file.frontmatter = visor.parseFrontmatter(content);
+            if (data.size)  file.size  = data.size;
+            if (data.mtime) file.mtime = data.mtime;
+
+            // Refrescar UI
+            visorView.renderContent(file);
+            visorView.renderFrontmatter(file);
+            visorView.renderFooterSelection(file);
+            visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
+            this.bindSidebarClicks();
+
+            visorView.toast('Guardado: ' + (data.size || ''), 'success');
+            this.exitEditMode(true);
+        } catch (e) {
+            visorView.toast('Error de red al guardar', 'error');
+            $btn.prop('disabled', false).find('i').attr('data-lucide', 'save').removeClass('visor-spin');
+            if (window.lucide) lucide.createIcons();
+        }
     }
 
     bindFolderPicker() {
@@ -165,7 +303,7 @@ class App {
                 $('#folderCustomPath').addClass('hidden');
                 $('#btnFolderApply').addClass('hidden');
                 this.settings.folder = val;
-                this.settings.customPath = '';
+                // No borramos customPath: queda recordada para cuando vuelvas a elegir Custom
                 this.saveSettings();
                 this.reloadLibrary();
             }
@@ -366,6 +504,15 @@ class App {
     async loadFile(fileName) {
         const file = visor.getFile(this.allFiles, fileName);
         if (!file) return;
+
+        // Si estoy editando otro archivo, confirmar antes de cambiar
+        if (this.isEditing && fileName !== this.currentFile) {
+            const current = $('#md-edit').val();
+            const orig    = (visor.getFile(this.allFiles, this.currentFile) || {}).raw || '';
+            if (current !== orig && !confirm('Tienes cambios sin guardar. ¿Descartar y cambiar de archivo?')) return;
+            this.exitEditMode(false);
+        }
+
         this.currentFile = fileName;
 
         $('#sidebarList .sidebar-item').each(function () {
@@ -390,6 +537,7 @@ class App {
         visorView.renderFrontmatter(file);
         visorView.renderContent(file);
         visorView.renderFooterSelection(file);
+        this.updateEditButton();
 
         if (window.lucide) lucide.createIcons();
     }
@@ -462,6 +610,62 @@ class Visor {
             if (key in fm) fm[key] = val;
         }
         return fm;
+    }
+
+    fileFormat(file) {
+        if (file.isBackup) return { icon: 'archive', cls: 'fmt-backup' };
+
+        const mime  = (file.mimeType || '').toLowerCase();
+        const parts = (file.file || '').split('.');
+        const ext   = parts.length > 1 ? parts.pop().toLowerCase() : '';
+
+        // Google Workspace (Drive)
+        if (mime === 'application/vnd.google-apps.document')     return { icon: 'file-text',        cls: 'fmt-gdoc'   };
+        if (mime === 'application/vnd.google-apps.spreadsheet')  return { icon: 'file-spreadsheet', cls: 'fmt-gsheet' };
+        if (mime === 'application/vnd.google-apps.presentation') return { icon: 'presentation',     cls: 'fmt-gslide' };
+        if (mime === 'application/vnd.google-apps.form')         return { icon: 'clipboard-list',   cls: 'fmt-gform'  };
+        if (mime === 'application/vnd.google-apps.drawing')      return { icon: 'pen-tool',         cls: 'fmt-draw'   };
+
+        // Por MIME generico
+        if (mime.startsWith('image/'))             return { icon: 'file-image',    cls: 'fmt-image'   };
+        if (mime.startsWith('video/'))             return { icon: 'file-video',    cls: 'fmt-video'   };
+        if (mime.startsWith('audio/'))             return { icon: 'file-audio',    cls: 'fmt-audio'   };
+        if (mime === 'application/pdf')            return { icon: 'file-text',     cls: 'fmt-pdf'     };
+        if (mime === 'application/zip'
+            || mime.includes('compressed')
+            || mime.includes('x-rar')
+            || mime.includes('x-7z'))              return { icon: 'file-archive',  cls: 'fmt-archive' };
+
+        // Por extension
+        switch (ext) {
+            case 'md': case 'markdown':            return { icon: 'file-text',        cls: 'fmt-md'      };
+            case 'txt': case 'rtf':                return { icon: 'file-text',        cls: 'fmt-txt'     };
+            case 'pdf':                            return { icon: 'file-text',        cls: 'fmt-pdf'     };
+            case 'doc': case 'docx': case 'odt':   return { icon: 'file-text',        cls: 'fmt-doc'     };
+            case 'xls': case 'xlsx':
+            case 'ods': case 'csv': case 'tsv':    return { icon: 'file-spreadsheet', cls: 'fmt-sheet'   };
+            case 'ppt': case 'pptx': case 'odp':   return { icon: 'presentation',     cls: 'fmt-slide'   };
+            case 'png': case 'jpg':  case 'jpeg':
+            case 'gif': case 'svg':  case 'webp':
+            case 'ico': case 'bmp':  case 'avif':  return { icon: 'file-image',       cls: 'fmt-image'   };
+            case 'mp4': case 'webm': case 'mov':
+            case 'avi': case 'mkv':  case 'm4v':   return { icon: 'file-video',       cls: 'fmt-video'   };
+            case 'mp3': case 'wav':  case 'flac':
+            case 'ogg': case 'm4a':  case 'aac':   return { icon: 'file-audio',       cls: 'fmt-audio'   };
+            case 'zip': case 'rar':  case '7z':
+            case 'tar': case 'gz':   case 'bz2':   return { icon: 'file-archive',     cls: 'fmt-archive' };
+            case 'json': case 'xml': case 'yml':
+            case 'yaml': case 'toml':              return { icon: 'file-code',        cls: 'fmt-data'    };
+            case 'js': case 'ts': case 'jsx':
+            case 'tsx': case 'py': case 'php':
+            case 'rb': case 'go': case 'rs':
+            case 'java': case 'c': case 'cpp':
+            case 'cs': case 'sh': case 'sql':
+            case 'html': case 'css': case 'scss':  return { icon: 'file-code',        cls: 'fmt-code'    };
+            case 'excalidraw':                     return { icon: 'pen-tool',         cls: 'fmt-draw'    };
+            case 'fig':                            return { icon: 'figma',            cls: 'fmt-draw'    };
+            default:                               return { icon: 'file',             cls: 'fmt-generic' };
+        }
     }
 }
 
@@ -561,14 +765,17 @@ class VisorView {
 
         const buildSection = (title, items, icon) => {
             if (!items.length) return '';
-            const rows = items.map(item => `
+            const rows = items.map(item => {
+                const fmt = visor.fileFormat(item);
+                return `
                 <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}">
-                    <i data-lucide="${item.isBackup ? 'archive' : 'file-text'}" class="file-icon"></i>
-                    <span class="file-name">${item.name}.md</span>
+                    <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
+                    <span class="file-name">${item.file}</span>
                     ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
                     <span class="file-size">${item.size}</span>
                 </div>
-            `).join('');
+            `;
+            }).join('');
             return `
                 <div class="section-header">
                     <span class="flex items-center gap-1.5">
@@ -626,14 +833,17 @@ class VisorView {
                 if (!matched.length) continue;
                 projTotal += matched.length;
 
-                const typeRows = matched.map(item => `
+                const typeRows = matched.map(item => {
+                    const fmt = visor.fileFormat(item);
+                    return `
                     <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}">
-                        <i data-lucide="${item.isBackup ? 'archive' : 'file-text'}" class="file-icon"></i>
-                        <span class="file-name">${item.name}.md</span>
+                        <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
+                        <span class="file-name">${item.file}</span>
                         ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
                         <span class="file-size">${item.size}</span>
                     </div>
-                `).join('');
+                `;
+                }).join('');
 
                 projHtml += `
                     <div class="tree-type-header">

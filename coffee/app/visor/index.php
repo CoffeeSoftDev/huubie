@@ -134,6 +134,18 @@
                         <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                         Abrir en editor
                     </button>
+                    <button id="btnEdit" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Editar en el visor" disabled>
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                        Editar
+                    </button>
+                    <button id="btnSave" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5 hidden" title="Guardar (Ctrl+S)">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                        Guardar
+                    </button>
+                    <button id="btnCancel" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Descartar cambios">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        Cancelar
+                    </button>
                 </div>
             </div>
 
@@ -174,6 +186,7 @@
 
                         <article id="md-rendered" class="md-rendered"></article>
                         <pre id="md-raw" class="md-raw hidden"></pre>
+                        <textarea id="md-edit" class="md-edit hidden" spellcheck="false"></textarea>
                     </div>
 
                 </div>

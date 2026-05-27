@@ -29,6 +29,86 @@ if (($_GET['action'] ?? '') === 'driveread') {
     exit;
 }
 
+// Endpoint para guardar archivos locales (POST)
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'save') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $fullPath   = trim($_POST['fullPath']   ?? '');
+    $customPath = trim($_POST['customPath'] ?? '');
+    $content    = $_POST['content'] ?? '';
+
+    if ($fullPath === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'fullPath requerido']);
+        exit;
+    }
+
+    // Extensiones de texto admitidas
+    $allowedExts = [
+        'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
+        'html','htm','css','scss','js','ts','php','py','rb','go','rs',
+        'java','c','cpp','cs','sh','sql','ini','conf','log','env'
+    ];
+    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowedExts, true)) {
+        echo json_encode(['success' => false, 'message' => "Extension no editable: .$ext"]);
+        exit;
+    }
+
+    // Sandbox: validar que el archivo cae dentro de un root conocido
+    $userHome    = getenv('USERPROFILE') ?: getenv('HOME') ?: '';
+    $CLAUDE_HOME = str_replace('\\', '/', $userHome) . '/.claude';
+    $allowedRoots = [
+        $CLAUDE_HOME . '/agents',
+        $CLAUDE_HOME . '/commands',
+        $CLAUDE_HOME . '/steering',
+        str_replace('\\', '/', __DIR__ . '/../documents'),
+    ];
+    if ($customPath !== '') $allowedRoots[] = str_replace('\\', '/', $customPath);
+
+    $target  = str_replace('\\', '/', $fullPath);
+    $dir     = dirname($target);
+    $dirReal = realpath($dir);
+    if ($dirReal === false) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Carpeta destino no existe']);
+        exit;
+    }
+    $dirReal = str_replace('\\', '/', $dirReal);
+
+    $inside = false;
+    foreach ($allowedRoots as $root) {
+        $rootReal = realpath($root);
+        if ($rootReal === false) continue;
+        $rootReal = rtrim(str_replace('\\', '/', $rootReal), '/');
+        if (strpos($dirReal . '/', $rootReal . '/') === 0) { $inside = true; break; }
+    }
+    if (!$inside) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Ruta fuera del sandbox del visor']);
+        exit;
+    }
+
+    $bytes = @file_put_contents($target, $content);
+    if ($bytes === false) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo escribir: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    $size    = filesize($target);
+    $sizeFmt = $size < 1024 ? $size . ' B' : ($size < 1024 * 1024 ? round($size / 1024) . ' KB' : round($size / (1024 * 1024), 1) . ' MB');
+    echo json_encode([
+        'success' => true,
+        'message' => 'Guardado',
+        'size'    => $sizeFmt,
+        'bytes'   => $bytes,
+        'mtime'   => date('Y-m-d H:i:s', filemtime($target))
+    ]);
+    exit;
+}
+
 header('Content-Type: application/json; charset=utf-8');
 
 $userHome    = getenv('USERPROFILE') ?: getenv('HOME') ?: '';

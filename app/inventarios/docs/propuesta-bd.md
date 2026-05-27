@@ -688,7 +688,7 @@ USE `fayxzvov_inventario`;
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
 │  ── Status ──                                                        │
-│  transfer_status_id     → transfer_status · estado actual del flujo  │
+│  status_id              → transfer_status · estado actual del flujo  │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
 │  origin_subsidiaries_id      → fayxzvov_alpha.subsidiaries · origen  │
@@ -750,7 +750,7 @@ USE `fayxzvov_inventario`;
 │  created_at             DATETIME       auditoría · alta              │
 │                                                                      │
 │  ── Status ──                                                        │
-│  transfer_status_id     → transfer_status · nuevo estado del flujo   │
+│  status_id              → transfer_status · nuevo estado del flujo   │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
 │  user_id                → fayxzvov_alpha.usr_users  · quién transita │
@@ -912,7 +912,7 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
         r.companies_id
     FROM `detail_inventory_transfer` d
     JOIN `inventory_transfer` r ON r.id = d.inventory_transfer_id
-    JOIN `transfer_status` ts ON ts.id = r.transfer_status_id
+    JOIN `transfer_status` ts ON ts.id = r.status_id
     WHERE d.active = 1 AND r.active = 1 AND r.date_sent IS NOT NULL
 
     UNION ALL
@@ -936,7 +936,7 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
         r.companies_id
     FROM `detail_inventory_transfer` d
     JOIN `inventory_transfer` r ON r.id = d.inventory_transfer_id
-    JOIN `transfer_status` ts ON ts.id = r.transfer_status_id
+    JOIN `transfer_status` ts ON ts.id = r.status_id
     WHERE d.active = 1 AND r.active = 1 AND r.date_received IS NOT NULL
 
     UNION ALL

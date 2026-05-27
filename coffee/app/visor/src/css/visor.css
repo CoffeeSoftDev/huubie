@@ -335,6 +335,30 @@ html, body { height: 100%; }
 .sidebar-item .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-item .file-size { font-size: 9.5px; color: var(--vsr-text-mute2); font-family: 'JetBrains Mono', monospace; }
 
+/* ── Iconos por formato (color hint) ──────────────────────────
+   Permite distinguir formatos de Drive (PDF, Docs, Sheets, etc.)
+   sin agregar texto. El item activo conserva su color de acento. */
+.sidebar-item .file-icon.fmt-md      { color: #94A3B8; }              /* slate   */
+.sidebar-item .file-icon.fmt-txt     { color: #94A3B8; }              /* slate   */
+.sidebar-item .file-icon.fmt-pdf     { color: #EF4444; }              /* red     */
+.sidebar-item .file-icon.fmt-doc,
+.sidebar-item .file-icon.fmt-gdoc    { color: #3B82F6; }              /* blue    */
+.sidebar-item .file-icon.fmt-sheet,
+.sidebar-item .file-icon.fmt-gsheet  { color: #22C55E; }              /* green   */
+.sidebar-item .file-icon.fmt-slide,
+.sidebar-item .file-icon.fmt-gslide  { color: #F59E0B; }              /* amber   */
+.sidebar-item .file-icon.fmt-gform   { color: #8B5CF6; }              /* violet  */
+.sidebar-item .file-icon.fmt-image   { color: #EC4899; }              /* pink    */
+.sidebar-item .file-icon.fmt-video   { color: #F43F5E; }              /* rose    */
+.sidebar-item .file-icon.fmt-audio   { color: #F59E0B; }              /* amber   */
+.sidebar-item .file-icon.fmt-archive { color: #A1A1AA; }              /* zinc    */
+.sidebar-item .file-icon.fmt-code    { color: #06B6D4; }              /* cyan    */
+.sidebar-item .file-icon.fmt-data    { color: #14B8A6; }              /* teal    */
+.sidebar-item .file-icon.fmt-draw    { color: #A855F7; }              /* purple  */
+.sidebar-item .file-icon.fmt-backup  { color: var(--vsr-text-mute2); }
+.sidebar-item .file-icon.fmt-generic { color: var(--vsr-text-mute2); }
+.sidebar-item.active .file-icon[class*="fmt-"] { color: var(--vsr-accent-soft); }
+
 /* ── Badges ────────────────────────────────────────────────── */
 
 .badge-count {
@@ -596,6 +620,27 @@ html, body { height: 100%; }
     word-break: break-word;
 }
 [data-theme="dark"] .md-raw { background: #0d1420; border-color: #1F2A37; color: #D1D5DB; }
+
+/* ── Editor de archivos (textarea Raw editable) ─────────────── */
+.md-edit {
+    width: 100%;
+    min-height: calc(100vh - 240px);
+    background: var(--vsr-bg-card);
+    border: 1px solid var(--vsr-accent);
+    border-radius: 10px;
+    padding: 20px 22px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px; line-height: 1.75;
+    color: var(--vsr-text-soft);
+    resize: vertical;
+    outline: none;
+    tab-size: 4;
+    box-shadow: 0 0 0 3px var(--vsr-accent-tint);
+    transition: box-shadow .15s ease;
+}
+.md-edit:focus { box-shadow: 0 0 0 4px var(--vsr-accent-tint); }
+[data-theme="dark"] .md-edit { background: #0d1420; border-color: #7C3AED; color: #E5E7EB; }
+.md-edit.hidden { display: none; }
 
 /* ─────────────────────────────────────────────────────────────
  *  Estilo GITHUB — sans, look readme.md (siempre light)

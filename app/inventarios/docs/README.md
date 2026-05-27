@@ -1,3 +1,5 @@
+# HOLA INGEEE!!!
+
 # Inventarios — documentación
 
 > Carpeta de documentación viva del módulo `app/inventarios` (Huubie POS-2).

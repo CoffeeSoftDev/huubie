@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/css/ui-kit.css">
-    <link rel="stylesheet" href="src/css/visor.css?v=7">
+    <link rel="stylesheet" href="src/css/visor.css?v=9">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -129,6 +129,18 @@
                         <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                         Abrir en editor
                     </button>
+                    <button id="btnEdit" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Editar en el visor" disabled>
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                        Editar
+                    </button>
+                    <button id="btnSave" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5 hidden" title="Guardar (Ctrl+S)">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                        Guardar
+                    </button>
+                    <button id="btnCancel" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Descartar cambios">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        Cancelar
+                    </button>
                 </div>
             </div>
 
@@ -168,6 +180,7 @@
 
                         <article id="md-rendered" class="md-rendered"></article>
                         <pre id="md-raw" class="md-raw hidden"></pre>
+                        <textarea id="md-edit" class="md-edit hidden" spellcheck="false"></textarea>
                     </div>
 
                 </div>
@@ -201,6 +214,6 @@
     <div id="visorToast" class="visor-toast"></div>
 
     <script src="src/js/sample_visor.js?v=7"></script>
-    <script src="src/js/visor.js?v=7"></script>
+    <script src="src/js/visor.js?v=9"></script>
 </body>
 </html>
