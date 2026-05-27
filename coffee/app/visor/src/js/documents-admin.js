@@ -1,17 +1,53 @@
-const API = 'ctrl/ctrl-documents-admin.php';
+const API_ENDPOINTS = {
+    local: 'ctrl/ctrl-documents-admin.php',
+    drive: 'ctrl/ctrl-documents-admin-drive.php',
+};
 const STORAGE_KEY = 'admin-docs:settings:v1';
+const SOURCE_KEY  = 'admin-docs:source';
+const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/';
+const DRIVE_FILE_URL   = 'https://drive.google.com/file/d/';
 
+let source = localStorage.getItem(SOURCE_KEY) === 'drive' ? 'drive' : 'local';
 let projects = [];
 let currentProject = null;
+let rootFolderId = null;
+
+function apiUrl() { return API_ENDPOINTS[source]; }
+function isDrive() { return source === 'drive'; }
 
 /* ── Init ─────────────────────────────────────────────────── */
 
 $(async () => {
     if (window.lucide) lucide.createIcons();
     loadTheme();
+    paintSourceToggle();
     await loadProjects();
     bindEvents();
+
+    // Evita que el navegador abra archivos sueltos fuera de la dropzone
+    window.addEventListener('dragover', e => e.preventDefault(), false);
+    window.addEventListener('drop',    e => e.preventDefault(), false);
 });
+
+/* ── Source toggle ────────────────────────────────────────── */
+
+function paintSourceToggle() {
+    $('.source-toggle button').removeClass('active');
+    $(`.source-toggle button[data-source="${source}"]`).addClass('active');
+}
+
+async function setSource(newSource) {
+    if (newSource === source || !API_ENDPOINTS[newSource]) return;
+    source = newSource;
+    localStorage.setItem(SOURCE_KEY, source);
+    paintSourceToggle();
+    currentProject = null;
+    rootFolderId   = null;
+    projects       = [];
+    $('#projectList').html('');
+    renderMainPanel();
+    await loadProjects();
+}
 
 /* ── Theme ────────────────────────────────────────────────── */
 
@@ -37,13 +73,14 @@ function toggleTheme() {
 
 async function loadProjects() {
     try {
-        const res = await fetch(`${API}?action=list`, { cache: 'no-store' });
+        const res = await fetch(`${apiUrl()}?action=list`, { cache: 'no-store' });
         const data = await res.json();
         if (!data.success) { toast(data.message || 'Error al cargar', 'error'); return; }
-        projects = data.projects || [];
+        projects     = data.projects || [];
+        rootFolderId = data.rootId   || null;
         renderProjectList();
-        // Restaurar proyecto seleccionado
-        const saved = localStorage.getItem('admin-docs:project');
+        // Restaurar proyecto seleccionado (key separada por source)
+        const saved = localStorage.getItem(`admin-docs:project:${source}`);
         if (saved) {
             const found = projects.find(p => p.name === saved);
             if (found) selectProject(found.name);
@@ -88,7 +125,7 @@ function renderProjectList(filter = '') {
 
 function selectProject(name) {
     currentProject = name;
-    localStorage.setItem('admin-docs:project', name);
+    localStorage.setItem(`admin-docs:project:${source}`, name);
     renderProjectList($('#projectSearch').val());
     renderMainPanel();
 }
@@ -111,7 +148,8 @@ function renderMainPanel() {
 
     $('#currentProjectTitle').text(proj.name);
     $('#projectTotalBadge').html(`<strong>${proj.totalFiles}</strong> documentos`);
-    $('#btnNewType').removeClass('hidden');
+    if (proj.isVirtual) $('#btnNewType').addClass('hidden');
+    else                $('#btnNewType').removeClass('hidden');
 
     if (!proj.types.length) {
         $('#typesContainer').html(`
@@ -124,43 +162,70 @@ function renderMainPanel() {
         return;
     }
 
+    const drive = isDrive();
     const html = proj.types.map(t => {
-        const fileRows = t.files.map(f => `
-            <div class="admin-file-row">
-                <span class="flex items-center gap-2">
-                    <i data-lucide="file-text" class="w-3.5 h-3.5" style="color:var(--vsr-text-mute2)"></i>
-                    <span style="color:var(--vsr-text-soft);font-family:'JetBrains Mono',monospace;">${f.name}</span>
-                </span>
-                <span class="flex items-center gap-3">
-                    <span style="color:var(--vsr-text-mute2);font-size:10.5px;">${f.size} · ${f.mtime}</span>
-                    <button class="btn-delete-file cs-btn cs-btn-ghost cs-btn-sm" data-file="${t.name}/${f.name}" title="Eliminar">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                    </button>
-                </span>
-            </div>
-        `).join('');
-
-        return `
-            <div class="admin-type-card">
-                <div class="admin-type-header">
-                    <span class="flex items-center gap-2">
-                        <i data-lucide="tag" class="w-3.5 h-3.5" style="color:var(--vsr-accent-soft)"></i>
-                        <span class="font-semibold text-sm" style="color:var(--vsr-text)">${t.name}</span>
-                        <span class="badge-count">${t.files.length}</span>
+        const fileRows = t.files.map(f => {
+            const viewLink = drive && f.id ? `
+                <a href="${DRIVE_FILE_URL}${f.id}/view" target="_blank" rel="noopener" class="cs-btn cs-btn-ghost cs-btn-sm" title="Ver en Drive">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                </a>` : '';
+            return `
+                <div class="admin-file-row">
+                    <span class="admin-file-info">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5" style="color:var(--vsr-text-mute2)"></i>
+                        <span class="admin-file-text">
+                            <span class="admin-file-name">${f.name}</span>
+                            <span class="admin-file-meta">${f.size} · ${f.mtime}</span>
+                        </span>
                     </span>
-                    <span class="flex items-center gap-2">
-                        <button class="btn-delete-type cs-btn cs-btn-ghost cs-btn-sm" data-type="${t.name}" title="Eliminar tipo">
+                    <span class="flex items-center gap-1">
+                        ${viewLink}
+                        <button class="btn-delete-file cs-btn cs-btn-ghost cs-btn-sm" data-file="${t.name}/${f.name}" data-id="${f.id || ''}" title="Eliminar">
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         </button>
                     </span>
                 </div>
+            `;
+        }).join('');
+
+        const typeMenu = t.isVirtual ? '' : `
+            <div class="admin-type-menu">
+                <button class="admin-type-menu-trigger cs-btn cs-btn-ghost cs-btn-sm" data-type="${t.name}" title="Opciones">
+                    <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                </button>
+                <div class="admin-type-menu-dropdown hidden">
+                    <button class="btn-rename-type" data-type="${t.name}">
+                        <i data-lucide="pencil" class="w-3 h-3"></i> Editar nombre
+                    </button>
+                    <button class="btn-delete-type danger" data-type="${t.name}">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar
+                    </button>
+                </div>
+            </div>`;
+        return `
+            <div class="admin-type-card${t.isVirtual ? ' is-virtual' : ''}">
+                <div class="admin-type-header">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="${t.isVirtual ? 'inbox' : 'tag'}" class="w-3.5 h-3.5" style="color:var(--vsr-accent-soft)"></i>
+                        <span class="font-semibold text-sm" style="color:var(--vsr-text)">${t.name}</span>
+                        <span class="badge-count">${t.files.length}</span>
+                    </span>
+                    ${typeMenu}
+                </div>
                 <div>${fileRows}</div>
                 <div class="mt-2 pt-2" style="border-top:1px dashed var(--vsr-border-soft);">
-                    <div class="admin-folder-slot" data-type="${t.name}">
-                        <i data-lucide="upload-cloud"></i>
-                        <span>Suelta .md aqui o clic</span>
-                        <input type="file" accept=".md" multiple class="hidden file-input" data-type="${t.name}">
-                    </div>
+                    ${drive && t.id ? `
+                        <a href="${DRIVE_FOLDER_URL}${t.id}" target="_blank" rel="noopener" class="admin-folder-slot">
+                            <i data-lucide="external-link"></i>
+                            <span>Subir via Drive</span>
+                        </a>
+                    ` : `
+                        <div class="admin-folder-slot" data-type="${t.name}">
+                            <i data-lucide="upload-cloud"></i>
+                            <span>Suelta archivos aqui o clic</span>
+                            <input type="file" multiple class="hidden file-input" data-type="${t.name}">
+                        </div>
+                    `}
                 </div>
             </div>
         `;
@@ -175,6 +240,11 @@ function renderMainPanel() {
 function bindEvents() {
     // Theme
     $('#btnThemeToggle').on('click', toggleTheme);
+
+    // Source toggle (Local / Drive)
+    $('.source-toggle').on('click', 'button[data-source]', (e) => {
+        setSource($(e.currentTarget).data('source'));
+    });
 
     // Project search
     $('#projectSearch').on('input', (e) => renderProjectList(e.target.value));
@@ -223,30 +293,75 @@ function bindEvents() {
     // Delete file
     $('#typesContainer').on('click', '.btn-delete-file', async (e) => {
         e.stopPropagation();
-        const rel = $(e.currentTarget).data('file');
-        const fullPath = currentProject + '/' + rel;
-        if (!confirm(`Eliminar \"${rel}\"?`)) return;
-        await apiPost('delete', { target: 'file', path: fullPath });
+        const $btn   = $(e.currentTarget);
+        const rel    = $btn.data('file');
+        const fileId = $btn.data('id');
+        if (!confirm(`Eliminar "${rel}"?`)) return;
+        // En Drive usamos ID directo (funciona con archivos sueltos / virtuales)
+        if (isDrive() && fileId) {
+            await apiPost('delete', { target: 'file', id: fileId });
+        } else {
+            await apiPost('delete', { target: 'file', path: currentProject + '/' + rel });
+        }
+    });
+
+    // Toggle dropdown del menu de tipo
+    $('#typesContainer').on('click', '.admin-type-menu-trigger', function (e) {
+        e.stopPropagation();
+        const $dropdown = $(this).siblings('.admin-type-menu-dropdown');
+        const wasHidden = $dropdown.hasClass('hidden');
+        $('.admin-type-menu-dropdown').addClass('hidden');
+        if (wasHidden) $dropdown.removeClass('hidden');
+    });
+
+    // Cerrar dropdown al click fuera
+    $(document).on('click', (e) => {
+        if (!$(e.target).closest('.admin-type-menu').length) {
+            $('.admin-type-menu-dropdown').addClass('hidden');
+        }
+    });
+
+    // Rename type
+    $('#typesContainer').on('click', '.btn-rename-type', async (e) => {
+        e.stopPropagation();
+        $('.admin-type-menu-dropdown').addClass('hidden');
+        const type = $(e.currentTarget).data('type');
+        const newName = prompt(`Nuevo nombre para el tipo "${type}":`, type);
+        if (newName === null) return;
+        const trimmed = newName.trim();
+        if (!trimmed || trimmed === type) return;
+        await apiPost('rename', { target: 'type', project: currentProject, oldName: type, newName: trimmed });
     });
 
     // Delete type
     $('#typesContainer').on('click', '.btn-delete-type', async (e) => {
         e.stopPropagation();
+        $('.admin-type-menu-dropdown').addClass('hidden');
         const type = $(e.currentTarget).data('type');
         const fullPath = currentProject + '/' + type;
-        if (!confirm(`Eliminar el tipo \"${type}\" y todos sus archivos?`)) return;
+        if (!confirm(`Eliminar el tipo "${type}" y todos sus archivos?`)) return;
         await apiPost('delete', { target: 'folder', path: fullPath });
     });
 
     // Drag & drop + file input
-    $('#typesContainer').on('click', '.admin-folder-slot', function () {
-        $(this).find('.file-input').trigger('click');
+    $('#typesContainer').on('click', '.admin-folder-slot', function (e) {
+        // Evita reentry cuando el click sintetico del input burbujea
+        if ($(e.target).is('input')) return;
+        e.preventDefault();
+        this.querySelector('.file-input').click();
+    });
+
+    // Detiene la burbuja del click del input hacia el dropzone
+    $('#typesContainer').on('click', '.file-input', function (e) {
+        e.stopPropagation();
     });
 
     $('#typesContainer').on('change', '.file-input', function () {
         const type = $(this).data('type');
         const files = this.files;
         if (files.length) uploadFiles(type, files);
+        // Reset para permitir resubir el mismo archivo
+        this.value = '';
     });
 
     $('#typesContainer').on('dragover', '.admin-folder-slot', (e) => {
@@ -284,7 +399,7 @@ async function apiPost(action, payload) {
     for (const k in payload) form.append(k, payload[k]);
 
     try {
-        const res = await fetch(API, { method: 'POST', body: form });
+        const res = await fetch(apiUrl(), { method: 'POST', body: form });
         const data = await res.json();
         if (!data.success) {
             toast(data.message || 'Error', 'error');
@@ -309,7 +424,7 @@ async function uploadFiles(type, files) {
     for (const f of files) form.append('files[]', f);
 
     try {
-        const res = await fetch(API, { method: 'POST', body: form });
+        const res = await fetch(apiUrl(), { method: 'POST', body: form });
         const data = await res.json();
         if (!data.success) { toast(data.message || 'Error', 'error'); return; }
 

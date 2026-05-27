@@ -363,7 +363,7 @@ class App {
         });
     }
 
-    loadFile(fileName) {
+    async loadFile(fileName) {
         const file = visor.getFile(this.allFiles, fileName);
         if (!file) return;
         this.currentFile = fileName;
@@ -371,6 +371,20 @@ class App {
         $('#sidebarList .sidebar-item').each(function () {
             $(this).toggleClass('active', $(this).data('file') === fileName);
         });
+
+        // Lazy-load para archivos de Drive
+        if (file.lazyDrive && file.driveId && !file._loaded) {
+            try {
+                const url = `${api}?action=driveread&id=${encodeURIComponent(file.driveId)}&mime=${encodeURIComponent(file.mimeType || '')}`;
+                const res = await fetch(url, { cache: 'no-store' });
+                file.raw = await res.text();
+                // Re-parse frontmatter ahora que tenemos el contenido
+                file.frontmatter = visor.parseFrontmatter(file.raw);
+                file._loaded = true;
+            } catch (e) {
+                file.raw = `> Error al leer desde Drive: ${e.message || e}`;
+            }
+        }
 
         visorView.renderBreadcrumb(file, this.dataInit.header);
         visorView.renderFrontmatter(file);
@@ -434,6 +448,20 @@ class Visor {
 
     countLines(raw) {
         return raw.split('\n').length;
+    }
+
+    parseFrontmatter(raw) {
+        const fm = { name: null, description: null, model: null, type: null, project: null, status: null, date: null };
+        const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        if (!m) return fm;
+        for (const line of m[1].split(/\r?\n/)) {
+            const kv = line.match(/^([\w-]+):\s*(.+?)\s*$/);
+            if (!kv) continue;
+            const key = kv[1];
+            const val = kv[2].replace(/^["']|["']$/g, '');
+            if (key in fm) fm[key] = val;
+        }
+        return fm;
     }
 }
 

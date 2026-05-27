@@ -92,7 +92,6 @@ switch ($action) {
 
                 foreach ($fileEntries as $f) {
                     if ($f === '.' || $f === '..') continue;
-                    if (substr($f, -3) !== '.md') continue;
                     $full = $typePath . '/' . $f;
                     if (!is_file($full)) continue;
                     $files[] = [
@@ -139,6 +138,31 @@ switch ($action) {
         mkdir($path, 0755, true) ? jsonResponse(true, 'Creado') : jsonResponse(false, 'Error al crear');
         break;
 
+    case 'rename':
+        $target  = $_POST['target']  ?? '';
+        $oldName = sanitizeName($_POST['oldName'] ?? '');
+        $newName = sanitizeName($_POST['newName'] ?? '');
+        if (!$oldName || !$newName) jsonResponse(false, 'Nombres requeridos');
+        if ($oldName === $newName)  jsonResponse(false, 'Mismo nombre');
+
+        if ($target === 'type') {
+            $project = sanitizeName($_POST['project'] ?? '');
+            if (!$project) jsonResponse(false, 'Proyecto requerido');
+            $oldPath = $BASE_DIR . '/' . $project . '/' . $oldName;
+            $newPath = $BASE_DIR . '/' . $project . '/' . $newName;
+        } elseif ($target === 'project') {
+            $oldPath = $BASE_DIR . '/' . $oldName;
+            $newPath = $BASE_DIR . '/' . $newName;
+        } else {
+            jsonResponse(false, 'Target invalido');
+        }
+
+        if (!isInsideDocuments($oldPath) || !isInsideDocuments($newPath)) jsonResponse(false, 'Ruta no permitida');
+        if (!is_dir($oldPath)) jsonResponse(false, 'No existe');
+        if (is_dir($newPath)) jsonResponse(false, 'Ya existe un destino con ese nombre');
+        rename($oldPath, $newPath) ? jsonResponse(true, 'Renombrado') : jsonResponse(false, 'Error al renombrar');
+        break;
+
     case 'upload':
         $project = sanitizeName($_POST['project'] ?? '');
         $type    = sanitizeName($_POST['type'] ?? '');
@@ -151,23 +175,24 @@ switch ($action) {
         $files = $_FILES['files'] ?? [];
         if (empty($files['tmp_name'])) jsonResponse(false, 'Sin archivos');
 
+        $maxSize = 20 * 1024 * 1024; // 20MB
         $results = [];
         foreach ($files['tmp_name'] as $i => $tmp) {
             if ($tmp === '') continue;
             $orig = $files['name'][$i];
-            if (strtolower(pathinfo($orig, PATHINFO_EXTENSION)) !== 'md') {
-                $results[] = ['name' => $orig, 'status' => 'error', 'message' => 'Solo archivos .md'];
+            if ($files['size'][$i] > $maxSize) {
+                $results[] = ['name' => $orig, 'status' => 'error', 'message' => 'Maximo 20MB'];
                 continue;
             }
-            if ($files['size'][$i] > 5 * 1024 * 1024) {
-                $results[] = ['name' => $orig, 'status' => 'error', 'message' => 'Maximo 5MB'];
-                continue;
-            }
-            $safe = sanitizeName(pathinfo($orig, PATHINFO_FILENAME)) . '.md';
+            $ext  = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+            $ext  = preg_replace('/[^a-z0-9]/i', '', $ext);
+            $base = sanitizeName(pathinfo($orig, PATHINFO_FILENAME));
+            if (!$base) $base = 'archivo';
+            $safe = $ext ? ($base . '.' . $ext) : $base;
             $dest = $targetDir . '/' . $safe;
             $counter = 1;
             while (file_exists($dest)) {
-                $safe = sanitizeName(pathinfo($orig, PATHINFO_FILENAME)) . '_' . $counter . '.md';
+                $safe = $ext ? ($base . '_' . $counter . '.' . $ext) : ($base . '_' . $counter);
                 $dest = $targetDir . '/' . $safe;
                 $counter++;
             }

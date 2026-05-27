@@ -22,6 +22,16 @@
             </div>
         </div>
         <div class="vsr-header-right">
+            <div class="source-toggle">
+                <button data-source="local" title="Archivos locales">
+                    <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i>
+                    <span>Local</span>
+                </button>
+                <button data-source="drive" title="Google Drive">
+                    <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+                    <span>Drive</span>
+                </button>
+            </div>
             <a href="index.php" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5">
                 <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
                 Volver al Visor

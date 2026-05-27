@@ -1,6 +1,35 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
+
+// Endpoint lazy-read para archivos de Drive (no devuelve JSON, devuelve el contenido raw)
+if (($_GET['action'] ?? '') === 'driveread') {
+    require_once __DIR__ . '/drive-client.php';
+    $id   = $_GET['id']   ?? '';
+    $mime = $_GET['mime'] ?? '';
+    if (!$id) { header('Content-Type: text/plain'); http_response_code(400); echo '// ID requerido'; exit; }
+
+    header('Content-Type: text/plain; charset=utf-8');
+    try {
+        $drive = new DriveClient();
+        // Solo previsualizamos texto, markdown, codigo o Google Docs
+        $isText  = strpos($mime, 'text/') === 0;
+        $isCode  = in_array($mime, ['application/json','application/javascript','application/x-javascript','application/xml','application/sql']);
+        $isGdoc  = strpos($mime, 'application/vnd.google-apps.') === 0;
+        if ($isText || $isCode) {
+            echo $drive->downloadFile($id);
+        } elseif ($isGdoc) {
+            echo $drive->getFileContent(['id' => $id, 'mimeType' => $mime]);
+        } else {
+            echo "> Archivo no previsualizable en el visor.\n>\n> **Tipo:** `$mime`\n>\n> Usa el enlace 'Abrir en Drive' para verlo.";
+        }
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo "> Error al leer el archivo desde Drive:\n>\n> " . $e->getMessage();
+    }
+    exit;
+}
+
+header('Content-Type: application/json; charset=utf-8');
 
 $userHome    = getenv('USERPROFILE') ?: getenv('HOME') ?: '';
 $CLAUDE_HOME = str_replace('\\', '/', $userHome) . '/.claude';
@@ -46,8 +75,34 @@ $PRESETS = [
         'pathLabel'  => 'coffee/app/visor/documents',
         'relPrefix'  => 'coffee/app/visor/documents',
         'mode'       => 'tree'
-    ]
+    ],
 ];
+
+// Auto-descubrimiento: agrega un preset por cada carpeta de Drive compartida con el SA
+function discoverDrivePresets() {
+    try {
+        require_once __DIR__ . '/drive-client.php';
+        $drive = new DriveClient();
+        $folders = $drive->listSharedFolders();
+        $out = [];
+        foreach ($folders as $f) {
+            $out['drive:' . $f['id']] = [
+                'label'         => 'Drive · ' . $f['name'],
+                'path'          => 'drive://' . $f['name'],
+                'subfolder'     => null,
+                'subLabel'      => null,
+                'pathLabel'     => 'Google Drive · ' . $f['name'],
+                'relPrefix'     => 'drive/' . $f['id'],
+                'mode'          => 'drive',
+                'driveFolderId' => $f['id']
+            ];
+        }
+        return $out;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+$PRESETS = array_merge($PRESETS, discoverDrivePresets());
 
 $folderKey  = isset($_GET['folder']) ? trim($_GET['folder']) : 'agents';
 $customPath = isset($_GET['path'])   ? trim($_GET['path'])   : '';
@@ -55,11 +110,12 @@ $customPath = isset($_GET['path'])   ? trim($_GET['path'])   : '';
 function presetList($presets) {
     $out = [];
     foreach ($presets as $key => $p) {
+        $isDrive = ($p['mode'] ?? '') === 'drive';
         $out[] = [
             'key'      => $key,
             'label'    => $p['label'],
             'path'     => $p['path'],
-            'exists'   => is_dir($p['path'])
+            'exists'   => $isDrive ? true : is_dir($p['path'])
         ];
     }
     return $out;
@@ -223,6 +279,96 @@ function readDocumentsTree($baseDir, $relPrefix) {
     return $documents;
 }
 
+function readDriveTree($relPrefix, $folderId) {
+    require_once __DIR__ . '/drive-client.php';
+    $drive = new DriveClient();
+    $documents = [];
+
+    $rootChildren = $drive->listChildren($folderId, 'all');
+    $rootFolders  = [];
+    $rootLoose    = [];
+    foreach ($rootChildren as $c) {
+        if (($c['mimeType'] ?? '') === DRIVE_FOLDER_MIME) $rootFolders[] = $c;
+        else                                              $rootLoose[]   = $c;
+    }
+
+    // Lazy: solo metadatos. El contenido se descarga bajo demanda via ?action=driveread
+    $buildFile = function ($f, $projectName, $typeName, $relPrefix) {
+        $name = $f['name'];
+        $displayName = preg_replace('/\.md$/', '', $name);
+        return [
+            'name'        => $displayName,
+            'file'        => $name,
+            'section'     => 'documents',
+            'size'        => fmtSize($f['size'] ?? 0),
+            'isBackup'    => (stripos($displayName, 'backup') !== false),
+            'frontmatter' => ['name' => null, 'description' => null, 'model' => null, 'type' => null, 'project' => null, 'status' => null, 'date' => null],
+            'raw'         => '',
+            'lazyDrive'   => true,
+            'mtime'       => isset($f['modifiedTime']) ? date('Y-m-d H:i:s', strtotime($f['modifiedTime'])) : '',
+            'fullPath'    => 'drive://' . $f['id'],
+            'relPath'     => $relPrefix . '/' . $projectName . '/' . $typeName . '/' . $name,
+            'project'     => $projectName,
+            'type'        => $typeName,
+            'driveId'     => $f['id'],
+            'mimeType'    => $f['mimeType'] ?? ''
+        ];
+    };
+
+    // Archivos sueltos en la raiz → pseudo-proyecto "(general)" / pseudo-tipo "(sin clasificar)"
+    if (!empty($rootLoose)) {
+        $items = [];
+        foreach ($rootLoose as $f) {
+            $items[] = $buildFile($f, '(general)', '(sin clasificar)', $relPrefix);
+        }
+        usort($items, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
+        $documents['(general)'] = ['(sin clasificar)' => $items];
+    }
+
+    // Proyectos reales (carpetas en root)
+    foreach ($rootFolders as $proj) {
+        $projChildren = $drive->listChildren($proj['id'], 'all');
+        $typeFolders  = [];
+        $projLoose    = [];
+        foreach ($projChildren as $c) {
+            if (($c['mimeType'] ?? '') === DRIVE_FOLDER_MIME) $typeFolders[] = $c;
+            else                                              $projLoose[]   = $c;
+        }
+
+        $types = [];
+
+        if (!empty($projLoose)) {
+            $items = [];
+            foreach ($projLoose as $f) {
+                $items[] = $buildFile($f, $proj['name'], '(sin clasificar)', $relPrefix);
+            }
+            usort($items, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
+            $types['(sin clasificar)'] = $items;
+        }
+
+        foreach ($typeFolders as $type) {
+            $rawFiles = $drive->listChildren($type['id'], 'file');
+            $items = [];
+            foreach ($rawFiles as $f) {
+                $items[] = $buildFile($f, $proj['name'], $type['name'], $relPrefix);
+            }
+            usort($items, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
+            if (count($items)) $types[$type['name']] = $items;
+        }
+
+        if (count($types)) {
+            uksort($types, function ($a, $b) {
+                if ($a === '(sin clasificar)') return 1;
+                if ($b === '(sin clasificar)') return -1;
+                return strcasecmp($a, $b);
+            });
+            $documents[$proj['name']] = $types;
+        }
+    }
+
+    return $documents;
+}
+
 if ($folderKey === 'custom' && $customPath !== '') {
     $normalized = str_replace('\\', '/', $customPath);
     $baseLabel  = basename($normalized);
@@ -235,6 +381,12 @@ if ($folderKey === 'custom' && $customPath !== '') {
     $activeLbl  = $baseLabel !== '' ? $baseLabel : 'Custom';
     $isValid    = is_dir($rootDir);
 } else {
+    // Migracion: la antigua key 'drive' apunta al primer preset Drive descubierto
+    if ($folderKey === 'drive') {
+        foreach (array_keys($PRESETS) as $k) {
+            if (strpos($k, 'drive:') === 0) { $folderKey = $k; break; }
+        }
+    }
     if (!isset($PRESETS[$folderKey])) $folderKey = 'agents';
     $preset    = $PRESETS[$folderKey];
     $rootDir   = $preset['path'];
@@ -244,12 +396,44 @@ if ($folderKey === 'custom' && $customPath !== '') {
     $relPrefix = $preset['relPrefix'];
     $activeKey = $folderKey;
     $activeLbl = $preset['label'];
-    $isValid   = is_dir($rootDir);
+    // Drive no es filesystem — su validez se evalua al construir el arbol
+    $isValid   = ($preset['mode'] ?? '') === 'drive' ? true : is_dir($rootDir);
 }
 
 $mode = ($preset['mode'] ?? 'flat');
 
-if ($mode === 'tree') {
+if ($mode === 'drive') {
+    try {
+        $folderId = $preset['driveFolderId'] ?? null;
+        if (!$folderId) throw new Exception('Preset Drive sin folderId');
+        $documents = readDriveTree($relPrefix, $folderId);
+        $valid = true;
+        $errMsg = null;
+    } catch (Throwable $e) {
+        $documents = [];
+        $valid = false;
+        $errMsg = $e->getMessage();
+    }
+    $payload = [
+        'header' => [
+            'title'        => 'Visor de Agentes',
+            'subtitle'     => 'CoffeeSoft Library',
+            'user'         => ['initials' => 'RV', 'name' => 'Rosy V.', 'role' => 'Guardiana'],
+            'pathLabel'    => $pathLabel,
+            'source'       => 'Drive',
+            'currentKey'   => $activeKey,
+            'currentLabel' => $activeLbl,
+            'currentPath'  => $rootDir,
+            'valid'        => $valid,
+            'presets'      => presetList($PRESETS),
+            'sectionLabel' => null,
+            'error'        => $errMsg
+        ],
+        'documents' => $documents,
+        'agents'    => [],
+        'grimoires' => []
+    ];
+} elseif ($mode === 'tree') {
     $documents = readDocumentsTree($rootDir, $relPrefix);
     $payload = [
         'header' => [
