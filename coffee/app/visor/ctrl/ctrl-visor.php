@@ -109,6 +109,74 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     exit;
 }
 
+// Endpoint para navegar el filesystem (modal "Examinar..." del custom picker)
+if (($_GET['action'] ?? '') === 'listdir') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $reqPath  = isset($_GET['path']) ? trim($_GET['path']) : '';
+    $userHome = str_replace('\\', '/', getenv('USERPROFILE') ?: getenv('HOME') ?: '');
+
+    // Si no hay path → devolver drives (Windows) + atajos
+    if ($reqPath === '') {
+        $drives = [];
+        if (stripos(PHP_OS, 'WIN') === 0) {
+            foreach (range('A', 'Z') as $letter) {
+                $d = $letter . ':/';
+                if (@is_dir($d)) $drives[] = ['name' => $letter . ':', 'full' => $d];
+            }
+        } else {
+            $drives[] = ['name' => '/', 'full' => '/'];
+        }
+        echo json_encode([
+            'path'    => '',
+            'parent'  => null,
+            'drives'  => $drives,
+            'home'    => $userHome,
+            'dirs'    => []
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    $normalized = str_replace('\\', '/', $reqPath);
+    $real       = realpath($normalized);
+    if ($real === false || !is_dir($real)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Ruta no existe o no es carpeta', 'path' => $normalized]);
+        exit;
+    }
+    $real = str_replace('\\', '/', $real);
+
+    $entries = @scandir($real);
+    $dirs    = [];
+    if ($entries !== false) {
+        foreach ($entries as $e) {
+            if ($e === '.' || $e === '..') continue;
+            $full = rtrim($real, '/') . '/' . $e;
+            if (!is_dir($full)) continue;
+            // saltar carpetas ocultas/inaccesibles silenciosamente
+            $dirs[] = ['name' => $e, 'full' => $full];
+        }
+        usort($dirs, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
+    }
+
+    // Calcular parent (null si estamos en raiz de drive)
+    $parent = null;
+    if (preg_match('#^[A-Za-z]:/?$#', $real)) {
+        $parent = '';
+    } else {
+        $p = dirname($real);
+        $parent = ($p === $real) ? '' : str_replace('\\', '/', $p);
+    }
+
+    echo json_encode([
+        'path'   => $real,
+        'parent' => $parent,
+        'home'   => $userHome,
+        'dirs'   => $dirs
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 header('Content-Type: application/json; charset=utf-8');
 
 $userHome    = getenv('USERPROFILE') ?: getenv('HOME') ?: '';

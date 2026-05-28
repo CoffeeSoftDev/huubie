@@ -36,6 +36,9 @@
                 <i data-lucide="folder" class="w-4 h-4"></i>
                 <select id="folderSelect" class="folder-select" title="Carpeta a visualizar"></select>
                 <input id="folderCustomPath" type="text" placeholder="C:/ruta/absoluta" class="folder-custom-input hidden" title="Ruta absoluta a escanear">
+                <button id="btnFolderBrowse" class="folder-browse hidden" title="Examinar carpetas...">
+                    <i data-lucide="folder-search" class="w-3.5 h-3.5"></i>
+                </button>
                 <button id="btnFolderApply" class="folder-apply hidden" title="Aplicar ruta">
                     <i data-lucide="check" class="w-3.5 h-3.5"></i>
                 </button>
@@ -218,6 +221,47 @@
     </footer>
 
     <div id="visorToast" class="visor-toast"></div>
+
+    <div id="folderBrowseModal" class="folder-browse-modal hidden" aria-hidden="true">
+        <div class="folder-browse-backdrop"></div>
+        <div class="folder-browse-dialog" role="dialog" aria-labelledby="folderBrowseTitle">
+            <header class="folder-browse-header">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="folder-search" class="w-4 h-4"></i>
+                    <h3 id="folderBrowseTitle">Examinar carpetas</h3>
+                </div>
+                <button id="folderBrowseClose" class="folder-browse-close" title="Cerrar">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </header>
+            <div class="folder-browse-toolbar">
+                <button id="folderBrowseUp" class="cs-btn cs-btn-outline cs-btn-sm" title="Subir un nivel">
+                    <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
+                </button>
+                <button id="folderBrowseHome" class="cs-btn cs-btn-outline cs-btn-sm" title="Ir al inicio del usuario">
+                    <i data-lucide="home" class="w-3.5 h-3.5"></i>
+                </button>
+                <button id="folderBrowseRoots" class="cs-btn cs-btn-outline cs-btn-sm" title="Ver unidades">
+                    <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i>
+                </button>
+                <input id="folderBrowsePath" type="text" class="folder-browse-path" placeholder="Ruta actual" spellcheck="false">
+                <button id="folderBrowseGo" class="cs-btn cs-btn-outline cs-btn-sm" title="Ir a esta ruta">
+                    <i data-lucide="corner-down-left" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+            <ul id="folderBrowseList" class="folder-browse-list"></ul>
+            <footer class="folder-browse-footer">
+                <span id="folderBrowseSelected" class="folder-browse-selected">—</span>
+                <div class="flex gap-2">
+                    <button id="folderBrowseCancel" class="cs-btn cs-btn-outline cs-btn-sm">Cancelar</button>
+                    <button id="folderBrowsePick" class="cs-btn cs-btn-primary cs-btn-sm" disabled>
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                        Usar esta carpeta
+                    </button>
+                </div>
+            </footer>
+        </div>
+    </div>
 
     <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>

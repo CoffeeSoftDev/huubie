@@ -297,11 +297,11 @@ class App {
             const val = e.target.value;
             if (val === 'custom') {
                 $('#folderCustomPath').removeClass('hidden').val(this.settings.customPath || '').focus();
-                $('#btnFolderApply').removeClass('hidden');
+                $('#btnFolderApply, #btnFolderBrowse').removeClass('hidden');
                 if (window.lucide) lucide.createIcons();
             } else {
                 $('#folderCustomPath').addClass('hidden');
-                $('#btnFolderApply').addClass('hidden');
+                $('#btnFolderApply, #btnFolderBrowse').addClass('hidden');
                 this.settings.folder = val;
                 // No borramos customPath: queda recordada para cuando vuelvas a elegir Custom
                 this.saveSettings();
@@ -310,14 +310,17 @@ class App {
         });
 
         $('#btnFolderApply').off('click').on('click', () => this.applyCustomPath());
+        $('#btnFolderBrowse').off('click').on('click', () => this.openBrowseModal());
         $('#folderCustomPath').off('keydown').on('keydown', (e) => {
             if (e.key === 'Enter') this.applyCustomPath();
             if (e.key === 'Escape') {
                 $('#folderCustomPath').addClass('hidden');
-                $('#btnFolderApply').addClass('hidden');
+                $('#btnFolderApply, #btnFolderBrowse').addClass('hidden');
                 $('#folderSelect').val(this.settings.folder);
             }
         });
+
+        this.bindBrowseModal();
     }
 
     applyCustomPath() {
@@ -327,6 +330,116 @@ class App {
         this.settings.customPath = path;
         this.saveSettings();
         this.reloadLibrary();
+    }
+
+    bindBrowseModal() {
+        const $modal = $('#folderBrowseModal');
+        if (!$modal.length || $modal.data('bound')) return;
+        $modal.data('bound', true);
+
+        const close = () => this.closeBrowseModal();
+
+        $('#folderBrowseClose, #folderBrowseCancel').on('click', close);
+        $('.folder-browse-backdrop', $modal).on('click', close);
+
+        $('#folderBrowseUp').on('click', () => {
+            const parent = this.browseState?.parent;
+            if (parent === null || parent === undefined) return;
+            this.loadBrowseDir(parent);
+        });
+        $('#folderBrowseHome').on('click', () => {
+            const home = this.browseState?.home || '';
+            this.loadBrowseDir(home);
+        });
+        $('#folderBrowseRoots').on('click', () => this.loadBrowseDir(''));
+        $('#folderBrowseGo').on('click', () => {
+            const p = $('#folderBrowsePath').val().trim();
+            this.loadBrowseDir(p);
+        });
+        $('#folderBrowsePath').on('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.loadBrowseDir($('#folderBrowsePath').val().trim());
+            } else if (e.key === 'Escape') {
+                close();
+            }
+        });
+
+        $('#folderBrowseList').on('click', 'li[data-full]', (e) => {
+            const $li = $(e.currentTarget);
+            $('#folderBrowseList li').removeClass('selected');
+            $li.addClass('selected');
+            this.browseState.selected = $li.data('full');
+            $('#folderBrowseSelected').text(this.browseState.selected);
+            $('#folderBrowsePick').prop('disabled', false);
+        });
+        $('#folderBrowseList').on('dblclick', 'li[data-full]', (e) => {
+            const full = $(e.currentTarget).data('full');
+            this.loadBrowseDir(full);
+        });
+
+        $('#folderBrowsePick').on('click', () => this.pickBrowseDir());
+
+        $(document).on('keydown.browseModal', (e) => {
+            if (e.key === 'Escape' && !$modal.hasClass('hidden')) close();
+        });
+    }
+
+    openBrowseModal() {
+        this.browseState = { current: '', parent: null, home: '', selected: null };
+        $('#folderBrowseModal').removeClass('hidden').attr('aria-hidden', 'false');
+        const initial = ($('#folderCustomPath').val() || '').trim();
+        this.loadBrowseDir(initial);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    closeBrowseModal() {
+        $('#folderBrowseModal').addClass('hidden').attr('aria-hidden', 'true');
+    }
+
+    async loadBrowseDir(path) {
+        const $list = $('#folderBrowseList');
+        $list.html('<li class="fb-empty">Cargando...</li>');
+        try {
+            const url = this._link + '?action=listdir' + (path ? '&path=' + encodeURIComponent(path) : '');
+            const res = await fetch(url, { cache: 'no-store' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
+
+            this.browseState.current  = data.path || '';
+            this.browseState.parent   = data.parent;
+            this.browseState.home     = data.home || this.browseState.home || '';
+            this.browseState.selected = data.path || null;
+
+            $('#folderBrowsePath').val(data.path || '');
+            $('#folderBrowseSelected').text(data.path || 'Selecciona una carpeta');
+            $('#folderBrowsePick').prop('disabled', !data.path);
+            $('#folderBrowseUp').prop('disabled', data.parent === null || data.parent === undefined);
+
+            // Drives (cuando path vacio)
+            const driveRows = (data.drives || []).map(d =>
+                `<li data-full="${d.full}"><i data-lucide="hard-drive" class="w-4 h-4"></i><span class="name">${d.name}</span><span class="badge">unidad</span></li>`
+            ).join('');
+
+            const dirRows = (data.dirs || []).map(d =>
+                `<li data-full="${d.full}"><i data-lucide="folder" class="w-4 h-4"></i><span class="name">${d.name}</span></li>`
+            ).join('');
+
+            const html = driveRows + dirRows;
+            $list.html(html || '<li class="fb-empty">Sin subcarpetas</li>');
+            if (window.lucide) lucide.createIcons();
+        } catch (err) {
+            $list.html(`<li class="fb-empty">No se pudo abrir: ${err.message}</li>`);
+            $('#folderBrowsePick').prop('disabled', true);
+        }
+    }
+
+    pickBrowseDir() {
+        const pick = this.browseState?.selected;
+        if (!pick) { visorView.toast('Selecciona una carpeta', 'warn'); return; }
+        $('#folderCustomPath').val(pick);
+        this.closeBrowseModal();
+        this.applyCustomPath();
     }
 
     bindThemeToggle() {
@@ -725,11 +838,11 @@ class VisorView {
         if (settings.folder === 'custom') {
             $sel.val('custom');
             $('#folderCustomPath').removeClass('hidden').val(settings.customPath || '');
-            $('#btnFolderApply').removeClass('hidden');
+            $('#btnFolderApply, #btnFolderBrowse').removeClass('hidden');
         } else {
             $sel.val(settings.folder);
             $('#folderCustomPath').addClass('hidden');
-            $('#btnFolderApply').addClass('hidden');
+            $('#btnFolderApply, #btnFolderBrowse').addClass('hidden');
         }
     }
 
