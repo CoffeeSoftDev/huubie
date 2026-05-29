@@ -294,7 +294,7 @@ function fmtSize($bytes) {
     return round($bytes / (1024 * 1024), 1) . ' MB';
 }
 
-function readSection($dir, $section, $relPrefix) {
+function readSection($dir, $section, $relPrefix, $exts = ['md']) {
     $items = [];
     if (!is_dir($dir)) return $items;
     $files = scandir($dir);
@@ -304,12 +304,16 @@ function readSection($dir, $section, $relPrefix) {
         if ($f === '.' || $f === '..') continue;
         $full = $dir . '/' . $f;
         if (is_dir($full))                continue;
-        if (substr($f, -3) !== '.md')     continue;
+        $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+        if (!in_array($ext, $exts, true)) continue;
 
         $raw = file_get_contents($full);
         if ($raw === false) continue;
 
-        $name = preg_replace('/\.md$/', '', $f);
+        // Solo .md/.markdown ocultan la extension en el display name
+        $name = in_array($ext, ['md', 'markdown'], true)
+            ? preg_replace('/\.(md|markdown)$/i', '', $f)
+            : $f;
 
         $items[] = [
             'name'        => $name,
@@ -528,6 +532,7 @@ if ($folderKey === 'custom' && $customPath !== '') {
     $activeKey  = 'custom';
     $activeLbl  = $baseLabel !== '' ? $baseLabel : 'Custom';
     $isValid    = is_dir($rootDir);
+    $preset     = ['mode' => 'flat']; // evita warning en linea $mode = ($preset['mode'] ?? 'flat')
 } else {
     // Migracion: la antigua key 'drive' apunta al primer preset Drive descubierto
     if ($folderKey === 'drive') {
@@ -602,8 +607,41 @@ if ($mode === 'drive') {
         'grimoires' => []
     ];
 } else {
-    $agents    = readSection($rootDir, 'agentes', $relPrefix);
-    $grimoires = $subDir ? readSection($subDir, 'grimorios', $relPrefix . '/grimorios') : [];
+    // En modo custom: aceptar todas las extensiones editables.
+    // En presets (.claude/agents/commands/etc): solo .md como siempre.
+    $sectionExts = ($folderKey === 'custom')
+        ? ['md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
+           'html','htm','css','scss','js','ts','php','py','rb','go','rs',
+           'java','c','cpp','cs','sh','sql','ini','conf','log','env']
+        : ['md'];
+
+    $agents    = readSection($rootDir, 'agentes', $relPrefix, $sectionExts);
+    $grimoires = $subDir ? readSection($subDir, 'grimorios', $relPrefix . '/grimorios', $sectionExts) : [];
+
+    // Carpetas + ruta padre (solo en modo custom — para navegacion)
+    $folders    = [];
+    $parentPath = null;
+    if ($folderKey === 'custom' && is_dir($rootDir)) {
+        $entries = @scandir($rootDir);
+        if ($entries !== false) {
+            foreach ($entries as $e) {
+                if ($e === '.' || $e === '..') continue;
+                if ($e[0] === '.') continue; // ocultar carpetas dotfiles
+                $full = rtrim(str_replace('\\', '/', $rootDir), '/') . '/' . $e;
+                if (is_dir($full)) $folders[] = ['name' => $e, 'fullPath' => $full];
+            }
+            usort($folders, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
+        }
+        $real = realpath($rootDir);
+        if ($real !== false) {
+            $real   = str_replace('\\', '/', $real);
+            $parent = dirname($real);
+            $parent = str_replace('\\', '/', $parent);
+            if ($parent !== $real && !preg_match('#^[A-Za-z]:/?$#', $real)) {
+                $parentPath = $parent;
+            }
+        }
+    }
     $payload = [
         'header' => [
             'title'        => 'Visor de Agentes',
@@ -614,12 +652,14 @@ if ($mode === 'drive') {
             'currentKey'   => $activeKey,
             'currentLabel' => $activeLbl,
             'currentPath'  => str_replace('\\', '/', $rootDir),
+            'parentPath'   => $parentPath,
             'valid'        => $isValid,
             'presets'      => presetList($PRESETS),
             'sectionLabel' => $subLabel
         ],
         'agents'    => $agents,
-        'grimoires' => $grimoires
+        'grimoires' => $grimoires,
+        'folders'   => $folders
     ];
 }
 

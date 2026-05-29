@@ -1,5 +1,6 @@
 let api = 'ctrl/ctrl-visor.php';
-let visor, visorView, app;
+let apiIA = 'ctrl/ctrl-coffeeia.php';
+let visor, visorView, app, coffeeIA;
 
 const VISOR_STORAGE_KEY = 'visor:settings:v1';
 const EDITABLE_EXTS = [
@@ -13,6 +14,7 @@ $(async () => {
     visor     = new Visor(api, 'root');
     app       = new App(api, 'root');
     await app.init();
+    coffeeIA  = new CoffeeIA(apiIA, app);
 });
 
 
@@ -32,8 +34,8 @@ class App {
     }
 
     loadSettings() {
-        const validStyles = ['sepia', 'github', 'notion'];
-        const fallback = { folder: 'agents', customPath: '', theme: 'dark', docStyle: 'sepia', docZoom: 1 };
+        const validStyles = ['github', 'notion', 'dracula', 'monokai'];
+        const fallback = { folder: 'agents', customPath: '', theme: 'dark', docStyle: 'github', docZoom: 1 };
         try {
             const raw = localStorage.getItem(VISOR_STORAGE_KEY);
             if (!raw) return fallback;
@@ -45,7 +47,7 @@ class App {
                 folder,
                 customPath: parsed.customPath || '',
                 theme:      parsed.theme === 'light' ? 'light' : 'dark',
-                docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'sepia',
+                docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'github',
                 docZoom:    (isFinite(zoom) && zoom >= 0.7 && zoom <= 1.8) ? zoom : 1
             };
         } catch (e) {
@@ -598,8 +600,21 @@ class App {
 
     bindSidebarClicks() {
         $('#sidebarList .sidebar-item').off('click').on('click', (e) => {
-            const fileName = $(e.currentTarget).data('file');
-            this.loadFile(fileName);
+            const $el = $(e.currentTarget);
+            const folder = $el.data('folder');
+            if (folder) {
+                // Navegacion a subcarpeta (solo en modo custom)
+                this.settings.folder     = 'custom';
+                this.settings.customPath = String(folder);
+                this.saveSettings();
+                $('#folderCustomPath').val(this.settings.customPath);
+                $('#folderSelect').val('custom');
+                $('#folderCustomPath, #btnFolderApply, #btnFolderBrowse').removeClass('hidden');
+                this.reloadLibrary();
+                return;
+            }
+            const fileName = $el.data('file');
+            if (fileName) this.loadFile(fileName);
         });
     }
 
@@ -711,6 +726,24 @@ class Visor {
         return raw.split('\n').length;
     }
 
+    extToHljsLang(ext) {
+        const map = {
+            php: 'php',
+            js: 'javascript', ts: 'typescript', jsx: 'javascript', tsx: 'typescript',
+            css: 'css', scss: 'scss',
+            html: 'html', htm: 'html', xml: 'xml',
+            json: 'json',
+            yml: 'yaml', yaml: 'yaml', toml: 'ini',
+            py: 'python', rb: 'ruby', go: 'go', rs: 'rust',
+            java: 'java', c: 'c', cpp: 'cpp', cs: 'csharp',
+            sh: 'bash', env: 'bash',
+            sql: 'sql',
+            ini: 'ini', conf: 'ini',
+            log: 'plaintext', txt: 'plaintext', csv: 'plaintext', tsv: 'plaintext'
+        };
+        return map[ext] || 'plaintext';
+    }
+
     parseFrontmatter(raw) {
         const fm = { name: null, description: null, model: null, type: null, project: null, status: null, date: null };
         const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
@@ -799,13 +832,18 @@ class VisorView {
     }
 
     applyDocStyle(style) {
-        const valid = ['sepia', 'github', 'notion'].includes(style) ? style : 'sepia';
+        const valid = ['github', 'notion', 'dracula', 'monokai'].includes(style) ? style : 'github';
         $('#md-rendered').attr('data-style', valid);
         const hljsTheme = document.getElementById('hljsTheme');
         if (hljsTheme) {
-            hljsTheme.href = valid === 'sepia'
-                ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css'
-                : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+            const base = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/';
+            const map = {
+                github:  base + 'github.min.css',
+                notion:  base + 'github.min.css',
+                dracula: base + 'base16/dracula.min.css',
+                monokai: base + 'monokai.min.css'
+            };
+            hljsTheme.href = map[valid];
         }
     }
 
@@ -901,14 +939,45 @@ class VisorView {
             `;
         };
 
-        const empty = (!agentsFiltered.length && !grimoiresFiltered.length) ? `
+        const empty = (!agentsFiltered.length && !grimoiresFiltered.length && !(data.folders && data.folders.length)) ? `
             <div class="empty-state">
                 <i data-lucide="search-x" class="w-8 h-8"></i>
                 <p class="text-xs">Sin resultados</p>
             </div>
         ` : '';
 
+        const foldersFiltered = (data.folders || []).filter(f => {
+            const t = (filter || '').trim().toLowerCase();
+            return !t || f.name.toLowerCase().includes(t);
+        });
+        const parentPath = data.header.parentPath || null;
+        const showFolders = (foldersFiltered.length || parentPath);
+
+        const folderRows = (parentPath ? `
+            <div class="sidebar-item is-folder up-link" data-folder="${parentPath}">
+                <i data-lucide="corner-left-up" class="file-icon fmt-folder"></i>
+                <span class="file-name">.. (carpeta superior)</span>
+            </div>
+        ` : '') + foldersFiltered.map(f => `
+            <div class="sidebar-item is-folder" data-folder="${f.fullPath}">
+                <i data-lucide="folder" class="file-icon fmt-folder"></i>
+                <span class="file-name">${f.name}</span>
+            </div>
+        `).join('');
+
+        const foldersSection = showFolders ? `
+            <div class="section-header">
+                <span class="flex items-center gap-1.5">
+                    <i data-lucide="folder-open" class="w-3 h-3 text-gray-500"></i>
+                    Carpetas
+                </span>
+                <span class="badge-count">${foldersFiltered.length}</span>
+            </div>
+            <div>${folderRows}</div>
+        ` : '';
+
         $('#sidebarList').html(`
+            ${foldersSection}
             ${buildSection(mainLabel, agentsFiltered, 'bot')}
             ${subLabel ? buildSection(subLabel, grimoiresFiltered, 'book-open') : ''}
             ${empty}
@@ -1072,10 +1141,22 @@ class VisorView {
     }
 
     renderContent(file) {
-        const body = visor.stripFrontmatter(file.raw);
-        const rendered = (typeof marked !== 'undefined' && marked.parse)
-            ? marked.parse(body)
-            : `<pre style="white-space:pre-wrap;">${body.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</pre>`;
+        const parts = (file.file || '').split('.');
+        const ext   = parts.length > 1 ? parts.pop().toLowerCase() : '';
+        const isMd  = ext === 'md' || ext === 'markdown' || ext === '';
+
+        let rendered;
+        if (isMd) {
+            const body = visor.stripFrontmatter(file.raw);
+            rendered = (typeof marked !== 'undefined' && marked.parse)
+                ? marked.parse(body)
+                : `<pre style="white-space:pre-wrap;">${body.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</pre>`;
+        } else {
+            // Archivos de codigo: mostrar como bloque highlighted, sin pasar por marked
+            const lang    = visor.extToHljsLang(ext);
+            const escaped = file.raw.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+            rendered = `<pre class="md-code-fullfile"><code class="language-${lang}">${escaped}</code></pre>`;
+        }
         $('#md-rendered').html(rendered);
 
         const tocItems = [];
@@ -1171,5 +1252,286 @@ class VisorView {
         $t.text(msg).attr('data-tone', tone).addClass('visible');
         clearTimeout(this._toastTimer);
         this._toastTimer = setTimeout(() => $t.removeClass('visible'), 2400);
+    }
+}
+
+
+class CoffeeIA {
+
+    constructor(apiEndpoint, appRef) {
+        this._api     = apiEndpoint;
+        this._app     = appRef;
+        this.history  = [];
+        this.isOpen   = false;
+        this.isBusy   = false;
+        this._chipsRendered = false;
+
+        this.bind();
+        this._syncContext();
+    }
+
+    /* ── Public: open / close / toggle ── */
+
+    open() {
+        $('#iaDrawer').addClass('is-open');
+        $('#btnToggleCoffeeIA').addClass('is-active');
+        this.isOpen = true;
+        this._syncContext();
+    }
+
+    close() {
+        $('#iaDrawer').removeClass('is-open');
+        $('#btnToggleCoffeeIA').removeClass('is-active');
+        this.isOpen = false;
+    }
+
+    toggle() {
+        this.isOpen ? this.close() : this.open();
+    }
+
+    /* ── Bind events ── */
+
+    bind() {
+        $('#btnToggleCoffeeIA').on('click', () => this.toggle());
+        $('#btnCloseIA').on('click', () => this.close());
+
+        $('#iaClearBtn').on('click', () => this.clearConversation());
+
+        $('#iaSendBtn').on('click', () => this._submit());
+
+        $('#iaInputTextarea').on('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this._submit();
+            }
+        });
+
+        $('#iaInputTextarea').on('input', function () {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        $(document).on('keydown.coffeeIA', (e) => {
+            if (e.key === 'Escape' && this.isOpen) {
+                this.close();
+                return;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+                e.preventDefault();
+                this.toggle();
+            }
+        });
+
+        $(document).on('click', '.ia-suggestion', (e) => {
+            const prompt = $(e.currentTarget).data('prompt') || $(e.currentTarget).text();
+            this._sendMessage(prompt);
+        });
+    }
+
+    /* ── Context bar sync ── */
+
+    _syncContext() {
+        const currentFile = this._app.currentFile || '—';
+        $('#iaCtxFilename').text(currentFile);
+
+        if (currentFile && currentFile !== '—') {
+            const file = visor.getFile(this._app.allFiles || [], currentFile);
+            const meta = file ? `${file.size}` : '';
+            $('#iaCtxMeta').text(meta);
+        } else {
+            $('#iaCtxMeta').text('');
+        }
+    }
+
+    /* ── Submit from input ── */
+
+    _submit() {
+        if (this.isBusy) return;
+        const $ta   = $('#iaInputTextarea');
+        const text  = $ta.val().trim();
+        if (!text) return;
+        $ta.val('').css('height', 'auto');
+        this._sendMessage(text);
+    }
+
+    /* ── Core: send message ── */
+
+    async _sendMessage(text) {
+        if (this.isBusy) return;
+        this.isBusy = true;
+        $('#iaSendBtn').prop('disabled', true);
+
+        // Switch to chat state (first message)
+        if (!this._inChatMode()) {
+            this._switchToChat();
+        }
+
+        this.history.push({ role: 'user', content: text });
+        this._appendUserMessage(text);
+
+        // Typing indicator
+        const $typing = this._appendTyping();
+        this._scrollBottom();
+
+        const currentFileObj = this._app.currentFile
+            ? (this._app.allFiles || []).find(f => f.file === this._app.currentFile)
+            : null;
+
+        const payload = {
+            messages:           this.history.map(m => ({ role: m.role, content: m.content })),
+            currentFile:        this._app.currentFile || '',
+            currentFilePath:    currentFileObj?.fullPath || '',
+            currentFileContent: currentFileObj?.raw || '',
+            customPath:         (this._app.settings && this._app.settings.customPath) ? this._app.settings.customPath : ''
+        };
+
+        const res  = await fetch(this._api, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        $typing.remove();
+
+        if (!data.ok) {
+            this._appendAIMessage('Error: ' + (data.error || 'Respuesta invalida'), null);
+        } else {
+            this.history.push({ role: 'assistant', content: data.reply });
+            this._appendAIMessage(data.reply, {
+                credits:    data.credits_estimate,
+                elapsed_ms: data.elapsed_ms,
+                tokens:     data.tokens_used
+            });
+        }
+
+        this._scrollBottom();
+        this.isBusy = false;
+        $('#iaSendBtn').prop('disabled', false);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    /* ── DOM helpers ── */
+
+    _inChatMode() {
+        return $('#iaBodyChat').is(':visible');
+    }
+
+    _switchToChat() {
+        $('#iaBodyEmpty').hide();
+        $('#iaBodyChat').show().css('display', 'flex');
+
+        // Render context chips once
+        if (!this._chipsRendered) {
+            this._chipsRendered = true;
+            const files = (this._app.allFiles || []).slice(0, 10);
+            if (files.length) {
+                const chips = files.map(f =>
+                    `<span class="ia-context-chip"><i data-lucide="file-text"></i>${f.file}</span>`
+                ).join('');
+                const $greet = $(`
+                    <div class="ia-msg ai" id="iaGreetMsg">
+                        <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA</span></div>
+                        <div class="ia-context-chips">
+                            <div class="ia-context-chips-header">
+                                <i data-lucide="sprout"></i>
+                                Grimorios en contexto
+                            </div>
+                            <div class="ia-context-chips-list">${chips}</div>
+                        </div>
+                        <div class="ia-msg-text"><p>Hola. Soy <strong>CoffeeIA</strong>, tu asistente del framework CoffeeSoft. ¿En que te puedo ayudar hoy?</p></div>
+                    </div>
+                `);
+                $('#iaBodyChat').append($greet);
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+    }
+
+    _appendUserMessage(text) {
+        const $msg = $(`
+            <div class="ia-msg user">
+                <div class="ia-msg-text"><p>${this._escape(text)}</p></div>
+            </div>
+        `);
+        $('#iaBodyChat').append($msg);
+    }
+
+    _appendAIMessage(text, meta) {
+        const htmlText = this._markdownToHtml(text);
+        let metaHtml = '';
+        if (meta) {
+            const elapsedSec = meta.elapsed_ms > 0 ? (meta.elapsed_ms / 1000).toFixed(1) + 's' : '—';
+            metaHtml = `
+                <div class="ia-msg-meta-footer">
+                    <span class="meta-item"><span class="dot"></span>Credits: <strong>${meta.credits ?? '—'}</strong></span>
+                    <span class="meta-item">Time: <strong>${elapsedSec}</strong></span>
+                    <span class="meta-actions">
+                        <button class="meta-iconbtn ia-copy-btn" title="Copiar respuesta"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                    </span>
+                </div>
+            `;
+        }
+        const $msg = $(`
+            <div class="ia-msg ai">
+                <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA</span></div>
+                <div class="ia-msg-text">${htmlText}</div>
+                ${metaHtml}
+            </div>
+        `);
+        $msg.find('.ia-copy-btn').on('click', () => {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text);
+            }
+            if (visorView) visorView.toast('Respuesta copiada', 'success');
+        });
+        $('#iaBodyChat').append($msg);
+    }
+
+    _appendTyping() {
+        const $t = $(`
+            <div class="ia-msg ai ia-typing-msg">
+                <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA</span></div>
+                <div class="ia-typing">
+                    <span class="ia-typing-dot"></span>
+                    <span class="ia-typing-dot"></span>
+                    <span class="ia-typing-dot"></span>
+                </div>
+            </div>
+        `);
+        $('#iaBodyChat').append($t);
+        return $t;
+    }
+
+    _scrollBottom() {
+        const el = $('#iaBodyChat')[0] || $('#iaBodyEmpty')[0];
+        if (el) el.scrollTop = el.scrollHeight;
+    }
+
+    /* ── Clear conversation ── */
+
+    clearConversation() {
+        this.history = [];
+        this._chipsRendered = false;
+        $('#iaBodyChat').empty().hide();
+        $('#iaBodyEmpty').show();
+        this._syncContext();
+    }
+
+    /* ── Minimal markdown → HTML ── */
+
+    _markdownToHtml(text) {
+        if (typeof marked !== 'undefined' && marked.parse) {
+            return marked.parse(text);
+        }
+        return '<p>' + this._escape(text).replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
+    }
+
+    _escape(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 }

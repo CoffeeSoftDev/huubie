@@ -44,14 +44,7 @@
                 </button>
             </div>
 
-            <div class="global-search-wrap">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
-                </svg>
-                <input id="globalSearch" type="text" placeholder="Buscar en todos los archivos..." class="global-search-input">
-            </div>
-
-            <button id="btnRefresh" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Refrescar lista">
+<button id="btnRefresh" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Refrescar lista">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 <span class="btn-label">Refrescar</span>
             </button>
@@ -119,9 +112,10 @@
                     </div>
                     <span class="doc-toolbar-sep"></span>
                     <select id="docStyleSelect" class="doc-style-select" title="Estilo de lectura">
-                        <option value="sepia">Papel sepia</option>
                         <option value="github">GitHub</option>
                         <option value="notion">Notion</option>
+                        <option value="dracula">Dracula</option>
+                        <option value="monokai">Monokai</option>
                     </select>
                     <div class="doc-zoom" title="Tama&ntilde;o de texto">
                         <button id="btnZoomOut" type="button" title="Disminuir texto"><i data-lucide="minus" class="w-3 h-3"></i></button>
@@ -148,6 +142,12 @@
                     <button id="btnCancel" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Descartar cambios">
                         <i data-lucide="x" class="w-3.5 h-3.5"></i>
                         Cancelar
+                    </button>
+                    <span class="doc-toolbar-sep"></span>
+                    <button id="btnToggleCoffeeIA" class="cs-btn cs-btn-sm btn-coffeeia flex items-center gap-1.5" title="CoffeeIA (Ctrl+I)">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                        CoffeeIA
+                        <span class="dot-indicator"></span>
                     </button>
                 </div>
             </div>
@@ -195,6 +195,66 @@
                 </div>
             </div>
         </main>
+
+        <!-- CoffeeIA Drawer -->
+        <aside id="iaDrawer" class="ia-drawer">
+            <div class="ia-drawer-inner">
+
+                <header class="ia-drawer-header">
+                    <div class="ia-drawer-title">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        <span>CoffeeIA</span>
+                    </div>
+                    <button id="btnCloseIA" class="ia-drawer-close" title="Cerrar (Esc)">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </header>
+
+                <div id="iaDrawerContext" class="ia-drawer-context">
+                    <i data-lucide="file-text"></i>
+                    <span id="iaCtxFilename" class="ia-ctx-filename">—</span>
+                    <span id="iaCtxMeta" style="margin-left:auto;"></span>
+                </div>
+
+                <!-- Estado VACIO -->
+                <div class="ia-drawer-body" id="iaBodyEmpty">
+                    <div class="ia-empty">
+                        <i data-lucide="sparkles"></i>
+                        <div class="ia-empty-title">CoffeeIA</div>
+                        <div class="ia-empty-subtitle">Pregunta cualquier cosa sobre el documento o elige una sugerencia.</div>
+                        <div class="ia-empty-suggestions">
+                            <button class="ia-suggestion" data-prompt="Resume este documento">Resume este documento</button>
+                            <button class="ia-suggestion" data-prompt="Encuentra inconsistencias">Encuentra inconsistencias</button>
+                            <button class="ia-suggestion" data-prompt="Sugiere mejoras de estructura">Sugiere mejoras de estructura</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estado CHAT -->
+                <div class="ia-drawer-body" id="iaBodyChat" style="display:none;"></div>
+
+                <div class="ia-drawer-input">
+                    <div class="ia-input-wrap">
+                        <textarea id="iaInputTextarea" class="ia-input-textarea" rows="1" placeholder="Pregunta algo sobre el documento..."></textarea>
+                        <button id="iaSendBtn" class="ia-send-btn" title="Enviar (Enter)">
+                            <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                    <div class="ia-input-hint">
+                        <button id="iaClearBtn" title="Limpiar conversacion" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;">
+                            <i data-lucide="trash-2" class="w-3 h-3" style="display:inline-block;vertical-align:middle;margin-right:3px;"></i>
+                            Limpiar
+                        </button>
+                        <button class="ia-model-pill" title="Modelo activo (solo lectura)">
+                            Claude Opus 4.6
+                            <i data-lucide="chevron-down"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
     </div>
 
     <footer class="visor-footer">

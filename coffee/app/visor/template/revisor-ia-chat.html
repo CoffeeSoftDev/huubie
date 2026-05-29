@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visor de Agentes — CoffeeIA Chat</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* ── Tokens DARK (default) ─────────────────────────────────── */
+        :root, [data-theme="dark"] {
+            --vsr-bg-base:      #111928;
+            --vsr-bg-chrome:    #141d2b;
+            --vsr-bg-card:      #1F2A37;
+            --vsr-bg-input:     #1F2A37;
+            --vsr-bg-hover:     #1a2332;
+
+            --vsr-text:         #ffffff;
+            --vsr-text-soft:    #E5E7EB;
+            --vsr-text-mid:     #D1D5DB;
+            --vsr-text-muted:   #9CA3AF;
+            --vsr-text-mute2:   #6B7280;
+
+            --vsr-border:       rgba(55,65,81,.6);
+            --vsr-border-soft:  rgba(55,65,81,.4);
+            --vsr-border-input: rgba(55,65,81,.6);
+            --vsr-divider:      rgba(124,58,237,0.18);
+
+            --vsr-accent:       #7C3AED;
+            --vsr-accent-soft:  #A855F7;
+            --vsr-accent-tint:  rgba(124,58,237,.18);
+
+            --vsr-shadow-chrome: 0 4px 8px rgba(0,0,0,0.3);
+            --vsr-scrollbar:     #374151;
+            --vsr-scrollbar-hov: #4B5563;
+        }
+        [data-theme="light"] {
+            --vsr-bg-base:      #F3F4F6;
+            --vsr-bg-chrome:    #FFFFFF;
+            --vsr-bg-card:      #FFFFFF;
+            --vsr-bg-input:     #FFFFFF;
+            --vsr-bg-hover:     #F3F4F6;
+            --vsr-text:         #111827;
+            --vsr-text-soft:    #1F2937;
+            --vsr-text-mid:     #374151;
+            --vsr-text-muted:   #6B7280;
+            --vsr-text-mute2:   #9CA3AF;
+            --vsr-border:       #E5E7EB;
+            --vsr-border-soft:  #E5E7EB;
+            --vsr-border-input: #E5E7EB;
+            --vsr-divider:      rgba(124,58,237,0.22);
+            --vsr-accent:       #7C3AED;
+            --vsr-accent-soft:  #6D28D9;
+            --vsr-accent-tint:  rgba(124,58,237,.10);
+            --vsr-shadow-chrome: 0 1px 4px rgba(17,24,39,0.06);
+            --vsr-scrollbar:     #D1D5DB;
+            --vsr-scrollbar-hov: #9CA3AF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+
+        .visor-body {
+            background: var(--vsr-bg-base);
+            font-family: 'Inter', system-ui, sans-serif;
+            color: var(--vsr-text);
+            height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        .visor-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 22px; height: 60px; flex-shrink: 0;
+            background-color: var(--vsr-bg-chrome);
+            border-bottom: 1px solid var(--vsr-divider);
+            box-shadow: var(--vsr-shadow-chrome);
+        }
+        .visor-body-row { flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden; }
+        .visor-sidebar {
+            width: 320px; flex-shrink: 0; display: flex; flex-direction: column;
+            background-color: var(--vsr-bg-chrome);
+            border-right: 1px solid var(--vsr-border); min-height: 0;
+        }
+        .visor-main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; position: relative; }
+        .visor-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 9px 22px; flex-shrink: 0; font-size: 11px; color: var(--vsr-text-mute2);
+            background-color: var(--vsr-bg-chrome); border-top: 1px solid var(--vsr-border-soft);
+        }
+        .visor-footer .vsr-footer-strong { color: var(--vsr-text-soft); font-weight: 600; }
+        .visor-footer .vsr-footer-sep { color: var(--vsr-text-mute2); }
+        .visor-footer .vsr-footer-label { color: var(--vsr-text-muted); }
+        .visor-footer #footerFile { color: var(--vsr-accent); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .visor-footer #footerSize { color: var(--vsr-text-mid); font-family: 'JetBrains Mono', monospace; }
+
+        .sidebar-search-wrap { padding: 14px; border-bottom: 1px solid var(--vsr-border-soft); flex-shrink: 0; }
+        .sidebar-list { flex: 1 1 auto; overflow-y: auto; padding: 8px 0; min-height: 0; }
+        .sidebar-footer {
+            padding: 12px 14px; border-top: 1px solid var(--vsr-border-soft);
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px; flex-shrink: 0; min-width: 0;
+        }
+        .sidebar-footer #footerSource { color: var(--vsr-text-mute2); font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; flex-shrink: 0; }
+        .sidebar-footer #footerPath {
+            color: var(--vsr-text-muted); font-size: 11px; font-family: 'JetBrains Mono', monospace;
+            min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap; text-align: right; direction: rtl;
+        }
+
+        .main-breadcrumb {
+            padding: 14px 28px; border-bottom: 1px solid var(--vsr-border-soft);
+            display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+        }
+        .main-content { flex: 1 1 auto; overflow-y: auto; padding: 24px 28px; min-height: 0; }
+
+        .sidebar-list::-webkit-scrollbar,
+        .main-content::-webkit-scrollbar { width: 8px; height: 8px; }
+        .sidebar-list::-webkit-scrollbar-track,
+        .main-content::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-list::-webkit-scrollbar-thumb,
+        .main-content::-webkit-scrollbar-thumb { background: var(--vsr-scrollbar); border-radius: 4px; }
+        .sidebar-list::-webkit-scrollbar-thumb:hover,
+        .main-content::-webkit-scrollbar-thumb:hover { background: var(--vsr-scrollbar-hov); }
+
+        /* cs-* mini ui-kit */
+        .cs-btn {
+            padding: 6px 11px; font-size: 11.5px; border-radius: 7px;
+            display: inline-flex; align-items: center; gap: 6px;
+            font-weight: 500; cursor: pointer; border: 1px solid transparent;
+            transition: all .15s ease;
+        }
+        .cs-btn-sm { padding: 5px 10px; font-size: 11px; }
+        .cs-btn-outline { color: var(--vsr-text-soft); background-color: transparent; border: 1px solid var(--vsr-border-input); }
+        .cs-btn-outline:hover { background-color: var(--vsr-bg-hover); border-color: var(--vsr-accent); color: var(--vsr-text); }
+        .cs-btn-ghost { color: var(--vsr-text-muted); background-color: transparent; }
+        .cs-btn-ghost:hover { color: var(--vsr-text); background-color: var(--vsr-bg-hover); }
+
+        .cs-input {
+            padding: 8px 11px; font-size: 12px; min-height: 0;
+            background-color: var(--vsr-bg-input); color: var(--vsr-text-soft);
+            border: 1px solid var(--vsr-border-input); border-radius: 7px; width: 100%;
+        }
+        .cs-input::placeholder { color: var(--vsr-text-mute2); }
+        .cs-input:focus { border-color: var(--vsr-accent); box-shadow: 0 0 0 3px var(--vsr-accent-tint); outline: none; }
+        .cs-input.pl-9 { padding-left: 32px; }
+        .cs-input-group { position: relative; display: flex; align-items: center; }
+        .cs-input-group-icon {
+            position: absolute; left: 0; top: 0; bottom: 0;
+            display: flex; align-items: center; justify-content: center;
+            width: 32px; color: var(--vsr-text-mute2); pointer-events: none;
+        }
+
+        .cs-badge {
+            padding: 2px 8px; font-size: 10px; line-height: 1.4;
+            font-weight: 600; border-radius: 9999px; display: inline-flex;
+            align-items: center; gap: 4px;
+        }
+        .badge-primary { background: var(--vsr-accent-tint); color: #C4B5FD; border: 1px solid rgba(124,58,237,.35); }
+        [data-theme="light"] .badge-primary { color: #6D28D9; }
+
+        .cs-tabs {
+            display: inline-flex; gap: 2px;
+            background-color: var(--vsr-bg-card);
+            border: 1px solid var(--vsr-border); padding: 4px;
+            border-radius: 8px;
+        }
+        .cs-tab {
+            padding: 7px 14px; font-size: 12px;
+            color: var(--vsr-text-muted); background-color: transparent;
+            border: none; border-radius: 6px; cursor: pointer; font-weight: 500;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .cs-tab:hover { color: var(--vsr-text); background-color: var(--vsr-bg-hover); }
+        .cs-tab.active { color: #fff; background-color: var(--vsr-accent); }
+        .cs-tabs-inline { padding: 3px; background: var(--vsr-bg-input); border: 1px solid var(--vsr-border-input); border-radius: 8px; }
+        .cs-tabs-inline .cs-tab { padding: 5px 12px; font-size: 11px; border-radius: 5px; }
+
+        .doc-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+        .doc-toolbar-sep { width: 1px; height: 18px; background: var(--vsr-border); margin: 0 2px; }
+        .doc-style-select {
+            background: var(--vsr-bg-input); border: 1px solid var(--vsr-border-input);
+            border-radius: 7px; padding: 5px 9px; font-size: 11px;
+            color: var(--vsr-text-soft); font-family: 'Inter', sans-serif;
+            cursor: pointer; outline: none; height: 28px;
+        }
+        .doc-zoom {
+            display: flex; align-items: center; gap: 2px;
+            background: var(--vsr-bg-input); border: 1px solid var(--vsr-border-input);
+            border-radius: 7px; padding: 2px; height: 28px;
+        }
+        .doc-zoom button {
+            width: 22px; height: 22px;
+            display: flex; align-items: center; justify-content: center;
+            background: transparent; border: none; border-radius: 5px;
+            color: var(--vsr-text-soft); cursor: pointer;
+        }
+        .doc-zoom button:hover { background: var(--vsr-bg-hover); color: var(--vsr-accent-soft); }
+        .doc-zoom #docZoomValue {
+            font-size: 10.5px; font-weight: 600; color: var(--vsr-text-soft);
+            min-width: 36px; text-align: center;
+            font-family: 'JetBrains Mono', monospace; user-select: none;
+        }
+
+        .visor-logo {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px; letter-spacing: .5px; color: #fff;
+            box-shadow: 0 4px 12px rgba(124,58,237,.35);
+        }
+        .user-avatar {
+            width: 38px; height: 38px; border-radius: 9999px;
+            background: linear-gradient(135deg, #1C64F2 0%, #7C3AED 100%);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 12px; color: #fff;
+        }
+        .vsr-header-left { display: flex; align-items: center; gap: 14px; }
+        .vsr-header-right { display: flex; align-items: center; gap: 12px; }
+        #headerTitle { font-size: 13.5px; font-weight: 700; color: var(--vsr-text); }
+        #headerSubtitle { font-size: 10px; color: var(--vsr-text-mute2); letter-spacing: .12em; text-transform: uppercase; }
+        .vsr-chip {
+            font-size: 10.5px; color: var(--vsr-text-mute2);
+            padding: 3px 9px; border-radius: 6px;
+            background: var(--vsr-bg-card); border: 1px solid var(--vsr-border);
+            margin-left: 14px;
+        }
+        .vsr-chip strong { color: var(--vsr-text-soft); font-weight: 600; }
+        .vsr-user-block {
+            display: flex; align-items: center; gap: 9px;
+            padding-left: 13px; border-left: 1px solid var(--vsr-border);
+        }
+        .vsr-user-block .col { display: flex; flex-direction: column; line-height: 1.2; }
+        #userName { font-size: 12px; font-weight: 600; color: var(--vsr-text); }
+        #userRole { font-size: 10px; color: var(--vsr-text-mute2); }
+
+        .section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 11px 14px 6px;
+            font-size: 10px; font-weight: 700; letter-spacing: .12em;
+            text-transform: uppercase; color: var(--vsr-text-mute2);
+        }
+        .sidebar-item {
+            display: flex; align-items: center; gap: 9px;
+            padding: 8px 14px; font-size: 12px; color: var(--vsr-text-mid);
+            cursor: pointer; border-left: 2px solid transparent;
+            transition: background-color .12s ease, color .12s ease;
+        }
+        .sidebar-item:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+        .sidebar-item.active {
+            background: linear-gradient(90deg, var(--vsr-accent-tint) 0%, transparent 100%);
+            border-left-color: var(--vsr-accent); color: var(--vsr-text);
+        }
+        .sidebar-item .file-icon { width: 14px; height: 14px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+        .sidebar-item.active .file-icon { color: var(--vsr-accent-soft); }
+        .sidebar-item .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sidebar-item .file-size { font-size: 9.5px; color: var(--vsr-text-mute2); font-family: 'JetBrains Mono', monospace; }
+        .sidebar-item .file-icon.fmt-md { color: #94A3B8; }
+        .sidebar-item.active .file-icon.fmt-md { color: var(--vsr-accent-soft); }
+
+        .breadcrumb { font-size: 12px; color: var(--vsr-text-muted); display: flex; align-items: center; gap: 6px; }
+        .breadcrumb .sep { color: var(--vsr-text-mute2); }
+        .breadcrumb .current { color: var(--vsr-text); font-weight: 500; }
+
+        /* ── Documento renderizado simulado ─────────────────────── */
+        .doc-main { flex: 1 1 auto; min-width: 0; }
+        .doc-main-meta { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+        #lineCountChip { font-size: 11.5px; color: var(--vsr-text-mute2); font-family: 'JetBrains Mono', monospace; }
+
+        .md-rendered {
+            background: #FAF7F2; color: #2C2416;
+            font-family: 'Lora', 'Georgia', serif;
+            font-size: 16px; line-height: 1.85;
+            width: 100%; max-width: 1000px; margin: 0 auto;
+            padding: 56px 72px 72px; border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.45);
+            border: 1px solid #E8DFCA; position: relative;
+        }
+        .md-rendered::before {
+            content: ''; position: absolute;
+            top: 0; left: 24px; right: 24px; height: 3px;
+            background: linear-gradient(90deg, #7C3AED 0%, #EC4899 100%);
+            border-radius: 0 0 4px 4px; opacity: .8;
+        }
+        .md-rendered h1 {
+            font-family: 'Inter', sans-serif; font-size: 1.875em; font-weight: 800;
+            color: #1A1208; margin: 4px 0 18px; padding-bottom: 12px;
+            border-bottom: 2px solid #D4C9B3; letter-spacing: -.01em;
+        }
+        .md-rendered h2 {
+            font-family: 'Inter', sans-serif; font-size: 1.375em; font-weight: 700;
+            color: #1A1208; margin: 32px 0 12px;
+            padding-bottom: 6px; border-bottom: 1px solid #E8DFCA;
+        }
+        .md-rendered p { margin: 12px 0; text-align: justify; }
+        .md-rendered ul { margin: 14px 0; padding-left: 26px; }
+        .md-rendered li { margin: 6px 0; }
+        .md-rendered ul li::marker { color: #7C3AED; font-weight: 700; }
+        .md-rendered code {
+            background: #F1E9D6; color: #6B21A8;
+            padding: 2px 7px; border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8125em;
+            border: 1px solid #E0D3B0;
+        }
+        .md-rendered strong { color: #1A1208; font-weight: 700; }
+
+        /* Boton trigger CoffeeIA — outline, sin gradiente */
+        .btn-coffeeia {
+            color: var(--vsr-accent-soft);
+            background-color: transparent;
+            border: 1px solid var(--vsr-border-input);
+            transition: all .15s ease;
+        }
+        .btn-coffeeia:hover {
+            border-color: var(--vsr-accent);
+            background-color: var(--vsr-accent-tint);
+        }
+        .btn-coffeeia.is-active {
+            background-color: var(--vsr-accent);
+            border-color: var(--vsr-accent);
+            color: #fff;
+        }
+
+        .theme-toggle {
+            display: flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 9px;
+            background: var(--vsr-bg-input); border: 1px solid var(--vsr-border-input);
+            color: var(--vsr-text-soft); cursor: pointer;
+        }
+        .theme-toggle:hover { border-color: rgba(124,58,237,.5); color: var(--vsr-accent-soft); }
+
+        /* ╔══════════════════════════════════════════════════════════╗
+           ║  PROPUESTA B — CHAT FULLSCREEN (toma area principal)      ║
+           ║  Estilo ChatGPT / Cursor: input centrado + mensajes       ║
+           ║  Toggle entre vista documento y vista chat                ║
+           ╚══════════════════════════════════════════════════════════╝ */
+
+        @keyframes chat-fade-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes msg-fade-in {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* La vista chat es hermana de la vista documento. Se intercambian con .is-active */
+        .doc-view, .chat-view {
+            display: none;
+            flex: 1 1 auto; min-height: 0;
+            flex-direction: column;
+        }
+        .doc-view.is-active, .chat-view.is-active { display: flex; animation: chat-fade-in .25s ease-out; }
+
+        /* Chat: layout central tipo ChatGPT */
+        .chat-stream {
+            flex: 1 1 auto; overflow-y: auto;
+            padding: 28px 28px 16px;
+            min-height: 0;
+        }
+        .chat-stream::-webkit-scrollbar { width: 8px; }
+        .chat-stream::-webkit-scrollbar-thumb { background: var(--vsr-scrollbar); border-radius: 4px; }
+
+        .chat-container {
+            max-width: 720px; margin: 0 auto;
+            display: flex; flex-direction: column; gap: 28px;
+        }
+
+        /* Empty/Welcome state — centrado verticalmente */
+        .chat-welcome {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; padding: 60px 24px;
+            min-height: 100%;
+        }
+        .chat-welcome-icon {
+            width: 56px; height: 56px; border-radius: 14px;
+            background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; margin-bottom: 18px;
+            box-shadow: 0 8px 24px rgba(124,58,237,.3);
+        }
+        .chat-welcome-title {
+            font-size: 22px; font-weight: 700; color: var(--vsr-text);
+            margin-bottom: 6px; letter-spacing: -.01em;
+        }
+        .chat-welcome-sub {
+            font-size: 13px; color: var(--vsr-text-muted);
+            margin-bottom: 26px; max-width: 440px;
+        }
+        .chat-welcome-sub .file-tag {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--vsr-accent-soft); font-weight: 600;
+        }
+        .chat-suggestions {
+            display: grid; grid-template-columns: repeat(2, 1fr);
+            gap: 10px; width: 100%; max-width: 540px;
+        }
+        .chat-suggestion {
+            text-align: left; padding: 14px 16px;
+            background: var(--vsr-bg-card);
+            border: 1px solid var(--vsr-border-soft);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all .15s ease;
+            display: flex; align-items: flex-start; gap: 10px;
+        }
+        .chat-suggestion:hover {
+            border-color: var(--vsr-accent);
+            background: var(--vsr-bg-hover);
+            transform: translateY(-1px);
+        }
+        .chat-suggestion-icon {
+            width: 28px; height: 28px; flex-shrink: 0;
+            border-radius: 7px;
+            background: var(--vsr-accent-tint);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--vsr-accent-soft);
+        }
+        .chat-suggestion-text {
+            display: flex; flex-direction: column; gap: 2px;
+            font-size: 12px;
+            min-width: 0;
+        }
+        .chat-suggestion-text .label { color: var(--vsr-text); font-weight: 600; }
+        .chat-suggestion-text .hint  { color: var(--vsr-text-muted); font-size: 11px; }
+
+        /* Mensajes en estilo ChatGPT — alineados al ancho del contenedor, sin burbujas extra */
+        .chat-msg { display: flex; gap: 14px; animation: msg-fade-in .25s ease-out; }
+        .chat-msg-avatar {
+            width: 32px; height: 32px; border-radius: 8px;
+            flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; color: #fff;
+        }
+        .chat-msg.user .chat-msg-avatar { background: linear-gradient(135deg, #1C64F2 0%, #7C3AED 100%); }
+        .chat-msg.ai   .chat-msg-avatar { background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%); }
+        .chat-msg-body { flex: 1; min-width: 0; padding-top: 4px; }
+        .chat-msg-name {
+            font-size: 12px; font-weight: 600;
+            color: var(--vsr-text); margin-bottom: 5px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .chat-msg-name .time { color: var(--vsr-text-mute2); font-size: 10.5px; font-weight: 400; }
+        .chat-msg-text { font-size: 13.5px; line-height: 1.65; color: var(--vsr-text-soft); }
+        .chat-msg-text p { margin: 0 0 10px; }
+        .chat-msg-text p:last-child { margin-bottom: 0; }
+        .chat-msg-text strong { color: var(--vsr-text); font-weight: 600; }
+        .chat-msg-text ul { padding-left: 22px; margin: 8px 0; }
+        .chat-msg-text li { margin: 4px 0; }
+        .chat-msg-text code {
+            background: var(--vsr-bg-input);
+            color: var(--vsr-accent-soft);
+            padding: 2px 6px; border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace; font-size: 12px;
+            border: 1px solid var(--vsr-border-input);
+        }
+        .chat-msg-text pre {
+            background: var(--vsr-bg-card);
+            border: 1px solid var(--vsr-border-soft);
+            border-radius: 8px; padding: 14px 16px;
+            margin: 10px 0; overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace; font-size: 12px;
+            line-height: 1.55; color: var(--vsr-text-soft);
+        }
+        .chat-msg-text pre code { background: transparent; border: none; padding: 0; color: inherit; font-size: inherit; }
+
+        /* Acciones inline al final del mensaje AI */
+        .chat-msg-actions {
+            display: flex; gap: 6px; margin-top: 10px;
+            opacity: .65; transition: opacity .15s ease;
+        }
+        .chat-msg:hover .chat-msg-actions { opacity: 1; }
+        .chat-msg-action {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 10.5px; color: var(--vsr-text-muted);
+            background: transparent; border: 1px solid var(--vsr-border-soft);
+            padding: 3px 8px; border-radius: 6px; cursor: pointer;
+            transition: all .15s ease;
+        }
+        .chat-msg-action:hover { color: var(--vsr-text); border-color: var(--vsr-accent); background: var(--vsr-bg-hover); }
+
+        /* ── Usuario: burbuja gris alineada a la derecha (Kiro-style) ── */
+        .chat-msg.user { justify-content: flex-end; }
+        .chat-msg.user .chat-msg-avatar { display: none; }
+        .chat-msg.user .chat-msg-body { flex: 0 1 auto; max-width: 75%; padding-top: 0; }
+        .chat-msg.user .chat-msg-name { display: none; }
+        .chat-msg.user .chat-msg-text {
+            background: var(--vsr-bg-card);
+            border: 1px solid var(--vsr-border-soft);
+            padding: 9px 14px; border-radius: 12px;
+            font-size: 12.5px;
+        }
+
+        /* ── Steering / contexto: cluster de chips de grimorios activos ── */
+        .chat-context-chips {
+            background: var(--vsr-bg-card);
+            border: 1px solid var(--vsr-border-soft);
+            border-radius: 10px;
+            padding: 11px 13px;
+        }
+        .chat-context-chips-header {
+            display: flex; align-items: center; gap: 7px;
+            font-size: 10.5px; font-weight: 600;
+            color: #34D399;
+            margin-bottom: 9px;
+            letter-spacing: .02em;
+        }
+        .chat-context-chips-header i { color: #34D399; }
+        .chat-context-chips-list { display: flex; flex-wrap: wrap; gap: 5px; }
+        .chat-context-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 10.5px; font-family: 'JetBrains Mono', monospace;
+            color: var(--vsr-text-soft);
+            background: var(--vsr-bg-input);
+            border: 1px solid var(--vsr-border-input);
+            padding: 3px 8px; border-radius: 6px;
+            transition: all .15s ease; cursor: default;
+        }
+        .chat-context-chip:hover { border-color: var(--vsr-accent); }
+        .chat-context-chip i { color: var(--vsr-accent-soft); width: 11px; height: 11px; }
+
+        /* ── Metadata footer por respuesta AI (Credits / Elapsed) ── */
+        .chat-msg-meta-footer {
+            display: flex; align-items: center; gap: 14px;
+            font-size: 10.5px; color: var(--vsr-text-mute2);
+            margin-top: 10px;
+        }
+        .chat-msg-meta-footer .meta-item { display: inline-flex; align-items: center; gap: 4px; }
+        .chat-msg-meta-footer .meta-item .dot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: var(--vsr-accent-soft);
+        }
+        .chat-msg-meta-footer .meta-actions {
+            margin-left: auto; display: flex; gap: 2px;
+        }
+        .chat-msg-meta-footer .meta-iconbtn {
+            width: 22px; height: 22px; border-radius: 5px;
+            background: transparent; border: none; cursor: pointer;
+            color: var(--vsr-text-mute2);
+            display: flex; align-items: center; justify-content: center;
+            transition: all .15s ease;
+        }
+        .chat-msg-meta-footer .meta-iconbtn:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
+
+        /* ── Checkpoint divider con Restore ── */
+        .chat-checkpoint {
+            display: flex; align-items: center; gap: 12px;
+            padding: 2px 0; margin: 2px 0;
+            font-size: 11px; color: var(--vsr-text-mute2);
+        }
+        .chat-checkpoint .line {
+            flex: 1; height: 1px; background: var(--vsr-border-soft);
+        }
+        .chat-checkpoint .label {
+            display: inline-flex; align-items: center; gap: 5px;
+            color: var(--vsr-text-muted);
+        }
+        .chat-checkpoint .label i { color: var(--vsr-text-muted); }
+        .chat-checkpoint .restore {
+            color: var(--vsr-accent-soft); cursor: pointer;
+            background: transparent; border: none;
+            font-size: 11px; font-weight: 500;
+            padding: 0;
+            transition: opacity .15s ease;
+        }
+        .chat-checkpoint .restore:hover { text-decoration: underline; }
+
+        /* ── Composer footer: model pill + autopilot toggle (Kiro-style) ── */
+        .chat-model-pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 10px;
+            background: transparent;
+            border: 1px solid var(--vsr-border-input);
+            border-radius: 9999px;
+            font-size: 11px; color: var(--vsr-text-soft);
+            cursor: pointer;
+            transition: all .15s ease;
+        }
+        .chat-model-pill:hover { border-color: var(--vsr-accent); color: var(--vsr-text); background: var(--vsr-bg-hover); }
+        .chat-model-pill i { width: 10px; height: 10px; color: var(--vsr-text-mute2); }
+
+        .chat-autopilot {
+            display: inline-flex; align-items: center; gap: 7px;
+            font-size: 11px; color: var(--vsr-text-soft);
+            cursor: pointer; user-select: none;
+        }
+        .chat-toggle-switch {
+            width: 32px; height: 18px;
+            background: var(--vsr-border-input);
+            border-radius: 9999px;
+            position: relative;
+            transition: background-color .18s ease;
+            flex-shrink: 0;
+        }
+        .chat-toggle-switch::after {
+            content: ''; position: absolute;
+            width: 14px; height: 14px;
+            top: 2px; left: 2px;
+            background: #fff; border-radius: 50%;
+            transition: left .18s cubic-bezier(.4, 0, .2, 1);
+            box-shadow: 0 1px 3px rgba(0,0,0,.25);
+        }
+        .chat-autopilot.is-on .chat-toggle-switch { background: var(--vsr-accent); }
+        .chat-autopilot.is-on .chat-toggle-switch::after { left: 16px; }
+
+        /* Input area abajo, centrada como ChatGPT */
+        .chat-composer-wrap {
+            flex-shrink: 0; padding: 14px 28px 22px;
+            background: var(--vsr-bg-base);
+        }
+        .chat-composer {
+            max-width: 720px; margin: 0 auto;
+            background: var(--vsr-bg-card);
+            border: 1px solid var(--vsr-border);
+            border-radius: 16px;
+            padding: 12px 14px 10px;
+            transition: border-color .15s ease;
+        }
+        .chat-composer:focus-within { border-color: var(--vsr-accent); box-shadow: 0 0 0 3px var(--vsr-accent-tint); }
+        .chat-composer-textarea {
+            width: 100%; min-height: 28px; max-height: 200px;
+            background: transparent; border: none; outline: none;
+            color: var(--vsr-text-soft); font-family: 'Inter', sans-serif;
+            font-size: 13.5px; line-height: 1.55; resize: none;
+        }
+        .chat-composer-textarea::placeholder { color: var(--vsr-text-mute2); }
+        .chat-composer-foot {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 8px;
+        }
+        .chat-composer-tools { display: flex; align-items: center; gap: 4px; }
+        .chat-composer-tool {
+            width: 28px; height: 28px; border-radius: 7px;
+            background: transparent; border: 1px solid transparent;
+            color: var(--vsr-text-muted); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all .15s ease;
+        }
+        .chat-composer-tool:hover { color: var(--vsr-accent-soft); background: var(--vsr-bg-hover); border-color: var(--vsr-border-soft); }
+        .chat-composer-tool.has-chip {
+            width: auto; padding: 0 8px; gap: 5px; font-size: 11px;
+            color: var(--vsr-text-soft); border-color: var(--vsr-border-input);
+            background: var(--vsr-bg-input);
+        }
+        .chat-composer-tool.has-chip .file-tag {
+            font-family: 'JetBrains Mono', monospace; color: var(--vsr-accent-soft);
+        }
+        .chat-composer-send {
+            width: 34px; height: 34px; border-radius: 9px;
+            background: var(--vsr-accent); color: #fff; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background-color .15s ease, transform .12s ease;
+        }
+        .chat-composer-send:hover { background: var(--vsr-accent-soft); transform: scale(1.05); }
+        .chat-composer-hint {
+            max-width: 720px; margin: 8px auto 0;
+            text-align: center; font-size: 10.5px; color: var(--vsr-text-mute2);
+        }
+        .chat-composer-hint kbd {
+            background: var(--vsr-bg-card); border: 1px solid var(--vsr-border-input);
+            padding: 1px 5px; border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+            color: var(--vsr-text-soft);
+        }
+
+        /* Vista chat: toolbar simplificada (volver al documento) */
+        .chat-topbar {
+            padding: 14px 28px; border-bottom: 1px solid var(--vsr-border-soft);
+            display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .chat-topbar-title {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 13px; color: var(--vsr-text);
+        }
+        .chat-topbar-title .badge-model {
+            font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+            color: var(--vsr-accent-soft); background: var(--vsr-accent-tint);
+            border: 1px solid rgba(124,58,237,.35);
+            padding: 2px 8px; border-radius: 9999px;
+        }
+        .chat-topbar-title .file-context {
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            color: var(--vsr-text-muted);
+            padding-left: 10px; margin-left: 4px;
+            border-left: 1px solid var(--vsr-border-soft);
+        }
+        .chat-topbar-actions { display: flex; align-items: center; gap: 8px; }
+    </style>
+</head>
+
+<body class="visor-body" data-theme="dark">
+
+    <!-- HEADER del visor -->
+    <header class="visor-header">
+        <div class="vsr-header-left">
+            <div class="visor-logo">VS</div>
+            <div class="flex flex-col leading-tight">
+                <span id="headerTitle">Visor de Agentes</span>
+                <span id="headerSubtitle">CoffeeSoft Library</span>
+            </div>
+            <span class="vsr-chip"><strong>14</strong> archivos</span>
+        </div>
+
+        <div class="vsr-header-right">
+            <button class="cs-btn cs-btn-outline cs-btn-sm">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                Refrescar
+            </button>
+            <button id="btnThemeToggle" class="theme-toggle" title="Cambiar tema">
+                <i data-lucide="moon" class="w-4 h-4"></i>
+            </button>
+            <div class="vsr-user-block">
+                <div class="user-avatar">RV</div>
+                <div class="col">
+                    <span id="userName">Rosy V.</span>
+                    <span id="userRole">Guardiana</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="visor-body-row">
+
+        <!-- SIDEBAR -->
+        <aside class="visor-sidebar">
+            <div class="sidebar-search-wrap">
+                <div class="cs-input-group">
+                    <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
+                    <input type="text" placeholder="Filtrar archivos..." class="cs-input pl-9">
+                </div>
+            </div>
+            <div class="sidebar-list">
+                <div class="section-header">
+                    <span>Agentes Claude</span>
+                    <span class="cs-badge badge-primary">5</span>
+                </div>
+                <div class="sidebar-item active">
+                    <i data-lucide="file-text" class="file-icon fmt-md"></i>
+                    <span class="file-name">coffee-magic.md</span>
+                    <span class="file-size">8.4 KB</span>
+                </div>
+                <div class="sidebar-item">
+                    <i data-lucide="file-text" class="file-icon fmt-md"></i>
+                    <span class="file-name">coffee-ia.md</span>
+                    <span class="file-size">12.1 KB</span>
+                </div>
+                <div class="sidebar-item">
+                    <i data-lucide="file-text" class="file-icon fmt-md"></i>
+                    <span class="file-name">coffee-intelligence.md</span>
+                    <span class="file-size">9.8 KB</span>
+                </div>
+                <div class="sidebar-item">
+                    <i data-lucide="file-text" class="file-icon fmt-md"></i>
+                    <span class="file-name">visor-architect.md</span>
+                    <span class="file-size">6.2 KB</span>
+                </div>
+                <div class="sidebar-item">
+                    <i data-lucide="file-text" class="file-icon fmt-md"></i>
+                    <span class="file-name">verify.md</span>
+                    <span class="file-size">3.7 KB</span>
+                </div>
+                <div class="section-header" style="margin-top:14px;">
+                    <span>Grimorios</span>
+                    <span class="cs-badge badge-primary">9</span>
+                </div>
+                <div class="sidebar-item">
+                    <i data-lucide="book" class="file-icon fmt-md"></i>
+                    <span class="file-name">grimorio-coffee-varoch.md</span>
+                    <span class="file-size">18.3 KB</span>
+                </div>
+                <div class="sidebar-item">
+                    <i data-lucide="book" class="file-icon fmt-md"></i>
+                    <span class="file-name">grimorio-huubie-ui.md</span>
+                    <span class="file-size">22.1 KB</span>
+                </div>
+                <div class="sidebar-item">
+                    <i data-lucide="book" class="file-icon fmt-md"></i>
+                    <span class="file-name">grimorio-finanzas.md</span>
+                    <span class="file-size">15.6 KB</span>
+                </div>
+            </div>
+            <div class="sidebar-footer">
+                <span id="footerSource">Local</span>
+                <span id="footerPath">.claude/agents</span>
+            </div>
+        </aside>
+
+        <!-- MAIN: alterna entre documento y chat fullscreen -->
+        <main class="visor-main">
+
+            <!-- ── VISTA DOCUMENTO (activa por defecto) ─────────── -->
+            <div id="docView" class="doc-view is-active">
+
+                <div class="main-breadcrumb">
+                    <nav class="breadcrumb">
+                        <i data-lucide="folder" class="w-4 h-4"></i>
+                        <span>agents</span>
+                        <span class="sep">/</span>
+                        <span class="current">coffee-magic.md</span>
+                    </nav>
+                    <div class="doc-toolbar">
+                        <div class="cs-tabs cs-tabs-inline">
+                            <button class="cs-tab active"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Renderizado</button>
+                            <button class="cs-tab"><i data-lucide="code-2" class="w-3.5 h-3.5"></i> Raw</button>
+                        </div>
+                        <span class="doc-toolbar-sep"></span>
+                        <select class="doc-style-select">
+                            <option>GitHub</option>
+                            <option selected>Notion</option>
+                            <option>Dracula</option>
+                            <option>Monokai</option>
+                        </select>
+                        <div class="doc-zoom">
+                            <button><i data-lucide="minus" class="w-3 h-3"></i></button>
+                            <span id="docZoomValue">100%</span>
+                            <button><i data-lucide="plus" class="w-3 h-3"></i></button>
+                        </div>
+                        <span class="doc-toolbar-sep"></span>
+                        <button class="cs-btn cs-btn-outline cs-btn-sm">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar ruta
+                        </button>
+                        <button class="cs-btn cs-btn-outline cs-btn-sm">
+                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar
+                        </button>
+                        <span class="doc-toolbar-sep"></span>
+                        <button id="btnOpenChat" class="cs-btn cs-btn-sm btn-coffeeia" title="Abrir CoffeeIA Chat (Ctrl+I)">
+                            <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                            CoffeeIA
+                        </button>
+                    </div>
+                </div>
+
+                <div class="main-content">
+                    <div class="doc-main">
+                        <div class="doc-main-meta">
+                            <span id="lineCountChip">~ 248 lineas</span>
+                        </div>
+                        <article class="md-rendered">
+                            <h1>CoffeeMagic — Conjurador de Interfaces</h1>
+                            <p>Eres <strong>CoffeeMagic</strong>, el conjurador de interfaces del ecosistema CoffeeSoft. Tu poder es materializar UIs completas en HTML estatico con Tailwind CSS.</p>
+                            <h2>Personalidad</h2>
+                            <p>Eres un conjurador de interfaces con un tono calido, creativo y teatral. Cada UI que generas es un hechizo (spell) que materializas desde el grimorio CoffeeSoft.</p>
+                            <h2>Spells disponibles</h2>
+                            <ul>
+                                <li><strong>conjure table</strong> — Tabla con filtros y paginacion.</li>
+                                <li><strong>conjure detail</strong> — Vista detalle con panel lateral.</li>
+                                <li><strong>conjure cards</strong> — Dashboard con KPI cards.</li>
+                                <li><strong>conjure form</strong> — Formulario centrado o modal.</li>
+                                <li><strong>conjure modal</strong> — Modal reutilizable.</li>
+                            </ul>
+                            <h2>Reglas criticas</h2>
+                            <p>Siempre usar Tailwind CSS CDN + Inter font. Generar HTML autocontenido. Respetar la paleta de tokens. Las tablas siempre con sticky thead y hover states.</p>
+                        </article>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── VISTA CHAT (oculta por defecto, toma todo el main) ─ -->
+            <div id="chatView" class="chat-view">
+
+                <div class="chat-topbar">
+                    <div class="chat-topbar-title">
+                        <i data-lucide="sparkles" class="w-4 h-4" style="color:var(--vsr-accent-soft);"></i>
+                        <span style="font-weight:600;">CoffeeIA</span>
+                        <span class="badge-model">claude-opus-4-7</span>
+                        <span class="file-context">coffee-magic.md</span>
+                    </div>
+                    <div class="chat-topbar-actions">
+                        <button class="cs-btn cs-btn-outline cs-btn-sm" id="btnNewChat" title="Nueva conversacion">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo
+                        </button>
+                        <button class="cs-btn cs-btn-outline cs-btn-sm" id="btnHistoryChat" title="Historial">
+                            <i data-lucide="history" class="w-3.5 h-3.5"></i> Historial
+                        </button>
+                        <span class="doc-toolbar-sep"></span>
+                        <button id="btnBackToDoc" class="cs-btn cs-btn-outline cs-btn-sm" title="Volver al documento (Esc)">
+                            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Volver al documento
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stream de mensajes (estado: welcome) -->
+                <div class="chat-stream" id="chatStreamWelcome">
+                    <div class="chat-welcome">
+                        <div class="chat-welcome-icon">
+                            <i data-lucide="sparkles" class="w-7 h-7"></i>
+                        </div>
+                        <div class="chat-welcome-title">Conversa con CoffeeIA</div>
+                        <div class="chat-welcome-sub">
+                            Pregunta cualquier cosa sobre <span class="file-tag">coffee-magic.md</span>.
+                            Puedo resumir, encontrar inconsistencias, sugerir reescrituras o explicar secciones.
+                        </div>
+                        <div class="chat-suggestions">
+                            <button class="chat-suggestion">
+                                <div class="chat-suggestion-icon"><i data-lucide="list-tree" class="w-3.5 h-3.5"></i></div>
+                                <div class="chat-suggestion-text">
+                                    <span class="label">Resume el documento</span>
+                                    <span class="hint">En 3 puntos clave</span>
+                                </div>
+                            </button>
+                            <button class="chat-suggestion">
+                                <div class="chat-suggestion-icon"><i data-lucide="search-check" class="w-3.5 h-3.5"></i></div>
+                                <div class="chat-suggestion-text">
+                                    <span class="label">Encuentra inconsistencias</span>
+                                    <span class="hint">Hechos, nomenclatura, codigos</span>
+                                </div>
+                            </button>
+                            <button class="chat-suggestion">
+                                <div class="chat-suggestion-icon"><i data-lucide="wand-2" class="w-3.5 h-3.5"></i></div>
+                                <div class="chat-suggestion-text">
+                                    <span class="label">Sugiere mejoras</span>
+                                    <span class="hint">Claridad y estructura</span>
+                                </div>
+                            </button>
+                            <button class="chat-suggestion">
+                                <div class="chat-suggestion-icon"><i data-lucide="file-plus" class="w-3.5 h-3.5"></i></div>
+                                <div class="chat-suggestion-text">
+                                    <span class="label">Genera ejemplos</span>
+                                    <span class="hint">Casos de uso de cada spell</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stream de mensajes (estado: con chat — oculto inicialmente) -->
+                <div class="chat-stream" id="chatStreamConvo" style="display:none;">
+                    <div class="chat-container">
+
+                        <!-- Mensaje del usuario (burbuja gris a la derecha) -->
+                        <div class="chat-msg user">
+                            <div class="chat-msg-body">
+                                <div class="chat-msg-text">
+                                    <p>Hola coffee</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mensaje AI con chips de contexto + metadata footer -->
+                        <div class="chat-msg ai">
+                            <div class="chat-msg-avatar">IA</div>
+                            <div class="chat-msg-body">
+                                <div class="chat-msg-name">CoffeeIA</div>
+
+                                <!-- Cluster de chips: grimorios activos -->
+                                <div class="chat-context-chips">
+                                    <div class="chat-context-chips-header">
+                                        <i data-lucide="sprout" class="w-3 h-3"></i>
+                                        Grimorios en contexto
+                                    </div>
+                                    <div class="chat-context-chips-list">
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>CoffeeIA.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>CoffeeMagic.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>coffeeSoft.js.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>CTRL.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>DOC-COFFEESOFT.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>FRONT-JS.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>grimorio-finanzas.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>grimorio-rrhh.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>MDL.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>new-component.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>PIVOTE-ADMIN.md</span>
+                                        <span class="chat-context-chip"><i data-lucide="file-text"></i>WORKFLOW.md</span>
+                                    </div>
+                                </div>
+
+                                <div class="chat-msg-text" style="margin-top:12px;">
+                                    <p>¡Hola! 👋</p>
+                                    <p>Soy <strong>CoffeeIA</strong>, tu asistente del framework CoffeeSoft. ¿En que te puedo ayudar hoy?</p>
+                                </div>
+
+                                <div class="chat-msg-meta-footer">
+                                    <span class="meta-item"><span class="dot"></span>Credits used: <strong style="color:var(--vsr-text-soft);font-weight:600;">0.83</strong></span>
+                                    <span class="meta-item">Elapsed time: <strong style="color:var(--vsr-text-soft);font-weight:600;">3s</strong></span>
+                                    <span class="meta-actions">
+                                        <button class="meta-iconbtn" title="Copiar"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                                        <button class="meta-iconbtn" title="Mas opciones"><i data-lucide="more-horizontal" class="w-3 h-3"></i></button>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Checkpoint divider -->
+                        <div class="chat-checkpoint">
+                            <div class="line"></div>
+                            <span class="label">
+                                <i data-lucide="map-pin" class="w-3 h-3"></i>
+                                Checkpoint
+                            </span>
+                            <div class="line"></div>
+                            <button class="restore">Restore</button>
+                        </div>
+
+                        <!-- Segunda pregunta -->
+                        <div class="chat-msg user">
+                            <div class="chat-msg-body">
+                                <div class="chat-msg-text">
+                                    <p>que puedes hacer</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Segunda respuesta AI -->
+                        <div class="chat-msg ai">
+                            <div class="chat-msg-avatar">IA</div>
+                            <div class="chat-msg-body">
+                                <div class="chat-msg-name">CoffeeIA</div>
+                                <div class="chat-msg-text">
+                                    <p>Aqui va lo que puedo hacer por ti:</p>
+                                    <ul>
+                                        <li>Crear modulos completos (<code>ctrl</code> + <code>mdl</code> + <code>js</code>) siguiendo la arquitectura CoffeeSoft</li>
+                                        <li>Crear componentes jQuery reutilizables con TailwindCSS</li>
+                                        <li>Generar mockups HTML estaticos (CoffeeMagic) para aprobar diseño antes de integrar</li>
+                                        <li>Consultar y validar estructura de BD via MCP</li>
+                                        <li>Refactorizar codigo existente siguiendo los patrones del framework</li>
+                                        <li>Corregir bugs en controladores, modelos o frontend</li>
+                                        <li>Crear formularios, tablas, filtros, modales usando los componentes de CoffeeSoft</li>
+                                        <li>Generar templates de UI (dark/light) con el sistema de diseño Huubie</li>
+                                    </ul>
+                                    <p>Para arrancar solo dime que necesitas: un nuevo proyecto, un componente, un fix, o lo que sea. 🚀</p>
+                                </div>
+
+                                <div class="chat-msg-meta-footer">
+                                    <span class="meta-item"><span class="dot"></span>Credits used: <strong style="color:var(--vsr-text-soft);font-weight:600;">0.87</strong></span>
+                                    <span class="meta-item">Elapsed time: <strong style="color:var(--vsr-text-soft);font-weight:600;">8s</strong></span>
+                                    <span class="meta-actions">
+                                        <button class="meta-iconbtn" title="Copiar"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                                        <button class="meta-iconbtn" title="Mas opciones"><i data-lucide="more-horizontal" class="w-3 h-3"></i></button>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Composer estilo Kiro: textarea + send arriba, tools + model + autopilot abajo -->
+                <div class="chat-composer-wrap">
+                    <div class="chat-composer">
+                        <div style="position:relative;">
+                            <textarea class="chat-composer-textarea" rows="1" placeholder="Ask a question or describe a task..." style="padding-right:36px;"></textarea>
+                            <button class="chat-composer-send" title="Enviar (Enter)" style="position:absolute;right:0;top:-4px;">
+                                <i data-lucide="arrow-up" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="chat-composer-foot">
+                            <div class="chat-composer-tools">
+                                <button class="chat-composer-tool" title="Mencionar archivo">
+                                    <i data-lucide="hash" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button class="chat-composer-tool" title="Adjuntar imagen">
+                                    <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button class="chat-composer-tool" title="Mas opciones">
+                                    <i data-lucide="circle" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:14px;">
+                                <button class="chat-model-pill" title="Cambiar modelo">
+                                    Claude Opus 4.6
+                                    <i data-lucide="chevron-down"></i>
+                                </button>
+                                <label class="chat-autopilot is-on" id="autopilotToggle">
+                                    <span>Autopilot</span>
+                                    <span class="chat-toggle-switch"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="visor-footer">
+        <div class="flex items-center gap-5">
+            <span class="flex items-center gap-1.5"><i data-lucide="files" class="w-3.5 h-3.5"></i> Total: <span class="vsr-footer-strong">14</span> archivos</span>
+            <span class="flex items-center gap-1.5"><i data-lucide="bot" class="w-3.5 h-3.5"></i> Agentes: <span class="vsr-footer-strong">5</span></span>
+            <span class="flex items-center gap-1.5"><i data-lucide="book-open" class="w-3.5 h-3.5"></i> Grimorios: <span class="vsr-footer-strong">9</span></span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="vsr-footer-label">Seleccionado:</span>
+            <span id="footerFile">coffee-magic.md</span>
+            <span class="vsr-footer-sep">|</span>
+            <span id="footerSize">8.4 KB</span>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // Theme toggle
+        document.getElementById('btnThemeToggle').addEventListener('click', () => {
+            const root = document.documentElement;
+            const body = document.body;
+            const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            body.setAttribute('data-theme', next);
+        });
+
+        // Toggle entre vista documento y vista chat
+        const docView   = document.getElementById('docView');
+        const chatView  = document.getElementById('chatView');
+        const btnOpen   = document.getElementById('btnOpenChat');
+        const btnBack   = document.getElementById('btnBackToDoc');
+
+        const openChat = () => {
+            docView.classList.remove('is-active');
+            chatView.classList.add('is-active');
+            btnOpen.classList.add('is-active');
+        };
+        const closeChat = () => {
+            chatView.classList.remove('is-active');
+            docView.classList.add('is-active');
+            btnOpen.classList.remove('is-active');
+        };
+
+        btnOpen.addEventListener('click', openChat);
+        btnBack.addEventListener('click', closeChat);
+
+        // Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && chatView.classList.contains('is-active')) closeChat();
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+                e.preventDefault();
+                chatView.classList.contains('is-active') ? closeChat() : openChat();
+            }
+        });
+
+        // Sugerencias del welcome → cambia a vista conversacion (mock)
+        document.querySelectorAll('.chat-suggestion').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('chatStreamWelcome').style.display = 'none';
+                document.getElementById('chatStreamConvo').style.display   = 'block';
+            });
+        });
+
+        // Autopilot toggle
+        const autopilot = document.getElementById('autopilotToggle');
+        if (autopilot) autopilot.addEventListener('click', () => autopilot.classList.toggle('is-on'));
+
+        // Checkpoint restore (mock)
+        document.querySelectorAll('.chat-checkpoint .restore').forEach(btn => {
+            btn.addEventListener('click', () => alert('Restore checkpoint (mockup)'));
+        });
+    </script>
+</body>
+</html>
