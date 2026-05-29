@@ -440,15 +440,58 @@ class App {
                      .attr('title', can ? 'Editar en el visor' : 'Archivo no editable en el visor');
     }
 
+    _isMarkdown(file) {
+        const parts = (file.file || '').split('.');
+        const ext = parts.length > 1 ? parts.pop().toLowerCase() : '';
+        return ext === 'md' || ext === 'markdown' || ext === '';
+    }
+
+    // Servicio Turndown (HTML -> Markdown) creado una sola vez.
+    _turndown() {
+        if (this._td) return this._td;
+        if (typeof TurndownService === 'undefined') return null;
+        const td = new TurndownService({
+            headingStyle:     'atx',
+            hr:               '---',
+            bulletListMarker: '-',
+            codeBlockStyle:   'fenced',
+            fence:            '```',
+            emDelimiter:      '*',
+            strongDelimiter:  '**',
+            linkStyle:        'inlined'
+        });
+        if (typeof turndownPluginGfm !== 'undefined' && turndownPluginGfm.gfm) {
+            td.use(turndownPluginGfm.gfm);
+        }
+        this._td = td;
+        return td;
+    }
+
     enterEditMode() {
         const file = visor.getFile(this.allFiles, this.currentFile);
         if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
 
         this.isEditing = true;
-        $('#md-edit').val(file.raw);
-        $('#md-rendered').addClass('hidden');
-        $('#md-raw').addClass('hidden');
-        $('#md-edit').removeClass('hidden').focus();
+        const useWysiwyg = this._isMarkdown(file) && this._turndown();
+        this._editMode = useWysiwyg ? 'wysiwyg' : 'raw';
+
+        if (useWysiwyg) {
+            // Edicion fluida en sitio sobre el documento renderizado (tipo Word).
+            $('.cs-tab[data-tab="rendered"]').addClass('active');
+            $('.cs-tab[data-tab="raw"]').removeClass('active');
+            $('#md-raw, #md-edit').addClass('hidden');
+            $('#md-rendered')
+                .removeClass('hidden')
+                .attr('contenteditable', 'true')
+                .addClass('wysiwyg-editing')
+                .focus();
+        } else {
+            // Archivos de codigo: edicion raw en textarea.
+            $('#md-edit').val(file.raw);
+            $('#md-rendered').addClass('hidden');
+            $('#md-raw').addClass('hidden');
+            $('#md-edit').removeClass('hidden').focus();
+        }
 
         $('#btnEdit, #btnOpenEditor, #btnCopyPath').addClass('hidden');
         $('#btnSave, #btnCancel').removeClass('hidden');
@@ -459,6 +502,7 @@ class App {
 
     exitEditMode(saved) {
         this.isEditing = false;
+        $('#md-rendered').attr('contenteditable', 'false').removeClass('wysiwyg-editing');
         $('#md-edit').addClass('hidden').val('');
         $('#md-rendered').removeClass('hidden');
         $('#md-raw').addClass('hidden');
@@ -474,6 +518,7 @@ class App {
             const file = visor.getFile(this.allFiles, this.currentFile);
             if (file) visorView.renderContent(file);
         }
+        this._editMode = null;
         this.updateEditButton();
         if (window.lucide) lucide.createIcons();
     }
@@ -514,7 +559,18 @@ class App {
         const file = visor.getFile(this.allFiles, this.currentFile);
         if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
 
-        const content = $('#md-edit').val();
+        let content;
+        if (this._editMode === 'wysiwyg') {
+            const td = this._turndown();
+            const body = td.turndown($('#md-rendered').html()).replace(/\s+$/, '');
+            // Conservar el frontmatter original; solo el cuerpo se reconvierte.
+            const origBody = visor.stripFrontmatter(file.raw);
+            const fmPrefix = file.raw.slice(0, file.raw.length - origBody.length);
+            content = (fmPrefix.trim() ? fmPrefix.replace(/\s*$/, '\n\n') : '') + body + '\n';
+        } else {
+            content = $('#md-edit').val();
+        }
+
         const $btn    = $('#btnSave');
         $btn.prop('disabled', true).find('i').attr('data-lucide', 'loader-2').addClass('visor-spin');
         if (window.lucide) lucide.createIcons();
@@ -938,6 +994,11 @@ class App {
         visorView.renderContent(file);
         visorView.renderFooterSelection(file);
         this.updateEditButton();
+
+        // Mantener sincronizado el contexto de CoffeeIA con el archivo abierto.
+        if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA._syncContext) {
+            coffeeIA._syncContext();
+        }
 
         if (window.lucide) lucide.createIcons();
     }
