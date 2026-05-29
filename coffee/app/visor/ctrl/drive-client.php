@@ -224,6 +224,19 @@ class DriveClient {
     }
 
     /**
+     * Sobreescribe el contenido de un archivo existente en Drive.
+     * NOTA: no funciona con Google Docs/Sheets/Slides nativos.
+     */
+    public function updateFile($id, $content, $mime = 'text/markdown') {
+        return $this->apiRequest(
+            'PATCH',
+            'https://www.googleapis.com/upload/drive/v3/files/' . urlencode($id) . '?uploadType=media&fields=id,name,size,modifiedTime,mimeType',
+            $content,
+            ['Content-Type: ' . $mime]
+        );
+    }
+
+    /**
      * Descarga el contenido raw de un archivo (texto/binario).
      * NO funciona con Google Docs/Sheets/Slides nativos — usa exportFile() para esos.
      */

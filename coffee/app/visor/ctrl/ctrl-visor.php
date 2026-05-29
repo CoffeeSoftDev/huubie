@@ -29,6 +29,52 @@ if (($_GET['action'] ?? '') === 'driveread') {
     exit;
 }
 
+// Endpoint para guardar archivos en Drive (POST drivewrite)
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'drivewrite') {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/drive-client.php';
+
+    $id      = trim($_POST['id']      ?? '');
+    $content = $_POST['content']      ?? '';
+    $mime    = trim($_POST['mime']    ?? '');
+
+    if ($id === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'id requerido']);
+        exit;
+    }
+    // Si llega un mime Google Apps nativo, defaultear a markdown.
+    if ($mime === '' || strpos($mime, 'application/vnd.google-apps.') === 0) {
+        $mime = 'text/markdown';
+    }
+    // Whitelist: solo aceptar mimes de texto (markdown/html/plain).
+    if (!in_array($mime, ['text/markdown', 'text/html', 'text/plain'], true)) {
+        $mime = 'text/markdown';
+    }
+
+    try {
+        $drive = new DriveClient();
+        $meta  = $drive->updateFile($id, $content, $mime);
+
+        $sizeRaw = isset($meta['size']) ? (int)$meta['size'] : null;
+        $sizeFmt = $sizeRaw !== null
+            ? ($sizeRaw < 1024 ? $sizeRaw . ' B' : ($sizeRaw < 1024 * 1024 ? round($sizeRaw / 1024) . ' KB' : round($sizeRaw / (1024 * 1024), 1) . ' MB'))
+            : null;
+        $mtime = !empty($meta['modifiedTime']) ? date('Y-m-d H:i:s', strtotime($meta['modifiedTime'])) : null;
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Guardado en Drive',
+            'size'    => $sizeFmt,
+            'mtime'   => $mtime
+        ]);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Error Drive: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
 // Endpoint para guardar archivos locales (POST)
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'save') {
     header('Content-Type: application/json; charset=utf-8');

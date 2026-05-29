@@ -122,6 +122,28 @@
         </div>
     </div>
 
+    <!-- Modal: Nuevo MD -->
+    <div id="modalNewMd" class="cs-modal-backdrop hidden">
+        <div class="cs-modal" style="max-width:460px;">
+            <div class="cs-modal-header">
+                <span class="font-semibold">Nuevo documento .md</span>
+                <button class="cs-modal-close" data-dismiss="modal"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="cs-modal-body">
+                <label class="block text-xs font-semibold mb-1.5" style="color:var(--vsr-text-muted)">Nombre del archivo</label>
+                <input id="inputNewMd" type="text" class="cs-input w-full" placeholder="ej. propuesta-bd, analisis-flujos...">
+                <p class="text-xs mt-2" style="color:var(--vsr-text-mute2)">
+                    Se agregara <code>.md</code> automaticamente · Tipo:
+                    <span id="newMdTypeName" style="color:var(--vsr-accent-soft);font-family:'JetBrains Mono',monospace;"></span>
+                </p>
+            </div>
+            <div class="cs-modal-footer">
+                <button class="cs-btn cs-btn-outline" data-dismiss="modal">Cancelar</button>
+                <button id="btnConfirmNewMd" class="cs-btn cs-btn-primary">Crear</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="adminToast" class="visor-toast"></div>
 
