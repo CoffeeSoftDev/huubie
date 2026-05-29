@@ -199,6 +199,12 @@ const SAMPLE_ENTRADAS_ESTADOS = [
 // ──────────────────────────────────────────────────────────────────────
 //  Catalogo de productos (para el modal Nueva Entrada, si se necesita)
 // ──────────────────────────────────────────────────────────────────────
+const SAMPLE_FORMATO_SCOPES = [
+    { value: 'user',       label: 'Solo yo',          icon: 'user',       iconClass: 'text-gray-400'   },
+    { value: 'subsidiary', label: 'Mi sucursal',       icon: 'store',      iconClass: 'text-blue-400'   },
+    { value: 'company',    label: 'Toda la empresa',   icon: 'building-2', iconClass: 'text-purple-400' }
+];
+
 const SAMPLE_ENTRADAS_CATALOGO = [
     { sku: 'CUP-DEC-001', nombre: 'Cupcake Decorado',          stock: 0,  icon: 'cup-soda', bg: 'bg-orange-900/30', color: 'text-orange-400', costo: 22  },
     { sku: 'CUP-RDV-001', nombre: 'Cupcake Red Velvet',        stock: 8,  icon: 'cup-soda', bg: 'bg-orange-900/30', color: 'text-orange-400', costo: 25  },

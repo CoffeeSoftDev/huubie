@@ -3,6 +3,14 @@ let apiIA = 'ctrl/ctrl-coffeeia.php';
 let visor, visorView, app, coffeeIA;
 
 const VISOR_STORAGE_KEY = 'visor:settings:v1';
+const VISOR_PINNED_KEY  = 'visor:pinned:v1';
+const VISOR_USER_KEY    = 'visor:user:v1';
+
+const VISOR_USERS = [
+    { id: 'rosy',     name: 'Rosy V.',  role: 'Guardiana',     initials: 'RV', color: '#6366f1', canUseIA: false },
+    { id: 'somx',     name: 'Somx',     role: 'Desarrollador', initials: 'SO', color: '#22c55e', canUseIA: false },
+    { id: 'invitado', name: 'Invitado', role: 'Visitante',     initials: 'IN', color: '#94a3b8', canUseIA: true  }
+];
 const EDITABLE_EXTS = [
     'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
     'html','htm','css','scss','js','ts','php','py','rb','go','rs',
@@ -27,6 +35,152 @@ class App {
         this.currentFile  = null;
         this.isEditing    = false;
         this.settings     = this.loadSettings();
+        this.pinnedFiles  = this.loadPinned();
+        this.currentUser  = this.loadUser();
+    }
+
+    loadUser() {
+        try {
+            const id = localStorage.getItem(VISOR_USER_KEY);
+            return VISOR_USERS.find(u => u.id === id) || VISOR_USERS[0];
+        } catch (e) {
+            return VISOR_USERS[0];
+        }
+    }
+
+    saveUser() {
+        try { localStorage.setItem(VISOR_USER_KEY, this.currentUser.id); }
+        catch (e) {}
+    }
+
+    applyUser(user) {
+        if (!user) return;
+        this.currentUser = user;
+        this.saveUser();
+
+        $('#userInitials').text(user.initials).css('background', user.color);
+        $('#userName').text(user.name);
+        $('#userRole').text(user.role);
+
+        // Permiso para usar CoffeeIA
+        const $btnIA = $('#btnToggleCoffeeIA');
+        if (user.canUseIA) {
+            $btnIA.show();
+        } else {
+            $btnIA.hide();
+            if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA.isOpen) {
+                coffeeIA.close();
+            }
+        }
+    }
+
+    renderUserMenu() {
+        const html = VISOR_USERS.map(u => `
+            <button type="button" class="user-menu-item ${u.id === this.currentUser.id ? 'is-active' : ''}" data-user-id="${u.id}">
+                <span class="user-menu-avatar" style="background:${u.color};">${u.initials}</span>
+                <span class="user-menu-info">
+                    <span class="user-menu-name">${u.name}</span>
+                    <span class="user-menu-role">${u.role}</span>
+                </span>
+                ${u.canUseIA ? '<span class="user-menu-badge"><i data-lucide="sparkles" class="w-3 h-3"></i>IA</span>' : ''}
+                ${u.id === this.currentUser.id ? '<i data-lucide="check" class="w-3.5 h-3.5 user-menu-check"></i>' : ''}
+            </button>
+        `).join('');
+        $('#userMenu').html(html);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    bindUserMenu() {
+        $('#userBlockBtn').off('click').on('click', (e) => {
+            e.stopPropagation();
+            const $menu = $('#userMenu');
+            if ($menu.is(':visible')) {
+                $menu.hide();
+            } else {
+                this.renderUserMenu();
+                $menu.show();
+            }
+        });
+
+        $(document).off('click.userMenu').on('click.userMenu', (e) => {
+            if (!$(e.target).closest('#userMenu, #userBlockBtn').length) {
+                $('#userMenu').hide();
+            }
+        });
+
+        $('#userMenu').off('click', '.user-menu-item').on('click', '.user-menu-item', (e) => {
+            const id = $(e.currentTarget).data('user-id');
+            const user = VISOR_USERS.find(u => u.id === id);
+            if (!user) return;
+            this.applyUser(user);
+            $('#userMenu').hide();
+        });
+    }
+
+    workspaceId() {
+        const f = this.settings && this.settings.folder ? this.settings.folder : '';
+        const c = this.settings && this.settings.customPath ? this.settings.customPath : '';
+        return f === 'custom' ? `custom:${c}` : f;
+    }
+
+    loadPinned() {
+        try {
+            const raw = localStorage.getItem(VISOR_PINNED_KEY);
+            if (!raw) return new Set();
+            const all = JSON.parse(raw);
+            const wsId = this.workspaceId();
+            const list = Array.isArray(all[wsId]) ? all[wsId] : [];
+            return new Set(list);
+        } catch (e) {
+            return new Set();
+        }
+    }
+
+    savePinned() {
+        try {
+            let all = {};
+            try { all = JSON.parse(localStorage.getItem(VISOR_PINNED_KEY) || '{}'); } catch (e) {}
+            const wsId = this.workspaceId();
+            const list = Array.from(this.pinnedFiles);
+            if (list.length === 0) {
+                delete all[wsId];
+            } else {
+                all[wsId] = list;
+            }
+            localStorage.setItem(VISOR_PINNED_KEY, JSON.stringify(all));
+        } catch (e) { /* quota / private mode — ignorar */ }
+    }
+
+    isPinned(fileName) {
+        return this.pinnedFiles.has(fileName);
+    }
+
+    togglePin(fileName) {
+        if (!fileName) return;
+        if (this.pinnedFiles.has(fileName)) {
+            this.pinnedFiles.delete(fileName);
+        } else {
+            this.pinnedFiles.add(fileName);
+        }
+        this.savePinned();
+        visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
+        this.bindSidebarClicks();
+        if (coffeeIA) coffeeIA._renderPinnedChips();
+        if (window.lucide) lucide.createIcons();
+    }
+
+    getPinnedFilesPayload() {
+        const out = [];
+        this.pinnedFiles.forEach(name => {
+            const f = (this.allFiles || []).find(x => x.file === name);
+            if (!f) return;
+            out.push({
+                file:     f.file,
+                fullPath: f.fullPath || '',
+                content:  f.raw || ''
+            });
+        });
+        return out;
     }
 
     isDriveFolder(folder) {
@@ -35,12 +189,16 @@ class App {
 
     loadSettings() {
         const validStyles = ['github', 'notion', 'dracula', 'monokai'];
-        const fallback = { folder: 'agents', customPath: '', theme: 'dark', docStyle: 'github', docZoom: 1 };
+        const fallback = {
+            folder: 'agents', customPath: '', theme: 'dark', docStyle: 'github', docZoom: 1,
+            sidebarCollapsed: false, iaDrawerWidth: 420
+        };
         try {
             const raw = localStorage.getItem(VISOR_STORAGE_KEY);
             if (!raw) return fallback;
             const parsed = JSON.parse(raw);
             const zoom = Number(parsed.docZoom);
+            const drawerW = Number(parsed.iaDrawerWidth);
             // Drive es volatil (depende del SA) — nunca lo restauramos desde localStorage
             const folder = (parsed.folder && !this.isDriveFolder(parsed.folder)) ? parsed.folder : 'agents';
             return {
@@ -48,7 +206,9 @@ class App {
                 customPath: parsed.customPath || '',
                 theme:      parsed.theme === 'light' ? 'light' : 'dark',
                 docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'github',
-                docZoom:    (isFinite(zoom) && zoom >= 0.7 && zoom <= 1.8) ? zoom : 1
+                docZoom:    (isFinite(zoom) && zoom >= 0.7 && zoom <= 1.8) ? zoom : 1,
+                sidebarCollapsed: !!parsed.sidebarCollapsed,
+                iaDrawerWidth:    (isFinite(drawerW) && drawerW >= 380 && drawerW <= 900) ? drawerW : 420
             };
         } catch (e) {
             return fallback;
@@ -73,6 +233,9 @@ class App {
         visorView.applyTheme(this.settings.theme);
         visorView.applyDocStyle(this.settings.docStyle);
         visorView.applyDocZoom(this.settings.docZoom);
+        this.applySidebarCollapsed(this.settings.sidebarCollapsed, false);
+        this.applyIaDrawerWidth(this.settings.iaDrawerWidth);
+        this.applyUser(this.currentUser);
 
         const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
         if (data) {
@@ -149,6 +312,75 @@ class App {
         this.bindThemeToggle();
         this.bindDocStyle();
         this.bindToc();
+        this.bindSidebarToggle();
+        this.bindIaDrawerResize();
+        this.bindUserMenu();
+    }
+
+    applySidebarCollapsed(collapsed, withTransition) {
+        const $sb  = $('.visor-sidebar');
+        const $btn = $('#btnToggleSidebar');
+        if (!withTransition) $sb.css('transition', 'none');
+        $sb.toggleClass('is-collapsed', !!collapsed);
+        $btn.attr('title', collapsed ? 'Mostrar nombres' : 'Ocultar nombres');
+        // Re-inyectar el <i> porque lucide ya lo convirtio a <svg> en la carga inicial.
+        const iconName = collapsed ? 'panel-left-open' : 'panel-left-close';
+        $btn.html(`<i data-lucide="${iconName}" class="w-4 h-4"></i>`);
+        if (window.lucide) lucide.createIcons();
+        if (!withTransition) {
+            $sb[0] && $sb[0].offsetHeight;
+            $sb.css('transition', '');
+        }
+    }
+
+    applyIaDrawerWidth(px) {
+        const w = Math.min(900, Math.max(380, Number(px) || 420));
+        document.getElementById('iaDrawer')?.style.setProperty('--ia-drawer-width', w + 'px');
+    }
+
+    bindSidebarToggle() {
+        $('#btnToggleSidebar').off('click').on('click', () => {
+            this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
+            this.saveSettings();
+            this.applySidebarCollapsed(this.settings.sidebarCollapsed, true);
+        });
+    }
+
+    bindIaDrawerResize() {
+        const $handle = $('#iaDrawerResizeHandle');
+        const $drawer = $('#iaDrawer');
+        if (!$handle.length || !$drawer.length) return;
+
+        let dragging = false;
+        let startX   = 0;
+        let startW   = this.settings.iaDrawerWidth;
+
+        $handle.off('mousedown').on('mousedown', (e) => {
+            if (!$drawer.hasClass('is-open')) return;
+            e.preventDefault();
+            dragging = true;
+            startX = e.clientX;
+            startW = this.settings.iaDrawerWidth;
+            $drawer.addClass('is-resizing');
+            document.body.classList.add('ia-drawer-resizing');
+        });
+
+        $(document).off('mousemove.iaResize').on('mousemove.iaResize', (e) => {
+            if (!dragging) return;
+            // El drawer crece a la izquierda → mover mouse a la IZQUIERDA aumenta el ancho
+            const dx = startX - e.clientX;
+            const next = Math.min(900, Math.max(380, startW + dx));
+            this.applyIaDrawerWidth(next);
+            this.settings.iaDrawerWidth = next;
+        });
+
+        $(document).off('mouseup.iaResize').on('mouseup.iaResize', () => {
+            if (!dragging) return;
+            dragging = false;
+            $drawer.removeClass('is-resizing');
+            document.body.classList.remove('ia-drawer-resizing');
+            this.saveSettings();
+        });
     }
 
     bindDocStyle() {
@@ -244,6 +476,38 @@ class App {
         }
         this.updateEditButton();
         if (window.lucide) lucide.createIcons();
+    }
+
+    // Guarda contenido directo al disco sin pasar por modo edicion. Lo usa CoffeeIA
+    // tras aplicar una propuesta. Devuelve true/false.
+    async saveContentSilent(file, content) {
+        if (!file || !file.fullPath) return false;
+        try {
+            const form = new FormData();
+            form.append('action',     'save');
+            form.append('fullPath',   file.fullPath);
+            form.append('customPath', this.settings.customPath || '');
+            form.append('content',    content);
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) {
+                visorView.toast(data.message || 'Error al guardar', 'error');
+                return false;
+            }
+            file.raw         = content;
+            file.frontmatter = visor.parseFrontmatter(content);
+            if (data.size)  file.size  = data.size;
+            if (data.mtime) file.mtime = data.mtime;
+            visorView.renderContent(file);
+            visorView.renderFrontmatter(file);
+            visorView.renderFooterSelection(file);
+            visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
+            this.bindSidebarClicks();
+            return true;
+        } catch (e) {
+            visorView.toast('Error de red al guardar', 'error');
+            return false;
+        }
     }
 
     async saveFile() {
@@ -519,6 +783,8 @@ class App {
             this.allFiles = [...data.agents, ...data.grimoires];
         }
         this.currentFile = null;
+        this.pinnedFiles = this.loadPinned();
+        if (coffeeIA) coffeeIA._renderPinnedChips();
         const target = this.allFiles[0]?.file;
 
         visorView.renderHeader(this.dataInit.header, this.allFiles.length);
@@ -599,6 +865,12 @@ class App {
     }
 
     bindSidebarClicks() {
+        $('#sidebarList .sidebar-pin-btn').off('click').on('click', (e) => {
+            e.stopPropagation();
+            const fileName = $(e.currentTarget).data('pin-file');
+            this.togglePin(fileName);
+        });
+
         $('#sidebarList .sidebar-item').off('click').on('click', (e) => {
             const $el = $(e.currentTarget);
             const folder = $el.data('folder');
@@ -822,6 +1094,14 @@ class VisorView {
         this.rootId = rootId;
     }
 
+    pinBtnHtml(fileName) {
+        const pinned = (typeof app !== 'undefined' && app && app.isPinned) ? app.isPinned(fileName) : false;
+        const title  = pinned ? 'Desanclar del contexto CoffeeIA' : 'Anclar al contexto CoffeeIA';
+        return `<button type="button" class="sidebar-pin-btn ${pinned ? 'is-pinned' : ''}" data-pin-file="${fileName}" title="${title}">
+            <i data-lucide="pin" class="w-3 h-3"></i>
+        </button>`;
+    }
+
     applyTheme(theme) {
         const t = theme === 'light' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', t);
@@ -919,11 +1199,12 @@ class VisorView {
             const rows = items.map(item => {
                 const fmt = visor.fileFormat(item);
                 return `
-                <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}">
+                <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" title="${item.file}">
                     <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
                     <span class="file-name">${item.file}</span>
                     ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
                     <span class="file-size">${item.size}</span>
+                    ${this.pinBtnHtml(item.file)}
                 </div>
             `;
             }).join('');
@@ -1018,11 +1299,12 @@ class VisorView {
                 const typeRows = matched.map(item => {
                     const fmt = visor.fileFormat(item);
                     return `
-                    <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}">
+                    <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" title="${item.file}">
                         <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
                         <span class="file-name">${item.file}</span>
                         ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
                         <span class="file-size">${item.size}</span>
+                        ${this.pinBtnHtml(item.file)}
                     </div>
                 `;
                 }).join('');
@@ -1256,6 +1538,8 @@ class VisorView {
 }
 
 
+const COFFEEIA_EDITOR_KEY = 'visor:coffeeia:editorMode';
+
 class CoffeeIA {
 
     constructor(apiEndpoint, appRef) {
@@ -1265,9 +1549,42 @@ class CoffeeIA {
         this.isOpen   = false;
         this.isBusy   = false;
         this._chipsRendered = false;
+        this.editorMode    = this._loadEditorMode();
+        this.pendingEdits  = null;   // [{ find, with, status }]
 
         this.bind();
         this._syncContext();
+        this._applyEditorModeUI();
+    }
+
+    _loadEditorMode() {
+        try { return localStorage.getItem(COFFEEIA_EDITOR_KEY) === '1'; }
+        catch (e) { return false; }
+    }
+
+    _saveEditorMode() {
+        try { localStorage.setItem(COFFEEIA_EDITOR_KEY, this.editorMode ? '1' : '0'); }
+        catch (e) {}
+    }
+
+    _toggleEditorMode() {
+        this.editorMode = !this.editorMode;
+        this._saveEditorMode();
+        this._applyEditorModeUI();
+    }
+
+    _applyEditorModeUI() {
+        const $btn = $('#iaEditorToggle');
+        $btn.toggleClass('is-active', this.editorMode);
+        $btn.attr('title', this.editorMode
+            ? 'Modo editor ACTIVO — la IA propondra cambios al archivo abierto'
+            : 'Activar modo editor (la IA propondra cambios al archivo abierto)');
+        const $ta = $('#iaInputTextarea');
+        if (this.editorMode) {
+            $ta.attr('placeholder', 'Pide un cambio al archivo abierto (ej: "renombra la seccion 1 a Vista panoramica")...');
+        } else {
+            $ta.attr('placeholder', 'Pregunta algo sobre el documento...');
+        }
     }
 
     /* ── Public: open / close / toggle ── */
@@ -1297,6 +1614,8 @@ class CoffeeIA {
 
         $('#iaClearBtn').on('click', () => this.clearConversation());
 
+        $('#iaEditorToggle').on('click', () => this._toggleEditorMode());
+
         $('#iaSendBtn').on('click', () => this._submit());
 
         $('#iaInputTextarea').on('keydown', (e) => {
@@ -1308,7 +1627,7 @@ class CoffeeIA {
 
         $('#iaInputTextarea').on('input', function () {
             this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
         });
 
         $(document).on('keydown.coffeeIA', (e) => {
@@ -1341,6 +1660,47 @@ class CoffeeIA {
         } else {
             $('#iaCtxMeta').text('');
         }
+
+        this._renderPinnedChips();
+    }
+
+    _renderPinnedChips() {
+        const pinned = this._app && this._app.pinnedFiles ? Array.from(this._app.pinnedFiles) : [];
+        const $wrap  = $('#iaPinnedWrap');
+        const $list  = $('#iaPinnedChips');
+        if (!$wrap.length) return;
+
+        if (!pinned.length) {
+            $wrap.hide();
+            $list.empty();
+            return;
+        }
+
+        const html = pinned.map(name => {
+            const f = (this._app.allFiles || []).find(x => x.file === name);
+            const size = f ? f.size : '';
+            return `
+                <span class="ia-pinned-chip" title="${name}${size ? ' (' + size + ')' : ''}">
+                    <i data-lucide="file-text" style="width:10px;height:10px;color:var(--vsr-accent-soft);"></i>
+                    <span class="chip-name">${name}</span>
+                    <button type="button" class="chip-remove" data-unpin="${name}" title="Desanclar">
+                        <i data-lucide="x"></i>
+                    </button>
+                </span>
+            `;
+        }).join('');
+
+        $list.html(html);
+        $('#iaPinnedCount').text(pinned.length);
+        $wrap.show();
+
+        $list.find('.chip-remove').off('click').on('click', (e) => {
+            e.stopPropagation();
+            const name = $(e.currentTarget).data('unpin');
+            if (this._app && this._app.togglePin) this._app.togglePin(name);
+        });
+
+        if (window.lucide) lucide.createIcons();
     }
 
     /* ── Submit from input ── */
@@ -1382,6 +1742,8 @@ class CoffeeIA {
             currentFile:        this._app.currentFile || '',
             currentFilePath:    currentFileObj?.fullPath || '',
             currentFileContent: currentFileObj?.raw || '',
+            pinnedFiles:        (this._app.getPinnedFilesPayload ? this._app.getPinnedFilesPayload() : []),
+            editorMode:         !!this.editorMode,
             customPath:         (this._app.settings && this._app.settings.customPath) ? this._app.settings.customPath : ''
         };
 
@@ -1398,17 +1760,230 @@ class CoffeeIA {
             this._appendAIMessage('Error: ' + (data.error || 'Respuesta invalida'), null);
         } else {
             this.history.push({ role: 'assistant', content: data.reply });
-            this._appendAIMessage(data.reply, {
+
+            // Si el modo editor esta activo, intentar extraer propuestas <edit-replace>
+            let proposals = [];
+            let displayedReply = data.reply;
+            if (this.editorMode) {
+                const file = (this._app.allFiles || []).find(f => f.file === this._app.currentFile);
+                const rawFile = file ? file.raw : '';
+                const parsed = this._parseEditReplaceBlocks(data.reply, rawFile);
+                proposals     = parsed.proposals;
+                displayedReply = parsed.cleanText || displayedReply;
+            }
+
+            this._appendAIMessage(displayedReply, {
                 credits:    data.credits_estimate,
                 elapsed_ms: data.elapsed_ms,
-                tokens:     data.tokens_used
+                tokens:     data.tokens_used,
+                proposalsCount: proposals.length
             });
+
+            if (proposals.length > 0) {
+                this.pendingEdits = proposals;
+                this._showEditProposalPanel(proposals);
+            }
         }
 
         this._scrollBottom();
         this.isBusy = false;
         $('#iaSendBtn').prop('disabled', false);
         if (window.lucide) lucide.createIcons();
+    }
+
+    /* ── Parser de propuestas <edit-replace> ── */
+    _parseEditReplaceBlocks(reply, fileRaw) {
+        const proposals = [];
+        // Regex tolerante: captura <edit-replace>...</edit-replace> con find/with internos.
+        const blockRe = /<edit-replace[^>]*>([\s\S]*?)<\/edit-replace>/gi;
+        const findRe  = /<find[^>]*>([\s\S]*?)<\/find>/i;
+        const withRe  = /<with[^>]*>([\s\S]*?)<\/with>/i;
+
+        let cleanText = reply;
+        let m;
+        let idx = 0;
+        while ((m = blockRe.exec(reply)) !== null) {
+            const inner = m[1];
+            const f = inner.match(findRe);
+            const w = inner.match(withRe);
+            if (!f || !w) continue;
+            // El modelo puede meter \n al inicio/fin de find/with; lo respetamos pero quitamos
+            // solo el primer \n inmediatamente despues de la apertura y antes del cierre.
+            const findStr = f[1].replace(/^\r?\n/, '').replace(/\r?\n$/, '');
+            const withStr = w[1].replace(/^\r?\n/, '').replace(/\r?\n$/, '');
+
+            let status = 'ok';
+            if (!fileRaw || fileRaw.indexOf(findStr) === -1) {
+                status = 'not_found';
+            } else {
+                // Detectar ambigüedad: aparece mas de una vez
+                const first = fileRaw.indexOf(findStr);
+                const second = fileRaw.indexOf(findStr, first + 1);
+                if (second !== -1) status = 'ambiguous';
+            }
+
+            proposals.push({
+                id:      'edit-' + (idx++),
+                find:    findStr,
+                with:    withStr,
+                status:  status,
+                accepted: null
+            });
+            cleanText = cleanText.replace(m[0], '');
+        }
+
+        cleanText = cleanText.replace(/\n{3,}/g, '\n\n').trim();
+        if (!cleanText && proposals.length > 0) {
+            cleanText = `He preparado ${proposals.length} cambio${proposals.length > 1 ? 's' : ''} para revisar.`;
+        }
+        return { proposals, cleanText };
+    }
+
+    /* ── Panel side-by-side de propuestas ── */
+
+    _showEditProposalPanel(proposals) {
+        const $panel = $('#editProposalPanel');
+        if (!$panel.length) return;
+
+        const fileName = this._app.currentFile || '—';
+        $('#eppCount').text(proposals.length);
+
+        const cards = proposals.map(p => this._renderProposalCard(p, fileName)).join('');
+        $('#eppBody').html(cards);
+        $('#editProposalPanel').show();
+        $('.doc-layout').hide();
+
+        $('#eppAcceptAll').off('click').on('click', () => this._acceptAllProposals());
+        $('#eppClose').off('click').on('click', () => this._closeEditProposalPanel());
+
+        $('#eppBody .epp-accept').off('click').on('click', (e) => {
+            this._acceptProposal($(e.currentTarget).data('id'));
+        });
+        $('#eppBody .epp-reject').off('click').on('click', (e) => {
+            this._rejectProposal($(e.currentTarget).data('id'));
+        });
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _renderProposalCard(p, fileName) {
+        const isOk = p.status === 'ok' && p.accepted === null;
+        const statusLabel = {
+            'ok':         { txt: 'Listo para aplicar', cls: 'ok',  icon: 'circle-check'    },
+            'not_found':  { txt: 'No encontrado',     cls: 'err', icon: 'circle-x'        },
+            'ambiguous':  { txt: 'Texto ambiguo',     cls: 'warn',icon: 'circle-alert'    }
+        }[p.status] || { txt: 'Desconocido', cls: 'err', icon: 'circle-help' };
+
+        const stateBadge = p.accepted === true
+            ? `<span class="epp-pill done"><i data-lucide="check-circle-2"></i>Aplicado</span>`
+            : p.accepted === false
+                ? `<span class="epp-pill rejected"><i data-lucide="x-circle"></i>Rechazado</span>`
+                : `<span class="epp-pill ${statusLabel.cls}"><i data-lucide="${statusLabel.icon}"></i>${statusLabel.txt}</span>`;
+
+        const actions = p.accepted !== null ? '' : `
+            <div class="epp-card-actions">
+                <button class="cs-btn cs-btn-ghost cs-btn-sm epp-reject" data-id="${p.id}">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i> Rechazar
+                </button>
+                <button class="cs-btn cs-btn-primary cs-btn-sm epp-accept" data-id="${p.id}" ${isOk ? '' : 'disabled'}>
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Aceptar
+                </button>
+            </div>
+        `;
+
+        return `
+            <div class="epp-card" data-status="${p.status}">
+                <div class="epp-card-head">
+                    <span class="epp-card-id">${p.id}</span>
+                    ${stateBadge}
+                    <span class="epp-card-file"><i data-lucide="file-text" class="w-3 h-3"></i>${fileName}</span>
+                </div>
+                <div class="epp-card-grid">
+                    <div class="epp-side epp-side-before">
+                        <div class="epp-side-label"><i data-lucide="minus" class="w-3 h-3"></i>Antes</div>
+                        <pre class="epp-pre epp-pre-before">${this._escape(p.find)}</pre>
+                    </div>
+                    <div class="epp-side epp-side-after">
+                        <div class="epp-side-label"><i data-lucide="plus" class="w-3 h-3"></i>Despues</div>
+                        <pre class="epp-pre epp-pre-after">${this._escape(p.with)}</pre>
+                    </div>
+                </div>
+                ${actions}
+            </div>
+        `;
+    }
+
+    async _acceptProposal(id) {
+        const p = (this.pendingEdits || []).find(x => x.id === id);
+        if (!p || p.status !== 'ok' || p.accepted !== null) return;
+
+        const file = (this._app.allFiles || []).find(f => f.file === this._app.currentFile);
+        if (!file || file.raw == null) {
+            visorView.toast('Sin archivo abierto', 'warn');
+            return;
+        }
+
+        // Aplicar al raw actual (no al original — porque podria haber otros cambios ya aplicados)
+        if (file.raw.indexOf(p.find) === -1) {
+            p.status = 'not_found';
+            this._refreshProposalCard(p);
+            visorView.toast('El texto a reemplazar ya no existe (cambio previo lo modifico)', 'warn');
+            return;
+        }
+        const nextRaw = file.raw.replace(p.find, p.with);
+
+        const ok = await this._app.saveContentSilent(file, nextRaw);
+        if (!ok) return;
+
+        p.accepted = true;
+        this._refreshProposalCard(p);
+        visorView.toast('Cambio aplicado', 'success');
+
+        // Si ya no quedan propuestas pendientes, cerrar el panel automaticamente
+        const pending = (this.pendingEdits || []).filter(x => x.accepted === null);
+        if (pending.length === 0) {
+            setTimeout(() => this._closeEditProposalPanel(), 600);
+        }
+    }
+
+    _rejectProposal(id) {
+        const p = (this.pendingEdits || []).find(x => x.id === id);
+        if (!p || p.accepted !== null) return;
+        p.accepted = false;
+        this._refreshProposalCard(p);
+
+        const pending = (this.pendingEdits || []).filter(x => x.accepted === null);
+        if (pending.length === 0) {
+            setTimeout(() => this._closeEditProposalPanel(), 400);
+        }
+    }
+
+    _refreshProposalCard(p) {
+        const fileName = this._app.currentFile || '—';
+        const newCard  = $(this._renderProposalCard(p, fileName));
+        $('#eppBody .epp-card').each(function () {
+            const $head = $(this).find('.epp-card-id');
+            if ($head.text() === p.id) {
+                $(this).replaceWith(newCard);
+            }
+        });
+        $('#eppBody .epp-accept').off('click').on('click', (e) => this._acceptProposal($(e.currentTarget).data('id')));
+        $('#eppBody .epp-reject').off('click').on('click', (e) => this._rejectProposal($(e.currentTarget).data('id')));
+        if (window.lucide) lucide.createIcons();
+    }
+
+    async _acceptAllProposals() {
+        const list = (this.pendingEdits || []).filter(p => p.status === 'ok' && p.accepted === null);
+        for (const p of list) {
+            // Cada una se ejecuta secuencial porque cada save actualiza file.raw
+            await this._acceptProposal(p.id);
+        }
+    }
+
+    _closeEditProposalPanel() {
+        $('#editProposalPanel').hide();
+        $('.doc-layout').show();
+        this.pendingEdits = null;
     }
 
     /* ── DOM helpers ── */
@@ -1421,30 +1996,18 @@ class CoffeeIA {
         $('#iaBodyEmpty').hide();
         $('#iaBodyChat').show().css('display', 'flex');
 
-        // Render context chips once
+        // Saludo inicial (sin la sección decorativa "Grimorios en contexto"
+        // — los anclados reales ya se muestran en #iaPinnedWrap).
         if (!this._chipsRendered) {
             this._chipsRendered = true;
-            const files = (this._app.allFiles || []).slice(0, 10);
-            if (files.length) {
-                const chips = files.map(f =>
-                    `<span class="ia-context-chip"><i data-lucide="file-text"></i>${f.file}</span>`
-                ).join('');
-                const $greet = $(`
-                    <div class="ia-msg ai" id="iaGreetMsg">
-                        <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA</span></div>
-                        <div class="ia-context-chips">
-                            <div class="ia-context-chips-header">
-                                <i data-lucide="sprout"></i>
-                                Grimorios en contexto
-                            </div>
-                            <div class="ia-context-chips-list">${chips}</div>
-                        </div>
-                        <div class="ia-msg-text"><p>Hola. Soy <strong>CoffeeIA</strong>, tu asistente del framework CoffeeSoft. ¿En que te puedo ayudar hoy?</p></div>
-                    </div>
-                `);
-                $('#iaBodyChat').append($greet);
-                if (window.lucide) lucide.createIcons();
-            }
+            const $greet = $(`
+                <div class="ia-msg ai" id="iaGreetMsg">
+                    <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA</span></div>
+                    <div class="ia-msg-text"><p>Hola. Soy <strong>CoffeeIA</strong>, tu asistente del framework CoffeeSoft. ¿En que te puedo ayudar hoy?</p></div>
+                </div>
+            `);
+            $('#iaBodyChat').append($greet);
+            if (window.lucide) lucide.createIcons();
         }
     }
 
@@ -1472,10 +2035,14 @@ class CoffeeIA {
                 </div>
             `;
         }
+        const proposalHint = (meta && meta.proposalsCount > 0)
+            ? `<div><span class="ia-msg-proposal-hint"><i data-lucide="wand-sparkles"></i>${meta.proposalsCount} propuesta${meta.proposalsCount > 1 ? 's' : ''} en el panel</span></div>`
+            : '';
         const $msg = $(`
             <div class="ia-msg ai">
                 <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA</span></div>
                 <div class="ia-msg-text">${htmlText}</div>
+                ${proposalHint}
                 ${metaHtml}
             </div>
         `);

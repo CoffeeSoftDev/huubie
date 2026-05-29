@@ -58,12 +58,16 @@
                 <i data-lucide="moon" class="w-4 h-4"></i>
             </button>
 
-            <div class="vsr-user-block">
-                <div id="userInitials" class="user-avatar">RV</div>
-                <div class="col">
-                    <span id="userName">Rosy V.</span>
-                    <span id="userRole">Guardiana</span>
-                </div>
+            <div class="vsr-user-block-wrap">
+                <button id="userBlockBtn" class="vsr-user-block" type="button" title="Cambiar usuario">
+                    <div id="userInitials" class="user-avatar">RV</div>
+                    <div class="col">
+                        <span id="userName">Rosy V.</span>
+                        <span id="userRole">Guardiana</span>
+                    </div>
+                    <i data-lucide="chevron-down" class="user-block-chev w-3 h-3"></i>
+                </button>
+                <div id="userMenu" class="user-menu" style="display:none;"></div>
             </div>
         </div>
     </header>
@@ -80,6 +84,9 @@
                     </span>
                     <input id="sidebarSearch" type="text" placeholder="Filtrar archivos..." class="cs-input pl-9 w-full">
                 </div>
+                <button id="btnToggleSidebar" class="sidebar-toggle-btn" title="Ocultar lista de archivos">
+                    <i data-lucide="panel-left-close" class="w-4 h-4"></i>
+                </button>
             </div>
 
             <div id="sidebarList" class="sidebar-list"></div>
@@ -153,6 +160,29 @@
             </div>
 
             <div class="main-content">
+
+                <!-- Panel de propuestas de edicion de CoffeeIA (oculto por defecto) -->
+                <div id="editProposalPanel" class="edit-proposal-panel" style="display:none;">
+                    <header class="epp-header">
+                        <div class="epp-title">
+                            <i data-lucide="wand-sparkles" class="w-4 h-4"></i>
+                            <span>Propuestas de CoffeeIA</span>
+                            <span id="eppCount" class="epp-count">0</span>
+                        </div>
+                        <div class="epp-actions">
+                            <button id="eppAcceptAll" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
+                                <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+                                Aceptar todas
+                            </button>
+                            <button id="eppClose" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5" title="Descartar propuestas">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                Cerrar
+                            </button>
+                        </div>
+                    </header>
+                    <div id="eppBody" class="epp-body"></div>
+                </div>
+
                 <div class="doc-layout">
 
                     <aside class="doc-meta">
@@ -198,6 +228,7 @@
 
         <!-- CoffeeIA Drawer -->
         <aside id="iaDrawer" class="ia-drawer">
+            <div id="iaDrawerResizeHandle" class="ia-drawer-resize-handle" title="Arrastra para redimensionar"></div>
             <div class="ia-drawer-inner">
 
                 <header class="ia-drawer-header">
@@ -214,6 +245,15 @@
                     <i data-lucide="file-text"></i>
                     <span id="iaCtxFilename" class="ia-ctx-filename">—</span>
                     <span id="iaCtxMeta" style="margin-left:auto;"></span>
+                </div>
+
+                <div id="iaPinnedWrap" class="ia-pinned-wrap" style="display:none;">
+                    <div class="ia-pinned-header">
+                        <i data-lucide="pin"></i>
+                        <span>Anclados al contexto</span>
+                        <span id="iaPinnedCount" class="ia-pinned-count">0</span>
+                    </div>
+                    <div id="iaPinnedChips" class="ia-pinned-chips"></div>
                 </div>
 
                 <!-- Estado VACIO -->
@@ -244,6 +284,10 @@
                         <button id="iaClearBtn" title="Limpiar conversacion" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;">
                             <i data-lucide="trash-2" class="w-3 h-3" style="display:inline-block;vertical-align:middle;margin-right:3px;"></i>
                             Limpiar
+                        </button>
+                        <button id="iaEditorToggle" class="ia-editor-toggle" title="Activar modo editor">
+                            <i data-lucide="pencil-line" class="w-3 h-3"></i>
+                            <span>Editor</span>
                         </button>
                         <button class="ia-model-pill" title="Modelo activo (solo lectura)">
                             Claude Opus 4.6

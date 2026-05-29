@@ -5,7 +5,11 @@
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" \"C:/wamp64/www/huubie/coffee/app/visor/ctrl/ctrl-visor.php\")",
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -r \"echo json_encode\\(json_decode\\(stream_get_contents\\(STDIN\\)\\)->agents[0], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES\\);\")",
       "Bash(awk 'BEGIN { RS=\"\\\\n\"; FS=\"\" } /^[│┌├└]/ { n=length\\($0\\); print NR\": \"n\" chars  |  \"$0 }' \"c:/wamp64/www/huubie/app/inventarios/docs/propuesta-bd.md\")",
-      "Bash(awk -F\"chars\" '{ n=$1; sub\\(/^[0-9]+: /, \"\", n\\); split\\(n,a,\" \"\\); if \\(a[1] != \"72\" && a[1] != \"70\"\\) print }')"
+      "Bash(awk -F\"chars\" '{ n=$1; sub\\(/^[0-9]+: /, \"\", n\\); split\\(n,a,\" \"\\); if \\(a[1] != \"72\" && a[1] != \"70\"\\) print }')",
+      "PowerShell(if \\(-not \\(Test-Path \"c:\\\\wamp64\\\\credentials\"\\)\\) { New-Item -ItemType Directory -Path \"c:\\\\wamp64\\\\credentials\" | Out-Null }; Invoke-WebRequest -Uri \"https://curl.se/ca/cacert.pem\" -OutFile \"c:\\\\wamp64\\\\credentials\\\\cacert.pem\" -UseBasicParsing; Get-Item \"c:\\\\wamp64\\\\credentials\\\\cacert.pem\" | Select-Object FullName, Length, LastWriteTime)",
+      "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\ctrl\\\\test-ollama.php\" \"?json=1&prompt=di+hola\" 2>&1 | Select-Object -First 80)",
+      "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\ctrl\\\\ctrl-coffeeia.php\")",
+      "PowerShell($resp = Invoke-WebRequest -Uri \"http://localhost/huubie/coffee/app/visor/ctrl/debug-coffeeia-prepend.php?test=1\" -UseBasicParsing; $resp.Content)"
     ],
     "additionalDirectories": [
       "\\tmp"

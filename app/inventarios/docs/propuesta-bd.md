@@ -99,6 +99,25 @@ Cross-schema:
 | `supply_shrinkage` | `detail_supply_shrinkage` | `MER-INS-####` |
 | `supply_transfer` | `detail_supply_transfer` | `TRA-INS-####` |
 
+### §2.8 Formatos preguardados de entradas (plantilla reutilizable)
+
+> Funcionalidad ya presente en la UI ([pos-entradas.js:1350-1438](../src/js/pos-entradas.js#L1350-L1438)) como **modo FAKE en `localStorage`** (clave `huubie_entradaFormatos`). El propio código deja anotado el contrato del backend: `useFetch({ data:{ opc:'lsFormatos' } })` y `useFetch({ data:{ opc:'saveFormatos', formatos:arr } })`. Estas tablas materializan ese backend.
+
+> **Caso de uso:** Rosy crea un formato *"Compra semanal proveedor X"* con 4 productos y sus cantidades habituales; la próxima semana abre el modal de Nueva Entrada, carga el formato y los renglones aparecen precargados. Solo edita lo que cambió y registra la entrada.
+
+| # | Tabla | Tipo | Descripción |
+|---|---|---|---|
+| 17 | `inflow_format` | Raíz (plantilla) | Cabecera del formato — nombre, scope (visibilidad), totales cache estables. |
+| 18 | `detail_inflow_format` | Detalle | Renglones precargados (producto + cantidad sugerida). |
+
+**Reglas específicas de esta sección:**
+
+1. **`scope` ENUM(`user`, `subsidiary`, `company`)** — controla quién ve el formato. Default `'user'` (privado del dueño). `'subsidiary'` lo comparte con la sucursal; `'company'` con toda la empresa.
+2. **No se persiste `cost` snapshot.** El costo del renglón se resuelve siempre desde `product_attribute.cost_unit` al cargar (`applyFormato`) y al listar (`lsFormatos` calcula `SUM(d.quantity * pa.cost_unit) AS total_cost` en runtime). Tradeoff aceptado: si el costo cambió desde que se guardó el formato, el monto se actualiza solo — no envejece.
+3. **Solo aplica a entradas.** No se generaliza con `event_type ENUM`. Si en el futuro mermas/traspasos/ajustes necesitan plantillas, se replican como `shrinkage_format`, `transfer_format`, etc. — cada uno con sus FKs propias.
+4. **Totales cache.** Solo `total_products` (count de renglones) y `total_units` (suma de cantidades) viven en el header — son estables porque dependen solo de los renglones. `total_cost` **no** se cachea por la regla 2.
+5. **Borrado.** Soft-delete via `active = 0` en `inflow_format`. CASCADE borra renglones lógicamente al limpiarse (o físicamente si se opta por DELETE real).
+
 ---
 
 ## §2.bis Diagrama de relaciones (texto plano)
@@ -195,6 +214,24 @@ Cross-schema:
         ║  ║ adjustment_reason  ║                                   ║
         ║  ╚════════════════════╝                                   ║
         ║                                                           ║
+        ║  ── PLANTILLAS (FORMATOS PREGUARDADOS) ──                 ║
+        ║                                                           ║
+        ║  ╔════════════════════╗      1  ╔══════════════════════╗  ║
+        ║  ║   inflow_format    ╠─────────╣ detail_inflow_format ║  ║
+        ║  ╚════════════════════╝   N     ╚══════════╦═══════════╝  ║
+        ║                                            │ N            ║
+        ║                                            │ 1            ║
+        ║                                   ┌────────▼──────────┐   ║
+        ║                                   │  order_products   │   ║
+        ║                                   │  (cross-schema)   │   ║
+        ║                                   └───────────────────┘   ║
+        ║                                                           ║
+        ║  Notas del bloque plantillas:                             ║
+        ║   • scope = ENUM(user, subsidiary, company)               ║
+        ║   • inflow_origin_id → SET NULL · sugerencia de origen    ║
+        ║   • detail.cost NO existe — se resuelve vía               ║
+        ║     product_attribute.cost_unit en runtime                ║
+        ║                                                           ║
         ║                                                           ║
         ║  Cross-schema (todas las tablas raíz tienen):             ║
         ║     subsidiaries_id  → fayxzvov_alpha.subsidiaries        ║
@@ -257,6 +294,12 @@ Cross-schema:
 | `inventory_adjustment` | N : 1 | `usr_users` (autorizo) | `fayxzvov_alpha` | Quién autorizó (puede ser el mismo). |
 | `detail_inventory_adjustment` | N : 1 | `inventory_adjustment` | actual | Renglón. |
 | `detail_inventory_adjustment` | N : 1 | `order_products` | `fayxzvov_reginas` | Producto ajustado. |
+| `inflow_format` | N : 1 | `inflow_origin` | actual | Sugerencia de origen al precargar (NULL = sin sugerencia). |
+| `inflow_format` | N : 1 | `subsidiaries` | `fayxzvov_alpha` | NULL = formato global; no nulo = atado a sucursal (scope `subsidiary`). |
+| `inflow_format` | N : 1 | `companies` | `fayxzvov_admin` | Tenant. |
+| `inflow_format` | N : 1 | `usr_users` | `fayxzvov_alpha` | Dueño del formato. |
+| `detail_inflow_format` | N : 1 | `inflow_format` | actual | Renglón pertenece a formato (CASCADE). |
+| `detail_inflow_format` | N : 1 | `order_products` | `fayxzvov_reginas` | Producto precargado. Costo se resuelve vía `product_attribute` en runtime. |
 
 ---
 
@@ -834,6 +877,105 @@ USE `fayxzvov_inventario`;
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
+### §3.4.bis Formatos preguardados de entradas
+
+> Plantillas reutilizables que precargan renglones en el modal de Nueva Entrada (ver §2.8). Scope controla visibilidad. Costo no se guarda — se resuelve vía `product_attribute.cost_unit` en runtime.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ inflow_format  (raíz — plantilla reutilizable para entradas)         │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  name                   VARCHAR(120)   nombre visible del formato    │
+│  description            VARCHAR(255)   NULL · nota libre             │
+│  scope                  ENUM('user',                                 │
+│                              'subsidiary',                           │
+│                              'company')  default 'user'              │
+│                                        visibilidad del formato       │
+│                                                                      │
+│  ── Totales cache (estables) ──                                      │
+│  total_products         INT            # de renglones                │
+│  total_units            DOUBLE         suma de cantidad              │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│  updated_at             DATETIME       ON UPDATE CURRENT_TIMESTAMP   │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  inflow_origin_id       → inflow_origin  SET NULL · origen sugerido  │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  subsidiaries_id        → fayxzvov_alpha.subsidiaries · NULL=global  │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
+│  user_id                → fayxzvov_alpha.usr_users   · dueño         │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ detail_inflow_format  (detalle — renglones precargados del formato)  │
+├──────────────────────────────────────────────────────────────────────┤
+│  id                     INT PK         identificador único           │
+│                                                                      │
+│  ── Negocio ──                                                       │
+│  quantity               DOUBLE         cantidad sugerida             │
+│  position               INT            orden de aparición            │
+│                                                                      │
+│  ── Timestamps ──                                                    │
+│  created_at             DATETIME       auditoría · alta              │
+│                                                                      │
+│  ── Soft-delete ──                                                   │
+│  active                 TINYINT(1)     1=activo / 0=baja lógica      │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  product_id             → fayxzvov_reginas.order_products · producto │
+│                                                                      │
+│  ── FK locales ──                                                    │
+│  inflow_format_id       → inflow_format  CASCADE · plantilla padre   │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Consultas tipo:**
+
+Listado de formatos visibles para el usuario actual con total de costo vivo:
+
+```sql
+SELECT f.id, f.name, f.scope,
+       f.total_products, f.total_units,
+       SUM(d.quantity * pa.cost_unit) AS total_cost
+FROM inflow_format f
+JOIN detail_inflow_format d ON d.inflow_format_id = f.id AND d.active = 1
+JOIN product_attribute pa   ON pa.product_id = d.product_id
+WHERE f.active = 1
+  AND f.companies_id = :empresa
+  AND ( (f.scope = 'user'       AND f.user_id        = :usuario)
+     OR (f.scope = 'subsidiary' AND f.subsidiaries_id = :sucursal)
+     OR (f.scope = 'company') )
+GROUP BY f.id
+ORDER BY f.updated_at DESC;
+```
+
+Renglones para precargar al aplicar un formato (costo vivo):
+
+```sql
+SELECT d.product_id,
+       op.name        AS product_name,
+       pa.sku,
+       d.quantity,
+       pa.cost_unit   AS cost
+FROM detail_inflow_format d
+JOIN fayxzvov_reginas.order_products op ON op.id = d.product_id
+JOIN product_attribute pa              ON pa.product_id = d.product_id
+WHERE d.inflow_format_id = :formato_id
+  AND d.active = 1
+ORDER BY d.position;
+```
+
 ### §3.5 Bitácora unificada (vista)
 
 ```sql
@@ -1036,6 +1178,229 @@ supply_stock (saldo: supply_id + warehouse_id + quantity)
 
 ---
 
+## §3.bis Estrategia dual-tracking (POS + Insumos) y diagrama extendido
+
+> Esta sección cierra §3 explicando **cómo conviven** las dos dimensiones de inventario en el mismo esquema `fayxzvov_inventario`. El detalle de UI, dispatcher y fases está en [plan/propuesta-salida-insumos.md](../plan/propuesta-salida-insumos.md); aquí solo se documentan las decisiones que tocan modelo de datos.
+
+### §3.bis.1 Decisión central: tablas paralelas, **no polimorfismo**
+
+Hay dos formas de modelar dos dimensiones de inventario en una misma BD:
+
+| Opción | Cómo se ve | Por qué se descartó |
+|---|---|---|
+| **A. Polimorfismo** — una sola tabla `inventory_inflow` con campo `scope ENUM('pos','supply')` + `item_id` apuntando a `order_products` o a `supply` según el scope. | Menos tablas, menos DDL. | FKs imposibles (`item_id` no puede referenciar dos tablas distintas), índices ambiguos, queries siempre con `WHERE scope = ?`, y un bug del lado de la app puede ensuciar la tabla con filas del scope equivocado. |
+| **B. Tablas paralelas** ✅ (elegida) | Cada scope tiene sus propias raíces y detalles: `inventory_inflow` para POS, `supply_inflow` para insumos. FKs limpias en cada lado. | DDL duplicado (~7 tablas más). A cambio: integridad referencial fuerte y los modelos PHP no tienen que cargar con la responsabilidad de filtrar por scope todo el tiempo. |
+
+**Consecuencia para el dispatcher:** la capa de aplicación lee `scope` desde sesión/POST y rutea al modelo correcto (`mdl-pos-*` vs `mdl-supply-*`). La BD nunca ve el campo `scope` en una tabla de evento.
+
+### §3.bis.2 Qué se comparte y qué se duplica
+
+```
+┌────────────────────────────┬──────────────────────┬──────────────────────┐
+│ Elemento                   │ Lado POS             │ Lado INSUMOS         │
+├────────────────────────────┼──────────────────────┴──────────────────────┤
+│ subsidiaries, companies,   │                                              │
+│ usr_users (cross-schema)   │   ←──── COMPARTIDO ────→                    │
+│ warehouse, warehouse_area  │   (un mismo almacén puede guardar POS       │
+│ unit, supplier             │    e insumos en áreas separadas)            │
+├────────────────────────────┼──────────────────────┬──────────────────────┤
+│ Catálogo base de items     │ order_products       │ supply               │
+│                            │ (cross-schema        │ (catálogo autónomo,  │
+│                            │  fayxzvov_reginas)   │  vive aquí)          │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Extensión / categorías     │ product_attribute    │ supply_category      │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Saldo vivo                 │ stock                │ supply_stock         │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Entradas                   │ inventory_inflow     │ supply_inflow        │
+│                            │ + detail_*           │ + detail_*           │
+│                            │ folio ENT-####       │ folio ENT-INS-####   │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Salidas dedicadas          │ ❌ no existe         │ supply_outflow       │
+│                            │ (salidas son         │ + detail_*           │
+│                            │  consecuencia de     │ folio SAL-INS-####   │
+│                            │  Ventas / Merma /    │                      │
+│                            │  Traspaso)           │                      │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Mermas                     │ inventory_shrinkage  │ supply_shrinkage     │
+│                            │ folio M-####         │ folio MER-INS-####   │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Traspasos                  │ inventory_transfer   │ supply_transfer      │
+│                            │ folio TRA-####       │ folio TRA-INS-####   │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Ajustes                    │ inventory_adjustment │ supply_adjustment    │
+│                            │ folio AJU-####       │ folio AJU-INS-####   │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Plantillas reutilizables   │ inflow_format        │ (no en Fase 2 — se   │
+│                            │ + detail_*           │  decidirá si se      │
+│                            │ (§2.8 / §3.4.bis)    │  replica)            │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Catálogos satélites        │ inflow_origin        │ inflow_origin        │
+│ (motivos / orígenes)       │ shrinkage_reason     │ (reutilizado, se     │
+│                            │ adjustment_reason    │  agregan filas       │
+│                            │ transfer_status      │  específicas)        │
+│                            │                      │ + consumption_area   │
+│                            │                      │   (Cocina/Barra/...) │
+│                            │                      │ + outflow_reason     │
+│                            │                      │   (Consumo/Baja/...) │
+├────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Bitácora unificada         │ inventory_movement   │ supply_movement      │
+│                            │ (VIEW · §3.5)        │ (VIEW · Fase 2)      │
+│                            │ — NUNCA hay UNION cruzado POS ↔ INSUMOS —   │
+└────────────────────────────┴──────────────────────┴──────────────────────┘
+```
+
+**Por qué bitácora separada:** un usuario que opera el visor de Movimientos con `scope=pos` nunca quiere ver "Harina T55 1kg" mezclado con "Cupcake Red Velvet". Mezclar las dos dimensiones en una sola vista rompe el modelo mental y obliga a filtros adicionales. Cada scope vive en su propia VIEW.
+
+### §3.bis.3 Folios — convención de prefijos
+
+| Evento | POS | INSUMOS |
+|---|---|---|
+| Entrada | `ENT-####` | `ENT-INS-####` |
+| Salida (solo insumos) | — | `SAL-INS-####` |
+| Merma | `M-####` | `MER-INS-####` |
+| Traspaso | `TRA-####` | `TRA-INS-####` |
+| Ajuste | `AJU-####` / `INV-FIS-####` | `AJU-INS-####` |
+
+La tabla `folio_sequence` (§5.2) extiende su PK `(companies_id, sequence_code)` para acomodar los nuevos `sequence_code` de insumos sin cambios estructurales.
+
+### §3.bis.4 Diagrama extendido (texto plano)
+
+> Convención: caja **doble borde** `╔══╗` = tabla del esquema actual `fayxzvov_inventario`. Caja **borde simple** `┌──┐` = tabla cross-schema. Bloques POS / INSUMOS / COMPARTIDO se separan visualmente; las cross-schema comunes se listan al pie para no saturar las flechas.
+
+```
+        ╔════════════════════════════════════════════════════════════════════════╗
+        ║                  fayxzvov_inventario  (dual-tracking)                  ║
+        ║                                                                        ║
+        ║  ── COMPARTIDO ENTRE AMBOS SCOPES ──                                   ║
+        ║                                                                        ║
+        ║  ╔═══════════════╗  ╔═══════════════╗  ╔═══════════════╗  ╔══════════╗ ║
+        ║  ║   warehouse   ║  ║warehouse_area ║  ║      unit     ║  ║ supplier ║ ║
+        ║  ╚═══════════════╝  ╚═══════════════╝  ╚═══════════════╝  ╚══════════╝ ║
+        ║                                                                        ║
+        ║                                                                        ║
+        ║  ┌──────────────────────────┐    ┌──────────────────────────┐          ║
+        ║  │  LADO POS (scope=pos)    │    │ LADO INSUMOS (scope=supply)│        ║
+        ║  └──────────────────────────┘    └──────────────────────────┘          ║
+        ║                                                                        ║
+        ║  ┌───────────────────┐ 1    1  ╔═══════════════════╗                   ║
+        ║  │  order_products   │────────│ product_attribute │                   ║
+        ║  │  (cross-schema)   │        ╚═══════════════════╝                   ║
+        ║  └─────────┬─────────┘                                                 ║
+        ║            │ 1                  ╔═══════════════╗  N  ╔═══════════════╗║
+        ║            │                    ║    supply     ╠─────╣supply_category║║
+        ║            │ N                  ╚═══════╦═══════╝  1   ╚═══════════════╝║
+        ║  ╔═════════▼════════╗                  │ N                              ║
+        ║  ║      stock       ║                  │ 1                              ║
+        ║  ╚══════════════════╝          ╔═══════▼═══════╗                       ║
+        ║                                ║  supply_stock ║                       ║
+        ║                                ╚═══════════════╝                       ║
+        ║                                                                        ║
+        ║  ── EVENTOS POS (4 raíz + detalle) ──    ── EVENTOS INSUMOS (5) ──    ║
+        ║                                                                        ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║ inventory_inflow   ╠─────────────╣detail_inv_inflow  ║              ║
+        ║  ╚═════════╦══════════╝             ╚═══════════════════╝              ║
+        ║            │                                                            ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║inventory_shrinkage ╠─────────────╣detail_inv_shrink. ║              ║
+        ║  ╚════════════════════╝             ╚═══════════════════╝              ║
+        ║                                                                        ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║ inventory_transfer ╠─────────────╣detail_inv_transfer║              ║
+        ║  ╚════════════════════╝             ╚═══════════════════╝              ║
+        ║                                                                        ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║inventory_adjustment╠─────────────╣detail_inv_adjust. ║              ║
+        ║  ╚════════════════════╝             ╚═══════════════════╝              ║
+        ║                                                                        ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║   inflow_format    ╠─────────────╣detail_inflow_form.║   (§3.4.bis) ║
+        ║  ╚════════════════════╝             ╚═══════════════════╝              ║
+        ║                                                                        ║
+        ║                          ─────────                                     ║
+        ║                                                                        ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║   supply_inflow    ╠─────────────╣detail_supply_infl.║   ENT-INS-## ║
+        ║  ╚════════════════════╝             ╚═══════════════════╝              ║
+        ║                                                                        ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║   supply_outflow   ╠─────────────╣detail_supply_outfl║   SAL-INS-## ║
+        ║  ╚═════════╦══════════╝             ╚═══════════════════╝              ║
+        ║            │ N                                                          ║
+        ║            │ 1                                                          ║
+        ║  ╔═════════▼══════════╗      ╔══════════════════╗                      ║
+        ║  ║consumption_area    ║      ║ outflow_reason   ║                      ║
+        ║  ╚════════════════════╝      ╚══════════════════╝                      ║
+        ║                                                                        ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║  supply_shrinkage  ╠─────────────╣detail_supply_shr. ║   MER-INS-## ║
+        ║  ╚════════════════════╝             ╚═══════════════════╝              ║
+        ║                                                                        ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║  supply_transfer   ╠─────────────╣detail_supply_tran.║   TRA-INS-## ║
+        ║  ╚════════════════════╝             ╚═══════════════════╝              ║
+        ║                                                                        ║
+        ║  ╔════════════════════╗   1     N   ╔═══════════════════╗              ║
+        ║  ║  supply_adjustment ╠─────────────╣detail_supply_adj. ║   AJU-INS-## ║
+        ║  ╚════════════════════╝             ╚═══════════════════╝              ║
+        ║                                                                        ║
+        ║                                                                        ║
+        ║  ── BITÁCORAS UNIFICADAS (una por scope, SIN UNION CRUZADO) ──        ║
+        ║                                                                        ║
+        ║  ┃ inventory_movement (VIEW)  ┃   ┃ supply_movement (VIEW · Fase 2) ┃ ║
+        ║                                                                        ║
+        ║                                                                        ║
+        ║  Cross-schema (todas las tablas raíz tienen estas FKs):                ║
+        ║     subsidiaries_id → fayxzvov_alpha.subsidiaries                      ║
+        ║     companies_id    → fayxzvov_admin.companies                         ║
+        ║     user_id         → fayxzvov_alpha.usr_users                         ║
+        ║     product_id      → fayxzvov_reginas.order_products  (SOLO lado POS) ║
+        ║     supply_id       → supply (local · SOLO lado INSUMOS)               ║
+        ╚════════════════════════════════════════════════════════════════════════╝
+```
+
+### §3.bis.5 Cardinalidades nuevas (lado Insumos)
+
+| Origen | Card | Destino | Esquema | Justificación |
+|---|---|---|---|---|
+| `supply` | N : 1 | `supply_category` | actual | Cada insumo pertenece a una categoría (Materia prima, Limpieza, ...). |
+| `supply` | N : 1 | `unit` | actual | Unidad de medida (kg, lt, pza, caja). |
+| `supply` | N : 1 | `warehouse_area` | actual | Área física donde se almacena (Refrigerados/Secos/Congelados). |
+| `supply` | N : 1 | `supplier` | actual (NULL) | Proveedor preferido (opcional). |
+| `supply_stock` | N : 1 | `supply` | actual | Saldo por insumo. |
+| `supply_stock` | N : 1 | `warehouse` | actual | Saldo por almacén (mismo warehouse que POS). |
+| `supply_inflow` | N : 1 | `inflow_origin` | actual | Origen reutilizado (con filas extras para insumos). |
+| `supply_inflow` | N : 1 | `warehouse` | actual | Compartido. |
+| `supply_outflow` | N : 1 | `consumption_area` | actual | Área destino (Cocina/Barra/Panadería). Solo aplica a insumos. |
+| `supply_outflow` | N : 1 | `outflow_reason` | actual | Motivo (Consumo interno, Donativo, Baja). Solo aplica a insumos. |
+| `supply_shrinkage` | N : 1 | `shrinkage_reason` | actual | Motivos reutilizados (Caducidad/Daño/Derrame). |
+| `supply_transfer` | N : 1 | `transfer_status` | actual | Estado del flujo reutilizado. |
+| `supply_adjustment` | N : 1 | `adjustment_reason` | actual | Motivos reutilizados. |
+| `detail_supply_*` | N : 1 | `supply_*` (su raíz) | actual | CASCADE raíz → detalle. |
+| `detail_supply_*` | N : 1 | `supply` | actual | Cada renglón referencia un insumo. |
+
+### §3.bis.6 Implicaciones para los visores
+
+| Submódulo del frontend | Comportamiento esperado |
+|---|---|
+| **Stock** | `scope=pos` lee `stock`; `scope=supply` lee `supply_stock`. Mismo template, distinto endpoint. |
+| **Entradas** | `scope=pos` inserta en `inventory_inflow`; `scope=supply` en `supply_inflow`. Origen tipificado distinto en cada lado. |
+| **Salidas** | Solo existe en `scope=supply`. La card del MenuHub se oculta cuando `scope=pos`. |
+| **Movimientos** | Cada scope consulta su propia VIEW (`inventory_movement` vs `supply_movement`). |
+| **Mermas / Traspasos / Ajustes** | Mismo patrón: scope dispatcha al par de tablas correcto. |
+| **Plantillas** | `inflow_format` por ahora solo aplica a entradas POS. Si insumos lo necesita, se replica como `supply_inflow_format` (no se generaliza con campo `scope`). |
+
+### §3.bis.7 Resumen ejecutivo dual-tracking
+
+- **+7 tablas** del lado supply respecto del esquema POS (catálogo + categoría + stock + 5 pares raíz/detalle adicionales considerando outflow).
+- **0 cambios** en las tablas POS ya definidas: la dimensión Insumos es **aditiva**, no requiere ALTER de lo existente.
+- **3 catálogos** reutilizados entre scopes con filas extras (`inflow_origin`, `shrinkage_reason`, `adjustment_reason`, `transfer_status`).
+- **2 catálogos** exclusivos del lado supply (`consumption_area`, `outflow_reason`).
+- **1 VIEW** adicional (`supply_movement`) — sin UNION cruzado con la de POS.
+
+---
+
 ## §4. Auto-revisión (checklist db-rules)
 
 | Regla | Estado | Notas |
@@ -1181,6 +1546,6 @@ LIMIT 50;
 
 ## §7. Resumen final
 
-15 tablas nuevas en el esquema `fayxzvov_inventario` + 1 vista de bitácora, todas respetando convenciones del manual `db-rules.md` con dos desviaciones declaradas (plural en FKs cross-schema, bitácora como vista). Catálogo de productos POS se respeta vía FK cross-schema a `fayxzvov_reginas.order_products` sin duplicar. La propuesta cubre el 100% del flujo POS observado en el código (entradas, mermas, traspasos, ajustes) y deja sembrada la extensión paralela para Insumos como Fase 2. Cuenta con seeds para arranque y queries de referencia para los visores existentes.
+17 tablas nuevas en el esquema `fayxzvov_inventario` + 1 vista de bitácora, todas respetando convenciones del manual `db-rules.md` con dos desviaciones declaradas (plural en FKs cross-schema, bitácora como vista). Catálogo de productos POS se respeta vía FK cross-schema a `fayxzvov_reginas.order_products` sin duplicar. La propuesta cubre el 100% del flujo POS observado en el código (entradas, mermas, traspasos, ajustes) + plantillas reutilizables de entradas (`inflow_format`), y deja sembrada la extensión paralela para Insumos como Fase 2. Cuenta con seeds para arranque y queries de referencia para los visores existentes.
 
 — **Coffee Intelligence 🧠☕**
