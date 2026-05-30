@@ -188,6 +188,11 @@ function renderMainPanel() {
             `;
         }).join('');
 
+        const newMdBtn = (!drive && !t.isVirtual) ? `
+            <button class="btn-new-md cs-btn cs-btn-ghost cs-btn-sm" data-type="${t.name}" title="Nuevo .md">
+                <i data-lucide="file-plus" class="w-3.5 h-3.5"></i>
+            </button>` : '';
+
         const typeMenu = t.isVirtual ? '' : `
             <div class="admin-type-menu">
                 <button class="admin-type-menu-trigger cs-btn cs-btn-ghost cs-btn-sm" data-type="${t.name}" title="Opciones">
@@ -210,7 +215,10 @@ function renderMainPanel() {
                         <span class="font-semibold text-sm" style="color:var(--vsr-text)">${t.name}</span>
                         <span class="badge-count">${t.files.length}</span>
                     </span>
-                    ${typeMenu}
+                    <span class="flex items-center gap-1">
+                        ${newMdBtn}
+                        ${typeMenu}
+                    </span>
                 </div>
                 <div>${fileRows}</div>
                 <div class="mt-2 pt-2" style="border-top:1px dashed var(--vsr-border-soft);">
@@ -343,6 +351,31 @@ function bindEvents() {
         await apiPost('delete', { target: 'folder', path: fullPath });
     });
 
+    // Nuevo .md — abrir modal
+    $('#typesContainer').on('click', '.btn-new-md', (e) => {
+        e.stopPropagation();
+        const type = $(e.currentTarget).data('type');
+        if (!currentProject) { toast('Selecciona un proyecto primero', 'warn'); return; }
+        $('#inputNewMd').val('');
+        $('#newMdTypeName').text(type);
+        $('#modalNewMd').data('type', type).removeClass('hidden');
+        $('#inputNewMd').focus();
+    });
+
+    $('#btnConfirmNewMd').on('click', async () => {
+        const name = $('#inputNewMd').val().trim();
+        const type = $('#modalNewMd').data('type');
+        if (!name) { toast('Ingresa un nombre', 'warn'); return; }
+        if (!type || !currentProject) { toast('Contexto invalido', 'warn'); return; }
+
+        const ok = await createMd(currentProject, type, name);
+        if (ok) $('#modalNewMd').addClass('hidden');
+    });
+
+    $('#inputNewMd').on('keydown', (e) => {
+        if (e.key === 'Enter') $('#btnConfirmNewMd').trigger('click');
+    });
+
     // Drag & drop + file input
     $('#typesContainer').on('click', '.admin-folder-slot', function (e) {
         // Evita reentry cuando el click sintetico del input burbujea
@@ -406,6 +439,30 @@ async function apiPost(action, payload) {
             return false;
         }
         toast(data.message || 'OK', 'success');
+        await loadProjects();
+        if (currentProject) selectProject(currentProject);
+        return true;
+    } catch (e) {
+        toast('Error de red', 'error');
+        console.error(e);
+        return false;
+    }
+}
+
+async function createMd(project, type, name) {
+    const form = new FormData();
+    form.append('action',  'create_md');
+    form.append('project', project);
+    form.append('type',    type);
+    form.append('name',    name);
+
+    try {
+        const res  = await fetch(apiUrl(), { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { toast(data.message || 'Error', 'error'); return false; }
+        toast(data.message || 'Creado', 'success');
+
+        // Recargar el panel — el archivo aparece dentro del tipo
         await loadProjects();
         if (currentProject) selectProject(currentProject);
         return true;

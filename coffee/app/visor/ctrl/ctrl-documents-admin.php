@@ -237,6 +237,45 @@ switch ($action) {
         jsonResponse(true, 'Guardado');
         break;
 
+    case 'create_md':
+        $project = sanitizeName($_POST['project'] ?? '');
+        $type    = sanitizeName($_POST['type'] ?? '');
+        $rawName = trim($_POST['name'] ?? '');
+        if (!$project || !$type) jsonResponse(false, 'Proyecto y tipo requeridos');
+        if ($rawName === '')     jsonResponse(false, 'Nombre requerido');
+
+        // Sanitizar nombre y asegurar extension .md
+        $base = preg_replace('/\.md$/i', '', $rawName);
+        $base = sanitizeName($base);
+        if (!$base) jsonResponse(false, 'Nombre invalido');
+        $filename = $base . '.md';
+
+        $typeDir = $BASE_DIR . '/' . $project . '/' . $type;
+        if (!isInsideDocuments($typeDir)) jsonResponse(false, 'Ruta no permitida');
+        if (!is_dir($typeDir))             jsonResponse(false, 'Tipo no existe');
+
+        $path = $typeDir . '/' . $filename;
+        if (file_exists($path)) jsonResponse(false, 'Ya existe un archivo con ese nombre');
+
+        // Plantilla minima con frontmatter
+        $today   = date('Y-m-d');
+        $title   = $base;
+        $content = "---\n" .
+                   "name: {$title}\n" .
+                   "description: \n" .
+                   "date: {$today}\n" .
+                   "---\n\n" .
+                   "# {$title}\n\n";
+
+        $bytes = file_put_contents($path, $content, LOCK_EX);
+        if ($bytes === false) jsonResponse(false, 'Error al crear');
+
+        jsonResponse(true, 'Documento creado', [
+            'file'    => $filename,
+            'relPath' => $project . '/' . $type . '/' . $filename
+        ]);
+        break;
+
     default:
         jsonResponse(false, 'Accion no reconocida');
 }

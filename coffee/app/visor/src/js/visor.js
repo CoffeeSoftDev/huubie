@@ -424,13 +424,28 @@ class App {
     }
 
     canEdit(file) {
-        if (!file)            return false;
-        if (file.lazyDrive)   return false;  // Drive aun no soportado en write
-        if (!file.fullPath)   return false;  // modo SAMPLE
+        if (!file) return false;
+
+        if (file.lazyDrive) {
+            if (!file.driveId) return false;
+            const mime = file.mimeType || '';
+
+            // Google Doc nativo: editable via markdown import (Drive convierte).
+            // Sheets/Slides/Forms NO se soportan en este flujo.
+            if (mime === 'application/vnd.google-apps.document') return true;
+            if (mime.indexOf('application/vnd.google-apps.') === 0) return false;
+
+            // Drive: archivos texto/markdown reales — validar por extension
+            const parts = (file.file || '').split('.');
+            if (parts.length < 2) return false;
+            return EDITABLE_EXTS.includes(parts.pop().toLowerCase());
+        }
+
+        // Local
+        if (!file.fullPath) return false;
         const parts = (file.file || '').split('.');
         if (parts.length < 2) return false;
-        const ext = parts.pop().toLowerCase();
-        return EDITABLE_EXTS.includes(ext);
+        return EDITABLE_EXTS.includes(parts.pop().toLowerCase());
     }
 
     updateEditButton() {
@@ -440,15 +455,60 @@ class App {
                      .attr('title', can ? 'Editar en el visor' : 'Archivo no editable en el visor');
     }
 
+    _isMarkdown(file) {
+        // Google Docs nativos: su contenido se exporta como markdown.
+        if (file.mimeType === 'application/vnd.google-apps.document') return true;
+        const parts = (file.file || '').split('.');
+        const ext = parts.length > 1 ? parts.pop().toLowerCase() : '';
+        return ext === 'md' || ext === 'markdown' || ext === '';
+    }
+
+    // Servicio Turndown (HTML -> Markdown) creado una sola vez.
+    _turndown() {
+        if (this._td) return this._td;
+        if (typeof TurndownService === 'undefined') return null;
+        const td = new TurndownService({
+            headingStyle:     'atx',
+            hr:               '---',
+            bulletListMarker: '-',
+            codeBlockStyle:   'fenced',
+            fence:            '```',
+            emDelimiter:      '*',
+            strongDelimiter:  '**',
+            linkStyle:        'inlined'
+        });
+        if (typeof turndownPluginGfm !== 'undefined' && turndownPluginGfm.gfm) {
+            td.use(turndownPluginGfm.gfm);
+        }
+        this._td = td;
+        return td;
+    }
+
     enterEditMode() {
         const file = visor.getFile(this.allFiles, this.currentFile);
         if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
 
         this.isEditing = true;
-        $('#md-edit').val(file.raw);
-        $('#md-rendered').addClass('hidden');
-        $('#md-raw').addClass('hidden');
-        $('#md-edit').removeClass('hidden').focus();
+        const useWysiwyg = this._isMarkdown(file) && this._turndown();
+        this._editMode = useWysiwyg ? 'wysiwyg' : 'raw';
+
+        if (useWysiwyg) {
+            // Edicion fluida en sitio sobre el documento renderizado (tipo Word).
+            $('.cs-tab[data-tab="rendered"]').addClass('active');
+            $('.cs-tab[data-tab="raw"]').removeClass('active');
+            $('#md-raw, #md-edit').addClass('hidden');
+            $('#md-rendered')
+                .removeClass('hidden')
+                .attr('contenteditable', 'true')
+                .addClass('wysiwyg-editing')
+                .focus();
+        } else {
+            // Archivos de codigo: edicion raw en textarea.
+            $('#md-edit').val(file.raw);
+            $('#md-rendered').addClass('hidden');
+            $('#md-raw').addClass('hidden');
+            $('#md-edit').removeClass('hidden').focus();
+        }
 
         $('#btnEdit, #btnOpenEditor, #btnCopyPath').addClass('hidden');
         $('#btnSave, #btnCancel').removeClass('hidden');
@@ -459,6 +519,7 @@ class App {
 
     exitEditMode(saved) {
         this.isEditing = false;
+        $('#md-rendered').attr('contenteditable', 'false').removeClass('wysiwyg-editing');
         $('#md-edit').addClass('hidden').val('');
         $('#md-rendered').removeClass('hidden');
         $('#md-raw').addClass('hidden');
@@ -474,14 +535,56 @@ class App {
             const file = visor.getFile(this.allFiles, this.currentFile);
             if (file) visorView.renderContent(file);
         }
+        this._editMode = null;
         this.updateEditButton();
         if (window.lucide) lucide.createIcons();
     }
 
-    // Guarda contenido directo al disco sin pasar por modo edicion. Lo usa CoffeeIA
-    // tras aplicar una propuesta. Devuelve true/false.
+    // Guarda contenido directo al disco/Drive sin pasar por modo edicion.
+    // Lo usa CoffeeIA tras aplicar una propuesta y el WYSIWYG via saveFile.
     async saveContentSilent(file, content) {
-        if (!file || !file.fullPath) return false;
+        if (!file) return false;
+
+        // Drive: route a drivewrite
+        if (file.lazyDrive) {
+            if (!file.driveId) return false;
+
+            let body = content;
+            let mime = 'text/markdown';
+
+            // Google Doc: el caller mando markdown — convertir a HTML para
+            // que Drive preserve el formato (headings, bold, listas, tablas).
+            const isGoogleDoc = file.mimeType === 'application/vnd.google-apps.document';
+            if (isGoogleDoc && typeof marked !== 'undefined' && marked.parse) {
+                body = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>' +
+                       marked.parse(content) +
+                       '</body></html>';
+                mime = 'text/html';
+            }
+
+            try {
+                const form = new FormData();
+                form.append('action',  'drivewrite');
+                form.append('id',      file.driveId);
+                form.append('mime',    mime);
+                form.append('content', body);
+                const res  = await fetch(this._link, { method: 'POST', body: form });
+                const data = await res.json();
+                if (!data.success) {
+                    visorView.toast(data.message || 'Error al guardar en Drive', 'error');
+                    return false;
+                }
+                // file.raw siempre es el markdown original (no el HTML enviado).
+                this._applySaveResult(file, content, data);
+                return true;
+            } catch (e) {
+                visorView.toast('Error de red al guardar en Drive', 'error');
+                return false;
+            }
+        }
+
+        // Local
+        if (!file.fullPath) return false;
         try {
             const form = new FormData();
             form.append('action',     'save');
@@ -494,15 +597,7 @@ class App {
                 visorView.toast(data.message || 'Error al guardar', 'error');
                 return false;
             }
-            file.raw         = content;
-            file.frontmatter = visor.parseFrontmatter(content);
-            if (data.size)  file.size  = data.size;
-            if (data.mtime) file.mtime = data.mtime;
-            visorView.renderContent(file);
-            visorView.renderFrontmatter(file);
-            visorView.renderFooterSelection(file);
-            visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
-            this.bindSidebarClicks();
+            this._applySaveResult(file, content, data);
             return true;
         } catch (e) {
             visorView.toast('Error de red al guardar', 'error');
@@ -510,51 +605,88 @@ class App {
         }
     }
 
+    // Helper: actualiza el estado en memoria y refresca la UI tras un save exitoso.
+    _applySaveResult(file, content, data) {
+        file.raw         = content;
+        file.frontmatter = visor.parseFrontmatter(content);
+        if (data.size)  file.size  = data.size;
+        if (data.mtime) file.mtime = data.mtime;
+        visorView.renderContent(file);
+        visorView.renderFrontmatter(file);
+        visorView.renderFooterSelection(file);
+        visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
+        this.bindSidebarClicks();
+    }
+
     async saveFile() {
         const file = visor.getFile(this.allFiles, this.currentFile);
         if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
 
-        const content = $('#md-edit').val();
-        const $btn    = $('#btnSave');
+        const isGoogleDoc = file.lazyDrive && file.mimeType === 'application/vnd.google-apps.document';
+
+        const $btn = $('#btnSave');
         $btn.prop('disabled', true).find('i').attr('data-lucide', 'loader-2').addClass('visor-spin');
         if (window.lucide) lucide.createIcons();
 
+        let ok = false;
+
+        if (isGoogleDoc && this._editMode === 'wysiwyg') {
+            // ─── Google Doc + WYSIWYG ───
+            // Enviar HTML directo al endpoint drivewrite. El conversor HTML→Doc
+            // de Drive preserva headings, bold, listas, tablas, links, etc.
+            // (mucho mejor que mandar markdown, que perdia formato).
+            const html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>' +
+                         $('#md-rendered').html() +
+                         '</body></html>';
+            // Reconstruir markdown para mantener file.raw consistente con el resto del visor.
+            const td    = this._turndown();
+            const mdRaw = td ? td.turndown($('#md-rendered').html()) : '';
+            ok = await this._driveSaveHtml(file, html, mdRaw);
+        } else {
+            // ─── Flujo regular (markdown) ───
+            let content;
+            if (this._editMode === 'wysiwyg') {
+                const td = this._turndown();
+                const body = td.turndown($('#md-rendered').html()).replace(/\s+$/, '');
+                const origBody = visor.stripFrontmatter(file.raw);
+                const fmPrefix = file.raw.slice(0, file.raw.length - origBody.length);
+                content = (fmPrefix.trim() ? fmPrefix.replace(/\s*$/, '\n\n') : '') + body + '\n';
+            } else {
+                content = $('#md-edit').val();
+            }
+            ok = await this.saveContentSilent(file, content);
+        }
+
+        if (ok) {
+            visorView.toast('Guardado' + (file.size ? ': ' + file.size : '') + (file.lazyDrive ? ' (Drive)' : ''), 'success');
+            this.exitEditMode(true);
+        }
+
+        $btn.prop('disabled', false).find('i').attr('data-lucide', 'save').removeClass('visor-spin');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Guarda HTML directo a un Google Doc en Drive. mdForState es el markdown
+    // que se guardara en file.raw para que el visor lo siga manejando como tal.
+    async _driveSaveHtml(file, htmlContent, mdForState) {
+        if (!file.driveId) return false;
         try {
             const form = new FormData();
-            form.append('action',     'save');
-            form.append('fullPath',   file.fullPath);
-            form.append('customPath', this.settings.customPath || '');
-            form.append('content',    content);
-
+            form.append('action',  'drivewrite');
+            form.append('id',      file.driveId);
+            form.append('mime',    'text/html');
+            form.append('content', htmlContent);
             const res  = await fetch(this._link, { method: 'POST', body: form });
             const data = await res.json();
-
             if (!data.success) {
-                visorView.toast(data.message || 'Error al guardar', 'error');
-                $btn.prop('disabled', false).find('i').attr('data-lucide', 'save').removeClass('visor-spin');
-                if (window.lucide) lucide.createIcons();
-                return;
+                visorView.toast(data.message || 'Error al guardar Google Doc', 'error');
+                return false;
             }
-
-            // Actualizar estado en memoria
-            file.raw         = content;
-            file.frontmatter = visor.parseFrontmatter(content);
-            if (data.size)  file.size  = data.size;
-            if (data.mtime) file.mtime = data.mtime;
-
-            // Refrescar UI
-            visorView.renderContent(file);
-            visorView.renderFrontmatter(file);
-            visorView.renderFooterSelection(file);
-            visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
-            this.bindSidebarClicks();
-
-            visorView.toast('Guardado: ' + (data.size || ''), 'success');
-            this.exitEditMode(true);
+            this._applySaveResult(file, mdForState, data);
+            return true;
         } catch (e) {
-            visorView.toast('Error de red al guardar', 'error');
-            $btn.prop('disabled', false).find('i').attr('data-lucide', 'save').removeClass('visor-spin');
-            if (window.lucide) lucide.createIcons();
+            visorView.toast('Error de red al guardar Google Doc', 'error');
+            return false;
         }
     }
 
@@ -938,6 +1070,11 @@ class App {
         visorView.renderContent(file);
         visorView.renderFooterSelection(file);
         this.updateEditButton();
+
+        // Mantener sincronizado el contexto de CoffeeIA con el archivo abierto.
+        if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA._syncContext) {
+            coffeeIA._syncContext();
+        }
 
         if (window.lucide) lucide.createIcons();
     }
@@ -1425,7 +1562,10 @@ class VisorView {
     renderContent(file) {
         const parts = (file.file || '').split('.');
         const ext   = parts.length > 1 ? parts.pop().toLowerCase() : '';
-        const isMd  = ext === 'md' || ext === 'markdown' || ext === '';
+        // Google Docs nativos exportan como markdown — tratar como md aunque
+        // el nombre del archivo no tenga extension .md
+        const isMd  = ext === 'md' || ext === 'markdown' || ext === ''
+                      || file.mimeType === 'application/vnd.google-apps.document';
 
         let rendered;
         if (isMd) {

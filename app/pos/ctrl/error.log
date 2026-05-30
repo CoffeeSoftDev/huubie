@@ -1,3 +1,15 @@
+[ 2026-05-29 13:51:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
 [ 2026-05-22 13:05:49 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

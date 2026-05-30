@@ -783,6 +783,29 @@ html, body { height: 100%; }
     border: none;
 }
 
+/* ── Edicion WYSIWYG en sitio (tipo Word) ──────────────────── */
+/* El documento renderizado se vuelve editable directamente. */
+.md-rendered.wysiwyg-editing {
+    outline: 2px solid var(--vsr-accent);
+    outline-offset: 8px;
+    border-radius: 4px;
+    cursor: text;
+    transition: outline-color .15s ease;
+}
+.md-rendered.wysiwyg-editing:focus,
+.md-rendered.wysiwyg-editing:focus-within {
+    outline-color: var(--vsr-accent-soft);
+    box-shadow: 0 0 0 6px var(--vsr-accent-tint);
+}
+/* Caret y seleccion visibles en modo edicion */
+.md-rendered.wysiwyg-editing { caret-color: var(--vsr-accent); }
+.md-rendered.wysiwyg-editing *::selection { background: var(--vsr-accent-tint); }
+/* Evitar que el usuario quede sin afford visual al hover en bloques editables */
+.md-rendered.wysiwyg-editing :is(h1,h2,h3,h4,p,li,blockquote,pre):hover {
+    background: rgba(124,58,237,0.04);
+    border-radius: 3px;
+}
+
 .md-raw {
     background: var(--vsr-bg-card);
     border: 1px solid var(--vsr-border);
