@@ -1775,7 +1775,7 @@ class VisorView {
                 // Loader hero (cambio de carpeta Drive): gota gooey con la imagen institucional.
                 opts.variant = 'primary';
                 opts.size    = 'lg';
-                opts.image   = 'src/img/drive-loader.svg';
+                opts.image   = '../src/img/coffee_white.png';
             } else {
                 // Loader compacto (carga de documento individual): circulo girando.
                 opts.variant = 'circle';
