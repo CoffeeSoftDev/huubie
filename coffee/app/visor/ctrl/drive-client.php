@@ -253,7 +253,8 @@ class DriveClient {
 
     /**
      * Obtiene el contenido de cualquier archivo eligiendo automaticamente download/export.
-     * Para Google Docs nativos exporta a markdown; para los demas, descarga raw.
+     * Para Google Docs/Sheets nativos exporta a markdown/CSV; para .xlsx convierte temporal
+     * a Google Sheet y exporta CSV; para los demas, descarga raw.
      */
     public function getFileContent($file) {
         $mime = $file['mimeType'] ?? '';
@@ -268,6 +269,20 @@ class DriveClient {
                 default:
                     return $this->exportFile($file['id'], 'text/plain');
             }
+        }
+        // .xlsx -> descargar binario y parsear localmente a CSV (sin tocar Drive).
+        // Las Service Accounts tienen 0 GB de cuota, asi que NO podemos usar files.copy.
+        if ($mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+            require_once __DIR__ . '/xlsx-parser.php';
+            $bytes = $this->downloadFile($file['id']);
+            return XlsxParser::toCsv($bytes);
+        }
+        // .xls / .ods -> no soportados localmente (necesitarian otro parser)
+        if (in_array($mime, [
+            'application/vnd.ms-excel',
+            'application/vnd.oasis.opendocument.spreadsheet',
+        ], true)) {
+            throw new DriveException("Formato $mime no soportado en el visor. Conviertelo a .xlsx o Google Sheet desde Drive.");
         }
         return $this->downloadFile($file['id']);
     }

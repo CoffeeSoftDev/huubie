@@ -9,7 +9,12 @@
       "PowerShell(if \\(-not \\(Test-Path \"c:\\\\wamp64\\\\credentials\"\\)\\) { New-Item -ItemType Directory -Path \"c:\\\\wamp64\\\\credentials\" | Out-Null }; Invoke-WebRequest -Uri \"https://curl.se/ca/cacert.pem\" -OutFile \"c:\\\\wamp64\\\\credentials\\\\cacert.pem\" -UseBasicParsing; Get-Item \"c:\\\\wamp64\\\\credentials\\\\cacert.pem\" | Select-Object FullName, Length, LastWriteTime)",
       "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\ctrl\\\\test-ollama.php\" \"?json=1&prompt=di+hola\" 2>&1 | Select-Object -First 80)",
       "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\ctrl\\\\ctrl-coffeeia.php\")",
-      "PowerShell($resp = Invoke-WebRequest -Uri \"http://localhost/huubie/coffee/app/visor/ctrl/debug-coffeeia-prepend.php?test=1\" -UseBasicParsing; $resp.Content)"
+      "PowerShell($resp = Invoke-WebRequest -Uri \"http://localhost/huubie/coffee/app/visor/ctrl/debug-coffeeia-prepend.php?test=1\" -UseBasicParsing; $resp.Content)",
+      "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\ctrl\\\\ctrl-test-runner.php\")",
+      "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\ctrl\\\\ctrl-grimoires.php\"; Invoke-WebRequest -Uri \"http://localhost/huubie/coffee/app/visor/ctrl/ctrl-grimoires.php\" -UseBasicParsing | Select-Object -ExpandProperty Content)",
+      "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\ctrl\\\\ctrl-coffeeia.php\"; Test-Path \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\ctrl\\\\ctrl-grimoires.php\")",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -r \"echo 'ZipArchive: '.\\(class_exists\\('ZipArchive'\\)?'YES':'NO'\\).PHP_EOL.'simplexml: '.\\(extension_loaded\\('simplexml'\\)?'YES':'NO'\\).PHP_EOL.'xmlreader: '.\\(extension_loaded\\('xmlreader'\\)?'YES':'NO'\\).PHP_EOL;\")",
+      "Bash(c:/wamp64/bin/php/php7.4.33/php.exe -r ' *)"
     ],
     "additionalDirectories": [
       "\\tmp"

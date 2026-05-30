@@ -94,7 +94,7 @@ class Navbar {
 
         const navbarHtml = `
             ${branchStyles}
-            <nav class="fixed top-0 left-0 w-full text-white px-4 py-3 h-16 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20" style="background-color: ${navbar.bg}; border-bottom-color: ${navbar.border}4D;">
+            <nav class="w-full text-white px-4 py-3 h-16 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20 shrink-0" style="background-color: ${navbar.bg}; border-bottom-color: ${navbar.border}4D;">
                 <div class="flex items-center space-x-2">
                     <img src="${this.settings.logo}" alt="Logo" class="w-10 h-10" />
                     <button id="toggleSidebar" class="text-white text-2xl">☰</button>
@@ -109,7 +109,7 @@ class Navbar {
                     </button>
                 </div>
             </nav>
-            <div class="relative mt-16 z-50">
+            <div class="relative z-50">
                 <div id="userMenuDropdown" class="absolute right-0 w-72 rounded-2xl shadow-lg opacity-0 scale-95 invisible transition-all duration-500 ease-out" style="background-color: ${dropdown.bg};">
                     <div class="relative flex items-center justify-center h-20 rounded-t-2xl" style="background-color: ${header.bg};">
                         <button id="btnCloseUserMenu" class="btn btn-sm p-1 absolute top-2 right-3 text-gray-400 hover:text-white focus:outline-none">

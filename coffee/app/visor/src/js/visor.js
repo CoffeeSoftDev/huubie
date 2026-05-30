@@ -22,7 +22,7 @@ $(async () => {
     visor     = new Visor(api, 'root');
     app       = new App(api, 'root');
     await app.init();
-    coffeeIA  = new CoffeeIA(apiIA, app);
+    coffeeIA = new CoffeeIA(apiIA, app);
 });
 
 
@@ -431,7 +431,7 @@ class App {
             const mime = file.mimeType || '';
 
             // Google Doc nativo: editable via markdown import (Drive convierte).
-            // Sheets/Slides/Forms NO se soportan en este flujo.
+            // Sheets/Slides/Forms son solo-lectura (Sheets/.xlsx se exportan a CSV).
             if (mime === 'application/vnd.google-apps.document') return true;
             if (mime.indexOf('application/vnd.google-apps.') === 0) return false;
 
@@ -845,6 +845,9 @@ class App {
             this.settings.theme = this.settings.theme === 'dark' ? 'light' : 'dark';
             this.saveSettings();
             visorView.applyTheme(this.settings.theme);
+            if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA._reRenderBlocksOnThemeChange) {
+                coffeeIA._reRenderBlocksOnThemeChange();
+            }
             if (window.lucide) lucide.createIcons();
         });
     }
@@ -1053,6 +1056,7 @@ class App {
 
         // Lazy-load para archivos de Drive
         if (file.lazyDrive && file.driveId && !file._loaded) {
+            visorView.showDriveLoader(file);
             try {
                 const url = `${api}?action=driveread&id=${encodeURIComponent(file.driveId)}&mime=${encodeURIComponent(file.mimeType || '')}`;
                 const res = await fetch(url, { cache: 'no-store' });
@@ -1062,6 +1066,8 @@ class App {
                 file._loaded = true;
             } catch (e) {
                 file.raw = `> Error al leer desde Drive: ${e.message || e}`;
+            } finally {
+                visorView.hideDriveLoader();
             }
         }
 
@@ -1129,6 +1135,46 @@ class Visor {
 
     stripFrontmatter(raw) {
         return raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+    }
+
+    parseCsv(raw, delim) {
+        const rows = [];
+        let row = [];
+        let cur = '';
+        let inQuotes = false;
+        const d = delim || ',';
+        for (let i = 0; i < raw.length; i++) {
+            const ch = raw[i];
+            if (inQuotes) {
+                if (ch === '"') {
+                    if (raw[i + 1] === '"') { cur += '"'; i++; }
+                    else inQuotes = false;
+                } else cur += ch;
+            } else {
+                if (ch === '"') inQuotes = true;
+                else if (ch === d) { row.push(cur); cur = ''; }
+                else if (ch === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; }
+                else if (ch === '\r') { /* ignorar */ }
+                else cur += ch;
+            }
+        }
+        if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+        return rows;
+    }
+
+    renderCsvAsTable(raw, delim) {
+        if (!raw || raw.startsWith('> ')) {
+            const escaped = (raw || '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+            return `<pre style="white-space:pre-wrap;">${escaped}</pre>`;
+        }
+        const rows = this.parseCsv(raw, delim);
+        if (!rows.length) return '<p class="text-slate-400">Hoja vacia.</p>';
+        const escape = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+        const head = rows[0].map(c => `<th>${escape(c)}</th>`).join('');
+        const body = rows.slice(1).map(r =>
+            '<tr>' + r.map(c => `<td>${escape(c)}</td>`).join('') + '</tr>'
+        ).join('');
+        return `<div class="md-sheet-wrapper"><table class="md-sheet"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
     }
 
     countLines(raw) {
@@ -1566,9 +1612,18 @@ class VisorView {
         // el nombre del archivo no tenga extension .md
         const isMd  = ext === 'md' || ext === 'markdown' || ext === ''
                       || file.mimeType === 'application/vnd.google-apps.document';
+        const isSheet = file.mimeType === 'application/vnd.google-apps.spreadsheet'
+                      || ['xlsx','xls','ods'].includes(ext)
+                      || ((ext === 'csv' || ext === 'tsv') && file.lazyDrive);
+
+        // Modo hoja de calculo: el contenedor padre tiene que romper el max-width y padding
+        // de articulo Markdown para que la tabla aproveche todo el ancho disponible.
+        $('#md-rendered').toggleClass('is-sheet', !!isSheet);
 
         let rendered;
-        if (isMd) {
+        if (isSheet) {
+            rendered = visor.renderCsvAsTable(file.raw, ext === 'tsv' ? '\t' : ',');
+        } else if (isMd) {
             const body = visor.stripFrontmatter(file.raw);
             rendered = (typeof marked !== 'undefined' && marked.parse)
                 ? marked.parse(body)
@@ -1675,6 +1730,26 @@ class VisorView {
         clearTimeout(this._toastTimer);
         this._toastTimer = setTimeout(() => $t.removeClass('visible'), 2400);
     }
+
+    showDriveLoader(file) {
+        if ($('#driveLoader').length) return;
+        const label = (file && file.file) ? file.file : 'archivo';
+        const html = `
+            <div id="driveLoader" class="drive-loader-overlay">
+                <div class="drive-loader-box">
+                    <div class="drive-loader-spinner"></div>
+                    <div class="drive-loader-text">
+                        <div class="drive-loader-title">Cargando desde Google Drive</div>
+                        <div class="drive-loader-file">${label}</div>
+                    </div>
+                </div>
+            </div>`;
+        $('#md-rendered').html(html);
+    }
+
+    hideDriveLoader() {
+        $('#driveLoader').remove();
+    }
 }
 
 
@@ -1729,7 +1804,12 @@ class CoffeeIA {
 
     /* ── Public: open / close / toggle ── */
 
+    _canUse() {
+        return !!(this._app && this._app.currentUser && this._app.currentUser.canUseIA);
+    }
+
     open() {
+        if (!this._canUse()) return;
         $('#iaDrawer').addClass('is-open');
         $('#btnToggleCoffeeIA').addClass('is-active');
         this.isOpen = true;
@@ -1743,6 +1823,7 @@ class CoffeeIA {
     }
 
     toggle() {
+        if (!this._canUse()) return;
         this.isOpen ? this.close() : this.open();
     }
 
@@ -1776,6 +1857,7 @@ class CoffeeIA {
                 return;
             }
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+                if (!this._canUse()) return;
                 e.preventDefault();
                 this.toggle();
             }
@@ -2162,6 +2244,7 @@ class CoffeeIA {
 
     _appendAIMessage(text, meta) {
         const htmlText = this._markdownToHtml(text);
+        const msgId    = 'iaMsg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
         let metaHtml = '';
         if (meta) {
             const elapsedSec = meta.elapsed_ms > 0 ? (meta.elapsed_ms / 1000).toFixed(1) + 's' : '—';
@@ -2179,7 +2262,7 @@ class CoffeeIA {
             ? `<div><span class="ia-msg-proposal-hint"><i data-lucide="wand-sparkles"></i>${meta.proposalsCount} propuesta${meta.proposalsCount > 1 ? 's' : ''} en el panel</span></div>`
             : '';
         const $msg = $(`
-            <div class="ia-msg ai">
+            <div class="ia-msg ai" id="${msgId}">
                 <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA</span></div>
                 <div class="ia-msg-text">${htmlText}</div>
                 ${proposalHint}
@@ -2193,6 +2276,245 @@ class CoffeeIA {
             if (visorView) visorView.toast('Respuesta copiada', 'success');
         });
         $('#iaBodyChat').append($msg);
+        this._postProcessMessage($msg);
+    }
+
+    /* ── Post-procesador: mermaid / chart / html-preview ── */
+
+    _postProcessMessage($msg) {
+        const $codes = $msg.find('pre > code');
+        $codes.each((_, codeEl) => {
+            const $code = $(codeEl);
+            const $pre  = $code.parent();
+            const cls   = ($code.attr('class') || '').toLowerCase();
+            const raw   = $code.text();
+
+            if (/\blanguage-mermaid\b/.test(cls)) {
+                this._renderMermaid($pre, raw);
+            } else if (/\blanguage-chart\b|\blanguage-chartjs\b/.test(cls)) {
+                this._renderChart($pre, raw);
+            } else if (/\blanguage-html\b|\blanguage-html-preview\b/.test(cls)) {
+                this._renderHtmlPreview($pre, raw);
+            }
+        });
+    }
+
+    _getTheme() {
+        const t = (document.documentElement.getAttribute('data-theme') || 'dark').toLowerCase();
+        return t === 'light' ? 'light' : 'dark';
+    }
+
+    _renderMermaid($pre, code) {
+        if (typeof mermaid === 'undefined') return;
+        const id = 'mer-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        const $wrap = $(`
+            <div class="ia-render-block ia-render-mermaid" data-render-type="mermaid">
+                <div class="ia-render-toolbar">
+                    <span><i data-lucide="git-graph" class="w-3 h-3"></i>Diagrama Mermaid</span>
+                    <button class="ia-render-btn ia-render-toggle" data-target="${id}-code">
+                        <i data-lucide="code-2" class="w-3 h-3"></i>Codigo
+                    </button>
+                </div>
+                <div class="ia-render-view" id="${id}-view"></div>
+                <pre id="${id}-code" class="ia-render-source" style="display:none;"></pre>
+            </div>
+        `);
+        $wrap.find('.ia-render-source').text(code);
+        $pre.replaceWith($wrap);
+
+        try {
+            // Reinicializar con el tema actual antes de renderizar
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: this._getTheme() === 'light' ? 'default' : 'dark',
+                securityLevel: 'strict'
+            });
+            mermaid.render(id + '-svg', code).then(({ svg }) => {
+                $wrap.find('.ia-render-view').html(svg);
+            }).catch((err) => {
+                $wrap.find('.ia-render-view').html(
+                    `<div class="ia-render-error">Error Mermaid: ${this._escape(err.message || err)}</div>`
+                );
+            });
+        } catch (e) {
+            $wrap.find('.ia-render-view').html(
+                `<div class="ia-render-error">Error Mermaid: ${this._escape(e.message || e)}</div>`
+            );
+        }
+
+        $wrap.find('.ia-render-toggle').on('click', (e) => {
+            const $btn = $(e.currentTarget);
+            const $src = $('#' + $btn.data('target'));
+            const $view = $wrap.find('.ia-render-view');
+            const showCode = $src.is(':hidden');
+            $src.toggle(showCode);
+            $view.toggle(!showCode);
+            $btn.find('span, i + *').remove();
+            $btn.html(showCode
+                ? '<i data-lucide="eye" class="w-3 h-3"></i>Diagrama'
+                : '<i data-lucide="code-2" class="w-3 h-3"></i>Codigo');
+            if (window.lucide) lucide.createIcons();
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _renderChart($pre, code) {
+        if (typeof Chart === 'undefined') return;
+        let config;
+        try {
+            config = JSON.parse(code);
+        } catch (e) {
+            const $err = $(`<div class="ia-render-block ia-render-error">JSON invalido en bloque chart: ${this._escape(e.message)}</div>`);
+            $pre.replaceWith($err);
+            return;
+        }
+        const id = 'cht-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        const $wrap = $(`
+            <div class="ia-render-block ia-render-chart" data-render-type="chart">
+                <div class="ia-render-toolbar">
+                    <span><i data-lucide="bar-chart-3" class="w-3 h-3"></i>Grafico</span>
+                    <button class="ia-render-btn ia-render-toggle" data-target="${id}-code">
+                        <i data-lucide="code-2" class="w-3 h-3"></i>JSON
+                    </button>
+                </div>
+                <div class="ia-render-view"><canvas id="${id}-canvas"></canvas></div>
+                <pre id="${id}-code" class="ia-render-source" style="display:none;"></pre>
+            </div>
+        `);
+        $wrap.find('.ia-render-source').text(code);
+        $pre.replaceWith($wrap);
+
+        try {
+            const ctx = document.getElementById(id + '-canvas').getContext('2d');
+            new Chart(ctx, config);
+        } catch (e) {
+            $wrap.find('.ia-render-view').html(
+                `<div class="ia-render-error">Error Chart.js: ${this._escape(e.message || e)}</div>`
+            );
+        }
+
+        $wrap.find('.ia-render-toggle').on('click', (e) => {
+            const $btn = $(e.currentTarget);
+            const $src = $('#' + $btn.data('target'));
+            const $view = $wrap.find('.ia-render-view');
+            const showCode = $src.is(':hidden');
+            $src.toggle(showCode);
+            $view.toggle(!showCode);
+            $btn.html(showCode
+                ? '<i data-lucide="bar-chart-3" class="w-3 h-3"></i>Grafico'
+                : '<i data-lucide="code-2" class="w-3 h-3"></i>JSON');
+            if (window.lucide) lucide.createIcons();
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _renderHtmlPreview($pre, code) {
+        const id = 'htm-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        const safeCode = (typeof DOMPurify !== 'undefined')
+            ? DOMPurify.sanitize(code, { ADD_TAGS: ['svg', 'path', 'use'], ADD_ATTR: ['data-lucide'] })
+            : code;
+        const isDark = this._getTheme() === 'dark';
+        const bg     = isDark ? '#0F172A' : '#FFFFFF';
+        const fg     = isDark ? '#E2E8F0' : '#1F2937';
+        const srcdoc = `<!doctype html><html data-theme="${isDark ? 'dark' : 'light'}"><head><meta charset="utf-8">
+            <script src="https://cdn.tailwindcss.com"><\/script>
+            <script src="https://unpkg.com/lucide@latest"><\/script>
+            <style>
+                html,body{margin:0;padding:0;}
+                body{padding:8px;background:${bg};color:${fg};font-family:Inter,system-ui,sans-serif;font-size:13px;}
+                *{box-sizing:border-box;}
+            </style></head>
+            <body>${safeCode}<script>if(window.lucide)lucide.createIcons();<\/script></body></html>`;
+
+        const $wrap = $(`
+            <div class="ia-render-block ia-render-html" data-render-type="html">
+                <div class="ia-render-toolbar">
+                    <span><i data-lucide="layout" class="w-3 h-3"></i>HTML</span>
+                    <span class="ia-render-tabs">
+                        <button class="ia-render-btn ia-render-tab is-active" data-tab="preview">Vista previa</button>
+                        <button class="ia-render-btn ia-render-tab" data-tab="code">Codigo</button>
+                        <button class="ia-render-btn ia-render-expand" title="Expandir a pantalla completa">
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i>Expandir
+                        </button>
+                    </span>
+                </div>
+                <div class="ia-render-view"><iframe id="${id}-iframe" class="ia-render-iframe" sandbox="allow-scripts" loading="lazy"></iframe></div>
+                <pre id="${id}-code" class="ia-render-source" style="display:none;"></pre>
+            </div>
+        `);
+        $wrap.find('.ia-render-source').text(code);
+        $pre.replaceWith($wrap);
+
+        const $iframe = $('#' + id + '-iframe');
+        $iframe.attr('srcdoc', srcdoc);
+        // Auto-altura cuando carga: respeta min/max definidos en CSS
+        $iframe.on('load', function () {
+            try {
+                const doc = this.contentDocument || this.contentWindow.document;
+                const h = Math.min(520, Math.max(280, doc.body.scrollHeight + 16));
+                this.style.height = h + 'px';
+            } catch (e) { /* sandbox cross-origin */ }
+        });
+
+        $wrap.find('.ia-render-tab').on('click', (e) => {
+            const tab = $(e.currentTarget).data('tab');
+            $wrap.find('.ia-render-tab').removeClass('is-active');
+            $(e.currentTarget).addClass('is-active');
+            $wrap.find('.ia-render-view').toggle(tab === 'preview');
+            $wrap.find('.ia-render-source').toggle(tab === 'code');
+        });
+
+        $wrap.find('.ia-render-expand').on('click', () => {
+            this._openHtmlModal(srcdoc);
+        });
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _openHtmlModal(srcdoc) {
+        $('.ia-html-modal').remove();
+        const $modal = $(`
+            <div class="ia-html-modal">
+                <div class="ia-html-modal-box">
+                    <div class="ia-html-modal-head">
+                        <h3><i data-lucide="layout"></i>Vista previa HTML</h3>
+                        <button class="cs-btn cs-btn-ghost cs-btn-sm ia-html-modal-close" title="Cerrar (Esc)">
+                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            Cerrar
+                        </button>
+                    </div>
+                    <div class="ia-html-modal-body">
+                        <iframe sandbox="allow-scripts"></iframe>
+                    </div>
+                </div>
+            </div>
+        `);
+        $('body').append($modal);
+        $modal.find('iframe').attr('srcdoc', srcdoc);
+
+        const close = () => { $modal.remove(); $(document).off('keydown.iaHtmlModal'); };
+        $modal.find('.ia-html-modal-close').on('click', close);
+        $modal.on('click', (e) => { if (e.target === $modal[0]) close(); });
+        $(document).on('keydown.iaHtmlModal', (e) => { if (e.key === 'Escape') close(); });
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    /* Re-renderiza todos los bloques (mermaid + html) tras cambiar de tema */
+    _reRenderBlocksOnThemeChange() {
+        $('#iaBodyChat .ia-render-block').each((_, el) => {
+            const $blk  = $(el);
+            const type  = $blk.data('render-type');
+            const src   = $blk.find('.ia-render-source').text();
+            if (!src) return;
+            // Reconstruimos un <pre><code> equivalente y reusamos los renderers
+            const $stub = $('<pre><code></code></pre>');
+            $stub.find('code').addClass('language-' + (type === 'html' ? 'html' : type)).text(src);
+            $blk.replaceWith($stub);
+            if (type === 'mermaid') this._renderMermaid($stub, src);
+            else if (type === 'html') this._renderHtmlPreview($stub, src);
+            // Charts no dependen del tema del visor, los dejamos como estan
+        });
     }
 
     _appendTyping() {

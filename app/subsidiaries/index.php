@@ -36,13 +36,13 @@
     <script src="/app/src/js/sidebar.js"></script>
 </head>
 
-<body class="bg-[#111928] h-screen" data-bs-theme="dark">
+<body class="bg-[#111928] h-screen flex flex-col overflow-hidden" data-bs-theme="dark">
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
 
-    <div class="h-full">
-        <div class="w-full overflow-x-auto" id="root"></div>
-    </div>
+    <main class="flex-1 overflow-y-auto overflow-x-hidden">
+        <div class="w-full" id="root"></div>
+    </main>
 
     <script src="/app/src/plugins/daterangepicker/moment.min.js"></script>
     <script src="/app/src/plugins/daterangepicker/daterangepicker.js"></script>

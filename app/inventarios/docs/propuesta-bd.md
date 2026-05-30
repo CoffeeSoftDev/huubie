@@ -1,11 +1,12 @@
 # Propuesta de base de datos — módulo Inventarios
 
 > **Producto:** Huubie · Inventarios
-> **Esquema destino propuesto:** `fayxzvov_inventario` (nuevo, dedicado al módulo).
+> **Esquema destino:** `fayxzvov_reginas` (existente — las tablas del módulo conviven con `order_products` y el resto del catálogo POS).
 > **Charset / Collation:** `utf8mb4` / `utf8mb4_0900_ai_ci`.
 > **Engine:** `InnoDB`.
 > **Manual de reglas aplicado:** [grimorios/db-rules.md](../../../../Users/CoffeSoft/.claude/agents/grimorios/db-rules.md) (singular inglés snake_case, DOUBLE para montos, FKs al final, `detail_` solo en renglones de raíz).
 > **Referencia viva:** esquemas inspeccionados vía MySQL local — `fayxzvov_admin`, `fayxzvov_alpha`, `fayxzvov_reginas`, `fayxzvov_rrhh`, `fayxzvov_almacen`.
+> **Estado:** Fase 1 (POS) ejecutada el 2026-05-29 — ver [database/install-inventarios-fase1.sql](database/install-inventarios-fase1.sql). Fase 2 (Insumos) pendiente.
 > **Fecha:** 2026-05-19
 
 ---
@@ -15,34 +16,36 @@
 El módulo de Inventarios necesita persistir:
 
 1. **Catálogos del propio módulo** — almacenes físicos, áreas, presentaciones, motivos, orígenes.
-2. **Productos** — reaprovechando `fayxzvov_reginas.order_products` (vía FK cross-schema) en lugar de duplicar el catálogo POS.
+2. **Productos** — reaprovechando `order_products` (FK local en el mismo schema) en lugar de duplicar el catálogo POS.
 3. **Saldos de stock** por (producto × sucursal × almacén).
 4. **Eventos raíz + renglones** para cada tipo de movimiento: entradas, mermas, traspasos, ajustes. (Salidas POS se materializan al lado de Ventas, no en este esquema.)
 5. **Bitácora unificada** — vista materializada `inventory_movement` que une todos los eventos para el visor de movimientos.
 
-Cross-schema:
+Cross-schema (otros esquemas del ecosistema):
 - `companies_id` → `fayxzvov_admin.companies(id)`
 - `subsidiaries_id` → `fayxzvov_alpha.subsidiaries(id)`
 - `user_id` → `fayxzvov_alpha.usr_users(id)`
 - `employee_id` → `fayxzvov_rrhh.rrhh_empleados(id)`
-- `product_id` → `fayxzvov_reginas.order_products(id)`
 
-> **Nota sobre convención de nombres de FK.** El manual `db-rules.md` prescribe singular (`subsidiary_id`, `company_id`). Sin embargo el ecosistema Huubie tiene en producción `subsidiaries_id` y `companies_id` plurales (ver `fayxzvov_alpha.subsidiaries.companies_id`, `fayxzvov_reginas.order_products.subsidiaries_id`). En esta propuesta se **respeta la convención existente del ecosistema** (plural) por consistencia operativa; las FK nuevas a tablas del propio módulo sí usan singular (`product_id`, `warehouse_id`, etc.).
+Locales (mismo schema `fayxzvov_reginas`):
+- `product_id` → `order_products(id)`
+
+> **Nota sobre convención de nombres de FK.** El manual `db-rules.md` prescribe singular (`subsidiary_id`, `company_id`). Sin embargo el ecosistema Huubie tiene en producción `subsidiaries_id` y `companies_id` plurales (ver `fayxzvov_alpha.subsidiaries.companies_id`, `order_products.subsidiaries_id`). En esta propuesta se **respeta la convención existente del ecosistema** (plural) por consistencia operativa; las FK nuevas a tablas del propio módulo sí usan singular (`product_id`, `warehouse_id`, etc.).
 
 ---
 
 ## §2. Tablas clasificadas
 
-### §2.1 Maestros corporativos (cross-schema — solo se referencian, **no se crean**)
+### §2.1 Maestros preexistentes (solo se referencian, **no se crean**)
 
-| Tabla | Esquema externo | Rol |
+| Tabla | Esquema | Rol |
 |---|---|---|
 | `companies` | `fayxzvov_admin` | Empresa raíz (Reginas = id 4). |
 | `subsidiaries` | `fayxzvov_alpha` | Sucursales operativas. |
 | `usr_users` | `fayxzvov_alpha` | Usuarios (quien registra eventos). |
 | `rrhh_empleados` | `fayxzvov_rrhh` | Empleados (autoriza, recibe, envía). |
-| `order_products` | `fayxzvov_reginas` | Catálogo de productos terminados POS (97 registros). |
-| `order_category` | `fayxzvov_reginas` | Categorías de productos POS (Pasteleria, Postres, …). |
+| `order_products` | actual (preexistente) | Catálogo de productos terminados POS (97 registros). |
+| `order_category` | actual (preexistente) | Categorías de productos POS (Pasteleria, Postres, …). |
 
 ### §2.2 Catálogos del módulo (tablas raíz del nuevo esquema)
 
@@ -122,7 +125,7 @@ Cross-schema:
 
 ## §2.bis Diagrama de relaciones (texto plano)
 
-> Convención: caja con **doble borde** `╔══╗` = tabla del esquema actual `fayxzvov_inventario`. Caja con **borde simple** `┌──┐` = tabla cross-schema. Las flechas llevan la cardinalidad pegada (`1` o `N`).
+> Convención: caja con **doble borde** `╔══╗` = tabla **creada por este módulo** dentro de `fayxzvov_reginas`. Caja con **borde simple** `┌──┐` = tabla **preexistente** (`order_products` vive aquí mismo; `companies`, `subsidiaries`, `usr_users`, `rrhh_empleados` viven en otros schemas). Las flechas llevan la cardinalidad pegada (`1` o `N`).
 
 ```
                           ┌──────────────────────────┐
@@ -150,7 +153,7 @@ Cross-schema:
                                      │ subsidiaries_id
                                      │
         ╔════════════════════════════▼═════════════════════════════╗
-        ║                  fayxzvov_inventario                      ║
+        ║                  fayxzvov_reginas                      ║
         ║                                                           ║
         ║  ╔═══════════════╗      N  ╔═══════════════╗              ║
         ║  ║   warehouse   ╠─────────╣ warehouse_area║              ║
@@ -164,8 +167,8 @@ Cross-schema:
         ║          │ N                                              ║
         ║          │                                                ║
         ║          │ 1                                              ║
-        ║  ┌───────┴───────────┐  fayxzvov_reginas                  ║
-        ║  │  order_products   │  (cross-schema)                    ║
+        ║  ┌───────┴───────────┐                                   ║
+        ║  │  order_products   │  (preexistente · mismo schema)    ║
         ║  └───────┬───────────┘                                    ║
         ║          │ 1                                              ║
         ║          │ 1:1                                            ║
@@ -183,7 +186,7 @@ Cross-schema:
         ║           │ 1                              │ 1            ║
         ║  ╔════════▼═══════════╗           ┌────────▼──────────┐   ║
         ║  ║  inflow_origin     ║           │  order_products   │   ║
-        ║  ╚════════════════════╝           │  (cross-schema)   │   ║
+        ║  ╚════════════════════╝           │  (mismo schema)   │   ║
         ║                                   └───────────────────┘   ║
         ║                                                           ║
         ║  ╔════════════════════╗      1  ╔══════════════════════╗  ║
@@ -223,7 +226,7 @@ Cross-schema:
         ║                                            │ 1            ║
         ║                                   ┌────────▼──────────┐   ║
         ║                                   │  order_products   │   ║
-        ║                                   │  (cross-schema)   │   ║
+        ║                                   │  (mismo schema)   │   ║
         ║                                   └───────────────────┘   ║
         ║                                                           ║
         ║  Notas del bloque plantillas:                             ║
@@ -258,9 +261,9 @@ Cross-schema:
 | `warehouse` | N : 1 | `subsidiaries` | `fayxzvov_alpha` | Un almacén pertenece a una sucursal; una sucursal tiene varios almacenes. |
 | `warehouse` | N : 1 | `warehouse_area` | actual | Un almacén puede tener un área principal (Refrigerados/Secos/Congelados); cada área agrupa varios almacenes a través de la organización. |
 | `warehouse` | N : 1 | `companies` | `fayxzvov_admin` | Tenant. |
-| `product_attribute` | 1 : 1 | `order_products` | `fayxzvov_reginas` | Extensión inventory-specific de cada producto POS. |
+| `product_attribute` | 1 : 1 | `order_products` | actual | Extensión inventory-specific de cada producto POS. |
 | `product_attribute` | N : 1 | `warehouse_area` | actual | El producto se guarda en un área. |
-| `stock` | N : 1 | `order_products` | `fayxzvov_reginas` | Saldo por producto. |
+| `stock` | N : 1 | `order_products` | actual | Saldo por producto. |
 | `stock` | N : 1 | `warehouse` | actual | Saldo por almacén. |
 | `inventory_inflow` | N : 1 | `inflow_origin` | actual | Cada entrada tiene un origen tipificado. |
 | `inventory_inflow` | N : 1 | `warehouse` | actual | Entrada va a un almacén. |
@@ -268,13 +271,13 @@ Cross-schema:
 | `inventory_inflow` | N : 1 | `supplier` | actual (NULL si origen ≠ Proveedor) | Si aplica. |
 | `inventory_inflow` | N : 1 | `usr_users` | `fayxzvov_alpha` | Quién registró. |
 | `detail_inventory_inflow` | N : 1 | `inventory_inflow` | actual | Renglón pertenece a entrada. |
-| `detail_inventory_inflow` | N : 1 | `order_products` | `fayxzvov_reginas` | Renglón referencia producto. |
+| `detail_inventory_inflow` | N : 1 | `order_products` | actual | Renglón referencia producto. |
 | `inventory_shrinkage` | N : 1 | `shrinkage_reason` | actual | Motivo tipificado. |
 | `inventory_shrinkage` | N : 1 | `warehouse` | actual | Almacén afectado. |
 | `inventory_shrinkage` | N : 1 | `subsidiaries` | `fayxzvov_alpha` | Sucursal. |
 | `inventory_shrinkage` | N : 1 | `usr_users` | `fayxzvov_alpha` | Quién registró. |
 | `detail_inventory_shrinkage` | N : 1 | `inventory_shrinkage` | actual | Renglón. |
-| `detail_inventory_shrinkage` | N : 1 | `order_products` | `fayxzvov_reginas` | Producto. |
+| `detail_inventory_shrinkage` | N : 1 | `order_products` | actual | Producto. |
 | `inventory_transfer` | N : 1 | `transfer_status` | actual | Estado actual del traspaso. |
 | `inventory_transfer` | N : 1 | `warehouse` (origen) | actual | Almacén origen. |
 | `inventory_transfer` | N : 1 | `warehouse` (destino) | actual | Almacén destino. |
@@ -283,7 +286,7 @@ Cross-schema:
 | `inventory_transfer` | N : 1 | `usr_users` (solicito) | `fayxzvov_alpha` | Solicitante. |
 | `inventory_transfer` | N : 1 | `usr_users` (autorizo) | `fayxzvov_alpha` | Autorizador. |
 | `detail_inventory_transfer` | N : 1 | `inventory_transfer` | actual | Renglón. |
-| `detail_inventory_transfer` | N : 1 | `order_products` | `fayxzvov_reginas` | Producto. |
+| `detail_inventory_transfer` | N : 1 | `order_products` | actual | Producto. |
 | `inventory_transfer_history` | N : 1 | `inventory_transfer` | actual | Timeline de transiciones. |
 | `inventory_transfer_history` | N : 1 | `transfer_status` | actual | Estado al que transicionó. |
 | `inventory_transfer_history` | N : 1 | `usr_users` | `fayxzvov_alpha` | Quién hizo la transición. |
@@ -293,13 +296,13 @@ Cross-schema:
 | `inventory_adjustment` | N : 1 | `usr_users` (registro) | `fayxzvov_alpha` | Quién registró. |
 | `inventory_adjustment` | N : 1 | `usr_users` (autorizo) | `fayxzvov_alpha` | Quién autorizó (puede ser el mismo). |
 | `detail_inventory_adjustment` | N : 1 | `inventory_adjustment` | actual | Renglón. |
-| `detail_inventory_adjustment` | N : 1 | `order_products` | `fayxzvov_reginas` | Producto ajustado. |
+| `detail_inventory_adjustment` | N : 1 | `order_products` | actual | Producto ajustado. |
 | `inflow_format` | N : 1 | `inflow_origin` | actual | Sugerencia de origen al precargar (NULL = sin sugerencia). |
 | `inflow_format` | N : 1 | `subsidiaries` | `fayxzvov_alpha` | NULL = formato global; no nulo = atado a sucursal (scope `subsidiary`). |
 | `inflow_format` | N : 1 | `companies` | `fayxzvov_admin` | Tenant. |
 | `inflow_format` | N : 1 | `usr_users` | `fayxzvov_alpha` | Dueño del formato. |
 | `detail_inflow_format` | N : 1 | `inflow_format` | actual | Renglón pertenece a formato (CASCADE). |
-| `detail_inflow_format` | N : 1 | `order_products` | `fayxzvov_reginas` | Producto precargado. Costo se resuelve vía `product_attribute` en runtime. |
+| `detail_inflow_format` | N : 1 | `order_products` | actual | Producto precargado. Costo se resuelve vía `product_attribute` en runtime. |
 
 ---
 
@@ -307,14 +310,14 @@ Cross-schema:
 
 > **Formato.** Cada tabla se describe como una caja monoespaciada con sus columnas agrupadas por sección (Negocio, Montos, Timestamps, Status, FK cross-schema, FK locales, Soft-delete) siguiendo el orden de [db-rules.md §3.1](../../../../Users/CoffeSoft/.claude/agents/grimorios/db-rules.md). El `CREATE TABLE` se omite a propósito: las claves, índices y motor se derivan de las reglas de la casa (`InnoDB`, `utf8mb4_0900_ai_ci`, `KEY` con el mismo nombre de la columna, `CONSTRAINT <tabla>_ibfk_<n>`). Si se necesita el DDL ejecutable se genera bajo demanda.
 
-### §3.1 Creación del esquema
+### §3.1 Schema destino
 
 ```sql
-CREATE DATABASE IF NOT EXISTS `fayxzvov_inventario`
-    DEFAULT CHARACTER SET utf8mb4
-    DEFAULT COLLATE utf8mb4_0900_ai_ci;
+-- El schema fayxzvov_reginas ya existe (vive ahí order_products y el resto del POS).
+-- Las tablas nuevas se crean dentro del mismo schema, en utf8mb4_0900_ai_ci.
+-- Charset declarado tabla por tabla porque el schema legacy es latin1_swedish_ci.
 
-USE `fayxzvov_inventario`;
+USE `fayxzvov_reginas`;
 ```
 
 ### §3.2 Catálogos del módulo
@@ -386,13 +389,13 @@ USE `fayxzvov_inventario`;
 │  created_at             DATETIME       auditoría · alta              │
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
-│  ── FK cross-schema ──                                               │
-│  product_id             → fayxzvov_reginas.order_products  CASCADE   │
-│  companies_id           → fayxzvov_admin.companies   · tenant        │
-│                                                                      │
 │  ── FK locales ──                                                    │
+│  product_id             → order_products  CASCADE · 1:1 con producto │
 │  warehouse_area_id      → warehouse_area  SET NULL · área default    │
 │  unit_id                → unit                · unidad por defecto   │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
 │                                                                      │
 │  ── Soft-delete ──                                                   │
 │  active                 TINYINT(1)     1=activo / 0=baja lógica      │
@@ -547,12 +550,12 @@ USE `fayxzvov_inventario`;
 │  created_at             DATETIME       auditoría · alta              │
 │  updated_at             DATETIME       ON UPDATE · cada movimiento   │
 │                                                                      │
-│  ── FK cross-schema ──                                               │
-│  product_id             → fayxzvov_reginas.order_products · producto │
-│  companies_id           → fayxzvov_admin.companies   · tenant        │
-│                                                                      │
 │  ── FK locales ──                                                    │
+│  product_id             → order_products · producto                  │
 │  warehouse_id           → warehouse  único con product_id            │
+│                                                                      │
+│  ── FK cross-schema ──                                               │
+│  companies_id           → fayxzvov_admin.companies   · tenant        │
 │                                                                      │
 │  ── Soft-delete ──                                                   │
 │  active                 TINYINT(1)     1=activo / 0=baja lógica      │
@@ -622,10 +625,8 @@ USE `fayxzvov_inventario`;
 │  expires_at             DATE           NULL · caducidad declarada    │
 │  created_at             DATETIME       auditoría · alta              │
 │                                                                      │
-│  ── FK cross-schema ──                                               │
-│  product_id             → fayxzvov_reginas.order_products · producto │
-│                                                                      │
 │  ── FK locales ──                                                    │
+│  product_id             → order_products · producto                  │
 │  inventory_inflow_id    → inventory_inflow  CASCADE · header padre   │
 │  unit_id                → unit              · unidad del renglón     │
 │                                                                      │
@@ -694,10 +695,8 @@ USE `fayxzvov_inventario`;
 │  ── Timestamps ──                                                    │
 │  created_at             DATETIME       auditoría · alta              │
 │                                                                      │
-│  ── FK cross-schema ──                                               │
-│  product_id             → fayxzvov_reginas.order_products · producto │
-│                                                                      │
 │  ── FK locales ──                                                    │
+│  product_id             → order_products · producto                  │
 │  inventory_shrinkage_id → inventory_shrinkage   CASCADE · header    │
 │                                                                      │
 │  ── Soft-delete ──                                                   │
@@ -768,10 +767,8 @@ USE `fayxzvov_inventario`;
 │  ── Timestamps ──                                                    │
 │  created_at             DATETIME       auditoría · alta              │
 │                                                                      │
-│  ── FK cross-schema ──                                               │
-│  product_id             → fayxzvov_reginas.order_products · producto │
-│                                                                      │
 │  ── FK locales ──                                                    │
+│  product_id             → order_products · producto                  │
 │  inventory_transfer_id  → inventory_transfer  CASCADE · header padre │
 │                                                                      │
 │  ── Soft-delete ──                                                   │
@@ -866,10 +863,8 @@ USE `fayxzvov_inventario`;
 │  ── Timestamps ──                                                    │
 │  created_at             DATETIME       auditoría · alta              │
 │                                                                      │
-│  ── FK cross-schema ──                                               │
-│  product_id             → fayxzvov_reginas.order_products · producto │
-│                                                                      │
 │  ── FK locales ──                                                    │
+│  product_id             → order_products · producto                  │
 │  inventory_adjustment_id → inventory_adjustment  CASCADE · header    │
 │                                                                      │
 │  ── Soft-delete ──                                                   │
@@ -932,10 +927,8 @@ USE `fayxzvov_inventario`;
 │  ── Soft-delete ──                                                   │
 │  active                 TINYINT(1)     1=activo / 0=baja lógica      │
 │                                                                      │
-│  ── FK cross-schema ──                                               │
-│  product_id             → fayxzvov_reginas.order_products · producto │
-│                                                                      │
 │  ── FK locales ──                                                    │
+│  product_id             → order_products · producto                  │
 │  inflow_format_id       → inflow_format  CASCADE · plantilla padre   │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -969,7 +962,7 @@ SELECT d.product_id,
        d.quantity,
        pa.cost_unit   AS cost
 FROM detail_inflow_format d
-JOIN fayxzvov_reginas.order_products op ON op.id = d.product_id
+JOIN order_products op ON op.id = d.product_id
 JOIN product_attribute pa              ON pa.product_id = d.product_id
 WHERE d.inflow_format_id = :formato_id
   AND d.active = 1
@@ -1180,7 +1173,7 @@ supply_stock (saldo: supply_id + warehouse_id + quantity)
 
 ## §3.bis Estrategia dual-tracking (POS + Insumos) y diagrama extendido
 
-> Esta sección cierra §3 explicando **cómo conviven** las dos dimensiones de inventario en el mismo esquema `fayxzvov_inventario`. El detalle de UI, dispatcher y fases está en [plan/propuesta-salida-insumos.md](../plan/propuesta-salida-insumos.md); aquí solo se documentan las decisiones que tocan modelo de datos.
+> Esta sección cierra §3 explicando **cómo conviven** las dos dimensiones de inventario en el mismo esquema `fayxzvov_reginas`. El detalle de UI, dispatcher y fases está en [plan/propuesta-salida-insumos.md](../plan/propuesta-salida-insumos.md); aquí solo se documentan las decisiones que tocan modelo de datos.
 
 ### §3.bis.1 Decisión central: tablas paralelas, **no polimorfismo**
 
@@ -1205,8 +1198,8 @@ Hay dos formas de modelar dos dimensiones de inventario en una misma BD:
 │ unit, supplier             │    e insumos en áreas separadas)            │
 ├────────────────────────────┼──────────────────────┬──────────────────────┤
 │ Catálogo base de items     │ order_products       │ supply               │
-│                            │ (cross-schema        │ (catálogo autónomo,  │
-│                            │  fayxzvov_reginas)   │  vive aquí)          │
+│                            │ (preexistente,       │ (catálogo autónomo,  │
+│                            │  mismo schema)       │  nuevo)              │
 ├────────────────────────────┼──────────────────────┼──────────────────────┤
 │ Extensión / categorías     │ product_attribute    │ supply_category      │
 ├────────────────────────────┼──────────────────────┼──────────────────────┤
@@ -1266,11 +1259,11 @@ La tabla `folio_sequence` (§5.2) extiende su PK `(companies_id, sequence_code)`
 
 ### §3.bis.4 Diagrama extendido (texto plano)
 
-> Convención: caja **doble borde** `╔══╗` = tabla del esquema actual `fayxzvov_inventario`. Caja **borde simple** `┌──┐` = tabla cross-schema. Bloques POS / INSUMOS / COMPARTIDO se separan visualmente; las cross-schema comunes se listan al pie para no saturar las flechas.
+> Convención: caja **doble borde** `╔══╗` = tabla **creada por el módulo** dentro de `fayxzvov_reginas`. Caja **borde simple** `┌──┐` = tabla **preexistente** (`order_products` mismo schema; `companies`/`subsidiaries`/`usr_users` cross-schema). Bloques POS / INSUMOS / COMPARTIDO se separan visualmente.
 
 ```
         ╔════════════════════════════════════════════════════════════════════════╗
-        ║                  fayxzvov_inventario  (dual-tracking)                  ║
+        ║                  fayxzvov_reginas  (dual-tracking)                  ║
         ║                                                                        ║
         ║  ── COMPARTIDO ENTRE AMBOS SCOPES ──                                   ║
         ║                                                                        ║
@@ -1285,7 +1278,7 @@ La tabla `folio_sequence` (§5.2) extiende su PK `(companies_id, sequence_code)`
         ║                                                                        ║
         ║  ┌───────────────────┐ 1    1  ╔═══════════════════╗                   ║
         ║  │  order_products   │────────│ product_attribute │                   ║
-        ║  │  (cross-schema)   │        ╚═══════════════════╝                   ║
+        ║  │  (preexistente)   │        ╚═══════════════════╝                   ║
         ║  └─────────┬─────────┘                                                 ║
         ║            │ 1                  ╔═══════════════╗  N  ╔═══════════════╗║
         ║            │                    ║    supply     ╠─────╣supply_category║║
@@ -1355,8 +1348,10 @@ La tabla `folio_sequence` (§5.2) extiende su PK `(companies_id, sequence_code)`
         ║     subsidiaries_id → fayxzvov_alpha.subsidiaries                      ║
         ║     companies_id    → fayxzvov_admin.companies                         ║
         ║     user_id         → fayxzvov_alpha.usr_users                         ║
-        ║     product_id      → fayxzvov_reginas.order_products  (SOLO lado POS) ║
-        ║     supply_id       → supply (local · SOLO lado INSUMOS)               ║
+        ║                                                                        ║
+        ║  Locales (mismo schema fayxzvov_reginas):                              ║
+        ║     product_id      → order_products  (preexistente · SOLO lado POS)   ║
+        ║     supply_id       → supply          (nuevo · SOLO lado INSUMOS)      ║
         ╚════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1412,7 +1407,7 @@ La tabla `folio_sequence` (§5.2) extiende su PK `(companies_id, sequence_code)`
 | **Columnas obligatorias `active` + `created_at`** | ✅ | Presentes en todas las tablas (catálogos, raíces y detalles). |
 | **`updated_at` con ON UPDATE CURRENT_TIMESTAMP** | ✅ | En tablas mutables (warehouse, product_attribute, eventos raíz). |
 | **InnoDB + utf8mb4_0900_ai_ci** | ✅ | Declarado en todas las tablas y a nivel CREATE DATABASE. |
-| **Cross-schema FKs identificadas** | ✅ | `subsidiaries_id`, `companies_id`, `user_id` y `product_id` referencian otros esquemas. Constraints declaradas (`fayxzvov_alpha.subsidiaries`, `fayxzvov_admin.companies`, `fayxzvov_alpha.usr_users`, `fayxzvov_reginas.order_products`). |
+| **Cross-schema FKs identificadas** | ✅ | `subsidiaries_id`, `companies_id`, `user_id` referencian otros esquemas. Constraints declaradas (`fayxzvov_alpha.subsidiaries`, `fayxzvov_admin.companies`, `fayxzvov_alpha.usr_users`). `product_id` quedó como FK **local** dentro del mismo `fayxzvov_reginas`. |
 | **Excepción a la regla singular para FKs cross-schema** | ⚠️ | Se mantienen `subsidiaries_id` y `companies_id` plurales por consistencia con el ecosistema ya en producción. Las FKs propias del esquema sí siguen singular (`product_id`, `warehouse_id`, etc.). Documentado en §1. |
 | **Unique keys donde aplica** | ✅ | `(folio, companies_id)` por evento, `(sku, companies_id)` en product_attribute, `(product_id, warehouse_id)` en stock, `(subsidiaries_id, is_default)` para almacén default único por sucursal. |
 | **Indices en columnas filtrables** | ✅ | `date_*`, `status`, FKs y `active` indexados en cada raíz. |
@@ -1420,7 +1415,7 @@ La tabla `folio_sequence` (§5.2) extiende su PK `(companies_id, sequence_code)`
 | **Bitácora unificada como vista** | ✅ | `inventory_movement` es VIEW (no materializada). Evita drift. Si crece mucho, migrar a tabla materializada con triggers. |
 | **Snapshots por renglón** | ✅ | Cada `detail_*` guarda `previous_stock`, `resulting_stock`, `cost` para auditoría. |
 | **ENUMs para estados internos del módulo** | ✅ | Status de eventos: `inflow.status`, `shrinkage.status`, `adjustment.status`. Estados del traspaso son catálogo (`transfer_status`) porque tienen flujo. |
-| **No se duplica catálogo POS** | ✅ | `product_attribute` extiende `order_products` 1:1 vía FK cross-schema. |
+| **No se duplica catálogo POS** | ✅ | `product_attribute` extiende `order_products` 1:1 vía FK local (mismo schema). |
 | **Folios prefijados por tipo** | ✅ | `ENT-`, `M-`, `TRA-`, `AJU-`, `INV-FIS-` documentados. UNIQUE por `(folio, companies_id)`. |
 | **Timestamps de auditoría** | ✅ | `created_at` en todas; `updated_at` en mutables; campos de fecha de evento separados de `created_at` (date_inflow vs created_at). |
 | **Cardinalidad documentada** | ✅ | Tabla aparte en §2.bis con todas las relaciones y cardinalidades. |
@@ -1487,7 +1482,7 @@ SELECT
     NULL,  -- warehouse_area_id se asigna manualmente
     1,     -- unit_id = 'pza' por default
     4
-FROM fayxzvov_reginas.order_products op
+FROM order_products op
 WHERE op.subsidiaries_id = 4 AND op.active = 1;
 ```
 
@@ -1499,7 +1494,7 @@ SELECT s.quantity, w.name AS warehouse, sub.name AS subsidiary, op.name AS produ
 FROM stock s
 JOIN warehouse w ON w.id = s.warehouse_id
 JOIN fayxzvov_alpha.subsidiaries sub ON sub.id = w.subsidiaries_id
-JOIN fayxzvov_reginas.order_products op ON op.id = s.product_id
+JOIN order_products op ON op.id = s.product_id
 WHERE sub.id = :subsidiary_id;
 ```
 
@@ -1508,7 +1503,7 @@ WHERE sub.id = :subsidiary_id;
 SELECT op.name, pa.sku, s.quantity, pa.stock_min, w.name AS warehouse
 FROM stock s
 JOIN product_attribute pa ON pa.product_id = s.product_id
-JOIN fayxzvov_reginas.order_products op ON op.id = s.product_id
+JOIN order_products op ON op.id = s.product_id
 JOIN warehouse w ON w.id = s.warehouse_id
 WHERE s.quantity < pa.stock_min AND s.active = 1;
 ```
@@ -1546,6 +1541,8 @@ LIMIT 50;
 
 ## §7. Resumen final
 
-17 tablas nuevas en el esquema `fayxzvov_inventario` + 1 vista de bitácora, todas respetando convenciones del manual `db-rules.md` con dos desviaciones declaradas (plural en FKs cross-schema, bitácora como vista). Catálogo de productos POS se respeta vía FK cross-schema a `fayxzvov_reginas.order_products` sin duplicar. La propuesta cubre el 100% del flujo POS observado en el código (entradas, mermas, traspasos, ajustes) + plantillas reutilizables de entradas (`inflow_format`), y deja sembrada la extensión paralela para Insumos como Fase 2. Cuenta con seeds para arranque y queries de referencia para los visores existentes.
+17 tablas nuevas + 1 vista de bitácora + 1 tabla auxiliar de folios (`folio_sequence`), todo dentro del schema preexistente `fayxzvov_reginas`. Convenciones del manual `db-rules.md` respetadas, con dos desviaciones declaradas (plural en FKs cross-schema a otros schemas, bitácora como vista). El catálogo POS se reaprovecha vía FK **local** a `order_products` sin duplicar. La propuesta cubre el 100% del flujo POS observado en el código (entradas, mermas, traspasos, ajustes) + plantillas reutilizables de entradas (`inflow_format`), y deja sembrada la extensión paralela para Insumos como Fase 2. Cuenta con seeds para arranque y queries de referencia para los visores existentes.
+
+**Estado operativo (2026-05-29):** Fase 1 ejecutada en `fayxzvov_reginas`. DDL ejecutable vive en [database/install-inventarios-fase1.sql](database/install-inventarios-fase1.sql). Fase 2 (Insumos) pendiente de revisión por el usuario antes de generar DDL.
 
 — **Coffee Intelligence 🧠☕**

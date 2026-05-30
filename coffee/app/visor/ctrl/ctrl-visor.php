@@ -11,13 +11,19 @@ if (($_GET['action'] ?? '') === 'driveread') {
     header('Content-Type: text/plain; charset=utf-8');
     try {
         $drive = new DriveClient();
-        // Solo previsualizamos texto, markdown, codigo o Google Docs
-        $isText  = strpos($mime, 'text/') === 0;
-        $isCode  = in_array($mime, ['application/json','application/javascript','application/x-javascript','application/xml','application/sql']);
-        $isGdoc  = strpos($mime, 'application/vnd.google-apps.') === 0;
+        // Mime types convertibles a CSV (xlsx, xls, ods)
+        $sheetMimes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'application/vnd.oasis.opendocument.spreadsheet',
+        ];
+        $isText   = strpos($mime, 'text/') === 0;
+        $isCode   = in_array($mime, ['application/json','application/javascript','application/x-javascript','application/xml','application/sql']);
+        $isGdoc   = strpos($mime, 'application/vnd.google-apps.') === 0;
+        $isSheet  = in_array($mime, $sheetMimes, true);
         if ($isText || $isCode) {
             echo $drive->downloadFile($id);
-        } elseif ($isGdoc) {
+        } elseif ($isGdoc || $isSheet) {
             echo $drive->getFileContent(['id' => $id, 'mimeType' => $mime]);
         } else {
             echo "> Archivo no previsualizable en el visor.\n>\n> **Tipo:** `$mime`\n>\n> Usa el enlace 'Abrir en Drive' para verlo.";
@@ -26,6 +32,61 @@ if (($_GET['action'] ?? '') === 'driveread') {
         http_response_code(500);
         echo "> Error al leer el archivo desde Drive:\n>\n> " . $e->getMessage();
     }
+    exit;
+}
+
+// Endpoint de diagnostico Drive (GET ?action=drivecheck)
+// Reporta credenciales, email del SA, carpeta raiz y carpetas compartidas visibles.
+if (($_GET['action'] ?? '') === 'drivecheck') {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/drive-config.php';
+
+    $out = [
+        'ok'              => false,
+        'credentialsPath' => DRIVE_CREDENTIALS_PATH,
+        'credentialsFound'=> file_exists(DRIVE_CREDENTIALS_PATH),
+        'caBundleFound'   => file_exists(DRIVE_CA_BUNDLE),
+        'rootFolderId'    => DRIVE_ROOT_FOLDER_ID,
+        'serviceAccountEmail' => null,
+        'rootFolderAccessible'=> false,
+        'sharedFolders'   => [],
+        'error'           => null,
+    ];
+    try {
+        if (!$out['credentialsFound']) {
+            throw new Exception('Falta el JSON del Service Account en: ' . DRIVE_CREDENTIALS_PATH);
+        }
+        $jsonRaw = @file_get_contents(DRIVE_CREDENTIALS_PATH);
+        $jsonArr = json_decode($jsonRaw, true);
+        $out['serviceAccountEmail'] = $jsonArr['client_email'] ?? null;
+
+        require_once __DIR__ . '/drive-client.php';
+        $drive = new DriveClient();
+
+        // Carpeta raiz configurada
+        try {
+            $rootChildren = $drive->listChildren(DRIVE_ROOT_FOLDER_ID, 'all');
+            $out['rootFolderAccessible'] = true;
+            $out['rootChildrenCount'] = count($rootChildren);
+        } catch (Throwable $e) {
+            $out['rootFolderAccessible'] = false;
+            $out['rootFolderError'] = $e->getMessage();
+        }
+
+        // Carpetas compartidas con el SA (lo que aparece en el dropdown del visor)
+        $shared = $drive->listSharedFolders();
+        foreach ($shared as $f) {
+            $out['sharedFolders'][] = [
+                'id'   => $f['id'],
+                'name' => $f['name'],
+                'mtime'=> $f['modifiedTime'] ?? null
+            ];
+        }
+        $out['ok'] = true;
+    } catch (Throwable $e) {
+        $out['error'] = $e->getMessage();
+    }
+    echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
 
