@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="huubieGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#A78BFA"/>
+      <stop offset="50%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+    <linearGradient id="huubieAccent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EC4899"/>
+      <stop offset="100%" stop-color="#D946EF"/>
+    </linearGradient>
+  </defs>
+  <!-- Folder back -->
+  <path d="M8 18 C8 14.7 10.7 12 14 12 L26 12 L30 16 L50 16 C53.3 16 56 18.7 56 22 L56 46 C56 49.3 53.3 52 50 52 L14 52 C10.7 52 8 49.3 8 46 Z"
+        fill="url(#huubieGrad)" opacity="0.95"/>
+  <!-- Cloud / drive triangle accent -->
+  <path d="M22 32 L32 22 L42 32 L37 32 L37 42 L27 42 L27 32 Z"
+        fill="#FFFFFF" opacity="0.95"/>
+  <!-- Small spark -->
+  <circle cx="47" cy="22" r="3" fill="url(#huubieAccent)"/>
+</svg>

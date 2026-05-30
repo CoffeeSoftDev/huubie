@@ -895,7 +895,19 @@ class App {
     }
 
     async reloadLibrary() {
-        const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
+        const isDrive = this.isDriveFolder(this.settings.folder);
+        let label = this.settings.folder;
+        if (isDrive) {
+            const preset = (this.dataInit?.header?.presets || []).find(p => p.key === this.settings.folder);
+            label = preset?.label || 'Google Drive';
+            visorView.showGlobalDriveLoader(label);
+        }
+        let data;
+        try {
+            data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
+        } finally {
+            if (isDrive) visorView.hideGlobalDriveLoader();
+        }
         if (!data) {
             visorView.toast('Carpeta no accesible o sin .md', 'error');
             return;
@@ -1732,23 +1744,45 @@ class VisorView {
     }
 
     showDriveLoader(file) {
-        if ($('#driveLoader').length) return;
-        const label = (file && file.file) ? file.file : 'archivo';
-        const html = `
-            <div id="driveLoader" class="drive-loader-overlay">
-                <div class="drive-loader-box">
-                    <div class="drive-loader-spinner"></div>
-                    <div class="drive-loader-text">
-                        <div class="drive-loader-title">Cargando desde Google Drive</div>
-                        <div class="drive-loader-file">${label}</div>
-                    </div>
-                </div>
-            </div>`;
-        $('#md-rendered').html(html);
+        $('#md-rendered').html('<div id="driveLoaderHost" class="drive-loader-mount"></div>');
+        this._mountCoffeeLoader('driveLoaderHost', `Cargando ${file?.file || 'archivo'}`, 'circle');
     }
 
     hideDriveLoader() {
-        $('#driveLoader').remove();
+        $('#driveLoaderHost').remove();
+    }
+
+    showGlobalDriveLoader(folderLabel) {
+        $('#globalDriveLoader').remove();
+        $('body').append('<div id="globalDriveLoader" class="global-drive-loader"><div id="globalDriveLoaderHost"></div></div>');
+        this._mountCoffeeLoader('globalDriveLoaderHost', folderLabel || 'Conectando con Drive', 'primary');
+    }
+
+    hideGlobalDriveLoader() {
+        $('#globalDriveLoader').remove();
+    }
+
+    _mountCoffeeLoader(hostId, text, variant) {
+        if (typeof Templates === 'undefined') return;
+        try {
+            if (!this._cs) this._cs = new Templates();
+            const opts = {
+                parent: hostId,
+                text:   text,
+                color:  '#8B5CF6'
+            };
+            if (variant === 'primary') {
+                // Loader hero (cambio de carpeta Drive): gota gooey con la imagen institucional.
+                opts.variant = 'primary';
+                opts.size    = 'lg';
+                opts.image   = 'src/img/drive-loader.svg';
+            } else {
+                // Loader compacto (carga de documento individual): circulo girando.
+                opts.variant = 'circle';
+                opts.size    = 'md';
+            }
+            this._cs.coffeeLoader(opts);
+        } catch (e) { /* coffeeSoft no cargado o roto: no mostrar nada */ }
     }
 }
 
@@ -2016,7 +2050,6 @@ class CoffeeIA {
     /* ── Parser de propuestas <edit-replace> ── */
     _parseEditReplaceBlocks(reply, fileRaw) {
         const proposals = [];
-        // Regex tolerante: captura <edit-replace>...</edit-replace> con find/with internos.
         const blockRe = /<edit-replace[^>]*>([\s\S]*?)<\/edit-replace>/gi;
         const findRe  = /<find[^>]*>([\s\S]*?)<\/find>/i;
         const withRe  = /<with[^>]*>([\s\S]*?)<\/with>/i;
@@ -2029,25 +2062,25 @@ class CoffeeIA {
             const f = inner.match(findRe);
             const w = inner.match(withRe);
             if (!f || !w) continue;
-            // El modelo puede meter \n al inicio/fin de find/with; lo respetamos pero quitamos
-            // solo el primer \n inmediatamente despues de la apertura y antes del cierre.
             const findStr = f[1].replace(/^\r?\n/, '').replace(/\r?\n$/, '');
             const withStr = w[1].replace(/^\r?\n/, '').replace(/\r?\n$/, '');
 
-            let status = 'ok';
-            if (!fileRaw || fileRaw.indexOf(findStr) === -1) {
+            const match = this._locateFind(fileRaw || '', findStr);
+            let status, matchedText = findStr;
+            if (!match) {
                 status = 'not_found';
+            } else if (match.duplicated) {
+                status = 'ambiguous';
             } else {
-                // Detectar ambigüedad: aparece mas de una vez
-                const first = fileRaw.indexOf(findStr);
-                const second = fileRaw.indexOf(findStr, first + 1);
-                if (second !== -1) status = 'ambiguous';
+                status = 'ok';
+                matchedText = match.matched;
             }
 
             proposals.push({
                 id:      'edit-' + (idx++),
                 find:    findStr,
                 with:    withStr,
+                matched: matchedText,
                 status:  status,
                 accepted: null
             });
@@ -2059,6 +2092,63 @@ class CoffeeIA {
             cleanText = `He preparado ${proposals.length} cambio${proposals.length > 1 ? 's' : ''} para revisar.`;
         }
         return { proposals, cleanText };
+    }
+
+    /**
+     * Busca needle en haystack con 3 niveles de tolerancia:
+     *  1. Match exacto byte a byte.
+     *  2. Por linea con trailing whitespace ignorado.
+     *  3. Por linea con TODO el whitespace colapsado (espacios/tabs internos).
+     * Cuando matchea por nivel 2/3 reconstruye el texto REAL del archivo
+     * para que el replace opere sobre el contenido exacto presente.
+     * Retorna {matched, duplicated} o null si no hay match.
+     */
+    _locateFind(haystack, needle) {
+        if (!haystack || !needle) return null;
+
+        // Nivel 1: exacto
+        const first = haystack.indexOf(needle);
+        if (first !== -1) {
+            const second = haystack.indexOf(needle, first + 1);
+            return { matched: needle, duplicated: second !== -1 };
+        }
+
+        const hLines = haystack.split(/\r?\n/);
+        const eol = /\r\n/.test(haystack) ? '\r\n' : '\n';
+
+        // Nivel 2: trailing whitespace por linea
+        const lvl2 = this._matchByLineKey(haystack, hLines, eol, needle, l => l.replace(/\s+$/, ''));
+        if (lvl2) return lvl2;
+
+        // Nivel 3: colapsar whitespace interno + trim total (tolera diferencias en
+        // cantidad de espacios — util para listas markdown con indentacion variable)
+        const lvl3 = this._matchByLineKey(haystack, hLines, eol, needle, l => l.replace(/\s+/g, ' ').trim());
+        if (lvl3) return lvl3;
+
+        return null;
+    }
+
+    _matchByLineKey(haystack, hLines, eol, needle, keyFn) {
+        const nLines = needle.split(/\r?\n/).map(keyFn);
+        // Filtrar lineas vacias al final de needle (artefactos del modelo)
+        while (nLines.length && nLines[nLines.length - 1] === '') nLines.pop();
+        if (nLines.length === 0) return null;
+
+        const hits = [];
+        for (let i = 0; i <= hLines.length - nLines.length; i++) {
+            let ok = true;
+            for (let j = 0; j < nLines.length; j++) {
+                if (keyFn(hLines[i + j]) !== nLines[j]) { ok = false; break; }
+            }
+            if (ok) hits.push(i);
+        }
+        if (hits.length === 0) return null;
+
+        const start = hits[0];
+        const blockLines = hLines.slice(start, start + nLines.length);
+        const matched = blockLines.join(eol);
+        if (haystack.indexOf(matched) === -1) return null;
+        return { matched, duplicated: hits.length > 1 };
     }
 
     /* ── Panel side-by-side de propuestas ── */
@@ -2145,14 +2235,16 @@ class CoffeeIA {
             return;
         }
 
-        // Aplicar al raw actual (no al original — porque podria haber otros cambios ya aplicados)
-        if (file.raw.indexOf(p.find) === -1) {
+        // Aplicar al raw actual (puede haber cambios previos ya aplicados). Re-localizamos
+        // con tolerancia por si el snapshot original difiere en whitespace/EOL del current.
+        const reloc = this._locateFind(file.raw, p.matched || p.find);
+        if (!reloc) {
             p.status = 'not_found';
             this._refreshProposalCard(p);
             visorView.toast('El texto a reemplazar ya no existe (cambio previo lo modifico)', 'warn');
             return;
         }
-        const nextRaw = file.raw.replace(p.find, p.with);
+        const nextRaw = file.raw.replace(reloc.matched, p.with);
 
         const ok = await this._app.saveContentSilent(file, nextRaw);
         if (!ok) return;
