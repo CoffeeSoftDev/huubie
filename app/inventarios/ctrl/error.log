@@ -1,3 +1,111 @@
+[ 2026-06-01 10:40:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                i.*,
+                io.name      AS origin_name,
+                io.code      AS origin_code,
+                io.color_hex AS origin_color,
+                w.name       AS warehouse_name,
+                sp.name      AS supplier_name,
+                s.name       AS subsidiary_name,
+                u.fullname   AS user_name,
+                cu.fullname  AS confirmed_user_name
+            FROM fayxzvov_reginas.inventory_inflow i
+            LEFT JOIN fayxzvov_reginas.inflow_origin io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_reginas.warehouse     w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_reginas.supplier      sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries s ON s.id = i.subsidiaries_id
+            LEFT JOIN fayxzvov_alpha.usr_users    u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_alpha.usr_users    cu ON cu.id = i.confirmed_user_id
+            WHERE i.id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'i.confirmed_user_id' in 'on clause'
+
+
+[ 2026-06-01 10:38:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                i.*,
+                io.name      AS origin_name,
+                io.code      AS origin_code,
+                io.color_hex AS origin_color,
+                w.name       AS warehouse_name,
+                sp.name      AS supplier_name,
+                s.name       AS subsidiary_name,
+                u.fullname   AS user_name,
+                cu.fullname  AS confirmed_user_name
+            FROM fayxzvov_reginas.inventory_inflow i
+            LEFT JOIN fayxzvov_reginas.inflow_origin io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_reginas.warehouse     w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_reginas.supplier      sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries s ON s.id = i.subsidiaries_id
+            LEFT JOIN fayxzvov_alpha.usr_users    u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_alpha.usr_users    cu ON cu.id = i.confirmed_user_id
+            WHERE i.id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'i.confirmed_user_id' in 'on clause'
+
+
+[ 2026-06-01 10:38:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                i.*,
+                io.name      AS origin_name,
+                io.code      AS origin_code,
+                io.color_hex AS origin_color,
+                w.name       AS warehouse_name,
+                sp.name      AS supplier_name,
+                s.name       AS subsidiary_name,
+                u.fullname   AS user_name,
+                cu.fullname  AS confirmed_user_name
+            FROM fayxzvov_reginas.inventory_inflow i
+            LEFT JOIN fayxzvov_reginas.inflow_origin io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_reginas.warehouse     w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_reginas.supplier      sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries s ON s.id = i.subsidiaries_id
+            LEFT JOIN fayxzvov_alpha.usr_users    u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_alpha.usr_users    cu ON cu.id = i.confirmed_user_id
+            WHERE i.id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'i.confirmed_user_id' in 'on clause'
+
+
+[ 2026-06-01 10:38:53 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                i.*,
+                io.name      AS origin_name,
+                io.code      AS origin_code,
+                io.color_hex AS origin_color,
+                w.name       AS warehouse_name,
+                sp.name      AS supplier_name,
+                s.name       AS subsidiary_name,
+                u.fullname   AS user_name,
+                cu.fullname  AS confirmed_user_name
+            FROM fayxzvov_reginas.inventory_inflow i
+            LEFT JOIN fayxzvov_reginas.inflow_origin io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_reginas.warehouse     w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_reginas.supplier      sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries s ON s.id = i.subsidiaries_id
+            LEFT JOIN fayxzvov_alpha.usr_users    u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_alpha.usr_users    cu ON cu.id = i.confirmed_user_id
+            WHERE i.id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'i.confirmed_user_id' in 'on clause'
+
+
 [ 2026-05-31 13:20:42 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$

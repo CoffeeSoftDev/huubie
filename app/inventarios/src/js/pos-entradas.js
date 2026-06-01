@@ -13,7 +13,6 @@ $(async () => {
     await app.init();
 });
 
-
 class App extends Templates {
 
     constructor(link, divModule) {
@@ -60,15 +59,15 @@ class App extends Templates {
             subtitle: 'Recepciones de produccion, compras y transferencias por sucursal',
             back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
         });
-        entradasView.renderFooter({
-            info: '',
-            legends: [
-                { tone: 'purple',  label: 'Produccion'    },
-                { tone: 'warning', label: 'Proveedor'     },
-                { tone: 'info',    label: 'Transferencia' },
-                { tone: 'danger',  label: 'Devolucion'    }
-            ]
-        });
+        // entradasView.renderFooter({
+        //     info: '',
+        //     legends: [
+        //         { tone: 'purple',  label: 'Produccion'    },
+        //         { tone: 'warning', label: 'Proveedor'     },
+        //         { tone: 'info',    label: 'Transferencia' },
+        //         { tone: 'danger',  label: 'Devolucion'    }
+        //     ]
+        // });
         // entradasView.renderTabs(this.PROJECT_NAME);
         entradasView.renderDetail(null);
         this.populateFilters();
@@ -90,35 +89,33 @@ class App extends Templates {
                     text:  '#viewHeader',
                     class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
-                // {
-                //     id:    'tabsRow',
-                //     class: 'px-4 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
-                // },
+                {
+                    id: 'filterBar',
+                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                },
+         
                 {
                     id:    'kpisRow',
                     class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
-                {
-                    id:    'filterBar',
-                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
-                },
+              
                 {
                     id:    'tableWrap',
                     text:  '#tableWrap',
                     class: 'p-3 flex-1 min-h-0 overflow-auto'
                 },
-                {
-                    id:    'viewFooter',
-                    text:  '#viewFooter',
-                    class: 'px-4 py-2 bg-[#141d2b] border-t border-[#374151] flex items-center justify-between flex-shrink-0'
-                }
+                // {
+                //     id:    'viewFooter',
+                //     text:  '#viewFooter',
+                //     class: 'px-4 py-2 bg-[#141d2b] border-t border-[#374151] flex items-center justify-between flex-shrink-0'
+                // }
             ]
         };
 
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class:'w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden',
+            class:'w-full md:w-[480px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -164,7 +161,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fOrigen',
                 lbl:      'Origen:',
-                class:    'col-12 col-md-3 col-lg-2',
+                class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     [{ id: '', valor: '-- Todos --' }].concat(this.dataInit.origenes || [])
@@ -173,7 +170,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fEstado',
                 lbl:      'Estado:',
-                class:    'col-12 col-md-3 col-lg-2',
+                class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     this.dataInit.estados || []
@@ -183,7 +180,7 @@ class App extends Templates {
                 id:        'btnNuevaEntrada',
                 text:      'Agregar Entrada',
                 color_btn: 'primary',
-                class:     'col-12 col-md-3 col-lg-2',
+                class:     'col-12 col-md-3 col-lg-3',
                 onClick:   () => entradasView.openEntradaForm()
             }
         ];
@@ -325,10 +322,16 @@ class App extends Templates {
         this.selectEntrada(folio);
     }
 
+    // Cancelar entrada desde el boton de la fila (reutiliza el flujo del panel de detalle).
+    cancelEntradaRow(folio, id, estado) {
+        entradasView.cancelEntrada({ id: id, folio: folio, estado: estado });
+    }
+
     renderDetail(entrada) {
         entradasView.renderDetail(entrada);
     }
 }
+
 class Entradas extends Templates {
 
     // -- Bootstrap --
@@ -435,9 +438,12 @@ class Entradas extends Templates {
             confirmadoIso: confRaw ? confRaw.replace(' ', 'T') : '',
             nota:          h.note,
             productos:  (detail || []).map(d => ({
+                detailId:  d.id,
                 nombre:    d.product_name,
                 sku:       d.sku,
-                cant:      Number(d.quantity || 0),
+                cant:      Number(d.quantity || 0),                                                  // reportada
+                cantReal:  d.confirmed_quantity != null ? Number(d.confirmed_quantity) : Number(d.quantity || 0), // real que entro
+                confirmada: d.confirmed_quantity != null,
                 costo:     Number(d.cost || 0),
                 stockPrev: Number(d.previous_stock || 0),
                 image:     d.image || '',
@@ -455,6 +461,7 @@ class Entradas extends Templates {
         app.selectEntrada(folio);
     }
 }
+
 class EntradasView extends Templates {
 
     // -- Bootstrap --
@@ -517,15 +524,23 @@ class EntradasView extends Templates {
             if (typeof alert === 'function') alert({ icon: 'info', text: 'La entrada no esta pendiente de confirmar' });
             return;
         }
+        // Recoge la cantidad real que entro por renglon (editada en el panel).
+        const quantities = {};
+        $('#detailPanel .entrada-real-qty').each(function () {
+            const did = $(this).attr('data-detail-id');
+            const val = parseFloat($(this).val());
+            quantities[did] = isNaN(val) || val < 0 ? 0 : val;
+        });
+
         this.swalQuestion({
             opts: {
                 title:             `Confirmar produccion ${e.folio || ''}`.trim(),
-                text:              'Se aplicara el stock de esta orden de produccion al almacen y pasara a estado Aplicada.',
+                text:              'Se aplicara al almacen la cantidad que realmente entro y la entrada pasara a estado Aplicada.',
                 icon:              'question',
                 confirmButtonText: 'Si, confirmar',
                 cancelButtonText:  'No'
             },
-            data: { opc: 'confirmEntrada', id: e.id },
+            data: { opc: 'confirmEntrada', id: e.id, quantities: JSON.stringify(quantities) },
             methods: {
                 send: (r) => {
                     if (r && r.status === 200) {
@@ -897,7 +912,7 @@ class EntradasView extends Templates {
         const defaults = {
             parent:    'root',
             id:        'entradaDetailPanel',
-            class:     'w-full h-full flex-shrink-0 bg-[var(--cs-bg-header,#141d2b)] border-l border-[var(--cs-border,#374151)] flex flex-col overflow-hidden',
+            class:     'w-full h-full flex-shrink-0 bg-[#141d2b] border-l border-[#374151] flex flex-col overflow-hidden',
             json:      null,
             labels: {
                 emptyTitle:  'Selecciona una entrada',
@@ -995,7 +1010,7 @@ class EntradasView extends Templates {
                    </button>`;
 
             return `
-                <div class="px-4 py-3 border-t border-[var(--cs-border,#374151)] flex gap-2 flex-shrink-0">
+                <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">
                     ${leftBtn}
                     ${rightBtn}
                 </div>`;
@@ -1003,68 +1018,96 @@ class EntradasView extends Templates {
 
         // Estado vacio: sin entrada seleccionada.
         const emptyView = () => `
-            <div class="px-3 py-3 border-b border-[var(--cs-border,#374151)] flex-shrink-0 flex items-center justify-between">
+            <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
                 <div>
                     <h3 class="text-sm font-bold text-white">Vista de la Entrada</h3>
-                    <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.subtitleLbl)}</p>
+                    <p class="text-[10px] text-[#9CA3AF]">${esc(opts.labels.subtitleLbl)}</p>
                 </div>
             </div>
             <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
-                <div class="w-14 h-14 rounded-full bg-[var(--cs-bg-input,#1F2937)] border border-[var(--cs-border,#374151)] flex items-center justify-center mb-3">
-                    <i data-lucide="arrow-down-to-line" class="w-6 h-6 text-[var(--cs-text-muted,#9CA3AF)]"></i>
+                <div class="w-14 h-14 rounded-full bg-[#1F2937] border border-[#374151] flex items-center justify-center mb-3">
+                    <i data-lucide="arrow-down-to-line" class="w-6 h-6 text-[#9CA3AF]"></i>
                 </div>
-                <p class="text-[11px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.emptyTitle)}</p>
-                <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
+                <p class="text-[11px] text-[#9CA3AF]">${esc(opts.labels.emptyTitle)}</p>
+                <p class="text-[10px] text-[#9CA3AF] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
             </div>
             ${actionsBar({ empty: true })}
         `;
 
-        // Tarjeta por producto del detalle.
-        const productCard = (p) => {
-            const subtotal   = Number(p.cant) * Number(p.costo);
-            const nuevoStock = Number(p.stockPrev || 0) + Number(p.cant || 0);
+        // Detalle de productos en formato tabla. En ordenes de produccion se muestran
+        // dos columnas de cantidad: la reportada (planeada) y la que realmente entro.
+        // Si la entrada esta Pendiente, "Entro" es un input editable que alimenta la
+        // confirmacion; en otros estados es solo lectura.
+        const productTable = (e, editable, mostrarReportada) => {
+            const cols = mostrarReportada ? 6 : 5;
+
+            const rows = (e.productos || []).map(p => {
+                // En modo editable el input arranca con la cantidad reportada.
+                const real     = editable ? Number(p.cant) : Number(p.cantReal);
+                const subtotal = real * Number(p.costo);
+
+                const entroCell = editable
+                    ? `<input type="number" min="0" step="any"
+                              class="entrada-real-qty w-16 px-1.5 py-1 text-right rounded bg-[#141d2b] border border-[#374151] text-white text-[13px] focus:border-[#7C3AED] focus:outline-none"
+                              data-detail-id="${p.detailId}" data-costo="${p.costo}" value="${p.cant}">`
+                    : `<span class="text-green-400 font-bold">+${real}</span>`;
+
+                const reportadaCol = mostrarReportada
+                    ? `<td class="py-1.5 px-1 text-center text-[#9CA3AF]">${p.cant}</td>`
+                    : '';
+
+                return `
+                    <tr class="border-b border-[#374151]/50">
+                        <td class="py-1.5 px-1">
+                            <div class="flex items-center gap-1.5">
+                                <div class="relative w-6 h-6 rounded ${p.bg} flex items-center justify-center flex-shrink-0 overflow-hidden ring-1 ring-white/5">
+                                    <i data-lucide="${p.icon}" class="w-3 h-3 ${p.color}"></i>
+                                    ${p.image ? `<img src="https://huubie.com.mx/${esc(String(p.image).replace(/^\/+/, ''))}" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'">` : ''}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-[12px] font-bold text-white leading-tight truncate max-w-[110px]">${esc(p.nombre)}</p>
+                                    <p class="text-[10px] text-[#9CA3AF] leading-tight">${esc(p.sku)}</p>
+                                </div>
+                            </div>
+                        </td>
+                        ${reportadaCol}
+                        <td class="py-1.5 px-1 text-center whitespace-nowrap">${entroCell}</td>
+                        <td class="py-1.5 px-1 text-right text-white whitespace-nowrap">${fmtMoney(p.costo)}</td>
+                        <td class="py-1.5 px-1 text-right text-white font-bold whitespace-nowrap" data-subtotal-for="${p.detailId}">${fmtMoneyShort(subtotal)}</td>
+                    </tr>`;
+            }).join('');
+
+            const reportadaHead = mostrarReportada
+                ? `<th class="py-1 px-1 text-center font-semibold">Report.</th>`
+                : '';
+            const entroLabel = mostrarReportada ? 'Entro' : esc(opts.labels.cant);
+
             return `
-                <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-md p-1.5 border border-[var(--cs-border,#374151)]">
-                    <div class="flex items-center gap-1.5">
-                        <div class="relative w-8 h-8 rounded ${p.bg} flex items-center justify-center flex-shrink-0 overflow-hidden ring-1 ring-white/5">
-                            <i data-lucide="${p.icon}" class="w-3.5 h-3.5 ${p.color}"></i>
-                            ${p.image ? `<img src="https://huubie.com.mx/${esc(String(p.image).replace(/^\/+/, ''))}" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'">` : ''}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-[10px] font-bold leading-tight truncate text-white">${esc(p.nombre)}</p>
-                            <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] leading-tight">${esc(p.sku)}</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1 mt-1.5 pt-1.5 border-t border-[var(--cs-border,#374151)]">
-                        <div>
-                            <p class="text-[7px] text-[var(--cs-text-muted,#9CA3AF)] uppercase leading-none">${esc(opts.labels.cant)}</p>
-                            <p class="text-[10px] font-bold text-green-400 leading-tight">+${p.cant}</p>
-                        </div>
-                        <div>
-                            <p class="text-[7px] text-[var(--cs-text-muted,#9CA3AF)] uppercase leading-none">${esc(opts.labels.costo)}</p>
-                            <p class="text-[10px] font-bold text-white leading-tight">${fmtMoney(p.costo)}</p>
-                        </div>
-                        <div>
-                            <p class="text-[7px] text-[var(--cs-text-muted,#9CA3AF)] uppercase leading-none">${esc(opts.labels.subtotal)}</p>
-                            <p class="text-[10px] font-bold text-white leading-tight">${fmtMoneyShort(subtotal)}</p>
-                        </div>
-                    </div>
-                    <div class="mt-1 text-[8px] leading-tight">
-                        <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.stockLbl)}: ${p.stockPrev || 0} &rarr; <strong class="text-green-400">${nuevoStock}</strong></span>
-                    </div>
-                </div>`;
+                <table class="w-full text-[11px] border-collapse">
+                    <thead>
+                        <tr class="text-[11px] text-[#9CA3AF] tracking-wider border-b border-[#374151]">
+                            <th class="py-1 px-1 text-left font-semibold">Producto</th>
+                            ${reportadaHead}
+                            <th class="py-1 px-1 text-center font-semibold">${entroLabel}</th>
+                            <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.costo)}</th>
+                            <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.subtotal)}</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows || `<tr><td colspan="${cols}" class="py-2 text-center text-[12px] text-gray-500 italic">Sin productos</td></tr>`}</tbody>
+                </table>`;
         };
 
         // Estado con entrada: cabecera + resumen + productos + nota + botonera.
         const filledView = (e) => {
             const totals = (e.productos || []).reduce((acc, p) => {
-                acc.uds   += Number(p.cant || 0);
-                acc.costo += Number(p.cant || 0) * Number(p.costo || 0);
+                acc.uds   += Number(p.cantReal || 0);
+                acc.costo += Number(p.cantReal || 0) * Number(p.costo || 0);
                 return acc;
             }, { uds: 0, costo: 0 });
 
-            const pendiente = e.estado === 'Pendiente';
-            const cancelada = e.estado === 'Cancelada';
+            const pendiente    = e.estado === 'Pendiente';
+            const cancelada    = e.estado === 'Cancelada';
+            const esProduccion = e.origenCode === 'PRODUCTION';
             const origenC   = opts.origenPalettes[e.origen] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
             const estadoC   = opts.estadoPalettes[e.estado] || { bg: 'rgba(63,193,137,0.15)',  fg: '#3FC189' };
             const folioCol  = e.origen === 'Transferencia' ? 'text-blue-400' : 'text-green-400';
@@ -1072,17 +1115,15 @@ class EntradasView extends Templates {
             const origenBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${origenC.bg};color:${origenC.fg};">${esc(e.origen)}</span>`;
             const estadoBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${estadoC.bg};color:${estadoC.fg};">${esc(e.estado)}</span>`;
 
-            const productosHtml = (e.productos || []).map(productCard).join('');
-
             return `
-                <div class="px-3 py-3 border-b border-[var(--cs-border,#374151)] flex-shrink-0 flex items-center justify-between">
+                <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
                     <div>
                         <h3 class="text-sm font-bold ${folioCol}">Entrada ${esc(e.folio)}</h3>
-                        <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(fmtFecha(e.fechaIso))}</p>
+                        <p class="text-[10px] text-[#9CA3AF]">${esc(fmtFecha(e.fechaIso))}</p>
                     </div>
                     <div class="flex items-center gap-2">
                         ${estadoBadge}
-                        <button id="${opts.id}_close" class="text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors p-1" title="Cerrar">
+                        <button id="${opts.id}_close" class="text-[#D1D5DB] hover:text-white transition-colors p-1" title="Cerrar">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -1090,47 +1131,50 @@ class EntradasView extends Templates {
                     </div>
                 </div>
 
-                <div class="flex-1 overflow-y-auto cs-scroll px-4 py-3 space-y-3">
+                <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
 
                     <!-- Resumen -->
-                    <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-3 border border-[var(--cs-border,#374151)] space-y-1.5">
+                    <div class="bg-[#1F2937] rounded-lg p-2 border border-[#374151] space-y-2">
                         <div class="flex justify-between items-center text-[11px]">
-                            <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.origen)}</span>
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.origen)}</span>
                             ${origenBadge}
                         </div>
                         <div class="flex justify-between text-[11px]">
-                            <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.sucursal)}</span>
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.sucursal)}</span>
                             <span class="text-white">${esc(e.sucursal || '-')}</span>
                         </div>
                         <div class="flex justify-between text-[11px]">
-                            <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.registrado)}</span>
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.registrado)}</span>
                             <span class="text-white">${esc(e.registrado || '-')}</span>
                         </div>
                         ${e.confirmadoPor ? `
                         <div class="flex justify-between text-[11px]">
-                            <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.confirmado)}</span>
-                            <span class="text-white">${esc(e.confirmadoPor)}${e.confirmadoIso ? ` <span class="text-[var(--cs-text-muted,#9CA3AF)]">&middot; ${esc(fmtFecha(e.confirmadoIso))}</span>` : ''}</span>
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.confirmado)}</span>
+                            <span class="text-white">${esc(e.confirmadoPor)}${e.confirmadoIso ? ` <span class="text-[#9CA3AF]">&middot; ${esc(fmtFecha(e.confirmadoIso))}</span>` : ''}</span>
                         </div>` : ''}
                         <div class="flex justify-between text-[11px]">
-                            <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.productos)}</span>
-                            <span class="text-white font-bold">${e.productos.length} tipos / ${totals.uds} uds</span>
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.productos)}</span>
+                            <span class="text-white font-bold" id="${opts.id}_totUds">${e.productos.length} tipos / ${totals.uds} uds</span>
                         </div>
                         <div class="flex justify-between text-[11px]">
-                            <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.costoTot)}</span>
-                            <span class="font-bold text-green-400">${fmtMoney(totals.costo)}</span>
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.costoTot)}</span>
+                            <span class="font-bold text-green-400" id="${opts.id}_totCosto">${fmtMoney(totals.costo)}</span>
                         </div>
                     </div>
 
                     <!-- Detalle de productos -->
                     <div>
-                        <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider mb-2">${esc(opts.labels.detalleLbl)}</p>
-                        <div class="space-y-1">${productosHtml || '<p class="text-[10px] text-gray-500 italic">Sin productos</p>'}</div>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider">${esc(opts.labels.detalleLbl)}</p>
+                            ${pendiente && esProduccion ? `<span class="text-[8px] text-[#FBBF24]">Ajusta la cantidad que realmente entro</span>` : ''}
+                        </div>
+                        <div class="overflow-x-auto">${productTable(e, pendiente, esProduccion)}</div>
                     </div>
 
                     <!-- Nota -->
                     ${e.nota ? `
-                    <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-3 border border-[var(--cs-border,#374151)]">
-                        <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider mb-1">${esc(opts.labels.notaLbl)}</p>
+                    <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151]">
+                        <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-1">${esc(opts.labels.notaLbl)}</p>
                         <p class="text-[11px] text-gray-300">${esc(e.nota)}</p>
                     </div>` : ''}
                 </div>
@@ -1154,6 +1198,23 @@ class EntradasView extends Templates {
             $(`#${opts.id}_close`).on('click', () => opts.onClose(e));
             if (e.estado === 'Pendiente') {
                 $(`#${opts.id}_confirm`).on('click', () => opts.onConfirm(e));
+
+                // Recalcula subtotales por renglon y los totales del resumen en vivo
+                // mientras se ajusta la cantidad real que entro.
+                const recalc = () => {
+                    let uds = 0, costo = 0;
+                    $(`#${opts.id} .entrada-real-qty`).each(function () {
+                        const qty = parseFloat($(this).val()) || 0;
+                        const c   = parseFloat($(this).attr('data-costo')) || 0;
+                        const did = $(this).attr('data-detail-id');
+                        uds   += qty;
+                        costo += qty * c;
+                        $(`#${opts.id} [data-subtotal-for="${did}"]`).text(fmtMoneyShort(qty * c));
+                    });
+                    $(`#${opts.id}_totUds`).text(`${(e.productos || []).length} tipos / ${uds} uds`);
+                    $(`#${opts.id}_totCosto`).text(fmtMoney(costo));
+                };
+                $(`#${opts.id}`).on('input', '.entrada-real-qty', recalc);
             } else {
                 $(`#${opts.id}_print`).on('click', () => opts.onPrint(e));
             }

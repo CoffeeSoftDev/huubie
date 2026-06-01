@@ -1,0 +1,156 @@
+<?php
+/**
+ * Cliente minimalista para OpenRouter (API OpenAI-compatible) usando API key.
+ * Sin SDK, solo cURL. Gemelo de OllamaClient pero hablando el dialecto OpenAI.
+ *
+ * Diferencias clave que resuelve esta clase:
+ *  - Endpoint /chat/completions (no /api/chat).
+ *  - Las imagenes viajan dentro de content[] como image_url (no como images[]).
+ *  - La respuesta llega en choices[0].message.content + usage.* — la
+ *    NORMALIZAMOS a { message:{content}, usage } para que ctrl-coffeeia.php
+ *    siga funcionando sin cambios en su lectura de la respuesta.
+ *
+ * Operaciones:
+ *  - chat($messages, $model = null, $opts = [])
+ *  - listModels()
+ */
+
+require_once __DIR__ . '/openrouter-config.php';
+
+class OpenRouterException extends Exception {}
+
+class OpenRouterClient {
+    private $apiKey;
+    private $baseUrl;
+    private $defaultModel;
+
+    public function __construct() {
+        if (!defined('OPENROUTER_API_KEY') || OPENROUTER_API_KEY === '') {
+            throw new OpenRouterException('OPENROUTER_API_KEY no definida. Revisa coffee/app/credentials/.env');
+        }
+        $this->apiKey       = OPENROUTER_API_KEY;
+        $this->baseUrl      = rtrim(OPENROUTER_BASE_URL, '/');
+        $this->defaultModel = OPENROUTER_DEFAULT_MODEL;
+    }
+
+    /* ── Endpoints ───────────────────────────────────────── */
+
+    public function chat(array $messages, $model = null, array $opts = []) {
+        $payload = [
+            'model'    => $model ?: $this->defaultModel,
+            'messages' => $this->adaptMessages($messages),
+            'stream'   => false,
+        ];
+        // Mapea las "options" estilo Ollama (temperature, top_p, num_predict...)
+        // a sus equivalentes OpenAI mas comunes.
+        if (isset($opts['temperature'])) $payload['temperature'] = $opts['temperature'];
+        if (isset($opts['top_p']))       $payload['top_p']       = $opts['top_p'];
+        if (isset($opts['num_predict'])) $payload['max_tokens']  = (int) $opts['num_predict'];
+        if (isset($opts['max_tokens']))  $payload['max_tokens']  = (int) $opts['max_tokens'];
+
+        $data = $this->request('POST', '/chat/completions', $payload);
+
+        // Normalizamos al contrato que espera el controlador (estilo Ollama).
+        $content = $data['choices'][0]['message']['content'] ?? '';
+        return [
+            'model'   => $data['model'] ?? ($model ?: $this->defaultModel),
+            'message' => ['content' => $content],
+            'usage'   => $data['usage'] ?? [],
+        ];
+    }
+
+    public function listModels() {
+        return $this->request('GET', '/models');
+    }
+
+    /* ── Adaptacion de mensajes (Ollama → OpenAI) ─────────── */
+
+    /**
+     * Convierte los mensajes del formato interno (estilo Ollama, con
+     * images[] = base64 sin prefijo) al formato multimodal de OpenAI.
+     * Mensajes sin imagenes quedan con content string (sin cambios).
+     */
+    private function adaptMessages(array $messages) {
+        $out = [];
+        foreach ($messages as $m) {
+            $role    = isset($m['role']) ? $m['role'] : 'user';
+            $content = isset($m['content']) ? (string) $m['content'] : '';
+            $images  = (isset($m['images']) && is_array($m['images'])) ? $m['images'] : [];
+
+            if (empty($images)) {
+                $out[] = ['role' => $role, 'content' => $content];
+                continue;
+            }
+
+            $parts = [];
+            if ($content !== '') {
+                $parts[] = ['type' => 'text', 'text' => $content];
+            }
+            foreach ($images as $b64) {
+                if (!is_string($b64) || $b64 === '') continue;
+                // El controlador ya limpio el prefijo data:...;base64, asi que
+                // reconstruimos el data URL adivinando el MIME por magic bytes.
+                $mime = $this->guessMimeFromBase64($b64);
+                $parts[] = [
+                    'type'      => 'image_url',
+                    'image_url' => ['url' => "data:{$mime};base64,{$b64}"],
+                ];
+            }
+            $out[] = ['role' => $role, 'content' => $parts];
+        }
+        return $out;
+    }
+
+    /** Detecta el MIME por el prefijo del base64 (magic bytes). */
+    private function guessMimeFromBase64($b64) {
+        $head = substr($b64, 0, 16);
+        if (strncmp($head, 'iVBOR', 5) === 0)  return 'image/png';
+        if (strncmp($head, '/9j/', 4) === 0)   return 'image/jpeg';
+        if (strncmp($head, 'R0lGOD', 6) === 0) return 'image/gif';
+        if (strncmp($head, 'UklGR', 5) === 0)  return 'image/webp';
+        return 'image/png';
+    }
+
+    /* ── HTTP ────────────────────────────────────────────── */
+
+    private function request($method, $path, $body = null) {
+        $ch = curl_init($this->baseUrl . $path);
+        $headers = [
+            'Authorization: Bearer ' . $this->apiKey,
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'X-Title: ' . (defined('OPENROUTER_APP_TITLE') ? OPENROUTER_APP_TITLE : 'Huubie Visor'),
+        ];
+        if (defined('OPENROUTER_APP_REFERER') && OPENROUTER_APP_REFERER !== '') {
+            $headers[] = 'HTTP-Referer: ' . OPENROUTER_APP_REFERER;
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_TIMEOUT        => OPENROUTER_TIMEOUT,
+        ]);
+        if (defined('OPENROUTER_CA_BUNDLE') && OPENROUTER_CA_BUNDLE !== '' && file_exists(OPENROUTER_CA_BUNDLE)) {
+            curl_setopt($ch, CURLOPT_CAINFO, OPENROUTER_CA_BUNDLE);
+        }
+        if ($body !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE));
+        }
+        $resp = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($resp === false) {
+            throw new OpenRouterException('cURL: ' . $err);
+        }
+        if ($code >= 400) {
+            throw new OpenRouterException("HTTP $code: $resp");
+        }
+        $data = json_decode($resp, true);
+        if (!is_array($data)) {
+            throw new OpenRouterException('Respuesta no JSON: ' . substr($resp, 0, 200));
+        }
+        return $data;
+    }
+}

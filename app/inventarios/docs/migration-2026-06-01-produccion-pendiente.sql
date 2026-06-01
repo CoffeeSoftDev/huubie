@@ -11,10 +11,15 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- 1) Auditoria de confirmacion de ordenes de produccion.
---    (El ENUM status ya incluye 'Pendiente', no requiere cambio.)
 ALTER TABLE inventory_inflow
     ADD COLUMN confirmed_user_id INT NULL AFTER user_id,
     ADD COLUMN confirmed_at DATETIME NULL AFTER confirmed_user_id;
+
+-- 1b) El ENUM status traia 'Pendiente'/'Aplicada'/'Revertida' pero el codigo
+--     (reverseEntrada -> qReverseEntrada) y el frontend usan 'Cancelada'.
+--     Sin este valor, cancelar una entrada falla (o guarda '' en modo no estricto).
+ALTER TABLE inventory_inflow
+    MODIFY COLUMN status ENUM('Pendiente','Aplicada','Revertida','Cancelada') NOT NULL DEFAULT 'Aplicada';
 
 -- 2) VIEW inventory_movement: la rama ENTRADA solo cuenta entradas Aplicadas
 --    (Pendientes de produccion y Canceladas no son movimiento de stock real,

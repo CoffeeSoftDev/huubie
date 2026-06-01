@@ -1372,6 +1372,7 @@ class Components extends Complements {
             text: " ",
             icon: "warning",
             scrollbarPadding: false,
+            heightAuto: false,
             showCancelButton: true,
             confirmButtonText: "Aceptar",
             cancelButtonText: "Cancelar",

@@ -362,7 +362,7 @@ class EntradaForm {
         this.wrap = $('<div>', { id: o.id, class: o.class });
         this.wrap.html(`
             <div class="absolute inset-0 bg-black/60" data-modal-close></div>
-            <div class="relative z-10 w-full max-w-[960px] max-h-[90vh] mx-3 bg-[#111928] border border-gray-700/60 rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col">
+            <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-[#111928] border border-gray-700/60 rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col">
                 ${this.renderHeader()}
                 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
                     ${this.renderConfigRow()}
@@ -456,8 +456,12 @@ class EntradaForm {
         if (!prod) return;
         this.lote.push(Object.assign({}, prod, { cantidad: 1 }));
         this.searchTerm = '';
-        $(`#${this.opts.id}_buscarProducto`).val('').focus();
+        $(`#${this.opts.id}_buscarProducto`).val('');
         this.renderLote();
+        // Enfoca la cantidad del producto recien agregado y selecciona su valor para captura inmediata.
+        const idx  = this.lote.length - 1;
+        const $qty = $(`#${this.opts.id}_listaProductos input[data-field="cantidad"][data-idx="${idx}"]`);
+        $qty.trigger('focus').trigger('select');
     }
 
     removeProducto(i) {

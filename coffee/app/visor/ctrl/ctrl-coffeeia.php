@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
 
-require_once __DIR__ . '/ollama-client.php';
+require_once __DIR__ . '/llm-client.php';
 
 $raw = file_get_contents('php://input');
 $body = json_decode($raw, true);
@@ -41,7 +41,7 @@ foreach ($messages as $m) {
     if (!empty($m['images'])) { $hasImages = true; break; }
 }
 if ($hasImages && ($model === null || $model === '')) {
-    $model = defined('OLLAMA_VISION_MODEL') ? OLLAMA_VISION_MODEL : 'qwen3-vl:235b-cloud';
+    $model = llm_vision_model_for($model);
 }
 
 $currentFile        = isset($body['currentFile'])        ? trim($body['currentFile'])        : '';
@@ -156,11 +156,12 @@ $allMessages = array_merge($prepend, $messages);
 $t0 = microtime(true);
 
 try {
-    $client = new OllamaClient();
+    $client = llm_client_for($model);
     $result = $client->chat($allMessages, $model);
 } catch (Throwable $e) {
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Error al conectar con Ollama: ' . $e->getMessage()]);
+    $provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
+    echo json_encode(['ok' => false, 'error' => "Error al conectar con $provider: " . $e->getMessage()]);
     exit;
 }
 

@@ -141,6 +141,22 @@ class ctrl extends mdl {
 
         $row = [];
         foreach ($rows as $r) {
+            $a = [
+                [
+                    'class'   => 'btn btn-sm btn-secondary me-1',
+                    'html'    => '<i class="icon-eye"></i>',
+                    'onclick' => "app.selectEntrada('{$r['folio']}', {$r['id']})"
+                ]
+            ];
+            // Cancelar (revertir) solo disponible mientras la entrada no este cancelada.
+            if ($r['status'] !== 'Cancelada') {
+                $a[] = [
+                    'class'   => 'btn btn-sm btn-danger me-1',
+                    'html'    => '<i class="icon-ccw"></i>',
+                    'onclick' => "app.cancelEntradaRow('{$r['folio']}', {$r['id']}, '{$r['status']}')"
+                ];
+            }
+
             $row[] = [
                 'id'           => $r['id'],
                 'Folio'        => $r['folio'],
@@ -153,13 +169,7 @@ class ctrl extends mdl {
                 'Fecha'        => $r['date_inflow'],
                 'Estado'       => $this->_statusBadge($r['status']),
                 'Registrado'   => $r['user_name'] ?: '-',
-                'a' => [
-                    [
-                        'class'   => 'btn btn-sm btn-secondary me-1',
-                        'html'    => '<i class="icon-eye"></i>',
-                        'onclick' => "app.selectEntrada('{$r['folio']}', {$r['id']})"
-                    ]
-                ]
+                'a'            => $a
             ];
         }
         return ['status' => 200, 'row' => $row];
@@ -289,27 +299,45 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'La entrada no esta pendiente de confirmar'];
         }
 
-        // Aplica el stock de la orden de produccion al almacen destino.
-        $warehouse = (int) $header['warehouse_id'];
-        $detail    = $this->qGetEntradaDetail([$id]);
+        // Cantidades reales que entraron, editadas en el panel: { detail_id: qty }.
+        // Si un renglon no viene, se aplica la cantidad reportada (quantity).
+        $quantities = json_decode($_POST['quantities'] ?? '{}', true);
+        if (!is_array($quantities)) $quantities = [];
+
+        // Aplica el stock de la orden de produccion al almacen destino usando la
+        // cantidad real y recalcula los totales del header con esos valores.
+        $warehouse  = (int) $header['warehouse_id'];
+        $detail     = $this->qGetEntradaDetail([$id]);
+        $totalUnits = 0;
+        $totalCost  = 0;
         foreach ($detail as $d) {
+            $detailId  = (int) $d['id'];
             $productId = (int) $d['product_id'];
-            $qty       = (float) $d['quantity'];
+            $cost      = (float) $d['cost'];
+            $realQty   = array_key_exists((string) $detailId, $quantities)
+                ? max(0, (float) $quantities[$detailId])
+                : (float) $d['quantity'];
+            $subtotal  = $realQty * $cost;
 
             $stockRow = $this->getStockRow([$productId, $warehouse]);
             $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
-            $post     = $prev + $qty;
+            $post     = $prev + $realQty;
 
-            // Recalcula el snapshot del renglon con el stock actual al confirmar.
-            $this->updateEntradaDetailStock([$prev, $post, (int) $d['id']]);
+            // Guarda la cantidad real (confirmed_quantity), el subtotal recalculado
+            // y el snapshot de stock al momento de aplicar.
+            $this->confirmEntradaDetail([$realQty, $subtotal, $prev, $post, $detailId]);
 
             if ($stockRow) {
                 $this->updateStockQuantity([$post, (int) $stockRow['id']]);
             } else {
                 $this->insertStockRow([$post, $warehouse, $productId, $this->companiesId]);
             }
+
+            $totalUnits += $realQty;
+            $totalCost  += $subtotal;
         }
 
+        $this->updateEntradaTotals([$totalUnits, $totalCost, $id]);
         $r = $this->qApplyEntrada([$this->userId, $id]);
         return [
             'status'  => $r ? 200 : 500,

@@ -306,11 +306,21 @@
                             <span>Lienzo</span>
                         </button>
                         <select id="iaModelSelect" class="ia-model-pill" title="Modelo activo">
-                            <option value="qwen3-coder:480b-cloud">Qwen3 Coder 480B</option>
-                            <option value="qwen3-vl:235b-cloud">Qwen3 VL 235B (vision)</option>
-                            <option value="qwen3.5:397b-cloud">Qwen 3.5 397B</option>
-                            <option value="minimax-m2.7:cloud">MiniMax M2.7</option>
-                            <option value="kimi-k2.6:cloud">Kimi K2.6</option>
+                            <optgroup label="Ollama Cloud">
+                                <option value="qwen3-coder:480b-cloud">Qwen3 Coder 480B</option>
+                                <option value="qwen3-vl:235b-cloud">Qwen3 VL 235B (vision)</option>
+                                <option value="qwen3.5:397b-cloud">Qwen 3.5 397B</option>
+                                <option value="minimax-m2.7:cloud">MiniMax M2.7</option>
+                                <option value="kimi-k2.6:cloud">Kimi K2.6</option>
+                            </optgroup>
+                            <optgroup label="OpenRouter">
+                                <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+                                <option value="openai/gpt-4o-mini">GPT-4o mini</option>
+                                <option value="openai/gpt-4o">GPT-4o (vision)</option>
+                                <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (vision)</option>
+                                <option value="deepseek/deepseek-chat">DeepSeek V3</option>
+                                <option value="qwen/qwen-2.5-coder-32b-instruct">Qwen2.5 Coder 32B</option>
+                            </optgroup>
                         </select>
                     </div>
                 </div>

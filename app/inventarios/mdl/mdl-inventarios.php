@@ -497,6 +497,7 @@ class mdl extends CRUD {
             SELECT
                 d.id,
                 d.quantity,
+                d.confirmed_quantity,
                 d.cost,
                 d.subtotal,
                 d.previous_stock,
@@ -562,11 +563,25 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    // Recalcula previous_stock/resulting_stock de un renglon al momento de aplicar la entrada.
-    function updateEntradaDetailStock($array) {
+    // Confirma un renglon de produccion: guarda la cantidad real que entro
+    // (confirmed_quantity, sin tocar la reportada en quantity), recalcula el
+    // subtotal con esa cantidad y fija el snapshot de stock al momento de aplicar.
+    function confirmEntradaDetail($array) {
+        // [confirmed_quantity, subtotal, previous_stock, resulting_stock, id]
         $query = "
             UPDATE {$this->bd}detail_inventory_inflow
-            SET previous_stock = ?, resulting_stock = ?
+            SET confirmed_quantity = ?, subtotal = ?, previous_stock = ?, resulting_stock = ?
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Recalcula los totales del header tras confirmar con cantidades reales.
+    function updateEntradaTotals($array) {
+        // [total_units, total_cost, id]
+        $query = "
+            UPDATE {$this->bd}inventory_inflow
+            SET total_units = ?, total_cost = ?, updated_at = NOW()
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);

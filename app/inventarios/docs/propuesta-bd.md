@@ -6,8 +6,8 @@
 > **Engine:** `InnoDB`.
 > **Manual de reglas aplicado:** [grimorios/db-rules.md](../../../../Users/CoffeSoft/.claude/agents/grimorios/db-rules.md) (singular inglés snake_case, DOUBLE para montos, FKs al final, `detail_` solo en renglones de raíz).
 > **Referencia viva:** esquemas inspeccionados vía MySQL local — `fayxzvov_admin`, `fayxzvov_alpha`, `fayxzvov_reginas`, `fayxzvov_rrhh`, `fayxzvov_almacen`.
-> **Estado:** Fase 1 (POS) ejecutada el 2026-05-29 — ver [database/install-inventarios-fase1.sql](database/install-inventarios-fase1.sql). Fase 2 (Insumos) pendiente.
-> **Fecha:** 2026-05-19
+> **Estado:** Fase 1 (POS) ejecutada el 2026-05-29 — ver [database/install-inventarios-fase1.sql](database/install-inventarios-fase1.sql). Migración 2026-06-01: flujo de confirmación de producción (`confirmed_quantity`, `confirmed_user_id`, `confirmed_at`, estado `Cancelada`) — ver [migration-2026-06-01-produccion-pendiente.sql](migration-2026-06-01-produccion-pendiente.sql) y [migration-2026-06-01-confirmed-quantity.sql](migration-2026-06-01-confirmed-quantity.sql). Fase 2 (Insumos) pendiente.
+> **Fecha:** 2026-05-19 · **Última revisión:** 2026-06-01
 
 ---
 
@@ -270,6 +270,7 @@ Locales (mismo schema `fayxzvov_reginas`):
 | `inventory_inflow` | N : 1 | `subsidiaries` | `fayxzvov_alpha` | Sucursal donde se registra. |
 | `inventory_inflow` | N : 1 | `supplier` | actual (NULL si origen ≠ Proveedor) | Si aplica. |
 | `inventory_inflow` | N : 1 | `usr_users` | `fayxzvov_alpha` | Quién registró. |
+| `inventory_inflow` | N : 1 | `usr_users` (confirma) | `fayxzvov_alpha` | NULL · quién confirmó la orden de producción (`confirmed_user_id`). |
 | `detail_inventory_inflow` | N : 1 | `inventory_inflow` | actual | Renglón pertenece a entrada. |
 | `detail_inventory_inflow` | N : 1 | `order_products` | actual | Renglón referencia producto. |
 | `inventory_shrinkage` | N : 1 | `shrinkage_reason` | actual | Motivo tipificado. |
@@ -566,6 +567,10 @@ USE `fayxzvov_reginas`;
 
 #### §3.4.1 Entradas
 
+> **Flujo Pendiente → Aplicada (órdenes de producción).** Desde 2026-06-01 las entradas con origen `PRODUCTION` entran en estado `Pendiente` y **no** aplican stock; el resto de orígenes entra `Aplicada` y aplica stock de inmediato. Al confirmar la orden ([pos-entradas.js](../src/js/pos-entradas.js) `confirmEntrada` → [ctrl-inventarios.php](../ctrl/ctrl-inventarios.php) `confirmEntrada`), el panadero captura la cantidad **real** que entró por renglón → se persiste en `detail_inventory_inflow.confirmed_quantity`, se recalculan `subtotal` y los totales del header (`total_units`/`total_cost`) con esa cantidad real, se fija el snapshot de stock (`previous_stock`/`resulting_stock`) y la cabecera pasa a `Aplicada` registrando `confirmed_user_id` + `confirmed_at`. Cancelar una entrada (`reverseEntrada`) la lleva a `Cancelada` (revierte stock solo si estaba `Aplicada`; una `Pendiente` nunca lo aplicó).
+>
+> **`(*)` sobre `status`.** El ENUM real en BD es `('Pendiente','Aplicada','Revertida','Cancelada')` con `DEFAULT 'Aplicada'`. El código usa `Pendiente`/`Aplicada`/`Cancelada`; `Revertida` permanece en el ENUM por compatibilidad/legado.
+
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │ inventory_inflow  (transacción raíz — folios ENT-####)               │
@@ -583,15 +588,17 @@ USE `fayxzvov_reginas`;
 │                                                                      │
 │  ── Timestamps ──                                                    │
 │  date_inflow            DATE           fecha del evento              │
+│  confirmed_at           DATETIME       NULL · cuándo se confirmó     │
 │  created_at             DATETIME       auditoría · alta              │
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
 │  ── Status ──                                                        │
-│  status                 ENUM           Pendiente|Aplicada|Cancelada  │
+│  status (*)             ENUM           Pendiente|Aplicada|Cancelada  │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
 │  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
 │  user_id                → fayxzvov_alpha.usr_users   · quién registra│
+│  confirmed_user_id      → fayxzvov_alpha.usr_users · NULL · confirma │
 │  companies_id           → fayxzvov_admin.companies   · tenant        │
 │                                                                      │
 │  ── FK locales ──                                                    │
@@ -615,9 +622,10 @@ USE `fayxzvov_reginas`;
 │  batch_code (*)         VARCHAR(40)    NULL · lote del proveedor     │
 │                                                                      │
 │  ── Montos (snapshot al aplicar) ──                                  │
-│  quantity               DOUBLE         unidades recibidas            │
+│  quantity               DOUBLE         cantidad reportada            │
+│  confirmed_quantity (†) DOUBLE         NULL · cantidad real prod.    │
 │  cost (**)              DOUBLE         costo unitario congelado      │
-│  subtotal               DOUBLE         quantity × cost               │
+│  subtotal               DOUBLE         qty real × cost               │
 │  previous_stock         DOUBLE         stock antes del movimiento    │
 │  resulting_stock        DOUBLE         stock después del movimiento  │
 │                                                                      │
@@ -638,6 +646,11 @@ USE `fayxzvov_reginas`;
                         Permite trazar caducidad y aplicar FEFO en la salida.
  (**) cost            — costo unitario congelado al aplicar la entrada.
                         Conserva el valor histórico del renglón; no se recalcula.
+ (†)  confirmed_quantity — solo en órdenes de PRODUCCION. NULL mientras la entrada
+                        está Pendiente. Al confirmar, el panadero captura la cantidad
+                        REAL que entró al almacén; stock, subtotal y los totales del
+                        header se recalculan con este valor, mientras `quantity`
+                        conserva la cantidad reportada/planeada original.
 ```
 
 #### §3.4.2 Mermas
@@ -999,7 +1012,9 @@ CREATE OR REPLACE VIEW `inventory_movement` AS
         r.companies_id                      AS companies_id
     FROM `detail_inventory_inflow` d
     JOIN `inventory_inflow` r ON r.id = d.inventory_inflow_id
-    WHERE d.active = 1 AND r.active = 1
+    -- Solo entradas Aplicadas: las Pendientes de producción aún no movieron
+    -- stock y las Canceladas se revirtieron, por lo que no son movimiento real.
+    WHERE d.active = 1 AND r.active = 1 AND r.status = 'Aplicada'
 
     UNION ALL
 
@@ -1544,5 +1559,7 @@ LIMIT 50;
 17 tablas nuevas + 1 vista de bitácora + 1 tabla auxiliar de folios (`folio_sequence`), todo dentro del schema preexistente `fayxzvov_reginas`. Convenciones del manual `db-rules.md` respetadas, con dos desviaciones declaradas (plural en FKs cross-schema a otros schemas, bitácora como vista). El catálogo POS se reaprovecha vía FK **local** a `order_products` sin duplicar. La propuesta cubre el 100% del flujo POS observado en el código (entradas, mermas, traspasos, ajustes) + plantillas reutilizables de entradas (`inflow_format`), y deja sembrada la extensión paralela para Insumos como Fase 2. Cuenta con seeds para arranque y queries de referencia para los visores existentes.
 
 **Estado operativo (2026-05-29):** Fase 1 ejecutada en `fayxzvov_reginas`. DDL ejecutable vive en [database/install-inventarios-fase1.sql](database/install-inventarios-fase1.sql). Fase 2 (Insumos) pendiente de revisión por el usuario antes de generar DDL.
+
+**Actualización (2026-06-01):** flujo de confirmación de producción aplicado en BD local. Sobre `inventory_inflow`: `confirmed_user_id`, `confirmed_at` y `status` ampliado a `('Pendiente','Aplicada','Revertida','Cancelada')`. Sobre `detail_inventory_inflow`: `confirmed_quantity`. La VIEW `inventory_movement` se recrea filtrando la rama de entradas por `status = 'Aplicada'`. Migraciones: [migration-2026-06-01-produccion-pendiente.sql](migration-2026-06-01-produccion-pendiente.sql), [migration-2026-06-01-confirmed-quantity.sql](migration-2026-06-01-confirmed-quantity.sql) (ambas ya aplicadas en local; ejecutar en producción).
 
 — **Coffee Intelligence 🧠☕**
