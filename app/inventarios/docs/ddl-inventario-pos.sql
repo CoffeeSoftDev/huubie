@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS `inventory_inflow` (
     `date_inflow`      DATE   NOT NULL,
     `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    `status`           ENUM('Pendiente','Aplicada','Revertida') NOT NULL DEFAULT 'Aplicada',
+    `status`           ENUM('Pendiente','Aplicada','Cancelada') NOT NULL DEFAULT 'Aplicada',
     `active`           TINYINT(1) NOT NULL DEFAULT 1,
     `subsidiaries_id`  INT NOT NULL,
     `user_id`          INT NOT NULL,

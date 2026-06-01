@@ -1,3 +1,104 @@
+[ 2026-05-31 13:20:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.product_attribute
+                (sku, description, shelf_life_days, cost_unit, stock_min, stock_max,
+                 warehouse_area_id, unit_id, product_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '4' for key 'product_attribute.uq_product_attribute_sku_company'
+
+
+[ 2026-05-31 13:17:40 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.product_attribute
+                (sku, description, shelf_life_days, cost_unit, stock_min, stock_max,
+                 warehouse_area_id, unit_id, product_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '4' for key 'product_attribute.uq_product_attribute_sku_company'
+
+
+[ 2026-05-31 13:17:25 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.product_attribute
+                (sku, description, shelf_life_days, cost_unit, stock_min, stock_max,
+                 warehouse_area_id, unit_id, product_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '4' for key 'product_attribute.uq_product_attribute_sku_company'
+
+
+[ 2026-05-31 09:16:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.inventory_inflow
+                (folio, note, total_products, total_units, total_cost, date_inflow,
+                 status, inflow_origin_id, warehouse_id, supplier_id,
+                 subsidiaries_id, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`inventory_inflow`, CONSTRAINT `inventory_inflow_ibfk_5` FOREIGN KEY (`user_id`) REFERENCES `fayxzvov_alpha`.`usr_users` (`id`) ON UPDATE CASCADE)
+
+
+[ 2026-05-31 09:16:27 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.inventory_inflow
+                (folio, note, total_products, total_units, total_cost, date_inflow,
+                 status, inflow_origin_id, warehouse_id, supplier_id,
+                 subsidiaries_id, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`inventory_inflow`, CONSTRAINT `inventory_inflow_ibfk_5` FOREIGN KEY (`user_id`) REFERENCES `fayxzvov_alpha`.`usr_users` (`id`) ON UPDATE CASCADE)
+
+
+[ 2026-05-31 09:09:27 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.inventory_inflow
+                (folio, note, total_products, total_units, total_cost, date_inflow,
+                 status, inflow_origin_id, warehouse_id, supplier_id,
+                 subsidiaries_id, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`inventory_inflow`, CONSTRAINT `inventory_inflow_ibfk_1` FOREIGN KEY (`inflow_origin_id`) REFERENCES `inflow_origin` (`id`) ON UPDATE CASCADE)
+
+
+[ 2026-05-31 09:06:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.inventory_inflow
+                (folio, note, total_products, total_units, total_cost, date_inflow,
+                 status, inflow_origin_id, warehouse_id, supplier_id,
+                 subsidiaries_id, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`inventory_inflow`, CONSTRAINT `inventory_inflow_ibfk_1` FOREIGN KEY (`inflow_origin_id`) REFERENCES `inflow_origin` (`id`) ON UPDATE CASCADE)
+
+
+[ 2026-05-31 09:03:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.inventory_inflow
+                (folio, note, total_products, total_units, total_cost, date_inflow,
+                 status, inflow_origin_id, warehouse_id, supplier_id,
+                 subsidiaries_id, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`inventory_inflow`, CONSTRAINT `inventory_inflow_ibfk_1` FOREIGN KEY (`inflow_origin_id`) REFERENCES `inflow_origin` (`id`) ON UPDATE CASCADE)
+
+
 [ 2026-05-16 12:55:12 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

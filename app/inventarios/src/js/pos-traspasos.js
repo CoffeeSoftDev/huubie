@@ -26,12 +26,16 @@ class App extends Templates {
     }
 
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:this._link, data:{ opc:'init' } })
+        const r = await fn_ajax({ opc: 'init' }, api).catch(() => null);
+        const ok = r && r.status === 200;
+
         this.dataInit = {
-            subsidiaries_id: '',
-            sucursales:  SAMPLE_TRASPASOS_SUCURSALES,
-            estados:     SAMPLE_TRASPASOS_ESTADOS
+            subsidiaries_id: ok ? (r.subsidiaries_id  || '') : '',
+            sucursales:      ok ? (r.sucursales       || []) : [],
+            estados:         ok ? (r.estados_traspaso || []) : [],
+            almacenes:       ok ? (r.almacenes        || []) : []
         };
+
         this.subId      = this.dataInit.subsidiaries_id;
         subsidiaries_id = this.subId;
 
@@ -41,8 +45,8 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        traspasosView.renderHeader(SAMPLE_VIEW_HEADER_TRASPASOS);
-        traspasosView.renderFooter(SAMPLE_VIEW_FOOTER_TRASPASOS);
+        traspasosView.renderHeader({ title: 'Traspasos', subtitle: 'Gestion de movimientos entre sucursales' });
+        traspasosView.renderFooter({});
         // traspasosView.renderTabs(this.PROJECT_NAME);
         traspasosView.renderDetail(null);
         this.populateFilters();
@@ -107,7 +111,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'mt-16 h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
+                class:     'h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
                 container: [mainPanel, detailPanel]
             }
         });
@@ -117,41 +121,36 @@ class App extends Templates {
 
     filterBar() {
 
+        const estados    = this.dataInit.estados    || [];
+        const sucursales = this.dataInit.sucursales || [];
+
         let filters = [
-            // {
-            //     opc:      'select',
-            //     id:       'subsidiaries_id',
-            //     lbl:      'Sucursal actual:',
-            //     class:    'col-12 col-md-3 col-lg-3',
-            //     onchange: 'app.onChangeSucursal()',
-            //     data:     []
-            // },
             {
                 opc:      'select',
                 id:       'fEstado',
                 lbl:      'Estado:',
-                class:    'col-12 col-md-2 col-lg-2',
+                class:    'col-12 col-md-2 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
-                data:     SAMPLE_TRASPASOS_ESTADOS
+                data:     estados
             },
             {
                 opc:      'select',
                 id:       'fOrigen',
                 lbl:      'Origen:',
-                class:    'col-12 col-md-2 col-lg-2',
+                class:    'col-12 col-md-2 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
-                data:     SAMPLE_TRASPASOS_SUCURSALES
+                data:     sucursales
             },
             {
                 opc:      'select',
                 id:       'fDestino',
                 lbl:      'Destino:',
-                class:    'col-12 col-md-2 col-lg-2',
+                class:    'col-12 col-md-2 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
-                data:     SAMPLE_TRASPASOS_SUCURSALES
+                data:     sucursales
             },
            
             {
@@ -220,17 +219,9 @@ class App extends Templates {
     }
 
     isVisibleAfterFilters(folio) {
-        const t = SAMPLE_TRASPASOS_DB[folio];
-        if (!t) return false;
-        const f = this.getFilters();
-        const suc = !f.subsidiaries_id || t.origen.id === f.subsidiaries_id || t.destino.id === f.subsidiaries_id;
-        const est = !f.estado          || t.estado    === f.estado;
-        const ori = !f.origen          || t.origen.id === f.origen;
-        const des = !f.destino         || t.destino.id === f.destino;
-        const q   = !f.q || (t.folio + ' ' + (t.productos || []).map(p => p.nombre).join(' '))
-                                .toLowerCase()
-                                .includes(f.q.toLowerCase());
-        return suc && est && ori && des && q;
+        return $(`#tb${this.PROJECT_NAME} tbody tr`).filter(function () {
+            return $(this).text().includes(folio);
+        }).length > 0;
     }
 
     updateFooterInfo(text) {
@@ -248,7 +239,11 @@ class App extends Templates {
             });
             $row.addClass('row-active');
         }
-        traspasosView.renderDetail(folio ? SAMPLE_TRASPASOS_DB[folio] : null);
+        if (folio) {
+            traspasos.getTraspaso(folio);
+        } else {
+            traspasosView.renderDetail(null);
+        }
     }
 
     renderDetail(traspaso) {
@@ -268,23 +263,16 @@ class Traspasos extends Templates {
 
     // -- Data --
 
-    lsTraspasos() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'lsTraspasos' }, app.getFilters()) })
+    async lsTraspasos() {
         const f = app.getFilters();
-        const filteredRows = (SAMPLE_TRASPASOS_TABLE.row || []).filter(r => {
-            const t = SAMPLE_TRASPASOS_DB[r.id];
-            if (!t) return true;
-            const suc = !f.subsidiaries_id || t.origen.id === f.subsidiaries_id || t.destino.id === f.subsidiaries_id;
-            const est = !f.estado          || t.estado    === f.estado;
-            const ori = !f.origen          || t.origen.id === f.origen;
-            const des = !f.destino         || t.destino.id === f.destino;
-            const q   = !f.q || (t.folio + ' ' + (t.productos || []).map(p => p.nombre).join(' '))
-                                    .toLowerCase()
-                                    .includes(f.q.toLowerCase());
-            return suc && est && ori && des && q;
-        });
+        const r = await fn_ajax(Object.assign({ opc: 'lsTraspasos' }, {
+            status_id:                   f.estado,
+            origin_subsidiaries_id:      f.origen,
+            destination_subsidiaries_id: f.destino,
+            q:                           f.q
+        }), api).catch(() => null);
 
-        const data = { row: filteredRows };
+        const data = (r && r.status === 200) ? { row: r.row } : { row: [] };
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
@@ -304,45 +292,31 @@ class Traspasos extends Templates {
 
         if (window.lucide) lucide.createIcons();
 
-        const total = filteredRows.length;
+        const total = (data.row || []).length;
         app.updateFooterInfo(`Mostrando ${total} traspaso${total !== 1 ? 's' : ''}`);
     }
 
     async lsKpis() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'showTraspasos' }, app.getFilters()) })
-        const f = app.getFilters();
-        const visible = Object.values(SAMPLE_TRASPASOS_DB).filter(t => {
-            const suc = !f.subsidiaries_id || t.origen.id === f.subsidiaries_id || t.destino.id === f.subsidiaries_id;
-            const est = !f.estado          || t.estado    === f.estado;
-            const ori = !f.origen          || t.origen.id === f.origen;
-            const des = !f.destino         || t.destino.id === f.destino;
-            const q   = !f.q || (t.folio + ' ' + (t.productos || []).map(p => p.nombre).join(' '))
-                                    .toLowerCase()
-                                    .includes(f.q.toLowerCase());
-            return suc && est && ori && des && q;
-        });
-
-        const counts = {
-            total:      visible.length,
-            pendientes: visible.filter(t => t.estado === 'Pendiente').length,
-            enTransito: visible.filter(t => t.estado === 'En Transito').length,
-            recibidos:  visible.filter(t => t.estado === 'Recibido').length,
-            rechazados: visible.filter(t => t.estado === 'Rechazado').length
-        };
+        const r = await fn_ajax({ opc: 'showTraspasos' }, api).catch(() => null);
+        const c = (r && r.status === 200) ? r.counts : {};
 
         const kpis = [
-            { id: 'kpiTotal',      label: 'Total Mes',    value: counts.total,      tone: 'default' },
-            { id: 'kpiPendientes', label: 'Pendientes',   value: counts.pendientes, tone: 'warning' },
-            { id: 'kpiTransito',   label: 'En Transito',  value: counts.enTransito, tone: 'warning' },
-            { id: 'kpiRecibidos',  label: 'Recibidos',    value: counts.recibidos,  tone: 'success' },
-            { id: 'kpiRechazados', label: 'Rechazados',   value: counts.rechazados, tone: 'danger'  }
+            { id: 'kpiTotal',      label: 'Total Mes',    value: parseInt(c.total       || 0, 10), tone: 'default' },
+            { id: 'kpiPendientes', label: 'Pendientes',   value: parseInt(c.pendientes  || 0, 10), tone: 'warning' },
+            { id: 'kpiTransito',   label: 'En Transito',  value: parseInt(c.en_transito || 0, 10), tone: 'warning' },
+            { id: 'kpiRecibidos',  label: 'Recibidos',    value: parseInt(c.recibidos   || 0, 10), tone: 'success' },
+            { id: 'kpiRechazados', label: 'Rechazados',   value: parseInt(c.rechazados  || 0, 10), tone: 'danger'  }
         ];
         traspasosView.renderInfoCards(kpis);
     }
 
-    async getTraspaso(folio) {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:{ opc:'getTraspaso', folio } })
-        traspasosView.renderDetail(SAMPLE_TRASPASOS_DB[folio] || null);
+    async getTraspaso(id) {
+        const r = await fn_ajax({ opc: 'getTraspaso', id: id }, api).catch(() => null);
+        if (r && r.status === 200) {
+            traspasosView.renderDetail(Object.assign({}, r.header, { detail: r.detail, history: r.history }));
+        } else {
+            traspasosView.renderDetail(null);
+        }
     }
 
     // -- Actions --
@@ -352,37 +326,41 @@ class Traspasos extends Templates {
         app.selectTraspaso(folio);
     }
 
-    nuevoTraspaso(payload) {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'nuevoTraspaso' }, payload) })
-        console.log('[nuevoTraspaso] payload:', payload);
-        this.lsTraspasos();
-        this.lsKpis();
+    async nuevoTraspaso(payload) {
+        const r = await fn_ajax({
+            opc:     'saveTraspaso',
+            payload: JSON.stringify(payload)
+        }, api).catch(() => null);
+
+        if (r && r.status === 200) {
+            if (typeof alert === 'function') alert({ icon: 'success', text: 'Traspaso ' + r.folio + ' solicitado' });
+            this.lsTraspasos();
+            this.lsKpis();
+        } else {
+            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo crear el traspaso' });
+        }
     }
 
-    confirmTraspaso(folio) {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:{ opc:'confirmTraspaso', folio } })
-        const t = SAMPLE_TRASPASOS_DB[folio];
-        if (!t || t.estado !== 'En Transito') return;
-
-        const nowIso = new Date().toISOString().slice(0, 19);
-        t.estado    = 'Recibido';
-        t.timeline  = [
-            { estado: 'Recibido', usuario: (t.destino && t.destino.nombre) || 'Destino', fechaIso: nowIso },
-            ...(t.timeline || [])
-        ];
-
-        SAMPLE_TRASPASOS_TABLE.row = Object.values(SAMPLE_TRASPASOS_DB).map(_trasRow);
-
-        this.lsTraspasos();
-        this.lsKpis();
-        traspasosView.renderDetail(t);
-        app.selectedId = folio;
-
-        console.log('[confirmTraspaso] OK', folio);
+    async confirmTraspaso(id) {
+        const r = await fn_ajax({ opc: 'confirmTraspaso', id: id }, api).catch(() => null);
+        if (r && r.status === 200) {
+            if (typeof alert === 'function') alert({ icon: 'success', text: 'Traspaso recibido' });
+            this.lsTraspasos();
+            this.lsKpis();
+            traspasosView.renderDetail(null);
+        } else {
+            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo confirmar' });
+        }
     }
 
-    rejectTraspaso(folio) {
-        console.log('[rejectTraspaso]', folio);
+    async rejectTraspaso(id) {
+        const r = await fn_ajax({ opc: 'rejectTraspaso', id: id }, api).catch(() => null);
+        if (r && r.status === 200) {
+            if (typeof alert === 'function') alert({ icon: 'success', text: 'Traspaso rechazado' });
+            this.lsTraspasos();
+            this.lsKpis();
+            traspasosView.renderDetail(null);
+        }
     }
 }
 
@@ -398,16 +376,19 @@ class TraspasosView extends Templates {
 
     // -- Modal launchers --
 
-    openTraspasoForm() {
-        const sucursales = (SAMPLE_TRASPASOS_SUCURSALES || []).filter(s => s.id !== '');
+    async openTraspasoForm() {
+        const sucursales = (app.dataInit.sucursales || []).filter(s => s.id !== '');
+        const r = await fn_ajax({ opc: 'getCatalogosTraspaso' }, api).catch(() => null);
+        const ok = r && r.status === 200;
+
         this.traspasoModal({
             parent: 'body',
             json: {
                 sucursales:      sucursales,
-                almacenes:       SAMPLE_TRASPASOS_ALMACENES,
-                categorias:      SAMPLE_TRASPASOS_CATEGORIAS,
-                productos:       SAMPLE_PRODUCTOS_DISPONIBLES,
-                transformMap:    SAMPLE_TRASPASOS_TRANSFORM,
+                almacenes:       ok ? (r.almacenes    || []) : [],
+                categorias:      ok ? (r.categorias   || []) : [],
+                productos:       ok ? (r.productos    || []) : [],
+                transformMap:    ok ? (r.transformMap || {}) : {},
                 origenIdInicial: app.subId || (sucursales[0] && sucursales[0].id) || ''
             },
             onClose: () => console.log('[traspasoModal] close'),
@@ -967,7 +948,6 @@ class TraspasosView extends Templates {
             },
             labels: {
                 title:        'Nuevo Traspaso',
-                badge:        'V3',
                 subtitle:     'Movimiento de inventario entre sucursales, almacenes y categorias',
                 origen:       'Origen',
                 origenLbl:    'Sucursal Origen',
@@ -1032,6 +1012,16 @@ class TraspasosView extends Templates {
 
         // Caret SVG inline para selects
         const caretBg = "background-image: url(\"data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e\");";
+
+        // Wrapper de select con flechita Lucide visible (overlay encima del bg-svg)
+        const selectWrap = (innerSelect, wrapCls = '') => `
+            <div class="relative ${wrapCls}">
+                ${innerSelect}
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                </span>
+            </div>
+        `;
 
         // -- Estado local del carrito
         const cart = [];   // { id, name, sku, cat, price, stock, icon, bg, color, cant, transform, transformOpen }
@@ -1285,9 +1275,7 @@ class TraspasosView extends Templates {
                                     <i data-lucide="recycle" class="w-3.5 h-3.5"></i>
                                     <span class="text-[10px] font-bold uppercase tracking-wider">${esc(opts.labels.transformar)}</span>
                                 </div>
-                                <select data-transform-select="${esc(item.id)}" class="${cls.select} !w-52" style="${caretBg}">
-                                    ${selectOpts}
-                                </select>
+                                ${selectWrap(`<select data-transform-select="${esc(item.id)}" class="${cls.select}" style="${caretBg}">${selectOpts}</select>`, 'w-52')}
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-[9px] text-gray-400 uppercase tracking-wider">${esc(opts.labels.piezas)}</span>
                                     <input type="number" value="${defaultPiezas}" min="1" data-transform-qty="${esc(item.id)}" class="${cls.input} !w-14 !text-center !px-1 !font-bold">
@@ -1449,7 +1437,6 @@ class TraspasosView extends Templates {
                             <div>
                                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                                     ${esc(opts.labels.title)}
-                                    <span class="${cls.badge} bg-purple-500/20 text-purple-300 border border-purple-500/30">${esc(opts.labels.badge)}</span>
                                 </h3>
                                 <p class="text-[11px] text-gray-500">${esc(opts.labels.subtitle)}</p>
                             </div>
@@ -1471,11 +1458,11 @@ class TraspasosView extends Templates {
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.sucursal)}</p>
-                                        <select id="${opts.id}_origenSuc" class="${cls.select}" style="${caretBg}">${optionsHtml(sucsFiltradas, opts.json.origenIdInicial)}</select>
+                                        ${selectWrap(`<select id="${opts.id}_origenSuc" class="${cls.select}" style="${caretBg}">${optionsHtml(sucsFiltradas, opts.json.origenIdInicial)}</select>`)}
                                     </div>
                                     <div>
                                         <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.almacen)}</p>
-                                        <select id="${opts.id}_origenAlm" class="${cls.select}" style="${caretBg}">${optionsHtml(alms, firstAlm)}</select>
+                                        ${selectWrap(`<select id="${opts.id}_origenAlm" class="${cls.select}" style="${caretBg}">${optionsHtml(alms, firstAlm)}</select>`)}
                                     </div>
                                 </div>
                             </div>
@@ -1488,11 +1475,11 @@ class TraspasosView extends Templates {
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.sucursal)}</p>
-                                        <select id="${opts.id}_destinoSuc" class="${cls.select}" style="${caretBg}">${optionsHtml(sucsFiltradas, '')}</select>
+                                        ${selectWrap(`<select id="${opts.id}_destinoSuc" class="${cls.select}" style="${caretBg}">${optionsHtml(sucsFiltradas, '')}</select>`)}
                                     </div>
                                     <div>
                                         <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.almacen)}</p>
-                                        <select id="${opts.id}_destinoAlm" class="${cls.select}" style="${caretBg}">${optionsHtml(alms, firstAlm)}</select>
+                                        ${selectWrap(`<select id="${opts.id}_destinoAlm" class="${cls.select}" style="${caretBg}">${optionsHtml(alms, firstAlm)}</select>`)}
                                     </div>
                                 </div>
                             </div>
@@ -1504,7 +1491,7 @@ class TraspasosView extends Templates {
                                 </label>
                                 <div>
                                     <p class="text-[8px] uppercase tracking-wider text-gray-500 mb-0.5">${esc(opts.labels.tipo)}</p>
-                                    <select id="${opts.id}_categoria" class="${cls.select}" style="${caretBg}">${optionsHtml(cats, firstCat)}</select>
+                                    ${selectWrap(`<select id="${opts.id}_categoria" class="${cls.select}" style="${caretBg}">${optionsHtml(cats, firstCat)}</select>`)}
                                 </div>
                             </div>
                         </div>

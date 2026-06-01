@@ -19,6 +19,7 @@
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <link id="hljsTheme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
     <script>
         if (window.mermaid) {
@@ -143,10 +144,6 @@
                     <button id="btnCopyPath" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Copiar ruta relativa al portapapeles">
                         <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                         Copiar ruta
-                    </button>
-                    <button id="btnOpenEditor" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Abrir en VS Code">
-                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                        Abrir en editor
                     </button>
                     <button id="btnEdit" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Editar en el visor" disabled>
                         <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
@@ -284,13 +281,18 @@
                 <div class="ia-drawer-body" id="iaBodyChat" style="display:none;"></div>
 
                 <div class="ia-drawer-input">
+                    <div id="iaImageStrip" class="ia-image-strip" style="display:none;"></div>
                     <div class="ia-input-wrap">
                         <textarea id="iaInputTextarea" class="ia-input-textarea" rows="1" placeholder="Pregunta algo sobre el documento..."></textarea>
                         <button id="iaSendBtn" class="ia-send-btn" title="Enviar (Enter)">
                             <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
+                    <input id="iaImageInput" type="file" accept="image/*" multiple style="display:none;">
                     <div class="ia-input-hint">
+                        <button id="iaAttachBtn" class="ia-attach-btn" title="Adjuntar imagen (tambien Ctrl+V para pegar)">
+                            <i data-lucide="paperclip" class="w-3 h-3"></i>
+                        </button>
                         <button id="iaClearBtn" title="Limpiar conversacion" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;">
                             <i data-lucide="trash-2" class="w-3 h-3" style="display:inline-block;vertical-align:middle;margin-right:3px;"></i>
                             Limpiar
@@ -299,10 +301,17 @@
                             <i data-lucide="pencil-line" class="w-3 h-3"></i>
                             <span>Editor</span>
                         </button>
-                        <button class="ia-model-pill" title="Modelo activo (solo lectura)">
-                            Claude Opus 4.6
-                            <i data-lucide="chevron-down"></i>
+                        <button id="iaCanvasToggle" class="ia-editor-toggle" title="Activar modo lienzo">
+                            <i data-lucide="layout-template" class="w-3 h-3"></i>
+                            <span>Lienzo</span>
                         </button>
+                        <select id="iaModelSelect" class="ia-model-pill" title="Modelo activo">
+                            <option value="qwen3-coder:480b-cloud">Qwen3 Coder 480B</option>
+                            <option value="qwen3-vl:235b-cloud">Qwen3 VL 235B (vision)</option>
+                            <option value="qwen3.5:397b-cloud">Qwen 3.5 397B</option>
+                            <option value="minimax-m2.7:cloud">MiniMax M2.7</option>
+                            <option value="kimi-k2.6:cloud">Kimi K2.6</option>
+                        </select>
                     </div>
                 </div>
 

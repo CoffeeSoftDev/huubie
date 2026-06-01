@@ -1,25 +1,38 @@
+// {
+    // "workbench.colorCustomizations": {
+    //     "activityBar.activeBackground": "#372258",
+    //     "activityBar.background": "#372258",
+    //     "activityBar.foreground": "#e7e7e7",
+    //     "activityBar.inactiveForeground": "#e7e7e799",
+    //     "activityBarBadge.background": "#8a5635",
+    //     "activityBarBadge.foreground": "#e7e7e7",
+    //     "commandCenter.border": "#e7e7e799",
+    //     "sash.hoverBorder": "#372258",
+    //     "statusBar.background": "#201433",
+    //     "statusBar.foreground": "#e7e7e7",
+    //     "statusBarItem.hoverBackground": "#372258",
+    //     "statusBarItem.remoteBackground": "#201433",
+    //     "statusBarItem.remoteForeground": "#e7e7e7",
+    //     "titleBar.activeBackground": "#201433",
+    //     "titleBar.activeForeground": "#e7e7e7",
+    //     "titleBar.inactiveBackground": "#20143399",
+    //     "titleBar.inactiveForeground": "#e7e7e799"
+    // },
+    // "peacock.color": "#201433",
+    // "folder-color.pathColors": [],
+    // "html.autoClosingTags": false,
+    // "livePreview.defaultPreviewPath": "/app/inventarios/templates/admin-almacenes.html"
+// }
+
+
 {
-    "workbench.colorCustomizations": {
-        "activityBar.activeBackground": "#372258",
-        "activityBar.background": "#372258",
-        "activityBar.foreground": "#e7e7e7",
-        "activityBar.inactiveForeground": "#e7e7e799",
-        "activityBarBadge.background": "#8a5635",
-        "activityBarBadge.foreground": "#e7e7e7",
-        "commandCenter.border": "#e7e7e799",
-        "sash.hoverBorder": "#372258",
-        "statusBar.background": "#201433",
-        "statusBar.foreground": "#e7e7e7",
-        "statusBarItem.hoverBackground": "#372258",
-        "statusBarItem.remoteBackground": "#201433",
-        "statusBarItem.remoteForeground": "#e7e7e7",
-        "titleBar.activeBackground": "#201433",
-        "titleBar.activeForeground": "#e7e7e7",
-        "titleBar.inactiveBackground": "#20143399",
-        "titleBar.inactiveForeground": "#e7e7e799"
-    },
-    "peacock.color": "#201433",
-    "folder-color.pathColors": [],
-    "html.autoClosingTags": false,
-    "livePreview.defaultPreviewPath": "/app/inventarios/templates/admin-almacenes.html"
+  "workbench.colorTheme": "Dracula Dark+",
+  // "editor.fontFamily": "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
+  "editor.fontSize": 14,
+  "editor.lineHeight": 1.6,
+  "editor.fontWeight": "400",
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  // "workbench.tree.indent": 20,
+  "workbench.tree.renderIndentGuides": "always"
 }

@@ -22,14 +22,16 @@ class App extends Templates {
     }
 
     layout() {
-        this.primaryLayout({
-            parent: "root",
-            id: this.PROJECT_NAME,
-            class: 'flex mx-2 sm:mx-1 p-2 sm:p-3',
-            heightPreset: 'full',
-            card: {
-                filterBar: { class: 'w-full ', id: 'filterBar' },
-                container: { class: 'w-full bg-[#1F2A37] rounded p-1 sm:p-3', id: 'container' + this.PROJECT_NAME }
+        this.createLayout({
+            design: false,
+            parent: 'root',
+            data: {
+                id: this.PROJECT_NAME,
+                class: 'flex flex-col mx-3 my-1 h-full',
+                container: [
+                    { type: 'div', id: 'filterBar', class: 'w-full' },
+                    { type: 'div', id: 'container' + this.PROJECT_NAME, class: 'w-full flex-1 bg-[#1F2A37] rounded p-3 overflow-auto' }
+                ]
             }
         });
 
@@ -148,7 +150,9 @@ class App extends Templates {
                 cancelButtonColor: '#374151',
                 background: '#111928',
                 color: '#fff',
-                reverseButtons: true
+                reverseButtons: true,
+                scrollbarPadding: false,
+                heightAuto: false
             }).then((result) => {
                 if (!result.isConfirmed) return;
 
@@ -159,6 +163,8 @@ class App extends Templates {
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
+                    scrollbarPadding: false,
+                    heightAuto: false,
                     didOpen: () => Swal.showLoading()
                 });
 

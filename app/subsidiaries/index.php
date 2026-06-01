@@ -40,8 +40,8 @@
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
 
-    <main class="flex-1 overflow-y-auto overflow-x-hidden">
-        <div class="w-full" id="root"></div>
+    <main class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col">
+        <div class="w-full flex-1" id="root"></div>
     </main>
 
     <script src="/app/src/plugins/daterangepicker/moment.min.js"></script>

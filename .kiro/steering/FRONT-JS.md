@@ -31,6 +31,8 @@ Debe respetarse el formato de CoffeeSoft
     class SubModulo extends App{}
 ```
 
+> **Excepción — herencia de `App`:** El submódulo hereda de `App` **solo cuando hay estructura/estado compartido que reutilizar** (layout común, helpers, props de instancia). Si `App` es un mero orquestador (solo `layout()` + `renderTabs()` + `renderActiveTab()`) y no aporta nada reutilizable, el submódulo **puede extender `Templates` directamente**. No fuerces `extends App` para heredar la nada. Típico del patrón "catálogo admin multi-entidad" (ver final del documento).
+
 - Todos los componentes de coffeeSoft incluyen el parametro parent
 debe llevar la siguiente nomenclatura
 ````   parent: `[nombreComponente]${this.PROJECT_NAME}`, ```
@@ -459,6 +461,76 @@ filterBar() { ... }
     }
   ```
 
+
+## Render perezoso de tabs — `renderActiveTab()`
+
+En módulos con tabs, `renderActiveTab()` pinta **únicamente el tab activo** en el arranque. **NUNCA** llamar a todos los submódulos de golpe (`productos.render(); categorias.render(); almacenes.render(); ...`), porque cada `render()` dispara su propio `createTable`/`useFetch` y se hacen N peticiones innecesarias al cargar. El resto se renderiza **bajo demanda** desde el `onClick` de su tab conforme el usuario navega.
+
+```js
+render() {
+    this.layout();
+    this.renderTabs();
+    this.renderActiveTab();   // solo el tab activo
+}
+
+renderTabs() {
+    this.tabLayout({
+        parent: `tabs${this.PROJECT_NAME}`,
+        id: `tabs${this.PROJECT_NAME}`,
+        json: [
+            { id: "productos",  tab: "Productos",  lucideIcon: "package", active: true, onClick: () => productos.render() },
+            { id: "categorias", tab: "Categorias", lucideIcon: "tag",                   onClick: () => categorias.render() }
+        ]
+    });
+}
+
+renderActiveTab() {
+    productos.render();   // arranque: solo el activo; los demás al hacer click
+}
+```
+
+## Patrón "Catálogo admin multi-entidad"
+
+Cuando un módulo administra varias entidades CRUD homogéneas bajo una misma pantalla (p.ej. admin de inventario: productos, categorías, almacenes, áreas, unidades, proveedores, motivos, estados…):
+
+- Una clase `App extends Templates` que **solo orquesta**: `layout()` (con `createLayout`, sin filterBar principal), `renderTabs()` (`tabLayout` con un tab por entidad, cada uno con `lucideIcon` distinto) y `renderActiveTab()`.
+- Una clase CRUD por entidad. Como `App` solo orquesta, estas clases **extienden `Templates` directamente** (ver excepción de herencia arriba).
+- Cada clase CRUD comparte el mismo esqueleto: `render() → filterBar() + ls()`, más `add()`, `edit(id)`, `status(id, active)`, `json()`.
+- Variable global por entidad en minúsculas == `PROJECT_NAME` (`productos`, `categorias`, …).
+- IDs de parents derivados de `PROJECT_NAME`: `` `filterBar${PROJECT_NAME}` ``, `` `container${PROJECT_NAME}` ``, `` `tb${PROJECT_NAME}` ``.
+- Render perezoso: solo el tab activo en el arranque; el resto bajo demanda.
+
+### Helpers globales compartidos (anti-duplicación)
+
+En un módulo con N entidades CRUD, **NO** repetir el bloque éxito/error ni la lista de estados en cada clase. Declarar helpers globales al final del archivo (sección `// -- Helpers --`) y reutilizarlos en todas:
+
+```js
+// -- Helpers --
+
+function statusFilter() {
+    return [
+        { id: "1", valor: "Activos" },
+        { id: "0", valor: "Inactivos" },
+        { id: "",  valor: "Todos" }
+    ];
+}
+
+function afterSave(response, reload) {
+    if (response.status == 200) {
+        alert({ icon: "success", text: response.message });
+        if (typeof reload === "function") reload();
+    } else {
+        alert({ icon: "info", title: "Oops!...", text: response.message, btn1: true, btn1Text: "Ok" });
+    }
+}
+```
+
+Uso en cada clase CRUD:
+```js
+success: (response) => afterSave(response, () => this.ls())
+```
+
+> **Regla:** `afterSave(response, reload)` y `statusFilter()` son el estándar para catálogos multi-entidad. NO definir variantes por clase (`statusOptions()`, `afterSave()` propio) que dupliquen la misma lógica. Una sola fuente de verdad en `// -- Helpers --`.
 
 **Consideraciones Finales**
 - Usa los pivotes , templates para generar las funciones

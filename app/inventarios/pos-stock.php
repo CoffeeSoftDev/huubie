@@ -16,7 +16,7 @@
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
 
-    <div id="mainContainer" class="w-full h-full transition-all duration-500 bg-[#111928] text-white mt-16">
+    <div id="mainContainer" class="w-full h-full transition-all duration-500 bg-[#111928] text-white">
         <div class="bg-[#111928]" id="root"></div>
     </div>
 

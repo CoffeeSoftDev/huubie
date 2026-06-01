@@ -199,7 +199,7 @@ CREATE TABLE `inventory_inflow` (
     `date_inflow`        DATE         NOT NULL,
     `created_at`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`         DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
-    `status`             ENUM('Pendiente','Aplicada','Revertida') NOT NULL DEFAULT 'Aplicada',
+    `status`             ENUM('Pendiente','Aplicada','Cancelada') NOT NULL DEFAULT 'Aplicada',
     `active`             TINYINT(1)   NOT NULL DEFAULT 1,
     `inflow_origin_id`   INT          NOT NULL,
     `warehouse_id`       INT          NOT NULL,

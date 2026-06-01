@@ -8,28 +8,42 @@ if (($_GET['action'] ?? '') === 'driveread') {
     $mime = $_GET['mime'] ?? '';
     if (!$id) { header('Content-Type: text/plain'); http_response_code(400); echo '// ID requerido'; exit; }
 
-    header('Content-Type: text/plain; charset=utf-8');
+    // Hojas binarias que el frontend renderiza con SheetJS (multi-hoja, formatos, fechas, etc).
+    // Google Sheets nativo se exporta a xlsx para usar el mismo render del frontend.
+    $xlsxMime    = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    $sheetMimes  = [$xlsxMime, 'application/vnd.ms-excel', 'application/vnd.oasis.opendocument.spreadsheet'];
+    $isText      = strpos($mime, 'text/') === 0;
+    $isCode      = in_array($mime, ['application/json','application/javascript','application/x-javascript','application/xml','application/sql']);
+    $isGdoc      = strpos($mime, 'application/vnd.google-apps.') === 0;
+    $isSheet     = in_array($mime, $sheetMimes, true);
+    $isGSheet    = $mime === 'application/vnd.google-apps.spreadsheet';
+
     try {
         $drive = new DriveClient();
-        // Mime types convertibles a CSV (xlsx, xls, ods)
-        $sheetMimes = [
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel',
-            'application/vnd.oasis.opendocument.spreadsheet',
-        ];
-        $isText   = strpos($mime, 'text/') === 0;
-        $isCode   = in_array($mime, ['application/json','application/javascript','application/x-javascript','application/xml','application/sql']);
-        $isGdoc   = strpos($mime, 'application/vnd.google-apps.') === 0;
-        $isSheet  = in_array($mime, $sheetMimes, true);
+
+        // Spreadsheets -> bytes raw para que SheetJS renderice en frontend
+        if ($isSheet || $isGSheet) {
+            header('Content-Type: application/octet-stream');
+            header('X-Visor-Format: spreadsheet-binary');
+            if ($isGSheet) {
+                echo $drive->exportFile($id, $xlsxMime);
+            } else {
+                echo $drive->downloadFile($id);
+            }
+            exit;
+        }
+
+        header('Content-Type: text/plain; charset=utf-8');
         if ($isText || $isCode) {
             echo $drive->downloadFile($id);
-        } elseif ($isGdoc || $isSheet) {
+        } elseif ($isGdoc) {
             echo $drive->getFileContent(['id' => $id, 'mimeType' => $mime]);
         } else {
             echo "> Archivo no previsualizable en el visor.\n>\n> **Tipo:** `$mime`\n>\n> Usa el enlace 'Abrir en Drive' para verlo.";
         }
     } catch (Throwable $e) {
         http_response_code(500);
+        header('Content-Type: text/plain; charset=utf-8');
         echo "> Error al leer el archivo desde Drive:\n>\n> " . $e->getMessage();
     }
     exit;

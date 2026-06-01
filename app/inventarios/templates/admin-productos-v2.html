@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productos — Administrador de Inventarios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; }
+
+        /* Scrollbar */
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+
+        /* cs-input */
+        .cs-input {
+            width: 100%;
+            background: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .cs-input:focus {
+            outline: none;
+            border-color: #7C3AED;
+            box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+        }
+        .cs-input::placeholder { color: #6B7280; }
+        .cs-textarea { resize: vertical; min-height: 4rem; }
+
+        /* cs-btn */
+        .cs-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.375rem;
+            border-radius: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+        .cs-btn-primary { background: #1C64F2; color: #fff; border-color: #1C64F2; }
+        .cs-btn-primary:hover { background: #1a53d4; border-color: #1a53d4; }
+        .cs-btn-outline { background: transparent; color: #9CA3AF; border-color: #374151; }
+        .cs-btn-outline:hover { color: #fff; border-color: #6B7280; }
+        .cs-btn-danger { background: rgba(234, 2, 52, 0.15); color: #EA0234; border-color: rgba(234, 2, 52, 0.3); }
+        .cs-btn-danger:hover { background: rgba(234, 2, 52, 0.25); }
+        .cs-btn-success { background: rgba(63, 193, 137, 0.15); color: #3FC189; border-color: rgba(63, 193, 137, 0.3); }
+        .cs-btn-success:hover { background: rgba(63, 193, 137, 0.25); }
+        .cs-btn-ghost { background: transparent; color: #9CA3AF; border-color: transparent; }
+        .cs-btn-ghost:hover { color: #fff; }
+        .cs-btn-action { background: rgba(28, 100, 242, 0.15); color: #76A9FA; border-color: rgba(28, 100, 242, 0.3); }
+        .cs-btn-action:hover { background: rgba(28, 100, 242, 0.25); }
+        .cs-btn-sm { padding: 0.3125rem 0.5rem; font-size: 0.625rem; }
+
+        /* cs-table */
+        .cs-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+        .cs-table thead tr { background: #141d2b; }
+        .cs-table th {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9CA3AF;
+            border-bottom: 1px solid #374151;
+            white-space: nowrap;
+        }
+        .cs-table td {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            color: #fff;
+            border-bottom: 1px solid #374151;
+            vertical-align: middle;
+        }
+        .cs-table tbody tr { background: #1F2A37; transition: background 0.15s; }
+        .cs-table tbody tr:nth-child(even) { background: #283341; }
+        .cs-table tbody tr:hover { background: #1a2332; }
+
+        /* cs-badge */
+        .cs-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.625rem;
+            border-radius: 0.375rem;
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .cs-badge-success { background: rgba(63, 193, 137, 0.15); color: #3FC189; }
+        .cs-badge-danger  { background: rgba(234, 2, 52, 0.15);  color: #EA0234; }
+        .cs-badge-info    { background: rgba(118, 169, 250, 0.15); color: #76A9FA; }
+        .cs-badge-warning { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+        .cs-badge-purple  { background: rgba(124, 58, 237, 0.15); color: #A78BFA; }
+
+        /* SKU pill */
+        .cs-sku {
+            font-family: 'Courier New', monospace;
+            font-size: 0.6875rem;
+            color: #D1D5DB;
+            background: #1a2332;
+            border: 1px solid #374151;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .cs-sku-empty {
+            font-family: 'Courier New', monospace;
+            font-size: 0.625rem;
+            color: #6B7280;
+            background: transparent;
+            border: 1px dashed #4B5563;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            text-transform: uppercase;
+        }
+
+        /* Area swatch */
+        .cs-swatch {
+            display: inline-block;
+            width: 0.625rem;
+            height: 0.625rem;
+            border-radius: 9999px;
+            margin-right: 0.375rem;
+            vertical-align: middle;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        /* cs-tabs */
+        .cs-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0;
+            border-bottom: 1px solid #374151;
+            margin-bottom: 1rem;
+        }
+        .cs-tab-sep {
+            display: inline-block;
+            width: 1px;
+            background: #374151;
+            margin: 0.5rem 0.5rem;
+            align-self: stretch;
+        }
+        .cs-tab {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            color: #9CA3AF;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: transparent;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .cs-tab:hover { color: #fff; }
+        .cs-tab.active { color: #1C64F2; border-bottom-color: #1C64F2; }
+        .cs-tab-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.25rem;
+            height: 1.125rem;
+            padding: 0 0.375rem;
+            background: #374151;
+            color: #D1D5DB;
+            border-radius: 9999px;
+            font-size: 0.625rem;
+            font-weight: 700;
+        }
+        .cs-tab.active .cs-tab-count { background: rgba(28, 100, 242, 0.2); color: #76A9FA; }
+        .cs-tab-panel { display: none; }
+        .cs-tab-panel.active { display: block; }
+
+        /* cs-subtabs (sub-tabs internos del panel Motivos) */
+        .cs-subtabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+            margin-bottom: 1rem;
+            padding: 0.375rem;
+            background: #141d2b;
+            border: 1px solid #374151;
+            border-radius: 0.5rem;
+        }
+        .cs-subtab {
+            padding: 0.3125rem 0.625rem;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            color: #9CA3AF;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+        .cs-subtab:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .cs-subtab.active { color: #fff; background: #1C64F2; border-color: #1C64F2; }
+        .cs-subtab-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.125rem;
+            height: 1rem;
+            padding: 0 0.25rem;
+            background: rgba(255,255,255,0.1);
+            color: inherit;
+            border-radius: 9999px;
+            font-size: 0.5625rem;
+            font-weight: 700;
+        }
+        .cs-subtab-panel { display: none; }
+        .cs-subtab-panel.active { display: block; }
+
+        /* cs-modal */
+        .cs-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 40;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        .cs-modal-backdrop.active { opacity: 1; pointer-events: auto; }
+        .cs-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.96);
+            width: 100%;
+            max-width: 36rem;
+            background: #1F2A37;
+            border: 1px solid #374151;
+            border-radius: 0.75rem;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .cs-modal.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+        .cs-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #374151;
+            flex-shrink: 0;
+        }
+        .cs-modal-title { font-size: 1rem; font-weight: 600; color: #fff; }
+        .cs-modal-body { padding: 1.25rem; overflow-y: auto; }
+        .cs-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            padding: 1rem 1.25rem;
+            border-top: 1px solid #374151;
+            flex-shrink: 0;
+        }
+
+        /* cs-toggle */
+        .cs-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+        .cs-toggle-track {
+            width: 2.125rem;
+            height: 1.125rem;
+            background: #374151;
+            border-radius: 9999px;
+            position: relative;
+            transition: background 0.2s ease;
+        }
+        .cs-toggle-track.active { background: #1C64F2; }
+        .cs-toggle-knob {
+            position: absolute;
+            top: 0.125rem;
+            left: 0.125rem;
+            width: 0.875rem;
+            height: 0.875rem;
+            background: #fff;
+            border-radius: 9999px;
+            transition: transform 0.2s ease;
+        }
+        .cs-toggle-track.active .cs-toggle-knob { transform: translateX(1rem); }
+
+        /* Modal sub-tabs */
+        .cs-modal-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid #374151;
+            margin: -1.25rem -1.25rem 1rem -1.25rem;
+            padding: 0 1.25rem;
+        }
+        .cs-modal-tab {
+            padding: 0.625rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #9CA3AF;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: transparent;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+        }
+        .cs-modal-tab:hover { color: #fff; }
+        .cs-modal-tab.active { color: #1C64F2; border-bottom-color: #1C64F2; }
+        .cs-modal-tab-panel { display: none; }
+        .cs-modal-tab-panel.active { display: block; }
+
+        /* Field label */
+        .cs-label {
+            display: block;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6B7280;
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-[#111928] text-white">
+
+<div id="ProductosAdmin" class="flex mx-2">
+    <div class="w-full flex flex-col">
+
+        <div id="filterBar" class="w-full my-3">
+            <div id="containerHours"></div>
+        </div>
+
+        <div id="containerProductosAdmin" class="w-full my-2 bg-[#1F2A37] rounded-lg p-3">
+
+            <div class="mb-4">
+                <h2 class="text-2xl font-bold text-white">Productos</h2>
+                <p class="text-sm text-gray-400 mt-1">Administra el catalogo de productos del inventario, categorias, areas y unidades de medida.</p>
+            </div>
+
+            <div class="cs-tabs">
+                <button type="button" class="cs-tab active" data-tab="productos" onclick="cambiarTab('productos')">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>
+                    </svg>
+                    Productos
+                </button>
+                <button type="button" class="cs-tab" data-tab="categorias" onclick="cambiarTab('categorias')">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/>
+                    </svg>
+                    Categorias
+                </button>
+                <button type="button" class="cs-tab" data-tab="almacenes" onclick="cambiarTab('almacenes')">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72"/>
+                    </svg>
+                    Almacenes
+                </button>
+                <button type="button" class="cs-tab" data-tab="areas" onclick="cambiarTab('areas')">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/>
+                    </svg>
+                    Areas
+                </button>
+                <button type="button" class="cs-tab" data-tab="unidades" onclick="cambiarTab('unidades')">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/>
+                    </svg>
+                    Unidades
+                </button>
+                <button type="button" class="cs-tab" data-tab="proveedores" onclick="cambiarTab('proveedores')">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/>
+                    </svg>
+                    Proveedores
+                </button>
+
+                <span class="cs-tab-sep"></span>
+
+                <button type="button" class="cs-tab" data-tab="motivos" onclick="cambiarTab('motivos')">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"/>
+                    </svg>
+                    Motivos &amp; Estados
+                </button>
+            </div>
+
+            <!-- Panel: Productos -->
+            <div id="panel-productos" class="cs-tab-panel active">
+
+                <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <select id="estado" class="cs-input w-auto text-xs" onchange="filtrarTabla()">
+                            <option value="1">Activos</option>
+                            <option value="0">Inactivos</option>
+                            <option value="">Todos</option>
+                        </select>
+                        <select id="categoria" class="cs-input w-auto text-xs" onchange="filtrarTabla()">
+                            <option value="">Todas las categorias</option>
+                            <option value="PASTELES ESPECIALIDADES">Pasteles especialidades</option>
+                            <option value="PASTELES TRADICIONALES">Pasteles tradicionales</option>
+                            <option value="GALLETAS">Galletas</option>
+                            <option value="PAN">Pan</option>
+                            <option value="SOBRE PEDIDO">Sobre pedido</option>
+                            <option value="CHAROLAS">Charolas</option>
+                            <option value="POSTRES">Postres</option>
+                            <option value="BOCADILLOS">Bocadillos</option>
+                        </select>
+                        <select id="area" class="cs-input w-auto text-xs" onchange="filtrarTabla()">
+                            <option value="">Todas las areas</option>
+                            <option value="Refrigerados">Refrigerados</option>
+                            <option value="Secos">Secos</option>
+                            <option value="Congelados">Congelados</option>
+                        </select>
+                        <select id="unidad" class="cs-input w-auto text-xs" onchange="filtrarTabla()">
+                            <option value="">Todas las unidades</option>
+                            <option value="pza">pza</option>
+                            <option value="kg">kg</option>
+                            <option value="lt">lt</option>
+                            <option value="caja">caja</option>
+                            <option value="pq">pq</option>
+                            <option value="m">m</option>
+                        </select>
+                    </div>
+                    <button class="cs-btn cs-btn-primary" onclick="abrirModal()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Nuevo Producto
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table" id="tablaProductos">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>SKU</th>
+                                <th>Producto</th>
+                                <th>Categoria</th>
+                                <th>Area</th>
+                                <th>Unidad</th>
+                                <th class="text-right">Costo</th>
+                                <th class="text-center">Min</th>
+                                <th class="text-center">Max</th>
+                                <th class="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr data-id="1" data-active="1" data-cat="PASTELES TRADICIONALES" data-area="Secos" data-unidad="pza">
+                                <td class="font-mono text-gray-400">1</td>
+                                <td><span class="cs-sku">RG-001</span></td>
+                                <td class="font-medium">Patel Tradicional Mantequilla Manjar</td>
+                                <td><span class="cs-badge cs-badge-purple">Pasteles tradicionales</span></td>
+                                <td><span class="cs-swatch" style="background:#FB923C"></span>Secos</td>
+                                <td class="text-gray-300">pza</td>
+                                <td class="text-right font-mono">$253.00</td>
+                                <td class="text-center">2</td>
+                                <td class="text-center">10</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(1)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                            <tr data-id="2" data-active="1" data-cat="PASTELES TRADICIONALES" data-area="Refrigerados" data-unidad="pza">
+                                <td class="font-mono text-gray-400">2</td>
+                                <td><span class="cs-sku">RG-002</span></td>
+                                <td class="font-medium">Tres Leches Manjar</td>
+                                <td><span class="cs-badge cs-badge-purple">Pasteles tradicionales</span></td>
+                                <td><span class="cs-swatch" style="background:#60A5FA"></span>Refrigerados</td>
+                                <td class="text-gray-300">pza</td>
+                                <td class="text-right font-mono">$132.00</td>
+                                <td class="text-center">3</td>
+                                <td class="text-center">12</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(2)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                            <tr data-id="10" data-active="1" data-cat="POSTRES" data-area="Refrigerados" data-unidad="pza">
+                                <td class="font-mono text-gray-400">10</td>
+                                <td><span class="cs-sku">RG-010</span></td>
+                                <td class="font-medium">Cupcake Decorado</td>
+                                <td><span class="cs-badge" style="background:rgba(244,63,94,0.15);color:#F43F5E">Postres</span></td>
+                                <td><span class="cs-swatch" style="background:#60A5FA"></span>Refrigerados</td>
+                                <td class="text-gray-300">pza</td>
+                                <td class="text-right font-mono">$12.10</td>
+                                <td class="text-center">12</td>
+                                <td class="text-center">60</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(10)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                            <tr data-id="24" data-active="1" data-cat="POSTRES" data-area="Refrigerados" data-unidad="pza">
+                                <td class="font-mono text-gray-400">24</td>
+                                <td><span class="cs-sku">RG-024</span></td>
+                                <td class="font-medium">Pay de Fresas</td>
+                                <td><span class="cs-badge" style="background:rgba(244,63,94,0.15);color:#F43F5E">Postres</span></td>
+                                <td><span class="cs-swatch" style="background:#60A5FA"></span>Refrigerados</td>
+                                <td class="text-gray-300">pza</td>
+                                <td class="text-right font-mono">$132.00</td>
+                                <td class="text-center">2</td>
+                                <td class="text-center">10</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(24)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                            <tr data-id="32" data-active="1" data-cat="GALLETAS" data-area="Secos" data-unidad="pza">
+                                <td class="font-mono text-gray-400">32</td>
+                                <td><span class="cs-sku">RG-032</span></td>
+                                <td class="font-medium">Galleta Chocolate</td>
+                                <td><span class="cs-badge" style="background:rgba(45,212,191,0.15);color:#2DD4BF">Galletas</span></td>
+                                <td><span class="cs-swatch" style="background:#FB923C"></span>Secos</td>
+                                <td class="text-gray-300">pza</td>
+                                <td class="text-right font-mono">$11.00</td>
+                                <td class="text-center">20</td>
+                                <td class="text-center">80</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(32)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                            <tr data-id="40" data-active="1" data-cat="PASTELES ESPECIALIDADES" data-area="" data-unidad="">
+                                <td class="font-mono text-gray-400">40</td>
+                                <td><span class="cs-sku-empty">SIN SKU</span></td>
+                                <td class="font-medium">Bicolor</td>
+                                <td><span class="cs-badge cs-badge-purple">Pasteles especialidades</span></td>
+                                <td class="text-gray-500">--</td>
+                                <td class="text-gray-500">--</td>
+                                <td class="text-right font-mono text-gray-500">$0.00</td>
+                                <td class="text-center text-gray-500">0</td>
+                                <td class="text-center text-gray-500">0</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(40)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                            <tr data-id="50" data-active="0" data-cat="PAN" data-area="Secos" data-unidad="pza">
+                                <td class="font-mono text-gray-400">50</td>
+                                <td><span class="cs-sku">RG-050</span></td>
+                                <td class="font-medium">Concha Vainilla</td>
+                                <td><span class="cs-badge" style="background:rgba(251,191,36,0.15);color:#fbbf24">Pan</span></td>
+                                <td><span class="cs-swatch" style="background:#FB923C"></span>Secos</td>
+                                <td class="text-gray-300">pza</td>
+                                <td class="text-right font-mono">$9.90</td>
+                                <td class="text-center">30</td>
+                                <td class="text-center">100</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(50)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                            <tr data-id="62" data-active="1" data-cat="CHAROLAS" data-area="Refrigerados" data-unidad="caja">
+                                <td class="font-mono text-gray-400">62</td>
+                                <td><span class="cs-sku">RG-062</span></td>
+                                <td class="font-medium">Charola Postres Mix</td>
+                                <td><span class="cs-badge" style="background:rgba(168,85,247,0.15);color:#A855F7">Charolas</span></td>
+                                <td><span class="cs-swatch" style="background:#60A5FA"></span>Refrigerados</td>
+                                <td class="text-gray-300">caja</td>
+                                <td class="text-right font-mono">$440.00</td>
+                                <td class="text-center">1</td>
+                                <td class="text-center">5</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(62)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                            <tr data-id="75" data-active="1" data-cat="SOBRE PEDIDO" data-area="Refrigerados" data-unidad="pza">
+                                <td class="font-mono text-gray-400">75</td>
+                                <td><span class="cs-sku">RG-075</span></td>
+                                <td class="font-medium">Pastel XV anos</td>
+                                <td><span class="cs-badge cs-badge-info">Sobre pedido</span></td>
+                                <td><span class="cs-swatch" style="background:#60A5FA"></span>Refrigerados</td>
+                                <td class="text-gray-300">pza</td>
+                                <td class="text-right font-mono">$1,320.00</td>
+                                <td class="text-center">0</td>
+                                <td class="text-center">3</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(75)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                            <tr data-id="88" data-active="1" data-cat="BOCADILLOS" data-area="Refrigerados" data-unidad="pza">
+                                <td class="font-mono text-gray-400">88</td>
+                                <td><span class="cs-sku">RG-088</span></td>
+                                <td class="font-medium">Sandwich Pollo</td>
+                                <td><span class="cs-badge" style="background:rgba(99,102,241,0.15);color:#818CF8">Bocadillos</span></td>
+                                <td><span class="cs-swatch" style="background:#60A5FA"></span>Refrigerados</td>
+                                <td class="text-gray-300">pza</td>
+                                <td class="text-right font-mono">$44.00</td>
+                                <td class="text-center">10</td>
+                                <td class="text-center">40</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button class="cs-btn cs-btn-action cs-btn-sm" onclick="editarProducto(88)" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button>
+                                    <button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex items-center justify-between mt-4">
+                    <p class="text-xs text-gray-500">Mostrando 1-10 de 96 registros</p>
+                    <div class="flex items-center gap-1">
+                        <button class="cs-btn cs-btn-outline cs-btn-sm" disabled><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg></button>
+                        <button class="cs-btn cs-btn-primary cs-btn-sm">1</button>
+                        <button class="cs-btn cs-btn-outline cs-btn-sm">2</button>
+                        <button class="cs-btn cs-btn-outline cs-btn-sm">3</button>
+                        <button class="cs-btn cs-btn-outline cs-btn-sm">...</button>
+                        <button class="cs-btn cs-btn-outline cs-btn-sm">10</button>
+                        <button class="cs-btn cs-btn-outline cs-btn-sm"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel: Categorias -->
+            <div id="panel-categorias" class="cs-tab-panel">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-400">Categorias del catalogo POS (tabla order_category)</p>
+                    <button class="cs-btn cs-btn-primary cs-btn-sm" onclick="abrirModalCategoria()">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Nueva Categoria
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table">
+                        <thead><tr><th>ID</th><th>Categoria</th><th class="text-center">Productos</th><th class="text-right">Acciones</th></tr></thead>
+                        <tbody>
+                            <tr><td class="font-mono text-gray-400">1</td><td class="font-medium">PASTELES ESPECIALIDADES</td><td class="text-center">15</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">2</td><td class="font-medium">PASTELES TRADICIONALES</td><td class="text-center">26</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">3</td><td class="font-medium">GALLETAS</td><td class="text-center">2</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">4</td><td class="font-medium">PAN</td><td class="text-center">3</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">5</td><td class="font-medium">SOBRE PEDIDO</td><td class="text-center">6</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">6</td><td class="font-medium">CHAROLAS</td><td class="text-center">5</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">7</td><td class="font-medium">POSTRES</td><td class="text-center">22</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">8</td><td class="font-medium">BOCADILLOS</td><td class="text-center">18</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Panel: Almacenes -->
+            <div id="panel-almacenes" class="cs-tab-panel">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-400">Almacenes fisicos por sucursal (tabla warehouse)</p>
+                    <button class="cs-btn cs-btn-primary cs-btn-sm" onclick="abrirModalAlmacen()">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Nuevo Almacen
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table">
+                        <thead><tr><th>ID</th><th>Almacen</th><th>Sucursal</th><th>Area principal</th><th class="text-center">Default</th><th class="text-right">Acciones</th></tr></thead>
+                        <tbody>
+                            <tr><td class="font-mono text-gray-400">1</td><td class="font-medium">Almacen Central Reginas</td><td>Reginas Central Gpe</td><td><span class="cs-swatch" style="background:#FB923C"></span>Secos</td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">2</td><td class="font-medium">Almacen Refrigerados Kafeto</td><td>Reginas kafeto</td><td><span class="cs-swatch" style="background:#60A5FA"></span>Refrigerados</td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">3</td><td class="font-medium">Almacen Congelados Cuarta</td><td>Regina's cuarta</td><td><span class="cs-swatch" style="background:#22D3EE"></span>Congelados</td><td class="text-center"><span class="cs-badge cs-badge-danger">NO</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Panel: Areas -->
+            <div id="panel-areas" class="cs-tab-panel">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-400">Areas internas de almacen (tabla warehouse_area)</p>
+                    <button class="cs-btn cs-btn-primary cs-btn-sm" onclick="abrirModalArea()">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Nueva Area
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table">
+                        <thead><tr><th>ID</th><th>Color</th><th>Area</th><th>Descripcion</th><th class="text-center">Productos</th><th class="text-right">Acciones</th></tr></thead>
+                        <tbody>
+                            <tr><td class="font-mono text-gray-400">1</td><td><span class="cs-swatch" style="background:#60A5FA;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#60A5FA</span></td><td class="font-medium">Refrigerados</td><td class="text-gray-400 text-xs">Lacteos, frutas frescas, productos perecederos</td><td class="text-center">45</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">2</td><td><span class="cs-swatch" style="background:#FB923C;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#FB923C</span></td><td class="font-medium">Secos</td><td class="text-gray-400 text-xs">Harinas, granos, conservas, pan</td><td class="text-center">38</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">3</td><td><span class="cs-swatch" style="background:#22D3EE;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#22D3EE</span></td><td class="font-medium">Congelados</td><td class="text-gray-400 text-xs">Productos congelados</td><td class="text-center">13</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Panel: Unidades -->
+            <div id="panel-unidades" class="cs-tab-panel">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-400">Unidades de medida (tabla unit)</p>
+                    <button class="cs-btn cs-btn-primary cs-btn-sm" onclick="abrirModalUnidad()">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Nueva Unidad
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table">
+                        <thead><tr><th>ID</th><th>Code</th><th>Nombre</th><th class="text-center">Productos</th><th class="text-right">Acciones</th></tr></thead>
+                        <tbody>
+                            <tr><td class="font-mono text-gray-400">1</td><td><span class="cs-sku">pza</span></td><td class="font-medium">Pieza</td><td class="text-center">85</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">2</td><td><span class="cs-sku">kg</span></td><td class="font-medium">Kilogramo</td><td class="text-center">4</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">3</td><td><span class="cs-sku">lt</span></td><td class="font-medium">Litro</td><td class="text-center">2</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">4</td><td><span class="cs-sku">caja</span></td><td class="font-medium">Caja</td><td class="text-center">5</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">5</td><td><span class="cs-sku">pq</span></td><td class="font-medium">Paquete</td><td class="text-center">0</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">6</td><td><span class="cs-sku">m</span></td><td class="font-medium">Metro</td><td class="text-center">0</td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Panel: Motivos & Estados (catalogos auxiliares de eventos) -->
+            <div id="panel-motivos" class="cs-tab-panel">
+                <div class="cs-subtabs">
+                    <button type="button" class="cs-subtab active" data-subtab="origenes" onclick="cambiarSubtab('origenes')">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l3 3m0 0l3-3m-3 3V2.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Origenes de entrada
+                    </button>
+                    <button type="button" class="cs-subtab" data-subtab="merma" onclick="cambiarSubtab('merma')">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165"/></svg>
+                        Motivos de merma
+                    </button>
+                    <button type="button" class="cs-subtab" data-subtab="ajuste" onclick="cambiarSubtab('ajuste')">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/></svg>
+                        Motivos de ajuste
+                    </button>
+                    <button type="button" class="cs-subtab" data-subtab="estados" onclick="cambiarSubtab('estados')">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+                        Estados de traspaso
+                    </button>
+                </div>
+
+                <!-- Subpanel: Origenes entrada -->
+                <div id="subpanel-origenes" class="cs-subtab-panel active">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-400">Origenes de entrada (tabla inflow_origin) - tipos de movimiento al recibir stock</p>
+                    <button class="cs-btn cs-btn-primary cs-btn-sm" onclick="abrirModalOrigen()">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Nuevo Origen
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table">
+                        <thead><tr><th>ID</th><th>Code</th><th>Origen</th><th>Color</th><th class="text-center">Requiere proveedor</th><th class="text-right">Acciones</th></tr></thead>
+                        <tbody>
+                            <tr><td class="font-mono text-gray-400">1</td><td><span class="cs-sku">PRODUCTION</span></td><td class="font-medium">Produccion</td><td><span class="cs-swatch" style="background:#A78BFA;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#A78BFA</span></td><td class="text-center"><span class="cs-badge cs-badge-danger">NO</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">2</td><td><span class="cs-sku">SUPPLIER</span></td><td class="font-medium">Proveedor</td><td><span class="cs-swatch" style="background:#FBBF24;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#FBBF24</span></td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">3</td><td><span class="cs-sku">TRANSFER_IN</span></td><td class="font-medium">Transferencia</td><td><span class="cs-swatch" style="background:#60A5FA;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#60A5FA</span></td><td class="text-center"><span class="cs-badge cs-badge-danger">NO</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">4</td><td><span class="cs-sku">RETURN</span></td><td class="font-medium">Devolucion</td><td><span class="cs-swatch" style="background:#F43F5E;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#F43F5E</span></td><td class="text-center"><span class="cs-badge cs-badge-danger">NO</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+                <!-- Subpanel: Motivos de merma -->
+                <div id="subpanel-merma" class="cs-subtab-panel">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-400">Motivos de merma (tabla shrinkage_reason) - razones por las que se da de baja stock</p>
+                    <button class="cs-btn cs-btn-primary cs-btn-sm" onclick="abrirModalMotivoMerma()">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Nuevo Motivo
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table">
+                        <thead><tr><th>ID</th><th>Code</th><th>Motivo</th><th>Color</th><th class="text-right">Acciones</th></tr></thead>
+                        <tbody>
+                            <tr><td class="font-mono text-gray-400">1</td><td><span class="cs-sku">EXPIRY</span></td><td class="font-medium">Caducidad</td><td><span class="cs-swatch" style="background:#E02424;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#E02424</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">2</td><td><span class="cs-sku">DAMAGED</span></td><td class="font-medium">Daniado</td><td><span class="cs-swatch" style="background:#FBBF24;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#FBBF24</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">3</td><td><span class="cs-sku">PRODUCTION_ERR</span></td><td class="font-medium">Error produccion</td><td><span class="cs-swatch" style="background:#1C64F2;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#1C64F2</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">4</td><td><span class="cs-sku">THEFT</span></td><td class="font-medium">Robo/Faltante</td><td><span class="cs-swatch" style="background:#7C3AED;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#7C3AED</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">5</td><td><span class="cs-sku">CUSTOMER_RET</span></td><td class="font-medium">Devolucion</td><td><span class="cs-swatch" style="background:#3FC189;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#3FC189</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+                <!-- Subpanel: Motivos de ajuste -->
+                <div id="subpanel-ajuste" class="cs-subtab-panel">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-400">Motivos de ajuste (tabla adjustment_reason) - razones para correcciones manuales de stock</p>
+                    <button class="cs-btn cs-btn-primary cs-btn-sm" onclick="abrirModalMotivoAjuste()">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Nuevo Motivo
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table">
+                        <thead><tr><th>ID</th><th>Code</th><th>Motivo</th><th>Color</th><th class="text-center">Afecta costo</th><th class="text-right">Acciones</th></tr></thead>
+                        <tbody>
+                            <tr><td class="font-mono text-gray-400">1</td><td><span class="cs-sku">MISSING</span></td><td class="font-medium">Faltante sin explicar</td><td><span class="cs-swatch" style="background:#F43F5E;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#F43F5E</span></td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">2</td><td><span class="cs-sku">UNRECORDED_IN</span></td><td class="font-medium">Entrada no registrada</td><td><span class="cs-swatch" style="background:#3FC189;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#3FC189</span></td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">3</td><td><span class="cs-sku">UNRECORDED_OUT</span></td><td class="font-medium">Entregados sin registrar</td><td><span class="cs-swatch" style="background:#FBBF24;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#FBBF24</span></td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">4</td><td><span class="cs-sku">MONTH_CLOSE</span></td><td class="font-medium">Cierre mensual</td><td><span class="cs-swatch" style="background:#A78BFA;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#A78BFA</span></td><td class="text-center"><span class="cs-badge cs-badge-danger">NO</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">5</td><td><span class="cs-sku">FOUND_PRODUCT</span></td><td class="font-medium">Producto encontrado</td><td><span class="cs-swatch" style="background:#60A5FA;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#60A5FA</span></td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">6</td><td><span class="cs-sku">PHYSICAL_COUNT</span></td><td class="font-medium">Conteo fisico</td><td><span class="cs-swatch" style="background:#A78BFA;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#A78BFA</span></td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">7</td><td><span class="cs-sku">ADMIN_CORRECTION</span></td><td class="font-medium">Correccion administrativa</td><td><span class="cs-swatch" style="background:#D1D5DB;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#D1D5DB</span></td><td class="text-center"><span class="cs-badge cs-badge-danger">NO</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+                <!-- Subpanel: Estados de traspaso -->
+                <div id="subpanel-estados" class="cs-subtab-panel">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-400">Estados del flujo de traspaso (tabla transfer_status) - timeline del movimiento entre sucursales</p>
+                    <button class="cs-btn cs-btn-primary cs-btn-sm" onclick="abrirModalEstadoTraspaso()">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Nuevo Estado
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table">
+                        <thead><tr><th>ID</th><th>Code</th><th class="text-center">Orden</th><th class="text-center">Terminal</th><th>Color</th><th class="text-right">Acciones</th></tr></thead>
+                        <tbody>
+                            <tr><td class="font-mono text-gray-400">1</td><td><span class="cs-sku">REQUESTED</span></td><td class="font-medium">Solicitado</td><td class="text-center">1</td><td class="text-center"><span class="cs-badge cs-badge-danger">NO</span></td><td><span class="cs-swatch" style="background:#FBBF24;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#FBBF24</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">2</td><td><span class="cs-sku">AUTHORIZED</span></td><td class="font-medium">Autorizado</td><td class="text-center">2</td><td class="text-center"><span class="cs-badge cs-badge-danger">NO</span></td><td><span class="cs-swatch" style="background:#A78BFA;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#A78BFA</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">3</td><td><span class="cs-sku">IN_TRANSIT</span></td><td class="font-medium">En Transito</td><td class="text-center">3</td><td class="text-center"><span class="cs-badge cs-badge-danger">NO</span></td><td><span class="cs-swatch" style="background:#FB923C;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#FB923C</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">4</td><td><span class="cs-sku">RECEIVED</span></td><td class="font-medium">Recibido</td><td class="text-center">4</td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td><span class="cs-swatch" style="background:#3FC189;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#3FC189</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                            <tr><td class="font-mono text-gray-400">5</td><td><span class="cs-sku">REJECTED</span></td><td class="font-medium">Rechazado</td><td class="text-center">99</td><td class="text-center"><span class="cs-badge cs-badge-success">SI</span></td><td><span class="cs-swatch" style="background:#F43F5E;width:1rem;height:1rem"></span><span class="font-mono text-xs text-gray-400">#F43F5E</span></td><td class="text-right"><div class="flex items-center justify-end gap-1"><button class="cs-btn cs-btn-action cs-btn-sm" title="Editar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.25a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg></button><button type="button" class="cs-toggle" onclick="toggleEstado(this)"><span class="cs-toggle-track active"><span class="cs-toggle-knob"></span></span></button></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            </div><!-- /panel-motivos -->
+
+            <!-- Panel: Proveedores -->
+            <div id="panel-proveedores" class="cs-tab-panel">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-400">Proveedores externos (tabla supplier) - usados en entradas tipo "Proveedor"</p>
+                    <button class="cs-btn cs-btn-primary cs-btn-sm" onclick="abrirModalProveedor()">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Nuevo Proveedor
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="cs-table">
+                        <thead><tr><th>ID</th><th>Proveedor</th><th>Contacto</th><th>Telefono</th><th>Email</th><th class="text-center">Entradas</th><th class="text-right">Acciones</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="8" class="px-3 py-12 text-center">
+                                    <div class="flex flex-col items-center justify-center text-center">
+                                        <div class="w-14 h-14 rounded-2xl bg-gray-800/40 border border-gray-700/50 flex items-center justify-center mb-3">
+                                            <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/></svg>
+                                        </div>
+                                        <p class="text-xs font-semibold text-gray-300">Aun no hay proveedores registrados</p>
+                                        <p class="text-[10px] text-gray-500 mt-1">Crea el primero para asociarlo a las entradas de tipo Proveedor</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Producto -->
+<div class="cs-modal-backdrop" id="modalBackdrop" onclick="cerrarModal()"></div>
+<div class="cs-modal" id="modalProducto">
+    <div class="cs-modal-header">
+        <h3 class="cs-modal-title" id="modalTitle">Nuevo Producto</h3>
+        <button class="text-gray-400 hover:text-white transition" onclick="cerrarModal()">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="cs-modal-body">
+
+        <div class="cs-modal-tabs">
+            <button type="button" class="cs-modal-tab active" data-mtab="catalogo" onclick="cambiarModalTab('catalogo')">Catalogo POS</button>
+            <button type="button" class="cs-modal-tab" data-mtab="atributos" onclick="cambiarModalTab('atributos')">Atributos Inventario</button>
+        </div>
+
+        <div id="mtab-catalogo" class="cs-modal-tab-panel active">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <label class="cs-label">Nombre del producto</label>
+                    <input type="text" id="nombre" class="cs-input" placeholder="Ej: Tres Leches Manjar">
+                </div>
+                <div>
+                    <label class="cs-label">Precio venta</label>
+                    <input type="number" id="precio" class="cs-input" placeholder="0.00" step="0.01">
+                </div>
+                <div>
+                    <label class="cs-label">Categoria</label>
+                    <select id="categoriaSel" class="cs-input">
+                        <option value="">Selecciona...</option>
+                        <option value="1">PASTELES ESPECIALIDADES</option>
+                        <option value="2">PASTELES TRADICIONALES</option>
+                        <option value="3">GALLETAS</option>
+                        <option value="4">PAN</option>
+                        <option value="5">SOBRE PEDIDO</option>
+                        <option value="6">CHAROLAS</option>
+                        <option value="7">POSTRES</option>
+                        <option value="8">BOCADILLOS</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="cs-label">Sucursal</label>
+                    <select id="sucursalSel" class="cs-input">
+                        <option value="4">Reginas Central Gpe</option>
+                        <option value="22">Regina's cuarta</option>
+                        <option value="25">Reginas kafeto</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="cs-label">Imagen URL</label>
+                    <input type="text" id="imagen" class="cs-input" placeholder="https://...">
+                </div>
+                <div class="col-span-2">
+                    <label class="cs-label">Descripcion</label>
+                    <textarea id="descripcion" class="cs-input cs-textarea" rows="2" placeholder="Descripcion opcional del producto..."></textarea>
+                </div>
+                <div class="col-span-2 flex items-center justify-between pt-2 border-t border-gray-700">
+                    <label class="cs-label" style="margin:0">Producto activo</label>
+                    <div class="cs-toggle" onclick="toggleSwitch('trackActive','labelActive')">
+                        <div class="cs-toggle-track active" id="trackActive"><div class="cs-toggle-knob"></div></div>
+                        <span class="text-sm text-gray-300" id="labelActive">Activo</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mtab-atributos" class="cs-modal-tab-panel">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="cs-label">SKU</label>
+                    <input type="text" id="sku" class="cs-input font-mono uppercase" maxlength="40" placeholder="RG-001">
+                </div>
+                <div>
+                    <label class="cs-label">Costo unitario</label>
+                    <input type="number" id="costoUnit" class="cs-input" placeholder="0.00" step="0.01">
+                </div>
+                <div>
+                    <label class="cs-label">Area</label>
+                    <select id="areaSel" class="cs-input">
+                        <option value="">Sin asignar</option>
+                        <option value="1">Refrigerados</option>
+                        <option value="2">Secos</option>
+                        <option value="3">Congelados</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="cs-label">Unidad</label>
+                    <select id="unidadSel" class="cs-input">
+                        <option value="">Sin asignar</option>
+                        <option value="1">pza - Pieza</option>
+                        <option value="2">kg - Kilogramo</option>
+                        <option value="3">lt - Litro</option>
+                        <option value="4">caja - Caja</option>
+                        <option value="5">pq - Paquete</option>
+                        <option value="6">m - Metro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="cs-label">Stock minimo</label>
+                    <input type="number" id="stockMin" class="cs-input" placeholder="0" step="0.001">
+                </div>
+                <div>
+                    <label class="cs-label">Stock maximo</label>
+                    <input type="number" id="stockMax" class="cs-input" placeholder="0" step="0.001">
+                </div>
+                <div class="col-span-2">
+                    <label class="cs-label">Vida util (dias)</label>
+                    <input type="number" id="vidaUtil" class="cs-input" placeholder="Opcional. Ej: 30">
+                </div>
+                <div class="col-span-2">
+                    <label class="cs-label">Descripcion inventario</label>
+                    <textarea id="descripcionAtr" class="cs-input cs-textarea" rows="2" placeholder="Notas internas de inventario..."></textarea>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <div class="cs-modal-footer">
+        <button class="cs-btn cs-btn-outline" onclick="cerrarModal()">Cancelar</button>
+        <button class="cs-btn cs-btn-primary" onclick="guardarProducto()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-7a2 2 0 012-2h2m2-4h8a2 2 0 012 2v10M7 7h2"/></svg>
+            Guardar
+        </button>
+    </div>
+</div>
+
+<script>
+    function cambiarTab(nombre) {
+        document.querySelectorAll('.cs-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('[data-tab="' + nombre + '"]').classList.add('active');
+        document.querySelectorAll('.cs-tab-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + nombre).classList.add('active');
+    }
+
+    function cambiarSubtab(nombre) {
+        document.querySelectorAll('.cs-subtab').forEach(t => t.classList.remove('active'));
+        document.querySelector('[data-subtab="' + nombre + '"]').classList.add('active');
+        document.querySelectorAll('.cs-subtab-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('subpanel-' + nombre).classList.add('active');
+    }
+
+    function cambiarModalTab(nombre) {
+        document.querySelectorAll('.cs-modal-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('[data-mtab="' + nombre + '"]').classList.add('active');
+        document.querySelectorAll('.cs-modal-tab-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('mtab-' + nombre).classList.add('active');
+    }
+
+    function abrirModal(editando) {
+        document.getElementById('modalBackdrop').classList.add('active');
+        document.getElementById('modalProducto').classList.add('active');
+        document.getElementById('modalTitle').textContent = editando ? 'Editar Producto' : 'Nuevo Producto';
+        cambiarModalTab('catalogo');
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalBackdrop').classList.remove('active');
+        document.getElementById('modalProducto').classList.remove('active');
+        ['nombre','precio','imagen','descripcion','sku','costoUnit','stockMin','stockMax','vidaUtil','descripcionAtr'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        ['categoriaSel','sucursalSel','areaSel','unidadSel'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.selectedIndex = 0;
+        });
+        setToggle('trackActive', 'labelActive', true, 'Activo');
+    }
+
+    function setToggle(trackId, labelId, active, text) {
+        const track = document.getElementById(trackId);
+        const label = document.getElementById(labelId);
+        if (active) track.classList.add('active'); else track.classList.remove('active');
+        if (label) label.textContent = text;
+    }
+
+    function toggleSwitch(trackId, labelId) {
+        const track = document.getElementById(trackId);
+        const label = document.getElementById(labelId);
+        track.classList.toggle('active');
+        const isActive = track.classList.contains('active');
+        if (label) label.textContent = isActive ? 'Activo' : 'Inactivo';
+    }
+
+    function editarProducto(id) {
+        abrirModal(true);
+        console.log('Editar producto ID=' + id);
+    }
+
+    function toggleEstado(btn) {
+        const track = btn.querySelector('.cs-toggle-track');
+        track.classList.toggle('active');
+        const activo = track.classList.contains('active') ? 1 : 0;
+        const fila = btn.closest('tr');
+        if (fila && fila.dataset.id !== undefined) fila.dataset.active = activo;
+        console.log('Cambiar estado a ' + activo, fila ? fila.dataset.id : '');
+    }
+
+    function guardarProducto() {
+        const nombre = document.getElementById('nombre').value.trim();
+        const precio = document.getElementById('precio').value;
+        if (!nombre || !precio) {
+            alert('Completa el nombre y precio del producto.');
+            cambiarModalTab('catalogo');
+            return;
+        }
+        const payload = {
+            producto: {
+                nombre,
+                precio: parseFloat(precio),
+                category_id: document.getElementById('categoriaSel').value,
+                subsidiaries_id: document.getElementById('sucursalSel').value,
+                image: document.getElementById('imagen').value.trim(),
+                description: document.getElementById('descripcion').value.trim(),
+                active: document.getElementById('trackActive').classList.contains('active') ? 1 : 0
+            },
+            atributo: {
+                sku: document.getElementById('sku').value.trim().toUpperCase(),
+                cost_unit: parseFloat(document.getElementById('costoUnit').value || 0),
+                warehouse_area_id: document.getElementById('areaSel').value,
+                unit_id: document.getElementById('unidadSel').value,
+                stock_min: parseFloat(document.getElementById('stockMin').value || 0),
+                stock_max: parseFloat(document.getElementById('stockMax').value || 0),
+                shelf_life_days: parseInt(document.getElementById('vidaUtil').value, 10) || null,
+                description: document.getElementById('descripcionAtr').value.trim()
+            }
+        };
+        console.log('Guardar:', payload);
+        cerrarModal();
+    }
+
+    function abrirModalCategoria()       { console.log('Modal nueva categoria'); }
+    function abrirModalArea()            { console.log('Modal nueva area'); }
+    function abrirModalUnidad()          { console.log('Modal nueva unidad'); }
+    function abrirModalAlmacen()         { console.log('Modal nuevo almacen'); }
+    function abrirModalProveedor()       { console.log('Modal nuevo proveedor'); }
+    function abrirModalOrigen()          { console.log('Modal nuevo origen de entrada'); }
+    function abrirModalMotivoMerma()     { console.log('Modal nuevo motivo de merma'); }
+    function abrirModalMotivoAjuste()    { console.log('Modal nuevo motivo de ajuste'); }
+    function abrirModalEstadoTraspaso()  { console.log('Modal nuevo estado de traspaso'); }
+
+    function filtrarTabla() {
+        const fEstado    = document.getElementById('estado').value;
+        const fCategoria = document.getElementById('categoria').value;
+        const fArea      = document.getElementById('area').value;
+        const fUnidad    = document.getElementById('unidad').value;
+
+        document.querySelectorAll('#tablaProductos tbody tr').forEach(fila => {
+            const activo = fila.dataset.active;
+            const cat    = fila.dataset.cat;
+            const area   = fila.dataset.area;
+            const unidad = fila.dataset.unidad;
+
+            let mostrar = true;
+            if (fEstado !== '' && activo !== fEstado) mostrar = false;
+            if (fCategoria && cat !== fCategoria)     mostrar = false;
+            if (fArea && area !== fArea)              mostrar = false;
+            if (fUnidad && unidad !== fUnidad)        mostrar = false;
+
+            fila.style.display = mostrar ? '' : 'none';
+        });
+    }
+</script>
+
+</body>
+</html>

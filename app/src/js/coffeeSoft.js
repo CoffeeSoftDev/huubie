@@ -16,10 +16,15 @@ const CF_REGEX = {
     tel_clean: /[^0-9+\-() ]/g,
 };
 
+// Clases que pintan un control inválido. 'is-invalid' se conserva por compatibilidad,
+// pero el borde rojo real lo dan las utilidades Tailwind con '!' (vencen al border-gray
+// de CF_CSS.input/select/textarea, que de otro modo gana sobre el color del borde).
+const CF_INVALID = 'is-invalid !border-red-500 ring-1 ring-red-500';
+
 const CF_CSS = {
-    input: 'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700',
-    select: 'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
-    textarea: 'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
+    input: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700',
+    select: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
+    textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
     label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
     error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
     btnPrimary: 'tw-btn w-full rounded-lg bg-[#003360]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#003360] active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
@@ -34,8 +39,8 @@ const CF_CSS = {
     btnLink: 'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',
     radio: 'w-4 h-4 text-[#003360] border-gray-300 dark:border-gray-600 focus:ring-[#003360] accent-[#003360]',
     checkbox: 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#003360] focus:ring-[#003360] accent-[#003360]',
-    file: 'tw-input w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#e6eef5] dark:file:bg-[#0a2540] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#003360] dark:file:text-[#7bafe6] hover:file:bg-[#cddfee] dark:hover:file:bg-[#0f3358]',
-    groupAddon: 'inline-flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
+    file: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#e6eef5] dark:file:bg-[#0a2540] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#003360] dark:file:text-[#7bafe6] hover:file:bg-[#cddfee] dark:hover:file:bg-[#0f3358]',
+    groupAddon: 'inline-flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
 };
 
 const CF_BTN_COLORS = {
@@ -470,10 +475,10 @@ class Complements {
                 el.val(val.replace(CF_REGEX.tel_clean, ''));
 
             if (tipo === 'email') {
-                el.removeClass('is-invalid');
+                el.removeClass(CF_INVALID);
                 let errSpan = el.parent().find('.tw-error');
                 if (el.val().trim() !== '' && !CF_REGEX.email.test(el.val())) {
-                    el.addClass('is-invalid');
+                    el.addClass(CF_INVALID);
                     if (errSpan.length) errSpan.text('Ingrese un correo valido').removeClass('hidden');
                 } else if (errSpan.length) {
                     errSpan.addClass('hidden');
@@ -481,7 +486,7 @@ class Complements {
             }
 
             if (el.val().trim() !== '') {
-                el.removeClass('is-invalid');
+                el.removeClass(CF_INVALID);
                 el.parent().find('.tw-error').addClass('hidden');
             }
         });
@@ -493,7 +498,7 @@ class Complements {
         container.find('select').on('change', function () {
             let el = $(this);
             if (el.val() && el.val() !== '0') {
-                el.removeClass('is-invalid');
+                el.removeClass(CF_INVALID);
                 el.closest('div').parent().find('.tw-error').addClass('hidden');
             }
         });
@@ -512,11 +517,16 @@ class Complements {
 
             if (isEmpty) {
                 valid = false;
-                el.addClass('is-invalid');
+                el.addClass(CF_INVALID);
+                // Si el campo vive en una pestaña oculta (opc:'tabs'), revelarla antes del focus.
+                let panel = el.closest('[data-cf-panel]');
+                if (panel.length && panel.hasClass('hidden')) {
+                    container.find(`.cf-tab-btn[data-cf-tab="${panel.attr('data-cf-panel')}"]`).trigger('click');
+                }
                 el.focus();
                 if (errSpan.length) errSpan.text('El campo es requerido').removeClass('hidden');
             } else {
-                el.removeClass('is-invalid');
+                el.removeClass(CF_INVALID);
                 if (errSpan.length) errSpan.addClass('hidden');
             }
         });
@@ -525,7 +535,7 @@ class Complements {
             let el = $(this);
             if (el.val().trim() !== '' && !CF_REGEX.email.test(el.val())) {
                 valid = false;
-                el.addClass('is-invalid');
+                el.addClass(CF_INVALID);
             }
         });
 
@@ -649,7 +659,7 @@ class Components extends Complements {
             });
         }
 
-        for (const x of opts.json) {
+        const buildField = (x) => {
             let div_col = self.cfToTailwindGrid(x.class || 'col-sm-4') + ' mt-1';
             let div_hijo = $('<div>', {
                 class: div_col
@@ -676,6 +686,9 @@ class Components extends Complements {
             let color;
 
             switch (x.opc) {
+
+                case 'tabs':
+                    return buildTabs(x);
 
                 case 'code':
                     div_hijo.empty();
@@ -1035,7 +1048,7 @@ class Components extends Complements {
                     if (x.onchange) calInput.attr('onchange', x.onchange);
 
                     let calIcon = $('<div>', {
-                        class: 'pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 dark:text-gray-500',
+                        class: 'pointer-events-none absolute inset-y-px right-px flex items-center pl-2 pr-3 text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 rounded-r-lg',
                         html: '<i class="icon-calendar-2 text-base"></i>',
                     });
 
@@ -1098,8 +1111,81 @@ class Components extends Complements {
                     break;
             }
 
-            container.append(div_hijo);
-        }
+            return div_hijo;
+        };
+
+        // Renderiza un grupo de pestañas (opc:'tabs'). Cada tab declara su propio
+        // json y se construye con buildField, por lo que todo el motor de campos
+        // (inputs, selects, validación, temas) funciona dentro de los paneles.
+        // Los inputs siguen colgando del mismo <form>, así que FormData, cfAutofill
+        // y cfValidateForm operan igual sin importar la pestaña.
+        const buildTabs = (cfg) => {
+            // ObjectMerge (usado al construir el modal) convierte los arrays anidados
+            // en objetos {0:..,1:..}; normalizamos a array real antes de iterar.
+            const toArray = (v) => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+
+            // Estilo nativo de tabLayout: nav redondeado tematizado, pildora activa azul
+            // y soporte de lucideIcon. Los paneles siguen colgando del mismo <form>.
+            const isDark   = opts.theme === 'dark';
+            const navBase  = isDark ? 'bg-[#19232D] text-white' : 'bg-gray-200 text-black';
+            const onClass  = 'bg-blue-600 text-white';
+            const offClass = isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-white';
+            const btnBase  = 'cf-tab-btn transition text-sm font-medium rounded px-3 py-2 whitespace-nowrap flex-shrink-0 ';
+            const offIcon  = isDark ? 'text-gray-400' : 'text-gray-800';
+
+            const wrap = $('<div>', { class: self.cfToTailwindGrid(cfg.class || 'col-12') });
+            const nav  = $('<div>', { class: `${navBase} rounded-lg flex flex-wrap gap-1 px-1 py-1 text-sm mb-3` });
+            const body = $('<div>', { class: 'w-full' });
+
+            const tabsArr   = toArray(cfg.tabs);
+            const anyActive = tabsArr.some(t => t.active);
+
+            tabsArr.forEach((tab, i) => {
+                const isActive = tab.active || (i === 0 && !anyActive);
+
+                let iconHtml = '';
+                const iconColor = isActive ? 'text-white' : offIcon;
+                if (tab.lucideIcon) {
+                    const base = 'w-4 h-4 inline-block mr-2';
+                    iconHtml = `<i data-lucide="${tab.lucideIcon}" class="${base} ${iconColor}"></i>`;
+                } else if (tab.icon) {
+                    const base = `${tab.icon} mr-2 text-sm`;
+                    iconHtml = `<i class="${base} ${iconColor}"></i>`;
+                }
+
+                nav.append($('<button>', {
+                    type: 'button',
+                    'data-cf-tab': tab.id,
+                    class: btnBase + (isActive ? onClass : offClass),
+                    html: iconHtml + (tab.tab || tab.label || '')
+                }));
+
+                const panel = $('<div>', {
+                    'data-cf-panel': tab.id,
+                    class: 'grid grid-cols-12 gap-x-4 gap-y-1' + (isActive ? '' : ' hidden')
+                });
+                toArray(tab.json).forEach(f => panel.append(buildField(f)));
+                body.append(panel);
+            });
+
+            nav.on('click', '.cf-tab-btn', function () {
+                const id = $(this).attr('data-cf-tab');
+                nav.find('.cf-tab-btn').each(function () {
+                    $(this).removeClass(onClass).addClass(offClass)
+                        .find('i, svg').removeClass('text-white').addClass(offIcon);
+                });
+                $(this).addClass(onClass).removeClass(offClass)
+                    .find('i, svg').removeClass(offIcon).addClass('text-white');
+                body.find('[data-cf-panel]').addClass('hidden');
+                body.find(`[data-cf-panel="${id}"]`).removeClass('hidden');
+            });
+
+            wrap.append(nav, body);
+            if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 0);
+            return wrap;
+        };
+
+        for (const x of opts.json) container.append(buildField(x));
 
         if (opts.type === 'btn') {
             let cssKeyAuto = CF_BTN_COLORS[opts.color] || 'btnPrimary';
@@ -1833,6 +1919,10 @@ class Components extends Complements {
 
     createModalForm(options) {
 
+        if (options && options.coffeesoft) {
+            return this.createCoffeeModalForm(options);
+        }
+
         const idFormulario = options.id ? options.id : 'frmModal';
 
         const components = options.components
@@ -2024,6 +2114,201 @@ class Components extends Complements {
 
 
     }
+
+    // Modal propio de CoffeeSoft (sin bootbox/Bootstrap). Devuelve { el, body, close }.
+    // El consumidor inyecta su contenido en .body y cierra con .close().
+    cfModal(opts) {
+        const o = Object.assign({
+            title: '',
+            size: 'default',
+            theme: 'light',
+            closeButton: true,
+            backdropClose: false,
+            okLabel: 'Aceptar',
+            cancelLabel: 'Cancelar',
+            onOk: () => { },
+            onClose: () => { }
+        }, opts);
+
+        const sizeCls = ({ small: 'max-w-sm', default: 'max-w-lg', large: 'max-w-2xl', xl: 'max-w-4xl' })[o.size] || 'max-w-lg';
+        const prevOverflow = document.body.style.overflow;
+        const dark = o.theme === 'dark';
+
+        // Clases por tema con los hex EXACTOS de la paleta Huubie (PALETTE.md):
+        // card #1F2A37, border #374151, input #1a2332, alt #283341, text-secondary #9CA3AF,
+        // primary #1C64F2 / hover #1a53d4.
+        const C = dark ? {
+            panel:  'bg-[#1F2A37]',
+            title:  'text-white',
+            close:  'text-[#9CA3AF] hover:text-white',
+            cancel: 'bg-[#1a2332] text-[#9CA3AF] border border-[#374151] hover:bg-[#283341] hover:text-white'
+        } : {
+            panel:  'bg-white',
+            title:  'text-gray-800',
+            close:  'text-gray-400 hover:text-gray-600',
+            cancel: 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+        };
+        const okCls = 'bg-[#1C64F2] text-white hover:bg-[#1a53d4]';
+
+        const overlay = $('<div>', {
+            class: 'cf-modal fixed inset-0 z-[1090] flex items-start justify-center overflow-y-auto p-4 bg-black/50 opacity-0 transition-opacity duration-150 ease-out'
+        });
+        const themeWrap = $('<div>', { class: 'w-full ' + sizeCls + ' my-8' });
+        const panel = $('<div>', {
+            class: 'cf-modal-panel relative rounded-xl p-6 ' + C.panel + ' opacity-0 -translate-y-3 transition-all duration-150 ease-out'
+        });
+
+        function close() {
+            $(document).off('keydown.cfmodal', onKey);
+            overlay.removeClass('opacity-100').addClass('opacity-0');
+            panel.removeClass('opacity-100 translate-y-0').addClass('opacity-0 -translate-y-3');
+            document.body.style.overflow = prevOverflow;
+            setTimeout(() => { overlay.remove(); o.onClose(); }, 160);
+        }
+
+        const header = $('<div>', { class: 'flex items-center justify-between mb-4' });
+        header.append($('<h3>', { class: 'text-base font-semibold ' + C.title, html: o.title }));
+        if (o.closeButton) {
+            const x = $('<button>', {
+                type: 'button', 'aria-label': 'Cerrar',
+                class: 'text-2xl leading-none ' + C.close, html: '&times;'
+            });
+            x.on('click', close);
+            header.append(x);
+        }
+
+        const body = $('<div>', { class: 'max-h-[72vh] overflow-y-auto' });
+
+        const footer = $('<div>', { class: 'flex justify-end gap-2 mt-5' });
+        const btnCancel = $('<button>', {
+            type: 'button', text: o.cancelLabel,
+            class: 'rounded-lg text-sm font-medium px-4 py-2 ' + C.cancel
+        });
+        const btnOk = $('<button>', {
+            type: 'button', text: o.okLabel,
+            class: 'rounded-lg text-sm font-medium px-4 py-2 ' + okCls
+        });
+        btnCancel.on('click', close);
+        btnOk.on('click', () => o.onOk());
+        footer.append(btnCancel, btnOk);
+
+        panel.append(header, body, footer);
+        themeWrap.append(panel);
+        overlay.append(themeWrap);
+
+        overlay.on('mousedown', (e) => { if (e.target === overlay[0] && o.backdropClose) close(); });
+        const onKey = (e) => { if (e.key === 'Escape') close(); };
+
+        $('body').append(overlay);
+        document.body.style.overflow = 'hidden';
+        $(document).on('keydown.cfmodal', onKey);
+
+        requestAnimationFrame(() => {
+            overlay.removeClass('opacity-0').addClass('opacity-100');
+            panel.removeClass('opacity-0 -translate-y-3').addClass('opacity-100 translate-y-0');
+        });
+
+        return { el: overlay, body: body, footer: footer, close };
+    }
+
+    createCoffeeModalForm(options) {
+        const self = this;
+        const idFormulario = options.id || 'frmModal';
+        const parentId = `${idFormulario}-host`;
+
+        const defaults = {
+            id: idFormulario,
+            autofill: false,
+            theme: 'light',
+            card: false,
+            prefijo: '',
+            showRequired: true,
+            coffeeModal: true, // true -> modal propio CoffeeSoft (cfModal); false -> bootbox.
+            bootbox: {
+                title: 'Modal example',
+                closeButton: true,
+            },
+            json: [],
+            data: { opc: 'sendForm' }
+        };
+
+        const conf = this.ObjectMerge(defaults, options);
+        const bb   = conf.bootbox || {};
+
+        // coffeeModal:true (default) -> modal propio CoffeeSoft. false (en options o dentro
+        // de bootbox) -> contenedor bootbox clasico. coffeeForm va dentro en ambos casos.
+        const useCoffee = conf.coffeeModal !== false && bb.coffeeModal !== false;
+
+        const host = $('<div>', { id: parentId });
+        let modal, closeModal;
+
+        if (useCoffee) {
+            modal = self.cfModal({
+                title: bb.title || '',
+                size: bb.size || 'default',
+                theme: conf.theme,
+                closeButton: bb.closeButton !== false,
+                onOk: () => { if (self.cfModalForm) self.cfModalForm.trigger('submit'); }
+            });
+            modal.body.append(host);
+            closeModal = () => modal.close();
+        } else {
+            modal = bootbox.dialog({
+                title: bb.title || 'Modal',
+                size: bb.size,
+                closeButton: bb.closeButton !== false,
+                message: host,
+                buttons: {
+                    cancel: {
+                        label: 'Cancelar',
+                        className: 'btn rounded-md text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200',
+                        callback: () => true
+                    },
+                    ok: {
+                        label: 'Aceptar',
+                        className: 'btn rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-800',
+                        callback: () => {
+                            if (self.cfModalForm) self.cfModalForm.trigger('submit');
+                            return false;
+                        }
+                    }
+                }
+            });
+            closeModal = () => modal.modal('hide');
+        }
+
+        self.cfModalForm = self.coffeeForm({
+            parent: parentId,
+            id: conf.id,
+            Element: 'form',
+            json: conf.json,
+            theme: conf.theme,
+            card: conf.card,
+            prefijo: conf.prefijo,
+            autofill: conf.autofill,
+            showRequired: conf.showRequired,
+            data: conf.data,
+            onSave: (formData) => {
+                const dyn = {};
+                if (conf.dynamicValues) {
+                    Object.keys(conf.dynamicValues).forEach(k => {
+                        dyn[k] = $(conf.dynamicValues[k]).val();
+                    });
+                }
+                useFetch({
+                    url: self._link,
+                    data: Object.assign({}, formData, dyn),
+                    success: (req) => {
+                        if (conf.success) conf.success(req);
+                        closeModal();
+                    }
+                });
+            }
+        });
+
+        return modal;
+    }
+
 
     createModal(options) {
 

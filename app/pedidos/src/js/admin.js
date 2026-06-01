@@ -316,6 +316,40 @@ class App extends Templates {
         });
     }
 
+    async previewProducto(id) {
+        const request = await useFetch({
+            url: this._link,
+            data: { opc: "getProducto", id: id },
+        });
+
+        const p = request.data || {};
+        const money = (v) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(parseFloat(v) || 0);
+        const catName = (Array.isArray(cat) ? (cat.find(c => c.id == p.category_id) || {}).classification : "") || "Sin categoria";
+
+        // La app puede correr bajo /huubie/, por eso la URL usa la base del proyecto y no la raiz del dominio.
+        const src = p.image ? `https://huubie.com.mx/${String(p.image).replace(/^\/+/, "")}` : "";
+        const img = src
+            ? `<img src="${encodeURI(src)}" alt="Producto" class="w-40 h-40 rounded-lg object-cover bg-gray-700 mx-auto" />`
+            : `<div class="w-40 h-40 bg-[#1F2A37] rounded-lg flex items-center justify-center mx-auto"><i class="icon-birthday text-gray-500 text-4xl"></i></div>`;
+
+        bootbox.dialog({
+            closeButton: true,
+            title: `<div class="flex items-center gap-2 text-white text-lg font-semibold"><i class="icon-eye text-green-400"></i> Vista previa del producto</div>`,
+            message: `
+                <div class="p-2">
+                    ${img}
+                    <h3 class="text-xl font-bold text-white text-center mt-4">${p.name || p.valor || "Sin nombre"}</h3>
+                    <p class="text-2xl font-bold text-green-400 text-center mt-1">${money(p.price)}</p>
+                    <div class="mt-4 bg-[#1E293B] rounded-lg p-4 grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-gray-400 block">Categoria</span><span class="text-white">${catName}</span></div>
+                        <div><span class="text-gray-400 block">Estado</span><span class="text-white">${p.active == 1 ? "Activo" : "Inactivo"}</span></div>
+                        <div class="col-span-2"><span class="text-gray-400 block">Descripcion</span><span class="text-white">${p.description || "Sin descripcion"}</span></div>
+                    </div>
+                </div>
+            `
+        });
+    }
+
     async editProducto(id) {
         const request = await useFetch({
             url: this._link,

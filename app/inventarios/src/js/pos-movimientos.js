@@ -26,12 +26,20 @@ class App extends Templates {
     }
 
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:this._link, data:{ opc:'init' } })
-        this.dataInit = {
-            subsidiaries_id: '',
-            sucursales:  SAMPLE_MOVIMIENTOS_SUCURSALES,
-            tipos:       SAMPLE_MOVIMIENTOS_TIPOS
-        };
+        const r = await fn_ajax({ opc: 'init' }, api).catch(() => null);
+        if (r && r.status === 200) {
+            this.dataInit = {
+                subsidiaries_id: r.subsidiaries_id || '',
+                sucursales:      r.sucursales      || SAMPLE_MOVIMIENTOS_SUCURSALES,
+                tipos:           SAMPLE_MOVIMIENTOS_TIPOS
+            };
+        } else {
+            this.dataInit = {
+                subsidiaries_id: '',
+                sucursales:      SAMPLE_MOVIMIENTOS_SUCURSALES,
+                tipos:           SAMPLE_MOVIMIENTOS_TIPOS
+            };
+        }
         this.subId      = this.dataInit.subsidiaries_id;
         subsidiaries_id = this.subId;
 
@@ -107,7 +115,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'mt-16 h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
+                class:     'h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
                 container: [mainPanel, detailPanel]
             }
         });
@@ -264,24 +272,17 @@ class Movimientos extends Templates {
 
     // -- Data --
 
-    lsMovimientos() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'lsMovimientos' }, app.getFilters()) })
+    async lsMovimientos() {
         const f = app.getFilters();
-        const filteredRows = (SAMPLE_MOVIMIENTOS_TABLE.row || []).filter(r => {
-            const m = SAMPLE_MOVIMIENTOS_DB[r.id];
-            if (!m) return true;
-            const suc = !f.subsidiaries_id || m.sucursalId === f.subsidiaries_id;
-            const tip = !f.tipo            || m.tipo       === f.tipo;
-            const q   = !f.q || (m.id + ' ' + m.producto + ' ' + (m.referencia || ''))
-                                    .toLowerCase()
-                                    .includes(f.q.toLowerCase());
-            const ts  = new Date(m.fechaIso).getTime();
-            const ini = f.fechaIni ? new Date(f.fechaIni).getTime() : -Infinity;
-            const fin = f.fechaFin ? (new Date(f.fechaFin).getTime() + 86400000) : Infinity;
-            return suc && tip && q && ts >= ini && ts <= fin;
-        });
+        const r = await fn_ajax(Object.assign({ opc: 'lsMovimientos' }, {
+            subsidiaries_id: f.subsidiaries_id,
+            movement_type:   f.tipo,
+            fi:              f.fechaIni,
+            ff:              f.fechaFin,
+            q:               f.q
+        }), api).catch(() => null);
 
-        const data = { row: filteredRows };
+        const data = (r && r.status === 200) ? { row: r.row } : { row: [] };
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
@@ -301,45 +302,32 @@ class Movimientos extends Templates {
 
         if (window.lucide) lucide.createIcons();
 
-        const total = filteredRows.length;
+        const total = (data.row || []).length;
         app.updateFooterInfo(`Mostrando ${total} movimiento${total !== 1 ? 's' : ''}`);
     }
 
     async lsKpis() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'showMovimientos' }, app.getFilters()) })
         const f = app.getFilters();
-        const visible = Object.values(SAMPLE_MOVIMIENTOS_DB).filter(m => {
-            const suc = !f.subsidiaries_id || m.sucursalId === f.subsidiaries_id;
-            const tip = !f.tipo            || m.tipo       === f.tipo;
-            const q   = !f.q || (m.id + ' ' + m.producto + ' ' + (m.referencia || ''))
-                                    .toLowerCase()
-                                    .includes(f.q.toLowerCase());
-            const ts  = new Date(m.fechaIso).getTime();
-            const ini = f.fechaIni ? new Date(f.fechaIni).getTime() : -Infinity;
-            const fin = f.fechaFin ? (new Date(f.fechaFin).getTime() + 86400000) : Infinity;
-            return suc && tip && q && ts >= ini && ts <= fin;
-        });
+        const r = await fn_ajax({
+            opc:             'showMovimientos',
+            subsidiaries_id: f.subsidiaries_id,
+            fi:              f.fechaIni,
+            ff:              f.fechaFin
+        }, api).catch(() => null);
 
-        const counts = {
-            total:    visible.length,
-            entradas: visible.filter(m => m.tipo === 'ENTRADA' || m.tipo === 'DEVOLUCION').length,
-            salidas:  visible.filter(m => m.tipo === 'SALIDA POS' || m.tipo === 'SALIDA PED').length,
-            merma:    visible.filter(m => m.tipo === 'MERMA').length,
-            transf:   visible.filter(m => m.tipo === 'TRANSFERENCIA').length
-        };
+        const c = (r && r.status === 200) ? r.counts : {};
 
         const kpis = [
-            { id: 'kpiTotal',    label: 'Total Movs', value: counts.total,    tone: 'default' },
-            { id: 'kpiEntradas', label: 'Entradas',   value: counts.entradas, tone: 'success' },
-            { id: 'kpiSalidas',  label: 'Salidas',    value: counts.salidas,  tone: 'danger'  },
-            { id: 'kpiMerma',    label: 'Merma',      value: counts.merma,    tone: 'warning' },
-            { id: 'kpiTransf',   label: 'Transf.',    value: counts.transf,   tone: 'info'    }
+            { id: 'kpiTotal',    label: 'Total Movs', value: parseInt(c.total           || 0, 10), tone: 'default' },
+            { id: 'kpiEntradas', label: 'Entradas',   value: parseInt(c.total_entradas  || 0, 10), tone: 'success' },
+            { id: 'kpiSalidas',  label: 'Mermas',     value: parseInt(c.total_mermas    || 0, 10), tone: 'danger'  },
+            { id: 'kpiTransf',   label: 'Transf.',    value: parseInt(c.total_traspasos || 0, 10), tone: 'info'    },
+            { id: 'kpiAjustes',  label: 'Ajustes',    value: parseInt(c.total_ajustes   || 0, 10), tone: 'warning' }
         ];
         movimientosView.renderInfoCards(kpis);
     }
 
     async getMovimiento(id) {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:{ opc:'getMovimiento', id } })
         movimientosView.renderDetail(SAMPLE_MOVIMIENTOS_DB[id] || null);
     }
 

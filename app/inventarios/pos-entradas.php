@@ -10,17 +10,23 @@
 
     <?php require_once(__DIR__ . '/../layout/head.php'); ?>
     <?php require_once(__DIR__ . '/../layout/core-libraries.php'); ?>
+
+    <!-- El scroll vive dentro de #mainContainer (body overflow-hidden), por lo que el
+         gutter global de head.php solo dejaria una franja muerta junto al navbar. -->
+    <style>
+        html { scrollbar-gutter: auto; }
+    </style>
 </head>
 
-<body class="bg-[#111928] text-white" data-bs-theme="dark">
+<body class="bg-[#111928] text-white h-screen flex flex-col overflow-hidden" data-bs-theme="dark">
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
 
-    <div id="mainContainer" class="w-full h-full transition-all duration-500 bg-[#111928] text-white mt-16">
-        <div class="bg-[#111928]" id="root"></div>
+    <div id="mainContainer" class="flex-1 w-full transition-all duration-500 bg-[#111928] text-white overflow-hidden flex flex-col min-h-0">
+        <div class="bg-[#111928] flex-1 flex flex-col min-h-0" id="root"></div>
     </div>
 
-    <script src="/app/inventarios/src/js/sample_entradas.js?t=<?php echo time(); ?>"></script>
+    <script src="/app/inventarios/src/js/components/entrada-form.js?t=<?php echo time(); ?>"></script>
     <script src="/app/inventarios/src/js/pos-entradas.js?t=<?php echo time(); ?>"></script>
 </body>
 

@@ -45,36 +45,43 @@ class MenuHub extends Templates {
     buildCards() {
         return [
             {
-                titulo:      'Stock',
-                descripcion: 'Consulta existencias actuales por sucursal y categoria.',
-                icon:        'boxes',
-                enlace:      '/app/inventarios/pos-stock.php',
+                titulo: 'Administrador',
+                descripcion: 'Catalogo de productos, categorias, almacenes, areas, unidades y proveedores.',
+                icon: 'settings-2',
+                enlace: '/app/inventarios/admin-productos.php',
             },
             {
-                titulo: 'Traspasos',
-                descripcion: 'Envia y recibe mercancia entre sucursales.',
-                icon: 'truck',
-                enlace: '/app/inventarios/pos-traspasos.php',
-            },
-            {
-                titulo:      'Entradas',
+                titulo: 'Entradas',
                 descripcion: 'Registra y revisa entradas de mercancia al inventario.',
-                icon:        'package-plus',
-                enlace:      '/app/inventarios/pos-entradas.php',
+                icon: 'package-plus',
+                enlace: '/app/inventarios/pos-entradas.php',
             },
-            {
-                titulo:      'Movimientos',
-                descripcion: 'Historial de movimientos internos y ajustes de stock.',
-                icon:        'arrow-left-right',
-                enlace:      '/app/inventarios/pos-movimientos.php',
-            },
-            {
-                titulo:      'Mermas',
-                descripcion: 'Captura y monitorea perdidas, caducidades y daños.',
-                icon:        'trash-2',
-                enlace:      '/app/inventarios/pos-mermas.php',
-            },
-            
+            // {
+            //     titulo:      'Stock',
+            //     descripcion: 'Consulta existencias actuales por sucursal y categoria.',
+            //     icon:        'boxes',
+            //     enlace:      '/app/inventarios/pos-stock.php',
+            // },
+            // {
+            //     titulo: 'Traspasos',
+            //     descripcion: 'Envia y recibe mercancia entre sucursales.',
+            //     icon: 'truck',
+            //     enlace: '/app/inventarios/pos-traspasos.php',
+            // },
+           
+            // {
+            //     titulo:      'Movimientos',
+            //     descripcion: 'Historial de movimientos internos y ajustes de stock.',
+            //     icon:        'arrow-left-right',
+            //     enlace:      '/app/inventarios/pos-movimientos.php',
+            // },
+            // {
+            //     titulo:      'Mermas',
+            //     descripcion: 'Captura y monitorea perdidas, caducidades y daños.',
+            //     icon:        'trash-2',
+            //     enlace:      '/app/inventarios/pos-mermas.php',
+            // },
+          
         ];
     }
 }

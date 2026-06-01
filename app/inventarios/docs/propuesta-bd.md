@@ -587,7 +587,7 @@ USE `fayxzvov_reginas`;
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
 │  ── Status ──                                                        │
-│  status                 ENUM           Pendiente|Aplicada|Revertida  │
+│  status                 ENUM           Pendiente|Aplicada|Cancelada  │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
 │  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │

@@ -986,6 +986,82 @@ class Components extends Complements {
 
     }
 
+    createCoffeeModalForm(options) {
+        const self = this;
+        const idFormulario = options.id || 'frmModal';
+        const parentId = `${idFormulario}-host`;
+
+        const defaults = {
+            id: idFormulario,
+            autofill: false,
+            theme: 'light',
+            card: false,
+            prefijo: '',
+            showRequired: true,
+            bootbox: {
+                title: 'Modal example',
+                closeButton: true,
+            },
+            json: [],
+            data: { opc: 'sendForm' }
+        };
+
+        const conf = this.ObjectMerge(defaults, options);
+
+        const host = $('<div>', { id: parentId });
+
+        const modal = bootbox.dialog({
+            ...conf.bootbox,
+            message: host,
+            buttons: {
+                cancel: {
+                    label: 'Cancelar',
+                    className: 'btn rounded-md text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200',
+                    callback: () => true
+                },
+                ok: {
+                    label: 'Aceptar',
+                    className: 'btn rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-800',
+                    callback: () => {
+                        if (self.cfModalForm) self.cfModalForm.trigger('submit');
+                        return false;
+                    }
+                }
+            }
+        });
+
+        self.cfModalForm = self.coffeeForm({
+            parent: parentId,
+            id: conf.id,
+            Element: 'form',
+            json: conf.json,
+            theme: conf.theme,
+            card: conf.card,
+            prefijo: conf.prefijo,
+            autofill: conf.autofill,
+            showRequired: conf.showRequired,
+            data: conf.data,
+            onSave: (formData) => {
+                const dyn = {};
+                if (conf.dynamicValues) {
+                    Object.keys(conf.dynamicValues).forEach(k => {
+                        dyn[k] = $(conf.dynamicValues[k]).val();
+                    });
+                }
+                useFetch({
+                    url: self._link,
+                    data: Object.assign({}, formData, dyn),
+                    success: (req) => {
+                        if (conf.success) conf.success(req);
+                        modal.modal('hide');
+                    }
+                });
+            }
+        });
+
+        return modal;
+    }
+
     createModal(options) {
 
         let components = $('<div>');

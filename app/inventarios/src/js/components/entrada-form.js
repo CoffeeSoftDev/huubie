@@ -1,0 +1,859 @@
+// entradaForm — Modal de captura de entrada de stock.
+// Contrato: { parent, id, class, json:[], data:{origenes,sucursales,fecha,subsidiaries_id,nota},
+//             labels:{}, onAdd(payload), onClose(), onSearch(term,cb) }
+// API publica: instancia con { open(), close(), setData(newData) }
+// Registro: Templates.prototype.entradaForm — disponible en cualquier clase que extienda Templates.
+
+
+class EntradaForm {
+
+    // Inicializa estado, fusiona opciones con defaults, monta el DOM y enchufa eventos.
+    constructor(options) {
+
+        this.FORMATOS_KEY = 'huubie_entradaFormatos';
+
+        this.cls = {
+            label:   'block text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1',
+            input:   'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all placeholder:text-gray-600',
+            select:  'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all cursor-pointer appearance-none pr-8',
+            search:  'w-full pl-8 pr-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all placeholder:text-gray-600',
+            qtyInp:  'no-spin w-full px-3 py-1.5 text-[11px] font-bold text-center text-white bg-[#0f1825] border border-gray-700/60 rounded outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 transition-all',
+            cashInp: 'no-spin w-full pl-6 pr-2.5 py-1.5 text-[11px] text-right text-white bg-[#0f1825] border border-gray-700/60 rounded outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 transition-all',
+            btnOut:  'px-3 py-1.5 text-[11px] font-medium text-gray-300 bg-transparent border border-gray-700/60 rounded-md hover:bg-gray-700/30 hover:text-white hover:border-gray-600 transition-all',
+            btnOk:   'px-3 py-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-emerald-600 to-green-600 border border-emerald-500/40 rounded-md hover:from-emerald-500 hover:to-green-500 hover:shadow-lg hover:shadow-emerald-500/20 transition-all flex items-center gap-1.5',
+            btnIco:  'px-2.5 py-1.5 text-[10px] font-medium text-gray-300 bg-[#0f1825] border border-gray-700/60 rounded-md hover:bg-purple-500/10 hover:text-white hover:border-purple-500/40 transition-all flex items-center gap-1.5',
+            badge:   'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold leading-none'
+        };
+
+        const defaults = {
+            parent: 'body',
+            id:     'entradaFormModal',
+            class:  'hidden fixed inset-0 z-[100] flex items-center justify-center',
+            json:   [],
+            data: {
+                origenes:        [],
+                sucursales:      [],
+                almacenes:       [],
+                fecha:           '',
+                subsidiaries_id: '',
+                warehouse_id:    '',
+                nota:            ''
+            },
+            labels: {
+                title:        'Nueva Entrada de Stock',
+                subtitle:     'Layout Compacto',
+                origen:       'Origen',
+                sucursal:     'Sucursal destino',
+                almacen:      'Almacen',
+                fecha:        'Fecha',
+                nota:         'Nota (opcional)',
+                buscar:       'Buscar productos',
+                placeholder:  'Nombre o SKU...',
+                searchHint:   'Sin resultados',
+                resumenLbl:   'Resumen del lote',
+                productosLbl: 'Productos',
+                unidadesLbl:  'Unidades',
+                costoTotLbl:  'Costo total',
+                emptyTitle:   'Aun no has agregado productos',
+                emptyHint:    'Usa el buscador para empezar',
+                limpiar:      'Limpiar',
+                cancelar:     'Cancelar',
+                registrar:    'Registrar Entrada',
+                stockAuto:    'El stock se actualizara automaticamente',
+                guardar:      'Guardar formato',
+                cargar:       'Cargar formato',
+                formatosTit:  'Formatos guardados',
+                sinFormatos:  'No hay formatos guardados',
+                promptName:   'Nombre del formato:',
+                confirmDel:   'Eliminar este formato?',
+                savedOk:      'Formato guardado',
+                emptyLote:    'Agrega productos al lote antes de guardar',
+                modalTit:     'Guardar formato',
+                nombreLbl:    'Nombre del formato',
+                scopeLbl:     'Quien puede verlo',
+                scopeUser:    'Solo yo',
+                scopeSub:     'Mi sucursal',
+                scopeCompany: 'Toda la empresa',
+                btnGuardar:   'Guardar'
+            },
+            onAdd:    () => {},
+            onClose:  () => {},
+            onSearch: null,
+            onUpdate: () => {}
+        };
+
+        const o = options || {};
+        this.opts        = Object.assign({}, defaults, o);
+        this.opts.data   = Object.assign({}, defaults.data,   o.data   || {});
+        this.opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+
+        this.lote       = [];
+        this.searchTerm = '';
+
+        this.ensureStyles();
+        this.mount();
+        this.bindEvents();
+        this.renderLote();
+        this.renderFormatosBadge();
+    }
+
+    // Plantillas HTML — bloques estaticos del modal (header, footer, filas, etc.)
+
+    renderHeader() {
+        const o = this.opts;
+        return `
+            <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-700/60 bg-[#141d2b] flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                        <i data-lucide="package-plus" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">${this.esc(o.labels.title)}</h3>
+                        <p class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
+                    </div>
+                </div>
+                <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close>
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>`;
+    }
+
+    renderConfigRow() {
+        const o   = this.opts;
+        const cls = this.cls;
+        const almacenesVisibles = (o.data.almacenes || []).filter(a =>
+            !o.data.subsidiaries_id || String(a.subsidiaries_id) === String(o.data.subsidiaries_id)
+        );
+        return `
+            <div class="px-5 pt-3 pb-3 border-b border-gray-800/70 bg-[#0f1825]/40">
+                <div class="grid grid-cols-4 gap-3 items-end">
+                    <div>
+                        <label class="${cls.label}">${this.esc(o.labels.origen)}</label>
+                        ${this.selectWrap(`
+                            <select id="${o.id}_selOrigen" class="${cls.select}">
+                                ${(o.data.origenes || []).map(it => this.optionTag(it)).join('')}
+                            </select>
+                        `)}
+                    </div>
+                    <div>
+                        <label class="${cls.label}">${this.esc(o.labels.sucursal)}</label>
+                        ${this.selectWrap(`
+                            <select id="${o.id}_selSucursal" class="${cls.select}">
+                                ${(o.data.sucursales || []).map(it => this.optionTag(it, o.data.subsidiaries_id)).join('')}
+                            </select>
+                        `)}
+                    </div>
+                    <div>
+                        <label class="${cls.label}">${this.esc(o.labels.almacen)}</label>
+                        ${this.selectWrap(`
+                            <select id="${o.id}_selAlmacen" class="${cls.select}">
+                                ${almacenesVisibles.map(it => this.optionTag(it, o.data.warehouse_id)).join('')}
+                            </select>
+                        `)}
+                    </div>
+                    <div>
+                        <label class="${cls.label}">${this.esc(o.labels.fecha)}</label>
+                        <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" class="${cls.input}">
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    renderSearchPanel() {
+        const o   = this.opts;
+        const cls = this.cls;
+        return `
+            <div class="flex-shrink-0">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">${this.esc(o.labels.buscar)}</p>
+                <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <input id="${o.id}_buscarProducto" type="text" placeholder="${this.esc(o.labels.placeholder)}" class="${cls.search}" autocomplete="off">
+                </div>
+            </div>
+            <div id="${o.id}_catalogoLista" class="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1 -mr-1 cs-scroll bg-[#0f172a]/40 border border-gray-800/60 rounded-lg p-1.5"></div>`;
+    }
+
+    renderResumen() {
+        const o = this.opts;
+        return `
+            <div class="flex-shrink-0 border-t border-gray-800/70 px-4 py-2.5 bg-[#0f1825]/50 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4 text-[10px]">
+                    <span class="text-gray-500"><strong class="text-white text-[13px]" id="${o.id}_qtyItems">0</strong> prod.</span>
+                    <span class="text-gray-500"><strong class="text-white text-[13px]" id="${o.id}_qtyUnits">0</strong> uds</span>
+                </div>
+                <div class="flex items-baseline gap-2.5">
+                    <span class="text-[9px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.costoTotLbl)}</span>
+                    <span class="text-green-400 font-bold text-[16px] leading-none" id="${o.id}_qtyCost">$0.00</span>
+                </div>
+            </div>`;
+    }
+
+    renderLoteHeader() {
+        const o   = this.opts;
+        const cls = this.cls;
+        return `
+            <div class="px-4 py-2.5 border-b border-gray-800/70 flex items-center justify-between flex-shrink-0 bg-gradient-to-b from-[#0f1825]/60 to-transparent">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-md bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
+                        <i data-lucide="boxes" class="w-3.5 h-3.5 text-purple-400"></i>
+                    </div>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-300">${this.esc(o.labels.productosLbl)}</p>
+                    <span id="${o.id}_cntProductos" class="${cls.badge} bg-gradient-to-br from-purple-500/25 to-fuchsia-500/15 text-purple-300 border border-purple-500/40">0</span>
+                </div>
+                <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-400 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-500/10">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
+                </button>
+            </div>`;
+    }
+
+    renderFooter() {
+        const o   = this.opts;
+        const cls = this.cls;
+        return `
+            <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-700/60 bg-[#141d2b] flex-shrink-0">
+                <div class="flex items-center gap-2 relative flex-shrink-0">
+                    <button id="${o.id}_btnSaveFormato" class="${cls.btnIco}" title="${this.esc(o.labels.guardar)}">
+                        <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.guardar)}</span>
+                    </button>
+                    <button id="${o.id}_btnLoadFormato" class="${cls.btnIco}" title="${this.esc(o.labels.cargar)}">
+                        <i data-lucide="folder-open" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.cargar)}</span>
+                        <span id="${o.id}_cntFormatos" class="${cls.badge} bg-purple-500/20 text-purple-300 border border-purple-500/30 ml-0.5 hidden">0</span>
+                    </button>
+                    <div id="${o.id}_formatosDropdown" class="hidden absolute bottom-full left-0 mb-2 w-[280px] bg-[#0f172a] border border-gray-700/60 rounded-lg shadow-2xl shadow-black/60 overflow-hidden z-20">
+                        <div class="px-3 py-2 border-b border-gray-800/70 bg-[#141d2b]/60 flex items-center justify-between">
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-300 flex items-center gap-1.5">
+                                <i data-lucide="layers" class="w-3 h-3 text-purple-400"></i>${this.esc(o.labels.formatosTit)}
+                            </p>
+                            <button id="${o.id}_btnCloseFormatos" class="text-gray-500 hover:text-white transition-colors">
+                                <i data-lucide="x" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                        <div id="${o.id}_formatosLista" class="max-h-[260px] overflow-y-auto cs-scroll"></div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                    <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-500 flex-shrink-0"></i>
+                    <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
+                </div>
+                <div class="flex gap-2 flex-shrink-0">
+                    <button class="${cls.btnOut}" data-modal-close>${this.esc(o.labels.cancelar)}</button>
+                    <button id="${o.id}_btnRegistrar" class="${cls.btnOk}">
+                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
+                    </button>
+                </div>
+            </div>`;
+    }
+
+    renderEmptyState() {
+        const o = this.opts;
+        return `
+            <div class="flex flex-col items-center justify-center py-12 text-center">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/25 flex items-center justify-center mb-3">
+                    <i data-lucide="package-plus" class="w-8 h-8 text-purple-400/70"></i>
+                </div>
+                <p class="text-xs font-semibold text-gray-200">${this.esc(o.labels.emptyTitle)}</p>
+                <p class="text-[10px] text-gray-500 mt-1">${this.esc(o.labels.emptyHint)}</p>
+            </div>`;
+    }
+
+    renderProductRow(p, i) {
+        const cls         = this.cls;
+        const cant        = Number(p.cantidad || 0);
+        const costoNum    = Number(p.costo || 0);
+        const costoFmt    = costoNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const subtotal    = (cant * costoNum).toFixed(2);
+        const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const nuevoStock  = Number(p.stock || 0) + cant;
+        const stockColor  = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
+        return `
+            <tr class="border-b border-gray-800/40 last:border-b-0 hover:bg-purple-500/5 transition-colors" data-idx="${i}">
+                <td class="px-3 py-2 align-middle">
+                    <div class="flex items-center gap-2 min-w-0">
+                        ${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-semibold text-white truncate leading-tight">${this.esc(p.nombre)}</p>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <span class="text-[9px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
+                                <span class="text-gray-700">.</span>
+                                <span class="text-[9px] text-gray-400">Stock <strong class="${stockColor}">${p.stock || 0}</strong> <span class="text-gray-600">&rarr;</span> <strong class="text-green-400" data-nuevo-stock>${nuevoStock}</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-2 py-2 align-middle w-24">
+                    <input type="number" min="1" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
+                </td>
+                <td class="px-2 py-2 align-middle w-28">
+                    <div class="relative" title="Costo del producto (no editable)">
+                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center">
+                            <i data-lucide="dollar-sign" class="w-3 h-3"></i>
+                        </span>
+                        <div class="w-full pl-6 pr-6 py-1.5 text-[11px] text-right text-gray-300 bg-[#0f1825]/50 border border-gray-800/50 rounded select-none cursor-not-allowed">${costoFmt}</div>
+                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none flex items-center">
+                            <i data-lucide="lock" class="w-2.5 h-2.5"></i>
+                        </span>
+                    </div>
+                </td>
+                <td class="px-2 py-2 align-middle text-right w-24">
+                    <span class="text-green-400 font-bold text-[12px]" data-subtotal>$${subtotalFmt}</span>
+                </td>
+                <td class="px-2 py-2 align-middle text-center w-10">
+                    <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/15 transition-colors" data-remove="${i}" title="Eliminar">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                </td>
+            </tr>`;
+    }
+
+    renderProductsTable() {
+        return `
+            <table class="w-full border-collapse">
+                <thead class="sticky top-0 z-10 bg-[#0f1825] border-b border-gray-700/60">
+                    <tr>
+                        <th class="text-left px-3 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
+                        <th class="text-center px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Cant.</th>
+                        <th class="text-left px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo</th>
+                        <th class="text-right px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Subtotal</th>
+                        <th class="w-10 px-2 py-2"></th>
+                    </tr>
+                </thead>
+                <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}</tbody>
+            </table>`;
+    }
+
+    renderSearchResult(p) {
+        const stockColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
+        const stockBg    = p.stock === 0 ? 'bg-red-500/10' : p.stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
+        return `
+            <div class="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent border-b border-gray-800/40 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}">
+                ${this.prodThumb(p, 'w-9 h-9', 'w-4 h-4')}
+                <div class="flex-1 min-w-0">
+                    <p class="text-[11px] font-semibold text-white truncate">${this.esc(p.nombre)}</p>
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                        <span class="text-[9px] px-1.5 py-0.5 rounded ${stockBg} ${stockColor} font-bold">Stock ${p.stock || 0}</span>
+                        <span class="text-[9px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
+                    </div>
+                </div>
+                <div class="w-7 h-7 rounded-lg bg-purple-600/15 border border-purple-500/30 flex items-center justify-center text-purple-400 flex-shrink-0 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-500 transition-all">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                </div>
+            </div>`;
+    }
+
+    // Inyecta (una sola vez) el CSS que oculta los spinners de los inputs numericos.
+    ensureStyles() {
+        if (document.getElementById('entradaFormStyles')) return;
+        const css = `
+            input.no-spin::-webkit-inner-spin-button,
+            input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none !important; appearance: none !important; margin: 0 !important; }
+            input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }`;
+        const style = document.createElement('style');
+        style.id = 'entradaFormStyles';
+        style.textContent = css;
+        document.head.appendChild(style);
+    }
+
+    // Inserta el modal en el DOM una sola vez (al instanciar la clase).
+
+    mount() {
+        const o = this.opts;
+        this.wrap = $('<div>', { id: o.id, class: o.class });
+        this.wrap.html(`
+            <div class="absolute inset-0 bg-black/60" data-modal-close></div>
+            <div class="relative z-10 w-full max-w-[960px] max-h-[90vh] mx-3 bg-[#111928] border border-gray-700/60 rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col">
+                ${this.renderHeader()}
+                <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
+                    ${this.renderConfigRow()}
+                    <div class="flex flex-1 min-h-0">
+                        <div class="w-[300px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
+                            ${this.renderSearchPanel()}
+                        </div>
+                        <div class="flex-1 flex flex-col min-w-0 min-h-0">
+                            ${this.renderLoteHeader()}
+                            <div id="${o.id}_listaProductos" class="flex-1 overflow-y-auto cs-scroll px-3 py-3"></div>
+                            ${this.renderResumen()}
+                        </div>
+                    </div>
+                </div>
+                ${this.renderFooter()}
+            </div>
+        `);
+
+        const $target = o.parent === 'body' || !$(`#${o.parent}`).length ? $('body') : $(`#${o.parent}`);
+        $(`#${o.id}`).remove();
+        $target.append(this.wrap);
+    }
+
+    // Render dinamico — se redibuja en cada cambio de estado (lote, busqueda).
+
+    updateTotals() {
+        const o = this.opts;
+        const totalItems = this.lote.length;
+        const totalUds   = this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
+        const totalCosto = this.lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
+        $(`#${o.id}_qtyItems`).text(totalItems);
+        $(`#${o.id}_qtyUnits`).text(totalUds);
+        $(`#${o.id}_qtyCost`).text(this.fmtMoney(totalCosto));
+        $(`#${o.id}_cntProductos`).text(totalItems);
+    }
+
+    renderCatalogo() {
+        const o    = this.opts;
+        const $cat = $(`#${o.id}_catalogoLista`);
+        const term = (this.searchTerm || '').toLowerCase();
+        const items = (o.json || [])
+            .filter(p => !this.lote.some(x => x.id === p.id))
+            .filter(p => !term || (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
+
+        if (!items.length) {
+            $cat.html(`
+                <div class="flex flex-col items-center justify-center py-8 text-center px-2">
+                    <div class="w-10 h-10 rounded-lg bg-gray-800/40 border border-gray-700/50 flex items-center justify-center mb-2">
+                        <i data-lucide="search-x" class="w-5 h-5 text-gray-600"></i>
+                    </div>
+                    <p class="text-[10px] text-gray-500">${term ? this.esc(o.labels.searchHint) : 'Sin productos disponibles'}</p>
+                </div>`);
+        } else {
+            $cat.html(items.map(p => this.renderSearchResult(p)).join(''));
+        }
+        if (window.lucide) lucide.createIcons();
+    }
+
+    renderLote() {
+        const o = this.opts;
+        const $lista   = $(`#${o.id}_listaProductos`);
+        const $limpiar = $(`#${o.id}_btnLimpiarLote`);
+        if (!this.lote.length) {
+            $lista.html(this.renderEmptyState()).removeClass('p-0').addClass('px-3 py-3');
+            $limpiar.addClass('hidden');
+        } else {
+            $lista.html(this.renderProductsTable()).removeClass('px-3 py-3').addClass('p-0');
+            $limpiar.removeClass('hidden');
+        }
+        this.updateTotals();
+        this.renderCatalogo();
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Acciones del usuario sobre el lote — mutan estado y disparan re-render.
+
+    doSearch(q) {
+        this.searchTerm = (q || '').trim();
+        if (typeof this.opts.onSearch === 'function') {
+            this.opts.onSearch(this.searchTerm, (matches) => {
+                this.opts.json = matches || [];
+                this.renderCatalogo();
+            });
+        } else {
+            this.renderCatalogo();
+        }
+    }
+
+    addProducto(id) {
+        const prod = (this.opts.json || []).find(p => String(p.id) === String(id));
+        if (!prod) return;
+        this.lote.push(Object.assign({}, prod, { cantidad: 1 }));
+        this.searchTerm = '';
+        $(`#${this.opts.id}_buscarProducto`).val('').focus();
+        this.renderLote();
+    }
+
+    removeProducto(i) {
+        this.lote.splice(i, 1);
+        this.renderLote();
+    }
+
+    updateField($el) {
+        const idx   = Number($el.data('idx'));
+        const field = $el.data('field');
+        if (isNaN(idx) || !this.lote[idx] || !field) return;
+        this.lote[idx][field] = $el.val();
+        // Actualizacion in-place: no se re-renderiza la tabla para no perder el foco del input.
+        if (field === 'cantidad' || field === 'costo') {
+            this.refreshRow(idx);
+            this.updateTotals();
+        }
+    }
+
+    // Recalcula subtotal y nuevo stock de una sola fila sin tocar sus inputs (preserva el foco).
+    refreshRow(i) {
+        const o = this.opts;
+        const p = this.lote[i];
+        if (!p) return;
+        const cant        = Number(p.cantidad || 0);
+        const costoNum    = Number(p.costo || 0);
+        const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const nuevoStock  = Number(p.stock || 0) + cant;
+        const $row = $(`#${o.id}_listaProductos tr[data-idx="${i}"]`);
+        $row.find('[data-subtotal]').text('$' + subtotalFmt);
+        $row.find('[data-nuevo-stock]').text(nuevoStock);
+    }
+
+    clearLote() {
+        if (!this.lote.length) return;
+        if (confirm('Eliminar todos los productos del lote?')) {
+            this.lote = [];
+            this.renderLote();
+        }
+    }
+
+    closeModal() {
+        this.wrap.addClass('hidden');
+        this.lote = [];
+        this.renderLote();
+        this.opts.onClose();
+    }
+
+    doRegistrar() {
+        if (!this.lote.length) { alert('Agrega al menos un producto al lote'); return; }
+        const o = this.opts;
+        const warehouseId = $(`#${o.id}_selAlmacen`).val();
+        if (!warehouseId) { alert('Selecciona un almacen'); return; }
+        const payload = {
+            origen:      $(`#${o.id}_selOrigen`).val(),
+            sucursal:    $(`#${o.id}_selSucursal option:selected`).text(),
+            sucursalId:  $(`#${o.id}_selSucursal`).val(),
+            almacen:     $(`#${o.id}_selAlmacen option:selected`).text(),
+            warehouseId: warehouseId,
+            fecha:       $(`#${o.id}_inpFecha`).val(),
+            nota:        $(`#${o.id}_inpNota`).val(),
+            productos:  this.lote.map(p => ({
+                id:     p.id,
+                nombre: p.nombre, sku: p.sku, icon: p.icon, bg: p.bg, color: p.color,
+                cant:   Number(p.cantidad || 0),
+                costo:  Number(p.costo || 0),
+                stockPrev: Number(p.stock || 0)
+            })),
+            totalUds:   this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0),
+            totalCosto: this.lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0)
+        };
+        o.onAdd(payload);
+        this.closeModal();
+    }
+
+    // Formatos preguardados — persistidos en localStorage con su scope (user/subsidiary/company).
+
+    loadFormatos() {
+        try {
+            return JSON.parse(localStorage.getItem(this.FORMATOS_KEY) || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    persistFormatos(arr) {
+        localStorage.setItem(this.FORMATOS_KEY, JSON.stringify(arr));
+    }
+
+    saveFormato() {
+        if (!this.lote.length) { alert(this.opts.labels.emptyLote); return; }
+
+        const o       = this.opts;
+        const modalId = `${o.id}_saveFormatoModal`;
+
+        const scopes = [
+            { value: 'user',       label: 'Solo yo',         icon: 'user',       iconClass: 'text-gray-400'   },
+            { value: 'subsidiary', label: 'Mi sucursal',     icon: 'store',      iconClass: 'text-blue-400'   },
+            { value: 'company',    label: 'Toda la empresa', icon: 'building-2', iconClass: 'text-purple-400' }
+        ];
+        const scopeRadios = scopes.map((s, i) => `
+            <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer border transition-all
+                          ${i === 0 ? 'border-purple-500/50 bg-purple-500/10' : 'border-gray-700/50 bg-gray-800/30 hover:border-gray-600/60 hover:bg-gray-800/50'}
+                          scope-radio-label" data-value="${s.value}">
+                <input type="radio" name="${modalId}_scope" value="${s.value}" class="sr-only"
+                       ${i === 0 ? 'checked' : ''}>
+                <i data-lucide="${s.icon}" class="w-3.5 h-3.5 flex-shrink-0 ${s.iconClass}"></i>
+                <span class="text-[11px] font-medium text-gray-200">${this.esc(s.label)}</span>
+            </label>`).join('');
+
+        const html = `
+            <div id="${modalId}" class="fixed inset-0 z-[120] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" data-sf-backdrop></div>
+                <div class="relative w-full max-w-xs bg-[#0f172a] border border-gray-700/60 rounded-xl shadow-2xl shadow-black/70 overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700/60 bg-[#141d2b]">
+                        <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <i data-lucide="bookmark-plus" class="w-3.5 h-3.5 text-purple-400"></i>
+                            ${this.esc(o.labels.modalTit)}
+                        </p>
+                        <button id="${modalId}_close" class="text-gray-500 hover:text-white transition-colors">
+                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                    <div class="px-4 pt-4 pb-3 flex flex-col gap-3">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                                ${this.esc(o.labels.nombreLbl)}
+                            </label>
+                            <input id="${modalId}_name" type="text" maxlength="80" autocomplete="off"
+                                class="w-full bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2
+                                       text-xs text-white placeholder-gray-500 outline-none
+                                       focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                                placeholder="${this.esc(o.labels.nombreLbl)}...">
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                                ${this.esc(o.labels.scopeLbl)}
+                            </label>
+                            <div class="flex flex-col gap-1.5">
+                                ${scopeRadios}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-700/60 bg-[#141d2b]">
+                        <button id="${modalId}_cancel"
+                            class="px-3 py-1.5 rounded-lg text-[11px] font-medium text-gray-400
+                                   border border-gray-700/50 hover:border-gray-600 hover:text-white transition-all">
+                            ${this.esc(o.labels.cancelar)}
+                        </button>
+                        <button id="${modalId}_confirm"
+                            class="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white
+                                   bg-purple-600 hover:bg-purple-500 border border-purple-500/40
+                                   flex items-center gap-1.5 transition-all">
+                            <i data-lucide="bookmark-check" class="w-3 h-3"></i>
+                            ${this.esc(o.labels.btnGuardar)}
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+
+        $('body').append(html);
+        if (window.lucide) lucide.createIcons();
+        $(`#${modalId}_name`).focus();
+
+        const closeSaveModal = () => $(`#${modalId}`).remove();
+
+        $(`#${modalId}`).on('click', '[data-sf-backdrop]', closeSaveModal);
+        $(`#${modalId}_close`).on('click', closeSaveModal);
+        $(`#${modalId}_cancel`).on('click', closeSaveModal);
+
+        $(`#${modalId}`).on('change', `input[name="${modalId}_scope"]`, function () {
+            $(`#${modalId} .scope-radio-label`).removeClass('border-purple-500/50 bg-purple-500/10')
+                .addClass('border-gray-700/50 bg-gray-800/30');
+            $(this).closest('.scope-radio-label').removeClass('border-gray-700/50 bg-gray-800/30')
+                .addClass('border-purple-500/50 bg-purple-500/10');
+        });
+
+        $(`#${modalId}_confirm`).on('click', () => {
+            const name = $(`#${modalId}_name`).val().trim();
+            if (!name) { $(`#${modalId}_name`).focus(); return; }
+            const scope    = $(`input[name="${modalId}_scope"]:checked`).val() || 'user';
+            const formatos = this.loadFormatos();
+            formatos.unshift({
+                id:        Date.now(),
+                name:      name,
+                scope:     scope,
+                productos: this.lote.map(p => Object.assign({}, p)),
+                createdAt: new Date().toISOString()
+            });
+            this.persistFormatos(formatos);
+            this.renderFormatosBadge();
+            this.renderFormatosLista();
+            closeSaveModal();
+        });
+
+        $(`#${modalId}_name`).on('keydown', (e) => {
+            if (e.key === 'Enter')  $(`#${modalId}_confirm`).trigger('click');
+            if (e.key === 'Escape') closeSaveModal();
+        });
+    }
+
+    applyFormato(id) {
+        const f = this.loadFormatos().find(x => x.id === id);
+        if (!f) return;
+        this.lote = f.productos.map(p => Object.assign({}, p));
+        $(`#${this.opts.id}_formatosDropdown`).addClass('hidden');
+        this.renderLote();
+    }
+
+    deleteFormato(id) {
+        if (!confirm(this.opts.labels.confirmDel)) return;
+        const formatos = this.loadFormatos().filter(x => x.id !== id);
+        this.persistFormatos(formatos);
+        this.renderFormatosBadge();
+        this.renderFormatosLista();
+    }
+
+    renderFormatosBadge() {
+        const count = this.loadFormatos().length;
+        const $b = $(`#${this.opts.id}_cntFormatos`);
+        if (count > 0) $b.text(count).removeClass('hidden');
+        else           $b.addClass('hidden');
+    }
+
+    renderFormatosLista() {
+        const o        = this.opts;
+        const $lista   = $(`#${o.id}_formatosLista`);
+        const formatos = this.loadFormatos();
+        if (!formatos.length) {
+            $lista.html(`
+                <div class="flex flex-col items-center justify-center py-6 px-3 text-center">
+                    <div class="w-10 h-10 rounded-lg bg-gray-800/40 border border-gray-700/50 flex items-center justify-center mb-2">
+                        <i data-lucide="inbox" class="w-5 h-5 text-gray-600"></i>
+                    </div>
+                    <p class="text-[10px] text-gray-500">${this.esc(o.labels.sinFormatos)}</p>
+                </div>`);
+        } else {
+            const scopeMap = {
+                user:       { icon: 'user',       cls: 'text-gray-400'   },
+                subsidiary: { icon: 'store',      cls: 'text-blue-400'   },
+                company:    { icon: 'building-2', cls: 'text-purple-400' }
+            };
+            $lista.html(formatos.map(f => {
+                const uds = (f.productos || []).reduce((s, p) => s + Number(p.cantidad || 0), 0);
+                const tot = (f.productos || []).reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
+                const sc  = scopeMap[f.scope || 'user'] || scopeMap.user;
+                return `
+                    <div class="group flex items-center gap-2 px-3 py-2 border-b border-gray-800/40 last:border-b-0 hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent transition-all cursor-pointer" data-apply-id="${f.id}">
+                        <div class="w-7 h-7 rounded-md bg-purple-500/15 border border-purple-500/30 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="bookmark" class="w-3.5 h-3.5 text-purple-300"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5">
+                                <p class="text-[11px] font-semibold text-white truncate">${this.esc(f.name)}</p>
+                                <i data-lucide="${sc.icon}" class="w-3 h-3 flex-shrink-0 ${sc.cls}"></i>
+                            </div>
+                            <p class="text-[9px] text-gray-500">${f.productos.length} prod. . ${uds} uds . ${this.fmtMoneyShort(tot)}</p>
+                        </div>
+                        <button class="w-6 h-6 rounded-md flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/15 flex-shrink-0 transition-colors" data-delete-id="${f.id}" title="${this.esc(o.labels.confirmDel)}">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        </button>
+                    </div>`;
+            }).join(''));
+        }
+        if (window.lucide) lucide.createIcons();
+    }
+
+    refreshAlmacenes(subsidiariesId) {
+        const o     = this.opts;
+        const $sel  = $(`#${o.id}_selAlmacen`);
+        const items = (o.data.almacenes || []).filter(a =>
+            !subsidiariesId || String(a.subsidiaries_id) === String(subsidiariesId)
+        );
+        $sel.html(items.map(it => this.optionTag(it)).join(''));
+    }
+
+    toggleFormatosDropdown() {
+        const $dd = $(`#${this.opts.id}_formatosDropdown`);
+        if ($dd.hasClass('hidden')) {
+            this.renderFormatosLista();
+            $dd.removeClass('hidden');
+        } else {
+            $dd.addClass('hidden');
+        }
+    }
+
+    // Bindings — todos los listeners delegados al wrapper del modal.
+
+    bindEvents() {
+        const wrap = this.wrap;
+        const id   = this.opts.id;
+
+        wrap.on('click', '[data-modal-close]',        () => this.closeModal());
+        wrap.on('change', `#${id}_selSucursal`,       (e) => this.refreshAlmacenes(e.target.value));
+        wrap.on('input', `#${id}_buscarProducto`,     (e) => this.doSearch(e.target.value));
+        wrap.on('click', '[data-add-id]',             (e) => this.addProducto($(e.currentTarget).attr('data-add-id')));
+        wrap.on('click', '[data-remove]',             (e) => this.removeProducto(Number($(e.currentTarget).attr('data-remove'))));
+        wrap.on('input', 'input[data-field]',         (e) => this.updateField($(e.currentTarget)));
+        wrap.on('click', `#${id}_btnLimpiarLote`,     () => this.clearLote());
+        wrap.on('click', `#${id}_btnRegistrar`,       () => this.doRegistrar());
+        wrap.on('click', `#${id}_btnSaveFormato`,     () => this.saveFormato());
+        wrap.on('click', `#${id}_btnLoadFormato`,     (e) => { e.stopPropagation(); this.toggleFormatosDropdown(); });
+        wrap.on('click', `#${id}_btnCloseFormatos`,   () => $(`#${id}_formatosDropdown`).addClass('hidden'));
+        wrap.on('click', '[data-apply-id]', (e) => {
+            if ($(e.target).closest('[data-delete-id]').length) return;
+            this.applyFormato(Number($(e.currentTarget).attr('data-apply-id')));
+        });
+        wrap.on('click', '[data-delete-id]', (e) => {
+            e.stopPropagation();
+            this.deleteFormato(Number($(e.currentTarget).attr('data-delete-id')));
+        });
+
+        wrap.on('click', (e) => {
+            const $dd = $(`#${id}_formatosDropdown`);
+            if (!$dd.hasClass('hidden') && !$(e.target).closest(`#${id}_formatosDropdown, #${id}_btnLoadFormato`).length) {
+                $dd.addClass('hidden');
+            }
+        });
+
+        $(document).off('keydown.entradaForm').on('keydown.entradaForm', (e) => {
+            if (e.key === 'Escape' && !this.wrap.hasClass('hidden')) this.closeModal();
+        });
+    }
+
+    // API publica — invocada desde fuera via la instancia que devuelve entradaForm().
+
+    open() {
+        this.wrap.removeClass('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    close() {
+        this.closeModal();
+    }
+
+    setData(newData) {
+        Object.assign(this.opts.data, newData || {});
+        const id = this.opts.id;
+        if (newData && 'fecha' in newData)           $(`#${id}_inpFecha`).val(newData.fecha);
+        if (newData && 'subsidiaries_id' in newData) {
+            $(`#${id}_selSucursal`).val(newData.subsidiaries_id);
+            // Reencadena los almacenes a la sucursal seleccionada.
+            this.refreshAlmacenes(newData.subsidiaries_id);
+        }
+        if (newData && 'nota' in newData)            $(`#${id}_inpNota`).val(newData.nota);
+    }
+
+    // Helpers puros — escape HTML, formato de moneda, fragmentos HTML reutilizables.
+
+    esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    // Miniatura del producto: foto real (prefijo huubie.com.mx) con el icono de fondo como fallback.
+    prodThumb(p, boxCls, iconCls) {
+        const box  = boxCls  || 'w-8 h-8';
+        const ico  = iconCls || 'w-4 h-4';
+        const src  = p.image ? `https://huubie.com.mx/${String(p.image).replace(/^\/+/, '')}` : '';
+        const img  = src
+            ? `<img src="${this.esc(src)}" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'">`
+            : '';
+        return `
+            <div class="relative ${box} rounded-lg ${this.esc(p.bg)} flex items-center justify-center flex-shrink-0 ring-1 ring-white/5 overflow-hidden">
+                <i data-lucide="${this.esc(p.icon)}" class="${ico} ${this.esc(p.color)}"></i>
+                ${img}
+            </div>`;
+    }
+
+    fmtMoney(n) {
+        return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    fmtMoneyShort(n) {
+        return '$' + Number(n).toLocaleString('en-US');
+    }
+
+    optionTag(item, sel) {
+        return `<option value="${this.esc(item.id || item.valor)}"${sel === (item.id || item.valor) ? ' selected' : ''}>${this.esc(item.valor)}</option>`;
+    }
+
+    selectWrap(selectHtml) {
+        return `
+            <div class="relative">
+                ${selectHtml}
+                <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-purple-300/80 flex items-center">
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                </span>
+            </div>`;
+    }
+}
+
+
+// Punto de entrada del framework — cualquier clase que extienda Templates puede llamar
+// this.entradaForm({...}) y recibir una instancia con la API publica { open, close, setData }.
+Templates.prototype.entradaForm = function (options) {
+    return new EntradaForm(options);
+};

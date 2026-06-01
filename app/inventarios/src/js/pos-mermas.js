@@ -25,22 +25,32 @@ class App extends Templates {
     }
 
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:this._link, data:{ opc:'init' } })
-        this.dataInit = {
-            subsidiaries_id: 4,
-            sucursales: [
-                { id: 4, valor: 'Reginas Kafeto'     },
-                { id: 5, valor: 'Reginas Central'    },
-                { id: 6, valor: 'Reginas Pasteleria' }
-            ],
-            motivos: [
-                { id: 'Caducidad',        valor: 'Caducidad'        },
-                { id: 'Daniado',          valor: 'Daniado / Roto'   },
-                { id: 'Error produccion', valor: 'Error produccion' },
-                { id: 'Robo/Faltante',    valor: 'Robo / Faltante'  },
-                { id: 'Devolucion',       valor: 'Devolucion'       }
-            ]
-        };
+        const r = await fn_ajax({ opc: 'init' }, api).catch(() => null);
+        if (r && r.status === 200) {
+            this.dataInit = {
+                subsidiaries_id: r.subsidiaries_id || 4,
+                sucursales:      r.sucursales      || [],
+                motivos:         r.motivos_merma   || [],
+                almacenes:       r.almacenes       || []
+            };
+        } else {
+            this.dataInit = {
+                subsidiaries_id: 4,
+                sucursales: [
+                    { id: 4, valor: 'Reginas Kafeto'     },
+                    { id: 5, valor: 'Reginas Central'    },
+                    { id: 6, valor: 'Reginas Pasteleria' }
+                ],
+                motivos: [
+                    { id: 'Caducidad',        valor: 'Caducidad'        },
+                    { id: 'Daniado',          valor: 'Daniado / Roto'   },
+                    { id: 'Error produccion', valor: 'Error produccion' },
+                    { id: 'Robo/Faltante',    valor: 'Robo / Faltante'  },
+                    { id: 'Devolucion',       valor: 'Devolucion'       }
+                ],
+                almacenes: []
+            };
+        }
         this.subId      = this.dataInit.subsidiaries_id;
         subsidiaries_id = this.subId;
 
@@ -116,7 +126,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'mt-16 h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
+                class:     'h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
                 container: [mainPanel, detailPanel]
             }
         });
@@ -304,9 +314,17 @@ class Mermas extends Templates {
 
     // -- Data --
 
-    lsMermas() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'lsMermas' }, app.getFilters()) })
-        const data = SAMPLE_MERMAS_TABLE;
+    async lsMermas() {
+        const f = app.getFilters();
+        const r = await fn_ajax(Object.assign({ opc: 'lsMermas' }, {
+            subsidiaries_id: f.subsidiaries_id,
+            reason_id:       f.motivo,
+            fi:              f.fi,
+            ff:              f.ff,
+            q:               f.q
+        }), api).catch(() => null);
+
+        const data = (r && r.status === 200) ? { row: r.row } : SAMPLE_MERMAS_TABLE;
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
@@ -324,32 +342,41 @@ class Mermas extends Templates {
             data:         data
         });
 
-        // simple_data_table(`#tb${this.PROJECT_NAME}`, 15);
-
         const total = (data.row || []).length;
         app.updateFooterInfo(`Mostrando ${total} merma${total !== 1 ? 's' : ''}`);
     }
 
     async lsKpis() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'showMermas' }, app.getFilters()) })
-        const c   = SAMPLE_MERMAS_COUNTS;
+        const f = app.getFilters();
+        const r = await fn_ajax({
+            opc:             'showMermas',
+            subsidiaries_id: f.subsidiaries_id,
+            fi:              f.fi,
+            ff:              f.ff
+        }, api).catch(() => null);
+
+        const c   = (r && r.status === 200) ? r.counts : SAMPLE_MERMAS_COUNTS;
         const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
 
         const kpis = [
-            { id: 'kpiMermaHoy',  label: 'Perdida total', value: fmt(c.total_costo),     tone: 'danger'  },
-            { id: 'kpiRegistros', label: 'Registros',     value: c.total_mermas    || 0, tone: 'default' },
-            { id: 'kpiUnidades',  label: 'Unidades',      value: c.total_unidades  || 0, tone: 'warning' },
-            { id: 'kpiMotivo',    label: 'Motivo top',    value: c.motivo_top     || '—', tone: 'purple'  }
+            { id: 'kpiMermaHoy',  label: 'Perdida total', value: fmt(c.total_costo),                          tone: 'danger'  },
+            { id: 'kpiRegistros', label: 'Registros',     value: parseInt(c.total_mermas    || 0, 10),        tone: 'default' },
+            { id: 'kpiUnidades',  label: 'Unidades',      value: parseInt(c.total_unidades  || 0, 10),        tone: 'warning' },
+            { id: 'kpiMotivo',    label: 'Motivo top',    value: c.motivo_top || '-',                         tone: 'purple'  }
         ];
         mermasView.renderInfoCards(kpis);
     }
 
     async getMerma(id) {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:{ opc:'getMerma', id } })
-        mermasView.renderDetail(SAMPLE_MERMA_DETAIL);
+        const r = await fn_ajax({ opc: 'getMerma', id: id }, api).catch(() => null);
+        if (r && r.status === 200) {
+            mermasView.renderDetail(Object.assign({}, r.header, { detail: r.detail }));
+        } else {
+            mermasView.renderDetail(SAMPLE_MERMA_DETAIL);
+        }
     }
 
     // -- Actions --
@@ -363,12 +390,19 @@ class Mermas extends Templates {
                 sucursal: app.subId,
                 fecha:    moment().format('YYYY-MM-DD')
             },
-            onSubmit: (payload) => {
-                // MODO FAKE: si hubiera backend -> useFetch({ data:{ opc:'addMerma', ...payload } })
-                console.log('[openMermaForm] payload', payload);
-                alert({ icon: 'success', text: 'Merma registrada (demo)' });
-                this.lsMermas();
-                this.lsKpis();
+            onSubmit: async (payload) => {
+                const r = await fn_ajax({
+                    opc:     'saveMerma',
+                    payload: JSON.stringify(payload)
+                }, api).catch(() => null);
+
+                if (r && r.status === 200) {
+                    alert({ icon: 'success', text: 'Merma ' + r.folio + ' registrada' });
+                    this.lsMermas();
+                    this.lsKpis();
+                } else {
+                    alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la merma' });
+                }
             }
         });
     }
@@ -379,7 +413,18 @@ class Mermas extends Templates {
     }
 
     reverseMerma(id) {
-        // MODO FAKE: si hubiera backend -> this.swalQuestion({ data:{ opc:'reverseMerma', id }, ... })
+        const doReverse = async () => {
+            const r = await fn_ajax({ opc: 'reverseMerma', id: id }, api).catch(() => null);
+            if (r && r.status === 200) {
+                alert({ icon: 'success', text: 'Merma ' + id + ' revertida' });
+                mermasView.renderDetail(null);
+                this.lsMermas();
+                this.lsKpis();
+            } else {
+                alert({ icon: 'error', text: (r && r.message) || 'No se pudo revertir' });
+            }
+        };
+
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 title: '¿Reversar esta merma?',
@@ -388,17 +433,9 @@ class Mermas extends Templates {
                 showCancelButton:  true,
                 confirmButtonText: 'Si, reversar',
                 cancelButtonText:  'Cancelar'
-            }).then((r) => {
-                if (r.isConfirmed) {
-                    alert({ icon: 'success', text: 'Merma ' + id + ' reversada (demo).' });
-                    mermasView.renderDetail(null);
-                    this.lsMermas();
-                    this.lsKpis();
-                }
-            });
+            }).then((r) => { if (r.isConfirmed) doReverse(); });
         } else {
-            console.log('[reverseMerma]', id);
-            mermasView.renderDetail(null);
+            doReverse();
         }
     }
 }
@@ -930,7 +967,7 @@ class MermasView extends Templates {
             defaults: {
                 motivo:   'Caducidad',
                 sucursal: '',
-                fecha:    new Date().toISOString().slice(0, 10),
+                fecha:    moment().format('YYYY-MM-DD'),
                 nota:     ''
             },
             labels: {

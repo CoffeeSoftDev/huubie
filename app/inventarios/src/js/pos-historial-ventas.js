@@ -103,7 +103,7 @@ class App extends Templates {
             design: false,
             data: {
                 id: this.PROJECT_NAME,
-                class: 'mt-16 h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
+                class: 'h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
                 container: [mainPanel, detailPanel]
             }
         });

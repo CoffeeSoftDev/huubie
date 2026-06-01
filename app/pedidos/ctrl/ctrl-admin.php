@@ -26,6 +26,12 @@
             foreach ($data as $item) {
                 $a = [];
 
+                $a[] = [
+                    'class'   => 'btn btn-sm btn-success me-1',
+                    'html'    => '<i class="icon-eye"></i>',
+                    'onclick' => 'app.previewProducto(' . $item['id'] . ')'
+                ];
+
                 if ($active == 1) {
                     $a[] = [
                         'class'   => 'btn btn-sm btn-primary me-1',
@@ -893,9 +899,8 @@
 
 
   function renderProductImage($foto, $nombre) {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host   = $scheme . '://' . $_SERVER['HTTP_HOST'];
-    $src    = !empty($foto) ? $host . '/' . ltrim($foto, '/') : '';
+    // Las imagenes de productos viven en produccion (mismo criterio que alpha/pedidos).
+    $src    = !empty($foto) ? 'https://huubie.com.mx/' . ltrim($foto, '/') : '';
     $label  = ucwords(mb_strtolower(trim($nombre)));
 
     $img = !empty($src)

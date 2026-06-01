@@ -26,13 +26,22 @@ class App extends Templates {
     }
 
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:this._link, data:{ opc:'init' } })
-        this.dataInit = {
-            subsidiaries_id: '',
-            sucursales:  SAMPLE_STOCK_SUCURSALES,
-            categorias:  SAMPLE_STOCK_CATEGORIAS,
-            niveles:     SAMPLE_STOCK_NIVELES
-        };
+        const r = await fn_ajax({ opc: 'init' }, api).catch(() => null);
+        if (r && r.status === 200) {
+            this.dataInit = {
+                subsidiaries_id: r.subsidiaries_id || '',
+                sucursales:      r.sucursales      || SAMPLE_STOCK_SUCURSALES,
+                categorias:      r.categorias      || SAMPLE_STOCK_CATEGORIAS,
+                niveles:         SAMPLE_STOCK_NIVELES
+            };
+        } else {
+            this.dataInit = {
+                subsidiaries_id: '',
+                sucursales:      SAMPLE_STOCK_SUCURSALES,
+                categorias:      SAMPLE_STOCK_CATEGORIAS,
+                niveles:         SAMPLE_STOCK_NIVELES
+            };
+        }
         this.subId      = this.dataInit.subsidiaries_id;
         subsidiaries_id = this.subId;
 
@@ -93,7 +102,7 @@ class App extends Templates {
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class:'w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden',
+            class:'detail-drawer fixed inset-y-0 right-0 z-50 w-full max-w-md transform translate-x-full transition-transform duration-300 ease-out md:relative md:translate-x-0 md:w-[420px] md:max-w-none md:transition-none md:z-auto flex-shrink-0 bg-[#141d2b] border-l border-[#374151] flex flex-col overflow-hidden shadow-2xl md:shadow-none',
             children: [
                 {
                     id:    'emptyDetail',
@@ -108,15 +117,35 @@ class App extends Templates {
             ]
         };
 
+        const backdrop = {
+            type: 'div',
+            id:   'detailBackdrop',
+            class: 'detail-backdrop hidden fixed inset-0 bg-black/60 z-40 md:hidden'
+        };
+
         this.createLayout({
             parent: 'root',
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'mt-16 h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
-                container: [mainPanel, detailPanel]
+                class:     'h-screen flex flex-row overflow-hidden relative',
+                container: [mainPanel, detailPanel, backdrop]
             }
         });
+
+        $('#detailBackdrop').off('click').on('click', () => this.selectProduct(null));
+    }
+
+    // -- Mobile drawer --
+
+    openDetailDrawer() {
+        $('#detailPanel').removeClass('translate-x-full');
+        $('#detailBackdrop').removeClass('hidden');
+    }
+
+    closeDetailDrawer() {
+        $('#detailPanel').addClass('translate-x-full');
+        $('#detailBackdrop').addClass('hidden');
     }
 
     // -- Filter bar --
@@ -231,6 +260,9 @@ class App extends Templates {
                 return $(this).text().includes(SAMPLE_PRODUCTS_DB[productId].sku);
             });
             $row.addClass('row-active');
+            this.openDetailDrawer();
+        } else {
+            this.closeDetailDrawer();
         }
         stockView.renderDetail(productId ? SAMPLE_PRODUCTS_DB[productId] : null);
     }
@@ -252,19 +284,15 @@ class Stock extends Templates {
 
     // -- Data --
 
-    lsStock() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'lsStock' }, app.getFilters()) })
+    async lsStock() {
         const f = app.getFilters();
-        const filteredRows = (SAMPLE_STOCK_TABLE.row || []).filter(r => {
-            const p = SAMPLE_PRODUCTS_DB[r.id];
-            if (!p) return true;
-            const cat = !f.categoria || p.categoria === f.categoria;
-            const niv = !f.nivel     || p.estado    === f.nivel;
-            const q   = !f.q         || (p.name + ' ' + p.sku).toLowerCase().includes(f.q.toLowerCase());
-            return cat && niv && q;
-        });
+        const r = await fn_ajax(Object.assign({ opc: 'lsStock' }, {
+            subsidiaries_id: f.subsidiaries_id,
+            category_id:     f.categoria,
+            q:               f.q
+        }), api).catch(() => null);
 
-        const data = { row: filteredRows };
+        const data = (r && r.status === 200) ? { row: r.row } : { row: [] };
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
@@ -276,7 +304,7 @@ class Stock extends Templates {
             right:        [6, 7],
             extends:      true,
             scrollable:   false,
-            striped:true,
+            striped:      true,
             f_size:       12,
             emptyMessage: 'No se encontraron productos con los filtros aplicados',
             emptyIcon:    'icon-cube',
@@ -285,41 +313,36 @@ class Stock extends Templates {
 
         if (window.lucide) lucide.createIcons();
 
-        const total = filteredRows.length;
+        const total = (data.row || []).length;
         app.updateFooterInfo(`Mostrando ${total} producto${total !== 1 ? 's' : ''}`);
     }
 
     async lsKpis() {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:Object.assign({ opc:'showStock' }, app.getFilters()) })
         const f = app.getFilters();
-        const visible = Object.values(SAMPLE_PRODUCTS_DB).filter(p => {
-            const cat = !f.categoria || p.categoria === f.categoria;
-            const niv = !f.nivel     || p.estado    === f.nivel;
-            const q   = !f.q         || (p.name + ' ' + p.sku).toLowerCase().includes(f.q.toLowerCase());
-            return cat && niv && q;
-        });
+        const r = await fn_ajax({
+            opc:             'showStock',
+            subsidiaries_id: f.subsidiaries_id
+        }, api).catch(() => null);
 
-        const c = {
-            total_productos: visible.length,
-            total_ok:        visible.filter(p => p.estado === 'ok').length,
-            total_bajo:      visible.filter(p => p.estado === 'bajo').length,
-            total_agotado:   visible.filter(p => p.estado === 'agotado').length,
-            total_vida:      visible.filter(p => p.vida.label === 'critico' || p.vida.label === 'proximo').length
-        };
+        const c = (r && r.status === 200) ? r.counts : {};
 
         const kpis = [
-            { id: 'kpiTotal',   label: 'Total Productos', value: c.total_productos || 0, tone: 'default', icon: 'package'         },
-            { id: 'kpiOk',      label: 'Stock OK',        value: c.total_ok        || 0, tone: 'success', icon: 'check-circle-2'  },
-            { id: 'kpiBajo',    label: 'Stock Bajo',      value: c.total_bajo      || 0, tone: 'warning', icon: 'alert-triangle'  },
-            { id: 'kpiAgotado', label: 'Agotado',         value: c.total_agotado   || 0, tone: 'danger',  icon: 'x-circle'        },
-            { id: 'kpiVida',    label: 'Vida util',       value: c.total_vida      || 0, tone: 'purple',  icon: 'clock'           }
+            { id: 'kpiTotal',   label: 'Total Productos', value: parseInt(c.total_productos || 0, 10), tone: 'default', icon: 'package'         },
+            { id: 'kpiOk',      label: 'Stock OK',        value: parseInt(c.total_ok        || 0, 10), tone: 'success', icon: 'check-circle-2'  },
+            { id: 'kpiBajo',    label: 'Stock Bajo',      value: parseInt(c.total_bajo      || 0, 10), tone: 'warning', icon: 'alert-triangle'  },
+            { id: 'kpiAgotado', label: 'Agotado',         value: parseInt(c.total_agotado   || 0, 10), tone: 'danger',  icon: 'x-circle'        },
+            { id: 'kpiVida',    label: 'Vida util',       value: 0,                                    tone: 'purple',  icon: 'clock'           }
         ];
         stockView.renderInfoCards(kpis);
     }
 
     async getProducto(id) {
-        // MODO FAKE: si hubiera backend -> useFetch({ data:{ opc:'getProducto', id } })
-        stockView.renderDetail(SAMPLE_PRODUCTS_DB[id] || null);
+        const r = await fn_ajax({ opc: 'getProducto', id: id }, api).catch(() => null);
+        if (r && r.status === 200) {
+            stockView.renderDetail(r.producto);
+        } else {
+            stockView.renderDetail(SAMPLE_PRODUCTS_DB[id] || null);
+        }
     }
 
     // -- Actions --
@@ -348,7 +371,7 @@ class StockView extends Templates {
             json:    producto,
             sucursalId:   $('#subsidiaries_id').val() || '',
             sucursalName: $('#subsidiaries_id option:selected').text() || 'Todas las sucursales',
-            onClose: () => { app.selectedId = null; this.renderDetail(null); $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active'); }
+            onClose: () => app.selectProduct(null)
         });
     }
 
@@ -417,7 +440,7 @@ class StockView extends Templates {
                 purple:  'bg-amber-500/28'
             },
             cardClass:  'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
-            labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
+            labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)] whitespace-nowrap truncate',
             valueClass: 'cs-kpi-value text-sm font-bold',
             iconWrapClass: 'w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0',
             iconClass:     'w-3.5 h-3.5',

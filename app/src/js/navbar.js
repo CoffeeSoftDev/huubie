@@ -82,8 +82,8 @@ class Navbar {
 
         const hasPhoto = this.settings.imgPerfil && this.settings.imgPerfil.trim() !== '';
         const navbarAvatar = hasPhoto
-            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-10 h-10 rounded-full border-2 border-white object-cover" onerror="this.outerHTML='<div class=\\'w-10 h-10 rounded-full border-2 border-white bg-purple-600 flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-xl\\'></i></div>'" />`
-            : `<div class="w-10 h-10 rounded-full border-2 border-white bg-purple-600 flex items-center justify-center"><i class="icon-user-7 text-white text-xl"></i></div>`;
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full border-2 border-white object-cover" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full border-2 border-white bg-purple-600 flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-base\\'></i></div>'" />`
+            : `<div class="w-8 h-8 rounded-full border-2 border-white bg-purple-600 flex items-center justify-center"><i class="icon-user-7 text-white text-base"></i></div>`;
 
         const dropdownAvatar = hasPhoto
             ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="this.outerHTML='<div class=\\'w-20 h-20 rounded-full border-2 border-white shadow-lg bg-purple-600 flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-4xl\\'></i></div>'" />`
@@ -94,15 +94,15 @@ class Navbar {
 
         const navbarHtml = `
             ${branchStyles}
-            <nav class="w-full text-white px-4 py-3 h-16 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20 shrink-0" style="background-color: ${navbar.bg}; border-bottom-color: ${navbar.border}4D;">
+            <nav class="w-full text-white px-4 py-1.5 h-12 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20 shrink-0" style="background-color: ${navbar.bg}; border-bottom-color: ${navbar.border}4D;">
                 <div class="flex items-center space-x-2">
-                    <img src="${this.settings.logo}" alt="Logo" class="w-10 h-10" />
-                    <button id="toggleSidebar" class="text-white text-2xl">☰</button>
+                    <img src="${this.settings.logo}" alt="Logo" class="w-8 h-8" />
+                    <button id="toggleSidebar" class="text-white text-xl leading-none">☰</button>
                 </div>
                 <div class="flex items-center gap-3">
                     ${branchPillHtml}
-                    <a href="/app/menu/" class="hidden md:flex w-10 h-10 items-center justify-center rounded-lg hover:bg-white/5 transition" title="Menus">
-                        <i class="icon-th-large-3 text-gray-300 text-lg"></i>
+                    <a href="/app/menu/" class="hidden md:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-white/5 transition" title="Menus">
+                        <i class="icon-th-large-3 text-gray-300 text-base"></i>
                     </a>
                     <button id="btnUserMenu" class="ml-1 flex items-center justify-center border-l border-gray-700 pl-3">
                         ${navbarAvatar}
@@ -191,10 +191,10 @@ class Navbar {
 
         return `
         <style id="branchSelectorStyles">
-            .branch-pill { background: linear-gradient(180deg, #1F2A37 0%, #1a2332 100%); border: 1px solid rgba(124,58,237,0.35); border-radius: 12px; padding: 6px 12px; transition: all .2s ease; }
+            .branch-pill { background: linear-gradient(180deg, #1F2A37 0%, #1a2332 100%); border: 1px solid rgba(124,58,237,0.35); border-radius: 10px; padding: 3px 10px; transition: all .2s ease; }
             .branch-pill:hover { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
-            .branch-status-dot { width: 8px; height: 8px; border-radius: 9999px; background: #22C55E; box-shadow: 0 0 0 3px rgba(34,197,94,0.18); display: inline-block; }
-            .branch-avatar { width: 34px; height: 34px; border-radius: 9999px; background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; letter-spacing: .5px; color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,.35); }
+            .branch-status-dot { width: 7px; height: 7px; border-radius: 9999px; background: #22C55E; box-shadow: 0 0 0 3px rgba(34,197,94,0.18); display: inline-block; }
+            .branch-avatar { width: 28px; height: 28px; border-radius: 9999px; background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px; letter-spacing: .5px; color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,.35); }
             .branch-dropdown { background: #111928; border: 1px solid rgba(124,58,237,0.18); border-radius: 14px; box-shadow: 0 24px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02); }
             .branch-card { background: #1F2A37; border: 1px solid rgba(55,65,81,.55); border-radius: 10px; padding: 8px 10px; transition: all .15s ease; cursor: pointer; }
             .branch-card:hover { border-color: #7C3AED; background: #1F2937; }
