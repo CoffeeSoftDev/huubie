@@ -69,7 +69,7 @@ class EntradaForm {
                 fecha:        'Fecha',
                 nota:         'Nota (opcional)',
                 buscar:       'Buscar productos',
-                placeholder:  'Nombre o SKU...',
+                placeholder:  'Nombre, SKU o "cafe x3"...',
                 searchHint:   'Sin resultados',
                 resumenLbl:   'Resumen del lote',
                 productosLbl: 'Productos',
@@ -108,8 +108,11 @@ class EntradaForm {
         this.opts.data   = Object.assign({}, defaults.data,   o.data   || {});
         this.opts.labels = Object.assign({}, defaults.labels, o.labels || {});
 
-        this.lote       = [];
-        this.searchTerm = '';
+        this.lote         = [];
+        this.searchTerm   = '';
+        this.searchQty    = null;   // cantidad capturada con el atajo "xN"
+        this.activeIdx    = 0;      // resultado resaltado para navegacion por teclado
+        this.catalogItems = [];     // resultados visibles actuales del catalogo
 
         this.ensureStyles();
         this.mount();
@@ -191,7 +194,14 @@ class EntradaForm {
                         <i data-lucide="search" class="w-3.5 h-3.5"></i>
                     </span>
                     <input id="${o.id}_buscarProducto" type="text" placeholder="${this.esc(o.labels.placeholder)}" class="${cls.search}" autocomplete="off">
+                    <span id="${o.id}_qtyBadge" class="hidden absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-purple-600/25 border border-purple-500/40 text-purple-200 text-[10px] font-bold leading-none"></span>
                 </div>
+                <p class="mt-1.5 text-[9px] text-gray-500 flex items-center flex-wrap gap-x-1.5 gap-y-1 leading-none">
+                    <span class="ef-kbd">&uarr;&darr;</span><span>navegar</span>
+                    <span class="ef-kbd">Enter</span><span>agregar</span>
+                    <span class="text-gray-700">.</span>
+                    <span>cantidad:</span><span class="text-purple-300 font-mono">cafe x3</span>
+                </p>
             </div>
             <div id="${o.id}_catalogoLista" class="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1 -mr-1 cs-scroll ef-scroll bg-[#0f172a]/40 border border-gray-800/60 rounded-lg p-1.5"></div>`;
     }
@@ -344,11 +354,11 @@ class EntradaForm {
             </table>`;
     }
 
-    renderSearchResult(p) {
+    renderSearchResult(p, i) {
         const stockColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
         const stockBg    = p.stock === 0 ? 'bg-red-500/10' : p.stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
         return `
-            <div class="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent border-b border-gray-800/40 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}">
+            <div class="ef-cat-item rounded-md flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent border-b border-gray-800/40 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
                 ${this.prodThumb(p, 'w-9 h-9', 'w-4 h-4')}
                 <div class="flex-1 min-w-0">
                     <p class="text-[11px] font-semibold text-white truncate">${this.esc(p.nombre)}</p>
@@ -373,7 +383,11 @@ class EntradaForm {
             .ef-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
             .ef-scroll::-webkit-scrollbar-track { background: transparent; }
             .ef-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-            .ef-scroll::-webkit-scrollbar-thumb:hover { background: #4B5563; }`;
+            .ef-scroll::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+            .ef-cat-item.ef-active { background: linear-gradient(90deg, rgba(147,51,234,0.20), rgba(147,51,234,0.02)); box-shadow: inset 0 0 0 1px rgba(168,85,247,0.5); }
+            @keyframes efFlash { 0% { background-color: rgba(16,185,129,0.30); } 100% { background-color: transparent; } }
+            tr.ef-flash { animation: efFlash 0.6s ease-out; }
+            .ef-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid rgba(75,85,99,0.6); background: rgba(31,41,55,0.6); font-size: 8px; line-height: 1; color: #9CA3AF; font-family: monospace; }`;
         const style = document.createElement('style');
         style.id = 'entradaFormStyles';
         style.textContent = css;
@@ -432,6 +446,9 @@ class EntradaForm {
             .filter(p => !this.lote.some(x => x.id === p.id))
             .filter(p => !term || (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
 
+        this.catalogItems = items;
+        if (this.activeIdx >= items.length) this.activeIdx = Math.max(0, items.length - 1);
+
         if (!items.length) {
             $cat.html(`
                 <div class="flex flex-col items-center justify-center py-8 text-center px-2">
@@ -441,9 +458,10 @@ class EntradaForm {
                     <p class="text-[10px] text-gray-500">${term ? this.esc(o.labels.searchHint) : 'Sin productos disponibles'}</p>
                 </div>`);
         } else {
-            $cat.html(items.map(p => this.renderSearchResult(p)).join(''));
+            $cat.html(items.map((p, i) => this.renderSearchResult(p, i)).join(''));
         }
         if (window.lucide) lucide.createIcons();
+        this.highlightActive();
     }
 
     renderLote() {
@@ -465,7 +483,11 @@ class EntradaForm {
     // -- Acciones de lote --
 
     doSearch(q) {
-        this.searchTerm = (q || '').trim();
+        const parsed    = this.parseSearchTerm(q);
+        this.searchTerm = parsed.query;
+        this.searchQty  = parsed.qty;
+        this.activeIdx  = 0;
+        this.updateQtyBadge();
         if (typeof this.opts.onSearch === 'function') {
             this.opts.onSearch(this.searchTerm, (matches) => {
                 this.opts.json = matches || [];
@@ -479,13 +501,121 @@ class EntradaForm {
     addProducto(id) {
         const prod = (this.opts.json || []).find(p => String(p.id) === String(id));
         if (!prod) return;
-        this.lote.push(Object.assign({}, prod, { cantidad: 1 }));
-        this.searchTerm = '';
-        $(`#${this.opts.id}_buscarProducto`).val('');
-        this.renderLote();
-        const idx  = this.lote.length - 1;
+        const qty = this.searchQty || 1;
+        this.resetSearchState();
+        const idx  = this.addOrIncrement(prod, qty);
         const $qty = $(`#${this.opts.id}_listaProductos input[data-field="cantidad"][data-idx="${idx}"]`);
         $qty.trigger('focus').trigger('select');
+    }
+
+    // Suma al lote: si el producto ya existe acumula la cantidad (modo escaner),
+    // si no, lo agrega como nueva fila. Devuelve el indice de la fila afectada.
+    addOrIncrement(prod, qty) {
+        qty = Math.max(1, Number(qty) || 1);
+        const existing = this.lote.find(x => String(x.id) === String(prod.id));
+        let idx;
+        if (existing) {
+            existing.cantidad = Number(existing.cantidad || 0) + qty;
+            idx = this.lote.indexOf(existing);
+        } else {
+            this.lote.push(Object.assign({}, prod, { cantidad: qty }));
+            idx = this.lote.length - 1;
+        }
+        this.renderLote();
+        this.flashRow(idx);
+        return idx;
+    }
+
+    // Enter en el buscador: prioriza SKU exacto (lector de codigo), luego el
+    // resultado resaltado, luego la primera coincidencia. Conserva el foco.
+    handleSearchEnter() {
+        const all = this.opts.json || [];
+        const q   = (this.searchTerm || '').toLowerCase();
+        const qty = this.searchQty || 1;
+        if (!q) return;
+        let prod = all.find(p => String(p.sku || '').toLowerCase() === q);
+        if (!prod && this.catalogItems.length) {
+            prod = this.catalogItems[this.activeIdx] || this.catalogItems[0];
+        }
+        if (!prod) {
+            prod = all.find(p => (p.nombre || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
+        }
+        if (!prod) return;
+        this.resetSearchState();
+        this.addOrIncrement(prod, qty);
+        $(`#${this.opts.id}_buscarProducto`).trigger('focus');
+    }
+
+    resetSearchState() {
+        this.searchTerm = '';
+        this.searchQty  = null;
+        this.activeIdx  = 0;
+        $(`#${this.opts.id}_buscarProducto`).val('');
+        this.updateQtyBadge();
+    }
+
+    // Separa "cafe x3" / "cafe *3" / "cafe*3" en { query: 'cafe', qty: 3 }.
+    // El multiplicador "x" exige espacio previo para no romper SKUs/nombres con x.
+    parseSearchTerm(raw) {
+        const s = String(raw == null ? '' : raw);
+        const m = s.match(/(?:\s+x|\s*\*)\s*(\d+)\s*$/i);
+        let qty   = null;
+        let query = s.trim();
+        if (m) {
+            qty   = parseInt(m[1], 10) || null;
+            query = s.slice(0, m.index).trim();
+        }
+        return { query, qty };
+    }
+
+    updateQtyBadge() {
+        const $b = $(`#${this.opts.id}_qtyBadge`);
+        if (this.searchQty) $b.text('x ' + this.searchQty).removeClass('hidden');
+        else                $b.addClass('hidden');
+    }
+
+    highlightActive() {
+        const $items = $(`#${this.opts.id}_catalogoLista .ef-cat-item`);
+        $items.removeClass('ef-active');
+        const $a = $items.eq(this.activeIdx);
+        $a.addClass('ef-active');
+        if ($a.length && $a[0].scrollIntoView) $a[0].scrollIntoView({ block: 'nearest' });
+    }
+
+    flashRow(idx) {
+        const $row = $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"]`);
+        if (!$row.length) return;
+        $row.removeClass('ef-flash');
+        void $row[0].offsetWidth; // reinicia la animacion al re-escanear el mismo producto
+        $row.addClass('ef-flash');
+    }
+
+    onSearchKeydown(e) {
+        const items = this.catalogItems || [];
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (items.length) { this.activeIdx = Math.min(this.activeIdx + 1, items.length - 1); this.highlightActive(); }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (items.length) { this.activeIdx = Math.max(this.activeIdx - 1, 0); this.highlightActive(); }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            this.handleSearchEnter();
+        } else if (e.key === 'Escape') {
+            const $inp = $(`#${this.opts.id}_buscarProducto`);
+            if (($inp.val() || '').length) {
+                e.stopPropagation(); // primer Escape limpia; el segundo (vacio) cierra el modal
+                this.resetSearchState();
+                this.renderCatalogo();
+            }
+        }
+    }
+
+    onQtyKeydown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $(`#${this.opts.id}_buscarProducto`).trigger('focus'); // vuelve al buscador para encadenar
+        }
     }
 
     removeProducto(i) {
@@ -782,6 +912,8 @@ class EntradaForm {
         wrap.on('click', '[data-modal-close]',        () => this.closeModal());
         wrap.on('change', `#${id}_selSucursal`,       (e) => this.refreshAlmacenes(e.target.value));
         wrap.on('input', `#${id}_buscarProducto`,     (e) => this.doSearch(e.target.value));
+        wrap.on('keydown', `#${id}_buscarProducto`,   (e) => this.onSearchKeydown(e));
+        wrap.on('keydown', 'input[data-field="cantidad"]', (e) => this.onQtyKeydown(e));
         wrap.on('click', '[data-add-id]',             (e) => this.addProducto($(e.currentTarget).attr('data-add-id')));
         wrap.on('click', '[data-remove]',             (e) => this.removeProducto(Number($(e.currentTarget).attr('data-remove'))));
         wrap.on('input', 'input[data-field]',         (e) => this.updateField($(e.currentTarget)));
@@ -816,6 +948,7 @@ class EntradaForm {
     open() {
         this.wrap.removeClass('hidden');
         if (window.lucide) lucide.createIcons();
+        setTimeout(() => $(`#${this.opts.id}_buscarProducto`).trigger('focus'), 50);
     }
 
     close() {

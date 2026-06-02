@@ -146,25 +146,13 @@ class ctrl extends mdl {
         return $sku !== '' ? $sku : 'SKU-' . $productId;
     }
 
-    // Evita guardar el nombre TODO en MAYUSCULAS. Solo normaliza a Title Case
-    // cuando el texto viene completo en mayusculas; respeta nombres con
-    // mayus/minus intencional (p. ej. "Pastel 3L x Pedido").
-    private function normalizeName($name) {
-        $name = trim((string) $name);
-        if ($name === '') return $name;
-        if (mb_strtoupper($name, 'UTF-8') === $name) {
-            return ucwords(mb_strtolower($name, 'UTF-8'));
-        }
-        return $name;
-    }
-
     function editProduct() {
         $id      = (int) $_POST['id'];
         $status  = 500;
         $message = 'No se pudo editar el producto';
 
-        // Normaliza el nombre para no almacenarlo en MAYUSCULAS (mismo criterio que el listado).
-        $_POST['name'] = $this->normalizeName($_POST['name'] ?? '');
+        // Se guarda el nombre tal como se escribio (solo se recortan espacios laterales).
+        $_POST['name'] = trim($_POST['name'] ?? '');
 
         $values = $this->util->sql([
             'name'        => $_POST['name'],
