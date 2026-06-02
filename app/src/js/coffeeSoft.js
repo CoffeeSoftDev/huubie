@@ -3780,6 +3780,7 @@ class Components extends Complements {
             data: { thead: [], row: [] },
             center: [],
             right: [],
+            actionsAlign: 'center',
             fixed: [],
             fixedWidth: 200,
             colMinWidth: 150,
@@ -4185,8 +4186,14 @@ class Components extends Complements {
 
             // Botones de acción 'a'
             if (data.a) {
+                // Alineación de la celda de acciones: por defecto centrada; con
+                // actionsAlign:'left'|'right' los botones se pegan a ese lado (útil
+                // cuando hay filas con distinto número de botones y se quieren alinear).
+                const actionsAlign = opts.actionsAlign === 'left' ? 'text-left'
+                                   : opts.actionsAlign === 'right' ? 'text-right'
+                                   : 'text-center';
                 const actions = $("<td>", {
-                    class: `px-3 py-2 text-center align-middle whitespace-nowrap ${colorBg} ${opts.border_row}`,
+                    class: `px-3 py-2 ${actionsAlign} align-middle whitespace-nowrap ${colorBg} ${opts.border_row}`,
                     style: `width:1%;`
                 });
                 if (data.a.length) {

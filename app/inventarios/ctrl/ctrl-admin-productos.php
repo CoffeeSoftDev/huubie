@@ -88,8 +88,8 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'No se pudo agregar el producto';
 
-        // Normaliza el nombre para no almacenarlo en MAYUSCULAS (mismo criterio que el listado).
-        $_POST['name'] = $this->normalizeName($_POST['name'] ?? '');
+        // Se guarda el nombre tal como se escribio (solo se recortan espacios laterales).
+        $_POST['name'] = trim($_POST['name'] ?? '');
 
         $exists = $this->existsProductByName([$_POST['name'], $this->companiesId]);
         if ($exists) {

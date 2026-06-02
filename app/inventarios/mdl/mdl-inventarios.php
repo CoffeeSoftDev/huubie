@@ -369,8 +369,13 @@ class mdl extends CRUD {
         }
 
         if (!empty($array['status'])) {
-            $where .= ' AND i.status = ?';
-            $data[] = $array['status'];
+            // 'Activas' = pseudo-estado del filtro: todo menos Cancelada.
+            if ($array['status'] === 'Activas') {
+                $where .= " AND i.status <> 'Cancelada'";
+            } else {
+                $where .= ' AND i.status = ?';
+                $data[] = $array['status'];
+            }
         }
 
         if (!empty($array['fi']) && !empty($array['ff'])) {
@@ -434,8 +439,13 @@ class mdl extends CRUD {
             $data[] = $array['origin_id'];
         }
         if (!empty($array['status'])) {
-            $where .= ' AND i.status = ?';
-            $data[] = $array['status'];
+            // 'Activas' = pseudo-estado del filtro: todo menos Cancelada.
+            if ($array['status'] === 'Activas') {
+                $where .= " AND i.status <> 'Cancelada'";
+            } else {
+                $where .= ' AND i.status = ?';
+                $data[] = $array['status'];
+            }
         }
         if (!empty($array['fi']) && !empty($array['ff'])) {
             $where .= ' AND i.date_inflow BETWEEN ? AND ?';

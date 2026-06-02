@@ -172,7 +172,7 @@ class App extends Templates {
                 lbl:      'Estado:',
                 class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
-                value:    '',
+                value:    'Activas',
                 data:     this.dataInit.estados || []
             },
             {
@@ -322,11 +322,6 @@ class App extends Templates {
         this.selectEntrada(folio);
     }
 
-    // Cancelar entrada desde el boton de la fila (reutiliza el flujo del panel de detalle).
-    cancelEntradaRow(folio, id, estado) {
-        entradasView.cancelEntrada({ id: id, folio: folio, estado: estado });
-    }
-
     renderDetail(entrada) {
         entradasView.renderDetail(entrada);
     }
@@ -364,6 +359,7 @@ class Entradas extends Templates {
             subtitle:     '',
             center:       [2, 3, 7],
             right:        [4],
+            actionsAlign: 'left',
             extends:      true,
             scrollable:   false,
             striped:      true,

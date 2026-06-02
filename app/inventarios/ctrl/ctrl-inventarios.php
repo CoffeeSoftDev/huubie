@@ -51,6 +51,7 @@ class ctrl extends mdl {
             'origenes_entrada'   => $this->lsInflowOrigins(),
             'estados_entrada'    => [
                 ['id' => '',          'valor' => 'Todos los estados'],
+                ['id' => 'Activas',   'valor' => 'Activas (sin Cancelada)'],
                 ['id' => 'Aplicada',  'valor' => 'Aplicada'],
                 ['id' => 'Pendiente', 'valor' => 'Pendiente'],
                 ['id' => 'Cancelada', 'valor' => 'Cancelada']
@@ -141,6 +142,8 @@ class ctrl extends mdl {
 
         $row = [];
         foreach ($rows as $r) {
+            // Unica accion en la fila: ver detalle. Cancelar/revertir vive en el
+            // panel de detalle que se abre al hacer click en el ojo.
             $a = [
                 [
                     'class'   => 'btn btn-sm btn-secondary me-1',
@@ -148,14 +151,6 @@ class ctrl extends mdl {
                     'onclick' => "app.selectEntrada('{$r['folio']}', {$r['id']})"
                 ]
             ];
-            // Cancelar (revertir) solo disponible mientras la entrada no este cancelada.
-            if ($r['status'] !== 'Cancelada') {
-                $a[] = [
-                    'class'   => 'btn btn-sm btn-danger me-1',
-                    'html'    => '<i class="icon-block"></i>',
-                    'onclick' => "app.cancelEntradaRow('{$r['folio']}', {$r['id']}, '{$r['status']}')"
-                ];
-            }
 
             $row[] = [
                 'id'           => $r['id'],
