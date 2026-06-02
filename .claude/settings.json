@@ -45,7 +45,23 @@
       "Bash(/c/wamp64/bin/mariadb/mariadb10.10.2/bin/mysql.exe -uroot -e 'SHOW DATABASES;')",
       "Bash(netstat -ano)",
       "Bash(c:/wamp64/bin/php/php7.4.33/php.exe -l c:/wamp64/www/huubie/app/inventarios/ctrl/ctrl-inventarios.php)",
-      "Bash(c:/wamp64/bin/php/php7.4.33/php.exe -l c:/wamp64/www/huubie/app/inventarios/mdl/mdl-inventarios.php)"
+      "Bash(c:/wamp64/bin/php/php7.4.33/php.exe -l c:/wamp64/www/huubie/app/inventarios/mdl/mdl-inventarios.php)",
+      "Bash(git check-ignore *)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" c:/tmp/test_or.php)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" c:/tmp/test_or2.php)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" c:/tmp/test_ollama.php)",
+      "Bash(c:/wamp64/bin/php/php7.4.33/php.exe -l c:/wamp64/www/huubie/coffee/app/visor/ctrl/ollama-client.php)",
+      "Bash(c:/wamp64/bin/php/php7.4.33/php.exe -l c:/wamp64/www/huubie/coffee/app/visor/ctrl/test-stream.php)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" c:/tmp/test_stream_cli.php)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" c:/tmp/test_sse_http.php)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/coffee/app/visor/ctrl/test-stream.php\")",
+      "Bash(c:/wamp64/bin/php/php7.4.33/php.exe -l c:/wamp64/www/huubie/coffee/app/visor/ctrl/__TRACKED_VAR__.php)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" c:/tmp/test_integration.php)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/coffee/app/visor/prototipo/stream/index.php\")",
+      "Bash(curl.exe -s -X POST \"http://localhost/huubie/coffee/app/visor/prototipo/stream/index.php\" -H \"Content-Type: application/json\" -d \"{\\\\\"prompt\\\\\":\\\\\"hola\\\\\",\\\\\"model\\\\\":\\\\\"minimax-m3:cloud\\\\\"}\")",
+      "Bash(curl.exe -s -N -X POST \"http://localhost/huubie/coffee/app/visor/prototipo/stream/index.php\" -H \"Content-Type: application/json\" -d \"{\\\\\"prompt\\\\\":\\\\\"Di en una frase que es PHP\\\\\",\\\\\"model\\\\\":\\\\\"minimax-m3:cloud\\\\\"}\" --max-time 60)",
+      "Bash(curl.exe -s -N -X POST http://localhost/huubie/coffee/app/visor/prototipo/stream/index.php -H 'Content-Type: application/json' -d '{\"prompt\":\"Di hola en una frase\",\"model\":\"minimax-m3:cloud\"}' --max-time 60)",
+      "Bash(echo \"---\")"
     ],
     "additionalDirectories": [
       "\\tmp"

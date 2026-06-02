@@ -473,16 +473,55 @@ class EntradasView extends Templates {
 
     // -- Render helpers --
 
-    renderDetail(entrada) {
+    renderDetail(entrada, editMode = false) {
         this.entradaDetailPanel({
-            parent:  'detailPanel',
-            json:    entrada,
+            parent:   'detailPanel',
+            json:     entrada,
+            editMode: editMode,
             onClose: () => {
                 app.selectEntrada(null);
             },
             onPrint:   (e) => console.log('[entrada] imprimir', e && e.folio),
             onReverse: (e) => this.cancelEntrada(e),
-            onConfirm: (e) => this.confirmEntrada(e)
+            onConfirm: (e) => this.confirmEntrada(e),
+            onEdit:       (e) => this.renderDetail(e, true),   // entra a modo edicion
+            onCancelEdit: (e) => this.renderDetail(e, false),  // sale sin guardar
+            onSaveEdit:   (e) => this.saveEntradaEdit(e)       // persiste los cambios
+        });
+    }
+
+    // Guarda la edicion de cantidades de una entrada ya aplicada (patron CoffeeSoft:
+    // recoge inputs -> swalQuestion -> editEntrada -> recarga lista, kpis y detalle).
+    saveEntradaEdit(e) {
+        if (!e || !e.id) return;
+        const quantities = {};
+        $('#detailPanel .entrada-real-qty').each(function () {
+            const did = $(this).attr('data-detail-id');
+            const val = parseFloat($(this).val());
+            quantities[did] = isNaN(val) || val < 0 ? 0 : val;
+        });
+
+        this.swalQuestion({
+            opts: {
+                title:             `Editar entrada ${e.folio || ''}`.trim(),
+                text:              'Se ajustara el stock del almacen con las nuevas cantidades que entraron.',
+                icon:              'question',
+                confirmButtonText: 'Si, guardar',
+                cancelButtonText:  'No'
+            },
+            data: { opc: 'editEntrada', id: e.id, quantities: JSON.stringify(quantities) },
+            methods: {
+                send: (r) => {
+                    if (r && r.status === 200) {
+                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Entrada actualizada' });
+                        app.selectEntrada(e.folio, e.id); // recarga el detalle en modo lectura
+                        entradas.lsEntradas();
+                        entradas.lsKpis();
+                    } else {
+                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo actualizar la entrada' });
+                    }
+                }
+            }
         });
     }
 
@@ -932,7 +971,10 @@ class EntradasView extends Templates {
                 imprimir:    'Imprimir',
                 reversar:    'Cancelar',
                 confirmar:   'Confirmar produccion',
-                confirmado:  'Confirmado por'
+                confirmado:  'Confirmado por',
+                editar:      'Editar',
+                guardar:     'Guardar cambios',
+                cancelarEd:  'Cancelar'
             },
             origenPalettes: {
                 'Produccion':    { bg: 'rgba(124,58,237,0.15)', fg: '#A78BFA' },
@@ -945,10 +987,14 @@ class EntradasView extends Templates {
                 'Pendiente': { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24' },
                 'Cancelada': { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' }
             },
+            editMode:  false,
             onClose:   () => { },
             onPrint:   () => { },
             onReverse: () => { },
-            onConfirm: () => { }
+            onConfirm: () => { },
+            onEdit:       () => { },
+            onSaveEdit:   () => { },
+            onCancelEdit: () => { }
         };
 
         const o    = options || {};
@@ -983,18 +1029,33 @@ class EntradasView extends Templates {
 
         // -- Bloques de UI --
 
-        // Botonera inferior, sin borde. Boton izquierdo depende del estado:
-        //   pendiente  -> Confirmar produccion (verde)
-        //   resto      -> Imprimir (celeste, off en estado vacio)
-        // Boton derecho: Cancelar (rojo), off en vacio o ya cancelada.
+        // Botonera inferior, sin borde. Depende del estado:
+        //   editando   -> Guardar cambios (verde) + Cancelar edicion (gris)
+        //   pendiente  -> Confirmar produccion (verde) + Cancelar (rojo)
+        //   aplicada   -> Imprimir (celeste) + Editar (ambar)
+        //   resto      -> Imprimir (celeste, off en vacio) + Cancelar (rojo, off en vacio/cancelada)
         const actionsBar = (state) => {
             const s          = state || {};
             const empty      = !!s.empty;
             const pendiente  = !!s.pendiente;
             const cancelada  = !!s.cancelada;
-            const reverseOff = empty || cancelada;
+            const aplicada   = !!s.aplicada;
+            const editing    = !!s.editing;
             const base       = 'flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5';
             const off        = 'opacity-40 cursor-not-allowed';
+            const wrap       = (inner) => `
+                <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">${inner}</div>`;
+
+            // Modo edicion (sobre una entrada Aplicada): Guardar + Cancelar edicion.
+            if (editing) {
+                return wrap(`
+                    <button id="${opts.id}_saveEdit" class="${base} bg-green-600 hover:bg-green-500 hover:shadow-lg hover:shadow-green-500/20 transition-all">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i>${esc(opts.labels.guardar)}
+                    </button>
+                    <button id="${opts.id}_cancelEdit" class="${base} bg-gray-600 hover:bg-gray-500 transition-all">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelarEd)}
+                    </button>`);
+            }
 
             const leftBtn = pendiente
                 ? `<button id="${opts.id}_confirm" class="${base} bg-green-600 hover:bg-green-500 hover:shadow-lg hover:shadow-green-500/20 transition-all">
@@ -1004,16 +1065,23 @@ class EntradasView extends Templates {
                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>${esc(opts.labels.imprimir)}
                    </button>`;
 
-            const revTitle = cancelada ? ' title="La entrada ya esta cancelada"' : '';
-            const rightBtn = `<button id="${opts.id}_reverse" ${reverseOff ? 'disabled' : ''}${revTitle} class="${base} bg-red-600 ${reverseOff ? off : 'hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/20 transition-all'}">
-                       <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>${esc(opts.labels.reversar)}
+            // Boton derecho: Editar si esta Aplicada; si no, Cancelar.
+            let rightBtn;
+            if (aplicada) {
+                rightBtn = `<button id="${opts.id}_edit" class="${base} bg-amber-600 hover:bg-amber-500 hover:shadow-lg hover:shadow-amber-500/20 transition-all">
+                       <i data-lucide="pencil" class="w-3.5 h-3.5"></i>${esc(opts.labels.editar)}
                    </button>`;
+            } else {
+                const reverseOff = empty || cancelada;
+                const revTitle   = cancelada ? ' title="La entrada ya esta cancelada"' : '';
+                rightBtn = `<button id="${opts.id}_reverse" ${reverseOff ? 'disabled' : ''}${revTitle} class="${base} bg-red-600 ${reverseOff ? off : 'hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/20 transition-all'}">
+                       <i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.reversar)}
+                   </button>`;
+            }
 
-            return `
-                <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">
+            return wrap(`
                     ${leftBtn}
-                    ${rightBtn}
-                </div>`;
+                    ${rightBtn}`);
         };
 
         // Estado vacio: sin entrada seleccionada.
@@ -1036,20 +1104,23 @@ class EntradasView extends Templates {
 
         // Detalle de productos en formato tabla. En ordenes de produccion se muestran
         // dos columnas de cantidad: la reportada (planeada) y la que realmente entro.
-        // Si la entrada esta Pendiente, "Entro" es un input editable que alimenta la
-        // confirmacion; en otros estados es solo lectura.
-        const productTable = (e, editable, mostrarReportada) => {
+        // El input "Entro" es editable al confirmar produccion (parte de la reportada)
+        // o al editar una entrada ya aplicada (parte de lo que ya entro); en otros casos
+        // es solo lectura.
+        const productTable = (e, editable, mostrarReportada, startFromConfirmed) => {
             const cols = mostrarReportada ? 6 : 5;
 
             const rows = (e.productos || []).map(p => {
-                // En modo editable el input arranca con la cantidad reportada.
-                const real     = editable ? Number(p.cant) : Number(p.cantReal);
+                // Valor inicial del input: en edicion parte de la cantidad confirmada (lo
+                // que ya entro); al confirmar produccion, de la reportada.
+                const startQty = startFromConfirmed ? Number(p.cantReal) : Number(p.cant);
+                const real     = editable ? startQty : Number(p.cantReal);
                 const subtotal = real * Number(p.costo);
 
                 const entroCell = editable
                     ? `<input type="number" min="0" step="any"
-                              class="entrada-real-qty w-16 px-1.5 py-1 text-right rounded bg-[#141d2b] border border-[#374151] text-white text-[13px] focus:border-[#7C3AED] focus:outline-none"
-                              data-detail-id="${p.detailId}" data-costo="${p.costo}" value="${p.cant}">`
+                              class="entrada-real-qty no-spin w-16 px-1.5 py-1 text-right rounded bg-[#141d2b] border border-[#374151] text-white text-[13px] focus:border-[#7C3AED] focus:outline-none"
+                              data-detail-id="${p.detailId}" data-costo="${p.costo}" value="${startQty}">`
                     : `<span class="text-green-400 font-bold">+${real}</span>`;
 
                 const reportadaCol = mostrarReportada
@@ -1059,16 +1130,7 @@ class EntradasView extends Templates {
                 return `
                     <tr class="border-b border-[#374151]/50">
                         <td class="py-1.5 px-1">
-                            <div class="flex items-center gap-1.5">
-                                <div class="relative w-6 h-6 rounded ${p.bg} flex items-center justify-center flex-shrink-0 overflow-hidden ring-1 ring-white/5">
-                                    <i data-lucide="${p.icon}" class="w-3 h-3 ${p.color}"></i>
-                                    ${p.image ? `<img src="https://huubie.com.mx/${esc(String(p.image).replace(/^\/+/, ''))}" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'">` : ''}
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-[12px] font-bold text-white leading-tight truncate max-w-[110px]">${esc(p.nombre)}</p>
-                                    <p class="text-[10px] text-[#9CA3AF] leading-tight">${esc(p.sku)}</p>
-                                </div>
-                            </div>
+                            <p class="text-[12px] font-bold text-white leading-tight">${esc(p.nombre)}</p>
                         </td>
                         ${reportadaCol}
                         <td class="py-1.5 px-1 text-center whitespace-nowrap">${entroCell}</td>
@@ -1107,7 +1169,16 @@ class EntradasView extends Templates {
 
             const pendiente    = e.estado === 'Pendiente';
             const cancelada    = e.estado === 'Cancelada';
+            const aplicada     = e.estado === 'Aplicada';
             const esProduccion = e.origenCode === 'PRODUCTION';
+            // Modo edicion: solo sobre una entrada ya Aplicada cuando se pidio editar.
+            const editing      = !!opts.editMode && aplicada;
+            // Inputs editables al confirmar produccion pendiente o al editar una aplicada.
+            const editable     = pendiente || editing;
+            // En edicion partimos de la cantidad ya confirmada (lo que entro).
+            const hint = editing
+                ? 'Edita la cantidad que entro'
+                : (pendiente && esProduccion ? 'Ajusta la cantidad que realmente entro' : '');
             const origenC   = opts.origenPalettes[e.origen] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
             const estadoC   = opts.estadoPalettes[e.estado] || { bg: 'rgba(63,193,137,0.15)',  fg: '#3FC189' };
             const folioCol  = e.origen === 'Transferencia' ? 'text-blue-400' : 'text-green-400';
@@ -1164,11 +1235,11 @@ class EntradasView extends Templates {
 
                     <!-- Detalle de productos -->
                     <div>
-                        <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center justify-between gap-2 mb-2">
                             <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider">${esc(opts.labels.detalleLbl)}</p>
-                            ${pendiente && esProduccion ? `<span class="text-[8px] text-[#FBBF24]">Ajusta la cantidad que realmente entro</span>` : ''}
+                            ${hint ? `<span class="text-[10px] text-[#9CA3AF] text-right">${esc(hint)}</span>` : ''}
                         </div>
-                        <div class="overflow-x-auto">${productTable(e, pendiente, esProduccion)}</div>
+                        <div class="overflow-x-auto">${productTable(e, editable, esProduccion, editing)}</div>
                     </div>
 
                     <!-- Nota -->
@@ -1179,11 +1250,23 @@ class EntradasView extends Templates {
                     </div>` : ''}
                 </div>
 
-                ${actionsBar({ pendiente, cancelada })}
+                ${actionsBar({ pendiente, cancelada, aplicada, editing })}
             `;
         };
 
         // -- Construccion e insercion al DOM --
+
+        // Oculta las flechitas (spinners) del input number "Entro". Autocontenido:
+        // el panel trae su propio CSS para no depender del modal de entrada.
+        if (!document.getElementById('entradaDetailPanelStyles')) {
+            const style = document.createElement('style');
+            style.id = 'entradaDetailPanelStyles';
+            style.textContent = `
+                input.no-spin::-webkit-inner-spin-button,
+                input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none !important; appearance: none !important; margin: 0 !important; }
+                input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }`;
+            document.head.appendChild(style);
+        }
 
         const aside = $('<aside>', { id: opts.id, class: opts.class });
         aside.html(opts.json ? filledView(opts.json) : emptyView());
@@ -1194,13 +1277,16 @@ class EntradasView extends Templates {
         // -- Eventos (solo con entrada seleccionada) --
 
         if (opts.json) {
-            const e = opts.json;
-            $(`#${opts.id}_close`).on('click', () => opts.onClose(e));
-            if (e.estado === 'Pendiente') {
-                $(`#${opts.id}_confirm`).on('click', () => opts.onConfirm(e));
+            const e        = opts.json;
+            const aplicada = e.estado === 'Aplicada';
+            const editing  = !!opts.editMode && aplicada;
 
-                // Recalcula subtotales por renglon y los totales del resumen en vivo
-                // mientras se ajusta la cantidad real que entro.
+            $(`#${opts.id}_close`).on('click', () => opts.onClose(e));
+
+            // Recalculo en vivo de subtotales/totales + captura comoda por teclado.
+            // Se usa siempre que hay inputs editables: confirmar produccion pendiente
+            // o editar una entrada ya aplicada.
+            const bindQtyEditing = () => {
                 const recalc = () => {
                     let uds = 0, costo = 0;
                     $(`#${opts.id} .entrada-real-qty`).each(function () {
@@ -1215,10 +1301,43 @@ class EntradasView extends Templates {
                     $(`#${opts.id}_totCosto`).text(fmtMoney(costo));
                 };
                 $(`#${opts.id}`).on('input', '.entrada-real-qty', recalc);
+
+                // Captura comoda:
+                //  - al enfocar un input se selecciona su contenido (sobrescribir de un teclazo)
+                //  - Enter salta al siguiente renglon; en el ultimo, quita el foco
+                //  - al abrir, el primer input recibe foco automaticamente
+                const $qtys = $(`#${opts.id} .entrada-real-qty`);
+                $qtys.on('focus', function () { this.select(); });
+                $(`#${opts.id}`).on('keydown', '.entrada-real-qty', function (ev) {
+                    if (ev.key !== 'Enter') return;
+                    ev.preventDefault();
+                    const next = $qtys.get($qtys.index(this) + 1);
+                    if (next) next.focus();
+                    else this.blur();
+                });
+                if ($qtys.length) {
+                    const first = $qtys.get(0);
+                    first.focus({ preventScroll: true });
+                    first.select();
+                }
+            };
+
+            if (editing) {
+                bindQtyEditing();
+                $(`#${opts.id}_saveEdit`).on('click', () => opts.onSaveEdit(e));
+                $(`#${opts.id}_cancelEdit`).on('click', () => opts.onCancelEdit(e));
+            } else if (e.estado === 'Pendiente') {
+                $(`#${opts.id}_confirm`).on('click', () => opts.onConfirm(e));
+                bindQtyEditing();
+                $(`#${opts.id}_reverse`).on('click', () => opts.onReverse(e));
             } else {
                 $(`#${opts.id}_print`).on('click', () => opts.onPrint(e));
+                if (aplicada) {
+                    $(`#${opts.id}_edit`).on('click', () => opts.onEdit(e));
+                } else {
+                    $(`#${opts.id}_reverse`).on('click', () => opts.onReverse(e));
+                }
             }
-            $(`#${opts.id}_reverse`).on('click', () => opts.onReverse(e));
         }
     }
 

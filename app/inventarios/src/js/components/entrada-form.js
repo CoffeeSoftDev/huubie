@@ -1,13 +1,34 @@
-// entradaForm — Modal de captura de entrada de stock.
-// Contrato: { parent, id, class, json:[], data:{origenes,sucursales,fecha,subsidiaries_id,nota},
-//             labels:{}, onAdd(payload), onClose(), onSearch(term,cb) }
-// API publica: instancia con { open(), close(), setData(newData) }
-// Registro: Templates.prototype.entradaForm — disponible en cualquier clase que extienda Templates.
-
+const SAMPLE_ENTRADA = {
+    json: [
+        { id: '1', nombre: 'Café Americano 250g',  sku: 'CAF-001', stock: 12, costo: 85.00,  icon: 'coffee',      bg: 'bg-amber-500/15',  color: 'text-amber-400',  image: '' },
+        { id: '2', nombre: 'Té Verde 100g',         sku: 'TE-002',  stock: 3,  costo: 55.50,  icon: 'leaf',        bg: 'bg-green-500/15',  color: 'text-green-400',  image: '' },
+        { id: '3', nombre: 'Azúcar Morena 1kg',     sku: 'AZU-003', stock: 0,  costo: 32.00,  icon: 'package',     bg: 'bg-gray-500/15',   color: 'text-gray-400',   image: '' },
+        { id: '4', nombre: 'Leche Entera 1L',       sku: 'LEC-004', stock: 24, costo: 28.00,  icon: 'droplets',    bg: 'bg-blue-500/15',   color: 'text-blue-400',   image: '' }
+    ],
+    data: {
+        origenes:   [
+            { id: '1', valor: 'Proveedor directo' },
+            { id: '2', valor: 'Produccion interna' },
+            { id: '3', valor: 'Transferencia' }
+        ],
+        sucursales: [
+            { id: '1', valor: 'Sucursal Centro', subsidiaries_id: '1' },
+            { id: '2', valor: 'Sucursal Norte',  subsidiaries_id: '2' }
+        ],
+        almacenes:  [
+            { id: '1', valor: 'Almacen General', subsidiaries_id: '1' },
+            { id: '2', valor: 'Almacen Frio',    subsidiaries_id: '1' },
+            { id: '3', valor: 'Almacen Norte',   subsidiaries_id: '2' }
+        ],
+        fecha:           '2026-06-01',
+        subsidiaries_id: '1',
+        warehouse_id:    '1',
+        nota:            ''
+    }
+};
 
 class EntradaForm {
 
-    // Inicializa estado, fusiona opciones con defaults, monta el DOM y enchufa eventos.
     constructor(options) {
 
         this.FORMATOS_KEY = 'huubie_entradaFormatos';
@@ -97,7 +118,7 @@ class EntradaForm {
         this.renderFormatosBadge();
     }
 
-    // Plantillas HTML — bloques estaticos del modal (header, footer, filas, etc.)
+    // -- Render estático --
 
     renderHeader() {
         const o = this.opts;
@@ -172,7 +193,7 @@ class EntradaForm {
                     <input id="${o.id}_buscarProducto" type="text" placeholder="${this.esc(o.labels.placeholder)}" class="${cls.search}" autocomplete="off">
                 </div>
             </div>
-            <div id="${o.id}_catalogoLista" class="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1 -mr-1 cs-scroll bg-[#0f172a]/40 border border-gray-800/60 rounded-lg p-1.5"></div>`;
+            <div id="${o.id}_catalogoLista" class="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1 -mr-1 cs-scroll ef-scroll bg-[#0f172a]/40 border border-gray-800/60 rounded-lg p-1.5"></div>`;
     }
 
     renderResumen() {
@@ -342,27 +363,31 @@ class EntradaForm {
             </div>`;
     }
 
-    // Inyecta (una sola vez) el CSS que oculta los spinners de los inputs numericos.
     ensureStyles() {
         if (document.getElementById('entradaFormStyles')) return;
         const css = `
             input.no-spin::-webkit-inner-spin-button,
             input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none !important; appearance: none !important; margin: 0 !important; }
-            input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }`;
+            input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }
+            .ef-scroll { scrollbar-width: thin; scrollbar-color: #374151 transparent; }
+            .ef-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+            .ef-scroll::-webkit-scrollbar-track { background: transparent; }
+            .ef-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+            .ef-scroll::-webkit-scrollbar-thumb:hover { background: #4B5563; }`;
         const style = document.createElement('style');
         style.id = 'entradaFormStyles';
         style.textContent = css;
         document.head.appendChild(style);
     }
 
-    // Inserta el modal en el DOM una sola vez (al instanciar la clase).
+    // -- Mount --
 
     mount() {
         const o = this.opts;
         this.wrap = $('<div>', { id: o.id, class: o.class });
         this.wrap.html(`
             <div class="absolute inset-0 bg-black/60" data-modal-close></div>
-            <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-[#111928] border border-gray-700/60 rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col">
+            <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-[#111928] rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col">
                 ${this.renderHeader()}
                 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
                     ${this.renderConfigRow()}
@@ -386,7 +411,7 @@ class EntradaForm {
         $target.append(this.wrap);
     }
 
-    // Render dinamico — se redibuja en cada cambio de estado (lote, busqueda).
+    // -- Render dinamico --
 
     updateTotals() {
         const o = this.opts;
@@ -437,7 +462,7 @@ class EntradaForm {
         if (window.lucide) lucide.createIcons();
     }
 
-    // Acciones del usuario sobre el lote — mutan estado y disparan re-render.
+    // -- Acciones de lote --
 
     doSearch(q) {
         this.searchTerm = (q || '').trim();
@@ -458,7 +483,6 @@ class EntradaForm {
         this.searchTerm = '';
         $(`#${this.opts.id}_buscarProducto`).val('');
         this.renderLote();
-        // Enfoca la cantidad del producto recien agregado y selecciona su valor para captura inmediata.
         const idx  = this.lote.length - 1;
         const $qty = $(`#${this.opts.id}_listaProductos input[data-field="cantidad"][data-idx="${idx}"]`);
         $qty.trigger('focus').trigger('select');
@@ -474,14 +498,12 @@ class EntradaForm {
         const field = $el.data('field');
         if (isNaN(idx) || !this.lote[idx] || !field) return;
         this.lote[idx][field] = $el.val();
-        // Actualizacion in-place: no se re-renderiza la tabla para no perder el foco del input.
         if (field === 'cantidad' || field === 'costo') {
             this.refreshRow(idx);
             this.updateTotals();
         }
     }
 
-    // Recalcula subtotal y nuevo stock de una sola fila sin tocar sus inputs (preserva el foco).
     refreshRow(i) {
         const o = this.opts;
         const p = this.lote[i];
@@ -537,11 +559,14 @@ class EntradaForm {
         this.closeModal();
     }
 
-    // Formatos preguardados — persistidos en localStorage con su scope (user/subsidiary/company).
+    // -- Formatos --
 
     loadFormatos() {
+        // Guarda contra localStorage corrupto: loadFormatos corre en el constructor,
+        // un JSON invalido sin captura romperia la apertura del modal entero.
         try {
-            return JSON.parse(localStorage.getItem(this.FORMATOS_KEY) || '[]');
+            const parsed = JSON.parse(localStorage.getItem(this.FORMATOS_KEY) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
         } catch (e) {
             return [];
         }
@@ -748,7 +773,7 @@ class EntradaForm {
         }
     }
 
-    // Bindings — todos los listeners delegados al wrapper del modal.
+    // -- Eventos --
 
     bindEvents() {
         const wrap = this.wrap;
@@ -786,7 +811,7 @@ class EntradaForm {
         });
     }
 
-    // API publica — invocada desde fuera via la instancia que devuelve entradaForm().
+    // -- API publica --
 
     open() {
         this.wrap.removeClass('hidden');
@@ -803,13 +828,12 @@ class EntradaForm {
         if (newData && 'fecha' in newData)           $(`#${id}_inpFecha`).val(newData.fecha);
         if (newData && 'subsidiaries_id' in newData) {
             $(`#${id}_selSucursal`).val(newData.subsidiaries_id);
-            // Reencadena los almacenes a la sucursal seleccionada.
             this.refreshAlmacenes(newData.subsidiaries_id);
         }
         if (newData && 'nota' in newData)            $(`#${id}_inpNota`).val(newData.nota);
     }
 
-    // Helpers puros — escape HTML, formato de moneda, fragmentos HTML reutilizables.
+    // -- Helpers --
 
     esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
@@ -817,7 +841,6 @@ class EntradaForm {
         }[c]));
     }
 
-    // Miniatura del producto: foto real (prefijo huubie.com.mx) con el icono de fondo como fallback.
     prodThumb(p, boxCls, iconCls) {
         const box  = boxCls  || 'w-8 h-8';
         const ico  = iconCls || 'w-4 h-4';
@@ -855,9 +878,6 @@ class EntradaForm {
     }
 }
 
-
-// Punto de entrada del framework — cualquier clase que extienda Templates puede llamar
-// this.entradaForm({...}) y recibir una instancia con la API publica { open, close, setData }.
 Templates.prototype.entradaForm = function (options) {
     return new EntradaForm(options);
 };

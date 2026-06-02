@@ -367,8 +367,8 @@ class App {
 
         $(document).off('mousemove.iaResize').on('mousemove.iaResize', (e) => {
             if (!dragging) return;
-            // El drawer crece a la izquierda → mover mouse a la IZQUIERDA aumenta el ancho
-            const dx = startX - e.clientX;
+            // El drawer vive a la izquierda y crece a la DERECHA → mover mouse a la DERECHA aumenta el ancho
+            const dx = e.clientX - startX;
             const next = Math.min(900, Math.max(380, startW + dx));
             this.applyIaDrawerWidth(next);
             this.settings.iaDrawerWidth = next;
@@ -1912,6 +1912,8 @@ class CoffeeIA {
 
     constructor(apiEndpoint, appRef) {
         this._api     = apiEndpoint;
+        // Endpoint gemelo en streaming (SSE). Mismo contexto, transporte distinto.
+        this._apiStream = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-coffeeia-stream.php');
         this._app     = appRef;
         this.history  = [];
         this.isOpen   = false;
@@ -2300,48 +2302,267 @@ class CoffeeIA {
             model:              this.model || ''
         };
 
-        const res  = await fetch(this._api, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(payload)
-        });
-        const data = await res.json();
+        // --- Streaming SSE + typewriter por palabras (estilo Claude) ---
+        const provider = (this.model && this.model.indexOf('/') !== -1) ? 'OpenRouter' : 'Ollama';
+        const finish = () => {
+            this._scrollBottom();
+            this.isBusy = false;
+            $('#iaSendBtn').prop('disabled', false);
+            if (window.lucide) lucide.createIcons();
+        };
 
-        $typing.remove();
+        let stream     = null;   // controlador de _createAIStream (se crea al 1er token)
+        let received   = '';     // texto completo acumulado del stream
+        let meta       = {};     // metadatos del evento 'done'
+        let streamErr  = null;   // error reportado dentro del stream
+        let firstToken = false;
 
-        if (!data.ok) {
-            this._appendAIMessage('Error: ' + (data.error || 'Respuesta invalida'), null);
-        } else {
-            this.history.push({ role: 'assistant', content: data.reply });
-
-            // Si el modo editor esta activo, intentar extraer propuestas <edit-replace>
-            let proposals = [];
-            let displayedReply = data.reply;
-            if (this.editorMode) {
-                const file = (this._app.allFiles || []).find(f => f.file === this._app.currentFile);
-                const rawFile = file ? file.raw : '';
-                const parsed = this._parseEditReplaceBlocks(data.reply, rawFile);
-                proposals     = parsed.proposals;
-                displayedReply = parsed.cleanText || displayedReply;
-            }
-
-            this._appendAIMessage(displayedReply, {
-                credits:    data.credits_estimate,
-                elapsed_ms: data.elapsed_ms,
-                tokens:     data.tokens_used,
-                proposalsCount: proposals.length
+        try {
+            const res = await fetch(this._apiStream, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(payload)
             });
-
-            if (proposals.length > 0) {
-                this.pendingEdits = proposals;
-                this._showEditProposalPanel(proposals);
+            if (!res.ok || !res.body) {
+                let m = 'HTTP ' + res.status;
+                try { const j = await res.json(); if (j && j.error) m = j.error; } catch (_) {}
+                throw new Error(m);
             }
+
+            // Lee el SSE: eventos separados por \n\n, lineas 'event:' y 'data:'.
+            const reader = res.body.getReader();
+            const dec    = new TextDecoder();
+            let buf = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buf += dec.decode(value, { stream: true });
+
+                let idx;
+                while ((idx = buf.indexOf('\n\n')) !== -1) {
+                    const rawEvent = buf.slice(0, idx);
+                    buf = buf.slice(idx + 2);
+                    let ev = 'message', dataStr = '';
+                    rawEvent.split('\n').forEach(l => {
+                        if (l.startsWith('event:')) ev = l.slice(6).trim();
+                        else if (l.startsWith('data:')) dataStr += l.slice(5).trim();
+                    });
+                    let obj = {};
+                    try { obj = dataStr ? JSON.parse(dataStr) : {}; } catch (_) { continue; }
+
+                    if (ev === 'chunk') {
+                        if (!firstToken) {
+                            firstToken = true;
+                            $typing.remove();
+                            stream = this._createAIStream();   // crea la burbuja al 1er token (detecta HTML y muestra card "Conjurando…")
+                        }
+                        received += obj.t || '';
+                        stream.push(obj.t || '');
+                    } else if (ev === 'done') {
+                        meta = obj;
+                    } else if (ev === 'error') {
+                        streamErr = obj.error || 'Error';
+                    }
+                }
+            }
+        } catch (err) {
+            // Sin red, timeout o respuesta corrupta (aplica igual a OpenRouter y Ollama).
+            $typing.remove();
+            const msg = '⚠️ No se obtuvo respuesta de ' + provider + '. '
+                + (err && err.message ? err.message : 'Error de red o timeout.');
+            if (stream) { await stream.drain(); stream.fail(msg); }
+            else        { this._appendAIMessage(msg, null); }
+            finish();
+            return;
         }
 
-        this._scrollBottom();
-        this.isBusy = false;
-        $('#iaSendBtn').prop('disabled', false);
-        if (window.lucide) lucide.createIcons();
+        // Error emitido dentro del stream (p.ej. 429 del proveedor).
+        if (streamErr) {
+            $typing.remove();
+            const msg = '⚠️ ' + streamErr;
+            if (stream) { await stream.drain(); stream.fail(msg); }
+            else        { this._appendAIMessage(msg, null); }
+            finish();
+            return;
+        }
+
+        // El stream cerro sin emitir ni un solo token.
+        if (!firstToken) {
+            $typing.remove();
+            this._appendAIMessage('⚠️ No se obtuvo respuesta de ' + provider + '.', null);
+            finish();
+            return;
+        }
+
+        // Espera a que el typewriter termine de pintar todo lo recibido.
+        await stream.drain();
+
+        this.history.push({ role: 'assistant', content: received });
+
+        // Modo editor: extraer propuestas <edit-replace> del texto completo.
+        let proposals = [];
+        let displayedReply = received;
+        if (this.editorMode) {
+            const file = (this._app.allFiles || []).find(f => f.file === this._app.currentFile);
+            const rawFile = file ? file.raw : '';
+            const parsed = this._parseEditReplaceBlocks(received, rawFile);
+            proposals     = parsed.proposals;
+            displayedReply = parsed.cleanText || displayedReply;
+        }
+
+        // Render final: markdown completo + meta + post-proceso (mermaid/chart/html).
+        stream.complete(displayedReply, {
+            credits:        meta.credits_estimate,
+            elapsed_ms:     meta.elapsed_ms,
+            tokens:         meta.tokens_used,
+            proposalsCount: proposals.length
+        }, received);
+
+        if (proposals.length > 0) {
+            this.pendingEdits = proposals;
+            this._showEditProposalPanel(proposals);
+        }
+
+        finish();
+    }
+
+    /* ── Burbuja de IA en streaming: typewriter por palabras (estilo Claude) ── */
+
+    // Crea una burbuja de respuesta vacia y devuelve un controlador:
+    //   push(piece)                 → alimenta texto que se pinta palabra a palabra
+    //   drain()  → Promise          → resuelve cuando termina de pintar lo pendiente
+    //   complete(text, meta, copy)  → render final (markdown + meta + post-proceso)
+    //   fail(msg)                   → corta y muestra un error
+    _createAIStream() {
+        const self  = this;
+        const msgId = 'iaMsg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        const $msg  = $(`
+            <div class="ia-msg ai" id="${msgId}">
+                <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA</span></div>
+                <div class="ia-msg-text"></div>
+            </div>
+        `);
+        $('#iaBodyChat').append($msg);
+        const $text = $msg.find('.ia-msg-text');
+
+        let pending = '', shown = '', streamDone = false, raf = null, drainCb = null;
+        let last = performance.now(), credit = 0;
+
+        // Deteccion dinamica de HTML: en cuanto el stream abre un bloque ```html
+        // dejamos de teclear el codigo crudo y mostramos una card "Conjurando…".
+        // Al terminar, complete() renderiza el componente. No depende del modo lienzo.
+        let conjuring = false, fullBuf = '', $conjSub = null;
+        const HTML_FENCE = /```[ \t]*html/i;
+        function enterConjuring() {
+            conjuring = true;
+            if (raf) { cancelAnimationFrame(raf); raf = null; }
+            pending = '';
+            $text.hide().empty();
+            const $card = $(`
+                <div class="ia-conjuring">
+                    <span class="ia-conjuring-orb"><i data-lucide="wand-sparkles"></i></span>
+                    <div class="ia-conjuring-info">
+                        <span class="ia-conjuring-title">Conjurando componente…</span>
+                        <span class="ia-conjuring-sub">Tejiendo el HTML</span>
+                    </div>
+                </div>`);
+            $card.insertBefore($text);
+            $conjSub = $card.find('.ia-conjuring-sub');
+            if (window.lucide) lucide.createIcons();
+            self._scrollBottom();
+        }
+
+        // Toma la siguiente "palabra" (espacios + token + espacio final). Pintar
+        // palabra a palabra es lo que da la sensacion Claude; letra a letra se
+        // siente a maquina de escribir.
+        function takeWord() {
+            const m   = pending.match(/^\s*\S+\s*/);
+            const len = m ? m[0].length : pending.length;
+            const piece = pending.slice(0, len);
+            pending = pending.slice(len);
+            return piece;
+        }
+        function paint() {
+            $text.html(self._markdownToHtml(shown) + '<span class="ia-stream-cursor">▍</span>');
+            self._scrollBottom();
+        }
+        function pump(now) {
+            now = now || performance.now();
+            const dt = Math.min(100, now - last); // cap por si la pestana estuvo inactiva
+            last = now;
+            // Ritmo en PALABRAS/seg; sube si se acumula backlog para no rezagarse.
+            const wps = 14 + Math.min(46, pending.length / 40);
+            credit += (dt / 1000) * wps;
+            let painted = false;
+            while (credit >= 1 && pending.length) { shown += takeWord(); credit -= 1; painted = true; }
+            if (painted) paint();
+            if (!pending.length) credit = 0;
+            if (streamDone && !pending.length) {
+                raf = null;
+                const cb = drainCb; drainCb = null;
+                if (cb) cb();
+                return;
+            }
+            raf = requestAnimationFrame(pump);
+        }
+        const kick = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(pump); } };
+
+        return {
+            $msg,
+            push(piece) {
+                if (!piece) return;
+                fullBuf += piece;
+                if (!conjuring && HTML_FENCE.test(fullBuf)) enterConjuring();
+                if (conjuring) {
+                    // No pintamos el HTML crudo: solo avanzamos el progreso de la card.
+                    const lines = fullBuf.split('\n').length;
+                    if ($conjSub) $conjSub.text('Tejiendo el HTML · ' + lines + (lines === 1 ? ' línea' : ' líneas'));
+                    return;
+                }
+                pending += piece; kick();
+            },
+            drain() {
+                if (conjuring) return Promise.resolve();
+                return new Promise(res => { streamDone = true; drainCb = res; kick(); });
+            },
+            complete(displayedText, meta, copyText) {
+                if (conjuring) { $msg.find('.ia-conjuring').remove(); $text.show(); }
+                let metaHtml = '';
+                if (meta) {
+                    const elapsedSec = meta.elapsed_ms > 0 ? (meta.elapsed_ms / 1000).toFixed(1) + 's' : '—';
+                    metaHtml = `
+                        <div class="ia-msg-meta-footer">
+                            <span class="meta-item"><span class="dot"></span>Credits: <strong>${meta.credits ?? '—'}</strong></span>
+                            <span class="meta-item">Time: <strong>${elapsedSec}</strong></span>
+                            <span class="meta-actions">
+                                <button class="meta-iconbtn ia-copy-btn" title="Copiar respuesta"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                            </span>
+                        </div>`;
+                }
+                const proposalHint = (meta && meta.proposalsCount > 0)
+                    ? `<div><span class="ia-msg-proposal-hint"><i data-lucide="wand-sparkles"></i>${meta.proposalsCount} propuesta${meta.proposalsCount > 1 ? 's' : ''} en el panel</span></div>`
+                    : '';
+                $text.html(self._markdownToHtml(displayedText));   // fin: render limpio, sin cursor
+                $(proposalHint + metaHtml).appendTo($msg);
+                $msg.find('.ia-copy-btn').on('click', () => {
+                    const t = copyText != null ? copyText : displayedText;
+                    if (navigator.clipboard) navigator.clipboard.writeText(t);
+                    if (typeof visorView !== 'undefined' && visorView) visorView.toast('Respuesta copiada', 'success');
+                });
+                self._postProcessMessage($msg);
+                if (window.lucide) lucide.createIcons();
+                self._scrollBottom();
+            },
+            fail(msg) {
+                if (conjuring) { $msg.find('.ia-conjuring').remove(); $text.show(); }
+                streamDone = true; pending = '';
+                if (raf) { cancelAnimationFrame(raf); raf = null; }
+                $text.html(self._markdownToHtml(msg));
+                if (window.lucide) lucide.createIcons();
+                self._scrollBottom();
+            }
+        };
     }
 
     /* ── Parser de propuestas <edit-replace> ── */

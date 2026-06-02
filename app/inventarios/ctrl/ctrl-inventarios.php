@@ -152,7 +152,7 @@ class ctrl extends mdl {
             if ($r['status'] !== 'Cancelada') {
                 $a[] = [
                     'class'   => 'btn btn-sm btn-danger me-1',
-                    'html'    => '<i class="icon-ccw"></i>',
+                    'html'    => '<i class="icon-block"></i>',
                     'onclick' => "app.cancelEntradaRow('{$r['folio']}', {$r['id']}, '{$r['status']}')"
                 ];
             }
@@ -310,6 +310,7 @@ class ctrl extends mdl {
         $detail     = $this->qGetEntradaDetail([$id]);
         $totalUnits = 0;
         $totalCost  = 0;
+        $affected   = 0; // renglones que realmente entraron al almacen (cantidad real > 0)
         foreach ($detail as $d) {
             $detailId  = (int) $d['id'];
             $productId = (int) $d['product_id'];
@@ -333,15 +334,93 @@ class ctrl extends mdl {
                 $this->insertStockRow([$post, $warehouse, $productId, $this->companiesId]);
             }
 
+            if ($realQty > 0) $affected++;
             $totalUnits += $realQty;
             $totalCost  += $subtotal;
         }
 
         $this->updateEntradaTotals([$totalUnits, $totalCost, $id]);
         $r = $this->qApplyEntrada([$this->userId, $id]);
+
+        // Unidades sin decimales sobrantes (56 en vez de 56.00).
+        $udsTxt  = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
+        $prodTxt = $affected . ' ' . ($affected === 1 ? 'producto afectado' : 'productos afectados');
+
         return [
-            'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Produccion confirmada y stock aplicado' : 'No se pudo confirmar la produccion'
+            'status'   => $r ? 200 : 500,
+            'message'  => $r ? "Produccion confirmada: {$prodTxt} ({$udsTxt} uds aplicadas al almacen)" : 'No se pudo confirmar la produccion',
+            'affected' => $affected,
+            'units'    => $totalUnits
+        ];
+    }
+
+    // Edita las cantidades reales de una entrada YA aplicada. Ajusta el stock por el
+    // DELTA entre la nueva cantidad y la que estaba aplicada, sin reaplicar todo.
+    function editEntrada() {
+        $id     = (int) $_POST['id'];
+        $header = $this->qGetEntrada([$id]);
+
+        if (!$header) {
+            return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+        if ($header['status'] !== 'Aplicada') {
+            return ['status' => 400, 'message' => 'Solo se puede editar una entrada aplicada'];
+        }
+
+        // Nuevas cantidades reales por renglon: { detail_id: qty }. Si un renglon no
+        // viene, conserva la cantidad que ya tenia aplicada.
+        $quantities = json_decode($_POST['quantities'] ?? '{}', true);
+        if (!is_array($quantities)) $quantities = [];
+
+        $warehouse  = (int) $header['warehouse_id'];
+        $detail     = $this->qGetEntradaDetail([$id]);
+        $totalUnits = 0;
+        $totalCost  = 0;
+        $affected   = 0; // renglones cuyo stock cambio (delta != 0)
+        foreach ($detail as $d) {
+            $detailId  = (int) $d['id'];
+            $productId = (int) $d['product_id'];
+            $cost      = (float) $d['cost'];
+            // Cantidad ya aplicada: la confirmada si existe, si no la reportada.
+            $oldQty    = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
+            $newQty    = array_key_exists((string) $detailId, $quantities)
+                ? max(0, (float) $quantities[$detailId])
+                : $oldQty;
+            $delta     = $newQty - $oldQty;
+            $subtotal  = $newQty * $cost;
+
+            $stockRow = $this->getStockRow([$productId, $warehouse]);
+            $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
+            $post     = max(0, $prev + $delta);
+
+            // Guarda la nueva cantidad real, el subtotal y el snapshot de stock del renglon.
+            $this->confirmEntradaDetail([$newQty, $subtotal, $prev, $post, $detailId]);
+
+            if ($delta != 0) {
+                if ($stockRow) {
+                    $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                } else if ($newQty > 0) {
+                    $this->insertStockRow([$post, $warehouse, $productId, $this->companiesId]);
+                }
+                $affected++;
+            }
+
+            $totalUnits += $newQty;
+            $totalCost  += $subtotal;
+        }
+
+        $this->updateEntradaTotals([$totalUnits, $totalCost, $id]);
+
+        $udsTxt  = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
+        $prodTxt = $affected . ' ' . ($affected === 1 ? 'producto ajustado' : 'productos ajustados');
+
+        return [
+            'status'   => 200,
+            'message'  => $affected > 0
+                ? "Entrada actualizada: {$prodTxt} ({$udsTxt} uds en el almacen)"
+                : 'No hubo cambios en las cantidades',
+            'affected' => $affected,
+            'units'    => $totalUnits
         ];
     }
 

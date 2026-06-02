@@ -59,6 +59,27 @@ class OpenRouterClient {
         ];
     }
 
+    /**
+     * Igual que chat() pero en streaming. OpenRouter habla SSE estilo OpenAI:
+     * lineas "data: {json}\n\n" con el delta en choices[0].delta.content y un
+     * "data: [DONE]" final. Por cada fragmento invocamos $onChunk($piece).
+     * Devuelve ['content' => textoCompleto, 'meta' => ['model','usage']].
+     */
+    public function chatStream(array $messages, $model = null, array $opts = [], callable $onChunk = null) {
+        $payload = [
+            'model'          => $model ?: $this->defaultModel,
+            'messages'       => $this->adaptMessages($messages),
+            'stream'         => true,
+            'stream_options' => ['include_usage' => true],
+        ];
+        if (isset($opts['temperature'])) $payload['temperature'] = $opts['temperature'];
+        if (isset($opts['top_p']))       $payload['top_p']       = $opts['top_p'];
+        if (isset($opts['num_predict'])) $payload['max_tokens']  = (int) $opts['num_predict'];
+        if (isset($opts['max_tokens']))  $payload['max_tokens']  = (int) $opts['max_tokens'];
+
+        return $this->requestStream('/chat/completions', $payload, $onChunk);
+    }
+
     public function listModels() {
         return $this->request('GET', '/models');
     }
@@ -152,5 +173,72 @@ class OpenRouterClient {
             throw new OpenRouterException('Respuesta no JSON: ' . substr($resp, 0, 200));
         }
         return $data;
+    }
+
+    /**
+     * Variante streaming de request(): parsea el SSE estilo OpenAI conforme
+     * llega via CURLOPT_WRITEFUNCTION. cURL puede cortar a mitad de linea, asi
+     * que bufferizamos y procesamos solo lineas completas.
+     */
+    private function requestStream($path, $body, callable $onChunk = null) {
+        $ch = curl_init($this->baseUrl . $path);
+        $headers = [
+            'Authorization: Bearer ' . $this->apiKey,
+            'Content-Type: application/json',
+            'Accept: text/event-stream',
+            'X-Title: ' . (defined('OPENROUTER_APP_TITLE') ? OPENROUTER_APP_TITLE : 'Huubie Visor'),
+        ];
+        if (defined('OPENROUTER_APP_REFERER') && OPENROUTER_APP_REFERER !== '') {
+            $headers[] = 'HTTP-Referer: ' . OPENROUTER_APP_REFERER;
+        }
+
+        $buffer    = '';
+        $full      = '';
+        $usage     = [];
+        $modelSeen = '';
+
+        curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_HTTPHEADER    => $headers,
+            CURLOPT_TIMEOUT       => OPENROUTER_TIMEOUT,
+            CURLOPT_POSTFIELDS    => json_encode($body, JSON_UNESCAPED_UNICODE),
+            CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$usage, &$modelSeen, $onChunk) {
+                $buffer .= $data;
+                while (($pos = strpos($buffer, "\n")) !== false) {
+                    $line   = trim(substr($buffer, 0, $pos));
+                    $buffer = substr($buffer, $pos + 1);
+                    if ($line === '' || $line[0] === ':') continue; // vacia o comentario keep-alive
+                    if (strncmp($line, 'data:', 5) !== 0) continue;
+                    $json = trim(substr($line, 5));
+                    if ($json === '[DONE]') continue;
+                    $obj = json_decode($json, true);
+                    if (!is_array($obj)) continue;
+                    if (isset($obj['model'])) $modelSeen = $obj['model'];
+                    if (isset($obj['usage']) && is_array($obj['usage'])) $usage = $obj['usage'];
+                    $piece = $obj['choices'][0]['delta']['content'] ?? '';
+                    if ($piece !== '' && $piece !== null) {
+                        $full .= $piece;
+                        if ($onChunk) $onChunk($piece);
+                    }
+                }
+                return strlen($data);
+            },
+        ]);
+        if (defined('OPENROUTER_CA_BUNDLE') && OPENROUTER_CA_BUNDLE !== '' && file_exists(OPENROUTER_CA_BUNDLE)) {
+            curl_setopt($ch, CURLOPT_CAINFO, OPENROUTER_CA_BUNDLE);
+        }
+
+        $ok   = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($ok === false && $err !== '') {
+            throw new OpenRouterException('cURL: ' . $err);
+        }
+        if ($code >= 400) {
+            throw new OpenRouterException("HTTP $code");
+        }
+        return ['content' => $full, 'meta' => ['model' => $modelSeen, 'usage' => $usage]];
     }
 }

@@ -158,7 +158,20 @@ html, body { height: 100%; }
     width: 18px; height: 18px;
 }
 
+/* Fila: [chat IA a toda la altura, izquierda] + [columna toolbar+documento].
+   El chat (#iaDrawer, order:-1) ocupa todo el alto del contenedor; la toolbar
+   vive dentro de .visor-main-col y por eso se ajusta a la derecha del chat. */
 .visor-main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: row;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Columna derecha: toolbar (.main-breadcrumb) arriba + documento (.main-content) */
+.visor-main-col {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
@@ -236,19 +249,22 @@ html, body { height: 100%; }
     flex-shrink: 0;
     min-width: 0;
 }
-.main-breadcrumb > .breadcrumb {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
+/* Boton CoffeeIA a la izquierda de la toolbar (reemplaza al breadcrumb, que
+   se movio al footer). La toolbar queda siempre pegada a la derecha gracias a
+   margin-left:auto, aunque el boton CoffeeIA este oculto (usuarios sin IA). */
+.main-breadcrumb > .btn-coffeeia {
+    flex: 0 0 auto;
 }
 .main-breadcrumb > .doc-toolbar {
     flex: 0 0 auto;
+    margin-left: auto;
 }
 
 .main-content {
     flex: 1 1 auto;
     overflow-y: auto;
     padding: 24px 28px;
+    min-width: 0;
     min-height: 0;
 }
 
@@ -575,6 +591,12 @@ html, body { height: 100%; }
 .breadcrumb .current { color: var(--vsr-text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .breadcrumb svg { color: var(--vsr-text-muted); flex-shrink: 0; }
 .breadcrumb #breadcrumbSection { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
+
+/* Breadcrumb reubicado en el footer: mas chico, truncable y sin robar espacio
+   a los contadores (Total/Agentes/Grimorios). */
+.footer-breadcrumb { font-size: 11px; max-width: 420px; flex-shrink: 1; min-width: 0; }
+.footer-breadcrumb svg { width: 13px; height: 13px; }
+.footer-breadcrumb .current { color: var(--vsr-accent-soft); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
 
 /* ── Document layout (md a la izq, frontmatter sticky derecha) ── */
 
@@ -1978,9 +2000,11 @@ body.xlsx-view .doc-meta { display: none; }
 }
 .btn-coffeeia.is-active .dot-indicator { opacity: 1; }
 
-/* Drawer panel — inline en el flex row, animado por ancho */
+/* Drawer panel — inline en el flex row, animado por ancho.
+   order:-1 lo posiciona a la IZQUIERDA (antes del sidebar y el main). */
 .ia-drawer {
     --ia-drawer-width: 420px;
+    order: -1;
     flex-shrink: 0;
     width: 0;
     overflow: hidden;
@@ -1992,10 +2016,11 @@ body.xlsx-view .doc-meta { display: none; }
 .ia-drawer.is-resizing { transition: none; }
 .ia-drawer.is-resizing .ia-drawer-inner { transition: none; }
 
-/* Handle de resize — barra fina en el borde izquierdo del drawer */
+/* Handle de resize — barra fina en el borde derecho del drawer
+   (el drawer ahora vive a la izquierda y crece hacia la derecha) */
 .ia-drawer-resize-handle {
     position: absolute;
-    top: 0; left: 0;
+    top: 0; right: 0;
     width: 5px; height: 100%;
     cursor: ew-resize;
     z-index: 5;
@@ -2020,7 +2045,7 @@ body.ia-drawer-resizing * {
     min-width: 380px;
     height: 100%;
     background: var(--vsr-bg-chrome);
-    border-left: 1px solid var(--vsr-border-soft);
+    border-right: 1px solid var(--vsr-border-soft);
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -2344,6 +2369,55 @@ body.ia-drawer-resizing * {
     100% { content: ''; }
 }
 
+/* ── Card "Conjurando…" (modo lienzo) ──────────────────────────
+   Mientras la IA genera un componente HTML mostramos esta card en
+   lugar de teclear el codigo crudo. Al terminar se reemplaza por
+   el componente renderizado (iframe). */
+.ia-conjuring {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: linear-gradient(110deg, var(--vsr-accent-tint) 0%, transparent 60%);
+    border: 1px solid var(--vsr-divider);
+    position: relative;
+    overflow: hidden;
+}
+/* Barrido de brillo recorriendo la card */
+.ia-conjuring::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 30%, rgba(232,166,143,.18) 50%, transparent 70%);
+    transform: translateX(-100%);
+    animation: ia-conjuring-shimmer 1.6s ease-in-out infinite;
+}
+.ia-conjuring-orb {
+    flex-shrink: 0;
+    width: 34px; height: 34px;
+    border-radius: 9999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--vsr-accent) 0%, var(--vsr-accent-soft) 100%);
+    box-shadow: 0 0 0 0 var(--vsr-accent-tint);
+    animation: ia-conjuring-pulse 1.5s ease-in-out infinite;
+}
+.ia-conjuring-orb i { width: 17px; height: 17px; animation: ia-conjuring-spin 3.2s linear infinite; }
+.ia-conjuring-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; z-index: 1; }
+.ia-conjuring-title { font-size: 12.5px; font-weight: 600; color: var(--vsr-text-soft); }
+.ia-conjuring-sub {
+    font-size: 11px; color: var(--vsr-text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@keyframes ia-conjuring-shimmer { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
+@keyframes ia-conjuring-pulse {
+    0%,100% { box-shadow: 0 0 0 0 var(--vsr-accent-tint); }
+    50%     { box-shadow: 0 0 0 7px transparent; }
+}
+@keyframes ia-conjuring-spin { to { transform: rotate(360deg); } }
+
 /* Estado vacio: primera vez sin chat */
 .ia-empty {
     flex: 1;
@@ -2505,6 +2579,24 @@ body.ia-drawer-resizing * {
     background: var(--vsr-bg-card);
     color: var(--vsr-text-soft);
 }
+/* El label del optgroup salia con fondo blanco / texto invisible en dark
+   porque heredaba el estilo nativo del SO. Lo forzamos al tema. */
+.ia-model-pill optgroup {
+    background: var(--vsr-bg-card);
+    color: var(--vsr-text-mute2);
+    font-weight: 600;
+    font-style: normal;
+}
+
+/* Cursor del typewriter mientras la IA escribe en streaming (estilo Claude). */
+.ia-stream-cursor {
+    display: inline-block;
+    color: var(--vsr-accent, #a78bfa);
+    font-weight: 700;
+    margin-left: 1px;
+    animation: iaStreamBlink 1s steps(2, start) infinite;
+}
+@keyframes iaStreamBlink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
 
 /* ════════════════════════════════════════════════════════
    Panel de propuestas de edicion (Modo Editor CoffeeIA)

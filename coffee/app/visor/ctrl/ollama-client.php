@@ -42,6 +42,23 @@ class OllamaClient {
         return $this->request('POST', '/api/chat', $payload);
     }
 
+    /**
+     * Igual que chat() pero en modo streaming: Ollama Cloud devuelve NDJSON
+     * (una linea JSON por token-chunk). Por cada fragmento de texto invocamos
+     * $onChunk($piece). Devuelve al final ['content' => textoCompleto, 'meta' => ultimoObj].
+     */
+    public function chatStream(array $messages, $model = null, array $opts = [], callable $onChunk = null) {
+        $payload = [
+            'model'    => $model ?: $this->defaultModel,
+            'messages' => $messages,
+            'stream'   => true,
+        ];
+        if (!empty($opts)) {
+            $payload['options'] = $opts;
+        }
+        return $this->requestStream('POST', '/api/chat', $payload, $onChunk);
+    }
+
     public function generate($prompt, $model = null, array $opts = []) {
         $payload = [
             'model'  => $model ?: $this->defaultModel,
@@ -103,5 +120,66 @@ class OllamaClient {
             throw new OllamaException('Respuesta no JSON: ' . substr($resp, 0, 200));
         }
         return $data;
+    }
+
+    /**
+     * Variante streaming de request(): usa CURLOPT_WRITEFUNCTION para procesar
+     * el NDJSON conforme llega (sin esperar al curl_exec completo). cURL puede
+     * entregar trozos a mitad de linea, asi que bufferizamos y partimos por \n.
+     */
+    private function requestStream($method, $path, $body, callable $onChunk = null) {
+        $ch = curl_init($this->baseUrl . $path);
+        $headers = [
+            'Authorization: Bearer ' . $this->apiKey,
+            'Content-Type: application/json',
+            'Accept: application/x-ndjson',
+        ];
+
+        $buffer = '';
+        $full   = '';
+        $meta   = [];
+
+        curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_HTTPHEADER    => $headers,
+            CURLOPT_TIMEOUT       => OLLAMA_TIMEOUT,
+            CURLOPT_POSTFIELDS    => ($body !== null ? json_encode($body, JSON_UNESCAPED_UNICODE) : null),
+            CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$meta, $onChunk) {
+                $buffer .= $data;
+                while (($pos = strpos($buffer, "\n")) !== false) {
+                    $line   = trim(substr($buffer, 0, $pos));
+                    $buffer = substr($buffer, $pos + 1);
+                    if ($line === '') continue;
+                    $obj = json_decode($line, true);
+                    if (!is_array($obj)) continue;
+                    $piece = $obj['message']['content'] ?? '';
+                    if ($piece !== '') {
+                        $full .= $piece;
+                        if ($onChunk) $onChunk($piece);
+                    }
+                    if (!empty($obj['done'])) {
+                        $meta = $obj; // trae eval_count, total_duration, etc.
+                    }
+                }
+                // Obligatorio devolver los bytes consumidos o cURL aborta.
+                return strlen($data);
+            },
+        ]);
+        if (defined('OLLAMA_CA_BUNDLE') && OLLAMA_CA_BUNDLE !== '' && file_exists(OLLAMA_CA_BUNDLE)) {
+            curl_setopt($ch, CURLOPT_CAINFO, OLLAMA_CA_BUNDLE);
+        }
+
+        $ok   = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($ok === false && $err !== '') {
+            throw new OllamaException('cURL: ' . $err);
+        }
+        if ($code >= 400) {
+            throw new OllamaException("HTTP $code");
+        }
+        return ['content' => $full, 'meta' => $meta];
     }
 }

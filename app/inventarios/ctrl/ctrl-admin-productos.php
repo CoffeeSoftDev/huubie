@@ -874,7 +874,7 @@ function productImageCell($image, $name, $id = 0) {
     $path  = ltrim((string) $image, '/');
     $local = !empty($path) ? '/' . $path : '';
     $prod  = !empty($path) ? 'https://huubie.com.mx/' . $path : '';
-    $label = ucwords(mb_strtolower(trim((string) $name)));
+    $label = trim((string) $name);
     $id    = (int) $id;
 
     $imgTag = !empty($local)

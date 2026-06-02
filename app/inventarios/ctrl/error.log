@@ -1,3 +1,363 @@
+[ 2026-06-01 23:21:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:55 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:52 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:40 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
+[ 2026-06-01 22:11:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                d.id,
+                d.quantity,
+                d.confirmed_quantity,
+                d.cost,
+                d.subtotal,
+                d.previous_stock,
+                d.resulting_stock,
+                d.batch_code,
+                d.expires_at,
+                d.product_id,
+                p.name              AS product_name,
+                p.image             AS image,
+                pa.sku,
+                d.unit_id,
+                un.code             AS unit_code
+            FROM fayxzvov_reginas.detail_inventory_inflow d
+            INNER JOIN fayxzvov_reginas.order_products p   ON p.id  = d.product_id
+            LEFT  JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN fayxzvov_reginas.unit un            ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.confirmed_quantity' in 'field list'
+
+
 [ 2026-06-01 10:40:02 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

@@ -110,13 +110,14 @@
 
         <main id="root" class="visor-main">
 
+            <div class="visor-main-col">
+
             <div class="main-breadcrumb">
-                <nav class="breadcrumb">
-                    <i data-lucide="folder" class="w-4 h-4"></i>
-                    <span id="breadcrumbSection">agents</span>
-                    <span class="sep">/</span>
-                    <span id="breadcrumbFile" class="current">—</span>
-                </nav>
+                <button id="btnToggleCoffeeIA" class="cs-btn cs-btn-sm btn-coffeeia flex items-center gap-1.5" title="CoffeeIA (Ctrl+I)" style="display:none;">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                    CoffeeIA
+                    <span class="dot-indicator"></span>
+                </button>
                 <div class="doc-toolbar">
                     <div class="cs-tabs cs-tabs-inline">
                         <button class="cs-tab active" data-tab="rendered">
@@ -156,12 +157,6 @@
                     <button id="btnCancel" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Descartar cambios">
                         <i data-lucide="x" class="w-3.5 h-3.5"></i>
                         Cancelar
-                    </button>
-                    <span class="doc-toolbar-sep"></span>
-                    <button id="btnToggleCoffeeIA" class="cs-btn cs-btn-sm btn-coffeeia flex items-center gap-1.5" title="CoffeeIA (Ctrl+I)" style="display:none;">
-                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-                        CoffeeIA
-                        <span class="dot-indicator"></span>
                     </button>
                 </div>
             </div>
@@ -231,9 +226,10 @@
 
                 </div>
             </div>
-        </main>
 
-        <!-- CoffeeIA Drawer -->
+            </div><!-- /.visor-main-col -->
+
+        <!-- CoffeeIA panel (ocupa todo el alto del contenedor, a la izquierda) -->
         <aside id="iaDrawer" class="ia-drawer">
             <div id="iaDrawerResizeHandle" class="ia-drawer-resize-handle" title="Arrastra para redimensionar"></div>
             <div class="ia-drawer-inner">
@@ -311,15 +307,15 @@
                                 <option value="qwen3-vl:235b-cloud">Qwen3 VL 235B (vision)</option>
                                 <option value="qwen3.5:397b-cloud">Qwen 3.5 397B</option>
                                 <option value="minimax-m2.7:cloud">MiniMax M2.7</option>
+                                <option value="minimax-m3:cloud">MiniMax M3</option>
                                 <option value="kimi-k2.6:cloud">Kimi K2.6</option>
                             </optgroup>
-                            <optgroup label="OpenRouter">
-                                <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
-                                <option value="openai/gpt-4o-mini">GPT-4o mini</option>
-                                <option value="openai/gpt-4o">GPT-4o (vision)</option>
-                                <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (vision)</option>
-                                <option value="deepseek/deepseek-chat">DeepSeek V3</option>
-                                <option value="qwen/qwen-2.5-coder-32b-instruct">Qwen2.5 Coder 32B</option>
+                            <optgroup label="OpenRouter (free)">
+                                <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
+                                <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (free)</option>
+                                <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super 120B (free)</option>
+                                <option value="google/gemma-4-31b-it:free">Gemma 4 31B (free, vision)</option>
+                                <option value="nvidia/nemotron-nano-12b-v2-vl:free">Nemotron Nano 12B VL (free, vision)</option>
                             </optgroup>
                         </select>
                     </div>
@@ -328,10 +324,19 @@
             </div>
         </aside>
 
+        </main>
+
     </div>
 
     <footer class="visor-footer">
         <div class="flex items-center gap-5">
+            <nav class="breadcrumb footer-breadcrumb">
+                <i data-lucide="folder" class="w-3.5 h-3.5"></i>
+                <span id="breadcrumbSection">agents</span>
+                <span class="sep">/</span>
+                <span id="breadcrumbFile" class="current">—</span>
+            </nav>
+            <span class="vsr-footer-sep">|</span>
             <span class="flex items-center gap-1.5">
                 <i data-lucide="files" class="w-3.5 h-3.5"></i>
                 Total: <span id="footerTotal" class="vsr-footer-strong">0</span> archivos
