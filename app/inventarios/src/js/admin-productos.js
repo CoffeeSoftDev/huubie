@@ -276,8 +276,8 @@ class Productos extends Templates {
                 theme: "dark",
                 striped: true,
                 f_size: 12,
-                center: [1,5, 6, 7],
-                right: [4]
+                center: [1,5, 7],
+                right: [6]
             }
         });
     }
