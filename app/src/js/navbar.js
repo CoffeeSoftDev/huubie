@@ -193,7 +193,7 @@ class Navbar {
         <style id="branchSelectorStyles">
             .branch-pill { background: linear-gradient(180deg, #1F2A37 0%, #1a2332 100%); border: 1px solid rgba(124,58,237,0.35); border-radius: 10px; padding: 3px 10px; transition: all .2s ease; }
             .branch-pill:hover { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
-            .branch-status-dot { width: 7px; height: 7px; border-radius: 9999px; background: #22C55E; box-shadow: 0 0 0 3px rgba(34,197,94,0.18); display: inline-block; }
+            .branch-status-dot { width: 7px; height: 7px; border-radius: 9999px;  display: inline-block; }
             .branch-avatar { width: 28px; height: 28px; border-radius: 9999px; background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px; letter-spacing: .5px; color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,.35); }
             .branch-dropdown { background: #111928; border: 1px solid rgba(124,58,237,0.18); border-radius: 14px; box-shadow: 0 24px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02); }
             .branch-card { background: #1F2A37; border: 1px solid rgba(55,65,81,.55); border-radius: 10px; padding: 8px 10px; transition: all .15s ease; cursor: pointer; }
@@ -217,9 +217,10 @@ class Navbar {
 
     branchPillHtml() {
         const branches = this.settings.branches || [];
-        if (branches.length === 0) return '';
+        if (branches.length == 0) return '';
 
         const current = this.settings.currentBranch || { id: 0, name: 'Sucursal' };
+        const currentFull = branches.find(b => b.id == current.id) || current;
 
         return `
         <div class="relative">
@@ -227,7 +228,7 @@ class Navbar {
                 <div class="flex flex-col items-start leading-tight">
                     <span class="text-[9px] uppercase tracking-[.14em] text-gray-500 font-semibold">Sucursal</span>
                     <div class="flex items-center gap-2">
-                        <span class="branch-status-dot"></span>
+                        <span class="branch-status-dot ${currentFull.turno == 0 || currentFull.turno == null ? 'bg-gray-400 ring-2 ring-gray-400/20' : 'bg-green-500 ring-2 ring-green-500/20'}"></span>
                         <span id="btnBranchName" class="text-sm font-semibold text-white">${current.name || 'Seleccionar'}</span>
                     </div>
                 </div>
@@ -268,7 +269,7 @@ class Navbar {
 
         const closedRow = `
             <div class="flex items-center gap-1.5 mt-1">
-                <span class="branch-status-dot" style="width:6px;height:6px;background:#9CA3AF;box-shadow:0 0 0 2px rgba(156,163,175,.18);"></span>
+                <span class="branch-status-dot bg-gray-400" style="width:6px;height:6px;box-shadow:0 0 0 2px rgba(156,163,175,.18);"></span>
                 <span class="text-[11px] text-gray-400 font-medium">Cerrada</span>
                 ${branch.ubication ? `<span class="text-[11px] text-gray-500 truncate">· ${branch.ubication}</span>` : ''}
             </div>`;
@@ -387,7 +388,7 @@ class Navbar {
             data: { opc: "switchBranch", id: id }
         });
 
-        if (response.status !== 200) {
+        if (response.status != 200) {
             alert({
                 icon: "error",
                 title: "No se pudo cambiar de sucursal",
