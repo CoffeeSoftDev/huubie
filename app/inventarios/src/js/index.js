@@ -56,6 +56,12 @@ class MenuHub extends Templates {
                 icon: 'package-plus',
                 enlace: '/app/inventarios/pos-entradas.php',
             },
+            {
+                titulo:      'Mermas',
+                descripcion: 'Captura y monitorea perdidas, caducidades y daños.',
+                icon:        'trash-2',
+                enlace:      '/app/inventarios/pos-mermas.php',
+            },
             // {
             //     titulo:      'Stock',
             //     descripcion: 'Consulta existencias actuales por sucursal y categoria.',
@@ -75,12 +81,7 @@ class MenuHub extends Templates {
             //     icon:        'arrow-left-right',
             //     enlace:      '/app/inventarios/pos-movimientos.php',
             // },
-            // {
-            //     titulo:      'Mermas',
-            //     descripcion: 'Captura y monitorea perdidas, caducidades y daños.',
-            //     icon:        'trash-2',
-            //     enlace:      '/app/inventarios/pos-mermas.php',
-            // },
+          
           
         ];
     }

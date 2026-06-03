@@ -2424,6 +2424,9 @@ class CoffeeIA {
             this._showEditProposalPanel(proposals);
         }
 
+        // Sonido al terminar de responder (solo en respuestas exitosas).
+        this._playPopSound();
+
         finish();
     }
 
@@ -2841,6 +2844,20 @@ class CoffeeIA {
             $('#iaBodyChat').append($greet);
             if (window.lucide) lucide.createIcons();
         }
+    }
+
+    // Reproduce el "pop" al crear un nuevo chat. La instancia de Audio se crea
+    // una sola vez y se reinicia en cada uso para permitir reproducciones seguidas.
+    _playPopSound() {
+        try {
+            if (!this._popSound) {
+                this._popSound = new Audio('src/audio/pop_up.ogg');
+                this._popSound.volume = 0.6;
+            }
+            this._popSound.currentTime = 0;
+            const p = this._popSound.play();
+            if (p && p.catch) p.catch(() => {});
+        } catch (e) { /* autoplay bloqueado / formato no soportado — ignorar */ }
     }
 
     _appendUserMessage(text, images) {

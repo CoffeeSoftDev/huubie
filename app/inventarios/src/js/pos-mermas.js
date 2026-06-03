@@ -5,6 +5,24 @@ let turno, subsidiaries_id;
 
 window.updateSession = () => { };
 
+// Config estatica de la vista (titulo, leyendas de motivo). No son datos de negocio.
+const VIEW_HEADER_MERMAS = {
+    title:    'Visor de Mermas',
+    subtitle: 'Control de perdidas por sucursal, motivo y periodo',
+    back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
+};
+
+const VIEW_FOOTER_MERMAS = {
+    info: '',
+    legends: [
+        { tone: 'danger',  label: 'Caducidad'        },
+        { tone: 'warning', label: 'Daniado'          },
+        { tone: 'info',    label: 'Error produccion' },
+        { tone: 'purple',  label: 'Robo / Faltante'  },
+        { tone: 'success', label: 'Devolucion'       }
+    ]
+};
+
 
 $(async () => {
     mermasView = new MermasView(api, 'root');
@@ -28,27 +46,19 @@ class App extends Templates {
         const r = await fn_ajax({ opc: 'init' }, api).catch(() => null);
         if (r && r.status === 200) {
             this.dataInit = {
-                subsidiaries_id: r.subsidiaries_id || 4,
+                subsidiaries_id: r.subsidiaries_id || '',
                 sucursales:      r.sucursales      || [],
                 motivos:         r.motivos_merma   || [],
-                almacenes:       r.almacenes       || []
+                almacenes:       r.almacenes       || [],
+                productos:       r.productos       || []
             };
         } else {
             this.dataInit = {
-                subsidiaries_id: 4,
-                sucursales: [
-                    { id: 4, valor: 'Reginas Kafeto'     },
-                    { id: 5, valor: 'Reginas Central'    },
-                    { id: 6, valor: 'Reginas Pasteleria' }
-                ],
-                motivos: [
-                    { id: 'Caducidad',        valor: 'Caducidad'        },
-                    { id: 'Daniado',          valor: 'Daniado / Roto'   },
-                    { id: 'Error produccion', valor: 'Error produccion' },
-                    { id: 'Robo/Faltante',    valor: 'Robo / Faltante'  },
-                    { id: 'Devolucion',       valor: 'Devolucion'       }
-                ],
-                almacenes: []
+                subsidiaries_id: '',
+                sucursales:      [],
+                motivos:         [],
+                almacenes:       [],
+                productos:       []
             };
         }
         this.subId      = this.dataInit.subsidiaries_id;
@@ -60,8 +70,8 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        mermasView.renderHeader(SAMPLE_VIEW_HEADER_MERMAS, () => mermas.openMermaForm());
-        mermasView.renderFooter(SAMPLE_VIEW_FOOTER_MERMAS);
+        mermasView.renderHeader(VIEW_HEADER_MERMAS, () => mermas.openMermaForm());
+        mermasView.renderFooter(VIEW_FOOTER_MERMAS);
         mermasView.renderDetail(null);
         this.populateFilters();
         mermas.lsMermas();
@@ -75,7 +85,7 @@ class App extends Templates {
         const mainPanel = {
             type: 'div',
             id:   'mainPanel',
-            class:'flex-1 flex flex-col overflow-hidden min-w-0 w-full',
+            class:'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
             children: [
                 {
                     id:    'viewHeader',
@@ -93,7 +103,7 @@ class App extends Templates {
                 {
                     id:    'tableWrap',
                     text:  '#tableWrap',
-                    class: 'p-3 flex-1 '
+                    class: 'p-3 flex-1 min-h-0 overflow-auto'
                 },
                 {
                     id:    'viewFooter',
@@ -138,24 +148,20 @@ class App extends Templates {
 
         let filters = [
             {
-                opc:      'select',
-                id:       'fPeriodo',
-                lbl:      'Periodo:',
-                class:    'col-12 col-md-3 col-lg-2',
-                onchange: 'app.onChangePeriodo()',
-                value:    'hoy',
-                data: [
-                    { id: 'hoy',    valor: 'Hoy'        },
-                    { id: 'semana', valor: 'Esta semana'},
-                    { id: 'mes',    valor: 'Este mes'   },
-                    { id: 'rango',  valor: 'Por rango'  }
-                ]
+                opc:         'input',
+                id:          'fRango',
+                lbl:         'Rango:',
+                class:       'col-12 col-md-6 col-lg-3',
+                readonly:    true,
+                placeholder: 'Selecciona un rango',
+                value:       '',
+                required:    false
             },
             {
                 opc:      'select',
                 id:       'subsidiaries_id',
                 lbl:      'Sucursal:',
-                class:    'col-12 col-md-3 col-lg-3',
+                class:    'col-12 col-md-6 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 data:     []
             },
@@ -163,59 +169,80 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fMotivo',
                 lbl:      'Motivo:',
-                class:    'col-12 col-md-3 col-lg-2',
+                class:    'col-12 col-md-6 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data: [
-                    { id: '',                 valor: 'Todos'           },
-                    { id: 'Caducidad',        valor: 'Caducidad'       },
-                    { id: 'Daniado',          valor: 'Daniado / Roto'  },
-                    { id: 'Error produccion', valor: 'Error produccion'},
-                    { id: 'Robo/Faltante',    valor: 'Robo / Faltante' },
-                    { id: 'Devolucion',       valor: 'Devolucion'      }
+                    { id: '', valor: 'Todos' }
                 ]
-            },
-            {
-                opc:   'input-calendar',
-                id:    'calendarPOSMermas',
-                lbl:   'Rango de fecha:',
-                class: 'col-12 col-md-4 col-lg-3'
             },
             {
                 opc:        'input',
                 id:         'qBuscar',
                 lbl:        'Buscar:',
-                class:      'col-12 col-md-3 col-lg-2',
+                class:      'col-12 col-md-6 col-lg-2',
                 placeholder:'Folio o producto...',
                 onkeyup:    'app.onChangeFilters()'
+            },
+            {
+                opc:       'button',
+                id:        'btnNuevaMerma',
+                text:      'Nueva Merma',
+                color_btn: 'danger',
+                class:     'col-12 col-md-6 col-lg-3',
+                onClick:   () => mermas.openMermaForm()
             }
         ];
 
         this.createfilterBar({
-            parent: 'filterBar',
-            data:   filters
+            parent:     'filterBar',
+            coffeesoft: true,
+            theme:      'dark',
+            data:       filters
         });
 
-        $('#fPeriodo').val('hoy');
+        this.initRangePicker();
+    }
+
+    // Rango de fechas via bootstrap-daterangepicker sobre #fRango. Default: ultimos 7 dias.
+    initRangePicker() {
+        this.rangeFi = moment().subtract(6, 'days').format('YYYY-MM-DD');
+        this.rangeFf = moment().format('YYYY-MM-DD');
 
         dataPicker({
-            parent: `calendar${this.PROJECT_NAME}`,
+            parent: 'fRango',
+            type:   'all',
             rangepicker: {
-                startDate: moment('2026-05-01'),
-                endDate:   moment('2026-05-16'),
-                showDropdowns: true,
+                startDate:           moment().subtract(6, 'days'),
+                endDate:             moment(),
+                showDropdowns:       true,
+                alwaysShowCalendars: true,
                 ranges: {
-                    'Hoy':           [moment(), moment()],
-                    'Ayer':          [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-                    'Semana actual': [moment().startOf('week'),  moment().endOf('week')],
-                    'Mes actual':    [moment().startOf('month'), moment().endOf('month')],
-                    'Mes anterior':  [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                    'Hoy':             [moment(), moment()],
+                    'Ayer':            [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Ultimos 7 dias':  [moment().subtract(6, 'days'), moment()],
+                    'Semana actual':   [moment().startOf('isoWeek'), moment().endOf('isoWeek')],
+                    'Semana anterior': [moment().subtract(1, 'week').startOf('isoWeek'), moment().subtract(1, 'week').endOf('isoWeek')],
+                    'Mes actual':      [moment().startOf('month'), moment().endOf('month')],
+                    'Mes anterior':    [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                },
+                locale: {
+                    format:           'YYYY-MM-DD',
+                    separator:        '  a  ',
+                    applyLabel:       'Aplicar',
+                    cancelLabel:      'Cancelar',
+                    customRangeLabel: 'Personalizado',
+                    daysOfWeek:       ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'],
+                    monthNames:       ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+                    firstDay:         1
                 }
             },
-            onSelect: () => this.onChangeFilters()
+            onSelect: (start, end) => {
+                this.rangeFi = start.format('YYYY-MM-DD');
+                this.rangeFf = end.format('YYYY-MM-DD');
+                this.onChangeFilters();
+            }
         });
-
-        this.onChangePeriodo();
     }
 
     populateFilters() {
@@ -224,6 +251,8 @@ class App extends Templates {
             this.populateSelect('subsidiaries_id', sucursales);
             $('#subsidiaries_id').val(this.subId);
         }
+        // Motivos del catalogo real: el value es el shrinkage_reason_id (numerico).
+        this.populateSelect('fMotivo', this.dataInit.motivos || []);
     }
 
     populateSelect(id, data) {
@@ -236,33 +265,12 @@ class App extends Templates {
     }
 
     getFilters() {
-        const fPeriodo = $('#fPeriodo').val() || 'hoy';
-        let fi = '';
-        let ff = '';
-
-        const today = moment();
-        if (fPeriodo === 'hoy') {
-            fi = today.format('YYYY-MM-DD');
-            ff = today.format('YYYY-MM-DD');
-        } else if (fPeriodo === 'semana') {
-            fi = today.clone().startOf('week').format('YYYY-MM-DD');
-            ff = today.clone().endOf('week').format('YYYY-MM-DD');
-        } else if (fPeriodo === 'mes') {
-            fi = today.clone().startOf('month').format('YYYY-MM-DD');
-            ff = today.clone().endOf('month').format('YYYY-MM-DD');
-        } else if (fPeriodo === 'rango') {
-            const range = getDataRangePicker(`calendar${this.PROJECT_NAME}`) || {};
-            fi = range.fi || '';
-            ff = range.ff || '';
-        }
-
         return {
             subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
-            fPeriodo:        fPeriodo,
-            fi:              fi,
-            ff:              ff,
-            motivo:          $('#fMotivo').val() || '',
-            q:               $('#qBuscar').val() || ''
+            fi:              this.rangeFi               || '',
+            ff:              this.rangeFf               || '',
+            motivo:          $('#fMotivo').val()        || '',
+            q:               $('#qBuscar').val()        || ''
         };
     }
 
@@ -271,16 +279,6 @@ class App extends Templates {
     async onChangeFilters() {
         mermas.lsMermas();
         await mermas.lsKpis();
-    }
-
-    onChangePeriodo() {
-        const mode = $('#fPeriodo').val() || 'hoy';
-        const $rangeWrap = $('#calendarPOSMermas').closest('[class*="col-"]');
-
-        if (mode === 'rango') $rangeWrap.show();
-        else                  $rangeWrap.hide();
-
-        this.onChangeFilters();
     }
 
     updateFooterInfo(text) {
@@ -301,7 +299,6 @@ class App extends Templates {
         mermas.reverseMerma(id);
     }
 }
-
 
 class Mermas extends Templates {
 
@@ -324,7 +321,7 @@ class Mermas extends Templates {
             q:               f.q
         }), api).catch(() => null);
 
-        const data = (r && r.status === 200) ? { row: r.row } : SAMPLE_MERMAS_TABLE;
+        const data = (r && r.status === 200) ? { row: r.row } : { row: [] };
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
@@ -332,17 +329,25 @@ class Mermas extends Templates {
             theme:        'dark',
             title:        '',
             subtitle:     '',
-            center:       [3, 4, 8],
-            right:        [5],
+            center:       [1, 4, 5, 8],
+            right:        [6],
             extends:      true,
-            scrollable:   true,
+            scrollable:   false,
+            striped:      true,
             f_size:       12,
             emptyMessage: 'No se encontraron mermas con los filtros aplicados',
             emptyIcon:    'icon-trash-empty',
             data:         data
         });
 
+        if (window.lucide) lucide.createIcons();
+
         const total = (data.row || []).length;
+
+        if (total > 0 && typeof simple_data_table === 'function') {
+            simple_data_table(`#tb${this.PROJECT_NAME}`, 10);
+        }
+
         app.updateFooterInfo(`Mostrando ${total} merma${total !== 1 ? 's' : ''}`);
     }
 
@@ -355,7 +360,7 @@ class Mermas extends Templates {
             ff:              f.ff
         }, api).catch(() => null);
 
-        const c   = (r && r.status === 200) ? r.counts : SAMPLE_MERMAS_COUNTS;
+        const c   = (r && r.status === 200) ? r.counts : {};
         const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
@@ -373,38 +378,88 @@ class Mermas extends Templates {
     async getMerma(id) {
         const r = await fn_ajax({ opc: 'getMerma', id: id }, api).catch(() => null);
         if (r && r.status === 200) {
-            mermasView.renderDetail(Object.assign({}, r.header, { detail: r.detail }));
+            mermasView.renderDetail(this.mapMermaDetail(r.header || {}, r.detail || []));
         } else {
-            mermasView.renderDetail(SAMPLE_MERMA_DETAIL);
+            mermasView.renderDetail(null);
         }
+    }
+
+    // Normaliza la respuesta del backend (columnas DB) al shape que espera mermaDetailPanel.
+    mapMermaDetail(h, detail) {
+        const created = String(h.created_at || '');
+        return {
+            id:             h.id,
+            folio:          h.folio,
+            motivo:         h.reason_name || '',
+            fecha:          created ? created.replace(' ', 'T') : '',
+            sucursal:       h.subsidiary_name || '',
+            almacen:        h.warehouse_name  || '',
+            registrado_por: h.user_name ? { name: h.user_name } : null,
+            nota:           h.note         || '',
+            foto:           h.evidence_url || '',
+            items: (detail || []).map(d => ({
+                name:        d.product_name,
+                sku:         d.sku,
+                qty:         Number(d.quantity || 0),
+                costo_unit:  Number(d.cost || 0),
+                costo_total: Number(d.subtotal_loss != null ? d.subtotal_loss : Number(d.quantity || 0) * Number(d.cost || 0))
+            })),
+            total_unidades: Number(h.total_units || 0),
+            total_costo:    Number(h.total_cost_loss || 0)
+        };
     }
 
     // -- Actions --
 
     openMermaForm() {
-        mermasView.mermaFormModal({
-            productCatalog: SAMPLE_PRODUCT_CATALOG,
-            motivos:        app.dataInit.motivos,
-            sucursales:     app.dataInit.sucursales,
-            defaults: {
-                sucursal: app.subId,
-                fecha:    moment().format('YYYY-MM-DD')
-            },
-            onSubmit: async (payload) => {
-                const r = await fn_ajax({
-                    opc:     'saveMerma',
-                    payload: JSON.stringify(payload)
-                }, api).catch(() => null);
+        // Sucursal por defecto = la seleccionada en el filtro (o la del navbar).
+        const curSub = $('#subsidiaries_id').val() || app.subId;
+        if (!this.mermaFormApi) {
+            this.mermaFormApi = mermasView.mermaForm({
+                parent: 'body',
+                id:     'mermaFormModal',
+                json:   app.dataInit.productos || [],
+                data: {
+                    motivos:         (app.dataInit.motivos || []).filter(m => m.id !== ''),
+                    sucursales:      (app.dataInit.sucursales || []).filter(s => s.id !== ''),
+                    almacenes:       app.dataInit.almacenes || [],
+                    fecha:           moment().format('YYYY-MM-DD'),
+                    subsidiaries_id: curSub
+                },
+                onSubmit: async (payload) => {
+                    const backendPayload = {
+                        note:                payload.nota || null,
+                        evidence_url:        null, // pendiente endpoint de subida de evidencia
+                        status:              'Aplicada',
+                        shrinkage_reason_id: payload.motivo,
+                        warehouse_id:        payload.warehouseId,
+                        subsidiaries_id:     payload.sucursalId,
+                        productos:           payload.items.map(it => ({
+                            product_id: it.id,
+                            quantity:   it.qty,
+                            cost:       it.costo
+                        }))
+                    };
 
-                if (r && r.status === 200) {
-                    alert({ icon: 'success', text: 'Merma ' + r.folio + ' registrada' });
-                    this.lsMermas();
-                    this.lsKpis();
-                } else {
-                    alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la merma' });
-                }
-            }
-        });
+                    const r = await fn_ajax({
+                        opc:     'saveMerma',
+                        payload: JSON.stringify(backendPayload)
+                    }, api).catch(() => null);
+
+                    if (r && r.status === 200) {
+                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || ('Merma ' + r.folio + ' registrada') });
+                        this.lsMermas();
+                        this.lsKpis();
+                    } else {
+                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la merma' });
+                    }
+                },
+                onClose: () => console.log('[mermaForm] cerrado')
+            });
+        }
+        // Sincroniza la sucursal del navbar (y sus almacenes) en cada apertura.
+        this.mermaFormApi.setData({ subsidiaries_id: curSub, fecha: moment().format('YYYY-MM-DD') });
+        this.mermaFormApi.open();
     }
 
     printMerma(id) {
@@ -439,7 +494,6 @@ class Mermas extends Templates {
         }
     }
 }
-
 
 class MermasView extends Templates {
 
@@ -625,21 +679,12 @@ class MermasView extends Templates {
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                <button id="btnNuevaMerma"
-                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--cs-danger,#E02424)] hover:bg-[#DC2626] text-white text-[11px] font-bold transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Nueva Merma
-                </button>
                 ${togglesHtml}
             </div>
         `);
 
         $(`#${opts.parent}`).html(wrap);
         if (window.lucide) lucide.createIcons();
-
-        wrap.on('click', '#btnNuevaMerma', () => opts.onNueva());
 
         wrap.on('click', '[data-toggle-key]', (e) => {
             const $btn = $(e.currentTarget);
@@ -948,407 +993,5 @@ class MermasView extends Templates {
         $(`#${opts.id}_close`).on('click',       () => opts.onClose(m));
         $(`#${opts.id}_btnImprimir`).on('click', () => opts.onImprimir(m));
         $(`#${opts.id}_btnReversar`).on('click', () => opts.onReversar(m));
-    }
-
-    mermaFormModal(options) {
-        const defaults = {
-            id:             'modalNuevaMerma',
-            currency:       'es-MX',
-            productCatalog: [],
-            motivos: [
-                { id: 'Caducidad',        valor: 'Caducidad / Vencimiento' },
-                { id: 'Daniado',          valor: 'Producto dañado'         },
-                { id: 'Error produccion', valor: 'Error de produccion'     },
-                { id: 'Robo/Faltante',    valor: 'Robo / Faltante'         },
-                { id: 'Devolucion',       valor: 'Devolucion de cliente'   },
-                { id: 'Otro',             valor: 'Otro'                    }
-            ],
-            sucursales: [],
-            defaults: {
-                motivo:   'Caducidad',
-                sucursal: '',
-                fecha:    moment().format('YYYY-MM-DD'),
-                nota:     ''
-            },
-            labels: {
-                title:        'Registrar Merma',
-                subtitle:     'Reporta productos dañados, vencidos o perdidos',
-                lblMotivo:    'Motivo',
-                lblSucursal:  'Sucursal',
-                lblFecha:     'Fecha',
-                lblNota:      'Observaciones',
-                lblBuscar:    'Buscar productos',
-                phBuscar:     'Nombre o SKU...',
-                lblFoto:      'Evidencia fotografica',
-                fotoHint:     'Tomar foto o subir',
-                fotoExts:     'JPG/PNG · max. 5 MB',
-                lblResumen:   'Resumen del folio',
-                lblItems:     'Productos',
-                lblUnidades:  'Unidades',
-                lblPerdida:   'Perdida total',
-                lblLista:     'Productos en merma',
-                btnLimpiar:   'Limpiar',
-                emptyLista:   'Aun no se han agregado productos',
-                emptyHint:    'Usa el buscador para agregar productos',
-                btnCancelar:  'Cancelar',
-                btnRegistrar: 'Registrar Merma',
-                footNote:     'El stock se descontara automaticamente'
-            },
-            onSubmit: () => { },
-            onCancel: () => { }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.defaults = Object.assign({}, defaults.defaults, o.defaults || {});
-        opts.labels   = Object.assign({}, defaults.labels,   o.labels   || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString(opts.currency, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-
-        const state = {
-            items:    [],
-            photo:    null,
-            motivo:   opts.defaults.motivo,
-            sucursal: opts.defaults.sucursal,
-            fecha:    opts.defaults.fecha,
-            nota:     opts.defaults.nota
-        };
-
-        const $existing = $(`#${opts.id}`);
-        if ($existing.length) $existing.remove();
-
-        const motivosOpts = opts.motivos.map(m =>
-            `<option value="${esc(m.id)}" ${m.id === state.motivo ? 'selected' : ''}>${esc(m.valor)}</option>`
-        ).join('');
-
-        const sucursalesOpts = opts.sucursales.map(s =>
-            `<option value="${esc(s.id)}" ${String(s.id) === String(state.sucursal) ? 'selected' : ''}>${esc(s.valor)}</option>`
-        ).join('');
-
-        const modal = $(`
-            <div id="${opts.id}" style="position:fixed;inset:0;z-index:100;">
-                <div class="cs-modal-backdrop" data-modal-close style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:90;"></div>
-                <div class="cs-modal" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:95%;max-width:960px;max-height:90vh;background:#111928;border:1px solid rgba(55,65,81,0.6);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,0.6);overflow:hidden;display:flex;flex-direction:column;z-index:100;">
-
-                    <div class="cs-modal-header" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(55,65,81,0.6);background:#141d2b;flex-shrink:0;">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style="background:linear-gradient(135deg,#EF4444,#F97316);box-shadow:0 8px 20px rgba(239,68,68,0.2);">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </div>
-                            <div>
-                                <h3 class="text-sm font-bold text-white">${esc(opts.labels.title)}</h3>
-                                <p class="text-[11px] text-gray-500">${esc(opts.labels.subtitle)}</p>
-                            </div>
-                        </div>
-                        <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white" data-modal-close>
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                    </div>
-
-                    <div class="cs-modal-body" style="padding:0;flex:1;overflow:hidden;min-height:0;display:flex;flex-direction:column;">
-
-                        <div class="px-5 pt-3 pb-3 border-b border-gray-800/70" style="background:rgba(15,24,37,0.4);">
-                            <div class="grid grid-cols-4 gap-2">
-                                <div>
-                                    <label class="block text-[10px] text-gray-500 mb-1 uppercase tracking-wider font-semibold">${esc(opts.labels.lblMotivo)}</label>
-                                    <select id="${opts.id}_motivo" class="cs-select text-xs w-full">${motivosOpts}</select>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] text-gray-500 mb-1 uppercase tracking-wider font-semibold">${esc(opts.labels.lblSucursal)}</label>
-                                    <select id="${opts.id}_sucursal" class="cs-select text-xs w-full">${sucursalesOpts}</select>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] text-gray-500 mb-1 uppercase tracking-wider font-semibold">${esc(opts.labels.lblFecha)}</label>
-                                    <input id="${opts.id}_fecha" type="date" value="${esc(state.fecha)}" class="cs-input text-xs w-full">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] text-gray-500 mb-1 uppercase tracking-wider font-semibold">${esc(opts.labels.lblNota)}</label>
-                                    <input id="${opts.id}_nota" type="text" placeholder="Detalle adicional..." class="cs-input text-xs w-full">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-1 min-h-0">
-
-                            <div class="w-[280px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-3 gap-3 overflow-y-auto cs-scroll">
-                                <div>
-                                    <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300 mb-2">${esc(opts.labels.lblBuscar)}</p>
-                                    <div class="relative">
-                                        <span class="cs-input-group-icon"><i data-lucide="search" class="w-4 h-4"></i></span>
-                                        <input id="${opts.id}_buscar" type="text" placeholder="${esc(opts.labels.phBuscar)}" class="cs-input pl-10 text-xs w-full" autocomplete="off">
-                                    </div>
-                                    <div id="${opts.id}_resultados" class="mt-1.5 hidden" style="background:#0f1825;border:1px solid rgba(75,85,99,0.5);border-radius:10px;box-shadow:0 12px 28px -8px rgba(0,0,0,0.5);overflow:hidden;max-height:240px;overflow-y:auto;"></div>
-                                </div>
-
-                                <div>
-                                    <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300 mb-2">${esc(opts.labels.lblFoto)}</p>
-                                    <input type="file" id="${opts.id}_photoInput" accept="image/*" capture="environment" class="hidden">
-                                    <div id="${opts.id}_photoDrop" class="border-2 border-dashed border-[#374151] rounded-lg p-3 text-center hover:border-red-500/50 cursor-pointer transition-colors">
-                                        <i data-lucide="camera" class="w-5 h-5 text-gray-600 mx-auto mb-1"></i>
-                                        <p class="text-[10px] text-[#6B7280]">${esc(opts.labels.fotoHint)}</p>
-                                        <p class="text-[9px] text-[#4B5563] mt-0.5">${esc(opts.labels.fotoExts)}</p>
-                                    </div>
-                                    <div id="${opts.id}_photoPreview" class="hidden relative rounded-lg overflow-hidden border border-[#374151] bg-[#0f172a]">
-                                        <img id="${opts.id}_photoImg" alt="Evidencia" class="w-full h-24 object-cover">
-                                        <div class="absolute inset-x-0 bottom-0 px-2 py-1 flex items-center justify-between" style="background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);">
-                                            <span id="${opts.id}_photoName" class="text-[9px] text-white truncate max-w-[160px]"></span>
-                                            <button type="button" id="${opts.id}_photoRemove" class="text-white/80 hover:text-white px-1 py-0.5 rounded bg-red-500/40 hover:bg-red-500/60" title="Eliminar">
-                                                <i data-lucide="trash-2" class="w-3 h-3"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="border-t border-gray-800/70 pt-3 mt-auto">
-                                    <p class="text-[9px] uppercase text-gray-500 tracking-wider font-bold mb-2">${esc(opts.labels.lblResumen)}</p>
-                                    <div class="space-y-1.5">
-                                        <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="package" class="w-3 h-3"></i>${esc(opts.labels.lblItems)}</span><span class="text-white font-bold" id="${opts.id}_qtyItems">0</span></div>
-                                        <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="layers" class="w-3 h-3"></i>${esc(opts.labels.lblUnidades)}</span><span class="text-white font-bold" id="${opts.id}_qtyUnits">0</span></div>
-                                        <div class="flex justify-between items-center text-xs pt-2 mt-1 border-t border-gray-800/50"><span class="text-gray-300 font-medium">${esc(opts.labels.lblPerdida)}</span><span class="text-red-400 font-bold text-sm" id="${opts.id}_qtyCosto">-$0.00</span></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="flex-1 flex flex-col min-w-0 min-h-0">
-                                <div class="px-4 py-2.5 border-b border-gray-800/70 flex items-center justify-between flex-shrink-0" style="background:linear-gradient(180deg,rgba(15,24,37,0.6),transparent);">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-6 h-6 rounded-md bg-red-500/15 border border-red-500/25 flex items-center justify-center"><i data-lucide="boxes" class="w-3.5 h-3.5 text-red-400"></i></div>
-                                        <p class="text-[11px] font-bold uppercase tracking-wider text-gray-300">${esc(opts.labels.lblLista)}</p>
-                                        <span id="${opts.id}_cntItems" class="cs-badge font-bold" style="background:linear-gradient(135deg,rgba(239,68,68,0.22),rgba(220,38,38,0.18));color:#fca5a5;border:1px solid rgba(239,68,68,0.4);padding:1px 6px;font-size:8px;border-radius:6px;">0</span>
-                                    </div>
-                                    <button id="${opts.id}_btnLimpiar" class="text-[10px] text-gray-500 hover:text-red-400 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-500/10"><i data-lucide="trash-2" class="w-3 h-3"></i>${esc(opts.labels.btnLimpiar)}</button>
-                                </div>
-                                <div id="${opts.id}_lista" class="flex-1 overflow-y-auto px-3 py-3 space-y-2 cs-scroll"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="cs-modal-footer" style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-top:1px solid rgba(55,65,81,0.6);background:#141d2b;flex-shrink:0;">
-                        <div class="text-[10px] text-gray-500 flex items-center gap-1.5"><i data-lucide="info" class="w-3 h-3"></i><span>${esc(opts.labels.footNote)}</span></div>
-                        <div class="flex gap-2">
-                            <button class="cs-btn cs-btn-outline cs-btn-sm" data-modal-close>${esc(opts.labels.btnCancelar)}</button>
-                            <button id="${opts.id}_btnSubmit" class="cs-btn cs-btn-danger cs-btn-sm flex items-center gap-1.5">
-                                <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
-                                <span>${esc(opts.labels.btnRegistrar)}</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `);
-
-        $('body').append(modal);
-        if (window.lucide) lucide.createIcons();
-
-        const renderEmpty = () => `
-            <div class="flex flex-col items-center justify-center py-16 text-center">
-                <div class="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/25 flex items-center justify-center mb-2">
-                    <i data-lucide="package-open" class="w-6 h-6 text-red-400/60"></i>
-                </div>
-                <p class="text-[11px] font-medium text-gray-400">${esc(opts.labels.emptyLista)}</p>
-                <p class="text-[10px] text-gray-600 mt-1">${esc(opts.labels.emptyHint)}</p>
-            </div>
-        `;
-
-        const renderItem = (it, idx) => `
-            <div class="rounded-lg border border-gray-700/60 px-3 py-2" style="background:linear-gradient(180deg,#1a2332,#161e2c);" data-item-idx="${idx}">
-                <div class="flex items-start justify-between gap-2">
-                    <div class="flex-1 min-w-0">
-                        <p class="text-[12px] font-semibold text-white truncate">${esc(it.name)}</p>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold border border-gray-700 text-gray-300 bg-[#0f1825]">${esc(it.sku)}</span>
-                            <span class="text-[10px] text-gray-500">${fmt(it.costo_unit)} c/u</span>
-                        </div>
-                    </div>
-                    <button type="button" data-act="remove" class="text-gray-500 hover:text-red-400 transition p-1" title="Quitar">
-                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
-                    </button>
-                </div>
-                <div class="flex items-center justify-between gap-2 mt-2">
-                    <div class="flex items-center gap-1">
-                        <button type="button" data-act="dec" class="w-6 h-6 rounded bg-[#0f1825] border border-gray-700 hover:border-red-500/50 text-gray-300 flex items-center justify-center text-xs">−</button>
-                        <input type="number" min="1" value="${it.qty}" data-act="qty" class="cs-input text-xs text-center" style="width:50px;padding:3px 4px !important;font-size:11px !important;">
-                        <button type="button" data-act="inc" class="w-6 h-6 rounded bg-[#0f1825] border border-gray-700 hover:border-red-500/50 text-gray-300 flex items-center justify-center text-xs">+</button>
-                    </div>
-                    <span class="text-[12px] font-bold text-red-400">-${fmt(it.qty * it.costo_unit)}</span>
-                </div>
-            </div>
-        `;
-
-        const recalc = () => {
-            const totUds   = state.items.reduce((s, it) => s + (parseInt(it.qty, 10) || 0), 0);
-            const totCosto = state.items.reduce((s, it) => s + ((parseInt(it.qty, 10) || 0) * (parseFloat(it.costo_unit) || 0)), 0);
-            $(`#${opts.id}_qtyItems`).text(state.items.length);
-            $(`#${opts.id}_qtyUnits`).text(totUds);
-            $(`#${opts.id}_qtyCosto`).text('-' + fmt(totCosto));
-            $(`#${opts.id}_cntItems`).text(state.items.length);
-            if (state.items.length > 0) $(`#${opts.id}_btnLimpiar`).removeClass('hidden');
-            else                        $(`#${opts.id}_btnLimpiar`).addClass('hidden');
-        };
-
-        const renderLista = () => {
-            const $lista = $(`#${opts.id}_lista`);
-            if (state.items.length === 0) {
-                $lista.html(renderEmpty());
-            } else {
-                $lista.html(state.items.map((it, i) => renderItem(it, i)).join(''));
-            }
-            if (window.lucide) lucide.createIcons();
-            recalc();
-        };
-
-        const addItem = (p) => {
-            const exists = state.items.findIndex(it => it.id === p.id);
-            if (exists >= 0) {
-                state.items[exists].qty = (parseInt(state.items[exists].qty, 10) || 0) + 1;
-            } else {
-                state.items.push({ id: p.id, name: p.name, sku: p.sku, costo_unit: p.costo_unit, qty: 1 });
-            }
-            renderLista();
-        };
-
-        const renderResultados = (term) => {
-            const $box = $(`#${opts.id}_resultados`);
-            if (!term || term.length < 1) { $box.addClass('hidden').empty(); return; }
-            const q = term.toLowerCase();
-            const matches = opts.productCatalog.filter(p =>
-                p.name.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q)
-            ).slice(0, 8);
-
-            if (matches.length === 0) {
-                $box.removeClass('hidden').html(`<div class="px-3 py-3 text-center text-[10px] text-gray-500 italic">Sin resultados</div>`);
-                return;
-            }
-
-            const html = matches.map(p => `
-                <div class="px-3 py-2 cursor-pointer transition" data-pid="${p.id}" style="border-bottom:1px solid rgba(55,65,81,0.4);">
-                    <div class="flex items-center justify-between gap-2">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-[11px] font-semibold text-white truncate">${esc(p.name)}</p>
-                            <div class="flex items-center gap-2 mt-0.5">
-                                <span class="px-1.5 py-0.5 rounded text-[8px] font-bold border border-gray-700 text-gray-300 bg-[#0f1825]">${esc(p.sku)}</span>
-                                <span class="text-[9px] text-gray-500">Stock: ${p.stock}</span>
-                            </div>
-                        </div>
-                        <span class="text-[10px] font-bold text-gray-300">${fmt(p.costo_unit)}</span>
-                    </div>
-                </div>
-            `).join('');
-            $box.removeClass('hidden').html(html);
-        };
-
-        const $modal      = $(`#${opts.id}`);
-        const $buscar     = $(`#${opts.id}_buscar`);
-        const $resultados = $(`#${opts.id}_resultados`);
-        const $lista      = $(`#${opts.id}_lista`);
-        const $photoDrop  = $(`#${opts.id}_photoDrop`);
-        const $photoInp   = $(`#${opts.id}_photoInput`);
-        const $photoPrev  = $(`#${opts.id}_photoPreview`);
-
-        renderLista();
-
-        const closeModal = () => { $modal.remove(); opts.onCancel(); };
-
-        $modal.on('click', '[data-modal-close]', closeModal);
-
-        $buscar.on('input', (e) => renderResultados($(e.currentTarget).val().trim()));
-        $buscar.on('blur',  () => setTimeout(() => $resultados.addClass('hidden'), 150));
-        $buscar.on('focus', (e) => { const v = $(e.currentTarget).val().trim(); if (v) renderResultados(v); });
-
-        $resultados.on('mousedown', '[data-pid]', (e) => {
-            const pid = parseInt($(e.currentTarget).attr('data-pid'), 10);
-            const p   = opts.productCatalog.find(x => x.id === pid);
-            if (p) { addItem(p); $buscar.val('').focus(); $resultados.addClass('hidden'); }
-        });
-
-        $lista.on('click', '[data-act="inc"]', (e) => {
-            const idx = parseInt($(e.currentTarget).closest('[data-item-idx]').attr('data-item-idx'), 10);
-            state.items[idx].qty = (parseInt(state.items[idx].qty, 10) || 0) + 1;
-            renderLista();
-        });
-        $lista.on('click', '[data-act="dec"]', (e) => {
-            const idx = parseInt($(e.currentTarget).closest('[data-item-idx]').attr('data-item-idx'), 10);
-            const v   = (parseInt(state.items[idx].qty, 10) || 0) - 1;
-            if (v <= 0) state.items.splice(idx, 1);
-            else        state.items[idx].qty = v;
-            renderLista();
-        });
-        $lista.on('change', '[data-act="qty"]', (e) => {
-            const idx = parseInt($(e.currentTarget).closest('[data-item-idx]').attr('data-item-idx'), 10);
-            const v   = parseInt($(e.currentTarget).val(), 10);
-            if (!v || v <= 0) state.items.splice(idx, 1);
-            else              state.items[idx].qty = v;
-            renderLista();
-        });
-        $lista.on('click', '[data-act="remove"]', (e) => {
-            const idx = parseInt($(e.currentTarget).closest('[data-item-idx]').attr('data-item-idx'), 10);
-            state.items.splice(idx, 1);
-            renderLista();
-        });
-
-        $(`#${opts.id}_btnLimpiar`).on('click', () => { state.items = []; renderLista(); });
-
-        $photoDrop.on('click', () => $photoInp.trigger('click'));
-        $photoInp.on('change', (e) => {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                state.photo = { name: file.name, dataUrl: ev.target.result };
-                $(`#${opts.id}_photoImg`).attr('src', ev.target.result);
-                $(`#${opts.id}_photoName`).text(file.name);
-                $photoDrop.addClass('hidden');
-                $photoPrev.removeClass('hidden');
-            };
-            reader.readAsDataURL(file);
-        });
-        $(`#${opts.id}_photoRemove`).on('click', () => {
-            state.photo = null;
-            $photoInp.val('');
-            $photoPrev.addClass('hidden');
-            $photoDrop.removeClass('hidden');
-        });
-
-        $(`#${opts.id}_motivo`).on('change',   (e) => { state.motivo   = $(e.currentTarget).val(); });
-        $(`#${opts.id}_sucursal`).on('change', (e) => { state.sucursal = $(e.currentTarget).val(); });
-        $(`#${opts.id}_fecha`).on('change',    (e) => { state.fecha    = $(e.currentTarget).val(); });
-        $(`#${opts.id}_nota`).on('input',      (e) => { state.nota     = $(e.currentTarget).val(); });
-
-        $(`#${opts.id}_btnSubmit`).on('click', () => {
-            if (state.items.length === 0) {
-                alert({ icon: 'warning', text: 'Agrega al menos un producto' });
-                return;
-            }
-            const totUds   = state.items.reduce((s, it) => s + (parseInt(it.qty, 10) || 0), 0);
-            const totCosto = state.items.reduce((s, it) => s + ((parseInt(it.qty, 10) || 0) * (parseFloat(it.costo_unit) || 0)), 0);
-
-            const payload = {
-                motivo:         state.motivo,
-                sucursal:       state.sucursal,
-                fecha:          state.fecha,
-                nota:           state.nota,
-                items:          state.items.map(it => ({
-                    id:          it.id,
-                    name:        it.name,
-                    sku:         it.sku,
-                    qty:         parseInt(it.qty, 10),
-                    costo_unit:  parseFloat(it.costo_unit),
-                    costo_total: parseInt(it.qty, 10) * parseFloat(it.costo_unit)
-                })),
-                total_unidades: totUds,
-                total_costo:    totCosto,
-                photo:          state.photo
-            };
-
-            $modal.remove();
-            opts.onSubmit(payload);
-        });
     }
 }

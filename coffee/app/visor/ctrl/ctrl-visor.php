@@ -1,6 +1,8 @@
 <?php
 header('Cache-Control: no-store');
 
+require_once __DIR__ . '/path-helper.php';
+
 // Endpoint lazy-read para archivos de Drive (no devuelve JSON, devuelve el contenido raw)
 if (($_GET['action'] ?? '') === 'driveread') {
     require_once __DIR__ . '/drive-client.php';
@@ -177,7 +179,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     }
 
     // Sandbox: validar que el archivo cae dentro de un root conocido
-    $userHome    = getenv('USERPROFILE') ?: getenv('HOME') ?: '';
+    $userHome    = coffee_user_home();
     $CLAUDE_HOME = str_replace('\\', '/', $userHome) . '/.claude';
     $allowedRoots = [
         $CLAUDE_HOME . '/agents',
@@ -235,7 +237,7 @@ if (($_GET['action'] ?? '') === 'listdir') {
     header('Content-Type: application/json; charset=utf-8');
 
     $reqPath  = isset($_GET['path']) ? trim($_GET['path']) : '';
-    $userHome = str_replace('\\', '/', getenv('USERPROFILE') ?: getenv('HOME') ?: '');
+    $userHome = coffee_user_home();
 
     // Si no hay path → devolver drives (Windows) + atajos
     if ($reqPath === '') {
@@ -300,7 +302,7 @@ if (($_GET['action'] ?? '') === 'listdir') {
 
 header('Content-Type: application/json; charset=utf-8');
 
-$userHome    = getenv('USERPROFILE') ?: getenv('HOME') ?: '';
+$userHome    = coffee_user_home();
 $CLAUDE_HOME = str_replace('\\', '/', $userHome) . '/.claude';
 
 $PRESETS = [

@@ -16,11 +16,11 @@
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
 
-    <div id="mainContainer" class="w-full h-full transition-all duration-500 bg-[#111928] text-white mt-16">
+    <div id="mainContainer" class="w-full h-full transition-all duration-500 bg-[#111928] text-white">
         <div class="bg-[#111928]" id="root"></div>
     </div>
 
-    <script src="/app/inventarios/src/js/sample_mermas.js?t=<?php echo time(); ?>"></script>
+    <script src="/app/inventarios/src/js/components/merma-form.js?t=<?php echo time(); ?>"></script>
     <script src="/app/inventarios/src/js/pos-mermas.js?t=<?php echo time(); ?>"></script>
 </body>
 

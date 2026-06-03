@@ -60,6 +60,11 @@
                 <span class="btn-label">Refrescar</span>
             </button>
 
+            <a href="playground.php" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Playground de agentes">
+                <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i>
+                Playground
+            </a>
+
             <a href="documents-admin.php" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Administrar documentos">
                 <i data-lucide="settings" class="w-3.5 h-3.5"></i>
                 Admin

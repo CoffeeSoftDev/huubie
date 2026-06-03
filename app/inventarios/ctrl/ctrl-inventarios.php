@@ -507,7 +507,7 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetMerma([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Merma no encontrada'];
-        $detail = $this->qGetMermaDetail([$id]);
+        $detail = $this->getMermaDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
 

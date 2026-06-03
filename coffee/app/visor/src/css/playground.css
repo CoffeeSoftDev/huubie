@@ -1,0 +1,208 @@
+/* ──────────────────────────────────────────────────────────────
+   Playground de Agentes — estilos propios (no toca el Visor).
+   Reusa las variables --vsr-* definidas en visor.css.
+   ────────────────────────────────────────────────────────────── */
+
+.pg-body-root {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--vsr-bg-base);
+    color: var(--vsr-text);
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow: hidden;
+}
+
+/* ── Header ── */
+.pg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 18px;
+    background: var(--vsr-bg-chrome);
+    border-bottom: 1px solid var(--vsr-border);
+    box-shadow: var(--vsr-shadow-chrome);
+    flex-shrink: 0;
+}
+.pg-header-left { display: flex; align-items: center; gap: 12px; }
+.pg-logo {
+    width: 38px; height: 38px; border-radius: 9px;
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 14px; letter-spacing: .5px;
+    color: #fff; background: linear-gradient(135deg, var(--vsr-accent), #8e3f2c);
+}
+.pg-title { font-weight: 700; font-size: 14px; color: var(--vsr-text); }
+.pg-subtitle { font-size: 11px; color: var(--vsr-text-muted); }
+.pg-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.pg-select-wrap {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 9px; border-radius: 8px;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border-input);
+    color: var(--vsr-text-muted);
+}
+.pg-select {
+    background: transparent; border: none; outline: none;
+    color: var(--vsr-text-soft); font-size: 12.5px; font-weight: 600;
+    cursor: pointer; max-width: 200px;
+}
+.pg-select option { background: var(--vsr-bg-card); color: var(--vsr-text-soft); }
+
+.pg-count {
+    display: inline-grid; place-items: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 9px; font-size: 10px; font-weight: 700;
+    background: var(--vsr-accent-tint); color: var(--vsr-accent-soft);
+}
+
+/* ── Workspace 2 paneles ── */
+.pg-workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.25fr);
+    gap: 0;
+    min-height: 0;
+}
+.pg-chat, .pg-sandbox {
+    display: flex; flex-direction: column;
+    min-height: 0; min-width: 0;
+    background: var(--vsr-bg-base);
+}
+.pg-chat { border-right: 1px solid var(--vsr-border); }
+
+.pg-pane-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; flex-shrink: 0;
+    background: var(--vsr-bg-chrome);
+    border-bottom: 1px solid var(--vsr-border);
+}
+.pg-pane-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--vsr-text-soft); }
+.pg-pane-title i { color: var(--vsr-accent-soft); }
+
+.pg-iconbtn {
+    display: grid; place-items: center;
+    width: 28px; height: 28px; border-radius: 7px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--vsr-text-muted); cursor: pointer; transition: all .15s;
+}
+.pg-iconbtn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border-color: var(--vsr-border); }
+
+/* ── Chat ── */
+.pg-chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.pg-chat-input { flex-shrink: 0; padding: 12px 14px; border-top: 1px solid var(--vsr-border); background: var(--vsr-bg-chrome); }
+.pg-input-wrap {
+    display: flex; align-items: flex-end; gap: 8px;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border-input);
+    border-radius: 12px; padding: 8px 8px 8px 12px;
+}
+.pg-input-wrap:focus-within { border-color: var(--vsr-accent); }
+.pg-input-textarea {
+    flex: 1; resize: none; max-height: 180px;
+    background: transparent; border: none; outline: none;
+    color: var(--vsr-text); font-size: 13.5px; line-height: 1.5;
+    font-family: inherit;
+}
+.pg-send-btn {
+    display: grid; place-items: center;
+    width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+    background: var(--vsr-accent); color: #fff; border: none; cursor: pointer;
+    transition: opacity .15s;
+}
+.pg-send-btn:disabled { opacity: .45; cursor: default; }
+
+/* Mensajes (reusa look de .ia-msg del visor, definidos aqui por si acaso) */
+.pg-msg { max-width: 100%; }
+.pg-msg-role { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--vsr-accent-soft); margin-bottom: 5px; }
+.pg-msg-role .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--vsr-accent); }
+.pg-msg-text {
+    font-size: 13.5px; line-height: 1.6; color: var(--vsr-text-soft);
+    background: var(--vsr-bg-card); border: 1px solid var(--vsr-border-soft);
+    border-radius: 10px; padding: 10px 13px; word-wrap: break-word;
+}
+.pg-msg.user .pg-msg-text { background: var(--vsr-accent-tint); border-color: var(--vsr-accent-tint); }
+.pg-msg-text p { margin: 0 0 8px; } .pg-msg-text p:last-child { margin-bottom: 0; }
+.pg-msg-text pre { background: #0d1320; border-radius: 8px; padding: 10px; overflow-x: auto; font-size: 12px; margin: 8px 0; }
+.pg-msg-text code { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.pg-typing { display: inline-flex; gap: 4px; padding: 4px 0; }
+.pg-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--vsr-text-mute2); animation: pgblink 1.2s infinite; }
+.pg-typing span:nth-child(2) { animation-delay: .2s; } .pg-typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes pgblink { 0%,60%,100% { opacity: .25; } 30% { opacity: 1; } }
+
+/* ── Sandbox ── */
+.pg-sandbox-tabs { display: flex; gap: 4px; }
+.pg-tab {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 11px; border-radius: 7px; font-size: 12px; font-weight: 600;
+    background: transparent; border: 1px solid transparent; color: var(--vsr-text-muted); cursor: pointer;
+}
+.pg-tab.active { background: var(--vsr-accent-tint); color: var(--vsr-accent-soft); border-color: var(--vsr-accent-tint); }
+.pg-sandbox-actions { display: flex; align-items: center; gap: 8px; }
+.pg-theme-chip { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--vsr-bg-hover); color: var(--vsr-text-muted); }
+
+.pg-sandbox-body { flex: 1; position: relative; min-height: 0; background: #fff; }
+.pg-sandbox-frame { width: 100%; height: 100%; border: none; display: block; }
+.pg-sandbox-code { position: absolute; inset: 0; margin: 0; overflow: auto; padding: 16px; background: #0d1320; }
+.pg-sandbox-code code { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #e5e7eb; white-space: pre; }
+
+/* ── Estados vacios ── */
+.pg-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 8px; color: var(--vsr-text-muted);
+    margin: auto; padding: 30px;
+}
+.pg-empty i { width: 40px; height: 40px; color: var(--vsr-text-mute2); opacity: .7; }
+.pg-empty-title { font-size: 14px; font-weight: 700; color: var(--vsr-text-soft); }
+.pg-empty-sub { font-size: 12px; max-width: 280px; }
+.pg-sandbox-empty { position: absolute; inset: 0; background: var(--vsr-bg-base); }
+
+/* ── Modal Conocimiento ── */
+.pg-modal { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; }
+.pg-modal.hidden { display: none; }
+.pg-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(2px); }
+.pg-modal-dialog {
+    position: relative; width: min(760px, 92vw); max-height: 86vh;
+    display: flex; flex-direction: column;
+    background: var(--vsr-bg-card); border: 1px solid var(--vsr-border);
+    border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.5); overflow: hidden;
+}
+.pg-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--vsr-border); }
+.pg-modal-head h3 { font-size: 14px; font-weight: 700; color: var(--vsr-text); }
+.pg-modal-head i { color: var(--vsr-accent-soft); }
+.pg-modal-tabs { display: flex; gap: 4px; padding: 10px 18px 0; }
+.pg-ktab {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 13px; border-radius: 8px 8px 0 0; font-size: 12.5px; font-weight: 600;
+    background: transparent; border: 1px solid transparent; border-bottom: none;
+    color: var(--vsr-text-muted); cursor: pointer;
+}
+.pg-ktab.active { background: var(--vsr-bg-base); color: var(--vsr-accent-soft); border-color: var(--vsr-border); }
+.pg-modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+.pg-hint { font-size: 12px; color: var(--vsr-text-muted); margin: 0 0 10px; line-height: 1.5; }
+.pg-hint code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--vsr-accent-soft); }
+
+.pg-prompt-editor {
+    width: 100%; min-height: 320px; resize: vertical;
+    background: #0d1320; border: 1px solid var(--vsr-border-input); border-radius: 10px;
+    padding: 12px; color: #e5e7eb; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.55;
+    outline: none;
+}
+.pg-prompt-editor:focus { border-color: var(--vsr-accent); }
+.pg-prompt-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.pg-prompt-path { font-size: 11px; color: var(--vsr-text-mute2); font-family: 'JetBrains Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pg-context-list { display: flex; flex-direction: column; gap: 7px; }
+.pg-context-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 9px; cursor: pointer;
+    background: var(--vsr-bg-base); border: 1px solid var(--vsr-border-soft); transition: border-color .15s;
+}
+.pg-context-item:hover { border-color: var(--vsr-accent); }
+.pg-context-item input { accent-color: var(--vsr-accent); width: 15px; height: 15px; cursor: pointer; }
+.pg-context-item .ci-name { font-size: 12.5px; font-weight: 600; color: var(--vsr-text-soft); }
+.pg-context-item .ci-meta { font-size: 11px; color: var(--vsr-text-mute2); margin-left: auto; }
+
+.pg-modal-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--vsr-border); }

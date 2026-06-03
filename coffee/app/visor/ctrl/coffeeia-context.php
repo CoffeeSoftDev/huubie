@@ -12,6 +12,7 @@
  */
 
 require_once __DIR__ . '/llm-client.php';
+require_once __DIR__ . '/path-helper.php';
 
 if (!defined('COFFEEIA_MAX_FILE_BYTES')) define('COFFEEIA_MAX_FILE_BYTES', 65536);
 if (!defined('COFFEEIA_PROMPTS_DIR'))    define('COFFEEIA_PROMPTS_DIR', __DIR__ . '/../prompts');
@@ -56,11 +57,19 @@ function coffeeia_build_context(array $body) {
     $editorMode         = !empty($body['editorMode']);
     $canvasMode         = !empty($body['canvasMode']);
 
-    // "Alma" de Coffee (identidad + capacidades) desde markdown externo.
-    $soulPath     = COFFEEIA_PROMPTS_DIR . '/coffee-system.md';
-    $systemPrompt = is_file($soulPath) ? (string) @file_get_contents($soulPath) : '';
-    if (trim($systemPrompt) === '') {
-        $systemPrompt = 'Eres CoffeeIA, asistente oficial del framework CoffeeSoft. Responde en espanol, claro y directo.';
+    // "Alma" de Coffee (identidad + capacidades).
+    // El Playground puede inyectar el prompt de un agente concreto via
+    // `systemOverride`; si no viene, se usa el alma por defecto (coffee-system.md).
+    // Cambio puramente aditivo: el Visor nunca manda systemOverride → mismo comportamiento.
+    $systemOverride = isset($body['systemOverride']) ? trim((string) $body['systemOverride']) : '';
+    if ($systemOverride !== '') {
+        $systemPrompt = $systemOverride;
+    } else {
+        $soulPath     = COFFEEIA_PROMPTS_DIR . '/coffee-system.md';
+        $systemPrompt = is_file($soulPath) ? (string) @file_get_contents($soulPath) : '';
+        if (trim($systemPrompt) === '') {
+            $systemPrompt = 'Eres CoffeeIA, asistente oficial del framework CoffeeSoft. Responde en espanol, claro y directo.';
+        }
     }
     if ($editorMode) {
         $editorPath = COFFEEIA_PROMPTS_DIR . '/editor-mode.md';
@@ -87,8 +96,13 @@ function coffeeia_build_context(array $body) {
     } elseif ($currentFile !== '') {
         $candidates = [];
         if ($customPath !== '') $candidates[] = $customPath . DIRECTORY_SEPARATOR . $currentFile;
-        $agentsDir = realpath(__DIR__ . '/../../../../../.claude/agents');
-        if ($agentsDir) $candidates[] = $agentsDir . DIRECTORY_SEPARATOR . $currentFile;
+        // Resolver el .claude real (Apache como servicio no tiene USERPROFILE util).
+        if (function_exists('coffee_user_home')) {
+            $agentsDir = coffee_user_home() . '/.claude/agents';
+        } else {
+            $agentsDir = realpath(__DIR__ . '/../../../../../.claude/agents');
+        }
+        if ($agentsDir && is_dir($agentsDir)) $candidates[] = $agentsDir . DIRECTORY_SEPARATOR . $currentFile;
         foreach ($candidates as $cand) {
             if (is_file($cand)) {
                 $read = @file_get_contents($cand);
