@@ -24,16 +24,17 @@ class ctrl extends mdl {
     function init() {
         $productos = array_map(function ($p) {
             return [
-                'id'     => (string) $p['id'],
-                'sku'    => $p['sku'] ?: '',
-                'nombre' => $p['nombre'],
-                'costo'  => (float) $p['costo'],
-                'precio' => (float) ($p['precio'] ?? 0),
-                'stock'  => 0,
-                'image'  => $p['image'] ?? '',
-                'icon'   => 'package',
-                'bg'     => 'bg-gray-700/40',
-                'color'  => 'text-gray-300'
+                'id'        => (string) $p['id'],
+                'sku'       => $p['sku'] ?: '',
+                'nombre'    => $p['nombre'],
+                'categoria' => $p['categoria'] ?: 'Sin categoria',
+                'costo'     => (float) $p['costo'],
+                'precio'    => (float) ($p['precio'] ?? 0),
+                'stock'     => 0,
+                'image'     => $p['image'] ?? '',
+                'icon'      => 'package',
+                'bg'        => 'bg-gray-700/40',
+                'color'     => 'text-gray-300'
             ];
         }, $this->qProductsForTransfer([$this->companiesId]));
 
@@ -528,10 +529,28 @@ class ctrl extends mdl {
             $totalLoss  += (float) $p['quantity'] * (float) $p['cost'];
         }
 
+        // Evidencia: el front envia la foto como dataURL base64. Se decodifica y se
+        // guarda como archivo en /app/inventarios/uploads/mermas y en evidence_url solo
+        // se persiste la ruta publica. Si el guardado falla, la merma se registra igual.
+        $evidenceUrl = $payload['evidence_url'] ?? null;
+        $b64 = $payload['evidence_b64'] ?? null;
+        if (!empty($b64) && preg_match('#^data:image/([a-zA-Z0-9.+-]+);base64,#', $b64, $mm)) {
+            $ext  = strtolower($mm[1]) === 'jpeg' ? 'jpg' : strtolower($mm[1]);
+            $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
+            if ($data !== false) {
+                $dir = __DIR__ . '/../uploads/mermas/';
+                if (!is_dir($dir)) @mkdir($dir, 0777, true);
+                $fileName = $folio . '.' . $ext;
+                if (@file_put_contents($dir . $fileName, $data) !== false) {
+                    $evidenceUrl = '/app/inventarios/uploads/mermas/' . $fileName;
+                }
+            }
+        }
+
         $ok = $this->insertMerma([
             $folio,
             $payload['note']         ?? null,
-            $payload['evidence_url'] ?? null,
+            $evidenceUrl,
             $totalProducts,
             $totalUnits,
             $totalLoss,
@@ -579,12 +598,12 @@ class ctrl extends mdl {
         return ['status' => 200, 'message' => 'Merma registrada', 'folio' => $folio, 'id' => $mermaId];
     }
 
-    function reverseMerma() {
+    function cancelMerma() {
         $id = (int) $_POST['id'];
-        $r  = $this->qReverseMerma([$id]);
+        $r  = $this->qCancelMerma([$id]);
         return [
             'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Merma revertida' : 'No se pudo revertir'
+            'message' => $r ? 'Merma cancelada' : 'No se pudo cancelar'
         ];
     }
 

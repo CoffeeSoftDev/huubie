@@ -4,12 +4,12 @@ class MermaForm {
 
         this.cls = {
             label:   'block text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1',
-            input:   'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-red-500/70 focus:ring-2 focus:ring-red-500/15 hover:border-gray-600/80 transition-all placeholder:text-gray-600',
-            select:  'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-red-500/70 focus:ring-2 focus:ring-red-500/15 hover:border-gray-600/80 transition-all cursor-pointer appearance-none pr-8',
+            input:   'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-rose-500/70 focus:ring-2 focus:ring-rose-500/15 hover:border-gray-600/80 transition-all placeholder:text-gray-600',
+            select:  'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-rose-500/70 focus:ring-2 focus:ring-rose-500/15 hover:border-gray-600/80 transition-all cursor-pointer appearance-none pr-8',
             search:  'w-full pl-8 pr-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all placeholder:text-gray-600',
-            qtyInp:  'no-spin w-full px-3 py-1.5 text-[11px] font-bold text-center text-white bg-[#0f1825] border border-gray-700/60 rounded outline-none focus:border-red-500/70 focus:ring-2 focus:ring-red-500/15 transition-all',
+            qtyInp:  'no-spin w-full px-3 py-1.5 text-[11px] font-bold text-center text-white bg-[#0f1825] border border-gray-700/60 rounded outline-none focus:border-rose-500/70 focus:ring-2 focus:ring-rose-500/15 transition-all',
             btnOut:  'px-3 py-1.5 text-[11px] font-medium text-gray-300 bg-transparent border border-gray-700/60 rounded-md hover:bg-gray-700/30 hover:text-white hover:border-gray-600 transition-all',
-            btnOk:   'px-3 py-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 rounded-md hover:from-red-500 hover:to-rose-500 hover:shadow-lg hover:shadow-red-500/20 transition-all flex items-center gap-1.5',
+            btnOk:   'px-3 py-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-rose-600 rounded-md hover:from-rose-400 hover:to-rose-500 hover:shadow-lg hover:shadow-rose-500/20 transition-all flex items-center gap-1.5',
             badge:   'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold leading-none'
         };
 
@@ -83,7 +83,7 @@ class MermaForm {
         return `
             <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-700/60 bg-[#141d2b] flex-shrink-0">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/20" style="background:linear-gradient(135deg,#EF4444,#F97316);">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-rose-500/20" style="background:linear-gradient(135deg,#FB7185,#FB923C);">
                         <i data-lucide="alert-triangle" class="w-5 h-5 text-white"></i>
                     </div>
                     <div>
@@ -168,7 +168,7 @@ class MermaForm {
                 </div>
                 <div class="flex items-baseline gap-2.5">
                     <span class="text-[9px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.perdidaLbl)}</span>
-                    <span class="text-red-400 font-bold text-[16px] leading-none" id="${o.id}_qtyCost">-$0.00</span>
+                    <span class="text-white font-bold text-[16px] leading-none" id="${o.id}_qtyCost">-$0.00</span>
                 </div>
             </div>`;
     }
@@ -179,13 +179,13 @@ class MermaForm {
         return `
             <div class="px-4 py-2.5 border-b border-gray-800/70 flex items-center justify-between flex-shrink-0 bg-gradient-to-b from-[#0f1825]/60 to-transparent">
                 <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-red-500/15 border border-red-500/25 flex items-center justify-center">
-                        <i data-lucide="boxes" class="w-3.5 h-3.5 text-red-400"></i>
+                    <div class="w-6 h-6 rounded-md bg-rose-500/15 border border-rose-500/25 flex items-center justify-center">
+                        <i data-lucide="boxes" class="w-3.5 h-3.5 text-rose-400"></i>
                     </div>
                     <p class="text-[10px] font-bold uppercase tracking-wider text-gray-300">${this.esc(o.labels.productosLbl)}</p>
-                    <span id="${o.id}_cntProductos" class="${cls.badge} bg-gradient-to-br from-red-500/25 to-rose-500/15 text-red-300 border border-red-500/40">0</span>
+                    <span id="${o.id}_cntProductos" class="${cls.badge} bg-gradient-to-br from-rose-500/25 to-rose-500/15 text-rose-300 border border-rose-500/40">0</span>
                 </div>
-                <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-400 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-500/10">
+                <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-rose-400 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-rose-500/10">
                     <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
                 </button>
             </div>`;
@@ -200,7 +200,7 @@ class MermaForm {
                     <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-500 flex-shrink-0"></i>
                     <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
                     <input type="file" id="${o.id}_photoInput" accept="image/*" capture="environment" class="hidden">
-                    <button id="${o.id}_btnFoto" type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-gray-300 bg-[#0f1825] border border-gray-700/60 rounded-md hover:border-red-500/50 hover:text-white transition-all flex-shrink-0" title="${this.esc(o.labels.fotoLbl)}">
+                    <button id="${o.id}_btnFoto" type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-gray-300 bg-[#0f1825] border border-gray-700/60 rounded-md hover:border-rose-500/50 hover:text-white transition-all flex-shrink-0" title="${this.esc(o.labels.fotoLbl)}">
                         <i data-lucide="camera" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.fotoBtn)}</span>
                     </button>
                     <div id="${o.id}_fotoChip" class="hidden items-center gap-1.5 pl-1 pr-1.5 py-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 flex-shrink-0">
@@ -224,8 +224,8 @@ class MermaForm {
         const o = this.opts;
         return `
             <div class="flex flex-col items-center justify-center py-12 text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500/10 to-rose-500/5 flex items-center justify-center mb-3">
-                    <i data-lucide="package-x" class="w-8 h-8 text-red-400/70"></i>
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500/10 to-rose-500/5 flex items-center justify-center mb-3">
+                    <i data-lucide="package-x" class="w-8 h-8 text-rose-400/70"></i>
                 </div>
                 <p class="text-xs font-semibold text-gray-200">${this.esc(o.labels.emptyTitle)}</p>
                 <p class="text-[10px] text-gray-500 mt-1">${this.esc(o.labels.emptyHint)}</p>
@@ -240,10 +240,10 @@ class MermaForm {
         const subtotal    = (cant * costoNum).toFixed(2);
         const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const nuevoStock  = Number(p.stock || 0) - cant;
-        const stockColor  = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-gray-400';
-        const nuevoColor  = nuevoStock < 0 ? 'text-red-400' : nuevoStock < 5 ? 'text-orange-400' : 'text-gray-300';
+        const stockColor  = p.stock === 0 ? 'text-rose-400' : p.stock < 5 ? 'text-orange-400' : 'text-gray-400';
+        const nuevoColor  = nuevoStock < 0 ? 'text-rose-400' : nuevoStock < 5 ? 'text-orange-400' : 'text-gray-300';
         return `
-            <tr class="border-b border-gray-800/40 last:border-b-0 hover:bg-red-500/5 transition-colors" data-idx="${i}">
+            <tr class="border-b border-gray-800/40 last:border-b-0 hover:bg-rose-500/5 transition-colors" data-idx="${i}">
                 <td class="px-3 py-2 align-middle">
                     <div class="flex items-center gap-2 min-w-0">
                         ${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}
@@ -272,10 +272,10 @@ class MermaForm {
                     </div>
                 </td>
                 <td class="px-2 py-2 align-middle text-right w-24">
-                    <span class="text-red-400 font-bold text-[12px]" data-subtotal>-$${subtotalFmt}</span>
+                    <span class="text-white font-bold text-[12px]" data-subtotal>-$${subtotalFmt}</span>
                 </td>
                 <td class="px-2 py-2 align-middle text-center w-10">
-                    <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/15 transition-colors" data-remove="${i}" title="Eliminar">
+                    <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-500 hover:text-rose-400 hover:bg-rose-500/15 transition-colors" data-remove="${i}" title="Eliminar">
                         <i data-lucide="x" class="w-3 h-3"></i>
                     </button>
                 </td>
@@ -283,6 +283,20 @@ class MermaForm {
     }
 
     renderProductsTable() {
+        // Agrupa el lote por categoria conservando el indice original en this.lote
+        // (lo usan removeProducto / updateField / refreshRow via data-idx).
+        const groups = {};
+        this.lote.forEach((p, i) => {
+            const cat = (p.categoria && String(p.categoria).trim()) || 'Sin categoria';
+            (groups[cat] = groups[cat] || []).push({ p, i });
+        });
+        const catNames = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es'));
+
+        const body = catNames.map(c => {
+            const rows = groups[c].map(({ p, i }) => this.renderProductRow(p, i)).join('');
+            return this.renderLoteCatRow(c, groups[c].length) + rows;
+        }).join('');
+
         return `
             <table class="w-full border-collapse">
                 <thead class="sticky top-0 z-10 bg-[#0f1825] border-b border-gray-700/60">
@@ -294,13 +308,26 @@ class MermaForm {
                         <th class="w-10 px-2 py-2"></th>
                     </tr>
                 </thead>
-                <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}</tbody>
+                <tbody>${body}</tbody>
             </table>`;
     }
 
+    // Fila separadora de categoria dentro de la tabla del lote.
+    renderLoteCatRow(cat, count) {
+        return `
+            <tr class="mf-lote-cat">
+                <td colspan="5" class="px-3 pt-2.5 pb-1 bg-[#0f172a]/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-purple-300/80 truncate">${this.esc(cat)}</span>
+                        <span class="text-[9px] text-gray-600 flex-shrink-0 ml-2">${count}</span>
+                    </div>
+                </td>
+            </tr>`;
+    }
+
     renderSearchResult(p, i) {
-        const stockColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
-        const stockBg    = p.stock === 0 ? 'bg-red-500/10' : p.stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
+        const stockColor = p.stock === 0 ? 'text-rose-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
+        const stockBg    = p.stock === 0 ? 'bg-rose-500/10' : p.stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
         return `
             <div class="mf-cat-item rounded-md flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent border-b border-gray-800/40 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
                 ${this.prodThumb(p, 'w-9 h-9', 'w-4 h-4')}
@@ -330,7 +357,7 @@ class MermaForm {
             .mf-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
             .mf-scroll::-webkit-scrollbar-thumb:hover { background: #4B5563; }
             .mf-cat-item.mf-active { background: linear-gradient(90deg, rgba(147,51,234,0.20), rgba(147,51,234,0.02)); box-shadow: inset 0 0 0 1px rgba(168,85,247,0.5); }
-            @keyframes mfFlash { 0% { background-color: rgba(239,68,68,0.28); } 100% { background-color: transparent; } }
+            @keyframes mfFlash { 0% { background-color: rgba(244,63,94,0.22); } 100% { background-color: transparent; } }
             tr.mf-flash { animation: mfFlash 0.6s ease-out; }
             .mf-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid rgba(75,85,99,0.6); background: rgba(31,41,55,0.6); font-size: 8px; line-height: 1; color: #9CA3AF; font-family: monospace; }`;
         const style = document.createElement('style');
@@ -391,10 +418,22 @@ class MermaForm {
             .filter(p => !this.lote.some(x => x.id === p.id))
             .filter(p => !term || (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
 
-        this.catalogItems = items;
-        if (this.activeIdx >= items.length) this.activeIdx = Math.max(0, items.length - 1);
+        // Agrupa por categoria, ordenando alfabeticamente los grupos.
+        const groups = {};
+        items.forEach(p => {
+            const cat = (p.categoria && String(p.categoria).trim()) || 'Sin categoria';
+            (groups[cat] = groups[cat] || []).push(p);
+        });
+        const catNames = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es'));
 
-        if (!items.length) {
+        // Reconstruye la lista plana en el mismo orden visual (categoria + items)
+        // para que la navegacion por teclado (activeIdx) siga alineada con el DOM.
+        const ordered = [];
+        catNames.forEach(c => groups[c].forEach(p => ordered.push(p)));
+        this.catalogItems = ordered;
+        if (this.activeIdx >= ordered.length) this.activeIdx = Math.max(0, ordered.length - 1);
+
+        if (!ordered.length) {
             $cat.html(`
                 <div class="flex flex-col items-center justify-center py-8 text-center px-2">
                     <div class="w-10 h-10 rounded-lg bg-gray-800/40 border border-gray-700/50 flex items-center justify-center mb-2">
@@ -403,10 +442,24 @@ class MermaForm {
                     <p class="text-[10px] text-gray-500">${term ? this.esc(o.labels.searchHint) : 'Sin productos disponibles'}</p>
                 </div>`);
         } else {
-            $cat.html(items.map((p, i) => this.renderSearchResult(p, i)).join(''));
+            let gi = 0; // indice global continuo a traves de las categorias
+            const html = catNames.map(c => {
+                const rows = groups[c].map(p => this.renderSearchResult(p, gi++)).join('');
+                return this.renderCatHeader(c, groups[c].length) + rows;
+            }).join('');
+            $cat.html(html);
         }
         if (window.lucide) lucide.createIcons();
         this.highlightActive();
+    }
+
+    // Encabezado de seccion de categoria dentro del catalogo de busqueda.
+    renderCatHeader(cat, count) {
+        return `
+            <div class="mf-cat-head sticky top-0 z-[5] flex items-center justify-between px-2 py-1 bg-[#0f172a] border-b border-gray-800/60">
+                <span class="text-[9px] font-bold uppercase tracking-wider text-purple-300/80 truncate">${this.esc(cat)}</span>
+                <span class="text-[9px] text-gray-600 flex-shrink-0 ml-2">${count}</span>
+            </div>`;
     }
 
     renderLote() {
@@ -456,7 +509,7 @@ class MermaForm {
         if (!$anchor.length) return;
         $(`#${popId}`).remove();
 
-        const stockColor = prod.stock === 0 ? 'text-red-400' : prod.stock < 5 ? 'text-orange-400' : 'text-green-400';
+        const stockColor = prod.stock === 0 ? 'text-rose-400' : prod.stock < 5 ? 'text-orange-400' : 'text-green-400';
         const html = `
             <div id="${popId}" class="absolute top-full left-0 mt-2 z-[60] w-[260px] bg-[#0f172a] rounded-xl shadow-2xl shadow-black/60">
                 <div class="absolute -top-1.5 left-7 w-3 h-3 bg-[#141d2b] rotate-45"></div>
@@ -665,13 +718,35 @@ class MermaForm {
     onPhotoChange(file) {
         if (!file) return;
         const o = this.opts;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            this.photo = { name: file.name, dataUrl: ev.target.result };
-            $(`#${o.id}_photoImg`).attr('src', ev.target.result);
+
+        const apply = (dataUrl) => {
+            this.photo = { name: file.name, dataUrl };
+            $(`#${o.id}_photoImg`).attr('src', dataUrl);
             $(`#${o.id}_btnFoto`).addClass('hidden');
             $(`#${o.id}_fotoChip`).removeClass('hidden').addClass('flex');
             if (window.lucide) lucide.createIcons();
+        };
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            // Redimensiona a max 1280px y recomprime a JPEG: una foto de camara pesa
+            // varios MB y su base64 excederia el post_max_size de PHP al registrar.
+            const img = new Image();
+            img.onload = () => {
+                const max = 1280;
+                let w = img.width, h = img.height;
+                if (w > max || h > max) {
+                    const scale = max / Math.max(w, h);
+                    w = Math.round(w * scale);
+                    h = Math.round(h * scale);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                apply(canvas.toDataURL('image/jpeg', 0.8));
+            };
+            img.onerror = () => apply(ev.target.result); // fallback: dataURL original
+            img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
     }
@@ -725,8 +800,25 @@ class MermaForm {
             total_costo:    totCosto,
             photo:          this.photo
         };
-        o.onSubmit(payload);
-        this.closeModal();
+        const submit = () => {
+            o.onSubmit(payload);
+            this.closeModal();
+        };
+
+        // El registro es definitivo y descuenta stock del almacen: se pide confirmacion.
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title:              'Registrar esta merma?',
+                html:               `Se registraran <strong>${totUds}</strong> uds con una perdida de <strong>${this.fmtMoney(totCosto)}</strong>.<br>El stock se descontara del almacen y la accion es definitiva.`,
+                icon:               'warning',
+                showCancelButton:   true,
+                confirmButtonText:  'Si, registrar',
+                cancelButtonText:   'No',
+                confirmButtonColor: '#E11D48'
+            }).then((r) => { if (r.isConfirmed) submit(); });
+        } else {
+            submit();
+        }
     }
 
     // -- Eventos --
@@ -818,7 +910,7 @@ class MermaForm {
         return `
             <div class="relative">
                 ${selectHtml}
-                <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-red-300/80 flex items-center">
+                <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-rose-300/80 flex items-center">
                     <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
                 </span>
             </div>`;

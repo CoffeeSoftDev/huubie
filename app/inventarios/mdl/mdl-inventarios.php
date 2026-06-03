@@ -732,10 +732,13 @@ class mdl extends CRUD {
                 d.resulting_stock,
                 d.product_id,
                 p.name AS product_name,
-                pa.sku
+                pa.sku,
+                p.category_id,
+                oc.classification AS category_name
             FROM {$this->bd}detail_inventory_shrinkage d
             INNER JOIN {$this->bd}order_products p ON p.id = d.product_id
             LEFT  JOIN {$this->bd}product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT  JOIN {$this->bd}order_category   oc ON oc.id = p.category_id
             WHERE d.inventory_shrinkage_id = ? AND d.active = 1
             ORDER BY d.id ASC
         ";
@@ -764,10 +767,10 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function qReverseMerma($array) {
+    function qCancelMerma($array) {
         $query = "
             UPDATE {$this->bd}inventory_shrinkage
-            SET status = 'Revertida', updated_at = NOW()
+            SET status = 'Cancelada', updated_at = NOW()
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);
