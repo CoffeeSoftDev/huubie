@@ -61,7 +61,12 @@
       "Bash(curl.exe -s -X POST \"http://localhost/huubie/coffee/app/visor/prototipo/stream/index.php\" -H \"Content-Type: application/json\" -d \"{\\\\\"prompt\\\\\":\\\\\"hola\\\\\",\\\\\"model\\\\\":\\\\\"minimax-m3:cloud\\\\\"}\")",
       "Bash(curl.exe -s -N -X POST \"http://localhost/huubie/coffee/app/visor/prototipo/stream/index.php\" -H \"Content-Type: application/json\" -d \"{\\\\\"prompt\\\\\":\\\\\"Di en una frase que es PHP\\\\\",\\\\\"model\\\\\":\\\\\"minimax-m3:cloud\\\\\"}\" --max-time 60)",
       "Bash(curl.exe -s -N -X POST http://localhost/huubie/coffee/app/visor/prototipo/stream/index.php -H 'Content-Type: application/json' -d '{\"prompt\":\"Di hola en una frase\",\"model\":\"minimax-m3:cloud\"}' --max-time 60)",
-      "Bash(echo \"---\")"
+      "Bash(echo \"---\")",
+      "Bash(cd /c/wamp64/bin/mysql)",
+      "Bash(ls -d mysql*/)",
+      "Bash(ls -d /c/wamp64/bin/mysql/mysql*/bin/mysql.exe)",
+      "Bash(awk 'END{print NR\" lineas\"}' c:/wamp64/www/huubie/app/inventarios/src/js/pos-mermas.js)",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/coffee/app/visor/playground.php\")"
     ],
     "additionalDirectories": [
       "\\tmp"

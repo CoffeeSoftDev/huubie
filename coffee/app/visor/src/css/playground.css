@@ -154,7 +154,9 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sandbox-actions { display: flex; align-items: center; gap: 8px; }
 .pg-theme-chip { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--vsr-bg-hover); color: var(--vsr-text-muted); }
 
-.pg-sandbox-body { flex: 1; position: relative; min-height: 0; background: #fff; }
+/* El fondo real lo pinta pgRenderSandbox() con el color del tema activo; este
+   es solo el estado base para que no destelle blanco antes del primer render. */
+.pg-sandbox-body { flex: 1; position: relative; min-height: 0; background: var(--vsr-bg-base); }
 .pg-sandbox-frame { width: 100%; height: 100%; border: none; display: block; }
 .pg-sandbox-code { position: absolute; inset: 0; margin: 0; overflow: auto; padding: 16px; background: #0d1320; }
 .pg-sandbox-code code { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #e5e7eb; white-space: pre; }

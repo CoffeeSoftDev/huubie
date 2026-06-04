@@ -1290,6 +1290,7 @@ class Mermas extends Templates {
             json: this.json(),
             success: (response) => afterSave(response, () => this.ls())
         });
+        this.simulator("formMermaAdd");
     }
 
     async edit(id) {
@@ -1305,6 +1306,34 @@ class Mermas extends Templates {
             json: this.json(),
             success: (response) => afterSave(response, () => this.ls())
         });
+        this.simulator("formMermaEdit");
+    }
+
+    // Cablea la vista previa del badge (campo "mermaPreview" declarado en json()): la
+    // actualiza al cambiar el color o el nombre, mostrando fondo elegido + texto adaptado.
+    simulator(formId) {
+        setTimeout(() => {
+            const $form  = $("#" + formId);
+            const $color = $form.find('[name="color_hex"], #color_hex').first();
+            const $name  = $form.find('[name="name"], #name').first();
+            const $badge = $form.find("#mermaPreviewBadge");
+            const $bg    = $form.find("#mermaPreviewBg");
+            const $fg    = $form.find("#mermaPreviewFg");
+            if (!$color.length || !$badge.length) return;
+
+            const render = () => {
+                const hex  = $color.val() || "#9CA3AF";
+                const name = ($name.val() || "Motivo").toString();
+                const c    = badgeColors(hex);
+                $badge.html(badgePreview(name, hex));
+                $bg.text(c.bg);
+                $fg.text(c.fg);
+            };
+
+            $color.off("input.sim change.sim").on("input.sim change.sim", render);
+            $name.off("input.sim").on("input.sim", render);
+            render();
+        }, 30);
     }
 
     status(id, active) {
@@ -1346,6 +1375,18 @@ class Mermas extends Templates {
                 lbl: "Icono",
                 required: false,
                 class: "col-12 col-md-8 mb-3"
+            },
+            {
+                // Vista previa del badge (se rellena en vivo desde simulator()).
+                opc: "div",
+                id: "mermaPreview",
+                class: "col-12 mb-3",
+                html: `
+                    <label class="block text-[11px] font-medium text-gray-400 mb-1">Vista previa</label>
+                    <div class="flex items-center gap-3 flex-wrap p-3 rounded-lg bg-[#0f1825] border border-gray-700/60">
+                        <span id="mermaPreviewBadge"></span>
+                        <span class="text-[10px] text-gray-500 whitespace-nowrap">Fondo <code id="mermaPreviewBg" class="text-gray-300"></code> &middot; Texto <code id="mermaPreviewFg" class="text-gray-300"></code></span>
+                    </div>`
             }
         ];
     }
@@ -1628,4 +1669,62 @@ function afterSave(response, reload) {
     } else {
         alert({ icon: "info", title: "Oops!...", text: response.message, btn1: true, btn1Text: "Ok" });
     }
+}
+
+// -- Simulador de badge --
+// Espejo JS EXACTO de badge() en app/conf/_Utileria.php: el color es el FONDO y el texto
+// se adapta (mismo matiz, mas claro y vivo). Mantener ambos en sync.
+
+function badgeColors(hex) {
+    hex = String(hex || "#9CA3AF").replace("#", "");
+    if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+
+    const rn = r / 255, gn = g / 255, bn = b / 255;
+    const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+    let l = (max + min) / 2, h = 0, s = 0;
+    if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        if (max === rn)      h = (gn - bn) / d + (gn < bn ? 6 : 0);
+        else if (max === gn) h = (bn - rn) / d + 2;
+        else                 h = (rn - gn) / d + 4;
+        h /= 6;
+    }
+    s = Math.max(0.50, Math.min(0.85, s));
+    l = Math.max(0.62, Math.min(0.92, l + 0.42));
+
+    let tr, tg, tb;
+    if (s === 0) {
+        tr = tg = tb = l;
+    } else {
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        tr = hue2rgb(p, q, h + 1 / 3);
+        tg = hue2rgb(p, q, h);
+        tb = hue2rgb(p, q, h - 1 / 3);
+    }
+    const hx = (n) => n.toString(16).padStart(2, "0").toUpperCase();
+    return {
+        r: r, g: g, b: b,
+        bg: "#" + hex.toUpperCase(),
+        fg: `#${hx(Math.round(tr * 255))}${hx(Math.round(tg * 255))}${hx(Math.round(tb * 255))}`
+    };
+}
+
+function badgePreview(text, hex, degrade = 100) {
+    const c = badgeColors(hex);
+    const alpha = Math.max(0, Math.min(100, parseFloat(degrade) || 0)) / 100;
+    const label = (text == null || text === "") ? "-" : text;
+    return `<span class="text-[10px] font-semibold px-3 py-1 rounded" style="background:rgba(${c.r},${c.g},${c.b},${alpha});color:${c.fg};">${label}</span>`;
 }

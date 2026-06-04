@@ -46,6 +46,14 @@ const PG_THEMES = {
         cssUrls: [], cssFrom: 'grimorio-coffee-varoch.md',
         data: 'dark', bodyClass: 'coffee-varoch', bg: '#0E1521', fg: '#E5E7EB',
         note: 'Sistema Coffee-Varoch (Grupo Varoch): clases .cv-* con <body class="coffee-varoch" data-theme="dark">. Tema DARK.'
+    },
+    // Lienzo libre: sin grimorio ni paleta impuesta. El agente conjura solo con
+    // su propio conocimiento (Tailwind disponible en el sandbox). Canvas neutro.
+    'free': {
+        label: 'Libre (sin paleta)', grimoire: null,
+        cssUrls: [], cssFrom: null,
+        data: '', bodyClass: '', bg: '#F8FAFC', fg: '#0F172A',
+        note: 'Sin sistema de diseño impuesto: elige tú la paleta y los estilos según tu criterio.'
     }
 };
 const PG_DEFAULT_THEME = 'huubie-ui';
@@ -215,7 +223,17 @@ function pgBind() {
         pg.theme = e.target.value;
         $('#pgSandboxTheme').text(PG_THEMES[pg.theme]?.label || pg.theme);
         pgSaveSettings();
-        if (pg.lastHtml) pgRenderSandbox(pg.lastHtml, pg._lastIsDoc); // re-pinta con nuevo tema
+
+        // Si ya hay una respuesta del agente y el agente usa sistema de diseño,
+        // regeneramos el resultado adaptándolo al nuevo tema (re-preguntamos).
+        const cfg = PG_AGENTS[pg.agentKey] || {};
+        const usesDesignSystem = (cfg.render === 'html' || cfg.render === 'code');
+        const hasAnswer = pg.history.some(m => m.role === 'assistant');
+        if (usesDesignSystem && hasAnswer && !pg.isBusy) {
+            pgRegenerateForTheme();
+        } else if (pg.lastHtml) {
+            pgRenderSandbox(pg.lastHtml, pg._lastIsDoc); // sin respuesta nueva: solo re-pinta
+        }
     });
     $('#pgSandboxTheme').text(PG_THEMES[pg.theme]?.label || pg.theme);
 
@@ -371,8 +389,8 @@ function pgRenderContextList() {
     const $list = $('#pgContextList').empty();
     const cfg = PG_AGENTS[pg.agentKey] || {};
     const t   = PG_THEMES[pg.theme] || {};
-    if (cfg.render === 'html' && t.grimoire) {
-        $list.append(`<p class="pg-hint" style="border-left:2px solid var(--vsr-accent);padding-left:8px;">🪄 Para CoffeeMagic, el grimorio del sistema de diseño activo (<code>${t.grimoire}</code>) se <strong>inyecta automáticamente</strong> según el tema seleccionado. Aquí solo añades contexto extra.</p>`);
+    if ((cfg.render === 'html' || cfg.render === 'code') && t.grimoire) {
+        $list.append(`<p class="pg-hint" style="border-left:2px solid var(--vsr-accent);padding-left:8px;">🪄 El grimorio del sistema de diseño activo (<code>${t.grimoire}</code>) se <strong>inyecta automáticamente</strong> según el tema seleccionado, para que ${cfg.render === 'code' ? 'el módulo use ese estilo' : 'el componente se genere con sus clases'}. Aquí solo añades contexto extra.</p>`);
     }
     if (!items.length) { $list.append('<p class="pg-hint">No se encontraron grimorios en <code>.claude/agents/grimorios</code>.</p>'); }
     items.forEach(f => {
@@ -450,6 +468,22 @@ function pgSubmit() {
     pgSend(text || 'Describe esta imagen.', images);
 }
 
+/* Re-pregunta al agente para que rehaga el último resultado con el sistema de
+ * diseño del tema recién elegido. Reusa pgSend, así que el grimorio del nuevo
+ * tema y su directiva ya viajan en el payload; el agente ve su respuesta previa
+ * en el historial y solo cambia clases/tokens. */
+function pgRegenerateForTheme() {
+    if (pg.isBusy) return;
+    const t   = PG_THEMES[pg.theme] || PG_THEMES[PG_DEFAULT_THEME];
+    const cfg = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
+    const what = cfg.render === 'code' ? 'el módulo' : 'el componente';
+    const sys  = t.grimoire
+        ? `al sistema de diseño **${t.label}**`
+        : 'a un diseño libre (sin paleta impuesta, tú eliges los estilos)';
+    pgToast(`Regenerando con ${t.label}…`, 'info');
+    pgSend(`Adapta ${what} anterior ${sys}. Conserva la misma estructura y funcionalidad; cambia solo clases, tokens y estilos para respetar ese sistema de diseño.`, []);
+}
+
 function pgAppendUser(text, previews) {
     $('#pgChatBody .pg-empty').remove();
     let imgs = '';
@@ -485,10 +519,12 @@ async function pgSend(text, images) {
     const themeCfg = PG_THEMES[pg.theme] || PG_THEMES[PG_DEFAULT_THEME];
 
     // Conjunto de grimorios a inyectar: los que ancló el usuario + (para agentes
-    // que renderizan HTML) el grimorio del sistema de diseño seleccionado, para
-    // que el agente genere con sus clases/tokens y respete su lógica.
+    // que producen UI — HTML renderizable o módulos de código) el grimorio del
+    // sistema de diseño seleccionado, para que generen con sus clases/tokens y
+    // el módulo respete el estilo del sistema. (BD/markdown no usa estilo visual.)
+    const usesDesignSystem = (cfgAgent.render === 'html' || cfgAgent.render === 'code');
     const ctxNames = new Set(pg.knowledge);
-    if (cfgAgent.render === 'html' && themeCfg.grimoire && pg.grimoires[themeCfg.grimoire]) {
+    if (usesDesignSystem && themeCfg.grimoire && pg.grimoires[themeCfg.grimoire]) {
         ctxNames.add(themeCfg.grimoire);
     }
     const pinned = Array.from(ctxNames).map(name => {
@@ -496,12 +532,22 @@ async function pgSend(text, images) {
         return f ? { file: f.file, fullPath: f.fullPath || '', content: f.raw || '' } : null;
     }).filter(Boolean);
 
-    // Directiva de render: le indica al agente qué sistema de diseño usar.
+    // Directiva de render: le indica al agente qué sistema de diseño usar. En
+    // modo libre (sin grimorio) no se impone paleta: conjura con su conocimiento.
     let systemOverride = pg.prompt || '';
-    if (cfgAgent.render === 'html' && themeCfg.grimoire) {
-        systemOverride += `\n\n## Render en Playground\n`
-            + `Genera EXCLUSIVAMENTE el componente solicitado siguiendo el grimorio **${themeCfg.label}** incluido en el contexto. ${themeCfg.note}\n`
-            + `Devuelve UN solo bloque \`\`\`html con el componente listo para renderizar (sin explicaciones largas).`;
+    if (cfgAgent.render === 'html') {
+        systemOverride += themeCfg.grimoire
+            ? `\n\n## Render en Playground\n`
+              + `Genera EXCLUSIVAMENTE el componente solicitado siguiendo el grimorio **${themeCfg.label}** incluido en el contexto. ${themeCfg.note}\n`
+              + `Devuelve UN solo bloque \`\`\`html con el componente listo para renderizar (sin explicaciones largas).`
+            : `\n\n## Render en Playground (lienzo libre)\n`
+              + `Genera el componente solicitado con tu propio criterio de diseño. ${themeCfg.note || ''}\n`
+              + `Tienes Tailwind disponible en el lienzo. Devuelve UN solo bloque \`\`\`html con el componente listo para renderizar (sin explicaciones largas).`;
+    } else if (cfgAgent.render === 'code' && themeCfg.grimoire) {
+        // El tema también modela el módulo: su UI/frontend debe usar el sistema
+        // de diseño elegido. En modo libre (sin grimorio) no se impone estilo.
+        systemOverride += `\n\n## Estilo del sistema (Playground)\n`
+            + `La UI/frontend del módulo que generes debe construirse con el sistema de diseño **${themeCfg.label}** (grimorio incluido en el contexto): usa sus clases y tokens, no inventes otra paleta. ${themeCfg.note}`;
     }
 
     const payload = {
@@ -554,39 +600,73 @@ async function pgSend(text, images) {
             }
         }
     } catch (err) {
+        // Conexión/lectura cortada (típico con HTML grande + timeout): si ya
+        // alcanzamos a recibir contenido, lo rescatamos en vez de descartarlo.
         $typing.remove();
+        if (await pgTryRescuePartial(stream, received, err.message)) { pgFinish(); return; }
         const msg = '⚠️ No se obtuvo respuesta. ' + (err.message || '');
         if (stream) { await stream.drain(); stream.fail(msg); } else { pgAppendAI(msg); }
         pgFinish(); return;
     }
 
-    if (streamErr) { $typing.remove(); const m = '⚠️ ' + streamErr; if (stream) { await stream.drain(); stream.fail(m); } else { pgAppendAI(m); } pgFinish(); return; }
+    if (streamErr) {
+        $typing.remove();
+        if (await pgTryRescuePartial(stream, received, streamErr)) { pgFinish(); return; }
+        const m = '⚠️ ' + streamErr;
+        if (stream) { await stream.drain(); stream.fail(m); } else { pgAppendAI(m); }
+        pgFinish(); return;
+    }
     if (!firstToken) { $typing.remove(); pgAppendAI('⚠️ El agente no devolvió respuesta.'); pgFinish(); return; }
 
     await stream.drain();
     pg.history.push({ role: 'assistant', content: received });
+    pgFinalizeResponse(stream, received, {
+        credits:    meta.credits_estimate,
+        elapsed_ms: meta.elapsed_ms
+    }, false);
+    pgPlayPopSound();
+    pgFinish();
+}
 
-    // Texto para la burbuja: si hay HTML y el agente renderiza, lo sacamos del
-    // chat (va al sandbox) y dejamos una nota; el resto se muestra como markdown.
+/* ── Cierre de respuesta ──
+ * Pinta la burbuja del chat y, SOLO en modo lienzo, vuelca el resultado al
+ * sandbox. Sin lienzo el playground es un chat puro: NO toca el preview.
+ * `interrupted` marca respuestas cortadas (timeout/red/límite del modelo). */
+function pgFinalizeResponse(stream, received, meta, interrupted) {
+    const renderToCanvas = !!pg.canvasMode;
     const cfg  = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
-    const html = pgExtractHtml(received);
+    const html = renderToCanvas ? pgExtractHtml(received) : '';
+
+    // En modo lienzo con HTML: el componente va al sandbox y en el chat dejamos
+    // solo el texto no-HTML + una nota. En cualquier otro caso, el chat muestra
+    // la respuesta tal cual (incluido el HTML como bloque de código).
     let displayText = received;
-    if (cfg.render === 'html' && html) {
-        // Sacamos el HTML del chat (va al sandbox). Soporta fence o HTML crudo.
+    if (renderToCanvas && cfg.render === 'html' && html) {
         let rest = received.replace(/```[ \t]*html[\s\S]*?```/i, '').trim();
         if (rest === received.trim()) rest = '';   // no había fence → era HTML crudo
         if (pgLooksLikeHtml(rest)) rest = '';       // lo que queda sigue siendo HTML
-        displayText = (rest ? rest + '\n\n' : '') + '🪄 *Componente renderizado en el sandbox →*';
+        const note = interrupted
+            ? '⚠️ *Respuesta cortada — componente parcial renderizado en el sandbox →*'
+            : '🪄 *Componente renderizado en el sandbox →*';
+        displayText = (rest ? rest + '\n\n' : '') + note;
+    } else if (interrupted) {
+        displayText = received + '\n\n⚠️ *La respuesta se cortó antes de terminar.*';
     }
 
-    stream.complete(displayText, {
-        credits:    meta.credits_estimate,
-        elapsed_ms: meta.elapsed_ms
-    }, received);
+    stream.complete(displayText, meta, received);
+    if (renderToCanvas) pgRenderToSandbox(received);
+}
 
-    pgRenderToSandbox(received);
-    pgPlayPopSound();
-    pgFinish();
+/* Rescata el contenido parcial cuando el stream se corta a media generación.
+ * Evita el síntoma "mucho HTML se corta y ya no lo renderiza": lo que llegó ya
+ * está en `received`, así que lo pintamos (y, en lienzo, lo renderizamos). */
+async function pgTryRescuePartial(stream, received, reason) {
+    if (!stream || !received) return false;
+    await stream.drain();
+    pg.history.push({ role: 'assistant', content: received });
+    pgFinalizeResponse(stream, received, {}, true);
+    pgToast(reason ? ('Respuesta cortada: ' + reason) : 'La respuesta se cortó antes de terminar', 'warn');
+    return true;
 }
 
 function pgFinish() {
@@ -742,6 +822,11 @@ function pgRenderToSandbox(received) {
 function pgRenderSandbox(htmlBody, isDoc) {
     $('#pgSandboxEmpty').hide();
     pg.lastHtml = htmlBody; pg.lastTheme = pg.theme; pg._lastIsDoc = !!isDoc;
+    // El iframe es transparente: si el contenido (sobre todo un documento
+    // completo) no pinta su propio fondo, se vería el blanco del contenedor.
+    // Pintamos el contenedor con el fondo del tema para que cubra TODO el preview.
+    const t = PG_THEMES[pg.theme] || PG_THEMES[PG_DEFAULT_THEME];
+    $('.pg-sandbox-body').css('background', t.bg || '#fff');
     document.getElementById('pgSandboxFrame').srcdoc = pgWrapHtml(htmlBody, pg.theme, isDoc);
     // La pestaña "Código" refleja la fuente de lo que se está renderizando.
     if (!isDoc) {
@@ -862,14 +947,19 @@ function pgLooksLikeHtml(text) {
 // Extrae HTML renderizable de la respuesta, tolerante a fences mal formados o
 // HTML crudo sin fence (causa frecuente de "no renderiza").
 function pgExtractHtml(text) {
-    // 1) bloque ```html (con/sin salto, espacios, mayúsculas)
-    let m = (text || '').match(/```[ \t]*html[ \t]*\r?\n?([\s\S]*?)```/i);
+    const s = text || '';
+    // 1) bloque ```html cerrado (con/sin salto, espacios, mayúsculas)
+    let m = s.match(/```[ \t]*html[ \t]*\r?\n?([\s\S]*?)```/i);
     if (m && m[1].trim()) return m[1].trim();
     // 2) cualquier fence cerrado cuyo contenido parezca HTML
-    m = (text || '').match(/```[a-z0-9+-]*[ \t]*\r?\n?([\s\S]*?)```/i);
+    m = s.match(/```[a-z0-9+-]*[ \t]*\r?\n?([\s\S]*?)```/i);
     if (m && pgLooksLikeHtml(m[1])) return m[1].trim();
-    // 3) HTML crudo / fence sin cerrar → quitamos marcadores ``` sueltos
-    if (pgLooksLikeHtml(text)) return String(text).replace(/```[a-z0-9+-]*[ \t]*/gi, '').trim();
+    // 3) fence ```html ABIERTO pero sin cerrar (respuesta truncada): tomamos
+    //    todo lo que sigue al fence — sin arrastrar el preámbulo de texto.
+    m = s.match(/```[ \t]*html[ \t]*\r?\n?([\s\S]*)$/i);
+    if (m && pgLooksLikeHtml(m[1])) return m[1].replace(/```\s*$/, '').trim();
+    // 4) HTML crudo / fence suelto → quitamos marcadores ``` sueltos
+    if (pgLooksLikeHtml(s)) return String(s).replace(/```[a-z0-9+-]*[ \t]*/gi, '').trim();
     return '';
 }
 function pgEscape(s) {

@@ -372,16 +372,26 @@ class Mermas extends Templates {
     // Normaliza la respuesta del backend (columnas DB) al shape que espera mermaDetailPanel.
     mapMermaDetail(h, detail) {
         const created = String(h.created_at || '');
+
+        // Cache-buster para la evidencia: al cambiar la foto se reusa el mismo nombre
+        // ({folio}.jpg) y misma URL, asi que el navegador mostraria la version cacheada.
+        // updated_at cambia justo cuando se actualiza la evidencia -> rompe la cache solo
+        // cuando la foto realmente cambio.
+        const ev   = h.evidence_url || '';
+        const ver  = String(h.updated_at || h.created_at || '').replace(/[^0-9]/g, '');
+        const foto = ev ? ev + (ev.indexOf('?') === -1 ? '?' : '&') + 'v=' + ver : '';
+
         return {
             id:             h.id,
             folio:          h.folio,
+            status:         h.status || '',
             motivo:         h.reason_name || '',
             fecha:          created ? created.replace(' ', 'T') : '',
             sucursal:       h.subsidiary_name || '',
             almacen:        h.warehouse_name  || '',
             registrado_por: h.user_name ? { name: h.user_name } : null,
             nota:           h.note         || '',
-            foto:           h.evidence_url || '',
+            foto:           foto,
             items: (detail || []).map(d => ({
                 name:        d.product_name,
                 sku:         d.sku,
@@ -479,6 +489,72 @@ class Mermas extends Templates {
             doCancel();
         }
     }
+
+    // Elimina un formato ya cancelado (soft-delete en backend) desde el visor.
+    deleteMerma(id) {
+        const doDelete = async () => {
+            const r = await fn_ajax({ opc: 'deleteMerma', id: id }, api).catch(() => null);
+            if (r && r.status === 200) {
+                alert({ icon: 'success', text: r.message || 'Merma eliminada' });
+                mermasView.renderDetail(null);
+                this.lsMermas();
+                this.lsKpis();
+            } else {
+                alert({ icon: 'error', text: (r && r.message) || 'No se pudo eliminar' });
+            }
+        };
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: '¿Eliminar esta merma?',
+                text:  'El formato cancelado se quitara del visor. Accion irreversible.',
+                icon:  'warning',
+                showCancelButton:  true,
+                confirmButtonText: 'Si, eliminar',
+                cancelButtonText:  'No'
+            }).then((r) => { if (r.isConfirmed) doDelete(); });
+        } else {
+            doDelete();
+        }
+    }
+
+    // Sube o reemplaza la evidencia fotografica (dataURL ya comprimido por el panel).
+    async uploadEvidence(id, dataUrl) {
+        if (!dataUrl) return;
+        const r = await fn_ajax({ opc: 'saveMermaEvidence', id: id, evidence_b64: dataUrl }, api).catch(() => null);
+        if (r && r.status === 200) {
+            if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Evidencia actualizada' });
+            this.getMerma(id);
+        } else {
+            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo guardar la evidencia' });
+        }
+    }
+
+    // Quita la evidencia fotografica (envia b64 vacio para que el backend la borre).
+    removeEvidence(id) {
+        const doRemove = async () => {
+            const r = await fn_ajax({ opc: 'saveMermaEvidence', id: id, evidence_b64: '' }, api).catch(() => null);
+            if (r && r.status === 200) {
+                if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Evidencia eliminada' });
+                this.getMerma(id);
+            } else {
+                if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo eliminar la evidencia' });
+            }
+        };
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: '¿Quitar evidencia?',
+                text:  'Se eliminara la foto de evidencia de esta merma.',
+                icon:  'warning',
+                showCancelButton:  true,
+                confirmButtonText: 'Si, quitar',
+                cancelButtonText:  'No'
+            }).then((r) => { if (r.isConfirmed) doRemove(); });
+        } else {
+            doRemove();
+        }
+    }
 }
 
 class MermasView extends Templates {
@@ -494,11 +570,14 @@ class MermasView extends Templates {
 
     renderDetail(merma) {
         this.mermaDetailPanel({
-            parent:      'detailPanel',
-            json:        merma,
-            onClose:     ()  => this.renderDetail(null),
-            onImprimir:  (m) => console.log('[mermaDetailPanel] imprimir',  m && m.folio),
-            onCancelar:  (m) => { if (m) mermas.cancelMerma(m.id); }
+            parent:           'detailPanel',
+            json:             merma,
+            onClose:          ()  => this.renderDetail(null),
+            onImprimir:       (m) => console.log('[mermaDetailPanel] imprimir',  m && m.folio),
+            onCancelar:       (m) => { if (m) mermas.cancelMerma(m.id); },
+            onDelete:         (m) => { if (m) mermas.deleteMerma(m.id); },
+            onUploadEvidence: (m, dataUrl) => { if (m) mermas.uploadEvidence(m.id, dataUrl); },
+            onRemoveEvidence: (m) => { if (m) mermas.removeEvidence(m.id); }
         });
     }
 
@@ -766,11 +845,15 @@ class MermasView extends Templates {
                 notaLbl:     'Nota',
                 evidenciaLbl:'Foto de evidencia',
                 sinFoto:     'Sin foto de evidencia',
+                subirFoto:   'Subir evidencia',
+                cambiarFoto: 'Cambiar',
+                quitarFoto:  'Quitar',
                 cant:        'Cant',
                 costo:       'Costo',
-                subtotal:    'Subtot.',
+                subtotal:    'Subtot',
                 imprimir:    'Imprimir',
                 cancelar:    'Cancelar',
+                eliminar:    'Eliminar',
                 folioPrefix: 'Merma'
             },
             motivoPalettes: {
@@ -785,9 +868,12 @@ class MermasView extends Templates {
                 central:    'Reginas Central',
                 pasteleria: 'Reginas Pasteleria'
             },
-            onClose:    () => { },
-            onImprimir: () => { },
-            onCancelar: () => { }
+            onClose:          () => { },
+            onImprimir:       () => { },
+            onCancelar:       () => { },
+            onDelete:         () => { },
+            onUploadEvidence: () => { },
+            onRemoveEvidence: () => { }
         };
 
         const o    = options || {};
@@ -802,8 +888,7 @@ class MermasView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        const fmtMoney      = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const fmtMoneyShort = (n) => '$' + Number(n || 0).toLocaleString('en-US');
+        const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -820,23 +905,57 @@ class MermasView extends Templates {
             return `${dow} ${day} ${mon} ${String(h).padStart(2, '0')}:${m} ${ampm}`;
         };
 
+        // Redimensiona a max 1280px y recomprime a JPEG (mismo criterio que merma-form):
+        // una foto de camara pesa varios MB y su base64 excederia el post_max_size de PHP.
+        const compressImage = (file, cb) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const max = 1280;
+                    let w = img.width, h = img.height;
+                    if (w > max || h > max) {
+                        const scale = max / Math.max(w, h);
+                        w = Math.round(w * scale);
+                        h = Math.round(h * scale);
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    cb(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.onerror = () => cb(ev.target.result); // fallback: dataURL original
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
         // -- Bloques de UI --
 
         // Botonera inferior, sin borde. En vacio ambos botones quedan desactivados.
+        // Si la merma esta cancelada, el segundo boton pasa de "Cancelar" a "Eliminar".
         const actionsBar = (state) => {
-            const s     = state || {};
-            const empty = !!s.empty;
-            const base  = 'flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5';
-            const off   = 'opacity-40 cursor-not-allowed';
+            const s         = state || {};
+            const empty     = !!s.empty;
+            const cancelled = !!s.cancelled;
+            const base      = 'flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5';
+            const off       = 'opacity-40 cursor-not-allowed';
+            const roseHover = empty ? off : 'hover:bg-rose-500 hover:shadow-lg hover:shadow-rose-500/20 transition-all';
+
+            const secondBtn = cancelled
+                ? `<button id="${opts.id}_delete" class="${base} bg-rose-600 ${roseHover}">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.eliminar)}
+                    </button>`
+                : `<button id="${opts.id}_cancel" ${empty ? 'disabled' : ''} class="${base} bg-rose-600 ${roseHover}">
+                        <i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}
+                    </button>`;
 
             return `
                 <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">
                     <button id="${opts.id}_print" ${empty ? 'disabled' : ''} class="${base} bg-sky-600 ${empty ? off : 'hover:bg-sky-500 hover:shadow-lg hover:shadow-sky-500/20 transition-all'}">
                         <i data-lucide="printer" class="w-3.5 h-3.5"></i>${esc(opts.labels.imprimir)}
                     </button>
-                    <button id="${opts.id}_cancel" ${empty ? 'disabled' : ''} class="${base} bg-rose-600 ${empty ? off : 'hover:bg-rose-500 hover:shadow-lg hover:shadow-rose-500/20 transition-all'}">
-                        <i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}
-                    </button>
+                    ${secondBtn}
                 </div>`;
         };
 
@@ -884,7 +1003,7 @@ class MermasView extends Templates {
                         </td>
                         <td class="py-1.5 px-1 text-center whitespace-nowrap"><span class="text-rose-400 font-bold">-${it.qty}</span></td>
                         <td class="py-1.5 px-1 text-right text-white whitespace-nowrap">${fmtMoney(costoUnit)}</td>
-                        <td class="py-1.5 px-1 text-right text-white font-bold whitespace-nowrap">-${fmtMoneyShort(subtotal)}</td>
+                        <td class="py-1.5 px-1 text-right text-white font-bold whitespace-nowrap">-${fmtMoney(subtotal)}</td>
                     </tr>`;
             };
 
@@ -893,10 +1012,10 @@ class MermasView extends Templates {
             const groupBlock = (g) => {
                 const head = `
                     <tr>
-                        <td colspan="4" class="px-1 pt-2.5 pb-1 bg-[#0f172a]/50">
+                        <td colspan="4" class="px-2 pt-2.5 pb-1 bg-indigo-500/10">
                             <div class="flex items-center justify-between">
-                                <span class="text-[9px] font-bold uppercase tracking-wider text-purple-300/80 truncate">${esc(g.categoria)}</span>
-                                <span class="text-[9px] text-gray-600 flex-shrink-0 ml-2">${g.items.length}</span>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300 truncate">${esc(g.categoria)}</span>
+                                <span class="text-[10px] text-gray-500 flex-shrink-0 ml-2">${g.items.length}</span>
                             </div>
                         </td>
                     </tr>`;
@@ -908,7 +1027,7 @@ class MermasView extends Templates {
             return `
                 <table class="w-full text-[11px] border-collapse">
                     <thead>
-                        <tr class="text-[11px] text-[#9CA3AF] tracking-wider border-b border-[#374151]">
+                        <tr class="text-[10px] text-[#9CA3AF] uppercase tracking-wider border-b border-[#374151]">
                             <th class="py-1 px-1 text-left font-semibold">Producto</th>
                             <th class="py-1 px-1 text-center font-semibold">${esc(opts.labels.cant)}</th>
                             <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.costo)}</th>
@@ -919,18 +1038,54 @@ class MermasView extends Templates {
                 </table>`;
         };
 
-        // Foto de evidencia (propia de mermas).
-        const fotoHtml = (foto) => {
+        // Foto de evidencia (propia de mermas). Si la merma no esta cancelada (editable),
+        // permite subir, cambiar o quitar la foto; cancelada -> solo lectura.
+        const fotoHtml = (foto, editable) => {
+            const inputHtml = editable
+                ? `<input type="file" id="${opts.id}_evdInput" accept="image/*" capture="environment" class="hidden">`
+                : '';
+
+            // Sin foto.
             if (!foto) {
+                if (!editable) {
+                    return `
+                        <div class="bg-[#1F2937] rounded-lg p-4 border border-dashed border-[#374151] flex flex-col items-center justify-center min-h-[100px]">
+                            <i data-lucide="image-off" class="w-7 h-7 text-[#374151] mb-2"></i>
+                            <p class="text-[10px] text-[#9CA3AF] italic">${esc(opts.labels.sinFoto)}</p>
+                        </div>`;
+                }
                 return `
-                    <div class="bg-[#1F2937] rounded-lg p-4 border border-dashed border-[#374151] flex flex-col items-center justify-center min-h-[100px]">
-                        <i data-lucide="image-off" class="w-7 h-7 text-[#374151] mb-2"></i>
-                        <p class="text-[10px] text-[#9CA3AF] italic">${esc(opts.labels.sinFoto)}</p>
+                    ${inputHtml}
+                    <button type="button" id="${opts.id}_evdUpload"
+                            class="w-full bg-[#1F2937] rounded-lg p-4 border border-dashed border-[#374151] hover:border-sky-500/60 flex flex-col items-center justify-center min-h-[100px] transition-colors group">
+                        <i data-lucide="upload-cloud" class="w-7 h-7 text-[#9CA3AF] group-hover:text-sky-400 mb-2"></i>
+                        <p class="text-[10px] text-[#9CA3AF] group-hover:text-white">${esc(opts.labels.subirFoto)}</p>
+                    </button>`;
+            }
+
+            // Con foto, solo lectura (cancelada).
+            if (!editable) {
+                return `
+                    <div class="rounded-lg overflow-hidden border border-[#374151]">
+                        <img src="${esc(foto)}" alt="Evidencia" class="w-full h-32 object-cover" />
                     </div>`;
             }
+
+            // Con foto, editable: barra de acciones SIEMPRE visible (descubrible en
+            // tablet/tactil, no solo al hover) -> cambiar / quitar.
+            const btnBase = 'px-2 py-1 text-[10px] font-semibold text-white rounded-md flex items-center gap-1 transition-colors';
             return `
-                <div class="rounded-lg overflow-hidden border border-[#374151]">
+                ${inputHtml}
+                <div class="relative rounded-lg overflow-hidden border border-[#374151]">
                     <img src="${esc(foto)}" alt="Evidencia" class="w-full h-32 object-cover" />
+                    <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5 flex items-center justify-end gap-1.5">
+                        <button type="button" id="${opts.id}_evdUpload" class="${btnBase} bg-sky-600/90 hover:bg-sky-500">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i>${esc(opts.labels.cambiarFoto)}
+                        </button>
+                        <button type="button" id="${opts.id}_evdRemove" class="${btnBase} bg-rose-600/90 hover:bg-rose-500">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>${esc(opts.labels.quitarFoto)}
+                        </button>
+                    </div>
                 </div>`;
         };
 
@@ -954,6 +1109,9 @@ class MermasView extends Templates {
             const reg      = m.registrado_por;
             const regTexto = reg ? esc(reg.name) : '-';
 
+            // La evidencia solo se puede subir/quitar mientras la merma no este cancelada.
+            const editable = m.status !== 'Cancelada';
+
             return `
                 <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
                     <div>
@@ -961,7 +1119,6 @@ class MermasView extends Templates {
                         <p class="text-[10px] text-[#9CA3AF]">${esc(fmtFecha(m.fecha))}</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        ${motivoBadge}
                         <button id="${opts.id}_close" class="text-[#D1D5DB] hover:text-white transition-colors p-1" title="Cerrar">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
@@ -970,7 +1127,7 @@ class MermasView extends Templates {
                     </div>
                 </div>
 
-                <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
+                <div id="${opts.id}_scroll" class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
 
                     <!-- Resumen -->
                     <div class="bg-[#1F2937] rounded-lg p-2 border border-[#374151] space-y-2">
@@ -993,8 +1150,11 @@ class MermasView extends Templates {
                     </div>
 
                     <!-- Detalle de productos -->
-                    <div>
-                        <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-2">${esc(opts.labels.detalleLbl)}</p>
+                    <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151]">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider">${esc(opts.labels.detalleLbl)}</p>
+                            <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider">${items.length} ${items.length === 1 ? 'producto' : 'productos'}</p>
+                        </div>
                         <div class="overflow-x-auto">${productTable(m)}</div>
                         <!-- Perdida total debajo de la tabla -->
                         <div class="flex items-center justify-between mt-3 pt-3 border-t border-dashed border-[#374151]">
@@ -1006,7 +1166,7 @@ class MermasView extends Templates {
                     <!-- Evidencia -->
                     <div>
                         <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-2">${esc(opts.labels.evidenciaLbl)}</p>
-                        ${fotoHtml(m.foto)}
+                        ${fotoHtml(m.foto, editable)}
                     </div>
 
                     <!-- Nota -->
@@ -1017,17 +1177,26 @@ class MermasView extends Templates {
                     </div>` : ''}
                 </div>
 
-                ${actionsBar({ empty: false })}
+                ${actionsBar({ empty: false, cancelled: !editable })}
             `;
         };
 
         // -- Construccion e insercion al DOM --
 
-        const aside = $('<aside>', { id: opts.id, class: opts.class });
+        const mermaId = opts.json ? String(opts.json.id) : '';
+        const aside   = $('<aside>', { id: opts.id, class: opts.class, 'data-merma-id': mermaId });
         aside.html(opts.json ? filledView(opts.json) : emptyView());
+
+        // Preserva el scroll interno SOLO si re-renderizamos la misma merma (subir/cambiar/
+        // quitar evidencia reconstruye el panel; sin esto el contenedor saltaria al inicio).
+        const $prevAside = $(`#${opts.id}`);
+        const samePrev   = mermaId !== '' && $prevAside.length && $prevAside.attr('data-merma-id') === mermaId;
+        const prevTop    = samePrev ? ($(`#${opts.id}_scroll`).scrollTop() || 0) : 0;
 
         $(`#${opts.parent}`).html(aside);
         if (window.lucide) lucide.createIcons();
+
+        if (prevTop) $(`#${opts.id}_scroll`).scrollTop(prevTop);
 
         // -- Eventos (solo con merma seleccionada) --
 
@@ -1036,6 +1205,20 @@ class MermasView extends Templates {
             $(`#${opts.id}_close`).on('click',  () => opts.onClose(m));
             $(`#${opts.id}_print`).on('click',  () => opts.onImprimir(m));
             $(`#${opts.id}_cancel`).on('click', () => opts.onCancelar(m));
+            $(`#${opts.id}_delete`).on('click', () => opts.onDelete(m));
+
+            // Evidencia editable: subir/cambiar dispara el input file; el archivo se
+            // comprime antes de mandarlo. Quitar va directo al callback.
+            if (m.status !== 'Cancelada') {
+                const $input = $(`#${opts.id}_evdInput`);
+                $(`#${opts.id}_evdUpload`).on('click', () => $input.trigger('click'));
+                $input.on('change', (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    compressImage(file, (dataUrl) => opts.onUploadEvidence(m, dataUrl));
+                });
+                $(`#${opts.id}_evdRemove`).on('click', (e) => { e.stopPropagation(); opts.onRemoveEvidence(m); });
+            }
         }
     }
 }

@@ -676,7 +676,7 @@ USE `fayxzvov_reginas`;
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
 │  ── Status ──                                                        │
-│  status                 ENUM           Aplicada|Revertida            │
+│  status                 ENUM           Aplicada|Cancelada            │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
 │  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │
@@ -841,7 +841,7 @@ USE `fayxzvov_reginas`;
 │  updated_at             DATETIME       ON UPDATE · última edición    │
 │                                                                      │
 │  ── Status ──                                                        │
-│  status                 ENUM           Pendiente|Aplicado|Revertido  │
+│  status                 ENUM           Pendiente|Aplicado|Cancelado  │
 │                                                                      │
 │  ── FK cross-schema ──                                               │
 │  subsidiaries_id        → fayxzvov_alpha.subsidiaries · sucursal     │

@@ -455,159 +455,6 @@ class ctrl extends mdl {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    //  MERMAS
-    // ─────────────────────────────────────────────────────────────────
-
-    function lsMermas() {
-        $rows = $this->qMermas([
-            'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $_POST['subsidiaries_id'] ?? '',
-            'reason_id'       => $_POST['reason_id']       ?? '',
-            'fi'              => $_POST['fi']              ?? '',
-            'ff'              => $_POST['ff']              ?? '',
-            'q'               => $_POST['q']               ?? ''
-        ]);
-
-        $row = [];
-        foreach ($rows as $r) {
-            $row[] = [
-                'id'         => $r['id'],
-                'Folio'      => $r['folio'],
-                'Motivo'     => $this->_pillBadge($r['reason_name'], $r['reason_color']),
-                'Sucursal'   => $r['subsidiary_name'] ?: '-',
-                'Almacen'    => $r['warehouse_name']  ?: '-',
-                'Productos'  => (int) $r['total_products'],
-                'Unidades'   => (float) $r['total_units'],
-                'Costo'      => '<span class="text-red-400">' . evaluar((float) $r['total_cost_loss']) . '</span>',
-                'Fecha'      => date('Y-m-d H:i', strtotime($r['created_at'])),
-                'Estado'     => $this->_statusBadge($r['status']),
-                'Registrado' => $r['user_name'] ?: '-',
-                'a' => [
-                    [
-                        'class'   => 'btn btn-sm btn-secondary me-1',
-                        'html'    => '<i class="icon-eye"></i>',
-                        'onclick' => "mermas.getMerma({$r['id']})"
-                    ]
-                ]
-            ];
-        }
-        return ['status' => 200, 'row' => $row];
-    }
-
-    function showMermas() {
-        $kpis = $this->getMermaKpis([
-            'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $_POST['subsidiaries_id'] ?? '',
-            'fi'              => $_POST['fi']              ?? '',
-            'ff'              => $_POST['ff']              ?? ''
-        ]);
-        return ['status' => 200, 'counts' => $kpis];
-    }
-
-    function getMerma() {
-        $id     = (int) $_POST['id'];
-        $header = $this->qGetMerma([$id]);
-        if (!$header) return ['status' => 404, 'message' => 'Merma no encontrada'];
-        $detail = $this->getMermaDetail([$id]);
-        return ['status' => 200, 'header' => $header, 'detail' => $detail];
-    }
-
-    function saveMerma() {
-        $payload   = json_decode($_POST['payload'] ?? '[]', true);
-        $productos = $payload['productos'] ?? [];
-
-        if (empty($productos)) {
-            return ['status' => 400, 'message' => 'No se enviaron renglones'];
-        }
-
-        $folio         = $this->nextFolio('M-', 'inventory_shrinkage', $this->companiesId);
-        $totalProducts = count($productos);
-        $totalUnits    = 0;
-        $totalLoss     = 0;
-        foreach ($productos as $p) {
-            $totalUnits += (float) $p['quantity'];
-            $totalLoss  += (float) $p['quantity'] * (float) $p['cost'];
-        }
-
-        // Evidencia: el front envia la foto como dataURL base64. Se decodifica y se
-        // guarda como archivo en /app/inventarios/uploads/mermas y en evidence_url solo
-        // se persiste la ruta publica. Si el guardado falla, la merma se registra igual.
-        $evidenceUrl = $payload['evidence_url'] ?? null;
-        $b64 = $payload['evidence_b64'] ?? null;
-        if (!empty($b64) && preg_match('#^data:image/([a-zA-Z0-9.+-]+);base64,#', $b64, $mm)) {
-            $ext  = strtolower($mm[1]) === 'jpeg' ? 'jpg' : strtolower($mm[1]);
-            $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
-            if ($data !== false) {
-                $dir = __DIR__ . '/../uploads/mermas/';
-                if (!is_dir($dir)) @mkdir($dir, 0777, true);
-                $fileName = $folio . '.' . $ext;
-                if (@file_put_contents($dir . $fileName, $data) !== false) {
-                    $evidenceUrl = '/app/inventarios/uploads/mermas/' . $fileName;
-                }
-            }
-        }
-
-        $ok = $this->insertMerma([
-            $folio,
-            $payload['note']         ?? null,
-            $evidenceUrl,
-            $totalProducts,
-            $totalUnits,
-            $totalLoss,
-            $payload['status']       ?? 'Aplicada',
-            (int) $payload['shrinkage_reason_id'],
-            (int) $payload['warehouse_id'],
-            (int) ($payload['subsidiaries_id'] ?? $this->subsidiariesId),
-            $this->userId,
-            $this->companiesId
-        ]);
-
-        if (!$ok) return ['status' => 500, 'message' => 'No se pudo registrar la merma'];
-
-        $mermaRow = $this->_Read(
-            "SELECT id FROM {$this->bd}inventory_shrinkage WHERE folio = ? AND companies_id = ? LIMIT 1",
-            [$folio, $this->companiesId]
-        );
-        $mermaId = (int) ($mermaRow[0]['id'] ?? 0);
-
-        foreach ($productos as $p) {
-            $productId = (int) $p['product_id'];
-            $warehouse = (int) $payload['warehouse_id'];
-            $qty       = (float) $p['quantity'];
-            $cost      = (float) $p['cost'];
-
-            $stockRow = $this->getStockRow([$productId, $warehouse]);
-            $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
-            $post     = max(0, $prev - $qty);
-
-            $this->insertMermaDetail([
-                $qty,
-                $cost,
-                $qty * $cost,
-                $prev,
-                $post,
-                $productId,
-                $mermaId
-            ]);
-
-            if ($stockRow) {
-                $this->updateStockQuantity([$post, (int) $stockRow['id']]);
-            }
-        }
-
-        return ['status' => 200, 'message' => 'Merma registrada', 'folio' => $folio, 'id' => $mermaId];
-    }
-
-    function cancelMerma() {
-        $id = (int) $_POST['id'];
-        $r  = $this->qCancelMerma([$id]);
-        return [
-            'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Merma cancelada' : 'No se pudo cancelar'
-        ];
-    }
-
-    // ─────────────────────────────────────────────────────────────────
     //  TRASPASOS
     // ─────────────────────────────────────────────────────────────────
 
@@ -1024,7 +871,7 @@ class ctrl extends mdl {
         $r  = $this->qReverseAjuste([$id]);
         return [
             'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Ajuste revertido' : 'No se pudo revertir'
+            'message' => $r ? 'Ajuste cancelado' : 'No se pudo cancelar'
         ];
     }
 
@@ -1168,8 +1015,7 @@ class ctrl extends mdl {
             'Aplicado'  => ['bg' => 'rgba(63,193,137,0.18)', 'fg' => '#3FC189'],
             'Pendiente' => ['bg' => 'rgba(251,191,36,0.18)', 'fg' => '#FBBF24'],
             'Cancelada' => ['bg' => 'rgba(224,36,36,0.18)',  'fg' => '#E02424'],
-            'Revertida' => ['bg' => 'rgba(224,36,36,0.18)',  'fg' => '#E02424'],
-            'Revertido' => ['bg' => 'rgba(224,36,36,0.18)',  'fg' => '#E02424']
+            'Cancelado' => ['bg' => 'rgba(224,36,36,0.18)',  'fg' => '#E02424']
         ];
         $c = $map[$status] ?? ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#9CA3AF'];
         return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>" . strtoupper($status) . "</span>";
