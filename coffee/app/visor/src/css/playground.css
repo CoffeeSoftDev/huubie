@@ -58,12 +58,10 @@
     background: var(--vsr-accent-tint); color: var(--vsr-accent-soft);
 }
 
-/* ── Workspace 2 paneles ── */
+/* ── Workspace 2 paneles (flex + splitter redimensionable) ── */
 .pg-workspace {
     flex: 1;
-    display: grid;
-    grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.25fr);
-    gap: 0;
+    display: flex;
     min-height: 0;
 }
 .pg-chat, .pg-sandbox {
@@ -71,7 +69,20 @@
     min-height: 0; min-width: 0;
     background: var(--vsr-bg-base);
 }
-.pg-chat { border-right: 1px solid var(--vsr-border); }
+.pg-chat   { flex: 0 0 var(--pg-chat-w, 44%); min-width: 320px; }
+.pg-sandbox { flex: 1 1 auto; min-width: 340px; }
+
+.pg-splitter {
+    flex: 0 0 6px;
+    cursor: col-resize;
+    background: var(--vsr-border);
+    transition: background .15s;
+    position: relative;
+}
+.pg-splitter:hover, .pg-splitter.is-dragging { background: var(--vsr-accent); }
+/* Mientras se arrastra, el iframe no debe capturar el mouse. */
+body.pg-resizing { cursor: col-resize; user-select: none; }
+body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 
 .pg-pane-head {
     display: flex; align-items: center; justify-content: space-between;

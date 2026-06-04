@@ -86,7 +86,7 @@
                     <i id="pgChatAgentIcon" data-lucide="sparkles" class="w-4 h-4"></i>
                     <span id="pgChatAgentName">CoffeeIA</span>
                 </div>
-                <button id="pgClearBtn" class="pg-iconbtn" title="Reiniciar conversacion">
+                <button id="pgResetBtn" class="pg-iconbtn" title="Reiniciar conversación">
                     <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
                 </button>
             </header>
@@ -116,9 +116,16 @@
                         <i data-lucide="layout-template" class="w-3 h-3"></i>
                         <span>Lienzo</span>
                     </button>
+                    <button id="pgClearBtn" title="Limpiar conversación" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;margin-left:auto;">
+                        <i data-lucide="trash-2" class="w-3 h-3" style="display:inline-block;vertical-align:middle;margin-right:3px;"></i>
+                        Limpiar
+                    </button>
                 </div>
             </div>
         </section>
+
+        <!-- ── Splitter redimensionable ── -->
+        <div id="pgSplitter" class="pg-splitter" title="Arrastra para redimensionar"></div>
 
         <!-- ── Derecha: sandbox de render ── -->
         <section class="pg-sandbox">

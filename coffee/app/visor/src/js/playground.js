@@ -65,6 +65,7 @@ const pg = {
     isBusy:    false,
     lastHtml:  '',           // ultimo HTML generado (para "abrir en pestaña")
     lastTheme: 'huubie-ui',
+    splitW:    '',           // ancho del panel de chat (px) — splitter
     _popSound: null,
     _varochCss: ''           // CSS embebido extraido del grimorio Coffee-Varoch
 };
@@ -72,12 +73,48 @@ const pg = {
 $(async () => {
     pgLoadSettings();
     pgApplyUiTheme(pg.uiTheme);
+    pgApplySplit(pg.splitW);
     pgBind();
     await pgLoadLibrary();
     pgApplyAgent(pg.agentKey, true);
     pgApplyCanvasUI();
     if (window.lucide) lucide.createIcons();
 });
+
+/* ── Ancho del panel de chat (splitter) ── */
+function pgApplySplit(w) {
+    if (w && isFinite(parseInt(w, 10))) {
+        document.documentElement.style.setProperty('--pg-chat-w', parseInt(w, 10) + 'px');
+    }
+}
+function pgBindSplitter() {
+    const $sp = $('#pgSplitter');
+    const $ws = $('.pg-workspace');
+    if (!$sp.length || !$ws.length) return;
+    let dragging = false;
+
+    $sp.on('mousedown', e => {
+        e.preventDefault();
+        dragging = true;
+        $sp.addClass('is-dragging');
+        document.body.classList.add('pg-resizing');
+    });
+    $(document).on('mousemove.pgSplit', e => {
+        if (!dragging) return;
+        const rect = $ws[0].getBoundingClientRect();
+        let w = e.clientX - rect.left;
+        w = Math.max(320, Math.min(rect.width - 340, w)); // respeta min de ambos paneles
+        document.documentElement.style.setProperty('--pg-chat-w', w + 'px');
+        pg.splitW = w;
+    });
+    $(document).on('mouseup.pgSplit', () => {
+        if (!dragging) return;
+        dragging = false;
+        $sp.removeClass('is-dragging');
+        document.body.classList.remove('pg-resizing');
+        pgSaveSettings();
+    });
+}
 
 /* ── Tema de la UI (claro/oscuro) — mismo mecanismo que el Visor ── */
 function pgApplyUiTheme(theme) {
@@ -101,6 +138,7 @@ function pgLoadSettings() {
         if (s.agentKey && PG_AGENTS[s.agentKey]) pg.agentKey = s.agentKey;
         if (s.theme && PG_THEMES[s.theme])       pg.theme    = s.theme;
         if (s.uiTheme === 'light' || s.uiTheme === 'dark') pg.uiTheme = s.uiTheme;
+        if (s.splitW) pg.splitW = s.splitW;
         if (typeof s.model === 'string')         pg.model    = s.model;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
@@ -110,7 +148,7 @@ function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
-            canvasMode: pg.canvasMode, knowledge: Array.from(pg.knowledge)
+            canvasMode: pg.canvasMode, splitW: pg.splitW, knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
 }
@@ -188,7 +226,9 @@ function pgBind() {
         pgSaveSettings();
     });
 
-    $('#pgClearBtn').on('click', () => pgClearChat());
+    $('#pgClearBtn, #pgResetBtn').on('click', () => pgClearChat());
+
+    pgBindSplitter();
 
     $('#pgSendBtn').on('click', () => pgSubmit());
     $('#pgInput').on('keydown', e => {
@@ -529,11 +569,14 @@ async function pgSend(text, images) {
     // Texto para la burbuja: si hay HTML y el agente renderiza, lo sacamos del
     // chat (va al sandbox) y dejamos una nota; el resto se muestra como markdown.
     const cfg  = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
-    const html = pgExtractCode(received, 'html');
+    const html = pgExtractHtml(received);
     let displayText = received;
     if (cfg.render === 'html' && html) {
-        displayText = received.replace(/```[ \t]*html[\s\S]*?```/i, '\n\n🪄 *Componente renderizado en el sandbox →*\n').trim();
-        if (!displayText) displayText = '🪄 *Componente renderizado en el sandbox →*';
+        // Sacamos el HTML del chat (va al sandbox). Soporta fence o HTML crudo.
+        let rest = received.replace(/```[ \t]*html[\s\S]*?```/i, '').trim();
+        if (rest === received.trim()) rest = '';   // no había fence → era HTML crudo
+        if (pgLooksLikeHtml(rest)) rest = '';       // lo que queda sigue siendo HTML
+        displayText = (rest ? rest + '\n\n' : '') + '🪄 *Componente renderizado en el sandbox →*';
     }
 
     stream.complete(displayText, {
@@ -678,18 +721,23 @@ function pgPlayPopSound() {
 
 /* ── Render al sandbox ── */
 function pgRenderToSandbox(received) {
-    const cfg  = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
-    const html = pgExtractCode(received, 'html');
+    const cfg = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
 
-    if (cfg.render === 'html' && html) {
-        pgRenderSandbox(html, false);
-    } else if (cfg.render === 'code') {
-        const code = pgExtractCode(received) || received;
-        pgShowSandboxCode(code);
-        if (html) pgRenderSandbox(html, false);
-    } else {
-        pgRenderSandbox(pgMarkdown(received), true);
+    if (cfg.render === 'html') {
+        const html = pgExtractHtml(received);   // tolerante: fence o crudo
+        pgRenderSandbox(html || pgMarkdown(received), !html);
+        return;
     }
+    if (cfg.render === 'code') {
+        pgShowSandboxCode(pgExtractCode(received) || received);
+        const html = pgExtractHtml(received);
+        if (html) pgRenderSandbox(html, false);
+        return;
+    }
+    // Agente markdown: documento. Solo desvía a HTML si vino en fence explícito.
+    const fenced = pgExtractCode(received, 'html');
+    if (fenced) pgRenderSandbox(fenced, false);
+    else        pgRenderSandbox(pgMarkdown(received), true);
 }
 function pgRenderSandbox(htmlBody, isDoc) {
     $('#pgSandboxEmpty').hide();
@@ -802,10 +850,27 @@ function pgMarkdown(text) {
 }
 function pgExtractCode(text, lang) {
     const re = lang
-        ? new RegExp('```' + lang + '\\s*\\n([\\s\\S]*?)```', 'i')
-        : /```[a-z]*\s*\n([\s\S]*?)```/i;
+        ? new RegExp('```' + lang + '[ \\t]*\\r?\\n?([\\s\\S]*?)```', 'i')
+        : /```[a-z0-9+-]*[ \t]*\r?\n?([\s\S]*?)```/i;
     const m = text.match(re);
     return m ? m[1].trim() : '';
+}
+// ¿El texto parece HTML (tiene tags estructurales)?
+function pgLooksLikeHtml(text) {
+    return /<!doctype html|<html[\s>]|<head[\s>]|<body[\s>]|<(div|section|main|header|nav|table|article|ul|ol|form|button|span|img|svg|h[1-6]|p)[\s>]/i.test(text || '');
+}
+// Extrae HTML renderizable de la respuesta, tolerante a fences mal formados o
+// HTML crudo sin fence (causa frecuente de "no renderiza").
+function pgExtractHtml(text) {
+    // 1) bloque ```html (con/sin salto, espacios, mayúsculas)
+    let m = (text || '').match(/```[ \t]*html[ \t]*\r?\n?([\s\S]*?)```/i);
+    if (m && m[1].trim()) return m[1].trim();
+    // 2) cualquier fence cerrado cuyo contenido parezca HTML
+    m = (text || '').match(/```[a-z0-9+-]*[ \t]*\r?\n?([\s\S]*?)```/i);
+    if (m && pgLooksLikeHtml(m[1])) return m[1].trim();
+    // 3) HTML crudo / fence sin cerrar → quitamos marcadores ``` sueltos
+    if (pgLooksLikeHtml(text)) return String(text).replace(/```[a-z0-9+-]*[ \t]*/gi, '').trim();
+    return '';
 }
 function pgEscape(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
