@@ -105,18 +105,14 @@ class App extends Templates {
                     text:  '#tableWrap',
                     class: 'p-3 flex-1 min-h-0 overflow-auto'
                 },
-                {
-                    id:    'viewFooter',
-                    text:  '#viewFooter',
-                    class: 'px-4 py-2 bg-[#141d2b] border-t border-[#374151] flex items-center justify-between flex-shrink-0'
-                }
+                
             ]
         };
 
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class:'w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden',
+            class:'w-full md:w-[480px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -136,7 +132,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden overflow-y-auto md:overflow-hidden',
+                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden',
                 container: [mainPanel, detailPanel]
             }
         });
@@ -161,7 +157,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'subsidiaries_id',
                 lbl:      'Sucursal:',
-                class:    'col-12 col-md-6 col-lg-2',
+                class:    'col-12 col-md-6 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 data:     []
             },
@@ -169,7 +165,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fMotivo',
                 lbl:      'Motivo:',
-                class:    'col-12 col-md-6 col-lg-2',
+                class:    'col-12 col-md-6 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data: [
@@ -177,18 +173,10 @@ class App extends Templates {
                 ]
             },
             {
-                opc:        'input',
-                id:         'qBuscar',
-                lbl:        'Buscar:',
-                class:      'col-12 col-md-6 col-lg-2',
-                placeholder:'Folio o producto...',
-                onkeyup:    'app.onChangeFilters()'
-            },
-            {
                 opc:       'button',
                 id:        'btnNuevaMerma',
                 text:      'Nueva Merma',
-                color_btn: 'danger',
+                color_btn: 'primary',
                 class:     'col-12 col-md-6 col-lg-3',
                 onClick:   () => mermas.openMermaForm()
             }
@@ -269,8 +257,7 @@ class App extends Templates {
             subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
             fi:              this.rangeFi               || '',
             ff:              this.rangeFf               || '',
-            motivo:          $('#fMotivo').val()        || '',
-            q:               $('#qBuscar').val()        || ''
+            motivo:          $('#fMotivo').val()        || ''
         };
     }
 
@@ -295,8 +282,8 @@ class App extends Templates {
         mermas.printMerma(id);
     }
 
-    reverseMerma(id) {
-        mermas.reverseMerma(id);
+    cancelMerma(id) {
+        mermas.cancelMerma(id);
     }
 }
 
@@ -317,8 +304,7 @@ class Mermas extends Templates {
             subsidiaries_id: f.subsidiaries_id,
             reason_id:       f.motivo,
             fi:              f.fi,
-            ff:              f.ff,
-            q:               f.q
+            ff:              f.ff
         }), api).catch(() => null);
 
         const data = (r && r.status === 200) ? { row: r.row } : { row: [] };
@@ -327,10 +313,9 @@ class Mermas extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        'dark',
-            title:        '',
-            subtitle:     '',
-            center:       [1, 4, 5, 8],
-            right:        [6],
+          
+            center:       [1,2, 4, 5,6, 8,9,10],
+            right:        [7],
             extends:      true,
             scrollable:   false,
             striped:      true,
@@ -400,6 +385,7 @@ class Mermas extends Templates {
             items: (detail || []).map(d => ({
                 name:        d.product_name,
                 sku:         d.sku,
+                categoria:   d.category_name || '',
                 qty:         Number(d.quantity || 0),
                 costo_unit:  Number(d.cost || 0),
                 costo_total: Number(d.subtotal_loss != null ? d.subtotal_loss : Number(d.quantity || 0) * Number(d.cost || 0))
@@ -429,7 +415,7 @@ class Mermas extends Templates {
                 onSubmit: async (payload) => {
                     const backendPayload = {
                         note:                payload.nota || null,
-                        evidence_url:        null, // pendiente endpoint de subida de evidencia
+                        evidence_b64:        payload.photo ? payload.photo.dataUrl : null, // foto como dataURL; el backend la guarda en disco
                         status:              'Aplicada',
                         shrinkage_reason_id: payload.motivo,
                         warehouse_id:        payload.warehouseId,
@@ -467,30 +453,30 @@ class Mermas extends Templates {
         alert({ icon: 'info', text: 'Imprimiendo merma ' + id });
     }
 
-    reverseMerma(id) {
-        const doReverse = async () => {
-            const r = await fn_ajax({ opc: 'reverseMerma', id: id }, api).catch(() => null);
+    cancelMerma(id) {
+        const doCancel = async () => {
+            const r = await fn_ajax({ opc: 'cancelMerma', id: id }, api).catch(() => null);
             if (r && r.status === 200) {
-                alert({ icon: 'success', text: 'Merma ' + id + ' revertida' });
+                alert({ icon: 'success', text: 'Merma ' + id + ' cancelada' });
                 mermasView.renderDetail(null);
                 this.lsMermas();
                 this.lsKpis();
             } else {
-                alert({ icon: 'error', text: (r && r.message) || 'No se pudo revertir' });
+                alert({ icon: 'error', text: (r && r.message) || 'No se pudo cancelar' });
             }
         };
 
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                title: '¿Reversar esta merma?',
+                title: '¿Cancelar esta merma?',
                 text:  'El stock de los productos sera restaurado. Accion irreversible.',
                 icon:  'warning',
                 showCancelButton:  true,
-                confirmButtonText: 'Si, reversar',
-                cancelButtonText:  'Cancelar'
-            }).then((r) => { if (r.isConfirmed) doReverse(); });
+                confirmButtonText: 'Si, cancelar',
+                cancelButtonText:  'No'
+            }).then((r) => { if (r.isConfirmed) doCancel(); });
         } else {
-            doReverse();
+            doCancel();
         }
     }
 }
@@ -512,7 +498,7 @@ class MermasView extends Templates {
             json:        merma,
             onClose:     ()  => this.renderDetail(null),
             onImprimir:  (m) => console.log('[mermaDetailPanel] imprimir',  m && m.folio),
-            onReversar:  (m) => { if (m) mermas.reverseMerma(m.id); }
+            onCancelar:  (m) => { if (m) mermas.cancelMerma(m.id); }
         });
     }
 
@@ -759,29 +745,40 @@ class MermasView extends Templates {
     }
 
     mermaDetailPanel(options) {
+
+        // -- Config --
+
         const defaults = {
             parent:   'root',
             id:       'mermaDetailPanel',
-            class:    'w-full h-full flex-shrink-0 bg-[var(--cs-bg-header,#141d2b)] border-l border-[var(--cs-border,#374151)] flex flex-col overflow-hidden',
+            class:    'w-full h-full flex-shrink-0 bg-[#141d2b] border-l border-[#374151] flex flex-col overflow-hidden',
             json:     null,
-            currency: 'es-MX',
             labels: {
                 emptyTitle:  'Selecciona una merma',
-                emptyHint:   'Haz click en cualquier fila de la tabla para ver el detalle completo aqui',
-                informacion: 'Informacion general',
+                emptyHint:   'Haz click en cualquier fila o en el icono ojo para ver el detalle aqui.',
+                subtitleLbl: 'Detalle de la perdida',
+                motivo:      'Motivo',
+                sucursal:    'Sucursal',
                 registrado:  'Registrado por',
-                fechaHora:   'Fecha y hora',
-                motivoLbl:   'Motivo de la merma',
-                items:       'Productos en merma',
-                nota:        'Nota / observaciones',
-                evidencia:   'Foto de evidencia',
+                productos:   'Productos',
+                perdidaTot:  'Perdida total',
+                detalleLbl:  'Detalle de Productos',
+                notaLbl:     'Nota',
+                evidenciaLbl:'Foto de evidencia',
                 sinFoto:     'Sin foto de evidencia',
-                sinNota:     'Sin nota',
-                unidades:    'Unidades',
-                perdida:     'Perdida total',
-                btnImprimir: 'Imprimir',
-                btnReversar: 'Reversar',
+                cant:        'Cant',
+                costo:       'Costo',
+                subtotal:    'Subtot.',
+                imprimir:    'Imprimir',
+                cancelar:    'Cancelar',
                 folioPrefix: 'Merma'
+            },
+            motivoPalettes: {
+                'Caducidad':        { bg: 'rgba(224,36,36,0.18)',  fg: '#F87171' },
+                'Daniado':          { bg: 'rgba(251,191,36,0.18)', fg: '#FBBF24' },
+                'Error produccion': { bg: 'rgba(28,100,242,0.18)', fg: '#60A5FA' },
+                'Robo/Faltante':    { bg: 'rgba(124,58,237,0.18)', fg: '#A78BFA' },
+                'Devolucion':       { bg: 'rgba(63,193,137,0.18)', fg: '#3FC189' }
             },
             sucursalLabels: {
                 kafeto:     'Reginas Kafeto',
@@ -790,208 +787,255 @@ class MermasView extends Templates {
             },
             onClose:    () => { },
             onImprimir: () => { },
-            onReversar: () => { }
+            onCancelar: () => { }
         };
 
         const o    = options || {};
         const opts = Object.assign({}, defaults, o);
         opts.labels         = Object.assign({}, defaults.labels,         o.labels         || {});
+        opts.motivoPalettes = Object.assign({}, defaults.motivoPalettes, o.motivoPalettes || {});
         opts.sucursalLabels = Object.assign({}, defaults.sucursalLabels, o.sucursalLabels || {});
+
+        // -- Helpers de formato --
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString(opts.currency, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
+        const fmtMoney      = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtMoneyShort = (n) => '$' + Number(n || 0).toLocaleString('en-US');
 
-        const parseDate = (iso) => {
-            if (!iso) return { fecha: '—', hora: '—' };
-            const d  = new Date(iso);
-            const dd = String(d.getDate()).padStart(2, '0');
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const yy = d.getFullYear();
-            const hh = String(d.getHours()).padStart(2, '0');
-            const mi = String(d.getMinutes()).padStart(2, '0');
-            return { fecha: `${dd}/${mm}/${yy}`, hora: `${hh}:${mi}` };
+        const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+        const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const fmtFecha = (iso) => {
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return iso || '';
+            const dow  = DOW[d.getDay()];
+            const day  = String(d.getDate()).padStart(2, '0');
+            const mon  = MON[d.getMonth()];
+            let   h    = d.getHours();
+            const m    = String(d.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'pm' : 'am';
+            h = h % 12 || 12;
+            return `${dow} ${day} ${mon} ${String(h).padStart(2, '0')}:${m} ${ampm}`;
         };
 
-        const motivoBadge = (motivo) => {
-            const map = {
-                'Caducidad':        { bg: 'rgba(224,36,36,0.18)',  fg: 'var(--cs-danger,#E02424)'        },
-                'Daniado':          { bg: 'rgba(251,191,36,0.18)', fg: 'var(--cs-warning,#FBBF24)'       },
-                'Error produccion': { bg: 'rgba(28,100,242,0.18)', fg: 'var(--cs-info,#1C64F2)'          },
-                'Robo/Faltante':    { bg: 'rgba(124,58,237,0.18)', fg: 'var(--cs-accent-purple,#7C3AED)' },
-                'Devolucion':       { bg: 'rgba(63,193,137,0.18)', fg: 'var(--cs-success,#3FC189)'       }
-            };
-            const c = map[motivo] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
-            return `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide" style="background:${c.bg};color:${c.fg};">${esc(motivo).toUpperCase()}</span>`;
+        // -- Bloques de UI --
+
+        // Botonera inferior, sin borde. En vacio ambos botones quedan desactivados.
+        const actionsBar = (state) => {
+            const s     = state || {};
+            const empty = !!s.empty;
+            const base  = 'flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5';
+            const off   = 'opacity-40 cursor-not-allowed';
+
+            return `
+                <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">
+                    <button id="${opts.id}_print" ${empty ? 'disabled' : ''} class="${base} bg-sky-600 ${empty ? off : 'hover:bg-sky-500 hover:shadow-lg hover:shadow-sky-500/20 transition-all'}">
+                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>${esc(opts.labels.imprimir)}
+                    </button>
+                    <button id="${opts.id}_cancel" ${empty ? 'disabled' : ''} class="${base} bg-rose-600 ${empty ? off : 'hover:bg-rose-500 hover:shadow-lg hover:shadow-rose-500/20 transition-all'}">
+                        <i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}
+                    </button>
+                </div>`;
         };
 
-        const itemsHtml = (items) => {
-            if (!items || items.length === 0) {
-                return `<p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic">Sin productos</p>`;
-            }
-            const rows = items.map(it => {
+        // Estado vacio: sin merma seleccionada.
+        const emptyView = () => `
+            <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-bold text-white">Vista de la Merma</h3>
+                    <p class="text-[10px] text-[#9CA3AF]">${esc(opts.labels.subtitleLbl)}</p>
+                </div>
+            </div>
+            <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
+                <div class="w-14 h-14 rounded-full bg-[#1F2937] border border-[#374151] flex items-center justify-center mb-3">
+                    <i data-lucide="package-x" class="w-6 h-6 text-[#9CA3AF]"></i>
+                </div>
+                <p class="text-[11px] text-[#9CA3AF]">${esc(opts.labels.emptyTitle)}</p>
+                <p class="text-[10px] text-[#9CA3AF] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
+            </div>
+            ${actionsBar({ empty: true })}
+        `;
+
+        // Detalle de productos en formato tabla (solo lectura), agrupado por categoria.
+        const productTable = (m) => {
+            const items = m.items || [];
+
+            // Agrupa por categoria y ordena los grupos alfabeticamente, igual que el
+            // formulario de captura (merma-form renderProductsTable).
+            const byCat = {};
+            items.forEach(it => {
+                const cat = (it.categoria && String(it.categoria).trim()) || 'Sin categoria';
+                (byCat[cat] = byCat[cat] || { categoria: cat, items: [] }).items.push(it);
+            });
+            const groups = Object.keys(byCat)
+                .sort((a, b) => a.localeCompare(b, 'es'))
+                .map(c => byCat[c]);
+
+            const itemRow = (it) => {
+                const costoUnit = Number(it.costo_unit || 0);
+                const subtotal  = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * costoUnit;
                 return `
-                    <div class="px-2 py-2 border-b border-[var(--cs-border,#374151)] last:border-b-0">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="flex-1 min-w-0">
-                                <p class="text-[13px] font-semibold text-white">${esc(it.name)}</p>
-                                <div class="flex items-center gap-2 mt-0.5">
-                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border border-[var(--cs-border,#374151)] text-[var(--cs-text-secondary,#D1D5DB)] bg-[var(--cs-bg-input,#1F2937)]">${esc(it.sku || '—')}</span>
-                                    <span class="text-[11px] text-[var(--cs-text-muted,#9CA3AF)]">${it.qty} × ${fmt(it.costo_unit)}</span>
-                                </div>
+                    <tr class="border-b border-[#374151]/50">
+                        <td class="py-1.5 px-1">
+                            <p class="text-[11px] font-bold text-white leading-tight">${esc(it.name)}</p>
+                            ${it.sku ? `<p class="text-[10px] text-[#9CA3AF] leading-tight">${esc(it.sku)}</p>` : ''}
+                        </td>
+                        <td class="py-1.5 px-1 text-center whitespace-nowrap"><span class="text-rose-400 font-bold">-${it.qty}</span></td>
+                        <td class="py-1.5 px-1 text-right text-white whitespace-nowrap">${fmtMoney(costoUnit)}</td>
+                        <td class="py-1.5 px-1 text-right text-white font-bold whitespace-nowrap">-${fmtMoneyShort(subtotal)}</td>
+                    </tr>`;
+            };
+
+            // Encabezado de categoria con el mismo formato que el formulario de captura
+            // (merma-form renderLoteCatRow): etiqueta morada en mayusculas + conteo.
+            const groupBlock = (g) => {
+                const head = `
+                    <tr>
+                        <td colspan="4" class="px-1 pt-2.5 pb-1 bg-[#0f172a]/50">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[9px] font-bold uppercase tracking-wider text-purple-300/80 truncate">${esc(g.categoria)}</span>
+                                <span class="text-[9px] text-gray-600 flex-shrink-0 ml-2">${g.items.length}</span>
                             </div>
-                            <div class="text-right flex-shrink-0 pt-0.5">
-                                <p class="text-[14px] font-bold text-[var(--cs-danger,#E02424)]">-${fmt(it.costo_total)}</p>
-                            </div>
-                        </div>
-                    </div>`;
-            }).join('');
-            return `<div class="rounded-lg border border-[var(--cs-border,#374151)] overflow-hidden">${rows}</div>`;
+                        </td>
+                    </tr>`;
+                return head + g.items.map(itemRow).join('');
+            };
+
+            const rows = groups.map(groupBlock).join('');
+
+            return `
+                <table class="w-full text-[11px] border-collapse">
+                    <thead>
+                        <tr class="text-[11px] text-[#9CA3AF] tracking-wider border-b border-[#374151]">
+                            <th class="py-1 px-1 text-left font-semibold">Producto</th>
+                            <th class="py-1 px-1 text-center font-semibold">${esc(opts.labels.cant)}</th>
+                            <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.costo)}</th>
+                            <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.subtotal)}</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows || `<tr><td colspan="4" class="py-2 text-center text-[12px] text-gray-500 italic">Sin productos</td></tr>`}</tbody>
+                </table>`;
         };
 
+        // Foto de evidencia (propia de mermas).
         const fotoHtml = (foto) => {
             if (!foto) {
                 return `
-                    <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-4 border border-dashed border-[var(--cs-border,#374151)] flex flex-col items-center justify-center min-h-[120px]">
-                        <svg class="w-8 h-8 text-[var(--cs-border,#374151)] mb-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16l4-4a3 3 0 014 0l5 5M14 14l1-1a3 3 0 014 0l2 2M14 8h.01M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                        </svg>
-                        <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic">${esc(opts.labels.sinFoto)}</p>
+                    <div class="bg-[#1F2937] rounded-lg p-4 border border-dashed border-[#374151] flex flex-col items-center justify-center min-h-[100px]">
+                        <i data-lucide="image-off" class="w-7 h-7 text-[#374151] mb-2"></i>
+                        <p class="text-[10px] text-[#9CA3AF] italic">${esc(opts.labels.sinFoto)}</p>
                     </div>`;
             }
             return `
-                <div class="rounded-lg overflow-hidden border border-[var(--cs-border,#374151)]">
+                <div class="rounded-lg overflow-hidden border border-[#374151]">
                     <img src="${esc(foto)}" alt="Evidencia" class="w-full h-32 object-cover" />
                 </div>`;
         };
 
-        const registradoHtml = (reg) => {
-            if (!reg) {
-                return `<p class="text-[11px] text-[var(--cs-text-muted,#9CA3AF)] italic">Sin usuario</p>`;
-            }
-            const rol   = reg.rol   ? `<p class="text-[10px] text-[var(--cs-text-secondary,#D1D5DB)]">${esc(reg.rol)}</p>`     : '';
-            const email = reg.email ? `<p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] truncate">${esc(reg.email)}</p>` : '';
-            return `<p class="text-[12px] text-white font-bold leading-tight">${esc(reg.name)}</p>${rol}${email}`;
+        // Estado con merma: cabecera + resumen + productos + evidencia + nota + botonera.
+        const filledView = (m) => {
+            const items  = m.items || [];
+            const totals = items.reduce((acc, it) => {
+                const sub = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * Number(it.costo_unit || 0);
+                acc.uds   += Number(it.qty || 0);
+                acc.costo += sub;
+                return acc;
+            }, { uds: 0, costo: 0 });
+
+            const totUds   = m.total_unidades != null ? m.total_unidades : totals.uds;
+            const totCosto = m.total_costo    != null ? m.total_costo    : totals.costo;
+            const sucursal = opts.sucursalLabels[m.sucursal] || m.sucursal || '-';
+
+            const motivoC     = opts.motivoPalettes[m.motivo] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
+            const motivoBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${motivoC.bg};color:${motivoC.fg};">${esc(m.motivo || '-')}</span>`;
+
+            const reg      = m.registrado_por;
+            const regTexto = reg ? esc(reg.name) : '-';
+
+            return `
+                <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-rose-400">${esc(opts.labels.folioPrefix)} ${esc(m.folio || '')}</h3>
+                        <p class="text-[10px] text-[#9CA3AF]">${esc(fmtFecha(m.fecha))}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        ${motivoBadge}
+                        <button id="${opts.id}_close" class="text-[#D1D5DB] hover:text-white transition-colors p-1" title="Cerrar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
+
+                    <!-- Resumen -->
+                    <div class="bg-[#1F2937] rounded-lg p-2 border border-[#374151] space-y-2">
+                        <div class="flex justify-between items-center text-[11px]">
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.motivo)}</span>
+                            ${motivoBadge}
+                        </div>
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.sucursal)}</span>
+                            <span class="text-white">${esc(sucursal)}</span>
+                        </div>
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.registrado)}</span>
+                            <span class="text-white">${regTexto}</span>
+                        </div>
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.productos)}</span>
+                            <span class="text-white font-bold">${items.length} tipos / ${totUds} uds</span>
+                        </div>
+                    </div>
+
+                    <!-- Detalle de productos -->
+                    <div>
+                        <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-2">${esc(opts.labels.detalleLbl)}</p>
+                        <div class="overflow-x-auto">${productTable(m)}</div>
+                        <!-- Perdida total debajo de la tabla -->
+                        <div class="flex items-center justify-between mt-3 pt-3 border-t border-dashed border-[#374151]">
+                            <span class="text-[11px] text-[#9CA3AF] uppercase font-bold">${esc(opts.labels.perdidaTot)}</span>
+                            <span class="text-xl font-extrabold text-white">-${fmtMoney(totCosto)}</span>
+                        </div>
+                    </div>
+
+                    <!-- Evidencia -->
+                    <div>
+                        <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-2">${esc(opts.labels.evidenciaLbl)}</p>
+                        ${fotoHtml(m.foto)}
+                    </div>
+
+                    <!-- Nota -->
+                    ${m.nota ? `
+                    <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151]">
+                        <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-1">${esc(opts.labels.notaLbl)}</p>
+                        <p class="text-[11px] text-gray-300">${esc(m.nota)}</p>
+                    </div>` : ''}
+                </div>
+
+                ${actionsBar({ empty: false })}
+            `;
         };
 
+        // -- Construccion e insercion al DOM --
+
         const aside = $('<aside>', { id: opts.id, class: opts.class });
-
-        if (!opts.json) {
-            aside.html(`
-                <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
-                    <div class="w-16 h-16 rounded-full bg-[var(--cs-bg-input,#1F2937)] border border-[var(--cs-border,#374151)] flex items-center justify-center mb-3">
-                        <i data-lucide="package-x" class="w-8 h-8 text-[var(--cs-border,#374151)]"></i>
-                    </div>
-                    <p class="text-[11px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.emptyTitle)}</p>
-                    <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
-                </div>
-            `);
-            $(`#${opts.parent}`).html(aside);
-            if (window.lucide) lucide.createIcons();
-            return;
-        }
-
-        const m        = opts.json;
-        const f        = parseDate(m.fecha);
-        const sucursal = opts.sucursalLabels[m.sucursal] || m.sucursal || '—';
-        const items    = m.items || [];
-
-        aside.html(`
-            <div class="px-3 py-3 border-b border-[var(--cs-border,#374151)] flex-shrink-0">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <h3 class="text-base font-bold text-[var(--cs-danger,#E02424)]">${esc(opts.labels.folioPrefix)} ${esc(m.folio || '')}</h3>
-                        ${motivoBadge(m.motivo)}
-                    </div>
-                    <button id="${opts.id}_close" class="text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors" title="Cerrar">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-                <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] mt-0.5">${esc(sucursal)} · ${f.fecha} ${f.hora}</p>
-            </div>
-
-            <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-4">
-                <div>
-                    <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-bold mb-2">${esc(opts.labels.informacion)}</p>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-3 border border-[var(--cs-border,#374151)]">
-                            <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-semibold mb-1">${esc(opts.labels.registrado)}</p>
-                            ${registradoHtml(m.registrado_por)}
-                        </div>
-                        <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-3 border border-[var(--cs-border,#374151)]">
-                            <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-semibold mb-1">${esc(opts.labels.fechaHora)}</p>
-                            <p class="text-[12px] text-white font-bold">${f.fecha}</p>
-                            <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)]">${f.hora}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-bold">${esc(opts.labels.items)}</p>
-                        <span class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase font-bold">${items.length} item${items.length === 1 ? '' : 's'}</span>
-                    </div>
-                    ${itemsHtml(items)}
-                </div>
-
-                <div>
-                    <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-bold mb-2">${esc(opts.labels.evidencia)}</p>
-                    ${fotoHtml(m.foto)}
-                </div>
-
-                <div>
-                    <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-bold mb-2">${esc(opts.labels.nota)}</p>
-                    <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-2.5 border border-[var(--cs-border,#374151)]">
-                        <p class="text-[11px] text-[var(--cs-text-secondary,#D1D5DB)] leading-snug">
-                            ${m.nota ? esc(m.nota) : `<span class="italic text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.sinNota)}</span>`}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="border-t border-[var(--cs-border,#374151)] pt-4">
-                    <div class="flex items-center justify-between text-[11px] mb-1">
-                        <span class="text-[var(--cs-text-secondary,#D1D5DB)]">${esc(opts.labels.unidades)}</span>
-                        <span class="text-white font-medium">${esc(m.total_unidades || 0)}</span>
-                    </div>
-                    <div class="border-t border-dashed border-[var(--cs-border,#374151)] pt-3 mt-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-[11px] text-[var(--cs-text-muted,#9CA3AF)] uppercase font-bold">${esc(opts.labels.perdida)}</span>
-                            <span class="text-xl text-[var(--cs-danger,#E02424)] font-extrabold">-${fmt(m.total_costo)}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="px-5 py-3 border-t border-[var(--cs-border,#374151)] flex-shrink-0">
-                <div class="grid grid-cols-2 gap-2">
-                    <button id="${opts.id}_btnImprimir" class="flex items-center justify-center gap-1 px-2 py-2 rounded-md border border-[var(--cs-border,#374151)] text-[11px] text-white hover:bg-[var(--cs-bg-input,#1F2937)] transition-colors">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                        </svg>
-                        ${esc(opts.labels.btnImprimir)}
-                    </button>
-                    <button id="${opts.id}_btnReversar" class="flex items-center justify-center gap-1 px-2 py-2 rounded-md border border-[var(--cs-danger,#E02424)]/40 text-[11px] text-[var(--cs-danger,#E02424)] hover:bg-[var(--cs-danger,#E02424)]/10 transition-colors">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M4 9a9 9 0 0114.85-3.36M20 20v-5h-5M20 15a9 9 0 01-14.85 3.36"/>
-                        </svg>
-                        ${esc(opts.labels.btnReversar)}
-                    </button>
-                </div>
-            </div>
-        `);
+        aside.html(opts.json ? filledView(opts.json) : emptyView());
 
         $(`#${opts.parent}`).html(aside);
         if (window.lucide) lucide.createIcons();
 
-        $(`#${opts.id}_close`).on('click',       () => opts.onClose(m));
-        $(`#${opts.id}_btnImprimir`).on('click', () => opts.onImprimir(m));
-        $(`#${opts.id}_btnReversar`).on('click', () => opts.onReversar(m));
+        // -- Eventos (solo con merma seleccionada) --
+
+        if (opts.json) {
+            const m = opts.json;
+            $(`#${opts.id}_close`).on('click',  () => opts.onClose(m));
+            $(`#${opts.id}_print`).on('click',  () => opts.onImprimir(m));
+            $(`#${opts.id}_cancel`).on('click', () => opts.onCancelar(m));
+        }
     }
 }

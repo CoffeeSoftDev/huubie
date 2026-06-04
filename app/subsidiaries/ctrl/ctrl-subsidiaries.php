@@ -7,25 +7,26 @@ require_once '../mdl/mdl-subsidiaries.php';
 class ctrl extends mdl {
 
     function init() {
-        if ((int) ($_SESSION['ROLID'] ?? 0) === 5) {
-            $list = $this->getBranchesByCompany([$_SESSION['COMPANY_ID']]);
-        } else {
-            $list = $this->getBranchesByUser([$_SESSION['USR']]);
-        }
-
+        // Primero conseguimos las sucursales a las que el usuario tiene acceso, sin importar la compañía
+        $branchesInfo = $this->getBranchesByUser([$_SESSION['USR']]);
         $branches = [];
-        foreach ($list as $branch) {
+        $nameUser = '';
+        $companyLogo = null;
+        foreach ($branchesInfo as $branch) {
+
+            $shiftData = $this->getShiftDataForBranch($branch['DB'], $branch['id']);
+
             $parts    = preg_split('/\s+/', trim($branch['name']));
             $initials = strtoupper(substr($parts[0], 0, 1));
             if (count($parts) > 1) {
                 $initials .= strtoupper(substr(end($parts), 0, 1));
             }
 
-            $openShifts      = (int) ($branch['open_shifts']        ?? 0);
-            $openShiftsToday = (int) ($branch['open_shifts_today']  ?? 0);
-            $closedShifts    = (int) ($branch['closed_shifts_today'] ?? 0);
-            $hasClosure      = (int) ($branch['daily_closure_id']   ?? 0) > 0;
-            $oldestOpenAt    = $branch['oldest_open_at'] ?? null;
+            $openShifts      = (int) ($shiftData['open_shifts']         ?? 0);
+            $openShiftsToday = (int) ($shiftData['open_shifts_today']   ?? 0);
+            $closedShifts    = (int) ($shiftData['closed_shifts_today'] ?? 0);
+            $hasClosure      = (int) ($shiftData['daily_closure_id']    ?? 0) > 0;
+            $oldestOpenAt    = $shiftData['oldest_open_at'] ?? null;
 
             if ($hasClosure) {
                 $shiftStatus = 'closed';
@@ -56,15 +57,18 @@ class ctrl extends mdl {
                 'open_shifts'    => $openShifts,
                 'oldest_open_at' => $oldestOpenAt,
             ];
+            $nameUser = $branch['user'] ?? '';
+            $companyLogo = $branch['logo'] ?? null;
         }
 
         return [
             'status'   => 200,
-            'user'     => $_SESSION['USER']    ?? '',
+            'user'     => $nameUser,
             'company'  => $_SESSION['COMPANY'] ?? '',
             'rol'      => $_SESSION['ROL']     ?? null,
             'sub'      => $_SESSION['SUB']     ?? null,
             'branches' => $branches,
+            'company_logo' => $companyLogo,
         ];
     }
 }

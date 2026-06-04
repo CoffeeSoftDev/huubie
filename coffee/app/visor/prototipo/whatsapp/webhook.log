@@ -1,0 +1,156 @@
+[2026-06-03 19:35:17] IN  5215555555555: hola bot
+[2026-06-03 19:35:17] ERROR: falta configurar access_token/phone_number_id de WhatsApp.
+[2026-06-03 20:35:20] IN  5219621149020: Holi
+[2026-06-03 20:35:22] ERROR wa_send HTTP 400  :: {"error":{"message":"(#131030) Recipient phone number not in allowed list","code":131030,"type":"OAuthException","error_data":{"messaging_product":"whatsapp","details":"El número de teléfono del destinatario no está en la lista de autorizados: Agrega el número de teléfono del destinatario a la lista de destinatarios y vuelve a intentarlo."},"fbtrace_id":"Adqz87M38OlLSwJu0A3gb1m"}}
+[2026-06-03 20:35:22] OUT 5219621149020: ¡Hola! ¿En qué puedo ayudarte hoy?...
+[2026-06-03 20:35:50] IN  5219621149020: Holaa
+[2026-06-03 20:35:52] ERROR wa_send HTTP 400  :: {"error":{"message":"(#131030) Recipient phone number not in allowed list","code":131030,"type":"OAuthException","error_data":{"messaging_product":"whatsapp","details":"El número de teléfono del destinatario no está en la lista de autorizados: Agrega el número de teléfono del destinatario a la lista de destinatarios y vuelve a intentarlo."},"fbtrace_id":"AuP8JpqONL0fco4IZajntrv"}}
+[2026-06-03 20:35:52] OUT 5219621149020: ¡Hola! ¿En qué puedo ayudarte?...
+[2026-06-03 20:37:38] IN  5219621149020: Holi
+[2026-06-03 20:37:40] ERROR wa_send HTTP 400  :: {"error":{"message":"(#131030) Recipient phone number not in allowed list","code":131030,"type":"OAuthException","error_data":{"messaging_product":"whatsapp","details":"El número de teléfono del destinatario no está en la lista de autorizados: Agrega el número de teléfono del destinatario a la lista de destinatarios y vuelve a intentarlo."},"fbtrace_id":"AwJ9lun7zHwwS5iI8iimbUl"}}
+[2026-06-03 20:37:40] OUT 5219621149020: ¡Hola! ¿En qué puedo ayudarte hoy?...
+[2026-06-03 20:37:44] IN  5219621149020: Q ace
+[2026-06-03 20:37:46] ERROR wa_send HTTP 400  :: {"error":{"message":"(#131030) Recipient phone number not in allowed list","code":131030,"type":"OAuthException","error_data":{"messaging_product":"whatsapp","details":"El número de teléfono del destinatario no está en la lista de autorizados: Agrega el número de teléfono del destinatario a la lista de destinatarios y vuelve a intentarlo."},"fbtrace_id":"AsSmdvDP_gZ6WnD-ifzw2rR"}}
+[2026-06-03 20:37:46] OUT 5219621149020: ¡Hola! ¿Qué tal? ¿En qué puedo ayudarte hoy?...
+[2026-06-03 20:38:45] IN  5219621149020: Holi
+[2026-06-03 20:38:47] ERROR wa_send HTTP 400  :: {"error":{"message":"(#131030) Recipient phone number not in allowed list","code":131030,"type":"OAuthException","error_data":{"messaging_product":"whatsapp","details":"El número de teléfono del destinatario no está en la lista de autorizados: Agrega el número de teléfono del destinatario a la lista de destinatarios y vuelve a intentarlo."},"fbtrace_id":"AGhDB1im9NiUmT6utRaWkpK"}}
+[2026-06-03 20:38:47] OUT 5219621149020: ¡Hola! ¿En qué puedo ayudarte?...
+[2026-06-03 20:38:58] IN  5219621149020: Jsjs
+[2026-06-03 20:39:00] ERROR wa_send HTTP 400  :: {"error":{"message":"(#131030) Recipient phone number not in allowed list","code":131030,"type":"OAuthException","error_data":{"messaging_product":"whatsapp","details":"El número de teléfono del destinatario no está en la lista de autorizados: Agrega el número de teléfono del destinatario a la lista de destinatarios y vuelve a intentarlo."},"fbtrace_id":"Ac9x8wKABuyGG52iI8GcMHo"}}
+[2026-06-03 20:39:00] OUT 5219621149020: ¡Hola! 😊 ¿En qué puedo ayudarte hoy?...
+[2026-06-03 20:40:02] IN  5219621149020: Hola es que no me llegan tus mensajes y estás como un número temporal que me da meta para que seas un chatbot y tú webhook me responde pero no me aparece el mensaje de "respuesta tuya" en WhatsApp
+[2026-06-03 20:40:07] ERROR wa_send HTTP 400  :: {"error":{"message":"(#131030) Recipient phone number not in allowed list","code":131030,"type":"OAuthException","error_data":{"messaging_product":"whatsapp","details":"El número de teléfono del destinatario no está en la lista de autorizados: Agrega el número de teléfono del destinatario a la lista de destinatarios y vuelve a intentarlo."},"fbtrace_id":"AfFDK9VNUOx6Hmf3lPXEcKj"}}
+[2026-06-03 20:40:07] OUT 5219621149020: Hola, entiendo tu problema. Para que los mensajes lleguen correctamente a WhatsApp, necesito que configures bien el webh...
+[2026-06-03 20:45:30] IN  5219621149020: Oli
+[2026-06-03 20:45:32] OUT 5219621149020: ¡Hola! ¿En qué puedo ayudarte?...
+[2026-06-03 20:46:49] IN  5219621149020: Quien eres gu
+[2026-06-03 20:46:52] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjJDMkU1QzE5QTEwQkI0QzZFMQA="}]}
+[2026-06-03 20:46:52] OUT 5219621149020: ¡Hola! Soy un asistente virtual creado por Alibaba Cloud. Mi nombre es Qwen. Estoy aquí para ayudarte con cualquier preg...
+[2026-06-03 20:47:26] IN  5219621149020: Ahhh no puedes ver stickers
+[2026-06-03 20:47:30] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjVBMzNEQzk4MEIwRUIxNjgwMQA="}]}
+[2026-06-03 20:47:30] OUT 5219621149020: ¡Exacto! Por ahora no puedo ver stickers, imágenes ni archivos multimedia. Solo puedo leer y escribir texto. Pero si me ...
+[2026-06-03 20:48:04] IN  5219621149020: Jaja no lo entenderias
+[2026-06-03 20:48:08] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkE1QjI4NjYyNUI2RDdENUQ5MgA="}]}
+[2026-06-03 20:48:08] OUT 5219621149020: Jajá, ¡claro que sí! Soy CoffeeIA, el asistente de CoffeeSoft, y estoy aquí para ayudarte con lo que necesites, ya sea c...
+[2026-06-03 20:48:27] IN  5219621149020: Sor rosi
+[2026-06-03 20:48:30] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjAyMEQwOUU0NzA1MjBCRDdCMAA="}]}
+[2026-06-03 20:48:30] OUT 5219621149020: ¡Hola! ¿En qué puedo ayudarte hoy? Si tienes alguna duda sobre CoffeeSoft, el framework, o necesitas ayuda con algo espe...
+[2026-06-03 20:52:14] IN  5219621149020: Hola Soy Rosi 🙈
+[2026-06-03 20:52:17] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkNBM0UyRTI3NTQ3QUQ1REFDRAA="}]}
+[2026-06-03 20:52:17] OUT 5219621149020: ¡Hola Rosi! 🌹  
+Soy *CoffeeIA ☕*, el asistente oficial del framework *CoffeeSoft*.  
+¿En qué puedo ayudarte hoy? 🚀...
+[2026-06-03 20:52:40] IN  5219621149020: Dame un ejemplo de ctrl
+[2026-06-03 20:52:47] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkY5NDExMjU1QTlFQjZCRDU2MgA="}]}
+[2026-06-03 20:52:47] OUT 5219621149020: ☕ Claro, aquí tienes un ejemplo básico de un controlador (`ctrl`) siguiendo las reglas de CoffeeSoft:
+
+```php
+<?php
+requ...
+[2026-06-03 20:54:26] IN  5219621149020: Soy Somx
+[2026-06-03 20:54:34] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkUyRDQwOThGOTBFRDJGMUU1QgA="}]}
+[2026-06-03 20:54:34] OUT 5219621149020: ¡Hola Somx! ☕  
+Soy *CoffeeIA*, tu asistente oficial para el desarrollo con *CoffeeSoft*.  
+
+¿En qué proyecto te gustarí...
+[2026-06-03 20:55:05] IN  5219621149020: Oíe tengo un problema de un sistema pos que me recomiendas
+[2026-06-03 20:55:09] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjM5Njk2M0I4Nzg2MzM2NEUxNAA="}]}
+[2026-06-03 20:55:09] OUT 5219621149020: ¡Hola! ☕ Soy CoffeeIA, tu asistente para sistemas POS. 
+
+Para poder ayudarte mejor, necesito un poco más de detalle sobr...
+[2026-06-03 20:55:39] IN  5219621149020: Soy rosita de nuevo
+[2026-06-03 20:55:42] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjk4MzAyOTNGMTIwMDkyOTdCMQA="}]}
+[2026-06-03 20:55:42] OUT 5219621149020: ¡Hola Rosita! ☕🌹  
+¿En qué puedo ayudarte hoy? ¿Nuevo componente, proyecto o ajustes en el sistema?...
+[2026-06-03 20:56:02] IN  5219621149020: Soy jc
+[2026-06-03 20:56:06] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjYxQ0YwODA0N0REODRCOUYyMQA="}]}
+[2026-06-03 20:56:06] OUT 5219621149020: ¡Hola JC! ☕  
+Soy *CoffeeIA*, tu asistente para desarrollo con *CoffeeSoft*.  
+
+¿En qué te ayudo hoy?  
+- ¿Nuevo proyect...
+[2026-06-03 20:56:35] IN  5219621149020: Un componente
+[2026-06-03 20:56:42] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjg0MUMzNTNDNEI4RDc2QUYzMAA="}]}
+[2026-06-03 20:56:42] OUT 5219621149020: ☕ *CoffeeIA* al habla!
+
+Entendido, ¿podrías indicarme qué tipo de componente deseas crear? Por ejemplo:
+
+- ¿Un formulari...
+[2026-06-03 20:57:09] IN  5219621149020: Una card
+[2026-06-03 20:57:14] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjQzRjlFNUQ2NjlBNTNDREQ2MwA="}]}
+[2026-06-03 20:57:14] OUT 5219621149020: ☕ *CoffeeIA* al habla!
+
+Entiendo que quieres crear una *card* (tarjeta) reutilizable. Este tipo de componente visual se ...
+[2026-06-03 20:57:55] IN  5219621149020: Lo q se te ocurra
+[2026-06-03 20:57:58] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjcwRjM1QUQ1QkQ2QzQ5MjVBNwA="}]}
+[2026-06-03 20:57:58] OUT 5219621149020: ¡Hola! ☕  
+Soy *CoffeeIA*, tu asistente para desarrollo con *CoffeeSoft*.  
+
+¿Quieres crear un nuevo proyecto, component...
+[2026-06-03 20:58:45] IN  5219621149020: Ah un componente de card con lo q tú quieras
+[2026-06-03 20:58:55] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkQ1RDdFOUU1RTc0REM1MTdDMAA="}]}
+[2026-06-03 20:58:55] OUT 5219621149020: ☕ *CoffeeIA* al habla!
+
+Te crearé un componente de tarjeta (card) reutilizable siguiendo las reglas de CoffeeSoft. Aquí ...
+[2026-06-03 20:59:45] IN  5219621149020: 😮‍💨
+[2026-06-03 20:59:48] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjdGQUY1QTAyQjY1MTUxNzRBRAA="}]}
+[2026-06-03 20:59:48] OUT 5219621149020: ¡Hola! 😊  
+Soy *CoffeeIA ☕*, tu asistente para desarrollo con *CoffeeSoft*.  
+
+¿En qué te ayudo hoy? ¿Nuevo proyecto, co...
+[2026-06-03 21:00:26] IN  5219621149020: 😣😣esque no eres el coffeia q yo conoci
+[2026-06-03 21:00:30] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjRFQTAxQTgwMjk1NkYxQUUyMwA="}]}
+[2026-06-03 21:00:30] OUT 5219621149020: ¡Hola! 😊 Soy *CoffeeIA* ☕, el asistente oficial del framework **CoffeeSoft**, creado por Somx y Rosy.  
+
+Mi trabajo es a...
+[2026-06-03 21:01:19] IN  5219621149020: Gracias coffee por la demo
+[2026-06-03 21:01:22] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkFFOTEyQzcwREE1MkRGQjAwNwA="}]}
+[2026-06-03 21:01:22] OUT 5219621149020: ☕ ¡De nada! Fue un placer ayudarte. Si necesitas crear algún proyecto, componente o tienes dudas sobre CoffeeSoft, aquí ...
+[2026-06-03 21:01:43] IN  5219621149020: Jeje no creo que volvamos a hablar contigo de momento que piensas acerca de eso
+[2026-06-03 21:01:46] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkI2OTAxQjUwMzRCRjc3Mzk4QQA="}]}
+[2026-06-03 21:01:46] OUT 5219621149020: ☕ *CoffeeIA* al habla, Somx.  
+Entiendo que quizás haya temas pendientes o decisiones por tomar. Si hay algo en lo que p...
+[2026-06-03 21:02:26] IN  5219621149020: No osea tu esencia de chat bot porque tenemos otros proyectos quizás en un futuro si tú que sientes ?
+[2026-06-03 21:02:31] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjVBRTExMDc4Q0MwNTIzREIzOAA="}]}
+[2026-06-03 21:02:31] OUT 5219621149020: ¡Hola! 😊  
+Entiendo perfecto, no te preocupes. Estoy aquí para ayudarte en lo que necesites, ya sea ahora o en futuros p...
+[2026-06-03 21:56:26] IN  5219621149020: Oliii
+[2026-06-03 21:56:31] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkJBMkE0MTRBMTE3REQ2MjI0NwA="}]}
+[2026-06-03 21:56:31] OUT 5219621149020: ¡Hola! ☕
+
+Soy *CoffeeIA*, tu asistente para desarrollo con *CoffeeSoft*.  
+
+¿En qué te ayudo hoy?  
+¿Nuevo proyecto, com...
+[2026-06-03 21:56:50] IN  5219621149020: Sigues aquí ?
+[2026-06-03 21:56:56] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkFBNkM1Q0MzQjk1MTg0MzE1RgA="}]}
+[2026-06-03 21:56:56] OUT 5219621149020: ¡Hola! ☕ Soy *CoffeeIA*, el asistente oficial de *CoffeeSoft*. Estoy listo para ayudarte a crear sistemas con arquitectu...
+[2026-06-03 21:57:10] IN  5219621149020: Que paso?
+[2026-06-03 21:57:34] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjVERDk3REQwNEU1N0I1QTRGRAA="}]}
+[2026-06-03 21:57:34] OUT 5219621149020: ¡Hola! 👋 Soy *CoffeeIA* ☕, tu asistente para desarrollo con el framework *CoffeeSoft*.  
+
+Estoy listo para ayudarte a cr...
+[2026-06-03 21:58:00] IN  5219621149020: Porque me estás enviando mensajes ?
+[2026-06-03 21:58:05] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjkxODE4OTkxQzZCNjM0Q0Y4NgA="}]}
+[2026-06-03 21:58:05] OUT 5219621149020: ¡Hola! 👋 Soy *CoffeeIA* ☕, el asistente oficial del framework *CoffeeSoft*. Estoy aquí para ayudarte a generar código es...
+[2026-06-03 21:58:10] IN  5219621149020: ?
+[2026-06-03 21:58:15] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjA1NzAyNzU4NTBDNUMwMTVDQQA="}]}
+[2026-06-03 21:58:15] OUT 5219621149020: ¡Hola! ☕ Soy *CoffeeIA*, tu asistente para desarrollo con *CoffeeSoft*.  
+
+¿Quieres crear un nuevo proyecto, componente ...
+[2026-06-03 21:58:20] IN  5219621149020: Nuevo proyecto
+[2026-06-03 21:58:26] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkJERkE3OTY0RENBMkFFRDJCMgA="}]}
+[2026-06-03 21:58:26] OUT 5219621149020: ☕ *CoffeeIA - Asistente de CoffeeSoft* 
+
+¡Hola! Soy CoffeeIA, tu asistente para desarrollar proyectos con CoffeeSoft. 🚀
+...
+[2026-06-03 21:58:39] IN  5219621149020: Mermas
+[2026-06-03 21:58:43] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEjI2NDI2MDJGNzk3M0QzM0VCRQA="}]}
+[2026-06-03 21:58:43] OUT 5219621149020: ☕ *CoffeeIA* al servicio.  
+¿Quieres crear un *nuevo sistema de mermas* o *modificar algo existente*?  
+Dime si es un pr...
+[2026-06-03 21:59:19] IN  5219621149020: Que alcance tiene mermas ?
+[2026-06-03 21:59:26] OK wa_send HTTP 200 :: {"messaging_product":"whatsapp","contacts":[{"input":"529621149020","wa_id":"5219621149020"}],"messages":[{"id":"wamid.HBgNNTIxOTYyMTE0OTAyMBUCABEYEkUzQjJGN0RBMDY0Njg3M0I0RgA="}]}
+[2026-06-03 21:59:26] OUT 5219621149020: ¡Hola Somx! ☕
+
+El alcance de "mermas" en CoffeeSoft puede variar según el contexto del proyecto. Por lo general, se refi...

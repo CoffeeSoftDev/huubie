@@ -1,3 +1,102 @@
+[ 2026-06-03 18:03:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        
+[ ERROR C.U.D. ] :: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
+
+
+[ 2026-06-03 16:31:23 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        
+[ ERROR C.U.D. ] :: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
+
+
+[ 2026-06-03 16:12:55 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        
+[ ERROR C.U.D. ] :: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
+
+
+[ 2026-06-03 16:12:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        
+[ ERROR C.U.D. ] :: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
+
+
+[ 2026-06-03 16:12:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        
+[ ERROR C.U.D. ] :: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
+
+
+[ 2026-06-03 14:30:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        
+[ ERROR C.U.D. ] :: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
+
+
+[ 2026-06-03 14:29:21 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        
+[ ERROR C.U.D. ] :: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
+
+
+[ 2026-06-03 14:29:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        
+[ ERROR C.U.D. ] :: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
+
+
+[ 2026-06-03 14:28:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            UPDATE fayxzvov_reginas.inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        
+[ ERROR C.U.D. ] :: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
+
+
 [ 2026-06-01 23:21:54 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
