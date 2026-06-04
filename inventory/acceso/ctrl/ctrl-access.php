@@ -10,19 +10,17 @@ class Access extends MAccess {
   
 
     function company(){
-        // $sql = $this->getUserById([$_COOKIE['IDU']]);
-        $photo = '';
-        // if (!empty($sql['photo'])) {
-        //     $photo = 'dev' . $sql['photo'];
-        // } else {
-        //     $photo = 'dev/src/img/df-user.png';
-        // }
+        $sql = !empty($_SESSION['IDU']) ? $this->getSessionUser([$_SESSION['IDU']]) : null;
+
+        $negocio = $_SESSION['UDN'] ?? ($sql['negocio'] ?? '');
 
         return [
-            "photo"   => $photo,
-            // "user"    => $sql['fullname'],
-            "udn"    => $_SESSION['UDN'],
-            
+            "photo"   => $sql['photo'] ?? '',
+            "user"    => $sql['user'] ?? 'Usuario',
+            "rol"     => $sql['rol'] ?? '',
+            "level"   => isset($sql['level']) ? (int)$sql['level'] : 0,
+            "udn"     => $negocio,
+            "negocio" => $negocio,
         ];
     }
 

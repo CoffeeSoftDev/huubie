@@ -92,6 +92,8 @@ class Inventario extends Templates {
         this.createModalForm({
             id: "formMovimientoAdd",
             data: { opc: "addMovimiento" },
+            theme:'light',
+            coffeesoft:true,
             bootbox: {
                 title: "Nueva Lista de Movimiento",
                 size:'small',

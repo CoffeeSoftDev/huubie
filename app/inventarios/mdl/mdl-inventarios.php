@@ -182,6 +182,17 @@ class mdl extends CRUD {
             $data[] = '%' . $array['q'] . '%';
         }
 
+        $having = '';
+        if (!empty($array['nivel'])) {
+            if ($array['nivel'] === 'ok') {
+                $having = 'HAVING quantity_total > COALESCE(pa.stock_min, 0)';
+            } elseif ($array['nivel'] === 'bajo') {
+                $having = 'HAVING quantity_total > 0 AND quantity_total <= COALESCE(pa.stock_min, 0)';
+            } elseif ($array['nivel'] === 'agotado') {
+                $having = 'HAVING quantity_total <= 0';
+            }
+        }
+
         $query = "
             SELECT
                 p.id                AS product_id,
@@ -210,6 +221,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}warehouse         w  ON w.id = st.warehouse_id
             WHERE {$where}
             GROUP BY p.id
+            {$having}
             ORDER BY p.name ASC
         ";
         $r = $this->_Read($query, $data);

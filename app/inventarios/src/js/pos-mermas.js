@@ -386,6 +386,8 @@ class Mermas extends Templates {
             folio:          h.folio,
             status:         h.status || '',
             motivo:         h.reason_name || '',
+            motivo_color:   h.reason_color || '',
+            motivo_icon:    h.reason_icon  || '',
             fecha:          created ? created.replace(' ', 'T') : '',
             sucursal:       h.subsidiary_name || '',
             almacen:        h.warehouse_name  || '',
@@ -458,9 +460,204 @@ class Mermas extends Templates {
         this.mermaFormApi.open();
     }
 
-    printMerma(id) {
-        console.log('[printMerma]', id);
-        alert({ icon: 'info', text: 'Imprimiendo merma ' + id });
+    // Genera un comprobante imprimible (formato ticket) de la merma. Acepta el objeto
+    // merma ya cargado (lo pasa el panel de detalle) o un id (hace fetch a getMerma).
+    async printMerma(arg) {
+        let m = arg;
+        if (!m || typeof m !== 'object') {
+            const r = await fn_ajax({ opc: 'getMerma', id: arg }, api).catch(() => null);
+            if (!(r && r.status === 200)) {
+                if (typeof alert === 'function') alert({ icon: 'error', text: 'No se pudo cargar la merma para imprimir' });
+                return;
+            }
+            m = this.mapMermaDetail(r.header || {}, r.detail || []);
+        }
+        this.renderMermaDoc(m);
+    }
+
+    // Construye el comprobante de merma como documento tamano carta y lo abre en una
+    // ventana nueva (vista de documento, no impresion directa). Incluye boton Imprimir.
+    renderMermaDoc(m) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+        const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+        const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const fmtFecha = (iso) => {
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return iso || '';
+            let   h    = d.getHours();
+            const min  = String(d.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'pm' : 'am';
+            h = h % 12 || 12;
+            return `${DOW[d.getDay()]} ${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} ${d.getFullYear()} ${h}:${min} ${ampm}`;
+        };
+
+        const items = m.items || [];
+
+        // Totales: mismos criterios que el panel de detalle.
+        const totals = items.reduce((acc, it) => {
+            const sub = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * Number(it.costo_unit || 0);
+            acc.uds   += Number(it.qty || 0);
+            acc.costo += sub;
+            return acc;
+        }, { uds: 0, costo: 0 });
+        const totUds   = m.total_unidades != null ? m.total_unidades : totals.uds;
+        const totCosto = m.total_costo    != null ? m.total_costo    : totals.costo;
+
+        // Agrupa por categoria, igual que el panel.
+        const byCat = {};
+        items.forEach(it => {
+            const cat = (it.categoria && String(it.categoria).trim()) || 'Sin categoria';
+            (byCat[cat] = byCat[cat] || { categoria: cat, items: [] }).items.push(it);
+        });
+        const groups = Object.keys(byCat).sort((a, b) => a.localeCompare(b, 'es')).map(c => byCat[c]);
+
+        const rowsHtml = groups.map(g => {
+            const head = `<tr class="cat"><td colspan="4">${esc(g.categoria)} <span class="cat-count">${g.items.length}</span></td></tr>`;
+            const body = g.items.map(it => {
+                const cu  = Number(it.costo_unit || 0);
+                const sub = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * cu;
+                return `
+                    <tr>
+                        <td class="prod"><span class="prod-name">${esc(it.name)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td>
+                        <td class="c">-${esc(it.qty)}</td>
+                        <td class="r">${fmtMoney(cu)}</td>
+                        <td class="r">-${fmtMoney(sub)}</td>
+                    </tr>`;
+            }).join('');
+            return head + body;
+        }).join('');
+
+        const reg            = m.registrado_por && m.registrado_por.name ? m.registrado_por.name : '-';
+        const fechaImpresion = fmtFecha(new Date().toISOString());
+
+        const html = `
+            <!doctype html>
+            <html lang="es">
+            <head>
+                <meta charset="utf-8">
+                <title>Merma ${esc(m.folio || '')}</title>
+                <style>
+                    * { margin:0; padding:0; box-sizing:border-box; }
+                    body { font-family:'Segoe UI', Arial, sans-serif; background:#c8c8c8; color:#000; padding:24px; }
+
+                    .toolbar { width:816px; max-width:100%; margin:0 auto 16px; display:flex; justify-content:flex-end; gap:8px; }
+                    .btn { cursor:pointer; border:1px solid #000; border-radius:4px; padding:8px 16px; font-size:13px; font-weight:600; color:#fff; background:#333; }
+                    .btn:hover { opacity:.85; }
+                    .btn.gray { background:#777; }
+
+                    .sheet { width:816px; max-width:100%; min-height:1056px; margin:0 auto; background:#fff; padding:40px 48px; box-shadow:0 2px 10px rgba(0,0,0,.25); }
+
+                    .doc-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:18px; }
+                    .doc-title { font-size:22px; font-weight:800; letter-spacing:.5px; color:#000; }
+                    .doc-sub { font-size:12px; color:#555; margin-top:3px; }
+                    .folio-box { text-align:right; }
+                    .folio { font-size:20px; font-weight:800; color:#000; }
+                    .status { display:inline-block; margin-top:6px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:2px 10px; border:1px solid #000; border-radius:3px; color:#000; }
+
+                    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; margin-bottom:18px; }
+                    .info-item { display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px solid #ccc; padding-bottom:4px; font-size:12px; }
+                    .info-item .k { color:#555; }
+                    .info-item .v { font-weight:700; text-align:right; color:#000; }
+
+                    table { width:100%; border-collapse:collapse; margin-bottom:18px; }
+                    thead th { border-bottom:1.5px solid #000; font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#000; padding:4px 8px; text-align:left; }
+                    thead th.r { text-align:right; }
+                    thead th.c { text-align:center; }
+                    tbody td { padding:3px 8px; font-size:11px; line-height:1.25; border-bottom:1px solid #e2e2e2; vertical-align:top; color:#000; }
+                    tbody td.r { text-align:right; white-space:nowrap; }
+                    tbody td.c { text-align:center; white-space:nowrap; }
+                    tr.cat td { background:#efefef; font-weight:700; text-transform:uppercase; font-size:10px; color:#000; letter-spacing:.5px; padding:3px 8px; border-top:1px solid #000; }
+                    tr.cat .cat-count { float:right; color:#666; font-weight:600; }
+                    .prod-name { font-weight:600; }
+                    .sku { color:#777; font-size:10px; }
+
+                    .totals { display:flex; justify-content:flex-end; }
+                    .totals-box { width:280px; border:1px solid #000; border-radius:4px; padding:10px 14px; }
+                    .totals-row { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; color:#000; }
+                    .totals-row.grand { border-top:1.5px solid #000; margin-top:4px; padding-top:8px; font-size:16px; font-weight:800; color:#000; }
+
+                    .nota { margin-top:18px; border-left:3px solid #000; background:#f7f7f7; padding:10px 14px; font-size:12px; color:#222; }
+                    .nota b { display:block; margin-bottom:3px; text-transform:uppercase; font-size:10px; letter-spacing:.5px; color:#555; }
+
+                    .doc-footer { margin-top:28px; display:flex; justify-content:space-between; font-size:10px; color:#777; border-top:1px solid #ccc; padding-top:10px; }
+
+                    @page { size:letter; margin:1.4cm; }
+                    @media print {
+                        body { background:#fff; padding:0; }
+                        .toolbar { display:none; }
+                        .sheet { width:auto; min-height:auto; box-shadow:none; padding:0; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="toolbar">
+                    <button class="btn" onclick="window.print()">Imprimir</button>
+                    <button class="btn gray" onclick="window.close()">Cerrar</button>
+                </div>
+                <div class="sheet">
+                    <div class="doc-header">
+                        <div>
+                            <div class="doc-title">Comprobante de Merma</div>
+                            <div class="doc-sub">${esc(m.sucursal || '')}${m.almacen ? ' &middot; ' + esc(m.almacen) : ''}</div>
+                        </div>
+                        <div class="folio-box">
+                            <div class="folio">${esc(m.folio || '-')}</div>
+                            ${m.status ? `<span class="status">${esc(m.status)}</span>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-item"><span class="k">Motivo</span><span class="v">${esc(m.motivo || '-')}</span></div>
+                        <div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(m.fecha))}</span></div>
+                        <div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(m.sucursal || '-')}</span></div>
+                        <div class="info-item"><span class="k">Almacen</span><span class="v">${esc(m.almacen || '-')}</span></div>
+                        <div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(reg)}</span></div>
+                        <div class="info-item"><span class="k">Productos</span><span class="v">${items.length} tipos &middot; ${totUds} uds</span></div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="c">Cant</th>
+                                <th class="r">Costo unit.</th>
+                                <th class="r">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml || `<tr><td colspan="4" class="c">Sin productos</td></tr>`}</tbody>
+                    </table>
+
+                    <div class="totals">
+                        <div class="totals-box">
+                            <div class="totals-row"><span>Tipos de producto</span><span>${items.length}</span></div>
+                            <div class="totals-row"><span>Unidades</span><span>${totUds}</span></div>
+                            <div class="totals-row grand"><span>Perdida total</span><span>-${fmtMoney(totCosto)}</span></div>
+                        </div>
+                    </div>
+
+                    ${m.nota ? `<div class="nota"><b>Nota</b>${esc(m.nota)}</div>` : ''}
+
+                    <div class="doc-footer">
+                        <span>Huubie &middot; Inventarios &middot; Comprobante de merma</span>
+                        <span>Generado: ${esc(fechaImpresion)}</span>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const w = window.open('', '_blank', 'width=900,height=1000');
+        if (!w) {
+            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Permite las ventanas emergentes para poder ver el documento.' });
+            return;
+        }
+        w.document.write(html);
+        w.document.close();
+        w.focus();
     }
 
     cancelMerma(id) {
@@ -573,7 +770,7 @@ class MermasView extends Templates {
             parent:           'detailPanel',
             json:             merma,
             onClose:          ()  => this.renderDetail(null),
-            onImprimir:       (m) => console.log('[mermaDetailPanel] imprimir',  m && m.folio),
+            onImprimir:       (m) => { if (m) mermas.printMerma(m); },
             onCancelar:       (m) => { if (m) mermas.cancelMerma(m.id); },
             onDelete:         (m) => { if (m) mermas.deleteMerma(m.id); },
             onUploadEvidence: (m, dataUrl) => { if (m) mermas.uploadEvidence(m.id, dataUrl); },
@@ -838,6 +1035,7 @@ class MermasView extends Templates {
                 subtitleLbl: 'Detalle de la perdida',
                 motivo:      'Motivo',
                 sucursal:    'Sucursal',
+                almacen:     'Almacén',
                 registrado:  'Registrado por',
                 productos:   'Productos',
                 perdidaTot:  'Perdida total',
@@ -857,11 +1055,20 @@ class MermasView extends Templates {
                 folioPrefix: 'Merma'
             },
             motivoPalettes: {
-                'Caducidad':        { bg: 'rgba(224,36,36,0.18)',  fg: '#F87171' },
-                'Daniado':          { bg: 'rgba(251,191,36,0.18)', fg: '#FBBF24' },
-                'Error produccion': { bg: 'rgba(28,100,242,0.18)', fg: '#60A5FA' },
-                'Robo/Faltante':    { bg: 'rgba(124,58,237,0.18)', fg: '#A78BFA' },
-                'Devolucion':       { bg: 'rgba(63,193,137,0.18)', fg: '#3FC189' }
+                'Caducidad':        { bg: 'rgba(224,36,36,0.18)',  fg: '#F87171', icon: 'calendar-x'     },
+                'Daniado':          { bg: 'rgba(251,191,36,0.18)', fg: '#FBBF24', icon: 'alert-triangle' },
+                'Dañado':           { bg: 'rgba(251,191,36,0.18)', fg: '#FBBF24', icon: 'alert-triangle' },
+                'Error produccion': { bg: 'rgba(28,100,242,0.18)', fg: '#60A5FA', icon: 'settings'       },
+                'Error producción': { bg: 'rgba(28,100,242,0.18)', fg: '#60A5FA', icon: 'settings'       },
+                'Robo/Faltante':    { bg: 'rgba(124,58,237,0.18)', fg: '#A78BFA', icon: 'shield-alert'   },
+                'Robo / Faltante':  { bg: 'rgba(124,58,237,0.18)', fg: '#A78BFA', icon: 'shield-alert'   },
+                'Devolucion':       { bg: 'rgba(63,193,137,0.18)', fg: '#3FC189', icon: 'rotate-ccw'     },
+                'Devolución':       { bg: 'rgba(63,193,137,0.18)', fg: '#3FC189', icon: 'rotate-ccw'     }
+            },
+            // Paleta del badge de estado (cabecera): Aplicada -> verde, Cancelada -> rojo.
+            statusPalettes: {
+                'Aplicada':  { bg: 'rgba(63,193,137,0.15)', fg: '#3FC189' },
+                'Cancelada': { bg: 'rgba(224,36,36,0.15)',  fg: '#F87171' }
             },
             sucursalLabels: {
                 kafeto:     'Reginas Kafeto',
@@ -880,6 +1087,7 @@ class MermasView extends Templates {
         const opts = Object.assign({}, defaults, o);
         opts.labels         = Object.assign({}, defaults.labels,         o.labels         || {});
         opts.motivoPalettes = Object.assign({}, defaults.motivoPalettes, o.motivoPalettes || {});
+        opts.statusPalettes = Object.assign({}, defaults.statusPalettes, o.statusPalettes || {});
         opts.sucursalLabels = Object.assign({}, defaults.sucursalLabels, o.sucursalLabels || {});
 
         // -- Helpers de formato --
@@ -890,6 +1098,18 @@ class MermasView extends Templates {
 
         const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+        // Convierte un color #RRGGBB (color_hex de la BD) a rgba con la opacidad dada,
+        // para reproducir el fondo translucido del badge sin depender de la paleta fija.
+        const hexToRgba = (hex, a) => {
+            const h = String(hex || '').trim().replace('#', '');
+            if (h.length !== 6) return '';
+            const r = parseInt(h.slice(0, 2), 16);
+            const g = parseInt(h.slice(2, 4), 16);
+            const b = parseInt(h.slice(4, 6), 16);
+            if ([r, g, b].some(isNaN)) return '';
+            return `rgba(${r},${g},${b},${a})`;
+        };
+
         const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const fmtFecha = (iso) => {
@@ -898,11 +1118,12 @@ class MermasView extends Templates {
             const dow  = DOW[d.getDay()];
             const day  = String(d.getDate()).padStart(2, '0');
             const mon  = MON[d.getMonth()];
+            const year = d.getFullYear();
             let   h    = d.getHours();
             const m    = String(d.getMinutes()).padStart(2, '0');
             const ampm = h >= 12 ? 'pm' : 'am';
             h = h % 12 || 12;
-            return `${dow} ${day} ${mon} ${String(h).padStart(2, '0')}:${m} ${ampm}`;
+            return `${dow} ${day} ${mon} ${year} · ${h}:${m} ${ampm}`;
         };
 
         // Redimensiona a max 1280px y recomprime a JPEG (mismo criterio que merma-form):
@@ -1102,64 +1323,93 @@ class MermasView extends Templates {
             const totUds   = m.total_unidades != null ? m.total_unidades : totals.uds;
             const totCosto = m.total_costo    != null ? m.total_costo    : totals.costo;
             const sucursal = opts.sucursalLabels[m.sucursal] || m.sucursal || '-';
+            const almacen  = m.almacen || '-';
 
-            const motivoC     = opts.motivoPalettes[m.motivo] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
-            const motivoBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${motivoC.bg};color:${motivoC.fg};">${esc(m.motivo || '-')}</span>`;
+            // Color e icono del motivo: prioriza la configuracion de la BD (color_hex/icon
+            // de shrinkage_reason); si no llega, cae a la paleta fija por nombre.
+            const motivoC     = opts.motivoPalettes[m.motivo] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF', icon: 'alert-triangle' };
+            const motivoBg    = hexToRgba(m.motivo_color, 0.18) || motivoC.bg;
+            const motivoFg    = m.motivo_color || motivoC.fg;
+            const motivoIcon  = m.motivo_icon  || motivoC.icon || 'alert-triangle';
+            const motivoBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:${motivoBg};color:${motivoFg};"><i data-lucide="${esc(motivoIcon)}" class="w-3 h-3"></i>${esc(m.motivo || '-')}</span>`;
 
-            const reg      = m.registrado_por;
-            const regTexto = reg ? esc(reg.name) : '-';
+            // Badge de estado en la cabecera (Aplicada / Cancelada).
+            const stC         = opts.statusPalettes[m.status] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
+            const statusBadge = m.status
+                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide" style="background:${stC.bg};color:${stC.fg};">${esc(m.status)}</span>`
+                : '';
+
+            // Registrado por: avatar circular con la inicial + nombre.
+            const reg        = m.registrado_por;
+            const regName    = reg && reg.name ? esc(reg.name) : '-';
+            const regInitial = reg && reg.name ? esc(String(reg.name).trim().charAt(0).toUpperCase()) : '?';
+            const regHtml    = reg && reg.name
+                ? `<span class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">${regInitial}</span>
+                        <span class="text-white font-semibold">${regName}</span>
+                   </span>`
+                : `<span class="text-white">-</span>`;
 
             // La evidencia solo se puede subir/quitar mientras la merma no este cancelada.
             const editable = m.status !== 'Cancelada';
 
             return `
-                <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
+                <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-start justify-between">
                     <div>
-                        <h3 class="text-sm font-bold text-rose-400">${esc(opts.labels.folioPrefix)} ${esc(m.folio || '')}</h3>
-                        <p class="text-[10px] text-[#9CA3AF]">${esc(fmtFecha(m.fecha))}</p>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-base font-bold text-white">${esc(opts.labels.folioPrefix)} ${esc(m.folio || '')}</h3>
+                            ${statusBadge}
+                        </div>
+                        <p class="text-[10px] text-[#9CA3AF] flex items-center gap-1 mt-0.5">
+                            <i data-lucide="clock" class="w-3 h-3"></i>${esc(fmtFecha(m.fecha))}
+                        </p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button id="${opts.id}_close" class="text-[#D1D5DB] hover:text-white transition-colors p-1" title="Cerrar">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
+                    <button id="${opts.id}_close" class="text-[#D1D5DB] hover:text-white transition-colors p-1 flex-shrink-0" title="Cerrar">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
 
                 <div id="${opts.id}_scroll" class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
 
                     <!-- Resumen -->
-                    <div class="bg-[#1F2937] rounded-lg p-2 border border-[#374151] space-y-2">
+                    <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151] space-y-2.5">
                         <div class="flex justify-between items-center text-[11px]">
                             <span class="text-[#9CA3AF]">${esc(opts.labels.motivo)}</span>
                             ${motivoBadge}
                         </div>
-                        <div class="flex justify-between text-[11px]">
+                        <div class="flex justify-between items-center text-[11px]">
                             <span class="text-[#9CA3AF]">${esc(opts.labels.sucursal)}</span>
-                            <span class="text-white">${esc(sucursal)}</span>
+                            <span class="text-white font-bold">${esc(sucursal)}</span>
                         </div>
-                        <div class="flex justify-between text-[11px]">
+                        <div class="flex justify-between items-center text-[11px]">
+                            <span class="text-[#9CA3AF]">${esc(opts.labels.almacen)}</span>
+                            <span class="text-white font-bold">${esc(almacen)}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px]">
                             <span class="text-[#9CA3AF]">${esc(opts.labels.registrado)}</span>
-                            <span class="text-white">${regTexto}</span>
+                            ${regHtml}
                         </div>
-                        <div class="flex justify-between text-[11px]">
+                        <div class="flex justify-between items-center text-[11px]">
                             <span class="text-[#9CA3AF]">${esc(opts.labels.productos)}</span>
-                            <span class="text-white font-bold">${items.length} tipos / ${totUds} uds</span>
+                            <span class="text-white font-bold">${items.length} tipos · ${totUds} uds</span>
                         </div>
                     </div>
 
                     <!-- Detalle de productos -->
-                    <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151]">
-                        <div class="flex items-center justify-between mb-2">
-                            <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider">${esc(opts.labels.detalleLbl)}</p>
-                            <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider">${items.length} ${items.length === 1 ? 'producto' : 'productos'}</p>
+                    <div>
+                        <div class="flex items-center justify-between mb-2 px-1">
+                            <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider font-bold">${esc(opts.labels.detalleLbl)}</p>
+                            <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider font-bold">${items.length} ${items.length === 1 ? 'producto' : 'productos'}</p>
                         </div>
-                        <div class="overflow-x-auto">${productTable(m)}</div>
-                        <!-- Perdida total debajo de la tabla -->
-                        <div class="flex items-center justify-between mt-3 pt-3 border-t border-dashed border-[#374151]">
-                            <span class="text-[11px] text-[#9CA3AF] uppercase font-bold">${esc(opts.labels.perdidaTot)}</span>
-                            <span class="text-xl font-extrabold text-white">-${fmtMoney(totCosto)}</span>
+                        <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151]">
+                            <div class="overflow-x-auto">${productTable(m)}</div>
+                            <!-- Perdida total debajo de la tabla -->
+                            <div class="flex items-center justify-between mt-3 pt-3 border-t border-dashed border-[#374151]">
+                                <span class="text-[11px] text-[#9CA3AF] uppercase font-bold">${esc(opts.labels.perdidaTot)}</span>
+                                <span class="text-xl font-extrabold text-white">-${fmtMoney(totCosto)}</span>
+                            </div>
                         </div>
                     </div>
 

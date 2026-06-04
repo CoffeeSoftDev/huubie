@@ -20,7 +20,6 @@
         <div class="bg-[#111928]" id="root"></div>
     </div>
 
-    <script src="/app/inventarios/src/js/sample_stock.js?t=<?php echo time(); ?>"></script>
     <script src="/app/inventarios/src/js/pos-stock.js?t=<?php echo time(); ?>"></script>
 </body>
 

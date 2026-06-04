@@ -452,6 +452,202 @@ class Entradas extends Templates {
 
     // -- Actions --
 
+    // Genera un comprobante imprimible (documento tamano carta, B/N) de la entrada.
+    // Acepta el objeto entrada ya cargado (lo pasa el panel) o un id (fetch getEntrada).
+    async printEntrada(arg) {
+        let e = arg;
+        if (!e || typeof e !== 'object') {
+            const r = await fn_ajax({ opc: 'getEntrada', id: arg }, api).catch(() => null);
+            if (!(r && r.status === 200)) {
+                if (typeof alert === 'function') alert({ icon: 'error', text: 'No se pudo cargar la entrada para imprimir' });
+                return;
+            }
+            e = this.mapEntradaDetail(r.header || {}, r.detail || []);
+        }
+        this.renderEntradaDoc(e);
+    }
+
+    // Construye el comprobante de entrada como documento tamano carta en blanco y negro,
+    // filas compactas, y lo abre en una ventana nueva (vista de documento con boton Imprimir).
+    renderEntradaDoc(e) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+        const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+        const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const fmtFecha = (iso) => {
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return iso || '';
+            const base = `${DOW[d.getDay()]} ${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} ${d.getFullYear()}`;
+            if (d.getHours() === 0 && d.getMinutes() === 0) return base;
+            let   h    = d.getHours();
+            const min  = String(d.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'pm' : 'am';
+            h = h % 12 || 12;
+            return `${base} ${h}:${min} ${ampm}`;
+        };
+
+        const productos = e.productos || [];
+
+        // Cantidad efectiva = la real confirmada (cae a la reportada si no se confirmo).
+        const qtyOf = (it) => it.cantReal != null ? Number(it.cantReal) : Number(it.cant || 0);
+
+        const totals = productos.reduce((acc, it) => {
+            const q = qtyOf(it);
+            acc.uds   += q;
+            acc.costo += q * Number(it.costo || 0);
+            return acc;
+        }, { uds: 0, costo: 0 });
+        const tipos = productos.length;
+        const uds   = totals.uds;
+        const costo = totals.costo;
+
+        const rowsHtml = productos.map(it => {
+            const q  = qtyOf(it);
+            const cu = Number(it.costo || 0);
+            return `
+                <tr>
+                    <td class="prod"><span class="prod-name">${esc(it.nombre)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td>
+                    <td class="c">${esc(q)}</td>
+                    <td class="r">${fmtMoney(cu)}</td>
+                    <td class="r">${fmtMoney(q * cu)}</td>
+                </tr>`;
+        }).join('');
+
+        // Filas de la cabecera (solo las que tienen dato).
+        const infoItem = (k, v) => `<div class="info-item"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`;
+        const infoHtml = [
+            infoItem('Origen', e.origen || '-'),
+            e.proveedor ? infoItem('Proveedor', e.proveedor) : '',
+            infoItem('Fecha', fmtFecha(e.fechaIso)),
+            infoItem('Sucursal', e.sucursal || '-'),
+            infoItem('Almacen', e.almacen || '-'),
+            infoItem('Registrado por', e.registrado || '-'),
+            e.confirmadoPor ? infoItem('Confirmado por', e.confirmadoPor) : '',
+            `<div class="info-item"><span class="k">Productos</span><span class="v">${tipos} tipos &middot; ${uds} uds</span></div>`
+        ].join('');
+
+        const fechaImpresion = fmtFecha(new Date().toISOString());
+
+        const html = `
+            <!doctype html>
+            <html lang="es">
+            <head>
+                <meta charset="utf-8">
+                <title>Entrada ${esc(e.folio || '')}</title>
+                <style>
+                    * { margin:0; padding:0; box-sizing:border-box; }
+                    body { font-family:'Segoe UI', Arial, sans-serif; background:#c8c8c8; color:#000; padding:24px; }
+
+                    .toolbar { width:816px; max-width:100%; margin:0 auto 16px; display:flex; justify-content:flex-end; gap:8px; }
+                    .btn { cursor:pointer; border:1px solid #000; border-radius:4px; padding:8px 16px; font-size:13px; font-weight:600; color:#fff; background:#333; }
+                    .btn:hover { opacity:.85; }
+                    .btn.gray { background:#777; }
+
+                    .sheet { width:816px; max-width:100%; min-height:1056px; margin:0 auto; background:#fff; padding:40px 48px; box-shadow:0 2px 10px rgba(0,0,0,.25); }
+
+                    .doc-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:18px; }
+                    .doc-title { font-size:22px; font-weight:800; letter-spacing:.5px; color:#000; }
+                    .doc-sub { font-size:12px; color:#555; margin-top:3px; }
+                    .folio-box { text-align:right; }
+                    .folio { font-size:20px; font-weight:800; color:#000; }
+                    .status { display:inline-block; margin-top:6px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:2px 10px; border:1px solid #000; border-radius:3px; color:#000; }
+
+                    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; margin-bottom:18px; }
+                    .info-item { display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px solid #ccc; padding-bottom:4px; font-size:12px; }
+                    .info-item .k { color:#555; }
+                    .info-item .v { font-weight:700; text-align:right; color:#000; }
+
+                    table { width:100%; border-collapse:collapse; margin-bottom:18px; }
+                    thead th { border-bottom:1.5px solid #000; font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#000; padding:4px 8px; text-align:left; }
+                    thead th.r { text-align:right; }
+                    thead th.c { text-align:center; }
+                    tbody td { padding:3px 8px; font-size:11px; line-height:1.25; border-bottom:1px solid #e2e2e2; vertical-align:top; color:#000; }
+                    tbody td.r { text-align:right; white-space:nowrap; }
+                    tbody td.c { text-align:center; white-space:nowrap; }
+                    .prod-name { font-weight:600; }
+                    .sku { color:#777; font-size:10px; }
+
+                    .totals { display:flex; justify-content:flex-end; }
+                    .totals-box { width:280px; border:1px solid #000; border-radius:4px; padding:10px 14px; }
+                    .totals-row { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; color:#000; }
+                    .totals-row.grand { border-top:1.5px solid #000; margin-top:4px; padding-top:8px; font-size:16px; font-weight:800; color:#000; }
+
+                    .nota { margin-top:18px; border-left:3px solid #000; background:#f7f7f7; padding:10px 14px; font-size:12px; color:#222; }
+                    .nota b { display:block; margin-bottom:3px; text-transform:uppercase; font-size:10px; letter-spacing:.5px; color:#555; }
+
+                    .doc-footer { margin-top:28px; display:flex; justify-content:space-between; font-size:10px; color:#777; border-top:1px solid #ccc; padding-top:10px; }
+
+                    @page { size:letter; margin:1.4cm; }
+                    @media print {
+                        body { background:#fff; padding:0; }
+                        .toolbar { display:none; }
+                        .sheet { width:auto; min-height:auto; box-shadow:none; padding:0; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="toolbar">
+                    <button class="btn" onclick="window.print()">Imprimir</button>
+                    <button class="btn gray" onclick="window.close()">Cerrar</button>
+                </div>
+                <div class="sheet">
+                    <div class="doc-header">
+                        <div>
+                            <div class="doc-title">Comprobante de Entrada</div>
+                            <div class="doc-sub">${esc(e.sucursal || '')}${e.almacen ? ' &middot; ' + esc(e.almacen) : ''}</div>
+                        </div>
+                        <div class="folio-box">
+                            <div class="folio">${esc(e.folio || '-')}</div>
+                            ${e.estado ? `<span class="status">${esc(e.estado)}</span>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="info-grid">${infoHtml}</div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="c">Cant</th>
+                                <th class="r">Costo unit.</th>
+                                <th class="r">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml || `<tr><td colspan="4" class="c">Sin productos</td></tr>`}</tbody>
+                    </table>
+
+                    <div class="totals">
+                        <div class="totals-box">
+                            <div class="totals-row"><span>Tipos de producto</span><span>${tipos}</span></div>
+                            <div class="totals-row"><span>Unidades</span><span>${uds}</span></div>
+                            <div class="totals-row grand"><span>Costo total</span><span>${fmtMoney(costo)}</span></div>
+                        </div>
+                    </div>
+
+                    ${e.nota ? `<div class="nota"><b>Nota</b>${esc(e.nota)}</div>` : ''}
+
+                    <div class="doc-footer">
+                        <span>Huubie &middot; Inventarios &middot; Comprobante de entrada</span>
+                        <span>Generado: ${esc(fechaImpresion)}</span>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const w = window.open('', '_blank', 'width=900,height=1000');
+        if (!w) {
+            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Permite las ventanas emergentes para poder ver el documento.' });
+            return;
+        }
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+    }
+
     viewEntrada(folio) {
         console.log('[viewEntrada]', folio);
         app.selectEntrada(folio);
@@ -477,7 +673,7 @@ class EntradasView extends Templates {
             onClose: () => {
                 app.selectEntrada(null);
             },
-            onPrint:   (e) => console.log('[entrada] imprimir', e && e.folio),
+            onPrint:   (e) => { if (e) entradas.printEntrada(e); },
             onReverse: (e) => this.cancelEntrada(e),
             onConfirm: (e) => this.confirmEntrada(e),
             onEdit:       (e) => this.renderDetail(e, true),   // entra a modo edicion

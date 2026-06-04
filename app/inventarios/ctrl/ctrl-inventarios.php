@@ -73,6 +73,7 @@ class ctrl extends mdl {
             'companies_id'    => $this->companiesId,
             'subsidiaries_id' => $_POST['subsidiaries_id']  ?? '',
             'category_id'     => $_POST['category_id']      ?? '',
+            'nivel'           => $_POST['nivel']            ?? '',
             'q'               => $_POST['q']                ?? ''
         ]);
         $row = [];
@@ -115,15 +116,96 @@ class ctrl extends mdl {
         if (empty($product)) {
             return ['status' => 404, 'message' => 'Producto no encontrado'];
         }
-        $sucursales = $this->getStockByProduct([$product_id]);
-        $movs       = $this->getMovimientosByProduct([$product_id, $this->companiesId]);
 
-        return [
-            'status'    => 200,
-            'producto'  => $product,
-            'almacenes' => $sucursales,
-            'movs'      => $movs
+        $stockRows = $this->getStockByProduct([$product_id]);
+        $movsRows  = $this->getMovimientosByProduct([$product_id, $this->companiesId]);
+
+        // -- stockSuc
+        $total = 0;
+        foreach ($stockRows as $s) {
+            $total += (float) $s['quantity'];
+        }
+        $stockSuc = ['' => $total];
+        foreach ($stockRows as $s) {
+            $sid = (string) $s['subsidiaries_id'];
+            $stockSuc[$sid] = ($stockSuc[$sid] ?? 0) + (float) $s['quantity'];
+        }
+
+        // -- estado
+        $min = (float) ($product['stock_min'] ?? 0);
+        if ($total <= 0) {
+            $estado = 'agotado';
+        } elseif ($total <= $min) {
+            $estado = 'bajo';
+        } else {
+            $estado = 'ok';
+        }
+
+        // -- almacenes
+        $almacenes = [];
+        foreach ($stockRows as $s) {
+            $almacenes[] = [
+                'name' => $s['warehouse_name'],
+                'type' => 'info'
+            ];
+        }
+
+        // -- movs
+        $typeMap = [
+            'ENTRADA'       => 'in',
+            'MERMA'         => 'out',
+            'TRANSFERENCIA' => 'tr',
+            'AJUSTE'        => 'adjust'
         ];
+        $labelMap = [
+            'ENTRADA'       => 'Entrada',
+            'MERMA'         => 'Merma',
+            'TRANSFERENCIA' => 'Transferencia',
+            'AJUSTE'        => 'Ajuste'
+        ];
+        $movs = [];
+        foreach ($movsRows as $m) {
+            $type  = $typeMap[$m['movement_type']] ?? 'adjust';
+            $label = ($labelMap[$m['movement_type']] ?? $m['movement_type']) . ' · ' . ($m['folio'] ?? '-');
+            $qty   = (float) $m['quantity'];
+            $movs[] = [
+                'type'  => $type,
+                'label' => $label,
+                'qty'   => $qty >= 0 ? '+' . $qty : (string) $qty,
+                'when'  => ($m['occurred_at'] ?? '') . ' · ' . ($m['warehouse_name'] ?? '-')
+            ];
+        }
+
+        // -- vida util
+        $dias = isset($product['shelf_life_days']) && $product['shelf_life_days'] !== null
+            ? (int) $product['shelf_life_days']
+            : null;
+        if ($dias === null) {
+            $vidaLabel = 'na';
+        } elseif ($dias <= 2) {
+            $vidaLabel = 'critico';
+        } elseif ($dias <= 5) {
+            $vidaLabel = 'proximo';
+        } else {
+            $vidaLabel = 'ok';
+        }
+
+        $producto = [
+            'name'      => $product['name'],
+            'sku'       => $product['sku'] ?: '-',
+            'categoria' => $product['category_name'] ?: 'Sin categoria',
+            'estado'    => $estado,
+            'min'       => (float) ($product['stock_min'] ?? 0),
+            'max'       => (float) ($product['stock_max'] ?? 0),
+            'stockSuc'  => $stockSuc,
+            'almacenes' => $almacenes,
+            'movs'      => $movs,
+            'vida'      => ['dias' => $dias, 'label' => $vidaLabel],
+            'iconBg'    => 'bg-[#1F2A37]',
+            'iconText'  => 'text-gray-500'
+        ];
+
+        return ['status' => 200, 'producto' => $producto];
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -516,7 +598,7 @@ class ctrl extends mdl {
                 [
                     'class'   => 'btn btn-sm btn-secondary me-1',
                     'html'    => '<i class="icon-eye"></i>',
-                    'onclick' => "app.selectTraspaso('{$r['folio']}')"
+                    'onclick' => "app.selectTraspaso('{$r['folio']}', {$r['id']})"
                 ]
             ];
             if (!$isTerminal) {

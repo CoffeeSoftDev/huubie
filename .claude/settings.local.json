@@ -157,13 +157,17 @@
       "PowerShell(Get-ChildItem \"c:\\\\wamp64\\\\credentials\\\\\" | Format-Table Name, Length, LastWriteTime; Write-Output \"---\"; if \\(Test-Path \"c:\\\\wamp64\\\\credentials\\\\coffeedrive.json\"\\) { $json = Get-Content \"c:\\\\wamp64\\\\credentials\\\\coffeedrive.json\" | ConvertFrom-Json; Write-Output \"type: $\\($json.type\\)\"; Write-Output \"client_email: $\\($json.client_email\\)\"; Write-Output \"project_id: $\\($json.project_id\\)\"; Write-Output \"private_key length: $\\($json.private_key.Length\\)\" })",
       "PowerShell(Move-Item \"c:\\\\wamp64\\\\credentials\\\\coffeedrive-1fc8e1431f5b.json\" \"c:\\\\wamp64\\\\credentials\\\\coffeedrive.json\" -Force; $json = Get-Content \"c:\\\\wamp64\\\\credentials\\\\coffeedrive.json\" -Raw | ConvertFrom-Json; Write-Output \"type: $\\($json.type\\)\"; Write-Output \"client_email: $\\($json.client_email\\)\"; Write-Output \"project_id: $\\($json.project_id\\)\"; Write-Output \"private_key starts with: $\\($json.private_key.Substring\\(0,40\\)\\)...\")",
       "PowerShell(try { Invoke-WebRequest -Uri \"https://curl.se/ca/cacert.pem\" -OutFile \"c:\\\\wamp64\\\\credentials\\\\cacert.pem\" -UseBasicParsing -ErrorAction Stop; $f = Get-Item \"c:\\\\wamp64\\\\credentials\\\\cacert.pem\"; Write-Output \"Descargado: $\\($f.FullName\\)\"; Write-Output \"Tamano: $\\($f.Length\\) bytes\" } catch { Write-Output \"ERROR: $_\" })",
-      "PowerShell(Get-Command *)"
+      "PowerShell(Get-Command *)",
+      "Bash(Select-Object -First 50)"
     ],
     "additionalDirectories": [
       "\\tmp",
       "C:\\Users\\SomxDev"
     ]
   },
+  "enabledMcpjsonServers": [
+    "mysql"
+  ],
   "outputStyle": "Proactive",
   "spinnerTipsEnabled": true
 }

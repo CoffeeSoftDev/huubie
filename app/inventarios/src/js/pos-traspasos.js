@@ -5,6 +5,13 @@ let turno, subsidiaries_id;
 
 window.updateSession = () => { };
 
+// Config estatica de la vista (titulo, subtitulo, back). No son datos de negocio.
+const VIEW_HEADER_TRASPASOS = {
+    title:    'Visor de Traspasos',
+    subtitle: 'Gestion de movimientos entre sucursales',
+    back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
+};
+
 
 $(async () => {
     traspasosView = new TraspasosView(api, 'root');
@@ -45,7 +52,7 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        traspasosView.renderHeader({ title: 'Traspasos', subtitle: 'Gestion de movimientos entre sucursales' });
+        traspasosView.renderHeader(VIEW_HEADER_TRASPASOS);
         traspasosView.renderFooter({});
         // traspasosView.renderTabs(this.PROJECT_NAME);
         traspasosView.renderDetail(null);
@@ -230,7 +237,9 @@ class App extends Templates {
 
     // -- Facade --
 
-    selectTraspaso(folio) {
+    // folio: resalta la fila (la tabla la identifica por su texto).
+    // id:    pk numerica para el fetch del detalle (getTraspaso espera el id, no el folio).
+    selectTraspaso(folio, id) {
         this.selectedId = folio;
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
         if (folio) {
@@ -239,8 +248,8 @@ class App extends Templates {
             });
             $row.addClass('row-active');
         }
-        if (folio) {
-            traspasos.getTraspaso(folio);
+        if (id) {
+            traspasos.getTraspaso(id);
         } else {
             traspasosView.renderDetail(null);
         }
@@ -313,10 +322,53 @@ class Traspasos extends Templates {
     async getTraspaso(id) {
         const r = await fn_ajax({ opc: 'getTraspaso', id: id }, api).catch(() => null);
         if (r && r.status === 200) {
-            traspasosView.renderDetail(Object.assign({}, r.header, { detail: r.detail, history: r.history }));
+            traspasosView.renderDetail(this.mapTraspasoDetail(r.header || {}, r.detail || [], r.history || []));
         } else {
             traspasosView.renderDetail(null);
         }
+    }
+
+    // Normaliza la respuesta del backend (columnas DB) al shape que espera traspasoDetailPanel.
+    // Analogo a mapMermaDetail: el panel se diseno contra sample_traspasos.js (estado, origen,
+    // destino, productos, timeline); sin esta traduccion t.estado llega undefined y deja los
+    // botones Confirmar/Rechazar siempre deshabilitados.
+    mapTraspasoDetail(h, detail, history) {
+        const toIso = (s) => s ? String(s).replace(' ', 'T') : '';
+
+        return {
+            id:         h.id,
+            folio:      h.folio,
+            estado:     h.status_name || '',
+            fechaIso:   toIso(h.date_request),
+            fechaEnvio: toIso(h.date_sent),
+            solicito:   h.requested_user_name  || '',
+            autoriza:   h.authorized_user_name || '',
+            nota:       h.note || '',
+            origen: {
+                id:     h.origin_subsidiaries_id != null ? String(h.origin_subsidiaries_id) : '',
+                nombre: h.origin_subsidiary_name || '-'
+            },
+            destino: {
+                id:     h.destination_subsidiaries_id != null ? String(h.destination_subsidiaries_id) : '',
+                nombre: h.destination_subsidiary_name || '-'
+            },
+            productos: (detail || []).map(d => ({
+                nombre:           d.product_name || '',
+                sku:              d.sku || '',
+                cant:             Number(d.quantity || 0),
+                costo:            Number(d.cost || 0),
+                icon:             'package',
+                bg:               'bg-gray-700/40',
+                color:            'text-gray-300',
+                stockOrigenPrev:  Number(d.origin_stock_prev      || 0),
+                stockDestinoPrev: Number(d.destination_stock_prev || 0)
+            })),
+            timeline: (history || []).map(x => ({
+                estado:   x.status_name || '',
+                usuario:  x.user_name   || '',
+                fechaIso: toIso(x.transitioned_at)
+            }))
+        };
     }
 
     // -- Actions --
@@ -407,8 +459,8 @@ class TraspasosView extends Templates {
                 this.renderDetail(null);
                 $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
             },
-            onConfirm: (t) => traspasos.confirmTraspaso(t && t.folio),
-            onReject:  (t) => traspasos.rejectTraspaso(t && t.folio)
+            onConfirm: (t) => traspasos.confirmTraspaso(t && t.id),
+            onReject:  (t) => traspasos.rejectTraspaso(t && t.id)
         });
     }
 
@@ -685,10 +737,12 @@ class TraspasosView extends Templates {
                 confirmar:  'Confirmar Recepcion'
             },
             estadoPalettes: {
-                'Pendiente':    { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24' },
-                'En Transito':  { bg: 'rgba(251,146,60,0.15)', fg: '#FB923C' },
-                'Recibido':     { bg: 'rgba(63,193,137,0.15)', fg: '#3FC189' },
-                'Rechazado':    { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' }
+                'Solicitado':   { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
+                'Pendiente':    { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
+                'Autorizado':   { bg: 'rgba(167,139,250,0.15)', fg: '#A78BFA' },
+                'En Transito':  { bg: 'rgba(251,146,60,0.15)',  fg: '#FB923C' },
+                'Recibido':     { bg: 'rgba(63,193,137,0.15)',  fg: '#3FC189' },
+                'Rechazado':    { bg: 'rgba(244,63,94,0.15)',   fg: '#F43F5E' }
             },
             sucPalettes: {
                 'kafeto':  { bg: 'bg-green-500/15',            color: 'text-green-400',     borderHex: 'rgba(63,193,137,0.35)',  bgHex: 'rgba(63,193,137,0.15)'  },
@@ -844,8 +898,10 @@ class TraspasosView extends Templates {
             `;
         }).join('') || '<p class="text-[10px] text-gray-500 italic">Sin historial</p>';
 
+        // Recepcion solo de lo que ya viaja: confirmar antes de "enviar" descuadraria el stock.
         const showConfirm = t.estado === 'En Transito';
-        const showReject  = t.estado === 'Pendiente' || t.estado === 'En Transito';
+        // Rechazo permitido en cualquier estado no terminal (Solicitado/Autorizado/En Transito).
+        const showReject  = t.estado === 'Solicitado' || t.estado === 'Autorizado' || t.estado === 'En Transito';
 
         aside.html(`
             <div class="px-4 py-3 border-b border-[var(--cs-border,#374151)] flex-shrink-0 flex items-center justify-between">

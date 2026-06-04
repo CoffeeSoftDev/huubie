@@ -6,144 +6,158 @@ class Navbar {
         this.initEvents();
     }
 
+    getInitials(name) {
+        if (!name) return "U";
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return name.trim().slice(0, 2).toUpperCase();
+    }
+
     render(options) {
         const defaults = {
-            logo: "https://upload.wikimedia.org/wikipedia/commons/5/59/User-avatar.svg",
-            imgPerfil: "https://images.ctfassets.net/xjcz23wx147q/iegram9XLv7h3GemB5vUR/0345811de2da23fafc79bd00b8e5f1c6/Max_Rehkopf_200x200.jpeg",
-            company: "N/A",
-            username: "",
-
-            parent: "body",
+            company:  "N/A",
+            user:     "Usuario",
+            rol:      "",
+            negocio:  "",
+            level:    0,
+            parent:   "body",
         };
 
         this.settings = Object.assign({}, defaults, options);
-        this.parent = $(this.settings.parent);
+        this.parent   = $(this.settings.parent);
+        level = this.settings.level;
+
+        const initials = this.getInitials(this.settings.user);
+        const isAdmin  = parseInt(this.settings.level, 10) === 1;
 
         const navbarHtml = `
-            <nav class="navbar-main border-bottom w-full px-4 py-3 h-16 flex items-center justify-between">
+            ${this.styles()}
+            <nav class="navbar-main border-bottom w-full px-4 py-2 h-16 flex items-center justify-between">
                 <div class="flex items-center space-x-2">
                     <button id="btn-mobile-menu" class="lg:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Menú">
-                        <i class="icon-menu text-xl"></i>
+                        <i data-lucide="menu" class="w-6 h-6"></i>
                     </button>
-                    <span class='navbar-title text-2xl font-bold'>${this.settings.company} </span>
-                </div>
-                <!-- <ul class="d-none md:flex flex-1 justify-end space-x-6">
-                    <li class="invisible"><a href="#" class="hover:text-gray-400">Inicio</a></li>
-                    <li class="invisible"><a href="#" class="hover:text-gray-400">Servicios</a></li>
-                    <li>
-                        <button id="btnAppsMenu" class=" p-2 rounded-full transition-all duration-200" title="Aplicaciones">
-                            <i class="icon-th-large-3 text-xl"></i>
-                        </button>
-                    </li>
-                </ul> -->
-                <button id="btnUserMenu" class="ml-2 flex items-center justify-center pl-2">
-                    <img src="${this.settings.imgPerfil}" alt="Usuario" class="w-10 h-10 rounded-full border-2 border-white" />
-                </button>
-            </nav>
-            <div class="relative mt-16 z-50 d-none">
-                <div id="appsMenuDropdown" class="absolute right-16 w-80 bg-white rounded-2xl shadow-2xl opacity-0 scale-95 invisible transition-all duration-200 ease-out p-6">
-                    <div class="grid grid-cols-3 gap-3">
-                        <a href="/dev/finanzas/" class="flex flex-col items-center p-1 hover:bg-gray-100 rounded-xl transition-all duration-200 group">
-                            <div class="w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mb-2 transition-transform">
-                                <i class="icon-dollar text-white text-2xl"></i>
-                            </div>
-                            <span class="text-sm text-gray-700 font-medium">Finanzas</span>
-                        </a>
-                        <a href="/dev/contabilidad/" class="flex flex-col items-center p-1 hover:bg-gray-100 rounded-xl transition-all duration-200 group">
-                            <div class="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mb-2 transition-transform">
-                                <i class="icon-calculator text-white text-2xl"></i>
-                            </div>
-                            <span class="text-sm text-gray-700 font-medium">Contabilidad</span>
-                        </a>
-                        <a href="/dev/operacion/" class="flex flex-col items-center p-1 hover:bg-gray-100 rounded-xl transition-all duration-200 group">
-                            <div class="w-14 h-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center mb-2 transition-transform">
-                                <i class="icon-cog text-white text-2xl"></i>
-                            </div>
-                            <span class="text-sm text-gray-700 font-medium">Operación</span>
-                        </a>
-                        <a href="/dev/almacen/" class="flex flex-col items-center p-1 hover:bg-gray-100 rounded-xl transition-all duration-200 group">
-                            <div class="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center mb-2 transition-transform">
-                                <i class="icon-box text-white text-2xl"></i>
-                            </div>
-                            <span class="text-sm text-gray-700 font-medium">Almacén</span>
-                        </a>
-                        <a href="/dev/tics/" class="flex flex-col items-center p-1 hover:bg-gray-100 rounded-xl transition-all duration-200 group">
-                            <div class="w-14 h-14 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center mb-2 transition-transform">
-                                <i class="icon-laptop text-white text-2xl"></i>
-                            </div>
-                            <span class="text-sm text-gray-700 font-medium">TICs</span>
-                        </a>
-                        <a href="/dev/reportes/" class="flex flex-col items-center p-1 hover:bg-gray-100 rounded-xl transition-all duration-200 group">
-                            <div class="w-14 h-14 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center mb-2 transition-transform">
-                                <i class="icon-chart-bar text-white text-2xl"></i>
-                            </div>
-                            <span class="text-sm text-gray-700 font-medium">Reportes</span>
-                        </a>
-                    </div>
-                </div>
-                <div id="userMenuDropdown" class="user-menu-dropdown absolute right-0 w-64 rounded-2xl shadow-lg opacity-0 scale-95 invisible transition-all duration-500 ease-out">
-                    
-                    <div class="relative flex flex-col items-center user-menu-header h-20 rounded-t-2xl">
-                        <button id="btnCloseUserMenu" class="btn btn-sm p-1 absolute top-2 right-3 text-gray-400 hover:text-white focus:outline-none">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    <div class="absolute -bottom-10">
-                            <img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg" />
-                        </div>
-                    </div>
-                    <div class="flex flex-col items-center pt-4 px-4 space-y-2">
-                        <p class=" font-semibold text-lg mt-3">${this.settings.username}</p>
-                    </div>
-                    <div class="w-full space-y-2 px-4 mt-2 mb-3">
-                        <button class="user-menu-btn w-full font-medium border shadow-sm px-3 py-2 rounded-lg cursor-pointer text-left" id="btn_perfil"><i class="icon-user"></i> Mi Perfil</button>
-                        <button class="user-menu-btn w-full font-medium border shadow-sm px-3 py-2 rounded-lg cursor-pointer text-left" id="btn_admin"><i class="icon-cog"></i> Configuración</button>
-                    </div>
-                    <div class="w-full px-4 mt-2 mb-3">
-                        <button id="btnLogout" class="w-full px-3 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-all duration-300">Cerrar sesión</button>
-                    </div>
+                    <span class='navbar-title text-xl font-bold'>${this.settings.negocio || this.settings.company}</span>
                 </div>
 
+                <div class="flex items-center gap-2">
+                    ${isAdmin ? `
+                    <button id="btnAdmin" class="nav-admin-btn hidden sm:flex items-center gap-1.5" title="Administración">
+                        <i data-lucide="shield" class="w-4 h-4"></i>
+                        <span class="text-sm font-medium">Admin</span>
+                    </button>` : ''}
+
+                    <button id="btnUserMenu" class="nav-user-pill flex items-center gap-2.5">
+                        <div class="nav-avatar">${initials}</div>
+                        <div class="hidden sm:flex flex-col items-start leading-tight">
+                            <span class="nav-user-name">${this.settings.user}</span>
+                            <span class="nav-user-rol">${this.settings.rol || 'Sin rol'}</span>
+                        </div>
+                        <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
+                    </button>
+                </div>
+            </nav>
+
+            <div class="relative z-50">
+                <div id="userMenuDropdown" class="nav-dropdown absolute right-3 mt-2 w-72 opacity-0 scale-95 invisible">
+                    <!-- Negocio -->
+                    <div class="px-4 pt-4 pb-3">
+                        <p class="nav-dd-label">Negocio</p>
+                        <div class="flex items-center gap-2.5 mt-1.5">
+                            <div class="nav-biz-icon"><i data-lucide="building-2" class="w-4 h-4"></i></div>
+                            <span class="nav-biz-name">${this.settings.negocio || '—'}</span>
+                        </div>
+                    </div>
+
+                    <div class="nav-divider"></div>
+
+                    <!-- Sesión activa -->
+                    <div class="px-3 py-3">
+                        <p class="nav-dd-label px-1 mb-2">Sesión iniciada</p>
+                        <div class="nav-account-card active">
+                            <div class="nav-acc-avatar">${initials}</div>
+                            <div class="flex-1 min-w-0">
+                                <p class="nav-acc-name">${this.settings.user}</p>
+                                <p class="nav-acc-rol">${this.settings.rol || 'Sin rol'}</p>
+                            </div>
+                            <i data-lucide="check" class="nav-check w-5 h-5"></i>
+                        </div>
+                    </div>
+
+                    <div class="nav-divider"></div>
+
+                    <!-- Acciones -->
+                    <div class="px-4 py-3">
+                        <button id="btnLogout" class="nav-logout-btn">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                            Cerrar sesión
+                        </button>
+                    </div>
+                </div>
             </div>
         `;
 
         this.parent.prepend(navbarHtml);
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    styles() {
+        if (document.getElementById('navbarUserStyles')) return '';
+        return `
+        <style id="navbarUserStyles">
+            .nav-admin-btn { background:#1C64F2; color:#fff; padding:6px 12px; border-radius:10px; transition:all .15s ease; }
+            .nav-admin-btn:hover { background:#1A56DB; }
+            .nav-user-pill { padding:4px 8px; border-radius:12px; transition:all .15s ease; }
+            .nav-user-pill:hover { background:rgba(124,58,237,.10); }
+            .nav-avatar { width:38px; height:38px; border-radius:9999px; background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; letter-spacing:.5px; box-shadow:0 4px 12px rgba(124,58,237,.35); }
+            .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+            .nav-user-rol  { font-size:11px; color:#6B7280; }
+            body.dark-mode .nav-user-name { color:#F9FAFB; }
+            .nav-chevron { color:#9CA3AF; transition:transform .2s ease; }
+            #btnUserMenu.open .nav-chevron { transform:rotate(180deg); }
+
+            .nav-dropdown { background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; box-shadow:0 12px 32px rgba(0,0,0,.12); transition:all .25s ease; transform-origin:top right; }
+            .nav-dd-label { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:#6B7280; font-weight:600; }
+            .nav-biz-icon { width:34px; height:34px; border-radius:10px; background:rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.20); display:flex; align-items:center; justify-content:center; color:#7C3AED; }
+            .nav-biz-name { font-size:15px; font-weight:700; color:#111827; }
+            .nav-divider { height:1px; background:#E5E7EB; }
+
+            .nav-account-card { display:flex; align-items:center; gap:12px; padding:10px; border-radius:12px; border:1px solid transparent; transition:all .15s ease; }
+            .nav-account-card.active { background:linear-gradient(135deg,rgba(124,58,237,.08) 0%,rgba(236,72,153,.05) 100%); border-color:rgba(168,85,247,.25); }
+            .nav-acc-avatar { width:40px; height:40px; border-radius:9999px; background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px; box-shadow:0 4px 12px rgba(124,58,237,.35); flex-shrink:0; }
+            .nav-acc-name { font-size:14px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .nav-acc-rol  { font-size:12px; color:#6B7280; }
+            .nav-check { color:#16A34A; flex-shrink:0; }
+
+            .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:9px; border:1px solid #ef4444; color:#ef4444; border-radius:12px; font-weight:600; font-size:14px; transition:all .15s ease; }
+            .nav-logout-btn:hover { background:#dc2626; color:#fff; }
+        </style>`;
     }
 
     initEvents() {
-        $("#btnUserMenu, #btnCloseUserMenu").on("click", () =>
-            this.toggleUserMenu(),
-        );
-        $("#btnAppsMenu").on("click", () => this.toggleAppsMenu());
+        $("#btnUserMenu").on("click", (e) => {
+            e.stopPropagation();
+            this.toggleUserMenu();
+        });
         $("#btnLogout").on("click", () => this.logout());
-        $("#toggleSidebar").on("click", () => this.toggleSidebar());
-        $("#btn_perfil").on("click", () => window.location.href = "/dev/perfil/");
-        $("#btn_admin").on("click", () => window.location.href = "/dev/admin/");
-        $("#btn_pqts").on("click", () => window.location.href = "/dev/catalogos/");
-        
+        $("#btnAdmin").on("click", () => window.location.href = "/inventory/admin/");
+
         $(document).on("click", (e) => {
-            if (!$(e.target).closest("#btnAppsMenu, #appsMenuDropdown").length) {
-                $("#appsMenuDropdown").addClass("opacity-0 scale-95 invisible");
-            }
             if (!$(e.target).closest("#btnUserMenu, #userMenuDropdown").length) {
-                $("#userMenuDropdown").addClass("opacity-0 scale-95 invisible");
+                this.closeUserMenu();
             }
         });
     }
 
     toggleUserMenu() {
-        $("#appsMenuDropdown").addClass("opacity-0 scale-95 invisible");
         $("#userMenuDropdown").toggleClass("opacity-0 scale-95 invisible");
+        $("#btnUserMenu").toggleClass("open");
     }
 
-    toggleAppsMenu() {
+    closeUserMenu() {
         $("#userMenuDropdown").addClass("opacity-0 scale-95 invisible");
-        $("#appsMenuDropdown").toggleClass("opacity-0 scale-95 invisible");
-    }
-
-    toggleSidebar() {
-        $("#sidebar").removeAttr("style").toggleClass("-translate-x-full");
+        $("#btnUserMenu").removeClass("open");
     }
 
     logout() {
@@ -157,11 +171,8 @@ class Navbar {
             customClass: {
                 popup: "rounded-lg shadow-lg",
                 title: "text-2xl font-semibold",
-                content: "",
-                confirmButton:
-                    "py-2 px-4 rounded",
-                cancelButton:
-                    "bg-secondary border border-gray-500 py-2 px-4 rounded hover:bg-[#555555]",
+                confirmButton: "py-2 px-4 rounded",
+                cancelButton: "bg-secondary border border-gray-500 py-2 px-4 rounded hover:bg-[#555555]",
             },
             background: "#ffff",
             allowOutsideClick: false,
@@ -174,27 +185,16 @@ class Navbar {
 
 $(async () => {
     const data = await useFetch({ url: "../../acceso/ctrl/ctrl-access.php", data: { opc: 'company' } });
-    
-
-    let navbar = new Navbar();
-
-    let user = '';
-    if (data['user']) {
-        user = data['user'];
-    } else {
-        user = 'Usuario';
-    }
 
     level = data.level;
 
-    const url ='/inventory/src/img/user/user.png';
-   console.log();
+    let navbar = new Navbar();
     navbar.init({
-        // logo: "",
-        imgPerfil: url,
-        company:data.udn,
-        // company: data['company'],
-        // username: user,
-        parent: "#menu-navbar",
+        user:    data.user    || 'Usuario',
+        rol:     data.rol     || '',
+        negocio: data.negocio || data.udn || '',
+        company: data.udn     || '',
+        level:   data.level   || 0,
+        parent:  "#menu-navbar",
     });
 });

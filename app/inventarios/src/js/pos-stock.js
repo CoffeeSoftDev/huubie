@@ -5,6 +5,12 @@ let turno, subsidiaries_id;
 
 window.updateSession = () => { };
 
+const NIVELES_STOCK = [
+    { id: '',        valor: 'Todos los niveles' },
+    { id: 'ok',      valor: 'Stock OK'          },
+    { id: 'bajo',    valor: 'Stock Bajo'         },
+    { id: 'agotado', valor: 'Agotado'            }
+];
 
 $(async () => {
     stockView = new StockView(api, 'root');
@@ -30,16 +36,16 @@ class App extends Templates {
         if (r && r.status === 200) {
             this.dataInit = {
                 subsidiaries_id: r.subsidiaries_id || '',
-                sucursales:      r.sucursales      || SAMPLE_STOCK_SUCURSALES,
-                categorias:      r.categorias      || SAMPLE_STOCK_CATEGORIAS,
-                niveles:         SAMPLE_STOCK_NIVELES
+                sucursales:      r.sucursales      || [],
+                categorias:      r.categorias      || [],
+                niveles:         NIVELES_STOCK
             };
         } else {
             this.dataInit = {
                 subsidiaries_id: '',
-                sucursales:      SAMPLE_STOCK_SUCURSALES,
-                categorias:      SAMPLE_STOCK_CATEGORIAS,
-                niveles:         SAMPLE_STOCK_NIVELES
+                sucursales:      [],
+                categorias:      [],
+                niveles:         NIVELES_STOCK
             };
         }
         this.subId      = this.dataInit.subsidiaries_id;
@@ -51,9 +57,20 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        stockView.renderHeader(SAMPLE_VIEW_HEADER_STOCK);
-        stockView.renderFooter(SAMPLE_VIEW_FOOTER_STOCK);
-        // stockView.renderTabs(this.PROJECT_NAME);
+        stockView.renderHeader({
+            title:    'Visor de Stock',
+            subtitle: 'Control de existencias por sucursal, categoria y nivel',
+            back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
+        });
+        stockView.renderFooter({
+            info: '',
+            legends: [
+                { tone: 'success', label: 'Stock OK'   },
+                { tone: 'warning', label: 'Stock Bajo' },
+                { tone: 'danger',  label: 'Agotado'    },
+                { tone: 'warning', label: 'Vida util'  }
+            ]
+        });
         stockView.renderDetail(null);
         this.populateFilters();
         stock.lsStock();
@@ -153,14 +170,6 @@ class App extends Templates {
     filterBar() {
 
         let filters = [
-            // {
-            //     opc:      'select',
-            //     id:       'subsidiaries_id',
-            //     lbl:      'Sucursal:',
-            //     class:    'col-12 col-md-3 col-lg-3',
-            //     onchange: 'app.onChangeSucursal()',
-            //     data:     []
-            // },
             {
                 opc:      'select',
                 id:       'fCategoria',
@@ -168,7 +177,7 @@ class App extends Templates {
                 class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
-                data:     SAMPLE_STOCK_CATEGORIAS
+                data:     this.dataInit.categorias
             },
             {
                 opc:      'select',
@@ -177,9 +186,8 @@ class App extends Templates {
                 class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
-                data:     SAMPLE_STOCK_NIVELES
-            },
-           
+                data:     NIVELES_STOCK
+            }
         ];
 
         this.createfilterBar({
@@ -222,27 +230,14 @@ class App extends Templates {
         stock.lsStock();
         await stock.lsKpis();
 
-        // Si el producto seleccionado se filtra fuera, cerrar panel
-        if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
+        if (this.selectedId) {
             this.selectProduct(null);
         }
     }
 
     onChangeSucursal() {
-        // El cambio de sucursal solo refresca el panel derecho (stock por sucursal)
-        // y los KPIs; la tabla principal mantiene su listado base.
         stock.lsKpis();
-        if (this.selectedId) stockView.renderDetail(SAMPLE_PRODUCTS_DB[this.selectedId]);
-    }
-
-    isVisibleAfterFilters(productId) {
-        const p   = SAMPLE_PRODUCTS_DB[productId];
-        if (!p) return false;
-        const f   = this.getFilters();
-        const cat = !f.categoria || p.categoria === f.categoria;
-        const niv = !f.nivel     || p.estado    === f.nivel;
-        const q   = !f.q         || (p.name + ' ' + p.sku).toLowerCase().includes(f.q.toLowerCase());
-        return cat && niv && q;
+        if (this.selectedId) stock.getProducto(this.selectedId);
     }
 
     updateFooterInfo(text) {
@@ -253,23 +248,19 @@ class App extends Templates {
 
     selectProduct(productId) {
         this.selectedId = productId;
-        // Resaltar fila activa
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
         if (productId) {
-            const $row = $(`#tb${this.PROJECT_NAME} tbody tr`).filter(function () {
-                return $(this).text().includes(SAMPLE_PRODUCTS_DB[productId].sku);
-            });
-            $row.addClass('row-active');
+            $(`#tb${this.PROJECT_NAME} tbody tr`).filter(function () {
+                return $(this).find(`[onclick*="selectProduct(${productId})"]`).length > 0;
+            }).addClass('row-active');
             this.openDetailDrawer();
+            stock.getProducto(productId);
         } else {
             this.closeDetailDrawer();
+            stockView.renderDetail(null);
         }
-        stockView.renderDetail(productId ? SAMPLE_PRODUCTS_DB[productId] : null);
     }
 
-    renderDetail(producto) {
-        stockView.renderDetail(producto);
-    }
 }
 
 
@@ -289,6 +280,7 @@ class Stock extends Templates {
         const r = await fn_ajax(Object.assign({ opc: 'lsStock' }, {
             subsidiaries_id: f.subsidiaries_id,
             category_id:     f.categoria,
+            nivel:           f.nivel,
             q:               f.q
         }), api).catch(() => null);
 
@@ -341,7 +333,7 @@ class Stock extends Templates {
         if (r && r.status === 200) {
             stockView.renderDetail(r.producto);
         } else {
-            stockView.renderDetail(SAMPLE_PRODUCTS_DB[id] || null);
+            stockView.renderDetail(null);
         }
     }
 
@@ -366,12 +358,17 @@ class StockView extends Templates {
     // -- Render helpers --
 
     renderDetail(producto) {
+        const sucursalesReales = (app && app.dataInit && app.dataInit.sucursales || [])
+            .filter(s => s.id !== '')
+            .map(s => ({ id: String(s.id), name: s.valor }));
+
         this.productDetailPanel({
-            parent:  'detailPanel',
-            json:    producto,
-            sucursalId:   $('#subsidiaries_id').val() || '',
+            parent:      'detailPanel',
+            json:        producto,
+            sucursalId:  $('#subsidiaries_id').val() || '',
             sucursalName: $('#subsidiaries_id option:selected').text() || 'Todas las sucursales',
-            onClose: () => app.selectProduct(null)
+            sucursales:  sucursalesReales.length ? sucursalesReales : undefined,
+            onClose:     () => app.selectProduct(null)
         });
     }
 

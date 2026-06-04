@@ -5,10 +5,15 @@ $(() => {
     formulario();
     
     $('#form_login').validation_form({opc:"login"},(datos)=>{
+        hideLoginError();
         send_ajax(datos,link).then(data=>storage(data));
     });
 
     $('#btnEye').on("click",()=>mostrar_key());
+
+    $('#usuario, #clave').on("input", ()=>hideLoginError());
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 });
 
 function storage(data) {
@@ -23,8 +28,19 @@ function storage(data) {
         // window.location.href = HREF.origin + "/" + ERP + "/"+data.ruta;
         window.location.href = HREF.origin + "/" + ERP + "/operacion/almacen/";
     } else {
-        alert({icon:'error',title:'Usuario y/o clave incorrectos.',btn1:true});
+        showLoginError('Usuario y/o clave incorrectos.');
     }
+}
+
+function showLoginError(message) {
+    $('#login-error-text').text(message);
+    $('#login-error').addClass('show');
+    $('#usuario, #clave').addClass('is-invalid');
+}
+
+function hideLoginError() {
+    $('#login-error').removeClass('show');
+    $('#usuario, #clave').removeClass('is-invalid');
 }
 
 
@@ -62,15 +78,17 @@ function formulario() {
 }
 
 function mostrar_key(){
-        const KEY = $('#clave');
+        const KEY  = $('#clave');
+        const ICON = $('#btnEye');
         if (KEY.attr("type") === "text") {
             KEY.attr("type", "password");
             KEY.attr("placeholder", "••••••••••");
-            $(this).html('<i class="icon-eye"></i>');
+            ICON.html('<i data-lucide="eye"></i>');
         } else {
             KEY.attr("type", "text");
             KEY.attr("placeholder", "Contraseña");
-            $(this).html('<i class="icon-eye-off"></i>');
+            ICON.html('<i data-lucide="eye-off"></i>');
         }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 

@@ -5,5 +5,17 @@
             "badge": "-"
         }
     ],
-    "chatgpt.openOnStartup": false
+    "chatgpt.openOnStartup": false,
+  
+  "workbench.colorTheme": "GitHub Light Monochrome",
+  // "editor.fontFamily": "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
+  "editor.fontSize": 14,
+  "editor.lineHeight": 1.6,
+  "editor.fontWeight": "400",
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "workbench.tree.indent": 20,
+  "workbench.tree.renderIndentGuides": "always"
+
 }
+

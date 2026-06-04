@@ -100,6 +100,29 @@ body {
     margin-bottom: 40px;
 }
 
+.login-error {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background-color: #FDECEA;
+    color: #B42318;
+    border: 1px solid #F3C0BD;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.4;
+    margin-bottom: 24px;
+}
+
+.login-error.show {
+    display: flex;
+}
+
+.login-error-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
 .form-group {
     margin-bottom: 24px;
 }
@@ -143,6 +166,17 @@ body {
     outline: none;
     border-color: #6B4423;
     box-shadow: 0 0 0 3px rgba(107, 68, 35, 0.1);
+}
+
+.form-control.is-invalid {
+    border-color: #D92D20;
+    background-image: none;
+    padding-right: 16px;
+}
+
+.form-control.is-invalid:focus {
+    border-color: #D92D20;
+    box-shadow: 0 0 0 3px rgba(217, 45, 32, 0.12);
 }
 
 .password-wrapper {

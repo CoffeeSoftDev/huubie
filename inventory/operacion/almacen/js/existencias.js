@@ -259,6 +259,8 @@ class Existencias extends Templates {
             this.createModalForm({
                 id: "formSolicitud",
                 data: { opc: "addSolicitud", id_producto: id },
+                theme:'light',
+                coffeesoft:true,
                 bootbox: { title: "Solicitar Producto", closeButton: true },
                 json: [
                     { opc: "label", text: `Producto: ${request.data.Equipo}`, class: "col-12 mb-2 fw-bold" },

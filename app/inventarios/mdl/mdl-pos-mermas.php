@@ -202,6 +202,7 @@ class mdl extends CRUD {
                 m.*,
                 sr.name AS reason_name,
                 sr.color_hex AS reason_color,
+                sr.icon AS reason_icon,
                 w.name  AS warehouse_name,
                 s.name  AS subsidiary_name,
                 u.fullname AS user_name

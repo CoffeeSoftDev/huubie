@@ -326,6 +326,8 @@ class Productos extends Templates {
         this.createModalForm({
             id: 'formMaterialAdd',
             data: { opc: 'addMaterial' },
+            theme:'light',
+            coffeesoft:true,
             bootbox: {
                 title: 'Nuevo Material',
                 closeButton: true
@@ -362,6 +364,8 @@ class Productos extends Templates {
             this.createModalForm({
                 id: 'formMaterialEdit',
                 data: { opc: 'editMaterial', id: id },
+                theme:'light',
+                coffeesoft:true,
                 bootbox: {
                     title: 'Editar Material',
                     closeButton: true

@@ -40,7 +40,7 @@ class MAccess extends CRUD {
 
     function getUserById($array) {
         $query = "
-            SELECT 
+            SELECT
                 id,
                 user,
                 fullname,
@@ -50,7 +50,27 @@ class MAccess extends CRUD {
             FROM users
             WHERE id = ?
         ";
-        
+
+        $result = $this->_Read($query, $array);
+        return !empty($result) ? $result[0] : null;
+    }
+
+    function getSessionUser($array) {
+        $query = "
+            SELECT
+                u.idUser   AS id,
+                u.usser    AS user,
+                u.usr_photo AS photo,
+                u.usr_perfil AS level,
+                pf.perfil  AS rol,
+                udn.UDN    AS negocio
+            FROM {$this->bd}usuarios u
+            INNER JOIN {$this->bd}perfiles pf ON pf.idPerfil = u.usr_perfil
+            INNER JOIN {$this->bd}udn ON udn.idUDN = u.usr_udn
+            WHERE u.idUser = ?
+            LIMIT 1
+        ";
+
         $result = $this->_Read($query, $array);
         return !empty($result) ? $result[0] : null;
     }

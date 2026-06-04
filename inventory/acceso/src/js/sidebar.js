@@ -7,6 +7,7 @@ class Sidebar {
         this.highlightCurrentRoute();
         this.loadDarkMode();
         this.handleResize();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     injectStyles() {
@@ -50,9 +51,9 @@ class Sidebar {
             parent: "#menu-sidebar",
             logo: "../../src/img/logos/coffee_icon.png",
             menuItems: [
-                { icon: "icon-home", url: "/inventory/operacion/almacen/", title: "Inicio" },
-                { icon: "icon-contacts ", url: "/inventory/operacion/almacen/reporte.php", title: "Reportes" },
-                { icon: "icon-gauge", url: "/inventory/finanzas/administrador/", title: "Dashboard" },
+                { icon: "house", url: "/inventory/operacion/almacen/", title: "Inicio" },
+                { icon: "contact", url: "/inventory/operacion/almacen/reporte.php", title: "Reportes" },
+                { icon: "gauge", url: "/inventory/finanzas/administrador/", title: "Dashboard" },
             ],
         };
 
@@ -67,10 +68,10 @@ class Sidebar {
             ${this.createMenuItems(this.settings.menuItems)}
             <div class="flex-1"></div>
             <button class="w-12 h-12 hover:bg-[#4A3733] rounded-xl flex items-center justify-center transition" data-action="logout" title="Cerrar sesión">
-                <i class="icon-logout text-gray-400 hover:text-white text-xl"></i>
+                <i data-lucide="log-out" class="text-gray-400 hover:text-white w-6 h-6"></i>
             </button>
             <button class="w-12 h-12 bg-[#4A3733] hover:bg-gray-600 rounded-xl flex items-center justify-center transition" data-action="toggle" title="Modo oscuro">
-                <i class="icon-toggle-on text-white text-xl"></i>
+                <i data-lucide="toggle-right" class="text-white w-6 h-6"></i>
             </button>
         `;
 
@@ -116,7 +117,7 @@ class Sidebar {
                 
                 return `
                     <button class="w-12 h-12 ${activeClass} hover:bg-[#4A3733] rounded-xl flex items-center justify-center transition" ${dataAttr} title="${title}">
-                        <i class="${item.icon} ${item.active ? 'text-white' : 'text-gray-400 hover:text-white'} text-xl"></i>
+                        <i data-lucide="${item.icon}" class="${item.active ? 'text-white' : 'text-gray-400 hover:text-white'} w-6 h-6"></i>
                     </button>
                 `;
             })
@@ -168,28 +169,24 @@ class Sidebar {
         const body = $("body");
         const isDark = body.hasClass("dark-mode");
         
+        const toggleBtn = this.parent.find("button[data-action='toggle']");
         if (isDark) {
             body.removeClass("dark-mode");
             localStorage.setItem("darkMode", "false");
-            this.parent.find("button[data-action='toggle'] i")
-                .removeClass("icon-toggle-on")
-                .addClass("icon-toggle-off");
+            toggleBtn.html('<i data-lucide="toggle-left" class="text-white w-6 h-6"></i>');
         } else {
             body.addClass("dark-mode");
             localStorage.setItem("darkMode", "true");
-            this.parent.find("button[data-action='toggle'] i")
-                .removeClass("icon-toggle-off")
-                .addClass("icon-toggle-on");
+            toggleBtn.html('<i data-lucide="toggle-right" class="text-white w-6 h-6"></i>');
         }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     loadDarkMode() {
         const darkMode = localStorage.getItem("darkMode");
         if (darkMode === "true") {
             $("body").addClass("dark-mode");
-            this.parent.find("button[data-action='toggle'] i")
-                .removeClass("icon-toggle-off")
-                .addClass("icon-toggle-on");
+            this.parent.find("button[data-action='toggle'] i").attr("data-lucide", "toggle-right");
         }
     }
 

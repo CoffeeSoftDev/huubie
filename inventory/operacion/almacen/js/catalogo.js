@@ -121,6 +121,8 @@ class Category extends Templates {
         this.createModalForm({
             id: "formCategoryAdd",
             data: { opc: "addCategory" },
+            theme:'light',
+            coffeesoft:true,
             bootbox: {
                 title: "Agregar Categoría",
                 size:'small',
@@ -160,6 +162,8 @@ class Category extends Templates {
             this.createModalForm({
                 id: "formCategoryEdit",
                 data: { opc: "editCategory", id: id },
+                theme:'light',
+                coffeesoft:true,
                 bootbox: {
                     title: "Editar Categoría",
                     size: 'small',
@@ -299,6 +303,8 @@ class Area extends Templates {
         this.createModalForm({
             id: "formAreaAdd",
             data: { opc: "addArea" },
+            theme:'light',
+            coffeesoft:true,
             bootbox: {
                 title: "Agregar Área",
                 size: 'small',
@@ -339,6 +345,8 @@ class Area extends Templates {
             this.createModalForm({
                 id: "formAreaEdit",
                 data: { opc: "editArea", id: id },
+                theme:'light',
+                coffeesoft:true,
                 bootbox: {
                     title: "Editar Área",
                     size: 'small',
@@ -474,6 +482,8 @@ class Zone extends Templates {
         this.createModalForm({
             id: "formZoneAdd",
             data: { opc: "addZone" },
+            theme:'light',
+            coffeesoft:true,
             bootbox: {
                 title: "Agregar departamento",
                 size:'small',
@@ -513,6 +523,8 @@ class Zone extends Templates {
             this.createModalForm({
                 id: "formZoneEdit",
                 data: { opc: "editZone", id: id },
+                theme:'light',
+                coffeesoft:true,
                 bootbox: {
                     title: "Editar Zona",
                     size: 'small',
@@ -649,6 +661,8 @@ class Negocio extends Templates {
         this.createModalForm({
             id: "formNegocioAdd",
             data: { opc: "addZone" },
+            theme:'light',
+            coffeesoft:true,
             bootbox: {
                 title: "Agregar Negocio",
                 closeButton: true
@@ -687,6 +701,8 @@ class Negocio extends Templates {
             this.createModalForm({
                 id: "formNegocioEdit",
                 data: { opc: "editZone", id: id },
+                theme:'light',
+                coffeesoft:true,
                 bootbox: {
                     title: "Editar Negocio",
                     closeButton: true
