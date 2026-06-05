@@ -1,7 +1,7 @@
 -- =====================================================================
 -- DDL — Módulo Inventory / Almacén (insumos)  ·  espejo reginas
 -- Identidad (tenant) en fayxzvov_erp · módulo en fayxzvov_inventory
--- MySQL 8.0 · InnoDB · utf8mb4_0900_ai_ci
+-- MySQL 8.0 · InnoDB · latin1_swedish_ci
 -- Generado desde diagramas-er-inventory.md
 -- =====================================================================
 
@@ -23,7 +23,7 @@ CREATE TABLE `companies` (
   PRIMARY KEY (`id`),
   KEY `idx_companies_udn` (`udn_id`),
   CONSTRAINT `fk_companies_udn` FOREIGN KEY (`udn_id`) REFERENCES `udn` (`idUDN`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 CREATE TABLE `subsidiaries` (
   `id`           INT NOT NULL AUTO_INCREMENT,
@@ -37,7 +37,7 @@ CREATE TABLE `subsidiaries` (
   PRIMARY KEY (`id`),
   KEY `idx_subsidiaries_company` (`companies_id`),
   CONSTRAINT `fk_subsidiaries_company` FOREIGN KEY (`companies_id`) REFERENCES `companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 CREATE TABLE `users` (
   `id`              INT NOT NULL AUTO_INCREMENT,
@@ -65,13 +65,13 @@ CREATE TABLE `users` (
   CONSTRAINT `fk_users_subsidiary` FOREIGN KEY (`subsidiaries_id`) REFERENCES `subsidiaries` (`id`),
   CONSTRAINT `fk_users_role`       FOREIGN KEY (`role_id`)         REFERENCES `perfiles` (`idPerfil`),
   CONSTRAINT `fk_users_legacy`     FOREIGN KEY (`legacy_user_id`)  REFERENCES `usuarios` (`idUser`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- ───────────────────────────────────────────────
 -- 2) MÓDULO  (en fayxzvov_inventory)
 -- ───────────────────────────────────────────────
 CREATE DATABASE IF NOT EXISTS `fayxzvov_inventory`
-  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+  DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci;
 USE `fayxzvov_inventory`;
 
 -- ── Catálogos por empresa ──
@@ -84,7 +84,7 @@ CREATE TABLE `item_category` (
   PRIMARY KEY (`id`),
   KEY `idx_item_category_company` (`companies_id`),
   CONSTRAINT `fk_item_category_company` FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 CREATE TABLE `unit` (
   `id`           INT NOT NULL AUTO_INCREMENT,
@@ -96,7 +96,7 @@ CREATE TABLE `unit` (
   PRIMARY KEY (`id`),
   KEY `idx_unit_company` (`companies_id`),
   CONSTRAINT `fk_unit_company` FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 CREATE TABLE `warehouse_area` (
   `id`           INT NOT NULL AUTO_INCREMENT,
@@ -109,7 +109,7 @@ CREATE TABLE `warehouse_area` (
   PRIMARY KEY (`id`),
   KEY `idx_warehouse_area_company` (`companies_id`),
   CONSTRAINT `fk_warehouse_area_company` FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- ── Sub-catálogos globales ──
 CREATE TABLE `inflow_origin` (
@@ -121,7 +121,7 @@ CREATE TABLE `inflow_origin` (
   `requires_supplier` TINYINT NOT NULL DEFAULT 0,
   `active`            TINYINT NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 CREATE TABLE `shrinkage_reason` (
   `id`        INT NOT NULL AUTO_INCREMENT,
@@ -131,7 +131,7 @@ CREATE TABLE `shrinkage_reason` (
   `color_hex` VARCHAR(9)   NULL,
   `active`    TINYINT NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- ── Maestros ──
 CREATE TABLE `supplier` (
@@ -146,7 +146,7 @@ CREATE TABLE `supplier` (
   PRIMARY KEY (`id`),
   KEY `idx_supplier_company` (`companies_id`),
   CONSTRAINT `fk_supplier_company` FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 CREATE TABLE `warehouse` (
   `id`                INT NOT NULL AUTO_INCREMENT,
@@ -164,7 +164,7 @@ CREATE TABLE `warehouse` (
   CONSTRAINT `fk_warehouse_area`       FOREIGN KEY (`warehouse_area_id`) REFERENCES `warehouse_area` (`id`),
   CONSTRAINT `fk_warehouse_subsidiary` FOREIGN KEY (`subsidiaries_id`)   REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
   CONSTRAINT `fk_warehouse_company`    FOREIGN KEY (`companies_id`)      REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- ── Insumo (item) ──
 CREATE TABLE `item` (
@@ -184,7 +184,7 @@ CREATE TABLE `item` (
   CONSTRAINT `fk_item_category`   FOREIGN KEY (`category_id`)     REFERENCES `item_category` (`id`),
   CONSTRAINT `fk_item_subsidiary` FOREIGN KEY (`subsidiaries_id`) REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
   CONSTRAINT `fk_item_company`    FOREIGN KEY (`companies_id`)    REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 CREATE TABLE `item_attribute` (
   `id`                INT NOT NULL AUTO_INCREMENT,
@@ -209,7 +209,7 @@ CREATE TABLE `item_attribute` (
   CONSTRAINT `fk_item_attr_unit`    FOREIGN KEY (`unit_id`)           REFERENCES `unit` (`id`),
   CONSTRAINT `fk_item_attr_item`    FOREIGN KEY (`item_id`)           REFERENCES `item` (`id`),
   CONSTRAINT `fk_item_attr_company` FOREIGN KEY (`companies_id`)      REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- ── Existencias ──
 CREATE TABLE `stock` (
@@ -230,7 +230,7 @@ CREATE TABLE `stock` (
   CONSTRAINT `fk_stock_warehouse` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouse` (`id`),
   CONSTRAINT `fk_stock_item`      FOREIGN KEY (`item_id`)      REFERENCES `item` (`id`),
   CONSTRAINT `fk_stock_company`   FOREIGN KEY (`companies_id`) REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- ── Entradas ──
 CREATE TABLE `inventory_inflow` (
@@ -268,7 +268,7 @@ CREATE TABLE `inventory_inflow` (
   CONSTRAINT `fk_inflow_cuser`      FOREIGN KEY (`confirmed_user_id`) REFERENCES `fayxzvov_erp`.`users` (`id`),
   CONSTRAINT `fk_inflow_subsidiary` FOREIGN KEY (`subsidiaries_id`)   REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
   CONSTRAINT `fk_inflow_company`    FOREIGN KEY (`companies_id`)      REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 CREATE TABLE `detail_inventory_inflow` (
   `id`                  INT NOT NULL AUTO_INCREMENT,
@@ -292,7 +292,7 @@ CREATE TABLE `detail_inventory_inflow` (
   CONSTRAINT `fk_dinflow_item`   FOREIGN KEY (`item_id`)             REFERENCES `item` (`id`),
   CONSTRAINT `fk_dinflow_header` FOREIGN KEY (`inventory_inflow_id`) REFERENCES `inventory_inflow` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_dinflow_unit`   FOREIGN KEY (`unit_id`)             REFERENCES `unit` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- ── Salidas ──
 CREATE TABLE `inventory_shrinkage` (
@@ -323,7 +323,7 @@ CREATE TABLE `inventory_shrinkage` (
   CONSTRAINT `fk_shrink_user`       FOREIGN KEY (`user_id`)             REFERENCES `fayxzvov_erp`.`users` (`id`),
   CONSTRAINT `fk_shrink_subsidiary` FOREIGN KEY (`subsidiaries_id`)     REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
   CONSTRAINT `fk_shrink_company`    FOREIGN KEY (`companies_id`)        REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 CREATE TABLE `detail_inventory_shrinkage` (
   `id`                     INT NOT NULL AUTO_INCREMENT,
@@ -341,7 +341,7 @@ CREATE TABLE `detail_inventory_shrinkage` (
   KEY `idx_dshrink_header` (`inventory_shrinkage_id`),
   CONSTRAINT `fk_dshrink_item`   FOREIGN KEY (`item_id`)                REFERENCES `item` (`id`),
   CONSTRAINT `fk_dshrink_header` FOREIGN KEY (`inventory_shrinkage_id`) REFERENCES `inventory_shrinkage` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- ── Kardex (lectura) ──
 CREATE TABLE `inventory_movement` (
@@ -373,4 +373,4 @@ CREATE TABLE `inventory_movement` (
   CONSTRAINT `fk_mov_user`       FOREIGN KEY (`user_id`)         REFERENCES `fayxzvov_erp`.`users` (`id`),
   CONSTRAINT `fk_mov_subsidiary` FOREIGN KEY (`subsidiaries_id`) REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
   CONSTRAINT `fk_mov_company`    FOREIGN KEY (`companies_id`)    REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
