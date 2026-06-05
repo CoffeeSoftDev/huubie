@@ -1381,7 +1381,7 @@ class Components extends Complements {
                 title: "text-2xl font-semibold",
                 content: "text-gray-300",
                 confirmButton:
-                    "bg-[#1C64F2] hover:bg-[#0E9E6E] text-white py-2 px-4 rounded",
+                    "bg-[#C05A40] hover:bg-[#A84A33] text-white py-2 px-4 rounded",
                 cancelButton:
                     "bg-[#111928] text-white border border-gray-500 py-2 px-4 rounded hover:bg-[#111928]",
             },
@@ -2137,7 +2137,7 @@ class Components extends Complements {
 
         // Clases por tema con los hex EXACTOS de la paleta Huubie (PALETTE.md):
         // card #1F2A37, border #374151, input #1a2332, alt #283341, text-secondary #9CA3AF,
-        // primary #1C64F2 / hover #1a53d4.
+        // primary #C05A40 / hover #A84A33.
         const C = dark ? {
             panel:  'bg-[#1F2A37]',
             title:  'text-white',
@@ -2149,7 +2149,7 @@ class Components extends Complements {
             close:  'text-gray-400 hover:text-gray-600',
             cancel: 'bg-gray-100 text-gray-800 hover:bg-gray-200'
         };
-        const okCls = 'bg-[#1C64F2] text-white hover:bg-[#1a53d4]';
+        const okCls = 'bg-[#C05A40] text-white hover:bg-[#A84A33]';
 
         const overlay = $('<div>', {
             class: 'cf-modal fixed inset-0 z-[1090] flex items-start justify-center overflow-y-auto p-4 bg-black/50 opacity-0 transition-opacity duration-150 ease-out'
@@ -2938,7 +2938,7 @@ class Components extends Complements {
             defaults.class = "w-full table-auto text-sm text-gray-300";
             defaults.border_table = "";
             defaults.border_row = "border-t border-gray-700";
-            defaults.color_row_alt = "bg-[#2D3748]";
+            defaults.color_row_alt = "bg-[#1F2A37]";
         }
         else if (options.theme === 'corporativo') {
             defaults.color_th = "bg-[#003360] text-white";
@@ -3257,7 +3257,7 @@ class Components extends Complements {
             defaults.class = "w-full text-sm text-gray-300";
             defaults.border_table = "";
             defaults.border_row = "border-t border-gray-700";
-            defaults.color_row_alt = "bg-[#2D3748]";
+            defaults.color_row_alt = "bg-[#1F2A37]";
         }
 
         const opts = Object.assign({}, defaults, options);
@@ -3835,7 +3835,7 @@ class Components extends Complements {
             defaults.class = "w-full table-auto text-sm text-gray-300";
             defaults.border_table = "";
             defaults.border_row = "border-t border-gray-700";
-            defaults.color_row_alt = "bg-[#2D3748]";
+            defaults.color_row_alt = "bg-[#1F2A37]";
         }
 
         if (options.theme === 'slate') {
@@ -4542,7 +4542,7 @@ class Components extends Complements {
             type: "large", // 'short' | 'large' | 'button'
             theme: "light", // 'dark' | 'light'
             class: "",
-            showBorder: true,
+            showBorder: false,
             tab: {
                 size: 'px-3 py-1',
             },
@@ -4712,7 +4712,7 @@ class Components extends Complements {
             });
 
             opts.json.forEach(tab => {
-                const borderClass = opts.showBorder ? 'border p-3' : '';
+                const borderClass = opts.showBorder ? 'border p-3' : 'py-2 px-3';
                 const contentView = $("<div>", {
                     id: `container-${tab.id}`,
                     class: `hidden  ${borderClass} ${tab.class ?? ''} rounded-lg`,

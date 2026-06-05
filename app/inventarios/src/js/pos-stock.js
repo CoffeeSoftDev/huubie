@@ -843,26 +843,26 @@ class StockView extends Templates {
 
             <div class="flex-1 overflow-y-auto cs-scroll px-4 py-3 space-y-3">
                 <!-- CARD producto + stock/min/max -->
-                <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-3 border border-[var(--cs-border,#374151)]">
+                <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-2 border border-[var(--cs-border,#374151)]">
                     <div class="flex items-center gap-2">
-                        <div class="w-10 h-10 rounded-lg ${p.iconBg} flex items-center justify-center ${p.iconText}">
-                            <i data-lucide="cake" class="w-5 h-5"></i>
+                        <div class="w-8 h-8 rounded-md ${p.iconBg} flex items-center justify-center ${p.iconText} flex-shrink-0">
+                            <i data-lucide="cake" class="w-4 h-4"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-xs font-bold text-white truncate">${esc(p.name)}</p>
-                            <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)]">SKU: ${esc(p.sku)} · ${esc(p.categoria)}</p>
+                            <p class="text-xs font-bold text-white truncate leading-tight">${esc(p.name)}</p>
+                            <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] truncate">SKU: ${esc(p.sku)} · ${esc(p.categoria)}</p>
                         </div>
                     </div>
-                    <div class="grid grid-cols-3 gap-2 mt-3 pt-2 border-t border-[var(--cs-border,#374151)]">
-                        <div class="text-center">
+                    <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-[var(--cs-border,#374151)]">
+                        <div class="text-center leading-tight">
                             <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] uppercase">${esc(opts.labels.stock)}</p>
                             <p class="text-sm font-bold ${status.stockColor}">${stockVal}</p>
                         </div>
-                        <div class="text-center">
+                        <div class="text-center leading-tight">
                             <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] uppercase">${esc(opts.labels.min)}</p>
                             <p class="text-sm font-bold text-white">${p.min}</p>
                         </div>
-                        <div class="text-center">
+                        <div class="text-center leading-tight">
                             <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] uppercase">${esc(opts.labels.max)}</p>
                             <p class="text-sm font-bold text-white">${p.max}</p>
                         </div>

@@ -118,7 +118,7 @@ class Navbar {
             /* ── Navbar estilo Visor — acento terracota #C05A40 ── */
             .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(192,90,64,.22) !important; }
 
-            .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%); display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 4px 12px rgba(124,58,237,.35); flex-shrink:0; }
+            .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#C05A40 0%,#E8A68F 100%); display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 4px 12px rgba(192,90,64,.35); flex-shrink:0; }
             .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
             .navbar-subtitle { font-size:10px; color:#9CA3AF; letter-spacing:.12em; text-transform:uppercase; }
 
@@ -151,8 +151,8 @@ class Navbar {
             .nav-acc-rol  { font-size:12px; color:#6B7280; }
             .nav-check { color:#C05A40; flex-shrink:0; }
 
-            .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:9px; border:1px solid #ef4444; color:#ef4444; border-radius:12px; font-weight:600; font-size:14px; transition:all .15s ease; }
-            .nav-logout-btn:hover { background:#dc2626; color:#fff; }
+            .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:9px; border:1px solid #9D3434; color:#9D3434; border-radius:12px; font-weight:600; font-size:14px; transition:all .15s ease; }
+            .nav-logout-btn:hover { background:#832B2B; color:#fff; }
 
             /* ── Soporte dark-mode (toggle del sidebar) ── */
             body.dark-mode .navbar-title,

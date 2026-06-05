@@ -16,9 +16,9 @@
     --vsr-text-mute2: #9CA3AF;
     --vsr-border: #E5E7EB;
     --vsr-border-input: #E5E7EB;
-    --vsr-accent: #C05A40;
-    --vsr-accent-soft: #A84A33;
-    --vsr-accent-tint: rgba(192, 90, 64, 0.10);
+    --vsr-accent: #1C64F2;
+    --vsr-accent-soft: #1A56DB;
+    --vsr-accent-tint: rgba(28, 100, 242, 0.10);
     --vsr-danger: #B42318;
     --vsr-danger-bg: #FDECEA;
     --vsr-danger-border: #F3C0BD;
@@ -61,8 +61,8 @@
     z-index: 0;
 }
 
-.blob-1 { width: 380px; height: 380px; background: #C05A40; top: -80px; left: -80px; animation-delay: 0s; }
-.blob-2 { width: 320px; height: 320px; background: #E8A68F; bottom: -60px; right: -60px; animation-delay: 2s; opacity: 0.18; }
+.blob-1 { width: 380px; height: 380px; background: #1C64F2; top: -80px; left: -80px; animation-delay: 0s; }
+.blob-2 { width: 320px; height: 320px; background: #3F83F8; bottom: -60px; right: -60px; animation-delay: 2s; opacity: 0.18; }
 .blob-3 { width: 260px; height: 260px; background: #8FA3B7; top: 40%; left: 40%; animation-delay: 4s; opacity: 0.12; }
 
 /* ---------- Card wrapper ---------- */
@@ -99,7 +99,7 @@
     filter: blur(28px);
     opacity: 0.4;
     transform: scale(1.5);
-    background: radial-gradient(circle, #C05A40 0%, transparent 70%);
+    background: radial-gradient(circle, #1C64F2 0%, transparent 70%);
 }
 
 @keyframes rise {
@@ -136,7 +136,7 @@
 }
 
 .text-gradient {
-    background: linear-gradient(135deg, #C05A40 0%, #E8A68F 100%);
+    background: linear-gradient(135deg, #1C64F2 0%, #3F83F8 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -237,7 +237,7 @@
 
 /* ---------- Submit button ---------- */
 .btn-glow {
-    background: linear-gradient(135deg, #C05A40 0%, #E8A68F 100%);
+    background: linear-gradient(135deg, #1C64F2 0%, #3F83F8 100%);
     color: #fff;
     border: none;
     border-radius: 10px;
@@ -248,13 +248,13 @@
     width: 100%;
     margin-top: 0.25rem;
     transition: all .2s ease;
-    box-shadow: 0 4px 20px rgba(192, 90, 64, 0.35);
+    box-shadow: 0 4px 20px rgba(28, 100, 242, 0.35);
     position: relative;
     overflow: hidden;
 }
 
 .btn-glow:hover {
-    box-shadow: 0 6px 28px rgba(192, 90, 64, 0.50);
+    box-shadow: 0 6px 28px rgba(28, 100, 242, 0.50);
     transform: translateY(-1px);
 }
 

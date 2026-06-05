@@ -3,20 +3,20 @@
        NUEVA PALETA DE COLORES - ERP SYSTEM
        ======================================== */
     
-    /* PRIMARY BLUE - #2563EB (bg-blue-600) */
-    --primary: #2563EB;
-    --primary9: rgba(37, 99, 235, 0.9);
-    --primary8: rgba(37, 99, 235, 0.8);
-    --primary7: rgba(37, 99, 235, 0.7);
-    --primary6: rgba(37, 99, 235, 0.6);
-    --primary5: rgba(37, 99, 235, 0.5);
-    --primary4: rgba(37, 99, 235, 0.4);
-    --primary3: rgba(37, 99, 235, 0.3);
-    --primary2: rgba(37, 99, 235, 0.2);
-    --primary1: rgba(37, 99, 235, 0.1);
-    --primary-hover: #1d4ed8;
-    --primary-light: #3b82f6;
-    --primary-dark: #1e40af;
+    /* PRIMARY TERRACOTA - #C05A40 (paleta "Arcilla Invernal" — visor) */
+    --primary: #C05A40;
+    --primary9: rgba(192, 90, 64, 0.9);
+    --primary8: rgba(192, 90, 64, 0.8);
+    --primary7: rgba(192, 90, 64, 0.7);
+    --primary6: rgba(192, 90, 64, 0.6);
+    --primary5: rgba(192, 90, 64, 0.5);
+    --primary4: rgba(192, 90, 64, 0.4);
+    --primary3: rgba(192, 90, 64, 0.3);
+    --primary2: rgba(192, 90, 64, 0.2);
+    --primary1: rgba(192, 90, 64, 0.1);
+    --primary-hover: #A84A33;
+    --primary-light: #E8A68F;
+    --primary-dark: #8F3D2A;
 
     /* SECONDARY - DARK SLATE #0F172A (bg-slate-900) */
     --secondary: #0F172A;
@@ -48,26 +48,26 @@
     --success-light: #4ade80;
     --success-dark: #15803d;
 
-    /* DANGER RED - #EF4444 (bg-red-500) */
-    --danger: #EF4444;
-    --danger9: rgba(239, 68, 68, 0.9);
-    --danger8: rgba(239, 68, 68, 0.8);
-    --danger7: rgba(239, 68, 68, 0.7);
-    --danger6: rgba(239, 68, 68, 0.6);
-    --danger5: rgba(239, 68, 68, 0.5);
-    --danger4: rgba(239, 68, 68, 0.4);
-    --danger3: rgba(239, 68, 68, 0.3);
-    --danger2: rgba(239, 68, 68, 0.2);
-    --danger1: rgba(239, 68, 68, 0.1);
-    --danger-hover: #dc2626;
-    --danger-light: #f87171;
-    --danger-dark: #b91c1c;
+    /* DANGER - #9D3434 (rojo vino, paleta Arcilla Invernal) */
+    --danger: #9D3434;
+    --danger9: rgba(157, 52, 52, 0.9);
+    --danger8: rgba(157, 52, 52, 0.8);
+    --danger7: rgba(157, 52, 52, 0.7);
+    --danger6: rgba(157, 52, 52, 0.6);
+    --danger5: rgba(157, 52, 52, 0.5);
+    --danger4: rgba(157, 52, 52, 0.4);
+    --danger3: rgba(157, 52, 52, 0.3);
+    --danger2: rgba(157, 52, 52, 0.2);
+    --danger1: rgba(157, 52, 52, 0.1);
+    --danger-hover: #832B2B;
+    --danger-light: #B85454;
+    --danger-dark: #6E2424;
 
-    /* INFO - Mantenido para compatibilidad */
-    --info: #2563EB;
-    --info1: #F1F5F9;
-    --info5: #D9EDF7;
-    --info9: rgba(37, 99, 235, 0.9);
+    /* INFO - alias del acento terracota (compatibilidad) */
+    --info: #C05A40;
+    --info1: #F7F0EB;
+    --info5: #F7E3DC;
+    --info9: rgba(192, 90, 64, 0.9);
 
     /* WARNING - Mantenido */
     --warning: #F69F00;
@@ -96,7 +96,17 @@
     --aliceblue_other: #DDDDDD;
     --middle: #aad3eb;
 
-    /* NAVBAR - Actualizado a Secondary */
-    --navbar: #0F172A;
-    --navbar9: rgba(15, 23, 42, 0.9);
+    /* NAVBAR - Chrome navy coffee/app (#141d2b) */
+    --navbar: #141d2b;
+    --navbar9: rgba(20, 29, 43, 0.9);
+
+    /* ========================================
+       PALETA "ARCILLA INVERNAL" (tokens base)
+       ======================================== */
+    --terracota: #C05A40;   /* acento principal */
+    --salmon:    #E8A68F;   /* acento suave / hover */
+    --crema:     #F7F0EB;   /* fondo light / badges */
+    --acero:     #8FA3B7;   /* muted / secundario */
+    --navy:      #1E2730;   /* texto/acento profundo */
+    --terracota-tint: rgba(192, 90, 64, 0.18); /* chips, focus ring */
 }

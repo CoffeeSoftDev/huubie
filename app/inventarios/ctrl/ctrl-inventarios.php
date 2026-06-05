@@ -520,7 +520,10 @@ class ctrl extends mdl {
             $detail    = $this->qGetEntradaDetail([$id]);
             foreach ($detail as $d) {
                 $productId = (int) $d['product_id'];
-                $qty       = (float) $d['quantity'];
+                // Resta lo que REALMENTE se aplico al stock: la cantidad confirmada
+                // (produccion) si existe, si no la reportada. Restar siempre la
+                // reportada dejaba unidades fantasma cuando confirmed != quantity.
+                $qty       = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
                 $stockRow  = $this->getStockRow([$productId, $warehouse]);
                 if ($stockRow) {
                     $post = max(0, (float) $stockRow['quantity'] - $qty);

@@ -12,7 +12,8 @@ class ctrl extends mdl {
             'categorias'  => $this->lsCategories(),
             'unidades'    => $this->lsUnits(),
             'areas'       => $this->lsAreas(),
-            'proveedores' => $this->lsProveedores()
+            'proveedores' => $this->lsProveedores(),
+            'almacenes'   => $this->lsWarehouses()
         ];
     }
 
@@ -21,6 +22,7 @@ class ctrl extends mdl {
         $filters = [
             'categoria' => $_POST['categoria'] ?? '',
             'area'      => $_POST['area'] ?? '',
+            'almacen'   => $_POST['almacen'] ?? '',
             'estado'    => $_POST['estado'] ?? ''
         ];
 
@@ -100,9 +102,10 @@ class ctrl extends mdl {
         $subsidiaries_id = $_SESSION['subsidiaries_id'];
 
         $item = [
-            'name'            => $_POST['name'],
-            'price'           => $_POST['price'] === '' ? 0 : $_POST['price'],
-            'category_id'     => $_POST['category_id'],
+            'name'            => $_POST['name'] ?? '',
+            'image'           => $_POST['image'] ?? '',
+            'price'           => ($_POST['price'] ?? '') === '' ? 0 : $_POST['price'],
+            'category_id'     => $_POST['category_id'] ?? null,
             'subsidiaries_id' => $subsidiaries_id,
             'companies_id'    => $companies_id,
             'created_at'      => $now,
@@ -116,12 +119,13 @@ class ctrl extends mdl {
 
             $attribute = [
                 'sku'               => $this->getNextSku(),
-                'description'       => $_POST['description'],
-                'cost_unit'         => $_POST['cost_unit'] === '' ? 0 : $_POST['cost_unit'],
-                'stock_min'         => $_POST['stock_min'] === '' ? 0 : $_POST['stock_min'],
-                'stock_max'         => $_POST['stock_max'] === '' ? 0 : $_POST['stock_max'],
-                'warehouse_area_id' => $_POST['warehouse_area_id'],
-                'unit_id'           => $_POST['unit_id'],
+                'description'       => $_POST['description'] ?? '',
+                'cost_unit'         => ($_POST['cost_unit'] ?? '') === '' ? 0 : $_POST['cost_unit'],
+                'stock_min'         => ($_POST['stock_min'] ?? '') === '' ? 0 : $_POST['stock_min'],
+                'stock_max'         => ($_POST['stock_max'] ?? '') === '' ? 0 : $_POST['stock_max'],
+                'shelf_life_days'   => ($_POST['shelf_life_days'] ?? '') === '' ? null : $_POST['shelf_life_days'],
+                'warehouse_area_id' => ($_POST['warehouse_area_id'] ?? '') === '' ? null : $_POST['warehouse_area_id'],
+                'unit_id'           => $_POST['unit_id'] ?? null,
                 'item_id'           => $itemId,
                 'companies_id'      => $companies_id,
                 'created_at'        => $now,
@@ -147,26 +151,28 @@ class ctrl extends mdl {
         $id = $_POST['id'];
 
         $editItem = $this->updateMaterial([
-            'values' => 'name = ?, price = ?, category_id = ?',
+            'values' => 'name = ?, image = ?, price = ?, category_id = ?',
             'where'  => 'id = ?',
             'data'   => [
-                $_POST['name'],
-                $_POST['price'] === '' ? 0 : $_POST['price'],
-                $_POST['category_id'],
+                $_POST['name'] ?? '',
+                $_POST['image'] ?? '',
+                ($_POST['price'] ?? '') === '' ? 0 : $_POST['price'],
+                $_POST['category_id'] ?? null,
                 $id
             ]
         ]);
 
         $this->updateItemAttribute([
-            'values' => 'description = ?, cost_unit = ?, stock_min = ?, stock_max = ?, warehouse_area_id = ?, unit_id = ?',
+            'values' => 'description = ?, cost_unit = ?, stock_min = ?, stock_max = ?, shelf_life_days = ?, warehouse_area_id = ?, unit_id = ?',
             'where'  => 'item_id = ?',
             'data'   => [
-                $_POST['description'],
-                $_POST['cost_unit'] === '' ? 0 : $_POST['cost_unit'],
-                $_POST['stock_min'] === '' ? 0 : $_POST['stock_min'],
-                $_POST['stock_max'] === '' ? 0 : $_POST['stock_max'],
-                $_POST['warehouse_area_id'],
-                $_POST['unit_id'],
+                $_POST['description'] ?? '',
+                ($_POST['cost_unit'] ?? '') === '' ? 0 : $_POST['cost_unit'],
+                ($_POST['stock_min'] ?? '') === '' ? 0 : $_POST['stock_min'],
+                ($_POST['stock_max'] ?? '') === '' ? 0 : $_POST['stock_max'],
+                ($_POST['shelf_life_days'] ?? '') === '' ? null : $_POST['shelf_life_days'],
+                ($_POST['warehouse_area_id'] ?? '') === '' ? null : $_POST['warehouse_area_id'],
+                $_POST['unit_id'] ?? null,
                 $id
             ]
         ]);

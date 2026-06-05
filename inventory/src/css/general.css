@@ -6,7 +6,7 @@
 body {
   display: flex;
   flex-direction: row;
-  background-color: #E5E7EB;
+  background-color: #F3F4F6;
   font-size: 1rem;
   min-height: 100vh;
   box-sizing: border-box;
@@ -79,6 +79,7 @@ main > #main__content > div {
    left: 0;
    top: 64px;
    z-index: 40;
+   border-right: 1px solid #E5E7EB;
 }
 
 body {

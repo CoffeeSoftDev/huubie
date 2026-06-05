@@ -62,9 +62,6 @@ class Sidebar {
         this.isOpen = false;
 
         const sidebarHtml = `
-            <div class="py-2">
-                <img class='w-14 h-14' src='${this.settings.logo}' alt="Logo" />
-            </div>
             ${this.createMenuItems(this.settings.menuItems)}
             <div class="flex-1"></div>
         `;
@@ -105,12 +102,12 @@ class Sidebar {
     createMenuItems(menuItems) {
         return menuItems
             .map((item) => {
-                const activeClass = item.active ? "bg-[#4A3733]" : "";
+                const activeClass = item.active ? "bg-[#C05A40]" : "";
                 const dataAttr = item.url ? `data-url="${item.url}"` : item.action ? `data-action="${item.action}"` : "";
                 const title = item.title || "";
                 
                 return `
-                    <button class="w-12 h-12 ${activeClass} hover:bg-[#4A3733] rounded-xl flex items-center justify-center transition" ${dataAttr} title="${title}">
+                    <button class="w-12 h-12 ${activeClass} hover:bg-[#C05A40] rounded-xl flex items-center justify-center transition" ${dataAttr} title="${title}">
                         <i data-lucide="${item.icon}" class="${item.active ? 'text-white' : 'text-gray-400 hover:text-white'} w-6 h-6"></i>
                     </button>
                 `;
@@ -153,7 +150,7 @@ class Sidebar {
         this.parent.find("button[data-url]").each(function () {
             const button = $(this);
             if (button.data("url") === currentUrl) {
-                button.addClass("bg-[#4A3733]");
+                button.addClass("bg-[#C05A40]");
                 button.find("i").removeClass("text-gray-400").addClass("text-white");
             }
         });

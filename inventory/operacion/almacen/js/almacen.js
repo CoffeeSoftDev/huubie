@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-almacen.php';
 let main, products;
-let zonas, categorias, areas, proveedores;
+let categorias, unidades, areas, proveedores, almacenes;
 
 // Inventario.
 let api_inventario = 'ctrl/ctrl-inventario.php';
@@ -15,14 +15,15 @@ let categorias_movimientos, meses, anios;
 
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
-let  cataloge, category, area, zone;
+let  cataloge, category, area, zone, warehouse, inflow, shrinkage;
 
 $(async () => {
     const data     = await useFetch({ url: api, data: { opc: "init" } });
-    zonas          = data.zonas;
-    categorias     = data.categorias;
-    areas          = data.areas;
-    proveedores    = data.proveedores;
+    categorias     = data.categorias  || [];
+    unidades       = data.unidades    || [];
+    areas          = data.areas       || [];
+    proveedores    = data.proveedores || [];
+    almacenes      = data.almacenes   || [];
 
     main = new Main(api, "root");
     main.render();
@@ -31,32 +32,35 @@ $(async () => {
     products = new Productos(api, "root");
     products.render();
 
-    // Inventario.
-    const invt                = await useFetch({ url: api_inventario, data: { opc: "init" } });
-          tipoMovimiento      = invt.tipoMovimiento;
-          productosInventario = invt.productos;
+    // // Inventario.
+    // const invt                = await useFetch({ url: api_inventario, data: { opc: "init" } });
+    //       tipoMovimiento      = invt.tipoMovimiento;
+    //       productosInventario = invt.productos;
 
-    inventario = new Inventario(api_inventario, "root");
-    captura = new CapturaMovimiento(api_inventario, "root");
-    inventario.render();
+    // inventario = new Inventario(api_inventario, "root");
+    // captura = new CapturaMovimiento(api_inventario, "root");
+    // inventario.render();
 
-    // Movimientos.
+    // // Movimientos.
 
-    const req = await useFetch({ url: api_movimientos, data: { opc: "init" } });
-    categorias_movimientos = req.categorias;
-    meses = req.meses;
-    anios = req.anios;
+    // const req = await useFetch({ url: api_movimientos, data: { opc: "init" } });
+    // categorias_movimientos = req.categorias;
+    // meses = req.meses;
+    // anios = req.anios;
 
-    movimientos = new Movimientos(api_movimientos, "root");
-    movimientos.render();
+    // movimientos = new Movimientos(api_movimientos, "root");
+    // movimientos.render();
 
 
 
     // Catalogo
-    cataloge = new Catalogo(api_catalogo, "root");
-    category = new Category(api_catalogo, "root");
-    area     = new Area(api_catalogo, "root");
-    zone     = new Zone(api_catalogo, "root");
+    cataloge  = new Catalogo(api_catalogo, "root");
+    category  = new Category(api_catalogo, "root");
+    area      = new Area(api_catalogo, "root");
+    zone      = new Zone(api_catalogo, "root");
+    warehouse = new Warehouse(api_catalogo, "root");
+    inflow    = new InflowOrigin(api_catalogo, "root");
+    shrinkage = new ShrinkageReason(api_catalogo, "root");
 
     cataloge.render();
 
@@ -93,36 +97,37 @@ class Main extends Templates {
             type: "short",
             json: [
                 {
+                    id: "catalogo",
+                    tab: "Catálogo",
+                    lucideIcon: "book-open",
+                    active: true,
+
+                    onClick: () => cataloge.render()
+                },
+                {
                     id: "productos",
                     tab: "Productos",
                     lucideIcon: "package",
-                    active: true,
                     class: "mb-1",
 
                     onClick: () => products.render()
                 },
-                {
-                    id: "inventario",
-                    tab: "Inventario",
-                    lucideIcon: "clipboard-list",
+                // {
+                //     id: "inventario",
+                //     tab: "Inventario",
+                //     lucideIcon: "clipboard-list",
 
 
-                    onClick: () => inventario.render()
-                },
-                {
-                    id: "movimientos",
-                    tab: "Movimientos",
-                    lucideIcon: "arrow-left-right",
+                //     onClick: () => inventario.render()
+                // },
+                // {
+                //     id: "movimientos",
+                //     tab: "Movimientos",
+                //     lucideIcon: "arrow-left-right",
 
-                    onClick: () => movimientos.renderMovimiento()
-                },
-                {
-                    id: "catalogo",
-                    tab: "Catálogo",
-                    lucideIcon: "book-open",
-
-
-                }
+                //     onClick: () => movimientos.renderMovimiento()
+                // },
+               
             ]
         });
     }
@@ -165,16 +170,16 @@ class Productos extends Templates {
             data: [
                 {
                     opc: "select",
-                    id: "zona",
-                    lbl: "Departamento",
-                    class: "col-12 col-md-2",
-                    data: [{ id: '', valor: 'Todos' }, ...zonas],
+                    id: "almacen",
+                    lbl: "Almacén",
+                    class: "col-12 col-md-3",
+                    data: [{ id: '', valor: 'Todos' }, ...almacenes],
                     onchange: 'products.lsMateriales()'
                 },
                 {
                     opc: "select",
                     id: "categoria",
-                    lbl: "Presentación",
+                    lbl: "Categoría",
                     class: "col-12 col-md-2",
                     data: [{ id: '', valor: 'Todos' }, ...categorias],
                     onchange: 'products.lsMateriales()'
@@ -182,7 +187,7 @@ class Productos extends Templates {
                 {
                     opc: "select",
                     id: "area",
-                    lbl: "Grupo",
+                    lbl: "Área",
                     class: "col-12 col-md-2",
                     data: [{ id: '', valor: 'Todos' }, ...areas],
                     onchange: 'products.lsMateriales()'
@@ -245,14 +250,6 @@ class Productos extends Templates {
     jsonMaterial() {
         return [
             {
-                opc: "select",
-                id: "area_id",
-                lbl: "Negocio: *",
-                class: "col-12 col-md-6 mb-3",
-                data: zonas,
-                required: true
-            },
-            {
                 opc: "label",
                 id: "lblMaterial",
                 text: "Información del Producto",
@@ -261,55 +258,77 @@ class Productos extends Templates {
             {
                 opc: "input",
                 id: "name",
-                lbl: "Nombre del Producto *",
+                lbl: "Nombre del Producto ",
                 class: "col-12 col-md-6 mb-3",
                 required: true
             },
+            // {
+            //     opc: "input",
+            //     id: "image",
+            //     lbl: "Imagen (URL)",
+            //     class: "col-12 col-md-6 mb-3",
+            //     placeholder: "https://... o ruta de la imagen"
+            // },
             {
                 opc: "select",
-                id: "group_id",
-                lbl: "Grupo",
-                class: "col-12 col-md-6 mb-3",
-                data: areas,
-                required: true
-            },
-            {
-                opc: "input",
-                id: "quantity",
-                lbl: "Cantidad inicial *",
-                tipo: "numero",
-                class: "col-12 col-md-6 mb-3",
-                required: true
-            },
-            {
-                opc: "select",
-                id: "presentations_id",
-                lbl: "Presentación *",
+                id: "category_id",
+                lbl: "Categoría ",
                 class: "col-12 col-md-6 mb-3",
                 data: categorias,
                 required: true
             },
-
+            // {
+            //     opc: "select",
+            //     id: "warehouse_area_id",
+            //     lbl: "Área *",
+            //     class: "col-12 col-md-6 mb-3",
+            //     data: areas,
+            //     required: true
+            // },
             {
-                opc: "input",
-                id: "cost",
-                lbl: "Costo Unitario *",
-                tipo: "cifra",
+                opc: "select",
+                id: "unit_id",
+                lbl: "Unidad ",
                 class: "col-12 col-md-6 mb-3",
+                data: unidades,
                 required: true
             },
             {
                 opc: "input",
-                id: "price",
-                lbl: "Precio de Venta",
+                id: "cost_unit",
+                lbl: "Costo Unitario ",
                 tipo: "cifra",
+                class: "col-12 col-md-6 mb-3",
+                required: true
+            },
+            // {
+            //     opc: "input",
+            //     id: "price",
+            //     lbl: "Precio de Venta",
+            //     tipo: "cifra",
+            //     class: "col-12 col-md-6 mb-3"
+            // },
+            {
+                opc: "input",
+                id: "stock_min",
+                lbl: "Inventario Mínimo",
+                tipo: "numero",
                 class: "col-12 col-md-6 mb-3"
             },
             {
                 opc: "input",
-                id: "min_stock",
-                lbl: "Inventario Mínimo",
+                id: "stock_max",
+                lbl: "Inventario Máximo",
                 tipo: "numero",
+                class: "col-12 col-md-6 mb-3"
+            },
+            {
+                opc: "input",
+                id: "shelf_life_days",
+                lbl: "Vida útil (días)",
+                tipo: "numero",
+                required: false,
+
                 class: "col-12 col-md-6 mb-3"
             },
             {
@@ -317,6 +336,7 @@ class Productos extends Templates {
                 id: "description",
                 lbl: "Descripción",
                 class: "col-12 mb-3",
+                required:false,
                 rows: 3
             }
         ];
@@ -329,7 +349,7 @@ class Productos extends Templates {
             theme:'light',
             coffeesoft:true,
             bootbox: {
-                title: 'Nuevo Material',
+                title: 'Nuevo Producto',
                 closeButton: true
             },
             json: this.jsonMaterial(),
@@ -367,7 +387,7 @@ class Productos extends Templates {
                 theme:'light',
                 coffeesoft:true,
                 bootbox: {
-                    title: 'Editar Material',
+                    title: 'Editar Producto',
                     closeButton: true
                 },
                 autofill: request.data,
@@ -395,82 +415,8 @@ class Productos extends Templates {
     }
 
     jsonMaterialEdit() {
-        return [
-            {
-                opc: "select",
-                id: "area_id",
-                lbl: "Negocio: *",
-                class: "col-12 col-md-6 mb-3",
-                data: zonas,
-                required: true
-            },
-            {
-                opc: "label",
-                id: "lblMaterial",
-                text: "Información del Producto",
-                class: "col-12 fw-bold text-lg mb-2  p-1"
-            },
-            {
-                opc: "input",
-                id: "name",
-                lbl: "Nombre del Producto *",
-                class: "col-12 col-md-6 mb-3",
-                required: true
-            },
-            {
-                opc: "select",
-                id: "group_id",
-                lbl: "Grupo",
-                class: "col-12 col-md-6 mb-3",
-                data: areas,
-                required: true
-            },
-            {
-                opc: "input",
-                id: "quantity",
-                lbl: "Cantidad actual",
-                tipo: "numero",
-                class: "col-12 col-md-6 mb-3",
-                disabled: true
-            },
-            {
-                opc: "select",
-                id: "presentations_id",
-                lbl: "Presentación *",
-                class: "col-12 col-md-6 mb-3",
-                data: categorias,
-                required: true
-            },
-            {
-                opc: "input",
-                id: "cost",
-                lbl: "Costo Unitario *",
-                tipo: "cifra",
-                class: "col-12 col-md-6 mb-3",
-                required: true
-            },
-            {
-                opc: "input",
-                id: "price",
-                lbl: "Precio de Venta",
-                tipo: "cifra",
-                class: "col-12 col-md-6 mb-3"
-            },
-            {
-                opc: "input",
-                id: "min_stock",
-                lbl: "Inventario Mínimo",
-                tipo: "numero",
-                class: "col-12 col-md-6 mb-3"
-            },
-            {
-                opc: "textarea",
-                id: "description",
-                lbl: "Descripción",
-                class: "col-12 mb-3",
-                rows: 3
-            }
-        ];
+        // Mismos campos que el alta: las claves de getMaterialById coinciden con los id del form (autofill).
+        return this.jsonMaterial();
     }
 
     statusMaterial(id, estado) {

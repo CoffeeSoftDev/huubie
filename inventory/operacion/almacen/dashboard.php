@@ -17,7 +17,7 @@ require_once('layout/core-libraries.php');
 <script src="https://www.plugins.erp-varoch.com/ERP/JS/complementos.js"></script>
 
 <body>
-    <div id="menu-sidebar" class="bg-[#2C1B18] flex flex-col items-center py-4 gap-2">
+    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2">
     </div>
     <main>
         <div id="menu-navbar"></div>

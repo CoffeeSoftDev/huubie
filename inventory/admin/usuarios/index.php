@@ -18,7 +18,7 @@ require_once('layout/core-libraries.php');
 <link rel="stylesheet" href="../../src/css/dark-mode.css">
 
 <body>
-    <div id="menu-sidebar" class="bg-[#2C1B18] flex flex-col items-center py-4 gap-2"></div>
+    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
     <main>
         <div id="menu-navbar"></div>
 

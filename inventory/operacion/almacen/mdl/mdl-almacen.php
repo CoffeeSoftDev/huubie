@@ -58,6 +58,17 @@ class mdl extends CRUD {
         return $this->_Read($query, []);
     }
 
+    function lsWarehouses() {
+        $query = "
+            SELECT id, name AS valor
+            FROM {$this->bd}warehouse
+            WHERE active = 1
+            AND companies_id = ".$_SESSION['companies_id']."
+            ORDER BY name ASC
+        ";
+        return $this->_Read($query, []);
+    }
+
     // Insumos (item + item_attribute + stock)
 
     function listMateriales($filters) {
@@ -65,6 +76,7 @@ class mdl extends CRUD {
             SELECT
                 i.id,
                 i.name,
+                i.image,
                 i.price,
                 i.active,
                 i.created_at,
@@ -100,6 +112,15 @@ class mdl extends CRUD {
         if (!empty($filters['area'])) {
             $query .= " AND ia.warehouse_area_id = ?";
             $params[] = $filters['area'];
+        }
+
+        // Almacén: cada categoría pertenece a un almacén (item_category.warehouse_id),
+        // así que el producto se filtra por la categoría asignada a ese almacén.
+        if (!empty($filters['almacen'])) {
+            $query .= " AND i.category_id IN (
+                SELECT id FROM {$this->bd}item_category WHERE warehouse_id = ?
+            )";
+            $params[] = $filters['almacen'];
         }
 
         if (isset($filters['estado']) && $filters['estado'] !== '') {

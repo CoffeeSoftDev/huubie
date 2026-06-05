@@ -34,6 +34,8 @@
 
     <!-- CDN TAILWIND -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema Arcilla Invernal (blue → terracota) -->
+    <script src="../../src/js/tailwind-theme.js"></script>
 
         <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>

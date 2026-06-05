@@ -19,6 +19,7 @@ if(isset($_COOKIE['IDU'])){
     <link rel="shortcut icon" href="src/img/logos/coffee_icon.png" type="image/x-icon">
     <title>CoffeeInventory - Iniciar sesión</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="src/js/tailwind-theme.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/plugin/sweetalert2/sweetalert2.min.css">
     <link rel="stylesheet" href="src/css/index.css">
@@ -39,7 +40,7 @@ if(isset($_COOKIE['IDU'])){
             <div class="cup-inner">
                 <div class="cup-glow"></div>
                 <svg width="120" height="120" viewBox="0 0 140 140" fill="none">
-                    <g stroke="#E8A68F" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.9">
+                    <g stroke="#3F83F8" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.9">
                         <path class="steam" d="M55 40 Q60 30 55 20" />
                         <path class="steam" d="M70 40 Q75 30 70 20" />
                         <path class="steam" d="M85 40 Q90 30 85 20" />
@@ -49,8 +50,8 @@ if(isset($_COOKIE['IDU'])){
                     <path d="M40 58 h60 v38 a12 12 0 0 1 -12 12 h-36 a12 12 0 0 1 -12 -12 z" fill="#F7F0EB"/>
                     <ellipse cx="70" cy="58" rx="30" ry="7" fill="#F7F0EB"/>
                     <ellipse cx="70" cy="58" rx="27" ry="5" fill="#1E2730" opacity="0.08"/>
-                    <ellipse cx="70" cy="58" rx="24" ry="4.5" fill="#C05A40"/>
-                    <path d="M55 58 q15 -2 30 0" stroke="#E8A68F" stroke-width="2" stroke-linecap="round" opacity="0.7" fill="none"/>
+                    <ellipse cx="70" cy="58" rx="24" ry="4.5" fill="#1C64F2"/>
+                    <path d="M55 58 q15 -2 30 0" stroke="#3F83F8" stroke-width="2" stroke-linecap="round" opacity="0.7" fill="none"/>
                     <path d="M100 64 h10 a8 8 0 0 1 0 16 h-10" stroke="#F7F0EB" stroke-width="6" stroke-linecap="round" fill="none"/>
                 </svg>
             </div>
