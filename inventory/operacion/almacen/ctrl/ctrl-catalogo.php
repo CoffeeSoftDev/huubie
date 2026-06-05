@@ -80,11 +80,11 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear categoría';
 
-        $_POST['created_at'] = date('Y-m-d H:i:s');
-        $_POST['active']     = 1;
-        $_POST['udn_id']    = $_SESSION['idUDN'];
+        $_POST['created_at']   = date('Y-m-d H:i:s');
+        $_POST['active']       = 1;
+        $_POST['companies_id'] = $_SESSION['companies_id'];
 
-        $exists = $this->existsCategoryByName([$_POST['name'],$_SESSION['idUDN']]);
+        $exists = $this->existsCategoryByName([$_POST['name']]);
 
         if ($exists > 0) {
             return [
@@ -211,9 +211,9 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear área';
 
-        $_POST['created_at'] = date('Y-m-d H:i:s');
-        $_POST['active']     = 1;
-        $_POST['udn_id']    = $_SESSION['idUDN'];
+        $_POST['created_at']   = date('Y-m-d H:i:s');
+        $_POST['active']       = 1;
+        $_POST['companies_id'] = $_SESSION['companies_id'];
 
         $exists = $this->existsAreaByName([$_POST['name']]);
 
@@ -299,11 +299,11 @@ class ctrl extends mdl {
             }
 
             $rows[] = [
-                'id'              => $item['id'],
-                'Departamento'            => $item['valor'],
-                'Fecha de creación'  => $item['date_creation'],
-                'Estado'          => renderStatus($item['active']),
-                'a'               => $a
+                'id'       => $item['id'],
+                'Código'   => $item['code'],
+                'Unidad'   => $item['valor'],
+                'Estado'   => renderStatus($item['active']),
+                'a'        => $a
             ];
         }
 
@@ -338,9 +338,9 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear zona';
 
-        $_POST['created_at'] = date('Y-m-d H:i:s');
-        $_POST['active']     = 1;
-        $_POST['udn_id']    = $_SESSION['idUDN'];
+        $_POST['created_at']   = date('Y-m-d H:i:s');
+        $_POST['active']       = 1;
+        $_POST['companies_id'] = $_SESSION['companies_id'];
 
         $exists = $this->existsZoneByName([$_POST['name']]);
 

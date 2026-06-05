@@ -155,7 +155,7 @@ class OpenRouterClient {
             curl_setopt($ch, CURLOPT_CAINFO, OPENROUTER_CA_BUNDLE);
         }
         if ($body !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
         }
         $resp = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -201,7 +201,7 @@ class OpenRouterClient {
             CURLOPT_CUSTOMREQUEST => 'POST',
             CURLOPT_HTTPHEADER    => $headers,
             CURLOPT_TIMEOUT       => OPENROUTER_TIMEOUT,
-            CURLOPT_POSTFIELDS    => json_encode($body, JSON_UNESCAPED_UNICODE),
+            CURLOPT_POSTFIELDS    => json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
             CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$usage, &$modelSeen, $onChunk) {
                 $buffer .= $data;
                 while (($pos = strpos($buffer, "\n")) !== false) {

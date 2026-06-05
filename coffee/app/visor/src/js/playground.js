@@ -71,9 +71,11 @@ const pg = {
     pendingImages: [],       // [{ dataUrl, base64, mime, name }]
     history:   [],
     isBusy:    false,
+    _abort:    null,         // AbortController de la consulta en curso (botón Detener)
     lastHtml:  '',           // ultimo HTML generado (para "abrir en pestaña")
     lastTheme: 'huubie-ui',
     splitW:    '',           // ancho del panel de chat (px) — splitter
+    zoom:      100,          // zoom del preview (%) — escala el contenido del iframe
     _popSound: null,
     _varochCss: ''           // CSS embebido extraido del grimorio Coffee-Varoch
 };
@@ -147,6 +149,7 @@ function pgLoadSettings() {
         if (s.theme && PG_THEMES[s.theme])       pg.theme    = s.theme;
         if (s.uiTheme === 'light' || s.uiTheme === 'dark') pg.uiTheme = s.uiTheme;
         if (s.splitW) pg.splitW = s.splitW;
+        if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
         if (typeof s.model === 'string')         pg.model    = s.model;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
@@ -156,7 +159,7 @@ function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
-            canvasMode: pg.canvasMode, splitW: pg.splitW, knowledge: Array.from(pg.knowledge)
+            canvasMode: pg.canvasMode, splitW: pg.splitW, zoom: pg.zoom, knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
 }
@@ -248,7 +251,7 @@ function pgBind() {
 
     pgBindSplitter();
 
-    $('#pgSendBtn').on('click', () => pgSubmit());
+    $('#pgSendBtn').on('click', () => { if (pg.isBusy) pgStop(); else pgSubmit(); });
     $('#pgInput').on('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); pgSubmit(); }
     }).on('input', function () {
@@ -303,6 +306,14 @@ function pgBind() {
         const w = window.open('', '_blank');
         if (w) { w.document.write(pgWrapHtml(pg.lastHtml, pg.lastTheme, pg._lastIsDoc)); w.document.close(); }
     });
+
+    $('#pgSandboxDownload').on('click', () => pgDownloadHtml());
+
+    // Zoom del preview
+    $('#pgZoomIn').on('click', () => pgSetZoom((pg.zoom || 100) + 10));
+    $('#pgZoomOut').on('click', () => pgSetZoom((pg.zoom || 100) - 10));
+    $('#pgZoomLabel').on('click', () => pgSetZoom(100));   // clic en el % restablece a 100%
+    $('#pgZoomLabel').text((pg.zoom || 100) + '%');
 
     // Modal de conocimiento
     $('#pgKnowledgeBtn').on('click', () => pgOpenKnowledge());
@@ -496,15 +507,31 @@ function pgAppendUser(text, previews) {
     pgScroll();
 }
 function pgAppendTyping() {
-    const $t = $(`<div class="ia-msg ai" id="pgTyping"><div class="ia-msg-role"><span class="dot"></span><span>${pgAgentLabel()}</span></div><div class="ia-msg-text"><div class="pg-typing"><span></span><span></span><span></span></div></div></div>`);
+    // Mismo indicador que el Visor: loader "quantum" + texto "Analizando…".
+    const $t = $(`<div class="ia-msg ai ia-typing-msg" id="pgTyping"><div class="ia-typing-loader">${pgQuantumLoader('Analizando')}</div></div>`);
     $('#pgChatBody').append($t);
     pgScroll();
     return $t;
 }
+function pgStopTyping() { clearInterval(pg._typingTimer); }   // sin temporizador activo: no-op seguro
+// Loader "quantum" replicado de Templates.loader() (coffeeSoft.js) para no cargar
+// todo el framework en el Playground: un orbe que muta forma y color. visor.css
+// le añade el texto atenuado y los puntos "…" animados, idéntico al Visor.
+function pgQuantumLoader(text) {
+    if (!document.getElementById('coffeeia-loader-css')) {
+        const style = document.createElement('style');
+        style.id = 'coffeeia-loader-css';
+        style.textContent = '@keyframes coffeeiaQuantum{0%{border-radius:50%;transform:translate(0,0);background:#ec4899}25%{background:#3b82f6}50%{border-radius:40% 60% 50% 50%;transform:translate(1px,-1px);background:#8b5cf6}75%{background:#a855f7}100%{border-radius:50%;transform:translate(0,0);background:#ec4899}}';
+        document.head.appendChild(style);
+    }
+    const txt = text ? `<span style="color:#374151;font-weight:500;font-size:12px">${text}</span>` : '';
+    return `<div class="coffeeia-loader" style="display:inline-flex;align-items:center;gap:8px">`
+         + `<div style="width:10px;height:10px;border-radius:50%;animation:coffeeiaQuantum 2s steps(8) infinite"></div>`
+         + txt + `</div>`;
+}
 
 async function pgSend(text, images) {
-    pg.isBusy = true;
-    $('#pgSendBtn').prop('disabled', true);
+    pgSetBusy(true);
     images = Array.isArray(images) ? images : [];
 
     const userMsg = { role: 'user', content: text };
@@ -564,9 +591,13 @@ async function pgSend(text, images) {
 
     let stream = null, received = '', meta = {}, firstToken = false, streamErr = null;
 
+    // Controlador para abortar la consulta desde el botón Detener.
+    const ac = new AbortController();
+    pg._abort = ac;
+
     try {
         const res = await fetch(PG_API_STREAM, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ac.signal
         });
         if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
 
@@ -589,7 +620,7 @@ async function pgSend(text, images) {
                 let obj = {};
                 try { obj = dataStr ? JSON.parse(dataStr) : {}; } catch (_) { continue; }
                 if (ev === 'chunk') {
-                    if (!firstToken) { firstToken = true; $typing.remove(); stream = pgCreateAIStream(); }
+                    if (!firstToken) { firstToken = true; pgStopTyping(); $typing.remove(); stream = pgCreateAIStream(); }
                     received += obj.t || '';
                     stream.push(obj.t || '');
                 } else if (ev === 'done') {
@@ -600,11 +631,13 @@ async function pgSend(text, images) {
             }
         }
     } catch (err) {
-        // Conexión/lectura cortada (típico con HTML grande + timeout): si ya
-        // alcanzamos a recibir contenido, lo rescatamos en vez de descartarlo.
+        // Conexión/lectura cortada (típico con HTML grande + timeout) o detenida
+        // por el usuario (AbortError): si ya recibimos algo, lo rescatamos.
+        pgStopTyping();
         $typing.remove();
-        if (await pgTryRescuePartial(stream, received, err.message)) { pgFinish(); return; }
-        const msg = '⚠️ No se obtuvo respuesta. ' + (err.message || '');
+        const aborted = err && err.name === 'AbortError';
+        if (await pgTryRescuePartial(stream, received, aborted ? 'Generación detenida' : err.message)) { pgFinish(); return; }
+        const msg = aborted ? '⏹ Generación detenida.' : ('⚠️ No se obtuvo respuesta. ' + (err.message || ''));
         if (stream) { await stream.drain(); stream.fail(msg); } else { pgAppendAI(msg); }
         pgFinish(); return;
     }
@@ -670,9 +703,30 @@ async function pgTryRescuePartial(stream, received, reason) {
 }
 
 function pgFinish() {
-    pg.isBusy = false;
-    $('#pgSendBtn').prop('disabled', false);
+    pgStopTyping();
+    pgSetBusy(false);
+    pg._abort = null;
     pgScroll();
+}
+
+/* ── Estado ocupado ──
+ * Mientras el agente genera, el botón Enviar (flecha) se transforma en Detener
+ * (cuadrado) y al pulsarlo aborta el fetch en curso, conservando lo ya generado. */
+function pgSetBusy(busy) {
+    pg.isBusy = !!busy;
+    const $btn = $('#pgSendBtn');
+    if (busy) {
+        $btn.addClass('is-stop').attr('title', 'Detener generación')
+            .html('<i data-lucide="square" class="w-3.5 h-3.5"></i>');
+    } else {
+        $btn.removeClass('is-stop').attr('title', 'Enviar (Enter)')
+            .html('<i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>');
+    }
+    if (window.lucide) lucide.createIcons();
+}
+function pgStop() {
+    if (pg._abort) { try { pg._abort.abort(); } catch (e) {} }
+    pgToast('Deteniendo…', 'info');
 }
 
 function pgAppendAI(text) {
@@ -827,7 +881,9 @@ function pgRenderSandbox(htmlBody, isDoc) {
     // Pintamos el contenedor con el fondo del tema para que cubra TODO el preview.
     const t = PG_THEMES[pg.theme] || PG_THEMES[PG_DEFAULT_THEME];
     $('.pg-sandbox-body').css('background', t.bg || '#fff');
-    document.getElementById('pgSandboxFrame').srcdoc = pgWrapHtml(htmlBody, pg.theme, isDoc);
+    const fr = document.getElementById('pgSandboxFrame');
+    fr.onload = () => pgApplyZoom();   // el scroll lo hace el iframe interno; reaplicamos el zoom al cargar
+    fr.srcdoc = pgWrapHtml(htmlBody, pg.theme, isDoc);
     // La pestaña "Código" refleja la fuente de lo que se está renderizando.
     if (!isDoc) {
         const $code = $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text(htmlBody);
@@ -840,6 +896,24 @@ function pgShowSandboxCode(code) {
     const $code = $('#pgSandboxCode').find('code').text(code);
     if (window.hljs) hljs.highlightElement($code[0]);
     $('.pg-tab[data-sbtab="code"]').click();
+}
+
+/* ── Zoom del preview ──
+ * Escala el CONTENIDO del iframe (no el tamaño del iframe), que es el único que
+ * hace scroll. Usa la propiedad CSS `zoom` (reflowea el layout, a diferencia de
+ * transform:scale). Se reaplica en cada render (onload) porque el iframe recarga. */
+function pgApplyZoom() {
+    const fr = document.getElementById('pgSandboxFrame');
+    $('#pgZoomLabel').text((pg.zoom || 100) + '%');
+    if (!fr) return;
+    let doc;
+    try { doc = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document); } catch (e) { return; }
+    if (doc && doc.documentElement) doc.documentElement.style.zoom = (pg.zoom || 100) / 100;
+}
+function pgSetZoom(z) {
+    pg.zoom = Math.max(25, Math.min(200, Math.round(z / 5) * 5));   // 25%–200%, pasos de 5
+    pgApplyZoom();
+    pgSaveSettings();
 }
 // Detecta si el HTML ya es un documento completo (head/tailwind/tema propios).
 function pgIsFullDoc(html) {
@@ -911,7 +985,10 @@ function pgWrapHtml(body, themeKey, isDoc) {
            .pg-stage h1,.pg-stage h2,.pg-stage h3{margin:1.2em 0 .5em;font-weight:700;}
            .pg-stage pre{background:rgba(0,0,0,.25);padding:12px;border-radius:8px;overflow:auto;}
            .pg-stage table{border-collapse:collapse;}.pg-stage td,.pg-stage th{border:1px solid currentColor;padding:6px 10px;}`
-        : `body{min-height:100vh;display:grid;place-items:center;padding:28px;}.pg-stage{width:auto;max-width:100%;}`;
+        // `safe center`: centra el componente cuando cabe, pero si es más alto
+        // que el iframe alinea al inicio en vez de recortar — así se puede
+        // scrollear y ver TODO el componente (login, formularios largos, etc.).
+        : `body{min-height:100vh;display:grid;place-content:safe center;padding:28px;}.pg-stage{width:auto;max-width:100%;min-width:0;}`;
 
     return `<!DOCTYPE html><html${htmlAttr}><head><meta charset="utf-8">
         <base href="${appBase}">
@@ -921,6 +998,25 @@ function pgWrapHtml(body, themeKey, isDoc) {
         <script src="https://unpkg.com/lucide@latest"><\/script>
         <style>html,body{margin:0;}body{background:${t.bg};color:${t.fg};font-family:'Inter',system-ui,sans-serif;}*{box-sizing:border-box;}${center}</style>
         </head><body${bodyClass}${bodyData}><div class="pg-stage">${body}</div><script>if(window.lucide)lucide.createIcons();<\/script></body></html>`;
+}
+
+/* ── Descargar el render como .html ──
+ * Empaqueta el MISMO documento autocontenido que "abrir en pestaña" (con su
+ * tema, CSS del sistema de diseño embebido y Tailwind) y lo baja como archivo. */
+function pgDownloadHtml() {
+    if (!pg.lastHtml) { pgToast('Aún no hay nada que descargar', 'warn'); return; }
+    const doc  = pgWrapHtml(pg.lastHtml, pg.lastTheme, pg._lastIsDoc);
+    const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `playground-${pg.lastTheme || pg.theme}-${stamp}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    pgToast('HTML descargado', 'success');
 }
 
 /* ── Helpers ── */

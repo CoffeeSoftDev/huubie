@@ -24,6 +24,9 @@ switch($_POST['opc']){
                 $_SESSION['IDP']   = $usr_datos[0]['IDP'];
                 $_SESSION['idUDN'] = $usr_datos[0]['udn_id'];
                 $_SESSION['UDN']   = $usr_datos[0]['udn_name'];
+                $_SESSION['companies_id']    = $usr_datos[0]['companies_id'];
+                $_SESSION['subsidiaries_id'] = $usr_datos[0]['subsidiaries_id'];
+                $_SESSION['user_id']         = $usr_datos[0]['user_id'];
                 
                 unset($usr_datos[0]['IDU']);
                 unset($usr_datos[0]['IDP']);

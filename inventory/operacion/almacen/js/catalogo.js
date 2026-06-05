@@ -1,6 +1,3 @@
-
-
-
 class Catalogo extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
@@ -9,12 +6,11 @@ class Catalogo extends Templates {
 
     render() {
         this.layout();
-        zone.lsZone();
     }
 
     layout() {
         this.primaryLayout({
-            parent: "container-catalogo",
+            parent: "root",
             id: this.PROJECT_NAME,
             class: "w-full",
             card: {
@@ -23,8 +19,6 @@ class Catalogo extends Templates {
             }
         });
 
-
-
         this.tabLayout({
             parent: `container${this.PROJECT_NAME}`,
             id: `tabs${this.PROJECT_NAME}`,
@@ -32,33 +26,31 @@ class Catalogo extends Templates {
             type: "button",
             json: [
                 {
-                    id: "zonas",
-                    tab: "Departamento",
-                    lucideIcon: "building-2",
-                    active: true,
-                    onClick: () => zone.lsZone()
-                },
-                {
                     id: "categorias",
-                    tab: "Presentación",
+                    tab: "Categoría",
                     lucideIcon: "folder-tree",
-                    class: "mb-1",
-
+                    active: true,
                     onClick: () => category.lsCategory()
                 },
                 {
+                    id: "unidades",
+                    tab: "Unidad",
+                    lucideIcon: "ruler",
+                    class: "mb-1",
+                    onClick: () => zone.lsZone()
+                },
+                {
                     id: "areas",
-                    tab: "Grupos",
+                    tab: "Área",
                     lucideIcon: "map-pin",
                     onClick: () => area.lsArea()
-                },
-
+                }
             ]
         });
 
         category.filterBarCategory();
-        area.filterBarArea();
         zone.filterBarZone();
+        area.filterBarArea();
 
         category.lsCategory();
     }
@@ -92,7 +84,7 @@ class Category extends Templates {
                     opc: "button",
                     class: "col-12 col-md-3",
                     id: "btnNewCategory",
-                    text: "Nueva Presentación",
+                    text: "Nueva categoría",
                     onClick: () => this.addCategory()
                 }
             ]
@@ -109,10 +101,10 @@ class Category extends Templates {
             attr: {
                 id: "tbCategory",
                 theme: "light",
-                striped:true,
-                title: "Lista de Categorías",
+                striped: true,
+                title: "Categorías de insumos",
                 subtitle: "Clasificación de materiales e insumos",
-                center: [ 2, 3]
+                center: [2, 3]
             }
         });
     }
@@ -121,72 +113,43 @@ class Category extends Templates {
         this.createModalForm({
             id: "formCategoryAdd",
             data: { opc: "addCategory" },
-            theme:'light',
-            coffeesoft:true,
+            theme: 'light',
+            coffeesoft: true,
             bootbox: {
-                title: "Agregar Categoría",
-                size:'small',
+                title: "Agregar categoría",
+                size: 'small',
                 closeButton: true
             },
             json: this.jsonCategory(),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({
-                        icon: "success",
-                        text: response.message,
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
+                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                     this.lsCategory();
                 } else {
-                    alert({
-                        icon: "error",
-                        text: response.message,
-                        btn1: true,
-                        btn1Text: "Ok"
-                    });
+                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                 }
             }
         });
     }
 
     async editCategory(id) {
-        const request = await useFetch({
-            url: this._link,
-            data: { opc: "getCategory", id: id }
-        });
+        const request = await useFetch({ url: this._link, data: { opc: "getCategory", id: id } });
 
         if (request.status === 200) {
-            const data = request.data;
-
             this.createModalForm({
                 id: "formCategoryEdit",
                 data: { opc: "editCategory", id: id },
-                theme:'light',
-                coffeesoft:true,
-                bootbox: {
-                    title: "Editar Categoría",
-                    size: 'small',
-                    closeButton: true
-                },
-                autofill: data,
+                theme: 'light',
+                coffeesoft: true,
+                bootbox: { title: "Editar categoría", size: 'small', closeButton: true },
+                autofill: request.data,
                 json: this.jsonCategory(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({
-                            icon: "success",
-                            text: response.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsCategory();
                     } else {
-                        alert({
-                            icon: "error",
-                            text: response.message,
-                            btn1: true,
-                            btn1Text: "Ok"
-                        });
+                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                     }
                 }
             });
@@ -198,33 +161,15 @@ class Category extends Templates {
         const actionTitle = active === 1 ? "Desactivar" : "Activar";
 
         this.swalQuestion({
-            opts: {
-                title: `¿${actionTitle} Categoría?`,
-                text: `Esta acción ${action}á la categoría`,
-                icon: "warning"
-            },
-            data: {
-                opc: "statusCategory",
-
-                active: active === 1 ? 0 : 1,
-                id: id,
-            },
+            opts: { title: `¿${actionTitle} categoría?`, text: `Esta acción ${action}á la categoría`, icon: "warning" },
+            data: { opc: "statusCategory", active: active === 1 ? 0 : 1, id: id },
             methods: {
                 send: (response) => {
                     if (response.status === 200) {
-                        alert({
-                            icon: "success",
-                            text: response.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsCategory();
                     } else {
-                        alert({
-                            icon: "error",
-                            text: response.message,
-                            btn1: true
-                        });
+                        alert({ icon: "error", text: response.message, btn1: true });
                     }
                 }
             }
@@ -236,7 +181,7 @@ class Category extends Templates {
             {
                 opc: "input",
                 id: "name",
-                lbl: "Nombre de la Categoría",
+                lbl: "Nombre de la categoría",
                 tipo: "texto",
                 class: "col-12 mb-3",
                 required: true
@@ -270,12 +215,12 @@ class Area extends Templates {
                     onchange: "area.lsArea()"
                 },
                 {
-                    opc      : "button",
-                    class    : "col-12 col-md-2",
+                    opc: "button",
+                    class: "col-12 col-md-2",
                     className: 'w-100',
-                    id       : "btnNewArea",
-                    text     : "Nuevo grupo",
-                    onClick  : () => this.addArea()
+                    id: "btnNewArea",
+                    text: "Nueva área",
+                    onClick: () => this.addArea()
                 }
             ]
         });
@@ -291,8 +236,7 @@ class Area extends Templates {
             attr: {
                 id: "tbArea",
                 theme: "light",
-
-                title: "Lista de Áreas",
+                title: "Áreas del almacén",
                 subtitle: "Espacios físicos del almacén",
                 center: [2, 3]
             }
@@ -303,73 +247,39 @@ class Area extends Templates {
         this.createModalForm({
             id: "formAreaAdd",
             data: { opc: "addArea" },
-            theme:'light',
-            coffeesoft:true,
-            bootbox: {
-                title: "Agregar Área",
-                size: 'small',
-                closeButton: true
-            },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: "Agregar área", size: 'small', closeButton: true },
             json: this.jsonArea(),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({
-                        icon: "success",
-                        text: response.message,
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
+                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                     this.lsArea();
                 } else {
-                    alert({
-                        icon: "error",
-                        text: response.message,
-                        btn1: true,
-                        btn1Text: "Ok"
-                    });
+                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                 }
             }
         });
     }
 
     async editArea(id) {
-        const request = await useFetch({
-            url: this._link,
-            data: { opc: "getArea", id: id }
-        });
+        const request = await useFetch({ url: this._link, data: { opc: "getArea", id: id } });
 
         if (request.status === 200) {
-            const data = request.data;
-
-            console.log(data);
             this.createModalForm({
                 id: "formAreaEdit",
                 data: { opc: "editArea", id: id },
-                theme:'light',
-                coffeesoft:true,
-                bootbox: {
-                    title: "Editar Área",
-                    size: 'small',
-                    closeButton: true
-                },
-                autofill: data,
+                theme: 'light',
+                coffeesoft: true,
+                bootbox: { title: "Editar área", size: 'small', closeButton: true },
+                autofill: request.data,
                 json: this.jsonArea(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({
-                            icon: "success",
-                            text: response.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsArea();
                     } else {
-                        alert({
-                            icon: "error",
-                            text: response.message,
-                            btn1: true,
-                            btn1Text: "Ok"
-                        });
+                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                     }
                 }
             });
@@ -381,32 +291,15 @@ class Area extends Templates {
         const actionTitle = active === 1 ? "Desactivar" : "Activar";
 
         this.swalQuestion({
-            opts: {
-                title: `¿${actionTitle} Área?`,
-                text: `Esta acción ${action}á el área`,
-                icon: "warning"
-            },
-            data: {
-                opc: "statusArea",
-                active: active === 1 ? 0 : 1,
-                id: id,
-            },
+            opts: { title: `¿${actionTitle} área?`, text: `Esta acción ${action}á el área`, icon: "warning" },
+            data: { opc: "statusArea", active: active === 1 ? 0 : 1, id: id },
             methods: {
                 send: (response) => {
                     if (response.status === 200) {
-                        alert({
-                            icon: "success",
-                            text: response.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsArea();
                     } else {
-                        alert({
-                            icon: "error",
-                            text: response.message,
-                            btn1: true
-                        });
+                        alert({ icon: "error", text: response.message, btn1: true });
                     }
                 }
             }
@@ -418,10 +311,17 @@ class Area extends Templates {
             {
                 opc: "input",
                 id: "name",
-                lbl: "Nombre del Área",
+                lbl: "Nombre del área",
                 tipo: "texto",
                 class: "col-12 mb-3",
                 required: true
+            },
+            {
+                opc: "input",
+                id: "description",
+                lbl: "Descripción",
+                tipo: "texto",
+                class: "col-12 mb-3"
             }
         ];
     }
@@ -434,7 +334,7 @@ class Zone extends Templates {
     }
 
     filterBarZone() {
-        const container = $("#container-zonas");
+        const container = $("#container-unidades");
         container.html('<div id="filterbar-zone" class="mb-2"></div><div id="table-zone"></div>');
 
         this.createfilterBar({
@@ -454,9 +354,9 @@ class Zone extends Templates {
                 {
                     opc: "button",
                     class: "col-12 col-md-2",
-                    className:'w-100',
+                    className: 'w-100',
                     id: "btnNewZone",
-                    text: "Nuevo departamento",
+                    text: "Nueva unidad",
                     onClick: () => this.addZone()
                 }
             ]
@@ -473,7 +373,9 @@ class Zone extends Templates {
             attr: {
                 id: "tbZone",
                 theme: "light",
-                center: [ 2, 3]
+                title: "Unidades de medida",
+                subtitle: "Unidades para capturar insumos (pza, kg, lt)",
+                center: [3]
             }
         });
     }
@@ -482,72 +384,39 @@ class Zone extends Templates {
         this.createModalForm({
             id: "formZoneAdd",
             data: { opc: "addZone" },
-            theme:'light',
-            coffeesoft:true,
-            bootbox: {
-                title: "Agregar departamento",
-                size:'small',
-                closeButton: true
-            },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: "Agregar unidad", size: 'small', closeButton: true },
             json: this.jsonZone(),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({
-                        icon: "success",
-                        text: response.message,
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
+                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                     this.lsZone();
                 } else {
-                    alert({
-                        icon: "error",
-                        text: response.message,
-                        btn1: true,
-                        btn1Text: "Ok"
-                    });
+                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                 }
             }
         });
     }
 
     async editZone(id) {
-        const request = await useFetch({
-            url: this._link,
-            data: { opc: "getZone", id: id }
-        });
+        const request = await useFetch({ url: this._link, data: { opc: "getZone", id: id } });
 
         if (request.status === 200) {
-            const data = request.data;
-
             this.createModalForm({
                 id: "formZoneEdit",
                 data: { opc: "editZone", id: id },
-                theme:'light',
-                coffeesoft:true,
-                bootbox: {
-                    title: "Editar Zona",
-                    size: 'small',
-                    closeButton: true
-                },
-                autofill: data,
+                theme: 'light',
+                coffeesoft: true,
+                bootbox: { title: "Editar unidad", size: 'small', closeButton: true },
+                autofill: request.data,
                 json: this.jsonZone(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({
-                            icon: "success",
-                            text: response.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsZone();
                     } else {
-                        alert({
-                            icon: "error",
-                            text: response.message,
-                            btn1: true,
-                            btn1Text: "Ok"
-                        });
+                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                     }
                 }
             });
@@ -559,32 +428,15 @@ class Zone extends Templates {
         const actionTitle = active === 1 ? "Desactivar" : "Activar";
 
         this.swalQuestion({
-            opts: {
-                title: `¿${actionTitle} Departamento?`,
-                text: `Esta acción ${action}á la Departamento`,
-                icon: "warning"
-            },
-            data: {
-                opc: "statusZone",
-                active: active === 1 ? 0 : 1,
-                id: id,
-            },
+            opts: { title: `¿${actionTitle} unidad?`, text: `Esta acción ${action}á la unidad`, icon: "warning" },
+            data: { opc: "statusZone", active: active === 1 ? 0 : 1, id: id },
             methods: {
                 send: (response) => {
                     if (response.status === 200) {
-                        alert({
-                            icon: "success",
-                            text: response.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsZone();
                     } else {
-                        alert({
-                            icon: "error",
-                            text: response.message,
-                            btn1: true
-                        });
+                        alert({ icon: "error", text: response.message, btn1: true });
                     }
                 }
             }
@@ -595,188 +447,31 @@ class Zone extends Templates {
         return [
             {
                 opc: "input",
-                id: "name",
-                lbl: "Nombre",
+                id: "code",
+                lbl: "Código",
                 tipo: "texto",
-                class: "col-12 mb-3",
+                class: "col-12 col-md-4 mb-3",
                 required: true
-            }
-        ];
-    }
-}
-
-class Negocio extends Templates {
-    constructor(link, div_modulo) {
-        super(link, div_modulo);
-        this.PROJECT_NAME = "negocio";
-    }
-
-    filterBarNegocio() {
-        const container = $("#container-negocios");
-        container.html('<div id="filterbar-negocio" class="mb-2"></div><div id="table-negocio"></div>');
-
-        this.createfilterBar({
-            parent: "filterbar-negocio",
-            data: [
-                {
-                    opc: "select",
-                    id: "active",
-                    lbl: "Estado",
-                    class: "col-12 col-md-3",
-                    data: [
-                        { id: "1", valor: "Activos" },
-                        { id: "0", valor: "Inactivos" }
-                    ],
-                    onchange: "negocio.lsNegocio()"
-                },
-                {
-                    opc: "button",
-                    class: "col-12 col-md-3",
-                    id: "btnNewNegocio",
-                    text: "Nuevo Negocio",
-                    onClick: () => this.addNegocio()
-                }
-            ]
-        });
-    }
-
-    lsNegocio() {
-        this.createTable({
-            parent: "table-negocio",
-            idFilterBar: "filterbar-negocio",
-            data: { opc: "lsZone" },
-            coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
-            attr: {
-                id: "tbNegocio",
-                theme: "light",
-                title: "Lista de Negocios",
-                subtitle: "Unidades de negocio del sistema",
-                center: [1, 2, 3]
-            }
-        });
-    }
-
-    addNegocio() {
-        this.createModalForm({
-            id: "formNegocioAdd",
-            data: { opc: "addZone" },
-            theme:'light',
-            coffeesoft:true,
-            bootbox: {
-                title: "Agregar Negocio",
-                closeButton: true
             },
-            json: this.jsonNegocio(),
-            success: (response) => {
-                if (response.status === 200) {
-                    alert({
-                        icon: "success",
-                        text: response.message,
-                        btn1: true,
-                        btn1Text: "Aceptar"
-                    });
-                    this.lsNegocio();
-                } else {
-                    alert({
-                        icon: "error",
-                        text: response.message,
-                        btn1: true,
-                        btn1Text: "Ok"
-                    });
-                }
-            }
-        });
-    }
-
-    async editNegocio(id) {
-        const request = await useFetch({
-            url: this._link,
-            data: { opc: "getZone", id: id }
-        });
-
-        if (request.status === 200) {
-            const data = request.data;
-
-            this.createModalForm({
-                id: "formNegocioEdit",
-                data: { opc: "editZone", id: id },
-                theme:'light',
-                coffeesoft:true,
-                bootbox: {
-                    title: "Editar Negocio",
-                    closeButton: true
-                },
-                autofill: data,
-                json: this.jsonNegocio(),
-                success: (response) => {
-                    if (response.status === 200) {
-                        alert({
-                            icon: "success",
-                            text: response.message,
-                            btn1: true,
-                            btn1Text: "Aceptar"
-                        });
-                        this.lsNegocio();
-                    } else {
-                        alert({
-                            icon: "error",
-                            text: response.message,
-                            btn1: true,
-                            btn1Text: "Ok"
-                        });
-                    }
-                }
-            });
-        }
-    }
-
-    statusNegocio(id, active) {
-        const action = active === 1 ? "desactivar" : "activar";
-        const actionTitle = active === 1 ? "Desactivar" : "Activar";
-
-        this.swalQuestion({
-            opts: {
-                title: `¿${actionTitle} Negocio?`,
-                text: `Esta acción ${action}á el negocio`,
-                icon: "warning"
-            },
-            data: {
-                opc: "statusZone",
-                id: id,
-                active: active === 1 ? 0 : 1
-            },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({
-                            icon: "success",
-                            text: response.message,
-                            btn1: true
-                        });
-                        this.lsNegocio();
-                    } else {
-                        alert({
-                            icon: "error",
-                            text: response.message,
-                            btn1: true
-                        });
-                    }
-                }
-            }
-        });
-    }
-
-    jsonNegocio() {
-        return [
             {
                 opc: "input",
                 id: "name",
-                lbl: "Nombre del Negocio",
+                lbl: "Nombre de la unidad",
                 tipo: "texto",
-                class: "col-12 mb-3",
+                class: "col-12 col-md-8 mb-3",
                 required: true
             }
         ];
     }
 }
+
+const apiCatalogo = 'ctrl/ctrl-catalogo.php';
+let catalogo, category, area, zone;
+
+$(() => {
+    catalogo = new Catalogo(apiCatalogo, 'root');
+    category = new Category(apiCatalogo, 'root');
+    area     = new Area(apiCatalogo, 'root');
+    zone     = new Zone(apiCatalogo, 'root');
+    catalogo.render();
+});

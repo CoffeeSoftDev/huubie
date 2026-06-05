@@ -7,7 +7,7 @@
     ],
     "chatgpt.openOnStartup": false,
   
-  "workbench.colorTheme": "GitHub Light Monochrome",
+  "workbench.colorTheme": "Claudio Code Light",
   // "editor.fontFamily": "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
   "editor.fontSize": 14,
   "editor.lineHeight": 1.6,

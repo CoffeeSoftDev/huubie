@@ -85,9 +85,9 @@ class ctrl extends mdl {
                 'SKU'        => $r['sku'] ?: '-',
                 'Producto'   => $r['product_name'],
                 'Categoria'  => $r['category_name'] ?: '-',
-                'Stock'      => evaluar($qty, ''),
-                'Min'        => evaluar($min, ''),
-                'Max'        => evaluar((float) $r['stock_max'], ''),
+                'Stock'      => $this->_qty($qty),
+                'Min'        => $this->_qty($min),
+                'Max'        => $this->_qty((float) $r['stock_max']),
                 'Unidad'     => $r['unit_code'] ?: '-',
                 'Estado'     => $this->_levelBadge($qty, $min),
                 'a'          => [
@@ -1079,6 +1079,13 @@ class ctrl extends mdl {
     // ─────────────────────────────────────────────────────────────────
     //  HELPERS DE PRESENTACION
     // ─────────────────────────────────────────────────────────────────
+
+    // Cantidad de inventario: entero cuando es exacto (15), con decimales solo si los
+    // tiene (15.5 / 15.25). A diferencia de evaluar(), que siempre fuerza 2 decimales.
+    private function _qty($n) {
+        $n = (float) $n;
+        return (fmod($n, 1) == 0) ? (string) (int) $n : (string) round($n, 2);
+    }
 
     private function _levelBadge($qty, $min) {
         if ($qty <= 0) {

@@ -102,7 +102,7 @@ class OllamaClient {
             curl_setopt($ch, CURLOPT_CAINFO, OLLAMA_CA_BUNDLE);
         }
         if ($body !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
         }
         $resp = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -137,14 +137,16 @@ class OllamaClient {
 
         $buffer = '';
         $full   = '';
+        $raw    = '';   // acumula TODO el cuerpo (para poder leer el error si HTTP >= 400)
         $meta   = [];
 
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => $method,
             CURLOPT_HTTPHEADER    => $headers,
             CURLOPT_TIMEOUT       => OLLAMA_TIMEOUT,
-            CURLOPT_POSTFIELDS    => ($body !== null ? json_encode($body, JSON_UNESCAPED_UNICODE) : null),
-            CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$meta, $onChunk) {
+            CURLOPT_POSTFIELDS    => ($body !== null ? json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) : null),
+            CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$raw, &$meta, $onChunk) {
+                $raw    .= $data;
                 $buffer .= $data;
                 while (($pos = strpos($buffer, "\n")) !== false) {
                     $line   = trim(substr($buffer, 0, $pos));
@@ -178,7 +180,15 @@ class OllamaClient {
             throw new OllamaException('cURL: ' . $err);
         }
         if ($code >= 400) {
-            throw new OllamaException("HTTP $code");
+            // Exponer el motivo real del rechazo (Ollama responde {"error":"..."}).
+            $detail = '';
+            $j = json_decode(trim($raw), true);
+            if (is_array($j) && !empty($j['error'])) {
+                $detail = is_string($j['error']) ? $j['error'] : json_encode($j['error'], JSON_UNESCAPED_UNICODE);
+            } elseif (trim($raw) !== '') {
+                $detail = substr(trim($raw), 0, 400);
+            }
+            throw new OllamaException("HTTP $code" . ($detail !== '' ? ": $detail" : ''));
         }
         return ['content' => $full, 'meta' => $meta];
     }

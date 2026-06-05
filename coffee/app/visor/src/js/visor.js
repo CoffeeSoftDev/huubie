@@ -1918,6 +1918,7 @@ class CoffeeIA {
         this.history  = [];
         this.isOpen   = false;
         this.isBusy   = false;
+        this._abort   = null;   // AbortController de la consulta en curso (botón Detener)
         this._chipsRendered = false;
         this.editorMode    = this._loadEditorMode();
         this.canvasMode    = this._loadCanvasMode();
@@ -2071,7 +2072,7 @@ class CoffeeIA {
             this._saveModel();
         });
 
-        $('#iaSendBtn').on('click', () => this._submit());
+        $('#iaSendBtn').on('click', () => { if (this.isBusy) this._stop(); else this._submit(); });
 
         $('#iaInputTextarea').on('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -2256,12 +2257,29 @@ class CoffeeIA {
         this._sendMessage(text || 'Describe esta imagen.', images);
     }
 
+    /* ── Estado ocupado: el boton Enviar se transforma en Detener (aborta el fetch). ── */
+    _setBusy(busy) {
+        this.isBusy = !!busy;
+        const $btn = $('#iaSendBtn');
+        if (busy) {
+            $btn.addClass('is-stop').attr('title', 'Detener generacion')
+                .html('<i data-lucide="square" class="w-3.5 h-3.5"></i>');
+        } else {
+            $btn.removeClass('is-stop').attr('title', 'Enviar (Enter)')
+                .html('<i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>');
+        }
+        if (window.lucide) lucide.createIcons();
+    }
+    _stop() {
+        if (this._abort) { try { this._abort.abort(); } catch (e) {} }
+        if (typeof visorView !== 'undefined' && visorView) visorView.toast('Deteniendo…', 'info');
+    }
+
     /* ── Core: send message ── */
 
     async _sendMessage(text, images) {
         if (this.isBusy) return;
-        this.isBusy = true;
-        $('#iaSendBtn').prop('disabled', true);
+        this._setBusy(true);
 
         images = Array.isArray(images) ? images : [];
 
@@ -2306,8 +2324,8 @@ class CoffeeIA {
         const provider = (this.model && this.model.indexOf('/') !== -1) ? 'OpenRouter' : 'Ollama';
         const finish = () => {
             this._scrollBottom();
-            this.isBusy = false;
-            $('#iaSendBtn').prop('disabled', false);
+            this._setBusy(false);
+            this._abort = null;
             if (window.lucide) lucide.createIcons();
         };
 
@@ -2317,11 +2335,16 @@ class CoffeeIA {
         let streamErr  = null;   // error reportado dentro del stream
         let firstToken = false;
 
+        // Controlador para abortar la consulta desde el botón Detener.
+        const ac = new AbortController();
+        this._abort = ac;
+
         try {
             const res = await fetch(this._apiStream, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(payload)
+                body:    JSON.stringify(payload),
+                signal:  ac.signal
             });
             if (!res.ok || !res.body) {
                 let m = 'HTTP ' + res.status;
@@ -2367,10 +2390,21 @@ class CoffeeIA {
                 }
             }
         } catch (err) {
-            // Sin red, timeout o respuesta corrupta (aplica igual a OpenRouter y Ollama).
+            // Sin red, timeout, respuesta corrupta o detenida por el usuario (AbortError).
             $typing.remove();
-            const msg = '⚠️ No se obtuvo respuesta de ' + provider + '. '
-                + (err && err.message ? err.message : 'Error de red o timeout.');
+            const aborted = err && err.name === 'AbortError';
+            if (aborted && stream && received) {
+                // Detenida con contenido parcial: conservamos lo ya generado.
+                await stream.drain();
+                this.history.push({ role: 'assistant', content: received });
+                stream.complete(received, null, received);
+                finish();
+                return;
+            }
+            const msg = aborted
+                ? '⏹ Generacion detenida.'
+                : ('⚠️ No se obtuvo respuesta de ' + provider + '. '
+                    + (err && err.message ? err.message : 'Error de red o timeout.'));
             if (stream) { await stream.drain(); stream.fail(msg); }
             else        { this._appendAIMessage(msg, null); }
             finish();
@@ -2929,6 +2963,8 @@ class CoffeeIA {
 
             if (/\blanguage-mermaid\b/.test(cls)) {
                 this._renderMermaid($pre, raw);
+            } else if (/\blanguage-dot\b|\blanguage-graphviz\b|\blanguage-gv\b/.test(cls)) {
+                this._renderGraphviz($pre, raw);
             } else if (/\blanguage-chart\b|\blanguage-chartjs\b/.test(cls)) {
                 this._renderChart($pre, raw);
             } else if (/\blanguage-html\b|\blanguage-html-preview\b/.test(cls)) {
@@ -3023,14 +3059,79 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
     }
 
-    _openMermaidModal(svg) {
+    _renderGraphviz($pre, code) {
+        if (typeof Viz === 'undefined') {
+            $pre.replaceWith($('<div class="ia-render-block ia-render-error">Graphviz (Viz.js) no se cargo.</div>'));
+            return;
+        }
+        const id = 'gv-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        const $wrap = $(`
+            <div class="ia-render-block ia-render-graphviz" data-render-type="graphviz">
+                <div class="ia-render-toolbar">
+                    <span><i data-lucide="database" class="w-3 h-3"></i>Diagrama Graphviz</span>
+                    <span class="ia-render-tabs">
+                        <button class="ia-render-btn ia-render-toggle" data-target="${id}-code">
+                            <i data-lucide="code-2" class="w-3 h-3"></i>Codigo
+                        </button>
+                        <button class="ia-render-btn ia-render-expand" style="display:none;" title="Expandir a pantalla completa">
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i>Expandir
+                        </button>
+                    </span>
+                </div>
+                <div class="ia-render-view" id="${id}-view"></div>
+                <pre id="${id}-code" class="ia-render-source" style="display:none;"></pre>
+            </div>
+        `);
+        $wrap.find('.ia-render-source').text(code);
+        $pre.replaceWith($wrap);
+
+        // Viz.instance() resuelve el runtime WASM una sola vez; renderString es sincrono.
+        Viz.instance().then((viz) => {
+            const svg = viz.renderString(code, { format: 'svg' });
+            $wrap.find('.ia-render-view').html(svg);
+            $wrap.data('graphviz-svg', svg);
+            $wrap.find('.ia-render-expand').show();
+        }).catch((err) => {
+            const msg = this._escape(err && err.message ? err.message : err);
+            $wrap.find('.ia-render-view').html(
+                `<div class="ia-render-error"><strong>Error Graphviz:</strong> ${msg}
+                    <div style="margin-top:6px;font-size:11px;color:var(--vsr-text-mute2);">Revisa la sintaxis DOT pulsando "Codigo".</div>
+                </div>`
+            );
+        });
+
+        $wrap.find('.ia-render-toggle').on('click', (e) => {
+            const $btn  = $(e.currentTarget);
+            const $src  = $('#' + $btn.data('target'));
+            const $view = $wrap.find('.ia-render-view');
+            const showCode = $src.is(':hidden');
+            $src.toggle(showCode);
+            $view.toggle(!showCode);
+            $btn.html(showCode
+                ? '<i data-lucide="eye" class="w-3 h-3"></i>Diagrama'
+                : '<i data-lucide="code-2" class="w-3 h-3"></i>Codigo');
+            if (window.lucide) lucide.createIcons();
+        });
+
+        $wrap.find('.ia-render-expand').on('click', () => {
+            const svg = $wrap.data('graphviz-svg') || $wrap.find('.ia-render-view').html();
+            this._openMermaidModal(svg, { title: 'Diagrama Graphviz', canvasBg: '#ffffff' });
+        });
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _openMermaidModal(svg, opts) {
+        opts = opts || {};
+        const mTitle      = opts.title || 'Diagrama Mermaid';
+        const canvasStyle = opts.canvasBg ? ` style="background:${opts.canvasBg};border-radius:8px;"` : '';
         $('.ia-mermaid-modal').remove();
         const modalId = 'mer-modal-' + Date.now();
         const $modal = $(`
             <div class="ia-mermaid-modal" id="${modalId}">
                 <div class="ia-mermaid-modal-box">
                     <div class="ia-mermaid-modal-head">
-                        <h3><i data-lucide="git-graph"></i>Diagrama Mermaid</h3>
+                        <h3><i data-lucide="git-graph"></i>${mTitle}</h3>
                         <div class="ia-mermaid-modal-tools">
                             <button class="cs-btn cs-btn-ghost cs-btn-sm ia-mermaid-zoom-out" title="Zoom -">
                                 <i data-lucide="zoom-out" class="w-3.5 h-3.5"></i>
@@ -3053,7 +3154,7 @@ class CoffeeIA {
                         </div>
                     </div>
                     <div class="ia-mermaid-modal-body">
-                        <div class="ia-mermaid-modal-canvas">${svg}</div>
+                        <div class="ia-mermaid-modal-canvas"${canvasStyle}>${svg}</div>
                     </div>
                 </div>
             </div>

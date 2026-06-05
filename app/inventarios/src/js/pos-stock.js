@@ -62,15 +62,6 @@ class App extends Templates {
             subtitle: 'Control de existencias por sucursal, categoria y nivel',
             back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
         });
-        stockView.renderFooter({
-            info: '',
-            legends: [
-                { tone: 'success', label: 'Stock OK'   },
-                { tone: 'warning', label: 'Stock Bajo' },
-                { tone: 'danger',  label: 'Agotado'    },
-                { tone: 'warning', label: 'Vida util'  }
-            ]
-        });
         stockView.renderDetail(null);
         this.populateFilters();
         stock.lsStock();
@@ -84,34 +75,27 @@ class App extends Templates {
         const mainPanel = {
             type: 'div',
             id:   'mainPanel',
-            class:'flex-1 flex flex-col overflow-hidden min-w-0 w-full',
+            class:'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
             children: [
                 {
                     id:    'viewHeader',
                     text:  '#viewHeader',
                     class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
-                // {
-                //     id:    'tabsRow',
-                //     class: 'px-4 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
-                // },
+                {
+                    id: 'filterBar',
+                    class: 'px-4 py-2 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                },
+             
                 {
                     id:    'kpisRow',
                     class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
-                {
-                    id:    'filterBar',
-                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
-                },
+              
                 {
                     id:    'tableWrap',
                     text:  '#tableWrap',
-                    class: 'p-3 flex-1 '
-                },
-                {
-                    id:    'viewFooter',
-                    text:  '#viewFooter',
-                    class: 'px-4 py-2 bg-[#141d2b] border-t border-[#374151] flex items-center justify-between flex-shrink-0'
+                    class: 'p-3 flex-1 min-h-0 overflow-auto'
                 }
             ]
         };
@@ -145,7 +129,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'h-screen flex flex-row overflow-hidden relative',
+                class:     'flex-1 min-h-0 w-full flex flex-row overflow-hidden relative',
                 container: [mainPanel, detailPanel, backdrop]
             }
         });
@@ -177,7 +161,7 @@ class App extends Templates {
                 class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
-                data:     this.dataInit.categorias
+                data:     [{ id: '', valor: 'Todas las categorias' }].concat(this.dataInit.categorias || [])
             },
             {
                 opc:      'select',
@@ -192,6 +176,8 @@ class App extends Templates {
 
         this.createfilterBar({
             parent: 'filterBar',
+            coffeesoft:true,
+            theme:'dark',
             data:   filters
         });
     }
@@ -240,10 +226,6 @@ class App extends Templates {
         if (this.selectedId) stock.getProducto(this.selectedId);
     }
 
-    updateFooterInfo(text) {
-        $('#viewFooter_info').text(text);
-    }
-
     // -- Facade --
 
     selectProduct(productId) {
@@ -275,38 +257,32 @@ class Stock extends Templates {
 
     // -- Data --
 
-    async lsStock() {
+    lsStock() {
         const f = app.getFilters();
-        const r = await fn_ajax(Object.assign({ opc: 'lsStock' }, {
-            subsidiaries_id: f.subsidiaries_id,
-            category_id:     f.categoria,
-            nivel:           f.nivel,
-            q:               f.q
-        }), api).catch(() => null);
 
-        const data = (r && r.status === 200) ? { row: r.row } : { row: [] };
-
-        this.createCoffeeTable3({
-            parent:       'tableWrap',
-            id:           `tb${this.PROJECT_NAME}`,
-            theme:        'dark',
-            title:        '',
-            subtitle:     '',
-            center:       [3, 4, 5, 8, 9],
-            right:        [6, 7],
-            extends:      true,
-            scrollable:   false,
-            striped:      true,
-            f_size:       12,
-            emptyMessage: 'No se encontraron productos con los filtros aplicados',
-            emptyIcon:    'icon-cube',
-            data:         data
+        this.createTable({
+            parent:      'tableWrap',
+            idFilterBar: 'filterBar',
+            coffeesoft:  true,
+            conf:        { datatable: true, pag: 10 },
+            data: {
+                opc:             'lsStock',
+                subsidiaries_id: f.subsidiaries_id,
+                category_id:     f.categoria,
+                nivel:           f.nivel,
+                q:               f.q
+            },
+            attr: {
+                id:           `tb${this.PROJECT_NAME}`,
+                theme:        'dark',
+                striped:      true,
+                f_size:       12,
+                center:       [1, 4, 8, 9],
+                // right:        [6, 7],
+                emptyMessage: 'No se encontraron productos con los filtros aplicados',
+                emptyIcon:    'icon-cube'
+            }
         });
-
-        if (window.lucide) lucide.createIcons();
-
-        const total = (data.row || []).length;
-        app.updateFooterInfo(`Mostrando ${total} producto${total !== 1 ? 's' : ''}`);
     }
 
     async lsKpis() {

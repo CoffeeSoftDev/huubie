@@ -113,13 +113,13 @@
                     <button id="pgAttachBtn" class="ia-attach-btn" title="Adjuntar imagen (también Ctrl+V para pegar)">
                         <i data-lucide="paperclip" class="w-3 h-3"></i>
                     </button>
+                    <button id="pgClearBtn" title="Limpiar conversación" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;">
+                        <i data-lucide="trash-2" class="w-3 h-3" style="display:inline-block;vertical-align:middle;margin-right:3px;"></i>
+                        Limpiar
+                    </button>
                     <button id="pgCanvasToggle" class="ia-editor-toggle" title="Activar modo lienzo (la IA generará componentes HTML renderizables)">
                         <i data-lucide="layout-template" class="w-3 h-3"></i>
                         <span>Lienzo</span>
-                    </button>
-                    <button id="pgClearBtn" title="Limpiar conversación" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;margin-left:auto;">
-                        <i data-lucide="trash-2" class="w-3 h-3" style="display:inline-block;vertical-align:middle;margin-right:3px;"></i>
-                        Limpiar
                     </button>
                 </div>
             </div>
@@ -140,7 +140,15 @@
                     </button>
                 </div>
                 <div class="pg-sandbox-actions">
+                    <div class="pg-zoom" title="Zoom del preview">
+                        <button id="pgZoomOut" class="pg-iconbtn" title="Alejar"><i data-lucide="minus" class="w-3.5 h-3.5"></i></button>
+                        <button id="pgZoomLabel" class="pg-zoom-label" title="Restablecer a 100%">100%</button>
+                        <button id="pgZoomIn" class="pg-iconbtn" title="Acercar"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                    </div>
                     <span id="pgSandboxTheme" class="pg-theme-chip">Huubie Dark</span>
+                    <button id="pgSandboxDownload" class="pg-iconbtn" title="Descargar HTML">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    </button>
                     <button id="pgSandboxOpen" class="pg-iconbtn" title="Abrir render en pestaña nueva">
                         <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                     </button>

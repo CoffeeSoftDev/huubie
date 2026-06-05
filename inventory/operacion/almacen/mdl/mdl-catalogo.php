@@ -8,8 +8,10 @@ class mdl extends CRUD {
 
     public function __construct() {
         $this->util = new Utileria;
-        $this->bd = "fayxzvov_almacen.";
+        $this->bd = "fayxzvov_inventory.";
     }
+
+    // Categoría -> item_category
 
     function listCategory($array) {
         $query = "
@@ -18,9 +20,9 @@ class mdl extends CRUD {
                 name as valor,
                 DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
                 active
-            FROM {$this->bd}presentations
+            FROM {$this->bd}item_category
             WHERE active = ?
-            AND udn_id = ".$_SESSION['idUDN']."
+            AND companies_id = ".$_SESSION['companies_id']."
             ORDER BY id DESC
         ";
         return $this->_Read($query, $array);
@@ -29,7 +31,7 @@ class mdl extends CRUD {
     function getCategoryById($array) {
         $query = "
             SELECT *
-            FROM {$this->bd}presentations
+            FROM {$this->bd}item_category
             WHERE id = ?
         ";
         $result = $this->_Read($query, $array);
@@ -38,7 +40,7 @@ class mdl extends CRUD {
 
     function createCategory($array) {
         return $this->_Insert([
-            'table'  => "{$this->bd}presentations",
+            'table'  => "{$this->bd}item_category",
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
@@ -46,7 +48,7 @@ class mdl extends CRUD {
 
     function updateCategory($array) {
         return $this->_Update([
-            'table'  => "{$this->bd}presentations",
+            'table'  => "{$this->bd}item_category",
             'values' => $array['values'],
             'where'  => $array['where'],
             'data'   => $array['data']
@@ -56,28 +58,29 @@ class mdl extends CRUD {
     function existsCategoryByName($array) {
         $query = "
             SELECT COUNT(*) as total
-            FROM {$this->bd}presentations
+            FROM {$this->bd}item_category
             WHERE LOWER(name) = LOWER(?)
             AND active = 1
-             AND udn_id = ".$_SESSION['idUDN']."
+            AND companies_id = ".$_SESSION['companies_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
     }
 
-    // Area --
+    // Área -> warehouse_area
 
     function listArea($array) {
         $query = "
             SELECT
                 id,
                 name as valor,
+                description,
+                color_hex,
                 DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
                 active
-            FROM {$this->bd}product_groups
+            FROM {$this->bd}warehouse_area
             WHERE active = ?
-            AND udn_id = ".$_SESSION['idUDN']."
-
+            AND companies_id = ".$_SESSION['companies_id']."
             ORDER BY id DESC
         ";
         return $this->_Read($query, $array);
@@ -86,7 +89,7 @@ class mdl extends CRUD {
     function getAreaById($array) {
         $query = "
             SELECT *
-            FROM {$this->bd}product_groups
+            FROM {$this->bd}warehouse_area
             WHERE id = ?
         ";
         $result = $this->_Read($query, $array);
@@ -95,7 +98,7 @@ class mdl extends CRUD {
 
     function createArea($array) {
         return $this->_Insert([
-            'table'  => "{$this->bd}product_groups",
+            'table'  => "{$this->bd}warehouse_area",
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
@@ -103,37 +106,38 @@ class mdl extends CRUD {
 
     function updateArea($array) {
         return $this->_Update([
-            'table'  => "{$this->bd}product_groups",
+            'table'  => "{$this->bd}warehouse_area",
             'values' => $array['values'],
             'where'  => $array['where'],
             'data'   => $array['data']
         ]);
     }
 
-
-
     function existsAreaByName($array) {
         $query = "
             SELECT COUNT(*) as total
-            FROM {$this->bd}product_groups
+            FROM {$this->bd}warehouse_area
             WHERE LOWER(name) = LOWER(?)
             AND active = 1
-            AND udn_id = ".$_SESSION['idUDN']."
+            AND companies_id = ".$_SESSION['companies_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
     }
 
+    // Unidad -> unit
+
     function listZone($array) {
         $query = "
             SELECT
                 id,
+                code,
                 name as valor,
                 DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
                 active
-            FROM {$this->bd}areas
+            FROM {$this->bd}unit
             WHERE active = ?
-            AND udn_id = ".$_SESSION['idUDN']."
+            AND companies_id = ".$_SESSION['companies_id']."
             ORDER BY id DESC
         ";
         return $this->_Read($query, $array);
@@ -142,7 +146,7 @@ class mdl extends CRUD {
     function getZoneById($array) {
         $query = "
             SELECT *
-            FROM {$this->bd}areas
+            FROM {$this->bd}unit
             WHERE id = ?
         ";
         $result = $this->_Read($query, $array);
@@ -151,7 +155,7 @@ class mdl extends CRUD {
 
     function createZone($array) {
         return $this->_Insert([
-            'table'  => "{$this->bd}areas",
+            'table'  => "{$this->bd}unit",
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
@@ -159,22 +163,20 @@ class mdl extends CRUD {
 
     function updateZone($array) {
         return $this->_Update([
-            'table'  => "{$this->bd}areas",
+            'table'  => "{$this->bd}unit",
             'values' => $array['values'],
             'where'  => $array['where'],
             'data'   => $array['data']
         ]);
     }
 
-
-
     function existsZoneByName($array) {
         $query = "
             SELECT COUNT(*) as total
-            FROM {$this->bd}areas
+            FROM {$this->bd}unit
             WHERE LOWER(name) = LOWER(?)
             AND active = 1
-            AND udn_id = ".$_SESSION['idUDN']."
+            AND companies_id = ".$_SESSION['companies_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;

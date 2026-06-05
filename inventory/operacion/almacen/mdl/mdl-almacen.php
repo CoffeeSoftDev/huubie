@@ -9,28 +9,28 @@ class mdl extends CRUD {
 
     public function __construct() {
         $this->util = new Utileria;
-        $this->bd   = "fayxzvov_almacen.";
+        $this->bd   = "fayxzvov_inventory.";
     }
 
-    // Selects para filtros
+    // Selects para filtros / formularios
 
-    function lsZonas() {
+    function lsCategories() {
         $query = "
             SELECT id, name AS valor
-            FROM {$this->bd}areas
+            FROM {$this->bd}item_category
             WHERE active = 1
-            AND udn_id = ".$_SESSION['idUDN']."
+            AND companies_id = ".$_SESSION['companies_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
-    function lsCategories() {
+    function lsUnits() {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}presentations
+            SELECT id, code, name AS valor
+            FROM {$this->bd}unit
             WHERE active = 1
-            AND udn_id = ".$_SESSION['idUDN']."
+            AND companies_id = ".$_SESSION['companies_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -39,9 +39,9 @@ class mdl extends CRUD {
     function lsAreas() {
         $query = "
             SELECT id, name AS valor
-            FROM {$this->bd}product_groups
+            FROM {$this->bd}warehouse_area
             WHERE active = 1
-            AND udn_id = ".$_SESSION['idUDN']."
+            AND companies_id = ".$_SESSION['companies_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -51,59 +51,63 @@ class mdl extends CRUD {
         $query = "
             SELECT id, name AS valor
             FROM {$this->bd}supplier
+            WHERE active = 1
+            AND companies_id = ".$_SESSION['companies_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
     }
 
-    // Materiales
+    // Insumos (item + item_attribute + stock)
 
     function listMateriales($filters) {
         $query = "
             SELECT
-                a.id,
-                a.code,
-                a.name,
-                a.quantity,
-                a.cost,
-                a.price,
-                a.active,
-                a.min_stock,
-                a.description,
-                a.created_at,
-                ar.name as area,
-                c.name as categoria,
-                z.name as zona
-            FROM {$this->bd}product a
-            LEFT JOIN {$this->bd}product_groups ar ON a.group_id        = ar.id
-            LEFT JOIN {$this->bd}presentations c   ON a.presentations_id = c.id
-            LEFT JOIN {$this->bd}areas z            ON a.area_id         = z.id
-            WHERE a.udn_id = ".$_SESSION['idUDN']."
+                i.id,
+                i.name,
+                i.price,
+                i.active,
+                i.created_at,
+                ia.sku,
+                ia.cost_unit AS cost,
+                ia.stock_min,
+                ia.description,
+                ic.name AS categoria,
+                u.code  AS unidad,
+                wa.name AS area,
+                COALESCE(st.qty, 0) AS quantity
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}unit           u  ON u.id  = ia.unit_id
+            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty
+                FROM {$this->bd}stock
+                WHERE active = 1
+                GROUP BY item_id
+            ) st ON st.item_id = i.id
+            WHERE i.companies_id = ".$_SESSION['companies_id']."
         ";
 
         $params = [];
 
-        if (!empty($filters['zona'])) {
-            $query .= " AND a.area_id = ?";
-            $params[] = $filters['zona'];
-        }
-
         if (!empty($filters['categoria'])) {
-            $query .= " AND a.presentations_id = ?";
+            $query .= " AND i.category_id = ?";
             $params[] = $filters['categoria'];
         }
 
         if (!empty($filters['area'])) {
-            $query .= " AND a.group_id = ?";
+            $query .= " AND ia.warehouse_area_id = ?";
             $params[] = $filters['area'];
         }
 
         if (isset($filters['estado']) && $filters['estado'] !== '') {
-            $query .= " AND a.active = ?";
+            $query .= " AND i.active = ?";
             $params[] = $filters['estado'];
         }
 
-        $query .= " ORDER BY a.id DESC";
+        $query .= " ORDER BY i.id DESC";
 
         return $this->_Read($query, $params);
     }
@@ -111,44 +115,62 @@ class mdl extends CRUD {
     function getMaterialById($id) {
         $query = "
             SELECT
-                a.*,
-                ar.name as area_nombre,
-                c.name as categoria_nombre,
-                z.name as zona_nombre
-            FROM {$this->bd}product a
-            LEFT JOIN {$this->bd}product_groups ar ON a.group_id        = ar.id
-            LEFT JOIN {$this->bd}presentations c   ON a.presentations_id = c.id
-            LEFT JOIN {$this->bd}areas z            ON a.area_id         = z.id
-            WHERE a.id = ?
+                i.*,
+                ia.id AS attribute_id,
+                ia.sku,
+                ia.description,
+                ia.shelf_life_days,
+                ia.cost_unit,
+                ia.stock_min,
+                ia.stock_max,
+                ia.warehouse_area_id,
+                ia.unit_id
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            WHERE i.id = ?
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;
     }
 
-    function existsMaterialByCode($array) {
+    function existsItemBySku($array) {
         $query = "
             SELECT COUNT(*) as count
-            FROM {$this->bd}product
-            WHERE code = ? AND active = 1
-            AND udn_id = ".$_SESSION['idUDN']."
+            FROM {$this->bd}item_attribute
+            WHERE sku = ? AND active = 1
+            AND companies_id = ".$_SESSION['companies_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['count'] > 0;
     }
 
-    function getNextCodigoEquipo() {
+    function getNextSku() {
         $query = "
             SELECT COALESCE(MAX(id), 0) + 1 as next_id
-            FROM {$this->bd}product
+            FROM {$this->bd}item
         ";
         $result = $this->_Read($query, []);
         $nextId = $result[0]['next_id'];
-        return 'PRD-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+        return 'ITM-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
     }
 
     function createMaterial($data) {
         return $this->_Insert([
-            'table'  => "{$this->bd}product",
+            'table'  => "{$this->bd}item",
+            'values' => $data['values'],
+            'data'   => $data['data']
+        ]);
+    }
+
+    function getMaxItemId() {
+        $query = "SELECT MAX(id) AS id FROM {$this->bd}item";
+        $result = $this->_Read($query, []);
+        return $result[0]['id'] ?? 0;
+    }
+
+    function createItemAttribute($data) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}item_attribute",
             'values' => $data['values'],
             'data'   => $data['data']
         ]);
@@ -156,173 +178,16 @@ class mdl extends CRUD {
 
     function updateMaterial($data) {
         return $this->_Update([
-            'table'  => "{$this->bd}product",
+            'table'  => "{$this->bd}item",
             'values' => $data['values'],
             'where'  => $data['where'],
             'data'   => $data['data']
         ]);
     }
 
-    function deleteMaterialById($array) {
-        return $this->_Delete([
-            'table' => "{$this->bd}product",
-            'where' => $array['where'],
-            'data'  => $array['data']
-        ]);
-    }
-
-    // Categorías
-
-    function listCategorias() {
-        $query = "
-            SELECT
-                id,
-                name,
-                created_at as date_creation,
-                active
-            FROM {$this->bd}presentations
-            ORDER BY name ASC
-        ";
-        return $this->_Read($query, []);
-    }
-
-    function getCategoriaById($id) {
-        $query = "
-            SELECT * FROM {$this->bd}presentations WHERE id = ?
-        ";
-        $result = $this->_Read($query, [$id]);
-        return $result[0] ?? null;
-    }
-
-    function createCategoria($data) {
-        return $this->_Insert([
-            'table'  => "{$this->bd}presentations",
-            'values' => $data['values'],
-            'data'   => $data['data']
-        ]);
-    }
-
-    function updateCategoria($data) {
+    function updateItemAttribute($data) {
         return $this->_Update([
-            'table'  => "{$this->bd}presentations",
-            'values' => $data['values'],
-            'where'  => $data['where'],
-            'data'   => $data['data']
-        ]);
-    }
-
-    // Áreas
-
-    function listAreas() {
-        $query = "
-            SELECT
-                id,
-                name,
-                created_at as date_creation,
-                active
-            FROM {$this->bd}product_groups
-            ORDER BY name ASC
-        ";
-        return $this->_Read($query, []);
-    }
-
-    function getAreaById($id) {
-        $query = "
-            SELECT * FROM {$this->bd}product_groups WHERE id = ?
-        ";
-        $result = $this->_Read($query, [$id]);
-        return $result[0] ?? null;
-    }
-
-    function createArea($data) {
-        return $this->_Insert([
-            'table'  => "{$this->bd}product_groups",
-            'values' => $data['values'],
-            'data'   => $data['data']
-        ]);
-    }
-
-    function updateArea($data) {
-        return $this->_Update([
-            'table'  => "{$this->bd}product_groups",
-            'values' => $data['values'],
-            'where'  => $data['where'],
-            'data'   => $data['data']
-        ]);
-    }
-
-    // Zonas
-
-    function listZonas() {
-        $query = "
-            SELECT
-                id,
-                name,
-                created_at as date_creation,
-                active
-            FROM {$this->bd}areas
-            ORDER BY name ASC
-        ";
-        return $this->_Read($query, []);
-    }
-
-    function getZonaById($id) {
-        $query = "
-            SELECT * FROM {$this->bd}areas WHERE id = ?
-        ";
-        $result = $this->_Read($query, [$id]);
-        return $result[0] ?? null;
-    }
-
-    function createZona($data) {
-        return $this->_Insert([
-            'table'  => "{$this->bd}areas",
-            'values' => $data['values'],
-            'data'   => $data['data']
-        ]);
-    }
-
-    function updateZona($data) {
-        return $this->_Update([
-            'table'  => "{$this->bd}areas",
-            'values' => $data['values'],
-            'where'  => $data['where'],
-            'data'   => $data['data']
-        ]);
-    }
-
-    // Proveedores
-
-    function listProveedores() {
-        $query = "
-            SELECT
-                id,
-                name
-            FROM {$this->bd}supplier
-            ORDER BY name ASC
-        ";
-        return $this->_Read($query, []);
-    }
-
-    function getProveedorById($id) {
-        $query = "
-            SELECT * FROM {$this->bd}supplier WHERE id = ?
-        ";
-        $result = $this->_Read($query, [$id]);
-        return $result[0] ?? null;
-    }
-
-    function createProveedor($data) {
-        return $this->_Insert([
-            'table'  => "{$this->bd}supplier",
-            'values' => $data['values'],
-            'data'   => $data['data']
-        ]);
-    }
-
-    function updateProveedor($data) {
-        return $this->_Update([
-            'table'  => "{$this->bd}supplier",
+            'table'  => "{$this->bd}item_attribute",
             'values' => $data['values'],
             'where'  => $data['where'],
             'data'   => $data['data']

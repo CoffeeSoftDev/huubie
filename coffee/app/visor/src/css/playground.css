@@ -143,6 +143,11 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-typing span:nth-child(2) { animation-delay: .2s; } .pg-typing span:nth-child(3) { animation-delay: .4s; }
 @keyframes pgblink { 0%,60%,100% { opacity: .25; } 30% { opacity: 1; } }
 
+/* Botón Enviar transformado en "Detener" mientras el agente genera (cuadrado relleno). */
+.ia-send-btn.is-stop { background: #c2410c; }
+.ia-send-btn.is-stop:hover { background: #ea580c; }
+.ia-send-btn.is-stop svg { fill: currentColor; }
+
 /* ── Sandbox ── */
 .pg-sandbox-tabs { display: flex; gap: 4px; }
 .pg-tab {
@@ -156,8 +161,20 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 
 /* El fondo real lo pinta pgRenderSandbox() con el color del tema activo; este
    es solo el estado base para que no destelle blanco antes del primer render. */
-.pg-sandbox-body { flex: 1; position: relative; min-height: 0; background: var(--vsr-bg-base); }
+/* overflow:hidden a propósito: el ÚNICO scroll lo hace el documento dentro del
+   iframe, así no aparecen dos barras (panel + iframe). */
+.pg-sandbox-body { flex: 1; position: relative; min-height: 0; overflow: hidden; background: var(--vsr-bg-base); }
 .pg-sandbox-frame { width: 100%; height: 100%; border: none; display: block; }
+
+/* Control de zoom del preview */
+.pg-zoom { display: flex; align-items: center; gap: 1px; }
+.pg-zoom-label {
+    min-width: 44px; text-align: center; padding: 3px 4px;
+    background: transparent; border: none; cursor: pointer;
+    font-size: 11.5px; font-weight: 700; color: var(--vsr-text-muted);
+    font-variant-numeric: tabular-nums; border-radius: 6px;
+}
+.pg-zoom-label:hover { color: var(--vsr-text-soft); background: var(--vsr-bg-hover); }
 .pg-sandbox-code { position: absolute; inset: 0; margin: 0; overflow: auto; padding: 16px; background: #0d1320; }
 .pg-sandbox-code code { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #e5e7eb; white-space: pre; }
 

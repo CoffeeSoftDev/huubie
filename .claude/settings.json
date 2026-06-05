@@ -66,7 +66,13 @@
       "Bash(ls -d mysql*/)",
       "Bash(ls -d /c/wamp64/bin/mysql/mysql*/bin/mysql.exe)",
       "Bash(awk 'END{print NR\" lineas\"}' c:/wamp64/www/huubie/app/inventarios/src/js/pos-mermas.js)",
-      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/coffee/app/visor/playground.php\")"
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/coffee/app/visor/playground.php\")",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/app/inventarios/mdl/mdl-inventarios.php\")",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/app/inventarios/pos-stock.php\")",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/app/inventarios/ctrl/ctrl-inventarios.php\")",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" \"c:/tmp/diag_stock.php\")",
+      "Bash(del \"c:\\\\tmp\\\\diag_stock.php\")",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" \"c:/tmp/verify_stock.php\")"
     ],
     "additionalDirectories": [
       "\\tmp"

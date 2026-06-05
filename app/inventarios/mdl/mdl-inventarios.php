@@ -152,6 +152,7 @@ class mdl extends CRUD {
         $query = "
             SELECT id, classification AS name, classification AS valor
             FROM {$this->bd}order_category
+            WHERE active = 1
             ORDER BY classification ASC
         ";
         $r = $this->_Read($query);
@@ -163,23 +164,34 @@ class mdl extends CRUD {
     // ─────────────────────────────────────────────────────────────────
 
     function qStock($array) {
-        $where = 'p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?';
-        $data  = [$array['companies_id']];
-
+        // El stock se ubica por el ALMACEN (stock.warehouse_id -> warehouse.subsidiaries_id),
+        // NO por la sucursal del catalogo del producto. Por eso se pre-agrega en una
+        // subconsulta por producto: asi el SUM no se infla aunque hubiera mas de un
+        // product_attribute activo, y el filtro de sucursal aplica sobre el almacen.
+        //   - Con sucursal: INNER JOIN -> solo productos con existencias en esa sucursal,
+        //     sumando unicamente el stock de sus almacenes.
+        //   - Sin sucursal: LEFT JOIN  -> consolidado de todas (productos sin stock incluidos).
+        $stockWhere  = 'st.active = 1';
+        $stockParams = [];
+        $joinType    = 'LEFT';
         if (!empty($array['subsidiaries_id'])) {
-            $where .= ' AND p.subsidiaries_id = ?';
-            $data[] = $array['subsidiaries_id'];
+            $stockWhere   .= ' AND w.subsidiaries_id = ?';
+            $stockParams[] = $array['subsidiaries_id'];
+            $joinType      = 'INNER';
         }
+
+        $where       = 'p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?';
+        $whereParams = [$array['companies_id']];
 
         if (!empty($array['category_id'])) {
             $where .= ' AND p.category_id = ?';
-            $data[] = $array['category_id'];
+            $whereParams[] = $array['category_id'];
         }
 
         if (!empty($array['q'])) {
             $where .= ' AND (p.name LIKE ? OR pa.sku LIKE ?)';
-            $data[] = '%' . $array['q'] . '%';
-            $data[] = '%' . $array['q'] . '%';
+            $whereParams[] = '%' . $array['q'] . '%';
+            $whereParams[] = '%' . $array['q'] . '%';
         }
 
         $having = '';
@@ -192,6 +204,9 @@ class mdl extends CRUD {
                 $having = 'HAVING quantity_total <= 0';
             }
         }
+
+        // Orden de los placeholders: primero el de la subconsulta (FROM), luego los del WHERE.
+        $data = array_merge($stockParams, $whereParams);
 
         $query = "
             SELECT
@@ -208,17 +223,26 @@ class mdl extends CRUD {
                 u.name              AS unit_name,
                 wa.name             AS area_name,
                 wa.color_hex        AS area_color,
-                IFNULL(SUM(st.quantity), 0) AS quantity_total,
-                MAX(st.last_movement_at)    AS last_movement_at,
-                MAX(st.last_inventory_at)   AS last_inventory_at
+                IFNULL(s.quantity_total, 0) AS quantity_total,
+                s.last_movement_at          AS last_movement_at,
+                s.last_inventory_at         AS last_inventory_at
             FROM {$this->bd}order_products p
             LEFT JOIN {$this->bdAlpha}subsidiaries ps ON ps.id = p.subsidiaries_id
-            LEFT JOIN {$this->bd}order_category   oc ON oc.id = p.category_id
+            LEFT JOIN {$this->bd}order_category    oc ON oc.id = p.category_id
             LEFT JOIN {$this->bd}product_attribute pa ON pa.product_id = p.id AND pa.active = 1
             LEFT JOIN {$this->bd}unit              u  ON u.id  = pa.unit_id
             LEFT JOIN {$this->bd}warehouse_area    wa ON wa.id = pa.warehouse_area_id
-            LEFT JOIN {$this->bd}stock             st ON st.product_id = p.id AND st.active = 1
-            LEFT JOIN {$this->bd}warehouse         w  ON w.id = st.warehouse_id
+            {$joinType} JOIN (
+                SELECT
+                    st.product_id,
+                    SUM(st.quantity)          AS quantity_total,
+                    MAX(st.last_movement_at)  AS last_movement_at,
+                    MAX(st.last_inventory_at) AS last_inventory_at
+                FROM {$this->bd}stock st
+                INNER JOIN {$this->bd}warehouse w ON w.id = st.warehouse_id AND w.active = 1
+                WHERE {$stockWhere}
+                GROUP BY st.product_id
+            ) s ON s.product_id = p.id
             WHERE {$where}
             GROUP BY p.id
             {$having}
@@ -229,30 +253,39 @@ class mdl extends CRUD {
     }
 
     function getStockKpis($array) {
-        $where = 'p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?';
-        $data  = [$array['companies_id']];
-
+        // Coherente con qStock: el stock se filtra por la sucursal del ALMACEN.
+        //   - Con sucursal: INNER JOIN -> KPIs solo de productos con existencias en ella.
+        //   - Sin sucursal: LEFT JOIN  -> consolidado (todos los productos de la empresa).
+        $stockWhere  = 'st.active = 1';
+        $stockParams = [];
+        $joinType    = 'LEFT';
         if (!empty($array['subsidiaries_id'])) {
-            $where .= ' AND p.subsidiaries_id = ?';
-            $data[] = $array['subsidiaries_id'];
+            $stockWhere   .= ' AND w.subsidiaries_id = ?';
+            $stockParams[] = $array['subsidiaries_id'];
+            $joinType      = 'INNER';
         }
+
+        $where       = 'p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?';
+        $whereParams = [$array['companies_id']];
+
+        $data = array_merge($stockParams, $whereParams);
 
         $query = "
             SELECT
                 COUNT(DISTINCT p.id) AS total_productos,
-                SUM(CASE WHEN COALESCE(SUM_qty.q, 0) > COALESCE(pa.stock_min, 0) THEN 1 ELSE 0 END) AS total_ok,
-                SUM(CASE WHEN COALESCE(SUM_qty.q, 0) > 0 AND COALESCE(SUM_qty.q, 0) <= COALESCE(pa.stock_min, 0) THEN 1 ELSE 0 END) AS total_bajo,
-                SUM(CASE WHEN COALESCE(SUM_qty.q, 0) = 0 THEN 1 ELSE 0 END) AS total_agotado
+                SUM(CASE WHEN COALESCE(s.q, 0) > COALESCE(pa.stock_min, 0) THEN 1 ELSE 0 END) AS total_ok,
+                SUM(CASE WHEN COALESCE(s.q, 0) > 0 AND COALESCE(s.q, 0) <= COALESCE(pa.stock_min, 0) THEN 1 ELSE 0 END) AS total_bajo,
+                SUM(CASE WHEN COALESCE(s.q, 0) = 0 THEN 1 ELSE 0 END) AS total_agotado
             FROM {$this->bd}order_products p
             LEFT JOIN {$this->bdAlpha}subsidiaries ps ON ps.id = p.subsidiaries_id
             LEFT JOIN {$this->bd}product_attribute pa ON pa.product_id = p.id AND pa.active = 1
-            LEFT JOIN (
+            {$joinType} JOIN (
                 SELECT st.product_id, SUM(st.quantity) AS q
                 FROM {$this->bd}stock st
-                INNER JOIN {$this->bd}warehouse w ON w.id = st.warehouse_id
-                WHERE st.active = 1
+                INNER JOIN {$this->bd}warehouse w ON w.id = st.warehouse_id AND w.active = 1
+                WHERE {$stockWhere}
                 GROUP BY st.product_id
-            ) SUM_qty ON SUM_qty.product_id = p.id
+            ) s ON s.product_id = p.id
             WHERE {$where}
         ";
         $r = $this->_Read($query, $data);

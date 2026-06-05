@@ -115,7 +115,10 @@ function coffeeia_build_context(array $body) {
     $ctxDocs = [];
     if ($currentFile !== '' && $fileContent !== '') {
         if (strlen($fileContent) > COFFEEIA_MAX_FILE_BYTES) {
-            $fileContent = substr($fileContent, 0, COFFEEIA_MAX_FILE_BYTES) . "\n\n[... truncado a 64KB ...]";
+            // mb_strcut corta por bytes SIN partir un caracter UTF-8 multibyte.
+            // (substr partia el ultimo caracter -> UTF-8 invalido -> json_encode
+            // fallaba -> body vacio -> Ollama respondia "HTTP 400: EOF".)
+            $fileContent = mb_strcut($fileContent, 0, COFFEEIA_MAX_FILE_BYTES, 'UTF-8') . "\n\n[... truncado a 64KB ...]";
         }
         $ctxDocs[] = ['label' => 'archivo abierto en el visor', 'name' => $currentFile, 'content' => $fileContent];
     }
@@ -132,7 +135,7 @@ function coffeeia_build_context(array $body) {
         }
         if ($pfContent === '') continue;
         if (strlen($pfContent) > COFFEEIA_MAX_FILE_BYTES) {
-            $pfContent = substr($pfContent, 0, COFFEEIA_MAX_FILE_BYTES) . "\n\n[... truncado a 64KB ...]";
+            $pfContent = mb_strcut($pfContent, 0, COFFEEIA_MAX_FILE_BYTES, 'UTF-8') . "\n\n[... truncado a 64KB ...]";
         }
         $ctxDocs[] = ['label' => 'archivo anclado al contexto', 'name' => $pfName, 'content' => $pfContent];
     }

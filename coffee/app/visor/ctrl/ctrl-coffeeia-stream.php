@@ -13,6 +13,12 @@
 
 require_once __DIR__ . '/coffeeia-context.php';
 
+// SSE de larga duracion: sin limite de ejecucion. En Windows/WAMP el tiempo de
+// cURL cuenta contra max_execution_time, asi que sin esto PHP mataria el script
+// (~120s) antes de que el modelo termine, dando "no devolvio respuesta".
+@set_time_limit(0);
+@ignore_user_abort(false);
+
 // Apagar todo buffering para que los chunks salgan en vivo (clave en Apache/WAMP).
 @ini_set('zlib.output_compression', '0');
 @ini_set('output_buffering', '0');

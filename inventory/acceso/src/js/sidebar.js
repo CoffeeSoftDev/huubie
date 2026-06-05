@@ -67,12 +67,6 @@ class Sidebar {
             </div>
             ${this.createMenuItems(this.settings.menuItems)}
             <div class="flex-1"></div>
-            <button class="w-12 h-12 hover:bg-[#4A3733] rounded-xl flex items-center justify-center transition" data-action="logout" title="Cerrar sesión">
-                <i data-lucide="log-out" class="text-gray-400 hover:text-white w-6 h-6"></i>
-            </button>
-            <button class="w-12 h-12 bg-[#4A3733] hover:bg-gray-600 rounded-xl flex items-center justify-center transition" data-action="toggle" title="Modo oscuro">
-                <i data-lucide="toggle-right" class="text-white w-6 h-6"></i>
-            </button>
         `;
 
         this.parent.html(sidebarHtml);
@@ -135,8 +129,6 @@ class Sidebar {
 
         this.parent.on("click", "button[data-action='search']", () => this.handleSearch());
         this.parent.on("click", "button[data-action='notifications']", () => this.handleNotifications());
-        this.parent.on("click", "button[data-action='logout']", () => this.handleLogout());
-        this.parent.on("click", "button[data-action='toggle']", () => this.handleToggle());
 
         $(document).on("click", "#sidebar-overlay", () => self.toggle());
         $(document).on("click", "#btn-mobile-menu", () => self.toggle());
@@ -150,43 +142,9 @@ class Sidebar {
         console.log("Notificaciones");
     }
 
-    handleLogout() {
-        Swal.fire({
-            title: "¿Cerrar sesión?",
-            text: "¿Estás seguro de que deseas cerrar sesión?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Sí, cerrar sesión",
-            cancelButtonText: "Cancelar",
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = "../../salir";
-            }
-        });
-    }
-
-    handleToggle() {
-        const body = $("body");
-        const isDark = body.hasClass("dark-mode");
-        
-        const toggleBtn = this.parent.find("button[data-action='toggle']");
-        if (isDark) {
-            body.removeClass("dark-mode");
-            localStorage.setItem("darkMode", "false");
-            toggleBtn.html('<i data-lucide="toggle-left" class="text-white w-6 h-6"></i>');
-        } else {
-            body.addClass("dark-mode");
-            localStorage.setItem("darkMode", "true");
-            toggleBtn.html('<i data-lucide="toggle-right" class="text-white w-6 h-6"></i>');
-        }
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
-
     loadDarkMode() {
-        const darkMode = localStorage.getItem("darkMode");
-        if (darkMode === "true") {
+        if (localStorage.getItem("darkMode") === "true") {
             $("body").addClass("dark-mode");
-            this.parent.find("button[data-action='toggle'] i").attr("data-lucide", "toggle-right");
         }
     }
 

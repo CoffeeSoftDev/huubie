@@ -22,7 +22,7 @@ define('OPENROUTER_API_KEY',       $_OPENROUTER_ENV['OPENROUTER_API_KEY']       
 define('OPENROUTER_BASE_URL',      $_OPENROUTER_ENV['OPENROUTER_BASE_URL']      ?? 'https://openrouter.ai/api/v1');
 define('OPENROUTER_DEFAULT_MODEL', $_OPENROUTER_ENV['OPENROUTER_DEFAULT_MODEL'] ?? 'anthropic/claude-sonnet-4');
 define('OPENROUTER_VISION_MODEL',  $_OPENROUTER_ENV['OPENROUTER_VISION_MODEL']  ?? 'google/gemini-2.0-flash-001');
-define('OPENROUTER_TIMEOUT',       (int)($_OPENROUTER_ENV['OPENROUTER_TIMEOUT'] ?? 120));
+define('OPENROUTER_TIMEOUT',       (int)($_OPENROUTER_ENV['OPENROUTER_TIMEOUT'] ?? 240));
 define('OPENROUTER_CA_BUNDLE',     $_OPENROUTER_ENV['OPENROUTER_CA_BUNDLE']     ?? '');
 
 // Cabeceras opcionales para el ranking/identificacion en openrouter.ai.

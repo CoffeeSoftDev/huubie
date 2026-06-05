@@ -15,10 +15,16 @@ class Index extends CRUD {
                 u.usr_perfil AS IDP,
                 u.usr_udn AS udn_id,
                 udn.UDN AS udn_name,
-                pf.perfil AS perfil_name
+                pf.perfil AS perfil_name,
+                c.id AS companies_id,
+                s.id AS subsidiaries_id,
+                nu.id AS user_id
             FROM usuarios u
             INNER JOIN perfiles pf ON pf.idPerfil = u.usr_perfil
             INNER JOIN udn ON udn.idUDN = u.usr_udn
+            LEFT JOIN companies c ON c.udn_id = u.usr_udn
+            LEFT JOIN subsidiaries s ON s.companies_id = c.id AND s.is_main = 1
+            LEFT JOIN users nu ON nu.legacy_user_id = u.idUser
             WHERE u.usser = ?
                 AND (u.keey = MD5(?) OR u.keey2 = MD5(?))
                 AND u.usr_estado = 1
