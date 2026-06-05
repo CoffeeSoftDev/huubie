@@ -9,17 +9,16 @@ class ctrl extends mdl {
 
     function init() {
         return [
-            'zonas'        => $this->lsZonas(),
-            'categorias'   => $this->lsCategories(),
-            'areas'        => $this->lsAreas(),
-            'proveedores'  => $this->lsProveedores()
+            'categorias'  => $this->lsCategories(),
+            'unidades'    => $this->lsUnits(),
+            'areas'       => $this->lsAreas(),
+            'proveedores' => $this->lsProveedores()
         ];
     }
 
     function lsMateriales() {
 
         $filters = [
-            'zona'      => $_POST['zona'] ?? '',
             'categoria' => $_POST['categoria'] ?? '',
             'area'      => $_POST['area'] ?? '',
             'estado'    => $_POST['estado'] ?? ''
@@ -47,20 +46,21 @@ class ctrl extends mdl {
             ];
 
             $rows[] = [
-                'id'           => $item['id'],
-                'Producto'     => [
+                'id'         => $item['id'],
+                'Insumo'     => [
                     'class' => 'justify-center px-2 py-2',
-                    'html'  => renderProductImage('', $item['name'])
+                    'html'  => renderProductImage($item['image'] ?? '', $item['name'])
                 ],
-                'Grupo'         => $item['area'] ?? '-',
-                'Cantidad'     => $item['quantity'],
-                'Presentación'    => $item['categoria'] ?? '-',
-                'Costo'        => [
+                'SKU'        => $item['sku'] ?? '-',
+                'Categoría'  => $item['categoria'] ?? '-',
+                'Unidad'     => $item['unidad'] ?? '-',
+                'Stock'      => $item['quantity'],
+                'Costo'      => [
                     'html'  => '$' . number_format($item['cost'], 2),
                     'class' => 'text-end '
                 ],
-                'Estado'       => renderStatus($item['active']),
-                'a'            => $a
+                'Estado'     => renderStatus($item['active']),
+                'a'          => $a
             ];
         }
 
@@ -73,57 +73,107 @@ class ctrl extends mdl {
     function getMaterial() {
         $id      = $_POST['id'];
         $status  = 404;
-        $message = 'Material no encontrado';
+        $message = 'Insumo no encontrado';
         $data    = null;
 
         $material = $this->getMaterialById($id);
 
         if ($material) {
             $status  = 200;
-            $message = 'Material encontrado';
+            $message = 'Insumo encontrado';
             $data    = $material;
         }
 
         return [
             'status'  => $status,
             'message' => $message,
-            'data'    => $data,
-
+            'data'    => $data
         ];
     }
 
     function addMaterial() {
         $status  = 500;
-        $message = 'No se pudo agregar el material';
+        $message = 'No se pudo agregar el insumo';
 
-        $_POST['created_at']  = date('Y-m-d H:i:s');
-        $_POST['active']      = 1;
-        $_POST['udn_id']     = $_SESSION['idUDN'];
-        $_POST['code']        = $this->getNextCodigoEquipo();
+        $now             = date('Y-m-d H:i:s');
+        $companies_id    = $_SESSION['companies_id'];
+        $subsidiaries_id = $_SESSION['subsidiaries_id'];
 
-        $create = $this->createMaterial($this->util->sql($_POST));
+        $item = [
+            'name'            => $_POST['name'],
+            'price'           => $_POST['price'] === '' ? 0 : $_POST['price'],
+            'category_id'     => $_POST['category_id'],
+            'subsidiaries_id' => $subsidiaries_id,
+            'companies_id'    => $companies_id,
+            'created_at'      => $now,
+            'active'          => 1
+        ];
+
+        $create = $this->createMaterial($this->util->sql($item));
 
         if ($create) {
+            $itemId = $this->getMaxItemId();
+
+            $attribute = [
+                'sku'               => $this->getNextSku(),
+                'description'       => $_POST['description'],
+                'cost_unit'         => $_POST['cost_unit'] === '' ? 0 : $_POST['cost_unit'],
+                'stock_min'         => $_POST['stock_min'] === '' ? 0 : $_POST['stock_min'],
+                'stock_max'         => $_POST['stock_max'] === '' ? 0 : $_POST['stock_max'],
+                'warehouse_area_id' => $_POST['warehouse_area_id'],
+                'unit_id'           => $_POST['unit_id'],
+                'item_id'           => $itemId,
+                'companies_id'      => $companies_id,
+                'created_at'        => $now,
+                'active'            => 1
+            ];
+
+            $this->createItemAttribute($this->util->sql($attribute));
+
             $status  = 200;
-            $message = 'Producto agregado correctamente';
+            $message = 'Insumo agregado correctamente';
         }
 
         return [
             'status'  => $status,
-            'message' => $message,
-            'codigo'  => $_POST
+            'message' => $message
         ];
     }
 
     function editMaterial() {
         $status  = 500;
-        $message = 'Error al editar Producto';
+        $message = 'Error al editar el insumo';
 
-        $edit = $this->updateMaterial($this->util->sql($_POST, 1));
+        $id = $_POST['id'];
 
-        if ($edit) {
+        $editItem = $this->updateMaterial([
+            'values' => 'name = ?, price = ?, category_id = ?',
+            'where'  => 'id = ?',
+            'data'   => [
+                $_POST['name'],
+                $_POST['price'] === '' ? 0 : $_POST['price'],
+                $_POST['category_id'],
+                $id
+            ]
+        ]);
+
+        $this->updateItemAttribute([
+            'values' => 'description = ?, cost_unit = ?, stock_min = ?, stock_max = ?, warehouse_area_id = ?, unit_id = ?',
+            'where'  => 'item_id = ?',
+            'data'   => [
+                $_POST['description'],
+                $_POST['cost_unit'] === '' ? 0 : $_POST['cost_unit'],
+                $_POST['stock_min'] === '' ? 0 : $_POST['stock_min'],
+                $_POST['stock_max'] === '' ? 0 : $_POST['stock_max'],
+                $_POST['warehouse_area_id'],
+                $_POST['unit_id'],
+                $id
+            ]
+        ]);
+
+        if ($editItem) {
             $status  = 200;
-            $message = 'Producto editado correctamente';
+            $message = 'Insumo editado correctamente';
         }
 
         return [
@@ -133,15 +183,19 @@ class ctrl extends mdl {
     }
 
     function deleteMaterial() {
-        $status  = 500;
+        $status      = 500;
         $nuevoEstado = $_POST['active'];
-        $message = $nuevoEstado == 1 ? 'No se pudo activar el Producto' : 'No se pudo desactivar el Producto';
+        $message     = $nuevoEstado == 1 ? 'No se pudo activar el insumo' : 'No se pudo desactivar el insumo';
 
-        $update = $this->updateMaterial($this->util->sql($_POST, 1));
+        $update = $this->updateMaterial([
+            'values' => 'active = ?',
+            'where'  => 'id = ?',
+            'data'   => [$_POST['active'], $_POST['id']]
+        ]);
 
         if ($update) {
             $status  = 200;
-            $message = $nuevoEstado == 1 ? 'Producto activado correctamente' : 'Producto desactivado correctamente';
+            $message = $nuevoEstado == 1 ? 'Insumo activado correctamente' : 'Insumo desactivado correctamente';
         }
 
         return [
@@ -178,7 +232,7 @@ function renderProductImage($foto, $nombre) {
     $src = !empty($foto) ? $foto : '';
 
     $img = !empty($src)
-        ? '<img src="' . htmlspecialchars($src) . '" alt="Imagen Material" class="w-8 h-8 bg-gray-500 rounded-md object-cover" />'
+        ? '<img src="' . htmlspecialchars($src) . '" alt="Imagen Insumo" class="w-8 h-8 bg-gray-500 rounded-md object-cover" />'
         : '<div class="w-10 h-10 bg-gray-200 rounded-sm flex items-center justify-center">
                 <i class="icon-picture-5 text-gray-600"></i>
            </div>';

@@ -1,22 +1,13 @@
-let api = 'ctrl/ctrl-almacen.php';
-let app, materiales, inventario, movimientos, existencias, catalogo;
-let zones, categories, areas, tipoMovimiento, productos, meses, anios;
 let apiExistencias = 'ctrl/ctrl-existencias.php';
-
+let existencias;
+let zones, categories, areas;
 
 $(async () => {
-    const data = await useFetch({ url: api, data: { opc: "init" } });
-    zones          = data.zonas || [];
-    categories     = data.categorias || [];
-    areas          = data.areas || [];
-    tipoMovimiento = data.tipoMovimiento || [];
-    productos      = data.productos || [];
-    meses          = data.meses || [];
-    anios          = data.anios || [];
+    const data = await useFetch({ url: apiExistencias, data: { opc: "init" } });
+    zones      = data.zonas || [];
+    categories = data.categorias || [];
+    areas      = data.areas || [];
 
-  
-    existencias = new Existencias(api, "root");
+    existencias = new Existencias(apiExistencias, "root");
     existencias.render();
-
 });
-

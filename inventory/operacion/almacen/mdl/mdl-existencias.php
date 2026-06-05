@@ -9,7 +9,7 @@ class mdl extends CRUD {
 
     public function __construct() {
         $this->util = new Utileria;
-        $this->bd = "fayxzvov_almacen.";
+        $this->bd = "fayxzvov_inventory.";
     }
 
     // Selects para filtros
@@ -17,9 +17,9 @@ class mdl extends CRUD {
     function lsZonas() {
         $query = "
             SELECT id, name AS valor
-            FROM {$this->bd}areas
-            WHERE active = 1 and
-            udn_id = ".$_SESSION['idUDN']."
+            FROM {$this->bd}warehouse_area
+            WHERE active = 1
+            AND companies_id = ".$_SESSION['companies_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -28,9 +28,9 @@ class mdl extends CRUD {
     function lsCategorias() {
         $query = "
             SELECT id, name AS valor
-            FROM {$this->bd}presentations
-            WHERE active = 1  and
-            udn_id = ".$_SESSION['idUDN']."
+            FROM {$this->bd}item_category
+            WHERE active = 1
+            AND companies_id = ".$_SESSION['companies_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -38,10 +38,11 @@ class mdl extends CRUD {
 
     function lsAreas() {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}product_groups
-            WHERE active = 1 AND udn_id = ".$_SESSION['idUDN']."
-            ORDER BY name ASC
+            SELECT id, code AS valor
+            FROM {$this->bd}unit
+            WHERE active = 1
+            AND companies_id = ".$_SESSION['companies_id']."
+            ORDER BY code ASC
         ";
         return $this->_Read($query, []);
     }
@@ -49,91 +50,73 @@ class mdl extends CRUD {
     // Existencias
 
     function listExistencias($filters) {
-        $whereConditions = ['a.udn_id = '.$_SESSION['idUDN']];
+        $whereConditions = ['i.companies_id = '.$_SESSION['companies_id'], 'i.active = 1'];
         $params = [];
 
         if (!empty($filters['zona']) && $filters['zona'] != 'Todos') {
-            $whereConditions[] = 'a.area_id = ?';
+            $whereConditions[] = 'ia.warehouse_area_id = ?';
             $params[] = $filters['zona'];
         }
 
         if (!empty($filters['area']) && $filters['area'] != 'Todos') {
-            $whereConditions[] = 'a.group_id = ?';
+            $whereConditions[] = 'ia.unit_id = ?';
             $params[] = $filters['area'];
         }
 
         if (!empty($filters['categoria']) && $filters['categoria'] != 'Todos') {
-            $whereConditions[] = 'a.presentations_id = ?';
+            $whereConditions[] = 'i.category_id = ?';
             $params[] = $filters['categoria'];
-        }
-
-        if (!empty($filters['estatus']) && $filters['estatus'] != 'Todos') {
-            switch ($filters['estatus']) {
-                case 'disponible':
-                    $whereConditions[] = 'a.quantity > a.min_stock';
-                    break;
-                case 'bajo':
-                    $whereConditions[] = 'a.quantity <= a.min_stock AND a.quantity > 0';
-                    break;
-                case 'agotado':
-                    $whereConditions[] = 'a.quantity = 0';
-                    break;
-            }
         }
 
         $whereClause = implode(' AND ', $whereConditions);
 
         $query = "
             SELECT
-                a.id,
-                a.name as producto,
-                c.name as presentacion,
-                a.min_stock as inventario_min,
-                a.cost as Costo,
-                a.price as PrecioVenta,
-                a.quantity as cantidad,
-                (SELECT MAX(m.date)
-                 FROM {$this->bd}inventory_movement m
-                 INNER JOIN {$this->bd}inventory_movement_detail d ON m.id = d.inventory_movement_id
-                 LEFT JOIN {$this->bd}movement_type mt ON m.movement_type_id = mt.id
-                 WHERE d.product_id = a.id AND mt.name = 'Entrada'
-                ) as fecha_mayoreo,
-                (SELECT d.previous_stock
-                 FROM {$this->bd}inventory_movement_detail d
-                 INNER JOIN {$this->bd}inventory_movement m ON d.inventory_movement_id = m.id
-                 WHERE d.product_id = a.id
-                 ORDER BY m.date ASC LIMIT 1
-                ) as stock_inicial,
-                z.name as zona,
-                ar.name as area
-            FROM {$this->bd}product a
-            LEFT JOIN {$this->bd}presentations c ON a.presentations_id = c.id
-            LEFT JOIN {$this->bd}areas z ON a.area_id = z.id
-            LEFT JOIN {$this->bd}product_groups ar ON a.group_id = ar.id
+                i.id,
+                i.name AS producto,
+                u.code AS presentacion,
+                ia.stock_min AS inventario_min,
+                ia.cost_unit AS Costo,
+                i.price AS PrecioVenta,
+                COALESCE(st.qty, 0) AS cantidad,
+                st.last_mov AS fecha_mayoreo,
+                0 AS stock_inicial,
+                ic.name AS categoria,
+                wa.name AS area
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}unit           u  ON u.id  = ia.unit_id
+            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty, MAX(last_movement_at) AS last_mov
+                FROM {$this->bd}stock
+                WHERE active = 1
+                GROUP BY item_id
+            ) st ON st.item_id = i.id
             WHERE $whereClause
-
-            ORDER BY a.name ASC
+            ORDER BY i.name ASC
         ";
 
         return $this->_Read($query, $params);
     }
 
     function getResumen($filters) {
-        $whereConditions = ['a.udn_id = '.$_SESSION['idUDN']];
+        $whereConditions = ['i.companies_id = '.$_SESSION['companies_id'], 'i.active = 1'];
         $params = [];
 
         if (!empty($filters['zona']) && $filters['zona'] != 'Todos') {
-            $whereConditions[] = 'a.area_id = ?';
+            $whereConditions[] = 'ia.warehouse_area_id = ?';
             $params[] = $filters['zona'];
         }
 
         if (!empty($filters['area']) && $filters['area'] != 'Todos') {
-            $whereConditions[] = 'a.group_id = ?';
+            $whereConditions[] = 'ia.unit_id = ?';
             $params[] = $filters['area'];
         }
 
         if (!empty($filters['categoria']) && $filters['categoria'] != 'Todos') {
-            $whereConditions[] = 'a.presentations_id = ?';
+            $whereConditions[] = 'i.category_id = ?';
             $params[] = $filters['categoria'];
         }
 
@@ -141,13 +124,27 @@ class mdl extends CRUD {
 
         $query = "
             SELECT
-                COUNT(*) as total,
-                SUM(CASE WHEN a.quantity > a.min_stock THEN 1 ELSE 0 END) as disponibles,
-                SUM(CASE WHEN a.quantity <= a.min_stock AND a.quantity > 0 THEN 1 ELSE 0 END) as stock_bajo,
-                SUM(CASE WHEN a.quantity = 0 THEN 1 ELSE 0 END) as agotados,
-                SUM(a.quantity * a.cost) as valor_total
-            FROM {$this->bd}product a
-            WHERE $whereClause
+                COUNT(*) AS total,
+                SUM(CASE WHEN cantidad >  stock_min THEN 1 ELSE 0 END) AS disponibles,
+                SUM(CASE WHEN cantidad <= stock_min AND cantidad > 0 THEN 1 ELSE 0 END) AS stock_bajo,
+                SUM(CASE WHEN cantidad =  0 THEN 1 ELSE 0 END) AS agotados,
+                SUM(cantidad * costo) AS valor_total
+            FROM (
+                SELECT
+                    i.id,
+                    COALESCE(st.qty, 0)        AS cantidad,
+                    COALESCE(ia.stock_min, 0)  AS stock_min,
+                    COALESCE(ia.cost_unit, 0)  AS costo
+                FROM {$this->bd}item i
+                LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+                LEFT JOIN (
+                    SELECT item_id, SUM(quantity) AS qty
+                    FROM {$this->bd}stock
+                    WHERE active = 1
+                    GROUP BY item_id
+                ) st ON st.item_id = i.id
+                WHERE $whereClause
+            ) t
         ";
 
         return $this->_Read($query, $params);
@@ -156,15 +153,26 @@ class mdl extends CRUD {
     function getProductoById($id) {
         $query = "
             SELECT
-                a.*,
-                c.name as categoria_nombre,
-                z.name as zona_nombre,
-                ar.name as area_nombre
-            FROM {$this->bd}product a
-            LEFT JOIN {$this->bd}presentations c ON a.presentations_id = c.id
-            LEFT JOIN {$this->bd}areas z ON a.area_id = z.id
-            LEFT JOIN {$this->bd}product_groups ar ON a.group_id = ar.id
-            WHERE a.id = ? AND a.udn_id = ".$_SESSION['idUDN']."
+                i.*,
+                ia.sku,
+                ia.cost_unit,
+                ia.stock_min,
+                ic.name AS categoria_nombre,
+                u.code  AS unidad,
+                wa.name AS area_nombre,
+                COALESCE(st.qty, 0) AS cantidad
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}unit           u  ON u.id  = ia.unit_id
+            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty
+                FROM {$this->bd}stock
+                WHERE active = 1
+                GROUP BY item_id
+            ) st ON st.item_id = i.id
+            WHERE i.id = ? AND i.companies_id = ".$_SESSION['companies_id']."
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;

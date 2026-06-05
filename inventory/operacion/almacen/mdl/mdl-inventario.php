@@ -1,7 +1,7 @@
 <?php
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
-
+session_start();
 
 class mdl extends CRUD {
     protected $util;
@@ -9,182 +9,205 @@ class mdl extends CRUD {
 
     public function __construct() {
         $this->util = new Utileria;
-        $this->bd = "fayxzvov_almacen.";
+        $this->bd = "fayxzvov_inventory.";
     }
+
+    // Selects
+
+    function lsProductos() {
+        $query = "
+            SELECT i.id, i.name AS valor, ia.unit_id
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            WHERE i.active = 1
+            AND i.companies_id = ".$_SESSION['companies_id']."
+            ORDER BY i.name ASC
+        ";
+        return $this->_Read($query, []);
+    }
+
+    function lsAlmacenes() {
+        $query = "
+            SELECT id, name AS valor, is_default
+            FROM {$this->bd}warehouse
+            WHERE active = 1
+            AND companies_id = ".$_SESSION['companies_id']."
+            ORDER BY is_default DESC, name ASC
+        ";
+        return $this->_Read($query, []);
+    }
+
+    // Existencia actual de un item en un almacén
+
+    function getStockRow($array) {
+        $query = "
+            SELECT id, quantity
+            FROM {$this->bd}stock
+            WHERE item_id = ? AND warehouse_id = ? AND active = 1
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return $r[0] ?? null;
+    }
+
+    function insertStock($array) {
+        $query = "
+            INSERT INTO {$this->bd}stock (quantity, last_movement_at, warehouse_id, item_id, companies_id)
+            VALUES (?, NOW(), ?, ?, ?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function updateStockQty($array) {
+        $query = "
+            UPDATE {$this->bd}stock
+            SET quantity = ?, last_movement_at = NOW(), updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Folio incremental por tabla
+
+    function nextFolio($prefix, $tabla) {
+        $query = "
+            SELECT folio
+            FROM {$this->bd}{$tabla}
+            WHERE companies_id = ? AND folio LIKE ?
+            ORDER BY id DESC
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, [$_SESSION['companies_id'], $prefix . '%']);
+        $next = 1;
+        if (!empty($r)) {
+            $num  = (int) preg_replace('/[^0-9]/', '', substr($r[0]['folio'], strlen($prefix)));
+            $next = $num + 1;
+        }
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
+    }
+
+    function getMaxId($tabla) {
+        $query = "SELECT MAX(id) AS id FROM {$this->bd}{$tabla}";
+        $r = $this->_Read($query, []);
+        return $r[0]['id'] ?? 0;
+    }
+
+    // Entradas
+
+    function insertInflow($array) {
+        $query = "
+            INSERT INTO {$this->bd}inventory_inflow
+                (folio, note, total_products, total_units, total_cost, date_inflow, status,
+                 warehouse_id, user_id, subsidiaries_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function insertInflowDetail($array) {
+        $query = "
+            INSERT INTO {$this->bd}detail_inventory_inflow
+                (quantity, cost, subtotal, previous_stock, resulting_stock, item_id, inventory_inflow_id, unit_id)
+            VALUES (?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Salidas
+
+    function insertShrinkage($array) {
+        $query = "
+            INSERT INTO {$this->bd}inventory_shrinkage
+                (folio, note, total_products, total_units, total_cost, date_shrinkage, status,
+                 warehouse_id, user_id, subsidiaries_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function insertShrinkageDetail($array) {
+        $query = "
+            INSERT INTO {$this->bd}detail_inventory_shrinkage
+                (quantity, cost, subtotal, previous_stock, resulting_stock, item_id, inventory_shrinkage_id)
+            VALUES (?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Kardex
+
+    function insertMovement($array) {
+        $query = "
+            INSERT INTO {$this->bd}inventory_movement
+                (movement_type, folio, quantity, stock_prev, stock_post, cost_unit, cost_total,
+                 occurred_at, status, item_id, warehouse_id, user_id, subsidiaries_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,NOW(),?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Listados / reportes (kardex)
 
     function listMovimientos($array) {
         $query = "
             SELECT
-                m.id as id_movimiento,
-                m.folio,
-                DATE_FORMAT(m.date, '%d/%m/%Y') as fecha,
-                mt.name as tipo_movimiento,
-                m.total_products as total_productos,
-                m.total_units as total_unidades,
-                m.status as estado,
-                m.user_id,
-                usser as responsable,
-                DATE_FORMAT(m.created_at, '%d/%m/%Y %H:%i') as fecha_creacion
-            FROM {$this->bd}inventory_movement m
-            LEFT JOIN {$this->bd}movement_type mt ON m.movement_type_id = mt.id
-            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = m.user_id
-            WHERE m.date BETWEEN ? AND ?
-            AND (? = 'Todos' OR mt.name = ?)
-            AND m.udn_id = ".$_SESSION['idUDN']."
-            ORDER BY m.id DESC
+                mv.id,
+                mv.folio,
+                DATE_FORMAT(mv.occurred_at, '%d/%m/%Y %H:%i') AS fecha,
+                mv.movement_type AS tipo,
+                i.name AS producto,
+                mv.quantity,
+                mv.stock_prev,
+                mv.stock_post,
+                mv.cost_total,
+                mv.status,
+                u.fullname AS responsable
+            FROM {$this->bd}inventory_movement mv
+            LEFT JOIN {$this->bd}item i ON i.id = mv.item_id
+            LEFT JOIN fayxzvov_erp.users u ON u.id = mv.user_id
+            WHERE DATE(mv.occurred_at) BETWEEN ? AND ?
+            AND (? = 'Todos' OR mv.movement_type = ?)
+            AND mv.companies_id = ".$_SESSION['companies_id']."
+            ORDER BY mv.id DESC
         ";
         return $this->_Read($query, $array);
-    }
-
-    function getMovimientoById($id) {
-        $query = "
-            SELECT m.*, mt.name as tipo_movimiento
-            FROM {$this->bd}inventory_movement m
-            LEFT JOIN {$this->bd}movement_type mt ON m.movement_type_id = mt.id
-            WHERE m.id = ?
-        ";
-        $result = $this->_Read($query, [$id]);
-        return $result[0] ?? null;
-    }
-
-    function getMaxFolio($array) {
-        $query = "
-            SELECT COUNT(*) as max_numero
-            FROM {$this->bd}inventory_movement
-            WHERE
-                udn_id = ?
-        ";
-        $result = $this->_Read($query,$array);
-
-        return $result[0]['max_numero'] ?? 0;
-    }
-
-    function createMovimiento($array) {
-        return $this->_Insert([
-            'table'  => "{$this->bd}inventory_movement",
-            'values' => $array['values'],
-            'data'   => $array['data']
-        ]);
-    }
-
-    function getMaxMovimientoId() {
-        $query = "
-            SELECT MAX(id) AS id_movimiento
-            FROM {$this->bd}inventory_movement
-        ";
-        $result = $this->_Read($query, []);
-        return $result[0]['id_movimiento'] ?? 0;
-    }
-
-    function updateMovimiento($array) {
-        return $this->_Update([
-            'table'  => "{$this->bd}inventory_movement",
-            'values' => $array['values'],
-            'where'  => $array['where'],
-            'data'   => $array['data']
-        ]);
-    }
-
-    function listDetalleMovimiento($array) {
-        $query = "
-            SELECT
-                d.id as id_detalle,
-                d.inventory_movement_id as id_movimiento,
-                d.product_id as id_producto,
-                a.name as nombre_producto,
-                d.quantity as cantidad,
-                d.previous_stock as stock_anterior,
-                d.resulting_stock as stock_resultante,
-                a.quantity as stock_actual
-            FROM {$this->bd}inventory_movement_detail d
-            INNER JOIN {$this->bd}product a ON d.product_id = a.id
-            WHERE d.inventory_movement_id = ?
-            ORDER BY d.id ASC
-        ";
-        return $this->_Read($query, $array);
-    }
-
-    function createDetalleMovimiento($array) {
-        return $this->_Insert([
-            'table'  => "{$this->bd}inventory_movement_detail",
-            'values' => $array['values'],
-            'data'   => $array['data']
-        ]);
-    }
-
-    function deleteDetalleMovimientoById($array) {
-        return $this->_Delete([
-            'table' => "{$this->bd}inventory_movement_detail",
-            'where' => $array['where'],
-           'data'  => $array['data']
-        ]);
-    }
-
-    function getStockProducto($idProducto) {
-        $query = "
-            SELECT quantity as stock_actual
-            FROM {$this->bd}product
-            WHERE id = ?
-        ";
-        $result = $this->_Read($query, [$idProducto]);
-        return $result[0]['stock_actual'] ?? 0;
-    }
-
-    function updateStockProducto($array) {
-        return $this->_Update([
-            'table'  => "{$this->bd}product",
-            'values' => $array['values'],
-            'where'  => 'id = ?',
-            'data'   => $array['data']
-        ]);
-    }
-
-    function lsTipoMovimiento() {
-        $query = "
-            SELECT id, name as valor
-            FROM {$this->bd}movement_type
-            ORDER BY id ASC
-        ";
-        return $this->_Read($query, []);
-    }
-
-    function lsProductos() {
-        $query = "
-            SELECT
-                id,
-                name as valor,
-                quantity as stock_actual
-            FROM {$this->bd}product
-            WHERE active = 1
-            ORDER BY name ASC
-        ";
-        return $this->_Read($query, []);
     }
 
     function getResumenStock() {
         $query = "
             SELECT
-                COUNT(*) as total_productos,
-                COALESCE(SUM(quantity), 0) as total_unidades,
-                COALESCE(SUM(quantity * cost), 0) as valor_inventario,
-                (SELECT COUNT(*) FROM {$this->bd}product WHERE quantity <= 5 AND active = 1) as productos_bajos
-            FROM {$this->bd}product
-            WHERE active = 1
+                COUNT(DISTINCT i.id) AS total_productos,
+                COALESCE(SUM(t.qty), 0) AS total_unidades,
+                COALESCE(SUM(t.qty * COALESCE(ia.cost_unit, 0)), 0) AS valor_inventario,
+                SUM(CASE WHEN COALESCE(t.qty,0) <= COALESCE(ia.stock_min,0) THEN 1 ELSE 0 END) AS productos_bajos
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty
+                FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
+            ) t ON t.item_id = i.id
+            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['companies_id']."
         ";
-        $result = $this->_Read($query, []);
-        return $result[0] ?? null;
+        $r = $this->_Read($query, []);
+        return $r[0] ?? null;
     }
 
     function listProductosBajoStock($array) {
         $query = "
             SELECT
-                id,
-                name as nombre,
-                quantity as stock_actual,
-                cost
-            FROM {$this->bd}product
-            WHERE quantity <= ? AND active = 1
-            ORDER BY quantity ASC
+                i.id,
+                i.name AS nombre,
+                COALESCE(t.qty, 0) AS stock_actual,
+                COALESCE(ia.stock_min, 0) AS minimo
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty
+                FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
+            ) t ON t.item_id = i.id
+            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['companies_id']."
+            AND COALESCE(t.qty, 0) <= COALESCE(ia.stock_min, 0)
+            ORDER BY stock_actual ASC
         ";
         return $this->_Read($query, $array);
     }
@@ -192,45 +215,18 @@ class mdl extends CRUD {
     function listHistorialProducto($array) {
         $query = "
             SELECT
-                d.id as id_detalle,
-                d.quantity as cantidad,
-                d.previous_stock as stock_anterior,
-                d.resulting_stock as stock_resultante,
-                m.folio,
-                mt.name as tipo_movimiento,
-                DATE_FORMAT(m.date, '%d/%m/%Y') as fecha
-            FROM {$this->bd}inventory_movement_detail d
-            INNER JOIN {$this->bd}inventory_movement m ON d.inventory_movement_id = m.id
-            LEFT JOIN {$this->bd}movement_type mt ON m.movement_type_id = mt.id
-            WHERE d.product_id = ?
-            AND m.status = 'Activa'
-            ORDER BY m.date DESC, d.id DESC
+                mv.id,
+                DATE_FORMAT(mv.occurred_at, '%d/%m/%Y %H:%i') AS fecha,
+                mv.folio,
+                mv.movement_type AS tipo,
+                mv.quantity,
+                mv.stock_prev,
+                mv.stock_post
+            FROM {$this->bd}inventory_movement mv
+            WHERE mv.item_id = ?
+            AND mv.companies_id = ".$_SESSION['companies_id']."
+            ORDER BY mv.id DESC
         ";
         return $this->_Read($query, $array);
-    }
-
-    function getDetalleById($id) {
-        $query = "
-            SELECT
-                d.*,
-                d.inventory_movement_id as id_movimiento,
-                d.product_id as id_producto,
-                d.quantity as cantidad,
-                d.previous_stock as stock_anterior,
-                d.resulting_stock as stock_resultante
-            FROM {$this->bd}inventory_movement_detail d
-            WHERE d.id = ?
-        ";
-        $result = $this->_Read($query, [$id]);
-        return $result[0] ?? null;
-    }
-
-    function updateDetalleMovimiento($array) {
-        return $this->_Update([
-            'table'  => "{$this->bd}inventory_movement_detail",
-            'values' => $array['values'],
-            'where'  => $array['where'],
-            'data'   => $array['data']
-        ]);
     }
 }

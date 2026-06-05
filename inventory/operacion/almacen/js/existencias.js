@@ -39,10 +39,10 @@ class Existencias extends Templates {
                 {
                     opc: "select",
                     id: "zona",
-                    lbl: "Departamento",
+                    lbl: "Área",
                     class: "col-12 col-md-2",
                     data: [
-                        { id: "Todos", valor: "Todas los departamentos" },
+                        { id: "Todos", valor: "Todas las áreas" },
                         ...zones
                     ],
                     onchange: "existencias.renderExistencias()"
@@ -50,10 +50,10 @@ class Existencias extends Templates {
                 {
                     opc: "select",
                     id: "area",
-                    lbl: "Área",
+                    lbl: "Unidad",
                     class: "col-12 col-md-2",
                     data: [
-                        { id: "Todos", valor: "Todas las áreas" },
+                        { id: "Todos", valor: "Todas las unidades" },
                         ...areas
                     ],
                     onchange: "existencias.renderExistencias()"

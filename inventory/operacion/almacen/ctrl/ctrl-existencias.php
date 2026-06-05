@@ -32,6 +32,11 @@ class ctrl extends mdl {
 
         foreach ($data as $item) {
             $estatus = $this->getEstatusStock($item['cantidad'], $item['inventario_min']);
+
+            if ($filters['estatus'] != 'Todos' && $estatus != $filters['estatus']) {
+                continue;
+            }
+
             $contenido = $this->calcularContenido($item['cantidad'], $item['presentacion']);
             $total = floatval($item['Costo']) * floatval($item['cantidad']);
 

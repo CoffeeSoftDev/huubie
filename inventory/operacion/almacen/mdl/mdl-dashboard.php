@@ -6,63 +6,91 @@ class Dashboard extends CRUD {
     protected $bd;
 
     public function __construct() {
-        $this->bd = "fayxzvov_almacen.";
+        $this->bd = "fayxzvov_inventory.";
     }
 
     public function getTotalProductos() {
-        $query = "SELECT COUNT(*) as total FROM {$this->bd}product WHERE active = 1 AND udn_id = ".$_SESSION['idUDN'];
+        $query = "SELECT COUNT(*) as total FROM {$this->bd}item WHERE active = 1 AND companies_id = ".$_SESSION['companies_id'];
         $result = $this->_Read($query, []);
         return $result[0]['total'] ?? 0;
     }
 
     public function getStockTotal() {
-        $query = "SELECT COALESCE(SUM(quantity), 0) as total FROM {$this->bd}product WHERE active = 1 AND udn_id = ".$_SESSION['idUDN'];
+        $query = "
+            SELECT COALESCE(SUM(st.quantity), 0) as total
+            FROM {$this->bd}stock st
+            INNER JOIN {$this->bd}item i ON i.id = st.item_id
+            WHERE st.active = 1 AND i.active = 1
+            AND i.companies_id = ".$_SESSION['companies_id'];
         $result = $this->_Read($query, []);
         return $result[0]['total'] ?? 0;
     }
 
     public function getProductosBajos() {
-        $query = "SELECT COUNT(*) as total
-                  FROM {$this->bd}product
-                  WHERE quantity <= min_stock AND quantity > 0 AND active = 1
-                  AND udn_id = ".$_SESSION['idUDN'];
+        $query = "
+            SELECT COUNT(*) as total FROM (
+                SELECT
+                    i.id,
+                    COALESCE(t.qty, 0) AS qty,
+                    COALESCE(ia.stock_min, 0) AS min
+                FROM {$this->bd}item i
+                LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+                LEFT JOIN (
+                    SELECT item_id, SUM(quantity) AS qty
+                    FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
+                ) t ON t.item_id = i.id
+                WHERE i.active = 1 AND i.companies_id = ".$_SESSION['companies_id']."
+                HAVING qty <= min AND qty > 0
+            ) x
+        ";
         $result = $this->_Read($query, []);
         return $result[0]['total'] ?? 0;
     }
 
     public function getValorInventario() {
-        $query = "SELECT COALESCE(SUM(quantity * cost), 0) as total
-                  FROM {$this->bd}product
-                  WHERE active = 1 AND udn_id = ".$_SESSION['idUDN'];
+        $query = "
+            SELECT COALESCE(SUM(st.quantity * COALESCE(ia.cost_unit, 0)), 0) as total
+            FROM {$this->bd}stock st
+            INNER JOIN {$this->bd}item i ON i.id = st.item_id
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            WHERE st.active = 1 AND i.active = 1
+            AND i.companies_id = ".$_SESSION['companies_id'];
         $result = $this->_Read($query, []);
         return $result[0]['total'] ?? 0;
     }
 
     public function getMovimientosRecientes() {
-        $query = "SELECT
-                    DATE_FORMAT(m.date, '%d/%m/%Y') as fecha,
-                    p.name as producto,
-                    mt.name as tipo,
-                    d.quantity as cantidad
-                  FROM {$this->bd}inventory_movement m
-                  INNER JOIN {$this->bd}inventory_movement_detail d ON m.id = d.inventory_movement_id
-                  INNER JOIN {$this->bd}product p ON d.product_id = p.id
-                  LEFT JOIN {$this->bd}movement_type mt ON m.movement_type_id = mt.id
-                  WHERE m.udn_id = ".$_SESSION['idUDN']."
-                  ORDER BY m.date DESC
-                  LIMIT 10";
+        $query = "
+            SELECT
+                DATE_FORMAT(mv.occurred_at, '%d/%m/%Y') as fecha,
+                i.name as producto,
+                mv.movement_type as tipo,
+                mv.quantity as cantidad
+            FROM {$this->bd}inventory_movement mv
+            INNER JOIN {$this->bd}item i ON i.id = mv.item_id
+            WHERE mv.companies_id = ".$_SESSION['companies_id']."
+            ORDER BY mv.id DESC
+            LIMIT 10
+        ";
         return $this->_Read($query, []);
     }
 
     public function getListaProductosBajos() {
-        $query = "SELECT
-                    name as nombre,
-                    quantity as stock
-                  FROM {$this->bd}product
-                  WHERE quantity <= min_stock AND active = 1
-                  AND udn_id = ".$_SESSION['idUDN']."
-                  ORDER BY quantity ASC
-                  LIMIT 5";
+        $query = "
+            SELECT
+                i.name as nombre,
+                COALESCE(t.qty, 0) as stock
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty
+                FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
+            ) t ON t.item_id = i.id
+            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['companies_id']."
+            AND COALESCE(t.qty, 0) <= COALESCE(ia.stock_min, 0)
+            ORDER BY stock ASC
+            LIMIT 5
+        ";
         return $this->_Read($query, []);
     }
 }
