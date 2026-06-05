@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Mermas — FOGAJA · Huubie</title>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Huubie UI Kit -->
+    <link rel="stylesheet" href="../../ui/css/ui-kit.css" />
+
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #141d2b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+        .drawer-shadow { box-shadow: -10px 0 40px rgba(0,0,0,0.5); }
+    </style>
+</head>
+
+<body class="bg-[#111928] text-white h-screen flex flex-col overflow-hidden" data-bs-theme="dark">
+
+    <div class="flex flex-1 min-h-0">
+
+        <!-- ====================== SIDEBAR ====================== -->
+        <aside class="w-56 shrink-0 bg-[#0f172a] border-r border-gray-800 flex flex-col">
+            <!-- Logo -->
+            <div class="h-16 flex items-center gap-2 px-4 border-b border-gray-800">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1C64F2] to-[#7C3AED] flex items-center justify-center">
+                    <i data-lucide="chef-hat" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-sm font-bold tracking-wide">FOGAJA</span>
+                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">Huubie v1.0</span>
+                </div>
+            </div>
+
+            <!-- Nav -->
+            <nav class="flex-1 overflow-y-auto scrollbar-thin py-4 space-y-1">
+                <div class="px-4 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Inventarios</p>
+                </div>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    Resumen
+                </a>
+
+                <!-- Mermas submenu open -->
+                <div>
+                    <button class="w-full flex items-center justify-between px-4 py-2.5 text-sm text-white bg-[#1F2A37] border-l-2 border-[#1C64F2]">
+                        <span class="flex items-center gap-3">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            Mermas
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </button>
+                    <ul class="bg-[#0a1220] py-1">
+                        <li>
+                            <a href="#" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs bg-[#1C64F2]/10 text-[#1C64F2] border-l-2 border-[#1C64F2]">
+                                Dashboard Fogaza
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-gray-400 hover:text-white hover:bg-[#1F2A37] transition">
+                                Visor Mermas
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="package-plus" class="w-4 h-4"></i>
+                    Entradas
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="boxes" class="w-4 h-4"></i>
+                    Stock
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                    Traspasos
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="package" class="w-4 h-4"></i>
+                    Productos
+                </a>
+
+                <div class="px-4 mt-6 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Operacion</p>
+                </div>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="receipt" class="w-4 h-4"></i>
+                    Ventas
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    Reportes
+                </a>
+            </nav>
+
+            <!-- Footer sidebar -->
+            <div class="border-t border-gray-800 p-3 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#1C64F2] to-[#7C3AED] flex items-center justify-center text-xs font-bold">RM</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold truncate">Rosy Martinez</p>
+                    <p class="text-[10px] text-green-400 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
+                        En linea
+                    </p>
+                </div>
+                <button class="text-gray-500 hover:text-white">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ====================== MAIN ====================== -->
+        <main class="flex-1 flex flex-col min-w-0 min-h-0">
+
+            <!-- HEADER -->
+            <header class="h-16 shrink-0 bg-[#141d2b] border-b border-gray-800 flex items-center px-6 gap-4">
+                <!-- Breadcrumb -->
+                <nav class="flex items-center gap-2 text-sm">
+                    <i data-lucide="home" class="w-4 h-4 text-gray-500"></i>
+                    <span class="text-gray-500">Inventarios</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-600"></i>
+                    <span class="text-gray-500">Mermas</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-600"></i>
+                    <span class="text-white font-medium">Dashboard Fogaza</span>
+                </nav>
+
+                <div class="flex-1"></div>
+
+                <!-- Turno actual -->
+                <div class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-[#1F2A37] rounded-lg border border-gray-700">
+                    <i data-lucide="sun" class="w-4 h-4 text-yellow-400"></i>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-gray-500 uppercase tracking-wider">Turno</span>
+                        <span class="text-xs font-semibold">Matutino · 06:00–14:00</span>
+                    </div>
+                </div>
+
+                <!-- Reloj en vivo -->
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#1F2A37] rounded-lg border border-gray-700">
+                    <i data-lucide="clock" class="w-4 h-4 text-[#1C64F2]"></i>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-gray-500 uppercase tracking-wider">Hora actual</span>
+                        <span id="liveClock" class="text-xs font-semibold tabular-nums">--:--:--</span>
+                    </div>
+                </div>
+
+                <!-- Notif -->
+                <button class="relative w-9 h-9 flex items-center justify-center rounded-lg bg-[#1F2A37] border border-gray-700 hover:border-[#1C64F2] transition">
+                    <i data-lucide="bell" class="w-4 h-4 text-gray-300"></i>
+                    <span class="absolute -top-1 -right-1 w-4 h-4 bg-[#EA0234] text-[10px] font-bold rounded-full flex items-center justify-center">3</span>
+                </button>
+            </header>
+
+            <!-- CONTENT -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-6">
+
+                <!-- HERO -->
+                <section class="bg-[#1F2A37] rounded-xl p-6 border border-gray-700/60 flex items-center justify-between gap-6 flex-wrap">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="px-2.5 py-1 rounded-md bg-[#1C64F2]/15 text-[#1C64F2] text-[10px] font-bold uppercase tracking-wider border border-[#1C64F2]/30">
+                                Produccion · FOGAJA
+                            </span>
+                            <span class="text-xs text-gray-500">Sucursal Centro · Cocina principal</span>
+                        </div>
+                        <h1 class="text-2xl font-bold tracking-tight">Mermas — Produccion FOGAJA</h1>
+                        <p class="text-sm text-gray-400 mt-1">
+                            Monitoreo de desviaciones por producto y turno. Ultima actualizacion: <span class="text-gray-300">hace 2 minutos</span>.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1a2332] border border-gray-700 text-sm text-gray-300 hover:border-gray-500 transition">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            Exportar
+                        </button>
+                        <button class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            Registrar merma
+                        </button>
+                    </div>
+                </section>
+
+                <!-- KPI CARDS -->
+                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- KPI 1: Merma del turno (azul neutro) -->
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">Merma del turno</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center">
+                                <i data-lucide="trash-2" class="w-4 h-4 text-[#1C64F2]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-white">247</p>
+                        <p class="text-xs text-gray-500 mt-1">unidades retiradas</p>
+                    </div>
+
+                    <!-- KPI 2: % Merma promedio (verde success) -->
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">% Merma promedio</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#3FC189]/15 flex items-center justify-center">
+                                <i data-lucide="percent" class="w-4 h-4 text-[#3FC189]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-white">4.8<span class="text-lg text-gray-400">%</span></p>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#3FC189] bg-[#3FC189]/15 px-2 py-0.5 rounded-full border border-[#3FC189]/30">
+                                <i data-lucide="trending-down" class="w-3 h-3"></i> -0.3%
+                            </span>
+                            <span class="text-[11px] text-gray-500">vs ayer</span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 3: Productos fuera de margen (amarillo warning) -->
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">Productos fuera de margen</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#fbbf24]/15 flex items-center justify-center">
+                                <i data-lucide="alert-triangle" class="w-4 h-4 text-[#fbbf24]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-white">3</p>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#fbbf24] bg-[#fbbf24]/15 px-2 py-0.5 rounded-full border border-[#fbbf24]/30">
+                                Atencion
+                            </span>
+                            <span class="text-[11px] text-gray-500">productos</span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 4: Valor perdido (azul info) -->
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">Valor perdido</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center">
+                                <i data-lucide="dollar-sign" class="w-4 h-4 text-[#1C64F2]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-white">$1,847<span class="text-lg text-gray-400">.50</span></p>
+                        <p class="text-xs text-gray-500 mt-1">MXN · turno actual</p>
+                    </div>
+                </section>
+
+                <!-- FILTER BAR -->
+                <section class="bg-[#1F2A37] rounded-xl p-4 border border-gray-700/60">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+                        <div>
+                            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Turno</label>
+                            <select class="cs-select w-full">
+                                <option>Todos</option>
+                                <option selected>Matutino</option>
+                                <option>Vespertino</option>
+                                <option>Nocturno</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Producto</label>
+                            <select class="cs-select w-full">
+                                <option selected>Todos</option>
+                                <option>Bolillo</option>
+                                <option>Concha</option>
+                                <option>Cuernito</option>
+                                <option>Pan de caja</option>
+                                <option>Dona</option>
+                                <option>Bisquet</option>
+                                <option>Oreja</option>
+                                <option>Garrote de nuez</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Categoria</label>
+                            <select class="cs-select w-full">
+                                <option selected>Todas</option>
+                                <option>Pan dulce</option>
+                                <option>Pan salado</option>
+                                <option>Bolleria</option>
+                                <option>Especialidad</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Fecha</label>
+                            <input type="date" value="2026-06-04" class="cs-input w-full" />
+                        </div>
+                        <label class="flex items-center gap-2 cursor-pointer h-[42px] px-3">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-gray-600 bg-[#1a2332] text-blue-600 focus:ring-blue-500" />
+                            <span class="text-xs text-gray-300">Solo fuera de margen</span>
+                        </label>
+                        <button class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#1C64F2] hover:bg-[#1a53d4] text-sm font-semibold text-white transition h-[42px]">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            Actualizar
+                        </button>
+                    </div>
+                </section>
+
+                <!-- TABLA PRINCIPAL -->
+                <section class="bg-[#1F2A37] rounded-xl border border-gray-700/60 overflow-hidden">
+                    <div class="px-5 py-4 border-b border-gray-700/60 flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <h2 class="text-sm font-bold text-white">Mermas por producto</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">8 productos · ordenado por % merma descendente</p>
+                        </div>
+                        <div class="flex items-center gap-4 text-xs text-gray-400">
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#3FC189]"></span> En margen</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#fbbf24]"></span> Alerta</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#EA0234]"></span> Critico</span>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto scrollbar-thin">
+                        <table class="cs-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">Producto</th>
+                                    <th class="text-right">Producido</th>
+                                    <th class="text-right">Merma</th>
+                                    <th class="text-left min-w-[160px]">% Merma vs margen</th>
+                                    <th class="text-right">Margen aceptable</th>
+                                    <th>Estado</th>
+                                    <th class="text-right">Valor perdido</th>
+                                    <th class="text-right">Accion</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mermasTbody">
+                                <!-- Fila 1 - Garrote de nuez (12.2%) - ROJO -->
+                                <tr class="hover:bg-[#1a2332] transition">
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#7C3AED]/15 flex items-center justify-center text-[#7C3AED]">
+                                                <i data-lucide="wheat" class="w-4 h-4"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-white">Garrote de nuez</p>
+                                                <p class="text-[10px] text-gray-500">Especialidad · NUEZ</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums">320</td>
+                                    <td class="text-right tabular-nums font-bold text-white">39</td>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#EA0234] tabular-nums w-10 text-right">12.2%</span>
+                                            <div class="flex-1 h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#EA0234] rounded-full" style="width:100%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums text-gray-400">4.0%</td>
+                                    <td>
+                                        <span class="cs-badge cs-badge-danger">Critico</span>
+                                    </td>
+                                    <td class="text-right tabular-nums font-semibold text-white">$312.00</td>
+                                    <td class="text-right">
+                                        <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="openDrawer('Garrote de nuez')">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver detalle
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Fila 2 - Oreja (11.6%) - ROJO -->
+                                <tr class="hover:bg-[#1a2332] transition">
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center text-[#1C64F2]">
+                                                <i data-lucide="cookie" class="w-4 h-4"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-white">Oreja</p>
+                                                <p class="text-[10px] text-gray-500">Pan dulce · Hojaldre</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums">500</td>
+                                    <td class="text-right tabular-nums font-bold text-white">58</td>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#EA0234] tabular-nums w-10 text-right">11.6%</span>
+                                            <div class="flex-1 h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#EA0234] rounded-full" style="width:95%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums text-gray-400">5.0%</td>
+                                    <td>
+                                        <span class="cs-badge cs-badge-danger">Critico</span>
+                                    </td>
+                                    <td class="text-right tabular-nums font-semibold text-white">$464.00</td>
+                                    <td class="text-right">
+                                        <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="openDrawer('Oreja')">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver detalle
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Fila 3 - Bisquet (7.9%) - ROJO -->
+                                <tr class="hover:bg-[#1a2332] transition">
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#F97316]/15 flex items-center justify-center text-[#F97316]">
+                                                <i data-lucide="croissant" class="w-4 h-4"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-white">Bisquet</p>
+                                                <p class="text-[10px] text-gray-500">Bolleria · Mantequilla</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums">480</td>
+                                    <td class="text-right tabular-nums font-bold text-white">38</td>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#EA0234] tabular-nums w-10 text-right">7.9%</span>
+                                            <div class="flex-1 h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#EA0234] rounded-full" style="width:65%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums text-gray-400">5.0%</td>
+                                    <td>
+                                        <span class="cs-badge cs-badge-danger">Critico</span>
+                                    </td>
+                                    <td class="text-right tabular-nums font-semibold text-white">$304.00</td>
+                                    <td class="text-right">
+                                        <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="openDrawer('Bisquet')">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver detalle
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Fila 4 - Cuernito (6.9%) - AMARILLO -->
+                                <tr class="hover:bg-[#1a2332] transition">
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#F97316]/15 flex items-center justify-center text-[#F97316]">
+                                                <i data-lucide="candy" class="w-4 h-4"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-white">Cuernito</p>
+                                                <p class="text-[10px] text-gray-500">Bolleria · Croissant</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums">520</td>
+                                    <td class="text-right tabular-nums font-bold text-white">36</td>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#fbbf24] tabular-nums w-10 text-right">6.9%</span>
+                                            <div class="flex-1 h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#fbbf24] rounded-full" style="width:86%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums text-gray-400">4.0%</td>
+                                    <td>
+                                        <span class="cs-badge cs-badge-warning">Alerta</span>
+                                    </td>
+                                    <td class="text-right tabular-nums font-semibold text-white">$288.00</td>
+                                    <td class="text-right">
+                                        <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="openDrawer('Cuernito')">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver detalle
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Fila 5 - Dona (5.1%) - AMARILLO -->
+                                <tr class="hover:bg-[#1a2332] transition">
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center text-[#1C64F2]">
+                                                <i data-lucide="circle-dot" class="w-4 h-4"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-white">Dona</p>
+                                                <p class="text-[10px] text-gray-500">Pan dulce · Glaseada</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums">550</td>
+                                    <td class="text-right tabular-nums font-bold text-white">28</td>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#fbbf24] tabular-nums w-10 text-right">5.1%</span>
+                                            <div class="flex-1 h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#fbbf24] rounded-full" style="width:64%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums text-gray-400">4.0%</td>
+                                    <td>
+                                        <span class="cs-badge cs-badge-warning">Alerta</span>
+                                    </td>
+                                    <td class="text-right tabular-nums font-semibold text-white">$196.00</td>
+                                    <td class="text-right">
+                                        <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="openDrawer('Dona')">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver detalle
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Fila 6 - Concha (3.0%) - VERDE -->
+                                <tr class="hover:bg-[#1a2332] transition">
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center text-[#1C64F2]">
+                                                <i data-lucide="shell" class="w-4 h-4"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-white">Concha</p>
+                                                <p class="text-[10px] text-gray-500">Pan dulce · Vainilla</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums">700</td>
+                                    <td class="text-right tabular-nums font-bold text-white">21</td>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#3FC189] tabular-nums w-10 text-right">3.0%</span>
+                                            <div class="flex-1 h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#3FC189] rounded-full" style="width:38%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums text-gray-400">3.0%</td>
+                                    <td>
+                                        <span class="cs-badge cs-badge-success">En margen</span>
+                                    </td>
+                                    <td class="text-right tabular-nums font-semibold text-white">$147.00</td>
+                                    <td class="text-right">
+                                        <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="openDrawer('Concha')">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver detalle
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Fila 7 - Pan de caja (2.9%) - VERDE -->
+                                <tr class="hover:bg-[#1a2332] transition">
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#3FC189]/15 flex items-center justify-center text-[#3FC189]">
+                                                <i data-lucide="square" class="w-4 h-4"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-white">Pan de caja</p>
+                                                <p class="text-[10px] text-gray-500">Pan salado · Integral</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums">650</td>
+                                    <td class="text-right tabular-nums font-bold text-white">19</td>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#3FC189] tabular-nums w-10 text-right">2.9%</span>
+                                            <div class="flex-1 h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#3FC189] rounded-full" style="width:36%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums text-gray-400">3.0%</td>
+                                    <td>
+                                        <span class="cs-badge cs-badge-success">En margen</span>
+                                    </td>
+                                    <td class="text-right tabular-nums font-semibold text-white">$190.00</td>
+                                    <td class="text-right">
+                                        <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="openDrawer('Pan de caja')">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver detalle
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Fila 8 - Bolillo (1.0%) - VERDE -->
+                                <tr class="hover:bg-[#1a2332] transition">
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#3FC189]/15 flex items-center justify-center text-[#3FC189]">
+                                                <i data-lucide="sandwich" class="w-4 h-4"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-white">Bolillo</p>
+                                                <p class="text-[10px] text-gray-500">Pan salado · Tradicional</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums">800</td>
+                                    <td class="text-right tabular-nums font-bold text-white">8</td>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#3FC189] tabular-nums w-10 text-right">1.0%</span>
+                                            <div class="flex-1 h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#3FC189] rounded-full" style="width:13%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums text-gray-400">2.0%</td>
+                                    <td>
+                                        <span class="cs-badge cs-badge-success">En margen</span>
+                                    </td>
+                                    <td class="text-right tabular-nums font-semibold text-white">$40.00</td>
+                                    <td class="text-right">
+                                        <button class="cs-btn cs-btn-ghost cs-btn-sm" onclick="openDrawer('Bolillo')">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver detalle
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paginacion -->
+                    <div class="px-5 py-3 border-t border-gray-700/60 flex items-center justify-between">
+                        <p class="text-xs text-gray-500">Mostrando 1-8 de 8 productos</p>
+                        <div class="cs-pagination">
+                            <button class="opacity-50 cursor-not-allowed" disabled>
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                            </button>
+                            <button class="active-page">1</button>
+                            <button class="opacity-50 cursor-not-allowed" disabled>
+                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- FOOTER -->
+                <footer class="text-center text-[11px] text-gray-600 pt-4 pb-2">
+                    <p>© 2026 FOGAJA · Huubie POS · Dashboard de mermas — demo estatico</p>
+                </footer>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ====================== DRAWER DETALLE ====================== -->
+    <div id="drawerBackdrop" class="fixed inset-0 bg-black/60 z-40 hidden" onclick="closeDrawer()"></div>
+
+    <aside id="detailDrawer" class="fixed top-0 right-0 h-full w-[420px] bg-[#1F2A37] border-l border-gray-700 z-50 drawer-shadow transform translate-x-full transition-transform duration-300 flex flex-col">
+        <!-- Header -->
+        <div class="h-16 shrink-0 px-5 border-b border-gray-700 flex items-center justify-between">
+            <div>
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Detalle de merma</p>
+                <h3 id="drawerProductName" class="text-base font-bold text-white">Garrote de nuez</h3>
+            </div>
+            <button onclick="closeDrawer()" class="w-9 h-9 flex items-center justify-center rounded-lg bg-[#1a2332] hover:bg-[#283341] text-gray-400 hover:text-white transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto scrollbar-thin p-5 space-y-6">
+
+            <!-- Mini chart sparkline 7 dias -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">Tendencia 7 dias</p>
+                    <span id="trendBadge" class="text-[10px] text-[#EA0234] font-semibold flex items-center gap-1">
+                        <i data-lucide="trending-up" class="w-3 h-3"></i> +2.4%
+                    </span>
+                </div>
+                <div class="bg-[#141d2b] rounded-lg p-4 border border-gray-700/60">
+                    <svg viewBox="0 0 320 100" class="w-full h-24" preserveAspectRatio="none">
+                        <!-- Grid lines -->
+                        <line x1="0" y1="25" x2="320" y2="25" stroke="#374151" stroke-width="0.5" stroke-dasharray="2 4" />
+                        <line x1="0" y1="50" x2="320" y2="50" stroke="#374151" stroke-width="0.5" stroke-dasharray="2 4" />
+                        <line x1="0" y1="75" x2="320" y2="75" stroke="#374151" stroke-width="0.5" stroke-dasharray="2 4" />
+                        <!-- Area fill -->
+                        <path id="sparkArea" d="M 0 60 L 46 50 L 92 55 L 138 35 L 184 40 L 230 25 L 276 30 L 320 15 L 320 100 L 0 100 Z" fill="url(#sparkGrad)" opacity="0.3" />
+                        <!-- Line -->
+                        <path id="sparkLine" d="M 0 60 L 46 50 L 92 55 L 138 35 L 184 40 L 230 25 L 276 30 L 320 15" fill="none" stroke="#EA0234" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <!-- Points -->
+                        <circle cx="0" cy="60" r="3" fill="#EA0234" class="spark-point" />
+                        <circle cx="46" cy="50" r="3" fill="#EA0234" class="spark-point" />
+                        <circle cx="92" cy="55" r="3" fill="#EA0234" class="spark-point" />
+                        <circle cx="138" cy="35" r="3" fill="#EA0234" class="spark-point" />
+                        <circle cx="184" cy="40" r="3" fill="#EA0234" class="spark-point" />
+                        <circle cx="230" cy="25" r="3" fill="#EA0234" class="spark-point" />
+                        <circle cx="276" cy="30" r="3" fill="#EA0234" class="spark-point" />
+                        <circle cx="320" cy="15" r="4" fill="#EA0234" stroke="#1F2A37" stroke-width="2" class="spark-point" />
+                        <defs>
+                            <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop id="sparkStop1" offset="0%" stop-color="#EA0234" stop-opacity="0.6" />
+                                <stop id="sparkStop2" offset="100%" stop-color="#EA0234" stop-opacity="0" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <!-- Labels -->
+                    <div class="flex justify-between mt-2 text-[10px] text-gray-500">
+                        <span>29 May</span>
+                        <span>30 May</span>
+                        <span>31 May</span>
+                        <span>1 Jun</span>
+                        <span>2 Jun</span>
+                        <span>3 Jun</span>
+                        <span>4 Jun</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Breakdown por motivo -->
+            <div>
+                <p class="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-3">Breakdown por motivo</p>
+                <div class="space-y-3">
+                    <!-- Caducidad 45% -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-[#EA0234]"></span>
+                                <span class="text-xs text-gray-300">Caducidad</span>
+                            </div>
+                            <span class="text-xs font-bold text-white tabular-nums">45%</span>
+                        </div>
+                        <div class="h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                            <div class="h-full bg-[#EA0234] rounded-full" style="width:45%"></div>
+                        </div>
+                    </div>
+                    <!-- Dañado 30% -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-[#fbbf24]"></span>
+                                <span class="text-xs text-gray-300">Daniado</span>
+                            </div>
+                            <span class="text-xs font-bold text-white tabular-nums">30%</span>
+                        </div>
+                        <div class="h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                            <div class="h-full bg-[#fbbf24] rounded-full" style="width:30%"></div>
+                        </div>
+                    </div>
+                    <!-- Error produccion 15% -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-[#1C64F2]"></span>
+                                <span class="text-xs text-gray-300">Error produccion</span>
+                            </div>
+                            <span class="text-xs font-bold text-white tabular-nums">15%</span>
+                        </div>
+                        <div class="h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                            <div class="h-full bg-[#1C64F2] rounded-full" style="width:15%"></div>
+                        </div>
+                    </div>
+                    <!-- Robo 10% -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-[#7C3AED]"></span>
+                                <span class="text-xs text-gray-300">Robo</span>
+                            </div>
+                            <span class="text-xs font-bold text-white tabular-nums">10%</span>
+                        </div>
+                        <div class="h-2 bg-[#1a2332] rounded-full overflow-hidden">
+                            <div class="h-full bg-[#7C3AED] rounded-full" style="width:10%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumen rapido -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-[#141d2b] rounded-lg p-3 border border-gray-700/60">
+                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">Produccion</p>
+                    <p class="text-lg font-bold text-white mt-1">320</p>
+                </div>
+                <div class="bg-[#141d2b] rounded-lg p-3 border border-gray-700/60">
+                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">Merma actual</p>
+                    <p id="drawerMermaActual" class="text-lg font-bold text-[#EA0234] mt-1">39</p>
+                </div>
+            </div>
+
+            <!-- Margen aceptable editable -->
+            <div>
+                <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Margen aceptable actual</label>
+                <div class="flex items-center gap-2">
+                    <input id="margenInput" type="number" step="0.1" value="4.0" class="cs-input w-24 text-right" />
+                    <span class="text-sm text-gray-400">%</span>
+                </div>
+                <p class="text-[10px] text-gray-500 mt-1">Ajusta el umbral para recalcular el estado de este producto.</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="shrink-0 p-4 border-t border-gray-700 bg-[#141d2b]">
+            <button class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[#1C64F2] text-[#1C64F2] hover:bg-[#1C64F2]/10 text-sm font-semibold transition">
+                <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                Ajustar margen aceptable
+            </button>
+        </div>
+    </aside>
+
+    <script>
+        // Lucide icons
+        if (window.lucide) lucide.createIcons();
+
+        // Reloj en vivo
+        const clockEl = document.getElementById('liveClock');
+        const pad = (n) => String(n).padStart(2, '0');
+        const tick = () => {
+            const d = new Date();
+            clockEl.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        };
+        tick();
+        setInterval(tick, 1000);
+
+        // Drawer
+        const drawer = document.getElementById('detailDrawer');
+        const backdrop = document.getElementById('drawerBackdrop');
+        const nameEl = document.getElementById('drawerProductName');
+        const trendBadge = document.getElementById('trendBadge');
+        const sparkLine = document.getElementById('sparkLine');
+        const sparkStop1 = document.getElementById('sparkStop1');
+        const sparkStop2 = document.getElementById('sparkStop2');
+        const sparkPoints = document.querySelectorAll('.spark-point');
+        const drawerMermaActual = document.getElementById('drawerMermaActual');
+        const margenInput = document.getElementById('margenInput');
+
+        const PRODUCT_META = {
+            'Garrote de nuez': { estado: 'critico', color: '#EA0234', margen: 4.0 },
+            'Oreja':           { estado: 'critico', color: '#EA0234', margen: 5.0 },
+            'Bisquet':         { estado: 'critico', color: '#EA0234', margen: 5.0 },
+            'Cuernito':        { estado: 'alerta',  color: '#fbbf24', margen: 4.0 },
+            'Dona':            { estado: 'alerta',  color: '#fbbf24', margen: 4.0 },
+            'Concha':          { estado: 'margen',  color: '#3FC189', margen: 3.0 },
+            'Pan de caja':     { estado: 'margen',  color: '#3FC189', margen: 3.0 },
+            'Bolillo':         { estado: 'margen',  color: '#3FC189', margen: 2.0 }
+        };
+
+        function openDrawer(name) {
+            const meta = PRODUCT_META[name] || PRODUCT_META['Garrote de nuez'];
+            nameEl.textContent = name;
+
+            // Ajustar colores del sparkline segun estado del producto
+            sparkLine.setAttribute('stroke', meta.color);
+            sparkStop1.setAttribute('stop-color', meta.color);
+            sparkStop2.setAttribute('stop-color', meta.color);
+            sparkPoints.forEach(pt => pt.setAttribute('fill', meta.color));
+
+            // Badge de tendencia
+            trendBadge.className = `text-[10px] font-semibold flex items-center gap-1`;
+            trendBadge.style.color = meta.color;
+
+            // Color del numero de merma actual
+            drawerMermaActual.style.color = meta.color;
+
+            // Margen editable
+            margenInput.value = meta.margen;
+
+            drawer.classList.remove('translate-x-full');
+            backdrop.classList.remove('hidden');
+        }
+
+        function closeDrawer() {
+            drawer.classList.add('translate-x-full');
+            backdrop.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
