@@ -1,3 +1,493 @@
+[ 2026-06-04 21:24:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                m.id as id_movimiento,
+                m.folio,
+                DATE_FORMAT(m.date, '%d/%m/%Y') as fecha,
+                mt.name as tipo_movimiento,
+                m.total_products as total_productos,
+                m.total_units as total_unidades,
+                m.status as estado,
+                m.created_at as fecha_creacion,
+                m.user_id,
+                d.id as id_detalle,
+                d.product_id as id_producto,
+                d.quantity as cantidad,
+                d.previous_stock as stock_anterior,
+                d.resulting_stock as stock_resultante,
+                a.id as idAlmacen,
+                a.code,
+                a.name as nombre_producto,
+                a.presentations_id,
+                a.area_id,
+                a.group_id,
+                COALESCE(cat.name, 'Sin categoría') AS nombre_grupo,
+                COALESCE(z.name, 'Sin zona') AS nombre_zona,
+                COALESCE(ar.name, 'Sin área') AS nombre_area
+            FROM fayxzvov_almacen.inventory_movement m
+            LEFT JOIN fayxzvov_almacen.movement_type mt ON m.movement_type_id = mt.id
+            INNER JOIN fayxzvov_almacen.inventory_movement_detail d ON m.id = d.inventory_movement_id
+            INNER JOIN fayxzvov_almacen.product a ON d.product_id = a.id
+            LEFT JOIN fayxzvov_almacen.presentations cat ON a.presentations_id = cat.id
+            LEFT JOIN fayxzvov_almacen.areas z ON a.area_id = z.id
+            LEFT JOIN fayxzvov_almacen.product_groups ar ON a.group_id = ar.id
+            WHERE
+            m.udn_id = 1
+            and MONTH(m.date) = ?
+            AND YEAR(m.date) = ?
+            
+            ORDER BY m.date DESC, m.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.inventory_movement' doesn't exist
+
+
+[ 2026-06-04 21:24:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                mt.name as tipo_movimiento,
+                COUNT(DISTINCT m.id) as total_movimientos,
+                SUM(d.quantity) as total_unidades
+            FROM fayxzvov_almacen.inventory_movement m
+            LEFT JOIN fayxzvov_almacen.movement_type mt ON m.movement_type_id = mt.id
+            INNER JOIN fayxzvov_almacen.inventory_movement_detail d ON m.id = d.inventory_movement_id
+            INNER JOIN fayxzvov_almacen.product a ON d.product_id = a.id
+            LEFT JOIN fayxzvov_almacen.presentations cat ON a.presentations_id = cat.id
+            LEFT JOIN fayxzvov_almacen.areas z ON a.area_id = z.id
+            LEFT JOIN fayxzvov_almacen.product_groups ar ON a.group_id = ar.id
+            WHERE
+             m.udn_id = 1
+            AND MONTH(m.date) = ?
+            AND YEAR(m.date) = ?
+            
+            GROUP BY mt.name
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.inventory_movement' doesn't exist
+
+
+[ 2026-06-04 21:24:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                id,
+                name as valor,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_almacen.areas
+            WHERE active = ?
+            AND udn_id = 1
+            ORDER BY id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.areas' doesn't exist
+
+
+[ 2026-06-04 21:24:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                id,
+                name as valor,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_almacen.presentations
+            WHERE active = ?
+            AND udn_id = 1
+            ORDER BY id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.presentations' doesn't exist
+
+
+[ 2026-06-04 21:24:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                id,
+                name as valor
+            FROM fayxzvov_almacen.presentations
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.presentations' doesn't exist
+
+
+[ 2026-06-04 21:24:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                m.id as id_movimiento,
+                m.folio,
+                DATE_FORMAT(m.date, '%d/%m/%Y') as fecha,
+                mt.name as tipo_movimiento,
+                m.total_products as total_productos,
+                m.total_units as total_unidades,
+                m.status as estado,
+                m.user_id,
+                usser as responsable,
+                DATE_FORMAT(m.created_at, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_almacen.inventory_movement m
+            LEFT JOIN fayxzvov_almacen.movement_type mt ON m.movement_type_id = mt.id
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = m.user_id
+            WHERE m.date BETWEEN ? AND ?
+            AND (? = 'Todos' OR mt.name = ?)
+            AND m.udn_id = 1
+            ORDER BY m.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.inventory_movement' doesn't exist
+
+
+[ 2026-06-04 21:24:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                id,
+                name as valor,
+                quantity as stock_actual
+            FROM fayxzvov_almacen.product
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.product' doesn't exist
+
+
+[ 2026-06-04 21:24:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name as valor
+            FROM fayxzvov_almacen.movement_type
+            ORDER BY id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.movement_type' doesn't exist
+
+
+[ 2026-06-04 21:24:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                a.id,
+                a.code,
+                a.name,
+                a.quantity,
+                a.cost,
+                a.price,
+                a.active,
+                a.min_stock,
+                a.description,
+                a.created_at,
+                ar.name as area,
+                c.name as categoria,
+                z.name as zona
+            FROM fayxzvov_almacen.product a
+            LEFT JOIN fayxzvov_almacen.product_groups ar ON a.group_id        = ar.id
+            LEFT JOIN fayxzvov_almacen.presentations c   ON a.presentations_id = c.id
+            LEFT JOIN fayxzvov_almacen.areas z            ON a.area_id         = z.id
+            WHERE a.udn_id = 1
+         ORDER BY a.id DESC
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.product' doesn't exist
+
+
+[ 2026-06-04 21:24:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_almacen.supplier
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.supplier' doesn't exist
+
+
+[ 2026-06-04 21:24:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_almacen.product_groups
+            WHERE active = 1
+            AND udn_id = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.product_groups' doesn't exist
+
+
+[ 2026-06-04 21:24:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_almacen.presentations
+            WHERE active = 1
+            AND udn_id = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.presentations' doesn't exist
+
+
+[ 2026-06-04 21:24:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_almacen.areas
+            WHERE active = 1
+            AND udn_id = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.areas' doesn't exist
+
+
+[ 2026-06-04 18:25:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                m.id as id_movimiento,
+                m.folio,
+                DATE_FORMAT(m.date, '%d/%m/%Y') as fecha,
+                mt.name as tipo_movimiento,
+                m.total_products as total_productos,
+                m.total_units as total_unidades,
+                m.status as estado,
+                m.created_at as fecha_creacion,
+                m.user_id,
+                d.id as id_detalle,
+                d.product_id as id_producto,
+                d.quantity as cantidad,
+                d.previous_stock as stock_anterior,
+                d.resulting_stock as stock_resultante,
+                a.id as idAlmacen,
+                a.code,
+                a.name as nombre_producto,
+                a.presentations_id,
+                a.area_id,
+                a.group_id,
+                COALESCE(cat.name, 'Sin categoría') AS nombre_grupo,
+                COALESCE(z.name, 'Sin zona') AS nombre_zona,
+                COALESCE(ar.name, 'Sin área') AS nombre_area
+            FROM fayxzvov_almacen.inventory_movement m
+            LEFT JOIN fayxzvov_almacen.movement_type mt ON m.movement_type_id = mt.id
+            INNER JOIN fayxzvov_almacen.inventory_movement_detail d ON m.id = d.inventory_movement_id
+            INNER JOIN fayxzvov_almacen.product a ON d.product_id = a.id
+            LEFT JOIN fayxzvov_almacen.presentations cat ON a.presentations_id = cat.id
+            LEFT JOIN fayxzvov_almacen.areas z ON a.area_id = z.id
+            LEFT JOIN fayxzvov_almacen.product_groups ar ON a.group_id = ar.id
+            WHERE
+            m.udn_id = 1
+            and MONTH(m.date) = ?
+            AND YEAR(m.date) = ?
+            
+            ORDER BY m.date DESC, m.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.inventory_movement' doesn't exist
+
+
+[ 2026-06-04 18:25:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                mt.name as tipo_movimiento,
+                COUNT(DISTINCT m.id) as total_movimientos,
+                SUM(d.quantity) as total_unidades
+            FROM fayxzvov_almacen.inventory_movement m
+            LEFT JOIN fayxzvov_almacen.movement_type mt ON m.movement_type_id = mt.id
+            INNER JOIN fayxzvov_almacen.inventory_movement_detail d ON m.id = d.inventory_movement_id
+            INNER JOIN fayxzvov_almacen.product a ON d.product_id = a.id
+            LEFT JOIN fayxzvov_almacen.presentations cat ON a.presentations_id = cat.id
+            LEFT JOIN fayxzvov_almacen.areas z ON a.area_id = z.id
+            LEFT JOIN fayxzvov_almacen.product_groups ar ON a.group_id = ar.id
+            WHERE
+             m.udn_id = 1
+            AND MONTH(m.date) = ?
+            AND YEAR(m.date) = ?
+            
+            GROUP BY mt.name
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.inventory_movement' doesn't exist
+
+
+[ 2026-06-04 18:25:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                id,
+                name as valor,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_almacen.areas
+            WHERE active = ?
+            AND udn_id = 1
+            ORDER BY id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.areas' doesn't exist
+
+
+[ 2026-06-04 18:25:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                id,
+                name as valor,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_almacen.presentations
+            WHERE active = ?
+            AND udn_id = 1
+            ORDER BY id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.presentations' doesn't exist
+
+
+[ 2026-06-04 18:25:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                id,
+                name as valor
+            FROM fayxzvov_almacen.presentations
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.presentations' doesn't exist
+
+
+[ 2026-06-04 18:25:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                m.id as id_movimiento,
+                m.folio,
+                DATE_FORMAT(m.date, '%d/%m/%Y') as fecha,
+                mt.name as tipo_movimiento,
+                m.total_products as total_productos,
+                m.total_units as total_unidades,
+                m.status as estado,
+                m.user_id,
+                usser as responsable,
+                DATE_FORMAT(m.created_at, '%d/%m/%Y %H:%i') as fecha_creacion
+            FROM fayxzvov_almacen.inventory_movement m
+            LEFT JOIN fayxzvov_almacen.movement_type mt ON m.movement_type_id = mt.id
+            LEFT JOIN fayxzvov_erp.usuarios ON fayxzvov_erp.usuarios.idUser = m.user_id
+            WHERE m.date BETWEEN ? AND ?
+            AND (? = 'Todos' OR mt.name = ?)
+            AND m.udn_id = 1
+            ORDER BY m.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.inventory_movement' doesn't exist
+
+
+[ 2026-06-04 18:25:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                id,
+                name as valor,
+                quantity as stock_actual
+            FROM fayxzvov_almacen.product
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.product' doesn't exist
+
+
+[ 2026-06-04 18:25:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name as valor
+            FROM fayxzvov_almacen.movement_type
+            ORDER BY id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.movement_type' doesn't exist
+
+
+[ 2026-06-04 18:25:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                a.id,
+                a.code,
+                a.name,
+                a.quantity,
+                a.cost,
+                a.price,
+                a.active,
+                a.min_stock,
+                a.description,
+                a.created_at,
+                ar.name as area,
+                c.name as categoria,
+                z.name as zona
+            FROM fayxzvov_almacen.product a
+            LEFT JOIN fayxzvov_almacen.product_groups ar ON a.group_id        = ar.id
+            LEFT JOIN fayxzvov_almacen.presentations c   ON a.presentations_id = c.id
+            LEFT JOIN fayxzvov_almacen.areas z            ON a.area_id         = z.id
+            WHERE a.udn_id = 1
+         ORDER BY a.id DESC
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.product' doesn't exist
+
+
+[ 2026-06-04 18:25:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_almacen.supplier
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.supplier' doesn't exist
+
+
+[ 2026-06-04 18:25:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_almacen.product_groups
+            WHERE active = 1
+            AND udn_id = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.product_groups' doesn't exist
+
+
+[ 2026-06-04 18:25:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_almacen.presentations
+            WHERE active = 1
+            AND udn_id = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.presentations' doesn't exist
+
+
+[ 2026-06-04 18:25:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_almacen.areas
+            WHERE active = 1
+            AND udn_id = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_almacen.areas' doesn't exist
+
+
 [ 2026-06-04 18:22:14 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
