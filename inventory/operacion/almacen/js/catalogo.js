@@ -22,7 +22,7 @@ class Catalogo extends Templates {
         this.tabLayout({
             parent: `container${this.PROJECT_NAME}`,
             id: `tabs${this.PROJECT_NAME}`,
-            theme: "dark",
+            theme: "light",
             type: "button",
             json: [
                 {
