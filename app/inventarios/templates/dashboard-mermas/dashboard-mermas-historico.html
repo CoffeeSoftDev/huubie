@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Mermas — Historico · FOGAJA · Huubie</title>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Huubie UI Kit -->
+    <link rel="stylesheet" href="../../../ui/css/ui-kit.css" />
+
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #141d2b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+        .timeline-line::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #374151;
+        }
+    </style>
+</head>
+
+<body class="bg-[#111928] text-white h-screen flex flex-col overflow-hidden" data-bs-theme="dark">
+
+    <div class="flex flex-1 min-h-0">
+
+        <!-- ====================== SIDEBAR ====================== -->
+        <aside class="w-56 shrink-0 bg-[#0f172a] border-r border-gray-800 flex flex-col">
+            <div class="h-16 flex items-center gap-2 px-4 border-b border-gray-800">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1C64F2] to-[#7C3AED] flex items-center justify-center">
+                    <i data-lucide="chef-hat" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-sm font-bold tracking-wide">FOGAJA</span>
+                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">Huubie v1.0</span>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto scrollbar-thin py-4 space-y-1">
+                <div class="px-4 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Inventarios</p>
+                </div>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    Resumen
+                </a>
+
+                <div>
+                    <button class="w-full flex items-center justify-between px-4 py-2.5 text-sm text-white bg-[#1F2A37] border-l-2 border-[#1C64F2]">
+                        <span class="flex items-center gap-3">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            Mermas
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </button>
+                    <ul class="bg-[#0a1220] py-1">
+                        <li><a href="../../dashboard-mermas-resumen.php" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-gray-400 hover:text-white hover:bg-[#1F2A37] transition">Resumen</a></li>
+                        <li><a href="dashboard-mermas-analisis.html" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-gray-400 hover:text-white hover:bg-[#1F2A37] transition">Analisis por Producto</a></li>
+                        <li><a href="dashboard-mermas-historico.html" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs bg-[#1C64F2]/10 text-[#1C64F2] border-l-2 border-[#1C64F2]">Historico</a></li>
+                        <li><a href="../../pos-mermas.php" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-gray-400 hover:text-white hover:bg-[#1F2A37] transition">Visor Mermas</a></li>
+                    </ul>
+                </div>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="package-plus" class="w-4 h-4"></i>
+                    Entradas
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="boxes" class="w-4 h-4"></i>
+                    Stock
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                    Traspasos
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="package" class="w-4 h-4"></i>
+                    Productos
+                </a>
+
+                <div class="px-4 mt-6 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Operacion</p>
+                </div>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="receipt" class="w-4 h-4"></i>
+                    Ventas
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    Reportes
+                </a>
+            </nav>
+
+            <div class="border-t border-gray-800 p-3 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#1C64F2] to-[#7C3AED] flex items-center justify-center text-xs font-bold">RM</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold truncate">Rosy Martinez</p>
+                    <p class="text-[10px] text-green-400 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
+                        En linea
+                    </p>
+                </div>
+                <button class="text-gray-500 hover:text-white">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ====================== MAIN ====================== -->
+        <main class="flex-1 flex flex-col min-w-0 min-h-0">
+
+            <!-- HEADER -->
+            <header class="h-16 shrink-0 bg-[#141d2b] border-b border-gray-800 flex items-center px-6 gap-4">
+                <nav class="flex items-center gap-2 text-sm">
+                    <i data-lucide="home" class="w-4 h-4 text-gray-500"></i>
+                    <span class="text-gray-500">Inventarios</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-600"></i>
+                    <span class="text-gray-500">Mermas</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-600"></i>
+                    <span class="text-white font-medium">Historico</span>
+                </nav>
+                <div class="flex-1"></div>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#1F2A37] rounded-lg border border-gray-700">
+                    <i data-lucide="sun" class="w-4 h-4 text-yellow-400"></i>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-gray-500 uppercase tracking-wider">Turno</span>
+                        <span class="text-xs font-semibold">Matutino · 06:00–14:00</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#1F2A37] rounded-lg border border-gray-700">
+                    <i data-lucide="clock" class="w-4 h-4 text-[#1C64F2]"></i>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-gray-500 uppercase tracking-wider">Hora actual</span>
+                        <span id="liveClock" class="text-xs font-semibold tabular-nums">--:--:--</span>
+                    </div>
+                </div>
+                <button class="relative w-9 h-9 flex items-center justify-center rounded-lg bg-[#1F2A37] border border-gray-700 hover:border-[#1C64F2] transition">
+                    <i data-lucide="bell" class="w-4 h-4 text-gray-300"></i>
+                    <span class="absolute -top-1 -right-1 w-4 h-4 bg-[#EA0234] text-[10px] font-bold rounded-full flex items-center justify-center">3</span>
+                </button>
+            </header>
+
+            <!-- CONTENT -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-6">
+
+                <!-- HERO -->
+                <section class="bg-[#1F2A37] rounded-xl p-6 border border-gray-700/60 flex items-center justify-between gap-6 flex-wrap">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="px-2.5 py-1 rounded-md bg-[#1C64F2]/15 text-[#1C64F2] text-[10px] font-bold uppercase tracking-wider border border-[#1C64F2]/30">
+                                Produccion · FOGAJA
+                            </span>
+                            <span class="text-xs text-gray-500">Sucursal Centro · Cocina principal</span>
+                        </div>
+                        <h1 class="text-2xl font-bold tracking-tight">Historico de Mermas</h1>
+                        <p class="text-sm text-gray-400 mt-1">
+                            Datos historicos de mermas diarias y tendencias. Periodo: <span class="text-gray-300">Enero – Junio 2026</span>.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1a2332] border border-gray-700 text-sm text-gray-300 hover:border-gray-500 transition">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            Exportar CSV
+                        </button>
+                        <button class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1a2332] border border-gray-700 text-sm text-gray-300 hover:border-gray-500 transition">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            Reporte PDF
+                        </button>
+                    </div>
+                </section>
+
+                <!-- FILTROS -->
+                <section class="bg-[#1F2A37] rounded-xl p-4 border border-gray-700/60">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+                        <div>
+                            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Periodo</label>
+                            <select class="cs-select w-full">
+                                <option>Ultimos 7 dias</option>
+                                <option>Ultimos 30 dias</option>
+                                <option selected>Este mes</option>
+                                <option>Mes anterior</option>
+                                <option>Este ano</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Desde</label>
+                            <input type="date" value="2026-06-01" class="cs-input w-full" />
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Hasta</label>
+                            <input type="date" value="2026-06-04" class="cs-input w-full" />
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Motivo</label>
+                            <select class="cs-select w-full">
+                                <option selected>Todos</option>
+                                <option>Caducidad</option>
+                                <option>Daniado</option>
+                                <option>Error produccion</option>
+                                <option>Robo/Faltante</option>
+                                <option>Devolucion</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">Sucursal</label>
+                            <select class="cs-select w-full">
+                                <option selected>Centro</option>
+                                <option>Norte</option>
+                                <option>Sur</option>
+                            </select>
+                        </div>
+                        <button class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#1C64F2] hover:bg-[#1a53d4] text-sm font-semibold text-white transition h-[42px]">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            Actualizar
+                        </button>
+                    </div>
+                </section>
+
+                <!-- GRAFICO HISTORICO MENSUAL + RESUMEN -->
+                <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Tendencia historica (6 meses) -->
+                    <div class="lg:col-span-2 bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-sm font-bold text-white">Tendencia historica · Unidades de merma por mes</h2>
+                                <p class="text-xs text-gray-500 mt-0.5">Enero a Junio 2026 — Acumulado por mes</p>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-gray-400">
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-[#EA0234]"></span>Merma</span>
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-[#3FC189] border-b border-dashed"></span>Meta</span>
+                            </div>
+                        </div>
+                        <div class="h-[280px]">
+                            <canvas id="historicoChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Resumen acumulado -->
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <h2 class="text-sm font-bold text-white mb-1">Resumen acumulado · 2026</h2>
+                        <p class="text-xs text-gray-500 mb-4">Enero a Junio</p>
+
+                        <div class="space-y-4">
+                            <div class="bg-[#141d2b] rounded-lg p-4 border border-gray-700/60">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] text-gray-400 uppercase tracking-wider">Total mermas</span>
+                                    <div class="w-8 h-8 rounded-lg bg-[#EA0234]/15 flex items-center justify-center">
+                                        <i data-lucide="trash-2" class="w-4 h-4 text-[#EA0234]"></i>
+                                    </div>
+                                </div>
+                                <p class="text-2xl font-bold text-white mt-2">4,832</p>
+                                <p class="text-[11px] text-gray-500">unidades</p>
+                            </div>
+
+                            <div class="bg-[#141d2b] rounded-lg p-4 border border-gray-700/60">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] text-gray-400 uppercase tracking-wider">Valor perdido total</span>
+                                    <div class="w-8 h-8 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center">
+                                        <i data-lucide="dollar-sign" class="w-4 h-4 text-[#1C64F2]"></i>
+                                    </div>
+                                </div>
+                                <p class="text-2xl font-bold text-white mt-2">$38,450.00</p>
+                                <p class="text-[11px] text-gray-500">MXN · acumulado</p>
+                            </div>
+
+                            <div class="bg-[#141d2b] rounded-lg p-4 border border-gray-700/60">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] text-gray-400 uppercase tracking-wider">Promedio diario</span>
+                                    <div class="w-8 h-8 rounded-lg bg-[#fbbf24]/15 flex items-center justify-center">
+                                        <i data-lucide="calendar-days" class="w-4 h-4 text-[#fbbf24]"></i>
+                                    </div>
+                                </div>
+                                <p class="text-2xl font-bold text-white mt-2">27.5</p>
+                                <p class="text-[11px] text-gray-500">unidades/dia</p>
+                            </div>
+
+                            <div class="bg-[#141d2b] rounded-lg p-4 border border-gray-700/60">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] text-gray-400 uppercase tracking-wider">Dias fuera de meta</span>
+                                    <div class="w-8 h-8 rounded-lg bg-[#7C3AED]/15 flex items-center justify-center">
+                                        <i data-lucide="alert-circle" class="w-4 h-4 text-[#7C3AED]"></i>
+                                    </div>
+                                </div>
+                                <p class="text-2xl font-bold text-white mt-2">42</p>
+                                <p class="text-[11px] text-gray-500">de 176 dias (23.9%)</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- LINEA DE TIEMPO + REGISTROS DIARIOS -->
+                <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Linea de tiempo -->
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center gap-2 mb-5">
+                            <i data-lucide="history" class="w-4 h-4 text-[#1C64F2]"></i>
+                            <h2 class="text-sm font-bold text-white">Linea de tiempo · Registros recientes</h2>
+                        </div>
+                        <div class="relative timeline-line space-y-5 pl-8">
+                            <!-- Evento 1 -->
+                            <div class="relative">
+                                <div class="absolute -left-[21px] w-3.5 h-3.5 rounded-full bg-[#EA0234] border-2 border-[#1F2A37]"></div>
+                                <div class="bg-[#141d2b] rounded-lg p-3 border border-gray-700/60">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-bold text-white">M-0047 · Garrote de nuez critico</span>
+                                        <span class="text-[10px] text-gray-500">Hoy · 10:45 am</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-400">Merma del 12.2% (39 uds) — supera el margen del 4.0% por 8.2 puntos.</p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span class="cs-badge cs-badge-danger">Critico</span>
+                                        <span class="text-[10px] text-gray-500">Motivo: Caducidad</span>
+                                        <span class="text-[10px] text-gray-500">Registrado: Juan P.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Evento 2 -->
+                            <div class="relative">
+                                <div class="absolute -left-[21px] w-3.5 h-3.5 rounded-full bg-[#EA0234] border-2 border-[#1F2A37]"></div>
+                                <div class="bg-[#141d2b] rounded-lg p-3 border border-gray-700/60">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-bold text-white">M-0046 · Oreja critico</span>
+                                        <span class="text-[10px] text-gray-500">Hoy · 09:20 am</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-400">Merma del 11.6% (58 uds) — supera el margen del 5.0% por 6.6 puntos.</p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span class="cs-badge cs-badge-danger">Critico</span>
+                                        <span class="text-[10px] text-gray-500">Motivo: Daniado</span>
+                                        <span class="text-[10px] text-gray-500">Registrado: Maria G.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Evento 3 -->
+                            <div class="relative">
+                                <div class="absolute -left-[21px] w-3.5 h-3.5 rounded-full bg-[#fbbf24] border-2 border-[#1F2A37]"></div>
+                                <div class="bg-[#141d2b] rounded-lg p-3 border border-gray-700/60">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-bold text-white">M-0045 · Cuernito alerta</span>
+                                        <span class="text-[10px] text-gray-500">Ayer · 15:30 pm</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-400">Merma del 6.9% (36 uds) — supera el margen del 4.0% por 2.9 puntos.</p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span class="cs-badge cs-badge-warning">Alerta</span>
+                                        <span class="text-[10px] text-gray-500">Motivo: Error produccion</span>
+                                        <span class="text-[10px] text-gray-500">Registrado: Carlos R.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Evento 4 -->
+                            <div class="relative">
+                                <div class="absolute -left-[21px] w-3.5 h-3.5 rounded-full bg-[#3FC189] border-2 border-[#1F2A37]"></div>
+                                <div class="bg-[#141d2b] rounded-lg p-3 border border-gray-700/60">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-bold text-white">M-0044 · Concha en margen</span>
+                                        <span class="text-[10px] text-gray-500">Ayer · 08:00 am</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-400">Merma del 3.0% (21 uds) — dentro del margen aceptable del 3.0%.</p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span class="cs-badge cs-badge-success">En margen</span>
+                                        <span class="text-[10px] text-gray-500">Motivo: Caducidad</span>
+                                        <span class="text-[10px] text-gray-500">Registrado: Ana L.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Evento 5 -->
+                            <div class="relative">
+                                <div class="absolute -left-[21px] w-3.5 h-3.5 rounded-full bg-[#3FC189] border-2 border-[#1F2A37]"></div>
+                                <div class="bg-[#141d2b] rounded-lg p-3 border border-gray-700/60">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-bold text-white">M-0043 · Bolillo en margen</span>
+                                        <span class="text-[10px] text-gray-500">2 Jun · 07:15 am</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-400">Merma del 1.0% (8 uds) — dentro del margen aceptable del 2.0%.</p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span class="cs-badge cs-badge-success">En margen</span>
+                                        <span class="text-[10px] text-gray-500">Motivo: Daniado</span>
+                                        <span class="text-[10px] text-gray-500">Registrado: Juan P.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de registros diarios -->
+                    <div class="bg-[#1F2A37] rounded-xl border border-gray-700/60 overflow-hidden flex flex-col">
+                        <div class="px-5 py-4 border-b border-gray-700/60">
+                            <h2 class="text-sm font-bold text-white">Registros diarios · Junio 2026</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">Desglose diario de mermas con indicador de estado</p>
+                        </div>
+                        <div class="flex-1 overflow-auto scrollbar-thin">
+                            <table class="cs-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-left">Fecha</th>
+                                        <th class="text-right">Uds</th>
+                                        <th class="text-right">$ Perdido</th>
+                                        <th class="text-right">% Prom</th>
+                                        <th>Estado</th>
+                                        <th class="text-left">Motivo top</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">4 Jun 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">247</td>
+                                        <td class="text-right tabular-nums text-white">$1,847.50</td>
+                                        <td class="text-right tabular-nums text-[#EA0234] font-bold">5.8%</td>
+                                        <td><span class="cs-badge cs-badge-danger">Fuera de meta</span></td>
+                                        <td class="text-xs text-gray-400">Caducidad</td>
+                                    </tr>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">3 Jun 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">260</td>
+                                        <td class="text-right tabular-nums text-white">$2,010.00</td>
+                                        <td class="text-right tabular-nums text-[#EA0234] font-bold">6.1%</td>
+                                        <td><span class="cs-badge cs-badge-danger">Fuera de meta</span></td>
+                                        <td class="text-xs text-gray-400">Daniado</td>
+                                    </tr>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">2 Jun 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">230</td>
+                                        <td class="text-right tabular-nums text-white">$1,725.00</td>
+                                        <td class="text-right tabular-nums text-[#fbbf24] font-bold">5.2%</td>
+                                        <td><span class="cs-badge cs-badge-warning">Alerta</span></td>
+                                        <td class="text-xs text-gray-400">Error produccion</td>
+                                    </tr>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">1 Jun 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">240</td>
+                                        <td class="text-right tabular-nums text-white">$1,890.00</td>
+                                        <td class="text-right tabular-nums text-[#EA0234] font-bold">5.9%</td>
+                                        <td><span class="cs-badge cs-badge-danger">Fuera de meta</span></td>
+                                        <td class="text-xs text-gray-400">Caducidad</td>
+                                    </tr>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">31 May 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">195</td>
+                                        <td class="text-right tabular-nums text-white">$1,480.00</td>
+                                        <td class="text-right tabular-nums text-[#3FC189] font-bold">4.2%</td>
+                                        <td><span class="cs-badge cs-badge-success">En meta</span></td>
+                                        <td class="text-xs text-gray-400">Daniado</td>
+                                    </tr>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">30 May 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">210</td>
+                                        <td class="text-right tabular-nums text-white">$1,650.00</td>
+                                        <td class="text-right tabular-nums text-[#fbbf24] font-bold">4.8%</td>
+                                        <td><span class="cs-badge cs-badge-warning">Alerta</span></td>
+                                        <td class="text-xs text-gray-400">Caducidad</td>
+                                    </tr>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">29 May 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">180</td>
+                                        <td class="text-right tabular-nums text-white">$1,320.00</td>
+                                        <td class="text-right tabular-nums text-[#3FC189] font-bold">3.8%</td>
+                                        <td><span class="cs-badge cs-badge-success">En meta</span></td>
+                                        <td class="text-xs text-gray-400">Daniado</td>
+                                    </tr>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">28 May 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">165</td>
+                                        <td class="text-right tabular-nums text-white">$1,180.00</td>
+                                        <td class="text-right tabular-nums text-[#3FC189] font-bold">3.5%</td>
+                                        <td><span class="cs-badge cs-badge-success">En meta</span></td>
+                                        <td class="text-xs text-gray-400">Error produccion</td>
+                                    </tr>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">27 May 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">190</td>
+                                        <td class="text-right tabular-nums text-white">$1,420.00</td>
+                                        <td class="text-right tabular-nums text-[#3FC189] font-bold">3.9%</td>
+                                        <td><span class="cs-badge cs-badge-success">En meta</span></td>
+                                        <td class="text-xs text-gray-400">Caducidad</td>
+                                    </tr>
+                                    <tr class="hover:bg-[#1a2332] transition">
+                                        <td class="text-sm font-semibold text-white">26 May 2026</td>
+                                        <td class="text-right tabular-nums font-bold text-white">175</td>
+                                        <td class="text-right tabular-nums text-white">$1,290.00</td>
+                                        <td class="text-right tabular-nums text-[#3FC189] font-bold">3.6%</td>
+                                        <td><span class="cs-badge cs-badge-success">En meta</span></td>
+                                        <td class="text-xs text-gray-400">Robo/Faltante</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="px-5 py-3 border-t border-gray-700/60 flex items-center justify-between">
+                            <p class="text-xs text-gray-500">Mostrando 1-10 de 176 registros</p>
+                            <div class="cs-pagination">
+                                <button class="opacity-50 cursor-not-allowed" disabled>
+                                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                                </button>
+                                <button class="active-page">1</button>
+                                <button>2</button>
+                                <button>3</button>
+                                <button>
+                                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- EViDENCIAS FOTOGRAFICAS -->
+                <section class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="camera" class="w-4 h-4 text-[#1C64F2]"></i>
+                        <h2 class="text-sm font-bold text-white">Evidencias fotograficas recientes</h2>
+                        <span class="text-[10px] text-gray-500 ml-2">Fotos adjuntas a registros de merma</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <div class="bg-[#141d2b] rounded-lg border border-gray-700/60 overflow-hidden">
+                            <div class="h-24 bg-gradient-to-br from-[#374151] to-[#1a2332] flex items-center justify-center">
+                                <i data-lucide="image" class="w-8 h-8 text-gray-600"></i>
+                            </div>
+                            <div class="p-2">
+                                <p class="text-[10px] font-semibold text-white truncate">M-0047</p>
+                                <p class="text-[9px] text-gray-500">Garrote · 4 Jun</p>
+                                <span class="cs-badge cs-badge-danger text-[9px] mt-1">Caducidad</span>
+                            </div>
+                        </div>
+                        <div class="bg-[#141d2b] rounded-lg border border-gray-700/60 overflow-hidden">
+                            <div class="h-24 bg-gradient-to-br from-[#374151] to-[#1a2332] flex items-center justify-center">
+                                <i data-lucide="image" class="w-8 h-8 text-gray-600"></i>
+                            </div>
+                            <div class="p-2">
+                                <p class="text-[10px] font-semibold text-white truncate">M-0046</p>
+                                <p class="text-[9px] text-gray-500">Oreja · 4 Jun</p>
+                                <span class="cs-badge cs-badge-warning text-[9px] mt-1">Daniado</span>
+                            </div>
+                        </div>
+                        <div class="bg-[#141d2b] rounded-lg border border-gray-700/60 overflow-hidden">
+                            <div class="h-24 bg-gradient-to-br from-[#374151] to-[#1a2332] flex items-center justify-center">
+                                <i data-lucide="image" class="w-8 h-8 text-gray-600"></i>
+                            </div>
+                            <div class="p-2">
+                                <p class="text-[10px] font-semibold text-white truncate">M-0045</p>
+                                <p class="text-[9px] text-gray-500">Cuernito · 3 Jun</p>
+                                <span class="cs-badge cs-badge-info text-[9px] mt-1">Error prod.</span>
+                            </div>
+                        </div>
+                        <div class="bg-[#141d2b] rounded-lg border border-gray-700/60 overflow-hidden">
+                            <div class="h-24 bg-gradient-to-br from-[#374151] to-[#1a2332] flex items-center justify-center">
+                                <i data-lucide="image" class="w-8 h-8 text-gray-600"></i>
+                            </div>
+                            <div class="p-2">
+                                <p class="text-[10px] font-semibold text-white truncate">M-0042</p>
+                                <p class="text-[9px] text-gray-500">Bisquet · 2 Jun</p>
+                                <span class="cs-badge cs-badge-danger text-[9px] mt-1">Caducidad</span>
+                            </div>
+                        </div>
+                        <div class="bg-[#141d2b] rounded-lg border border-gray-700/60 overflow-hidden">
+                            <div class="h-24 bg-gradient-to-br from-[#374151] to-[#1a2332] flex items-center justify-center">
+                                <i data-lucide="image" class="w-8 h-8 text-gray-600"></i>
+                            </div>
+                            <div class="p-2">
+                                <p class="text-[10px] font-semibold text-white truncate">M-0038</p>
+                                <p class="text-[9px] text-gray-500">Dona · 30 May</p>
+                                <span class="cs-badge cs-badge-warning text-[9px] mt-1">Daniado</span>
+                            </div>
+                        </div>
+                        <div class="bg-[#141d2b] rounded-lg border border-gray-700/60 overflow-hidden">
+                            <div class="h-24 bg-gradient-to-br from-[#374151] to-[#1a2332] flex items-center justify-center">
+                                <i data-lucide="image" class="w-8 h-8 text-gray-600"></i>
+                            </div>
+                            <div class="p-2">
+                                <p class="text-[10px] font-semibold text-white truncate">M-0035</p>
+                                <p class="text-[9px] text-gray-500">Pan de caja · 28 May</p>
+                                <span class="cs-badge cs-badge-purple text-[9px] mt-1">Robo</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- FOOTER -->
+                <footer class="text-center text-[11px] text-gray-600 pt-4 pb-2">
+                    <p>© 2026 FOGAJA · Huubie POS · Dashboard Mermas — Historico</p>
+                </footer>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        if (window.lucide) lucide.createIcons();
+
+        // Reloj en vivo
+        const clockEl = document.getElementById('liveClock');
+        const pad = (n) => String(n).padStart(2, '0');
+        const tick = () => {
+            const d = new Date();
+            clockEl.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        };
+        tick();
+        setInterval(tick, 1000);
+
+        // Chart.js — Historico mensual (bar + line)
+        const ctxHist = document.getElementById('historicoChart').getContext('2d');
+        new Chart(ctxHist, {
+            type: 'bar',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+                datasets: [
+                    {
+                        label: 'Merma real (uds)',
+                        data: [580, 620, 710, 850, 925, 1147],
+                        backgroundColor: '#EA0234',
+                        borderRadius: 4,
+                        order: 2
+                    },
+                    {
+                        label: 'Meta mensual',
+                        data: [520, 520, 540, 560, 580, 600],
+                        borderColor: '#3FC189',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        type: 'line',
+                        pointRadius: 0,
+                        borderWidth: 2,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1F2A37',
+                        titleColor: '#fff',
+                        bodyColor: '#d1d5db',
+                        borderColor: '#374151',
+                        borderWidth: 1,
+                        callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} uds` }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#9ca3af', font: { size: 10 } }
+                    },
+                    y: {
+                        grid: { color: '#374151', drawBorder: false },
+                        ticks: { color: '#9ca3af', font: { size: 10 } },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

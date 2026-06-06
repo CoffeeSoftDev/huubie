@@ -54,6 +54,9 @@ class Sidebar {
                 { icon: "house", url: "/inventory/operacion/almacen/", title: "Inicio" },
                 { icon: "contact", url: "/inventory/operacion/almacen/reporte.php", title: "Reportes" },
                 { icon: "gauge", url: "/inventory/finanzas/administrador/", title: "Dashboard" },
+                { icon: "arrow-down-to-line", url: "/inventory/operacion/almacen/entradas.php", title: "Entradas" },
+                { icon: "trash-2", url: "/inventory/operacion/almacen/mermas.php", title: "Mermas" },
+                { icon: "shield-user", url: "/inventory/admin/accesos/", title: "Accesos" },
             ],
         };
 

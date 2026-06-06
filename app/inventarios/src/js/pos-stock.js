@@ -12,6 +12,12 @@ const NIVELES_STOCK = [
     { id: 'agotado', valor: 'Agotado'            }
 ];
 
+const MOVIMIENTOS_STOCK = [
+    { id: '',    valor: 'Todos los productos' },
+    { id: 'con', valor: 'Con movimientos'     },
+    { id: 'sin', valor: 'Sin movimientos'     }
+];
+
 $(async () => {
     stockView = new StockView(api, 'root');
     stock     = new Stock(api, 'root');
@@ -171,6 +177,15 @@ class App extends Templates {
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     NIVELES_STOCK
+            },
+            {
+                opc:      'select',
+                id:       'fMovimiento',
+                lbl:      'Movimientos:',
+                class:    'col-12 col-md-3 col-lg-3',
+                onchange: 'app.onChangeFilters()',
+                value:    'con',
+                data:     MOVIMIENTOS_STOCK
             }
         ];
 
@@ -206,6 +221,7 @@ class App extends Templates {
             subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
             categoria:       $('#fCategoria').val()     || '',
             nivel:           $('#fNivel').val()         || '',
+            movimiento:      $('#fMovimiento').val()    || '',
             q:               $('#qBuscar').val()        || ''
         };
     }
@@ -264,12 +280,13 @@ class Stock extends Templates {
             parent:      'tableWrap',
             idFilterBar: 'filterBar',
             coffeesoft:  true,
-            conf:        { datatable: true, pag: 10 },
+            conf:        { datatable: true, pag: 15 },
             data: {
                 opc:             'lsStock',
                 subsidiaries_id: f.subsidiaries_id,
                 category_id:     f.categoria,
                 nivel:           f.nivel,
+                movimiento:      f.movimiento,
                 q:               f.q
             },
             attr: {
@@ -277,8 +294,8 @@ class Stock extends Templates {
                 theme:        'dark',
                 striped:      true,
                 f_size:       12,
-                center:       [1, 4, 8, 9],
-                // right:        [6, 7],
+                center:       [3, 7, 8],
+                // right:        [5, 6],
                 emptyMessage: 'No se encontraron productos con los filtros aplicados',
                 emptyIcon:    'icon-cube'
             }

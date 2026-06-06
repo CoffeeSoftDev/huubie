@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Mermas — Histórico · FOGAJA · Huubie</title>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .scrollbar-thin::-webkit-scrollbar { width: 7px; height: 7px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #F1F5F9; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+        .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+    </style>
+</head>
+
+<body class="bg-[#F8FAFC] text-[#1E293B] h-screen flex flex-col overflow-hidden">
+
+    <div class="flex flex-1 min-h-0">
+
+        <!-- ====================== SIDEBAR ====================== -->
+        <aside class="w-56 shrink-0 bg-white border-r border-[#E2E8F0] flex flex-col">
+            <div class="h-16 flex items-center gap-2 px-4 border-b border-[#E2E8F0]">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C05A40] to-[#D97706] flex items-center justify-center">
+                    <i data-lucide="chef-hat" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-sm font-bold tracking-wide text-[#1E293B]">FOGAJA</span>
+                    <span class="text-[10px] text-[#94A3B8] uppercase tracking-wider">Huubie v1.0</span>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto scrollbar-thin py-4 space-y-1">
+                <div class="px-4 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-[#94A3B8] font-semibold">Inventarios</p>
+                </div>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    Resumen
+                </a>
+
+                <div>
+                    <button class="w-full flex items-center justify-between px-4 py-2.5 text-sm text-[#1E293B] bg-[#FBF0EC] border-l-2 border-[#C05A40]">
+                        <span class="flex items-center gap-3">
+                            <i data-lucide="trash-2" class="w-4 h-4 text-[#C05A40]"></i>
+                            Mermas
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-[#C05A40]"></i>
+                    </button>
+                    <ul class="bg-[#FCFAF9] py-1">
+                        <li><a href="dashboard-mermas-control-diario.html" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9] transition">Control Diario</a></li>
+                        <li><a href="dashboard-mermas-margenes.html" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9] transition">Márgenes por Categoría</a></li>
+                        <li><a href="dashboard-mermas-historico-light.html" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs bg-[#C05A40]/10 text-[#C05A40] border-l-2 border-[#C05A40] font-semibold">Histórico</a></li>
+                        <li><a href="../../pos-mermas.php" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9] transition">Visor Mermas</a></li>
+                    </ul>
+                </div>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="package-plus" class="w-4 h-4"></i>
+                    Entradas
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="boxes" class="w-4 h-4"></i>
+                    Stock
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                    Traspasos
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="package" class="w-4 h-4"></i>
+                    Productos
+                </a>
+
+                <div class="px-4 mt-6 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-[#94A3B8] font-semibold">Operación</p>
+                </div>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="receipt" class="w-4 h-4"></i>
+                    Ventas
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    Reportes
+                </a>
+            </nav>
+
+            <div class="border-t border-[#E2E8F0] p-3 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#C05A40] to-[#D97706] flex items-center justify-center text-xs font-bold text-white">RM</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold truncate text-[#1E293B]">Rosy Martínez</p>
+                    <p class="text-[10px] text-[#059669] flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#059669] pulse-dot"></span>
+                        En línea
+                    </p>
+                </div>
+                <button class="text-[#94A3B8] hover:text-[#C05A40]">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ====================== MAIN ====================== -->
+        <main class="flex-1 flex flex-col min-w-0 min-h-0">
+
+            <!-- HEADER -->
+            <header class="h-16 shrink-0 bg-white border-b border-[#E2E8F0] flex items-center px-6 gap-4">
+                <nav class="flex items-center gap-2 text-sm">
+                    <i data-lucide="home" class="w-4 h-4 text-[#94A3B8]"></i>
+                    <span class="text-[#94A3B8]">Inventarios</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-[#CBD5E1]"></i>
+                    <span class="text-[#94A3B8]">Mermas</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-[#CBD5E1]"></i>
+                    <span class="text-[#1E293B] font-medium">Histórico</span>
+                </nav>
+                <div class="flex-1"></div>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
+                    <i data-lucide="clock" class="w-4 h-4 text-[#C05A40]"></i>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-[#94A3B8] uppercase tracking-wider">Hora actual</span>
+                        <span id="liveClock" class="text-xs font-semibold tabular-nums text-[#1E293B]">--:--:--</span>
+                    </div>
+                </div>
+                <button class="relative w-9 h-9 flex items-center justify-center rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#C05A40] transition">
+                    <i data-lucide="bell" class="w-4 h-4 text-[#475569]"></i>
+                    <span class="absolute -top-1 -right-1 w-4 h-4 bg-[#C05A40] text-[10px] font-bold text-white rounded-full flex items-center justify-center">3</span>
+                </button>
+            </header>
+
+            <!-- CONTENT -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-6">
+
+                <!-- HERO + FILTROS DE RANGO -->
+                <section class="bg-white rounded-xl p-6 border border-[#E8E2DD] shadow-sm">
+                    <div class="flex items-start justify-between gap-6 flex-wrap">
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="px-2.5 py-1 rounded-md bg-[#C05A40]/10 text-[#C05A40] text-[10px] font-bold uppercase tracking-wider border border-[#C05A40]/20">
+                                    Histórico · Categorías
+                                </span>
+                                <span class="text-xs text-[#94A3B8]">Sucursal Centro</span>
+                            </div>
+                            <h1 class="text-2xl font-bold tracking-tight text-[#1E293B]">Histórico de Mermas</h1>
+                            <p class="text-sm text-[#64748B] mt-1">
+                                Evolución diaria de la merma por categoría (FRANCES, BIZCOCHO, PASTELERIA) para identificar tendencias y comparar periodos.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div class="inline-flex rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-1 text-xs">
+                                <button data-periodo="semana" class="periodo-btn px-3 py-1.5 rounded-md text-[#64748B] hover:text-[#1E293B] transition">Semana</button>
+                                <button data-periodo="mes" class="periodo-btn px-3 py-1.5 rounded-md bg-[#C05A40] text-white font-semibold shadow-sm">Mes</button>
+                                <button data-periodo="trimestre" class="periodo-btn px-3 py-1.5 rounded-md text-[#64748B] hover:text-[#1E293B] transition">Trimestre</button>
+                            </div>
+                            <div class="relative">
+                                <i data-lucide="tag" class="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                <select id="filtroCategoria" class="appearance-none pl-8 pr-8 py-2 text-sm rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[#475569] outline-none focus:border-[#C05A40] focus:ring-2 focus:ring-[#C05A40]/10 cursor-pointer">
+                                    <option value="todas">Todas las categorías</option>
+                                    <option value="frances">FRANCES</option>
+                                    <option value="bizcocho">BIZCOCHO</option>
+                                    <option value="pasteleria">PASTELERIA</option>
+                                </select>
+                                <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-[#94A3B8] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            </div>
+                            <button class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-[#E2E8F0] text-sm text-[#475569] hover:border-[#CBD5E1] hover:bg-[#F8FAFC] transition">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- COMPARATIVA POR PERIODO -->
+                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-[#64748B] uppercase tracking-wider">Merma acumulada (<span id="kpiAcumLabel">mes</span>)</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#C05A40]/10 flex items-center justify-center"><i data-lucide="trash-2" class="w-4 h-4 text-[#C05A40]"></i></div>
+                        </div>
+                        <p id="kpiAcumulada" class="text-3xl font-bold text-[#1E293B]">6,184</p>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#C05A40] bg-[#FBF0EC] px-2 py-0.5 rounded-full border border-[#C05A40]/25"><i data-lucide="trending-up" class="w-3 h-3"></i> +8.1%</span>
+                            <span class="text-[11px] text-[#94A3B8]" id="kpiAcumDelta">vs periodo anterior</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-[#64748B] uppercase tracking-wider">% Merma promedio</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#D97706]/10 flex items-center justify-center"><i data-lucide="percent" class="w-4 h-4 text-[#D97706]"></i></div>
+                        </div>
+                        <p class="text-3xl font-bold text-[#1E293B]"><span id="kpiPct">5.1</span><span class="text-lg text-[#94A3B8]">%</span></p>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#D97706] bg-[#FFFBEB] px-2 py-0.5 rounded-full border border-[#D97706]/25"><i data-lucide="trending-up" class="w-3 h-3"></i> +0.4 pts</span>
+                            <span class="text-[11px] text-[#94A3B8]">objetivo 4.5%</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-[#64748B] uppercase tracking-wider">Mejor día</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#059669]/10 flex items-center justify-center"><i data-lucide="trophy" class="w-4 h-4 text-[#059669]"></i></div>
+                        </div>
+                        <p class="text-3xl font-bold text-[#1E293B]"><span id="kpiMejor">3.1</span><span class="text-lg text-[#94A3B8]">%</span></p>
+                        <p id="kpiMejorLabel" class="text-xs text-[#94A3B8] mt-1">Lun 12 May · 158 uds</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-[#64748B] uppercase tracking-wider">Valor perdido (<span id="kpiValorLabel">mes</span>)</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#C05A40]/10 flex items-center justify-center"><i data-lucide="dollar-sign" class="w-4 h-4 text-[#C05A40]"></i></div>
+                        </div>
+                        <p id="kpiValor" class="text-3xl font-bold text-[#1E293B]">$46,320</p>
+                        <p class="text-xs text-[#94A3B8] mt-1">MXN · <span id="kpiValorDias">31</span> días</p>
+                    </div>
+                </section>
+
+                <!-- TENDENCIA + DISTRIBUCION MOTIVOS -->
+                <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 id="trendTitle" class="text-sm font-bold text-[#1E293B]">Tendencia de % de merma · últimas 4 semanas</h2>
+                                <p id="trendSub" class="text-xs text-[#94A3B8] mt-0.5">% diario de merma vs margen objetivo (4.5%) · Todas las categorías</p>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-[#64748B]">
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-1 rounded-full bg-[#C05A40]"></span>% Merma</span>
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded-full bg-[#059669]"></span>Objetivo</span>
+                            </div>
+                        </div>
+                        <div class="h-[280px]">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <h2 id="catPanelTitle" class="text-sm font-bold text-[#1E293B] mb-1">Mermas por categoría</h2>
+                        <p id="catPanelSub" class="text-xs text-[#94A3B8] mb-4">Unidades de merma acumuladas del periodo</p>
+                        <div class="h-[200px] mb-4">
+                            <canvas id="categoriasChart"></canvas>
+                        </div>
+                        <div id="catBreakdownList" class="space-y-2"></div>
+                    </div>
+                </section>
+
+                <!-- TABLA HISTORICA DIARIA -->
+                <section class="bg-white rounded-xl border border-[#E8E2DD] shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-[#EEE7E2] flex items-center justify-between">
+                        <div>
+                            <h2 class="text-sm font-bold text-[#1E293B]">Registro histórico diario</h2>
+                            <p class="text-xs text-[#94A3B8] mt-0.5">Producción y merma por categoría · últimos registros</p>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto scrollbar-thin">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-[#EEE7E2] text-[11px] uppercase tracking-wider text-[#94A3B8]">
+                                    <th class="text-left font-semibold px-5 py-3">Fecha</th>
+                                    <th class="text-right font-semibold px-3 py-3">Producido</th>
+                                    <th class="text-right font-semibold px-3 py-3">Merma uds</th>
+                                    <th class="text-left font-semibold px-3 py-3">% Merma</th>
+                                    <th class="text-left font-semibold px-3 py-3">Motivo top</th>
+                                    <th class="text-right font-semibold px-3 py-3">Valor perdido</th>
+                                    <th class="text-center font-semibold px-5 py-3">Estado del día</th>
+                                </tr>
+                            </thead>
+                            <tbody id="histTbody" class="divide-y divide-[#F1ECE8]">
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Mié 04 Jun</span></div></td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">5,120</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">247</td>
+                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#D97706] tabular-nums">4.8%</span></td>
+                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#C05A40]"></span>Caducidad</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$1,847.50</td>
+                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FFFBEB] text-[#D97706] border border-[#D97706]/25">Cerca</span></td>
+                                </tr>
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Mar 03 Jun</span></div></td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">5,030</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">312</td>
+                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#C05A40] tabular-nums">6.2%</span></td>
+                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#D97706]"></span>Dañado</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$2,310.00</td>
+                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FBF0EC] text-[#C05A40] border border-[#C05A40]/25">Fuera</span></td>
+                                </tr>
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Lun 02 Jun</span></div></td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">4,980</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">189</td>
+                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#059669] tabular-nums">3.8%</span></td>
+                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#C05A40]"></span>Caducidad</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$1,398.00</td>
+                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#059669]/25">En margen</span></td>
+                                </tr>
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Dom 01 Jun</span></div></td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">3,420</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">142</td>
+                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#059669] tabular-nums">4.2%</span></td>
+                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#0EA5E9]"></span>Error producción</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$1,065.00</td>
+                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#059669]/25">En margen</span></td>
+                                </tr>
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Sáb 31 May</span></div></td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">5,210</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">358</td>
+                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#C05A40] tabular-nums">6.9%</span></td>
+                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#D97706]"></span>Dañado</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$2,684.00</td>
+                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FBF0EC] text-[#C05A40] border border-[#C05A40]/25">Fuera</span></td>
+                                </tr>
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Vie 30 May</span></div></td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">5,080</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">203</td>
+                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#059669] tabular-nums">4.0%</span></td>
+                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#C05A40]"></span>Caducidad</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$1,521.00</td>
+                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#059669]/25">En margen</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-5 py-3 border-t border-[#EEE7E2] flex items-center justify-between text-xs text-[#94A3B8]">
+                        <span id="histCount">Mostrando 6 de 31 días</span>
+                        <div class="flex items-center gap-1">
+                            <button class="w-7 h-7 rounded-md border border-[#E2E8F0] flex items-center justify-center hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                            <button class="w-7 h-7 rounded-md border border-[#E2E8F0] flex items-center justify-center hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- COMPORTAMIENTO POR PRODUCTO -->
+                <section class="bg-white rounded-xl border border-[#E8E2DD] shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-[#EEE7E2] flex items-center justify-between gap-4 flex-wrap">
+                        <div>
+                            <h2 id="prodTitle" class="text-sm font-bold text-[#1E293B]">Comportamiento por producto</h2>
+                            <p id="prodSub" class="text-xs text-[#94A3B8] mt-0.5">Mermas diarias por producto · últimos 7 días</p>
+                        </div>
+                        <div class="relative">
+                            <i data-lucide="search" class="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                            <input id="prodSearch" type="text" placeholder="Buscar producto..." class="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] outline-none focus:border-[#C05A40] focus:ring-2 focus:ring-[#C05A40]/10 w-48" />
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto scrollbar-thin">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-[#EEE7E2] text-[10px] uppercase tracking-wider text-[#94A3B8]">
+                                    <th class="text-left font-semibold px-5 py-3">Producto</th>
+                                    <th class="text-center font-semibold px-2 py-3">Vie 30</th>
+                                    <th class="text-center font-semibold px-2 py-3">Sáb 31</th>
+                                    <th class="text-center font-semibold px-2 py-3">Dom 01</th>
+                                    <th class="text-center font-semibold px-2 py-3">Lun 02</th>
+                                    <th class="text-center font-semibold px-2 py-3">Mar 03</th>
+                                    <th class="text-center font-semibold px-2 py-3">Mié 04</th>
+                                    <th class="text-center font-semibold px-2 py-3">Jue 05</th>
+                                    <th class="text-right font-semibold px-3 py-3">Total 7d</th>
+                                    <th class="text-center font-semibold px-5 py-3">Tendencia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prodTbody" class="divide-y divide-[#F1ECE8]"></tbody>
+                        </table>
+                    </div>
+                    <div class="px-5 py-3 border-t border-[#EEE7E2] flex items-center justify-between text-xs text-[#94A3B8]">
+                        <span id="prodCount">—</span>
+                        <span class="flex items-center gap-3">
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm" style="background:rgba(192,90,64,.05)"></span>menor merma</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm" style="background:rgba(192,90,64,.25)"></span>mayor merma</span>
+                        </span>
+                    </div>
+                </section>
+
+                <!-- FOOTER -->
+                <footer class="text-center text-[11px] text-[#94A3B8] pt-4 pb-2">
+                    <p>© 2026 FOGAJA · Huubie POS · Dashboard Mermas — Histórico</p>
+                </footer>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        if (window.lucide) lucide.createIcons();
+
+        // Reloj en vivo
+        const clockEl = document.getElementById('liveClock');
+        const pad = (n) => String(n).padStart(2, '0');
+        const tick = () => {
+            const d = new Date();
+            clockEl.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        };
+        tick();
+        setInterval(tick, 1000);
+
+        const gridColor = '#E2E8F0';
+        const tickColor = '#64748B';
+        const tooltipCfg = {
+            backgroundColor: '#FFFFFF', titleColor: '#1E293B', bodyColor: '#475569',
+            borderColor: '#E2E8F0', borderWidth: 1, padding: 10
+        };
+
+        // ====================== MODELO DE DATOS (mockup) ======================
+        // Al cablear al backend, reemplazar este objeto por la respuesta del API
+        // filtrada por categoría (?categoria=...).
+        const OBJETIVO_DEFAULT = 6.0;  // margen objetivo (%) inicial · cada categoría tiene su propio obj
+        const COSTO_UDS = 7.49;        // costo promedio por unidad (MXN)
+        const PALETTE   = ['#C05A40', '#D97706', '#059669', '#0EA5E9', '#8B7355', '#B45309'];
+
+        // Serie base de % merma diario (28 días) para "Todas las categorías".
+        const SERIE_BASE = [4.1,3.8,4.5,5.2,4.9,6.1,6.9,4.0,3.8,4.2,3.1,4.4,5.0,6.2,5.5,4.8,4.2,3.9,4.6,5.1,6.0,4.7,4.0,3.8,4.8,6.2,3.8,4.8];
+
+        // Filas históricas base (Todas). prod = producido, merma = uds.
+        const ROWS_BASE = [
+            { fecha: 'Mié 04 Jun', prod: 5120, merma: 247, pct: 4.8, motivo: 'Caducidad' },
+            { fecha: 'Mar 03 Jun', prod: 5030, merma: 312, pct: 6.2, motivo: 'Dañado' },
+            { fecha: 'Lun 02 Jun', prod: 4980, merma: 189, pct: 3.8, motivo: 'Caducidad' },
+            { fecha: 'Dom 01 Jun', prod: 3420, merma: 142, pct: 4.2, motivo: 'Error producción' },
+            { fecha: 'Sáb 31 May', prod: 5210, merma: 358, pct: 6.9, motivo: 'Dañado' },
+            { fecha: 'Vie 30 May', prod: 5080, merma: 203, pct: 4.0, motivo: 'Caducidad' }
+        ];
+
+        // Metadatos por categoría: factor de % vs base, objetivo de margen, share de merma y productos.
+        const CATS = {
+            'todas':       { name: 'Todas las categorías', f: 1.00, obj: 6.0, share: 1.000, color: '#C05A40',
+                productos: [ ['FRANCES', 3092], ['BIZCOCHO', 1855], ['PASTELERIA', 1237] ] },
+            'frances':     { name: 'FRANCES', f: 1.55, obj: 5.0, share: 0.500, color: '#C05A40',
+                productos: [ ['Bolillo', 1380], ['Telera', 1020], ['Baguette', 692] ] },
+            'bizcocho':    { name: 'BIZCOCHO', f: 1.23, obj: 6.0, share: 0.300, color: '#D97706',
+                productos: [ ['Concha', 720], ['Cuernito', 540], ['Dona', 350], ['Mantecada', 245] ] },
+            'pasteleria':  { name: 'PASTELERIA', f: 0.89, obj: 8.0, share: 0.200, color: '#059669',
+                productos: [ ['Pastel 3 leches', 380], ['Pastel chocolate', 320], ['Pay limón', 310], ['Tarta fresa', 227] ] }
+        };
+
+        const MOTIVO_COLOR = { 'Caducidad': '#C05A40', 'Dañado': '#D97706', 'Error producción': '#0EA5E9', 'Robo/Faltante': '#8B7355' };
+        const fmt = (n) => Number(n).toLocaleString('es-MX');
+        const clamp = (n, max) => Math.min(n, max);
+
+        // Series diarias de los últimos 7 días por producto (uds de merma).
+        const DIAS_7 = ['Vie 30', 'Sáb 31', 'Dom 01', 'Lun 02', 'Mar 03', 'Mié 04', 'Jue 05'];
+        const PRODUCTOS = {
+            // FRANCES
+            'Bolillo':          { cat: 'frances',    serie: [42, 48, 35, 44, 52, 38, 53] },
+            'Telera':           { cat: 'frances',    serie: [32, 36, 26, 33, 38, 28, 38] },
+            'Baguette':         { cat: 'frances',    serie: [22, 24, 18, 22, 26, 20, 24] },
+            // BIZCOCHO
+            'Concha':           { cat: 'bizcocho',   serie: [22, 25, 18, 23, 28, 21, 26] },
+            'Cuernito':         { cat: 'bizcocho',   serie: [16, 18, 14, 17, 21, 16, 20] },
+            'Dona':             { cat: 'bizcocho',   serie: [10, 12,  9, 11, 14, 10, 13] },
+            'Mantecada':        { cat: 'bizcocho',   serie: [ 7,  8,  6,  8, 10,  7,  9] },
+            // PASTELERIA
+            'Pastel 3 leches':  { cat: 'pasteleria', serie: [11, 13,  9, 12, 15, 11, 15] },
+            'Pastel chocolate': { cat: 'pasteleria', serie: [10, 12,  8, 10, 14, 10, 12] },
+            'Pay limón':        { cat: 'pasteleria', serie: [ 9, 11,  8, 10, 13,  9, 11] },
+            'Tarta fresa':      { cat: 'pasteleria', serie: [ 7,  8,  6,  7, 10,  7,  9] }
+        };
+
+        // Semáforo a partir del % de merma vs el objetivo de la categoría.
+        function estado(pct, obj) {
+            if (pct < obj)        return { txt: 'En margen', text: '#059669', bg: '#ECFDF5', bd: 'rgba(5,150,105,.25)' };
+            if (pct <= obj * 1.3) return { txt: 'Cerca',     text: '#D97706', bg: '#FFFBEB', bd: 'rgba(217,119,6,.25)' };
+            return                       { txt: 'Fuera',     text: '#C05A40', bg: '#FBF0EC', bd: 'rgba(192,90,64,.25)' };
+        }
+        function hexToRgba(hex, a) {
+            const h = hex.replace('#', '');
+            return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;
+        }
+
+        // Sparkline SVG inline · línea + punto en el último valor.
+        function sparkline(serie, color) {
+            const w = 80, h = 24;
+            const max = Math.max(...serie, 1);
+            const min = Math.min(...serie);
+            const range = max - min || 1;
+            const stepX = w / (serie.length - 1);
+            const yOf = (v) => (h - 3 - ((v - min) / range) * (h - 6)).toFixed(1);
+            const pts = serie.map((v, i) => `${(i * stepX).toFixed(1)},${yOf(v)}`).join(' ');
+            const lastX = ((serie.length - 1) * stepX).toFixed(1);
+            const lastY = yOf(serie[serie.length - 1]);
+            return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="inline-block">
+                <polyline fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" points="${pts}" />
+                <circle cx="${lastX}" cy="${lastY}" r="2" fill="${color}" />
+            </svg>`;
+        }
+
+        // ====================== GRÁFICAS ======================
+        const labels28 = [];
+        for (let i = 0; i < 28; i++) labels28.push('D' + (i + 1));
+
+        const trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels28,
+                datasets: [
+                    {
+                        label: '% Merma', data: SERIE_BASE.slice(),
+                        borderColor: '#C05A40',
+                        backgroundColor: (ctx) => {
+                            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 280);
+                            g.addColorStop(0, hexToRgba('#C05A40', 0.18));
+                            g.addColorStop(1, hexToRgba('#C05A40', 0.00));
+                            return g;
+                        },
+                        fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4,
+                        pointBackgroundColor: '#C05A40', borderWidth: 2
+                    },
+                    {
+                        label: 'Objetivo', data: Array(28).fill(OBJETIVO_DEFAULT),
+                        borderColor: '#059669', borderDash: [5, 5], borderWidth: 2,
+                        fill: false, tension: 0, pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: Object.assign({}, tooltipCfg, { callbacks: { label: (c) => `${c.dataset.label}: ${c.raw}%` } }) },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: tickColor, font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
+                    y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 }, callback: (v) => v + '%' }, beginAtZero: true, suggestedMax: 8 }
+                }
+            }
+        });
+
+        const catChart = new Chart(document.getElementById('categoriasChart').getContext('2d'), {
+            type: 'doughnut',
+            data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderColor: '#FFFFFF', borderWidth: 3 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '65%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: Object.assign({}, tooltipCfg, { callbacks: { label: (c) => `${c.label}: ${fmt(c.raw)} uds` } })
+                }
+            }
+        });
+
+        // ====================== RENDER POR CATEGORÍA ======================
+        function render(catKey) {
+            const cat = CATS[catKey] || CATS['todas'];
+            const esTodas = catKey === 'todas';
+
+            // -- Tendencia --
+            const serie = SERIE_BASE.map(v => +clamp(v * cat.f, 9).toFixed(1));
+            trendChart.data.datasets[0].data = serie;
+            trendChart.data.datasets[0].borderColor = cat.color;
+            trendChart.data.datasets[0].pointBackgroundColor = cat.color;
+            trendChart.data.datasets[0].backgroundColor = (ctx) => {
+                const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 280);
+                g.addColorStop(0, hexToRgba(cat.color, 0.18));
+                g.addColorStop(1, hexToRgba(cat.color, 0.00));
+                return g;
+            };
+            trendChart.data.datasets[1].data = Array(28).fill(cat.obj);
+            trendChart.update();
+            document.getElementById('trendSub').textContent = `% diario de merma vs margen objetivo (${cat.obj}%) · ${cat.name}`;
+
+            // -- Panel de desglose (categorías o productos de la categoría) --
+            const items = cat.productos;
+            catChart.data.labels = items.map(x => x[0]);
+            catChart.data.datasets[0].data = items.map(x => x[1]);
+            catChart.data.datasets[0].backgroundColor = items.map((_, i) => esTodas ? PALETTE[i % PALETTE.length] : hexToRgba(cat.color, 1 - i * 0.18));
+            catChart.update();
+
+            document.getElementById('catPanelTitle').textContent = esTodas ? 'Mermas por categoría' : `Mermas · ${cat.name}`;
+            document.getElementById('catPanelSub').textContent = esTodas ? 'Unidades de merma acumuladas del mes' : 'Productos de la categoría · acumulado del mes';
+            document.getElementById('catBreakdownList').innerHTML = items.map((x, i) => {
+                const color = esTodas ? PALETTE[i % PALETTE.length] : hexToRgba(cat.color, 1 - i * 0.18);
+                return `<div class="flex items-center justify-between text-xs">
+                    <span class="flex items-center gap-2 text-[#475569]"><span class="w-2 h-2 rounded-full" style="background:${color}"></span>${x[0]}</span>
+                    <span class="font-bold text-[#1E293B]">${fmt(x[1])} uds</span>
+                </div>`;
+            }).join('');
+
+            // -- KPIs --
+            const totalUds = items.reduce((s, x) => s + x[1], 0);
+            const pctProm  = +(serie.reduce((s, v) => s + v, 0) / serie.length).toFixed(1);
+            const mejor    = Math.min(...serie);
+            document.getElementById('kpiAcumulada').textContent = fmt(totalUds);
+            document.getElementById('kpiPct').textContent = pctProm;
+            document.getElementById('kpiMejor').textContent = mejor;
+            document.getElementById('kpiMejorLabel').textContent = `Mejor día del periodo · ${cat.name}`;
+            document.getElementById('kpiValor').textContent = '$' + fmt(Math.round(totalUds * COSTO_UDS));
+
+            // -- Tabla histórica (escalada al share de la categoría) --
+            const rows = ROWS_BASE.map(r => {
+                const prod  = esTodas ? r.prod  : Math.round(r.prod  * cat.share);
+                const merma = esTodas ? r.merma : Math.round(r.merma * cat.share);
+                const pct   = esTodas ? r.pct   : +clamp(r.pct * cat.f, 9).toFixed(1);
+                return { fecha: r.fecha, prod, merma, pct, motivo: r.motivo, valor: Math.round(merma * COSTO_UDS) };
+            });
+            document.getElementById('histTbody').innerHTML = rows.map(r => {
+                const e  = estado(r.pct, cat.obj);
+                const mc = MOTIVO_COLOR[r.motivo] || '#8B7355';
+                return `<tr class="hover:bg-[#FCFAF9] transition">
+                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">${r.fecha}</span></div></td>
+                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">${fmt(r.prod)}</td>
+                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">${fmt(r.merma)}</td>
+                    <td class="px-3 py-3"><span class="text-xs font-bold tabular-nums" style="color:${e.text}">${r.pct}%</span></td>
+                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full" style="background:${mc}"></span>${r.motivo}</span></td>
+                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$${fmt(r.valor)}.00</td>
+                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold" style="color:${e.text};background:${e.bg};border:1px solid ${e.bd}">${e.txt}</span></td>
+                </tr>`;
+            }).join('');
+            document.getElementById('histCount').textContent = `Mostrando ${rows.length} de 31 días · ${cat.name}`;
+
+            // -- Comportamiento por producto (7 días) --
+            renderProductos(catKey);
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // Renderiza la tabla de "Comportamiento por producto" filtrada por categoría + búsqueda.
+        function renderProductos(catKey) {
+            const tbody = document.getElementById('prodTbody');
+            if (!tbody) return;
+
+            const filterCat = catKey === 'todas' ? null : catKey;
+            const search = (document.getElementById('prodSearch')?.value || '').trim().toLowerCase();
+            const orden = { frances: 1, bizcocho: 2, pasteleria: 3 };
+
+            let entries = Object.entries(PRODUCTOS)
+                .filter(([nombre, p]) => !filterCat || p.cat === filterCat)
+                .filter(([nombre]) => !search || nombre.toLowerCase().includes(search));
+
+            entries.sort((a, b) => {
+                const ca = (orden[a[1].cat] || 99) - (orden[b[1].cat] || 99);
+                if (ca !== 0) return ca;
+                return b[1].serie.reduce((s, v) => s + v, 0) - a[1].serie.reduce((s, v) => s + v, 0);
+            });
+
+            const rows = [];
+            let lastCat = null;
+
+            entries.forEach(([nombre, p]) => {
+                const catData = CATS[p.cat] || CATS['todas'];
+
+                if (catKey === 'todas' && p.cat !== lastCat) {
+                    rows.push(`<tr style="background:${hexToRgba(catData.color, 0.06)}">
+                        <td colspan="10" class="px-5 py-2 text-[10px] uppercase tracking-wider font-bold" style="color:${catData.color}">${catData.name}</td>
+                    </tr>`);
+                    lastCat = p.cat;
+                }
+
+                const max = Math.max(...p.serie);
+                const min = Math.min(...p.serie);
+                const range = max - min || 1;
+                const total = p.serie.reduce((s, v) => s + v, 0);
+
+                const cells = p.serie.map(v => {
+                    const intensity = (v - min) / range;
+                    const opacity   = 0.05 + intensity * 0.20;
+                    const isHigh    = v === max;
+                    return `<td class="text-center px-2 py-3 tabular-nums text-xs ${isHigh ? 'font-bold text-[#1E293B]' : 'text-[#475569]'}" style="background:${hexToRgba(catData.color, opacity)}">${v}</td>`;
+                }).join('');
+
+                rows.push(`<tr class="hover:bg-[#FCFAF9] transition">
+                    <td class="px-5 py-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full" style="background:${catData.color}"></span>
+                            <span class="text-sm font-medium text-[#1E293B]">${nombre}</span>
+                        </div>
+                    </td>
+                    ${cells}
+                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">${total}</td>
+                    <td class="text-center px-5 py-3">${sparkline(p.serie, catData.color)}</td>
+                </tr>`);
+            });
+
+            if (rows.length === 0) {
+                rows.push(`<tr><td colspan="10" class="px-5 py-6 text-center text-xs text-[#94A3B8]">No se encontraron productos</td></tr>`);
+            }
+
+            tbody.innerHTML = rows.join('');
+
+            const cat = CATS[catKey] || CATS['todas'];
+            document.getElementById('prodTitle').textContent = catKey === 'todas'
+                ? 'Comportamiento por producto · todas las categorías'
+                : `Comportamiento · ${cat.name}`;
+            document.getElementById('prodSub').textContent = `Mermas diarias por producto · últimos 7 días${catKey === 'todas' ? '' : ' · ' + cat.name}`;
+            document.getElementById('prodCount').textContent = `${entries.length} producto${entries.length === 1 ? '' : 's'}${filterCat ? ' en ' + cat.name : ''}`;
+        }
+
+        // Filtro por categoría → re-renderiza tabla, tendencia, KPIs y desglose.
+        const selCat = document.getElementById('filtroCategoria');
+        if (selCat) selCat.addEventListener('change', (e) => render(e.target.value));
+
+        // Buscador de "Comportamiento por producto" → filtra solo esa tabla.
+        const prodSearch = document.getElementById('prodSearch');
+        if (prodSearch) prodSearch.addEventListener('input', () => renderProductos(selCat?.value || 'todas'));
+
+        // Render inicial (Todas).
+        render('todas');
+    </script>
+</body>
+</html>

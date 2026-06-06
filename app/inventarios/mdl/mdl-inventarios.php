@@ -171,13 +171,17 @@ class mdl extends CRUD {
         //   - Con sucursal: INNER JOIN -> solo productos con existencias en esa sucursal,
         //     sumando unicamente el stock de sus almacenes.
         //   - Sin sucursal: LEFT JOIN  -> consolidado de todas (productos sin stock incluidos).
+        // LEFT JOIN siempre: el visor lista TODO el catalogo activo de la empresa,
+        // incluso productos sin existencia (quantity_total = 0 -> AGOTADO). Con INNER
+        // se perdian los que nunca tuvieron una fila de stock en la sucursal: salian
+        // invisibles en vez de aparecer en 0. El filtro de sucursal vive dentro de la
+        // subconsulta (sobre el almacen), no en el tipo de JOIN.
         $stockWhere  = 'st.active = 1';
         $stockParams = [];
         $joinType    = 'LEFT';
         if (!empty($array['subsidiaries_id'])) {
             $stockWhere   .= ' AND w.subsidiaries_id = ?';
             $stockParams[] = $array['subsidiaries_id'];
-            $joinType      = 'INNER';
         }
 
         $where       = 'p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?';
@@ -192,6 +196,26 @@ class mdl extends CRUD {
             $where .= ' AND (p.name LIKE ? OR pa.sku LIKE ?)';
             $whereParams[] = '%' . $array['q'] . '%';
             $whereParams[] = '%' . $array['q'] . '%';
+        }
+
+        // Filtro con/sin movimientos: se mide contra inventory_movement (la misma
+        // fuente que el historial del panel de detalle), para que el listado y la
+        // vista del producto sean coherentes. Respeta la sucursal seleccionada.
+        if (!empty($array['movimiento'])) {
+            $exists       = "SELECT 1 FROM {$this->bd}inventory_movement mvf
+                             WHERE mvf.product_id = p.id AND mvf.companies_id = ?";
+            $existsParams = [$array['companies_id']];
+            if (!empty($array['subsidiaries_id'])) {
+                $exists        .= ' AND mvf.subsidiaries_id = ?';
+                $existsParams[] = $array['subsidiaries_id'];
+            }
+            if ($array['movimiento'] === 'con') {
+                $where .= " AND EXISTS ($exists)";
+                $whereParams = array_merge($whereParams, $existsParams);
+            } elseif ($array['movimiento'] === 'sin') {
+                $where .= " AND NOT EXISTS ($exists)";
+                $whereParams = array_merge($whereParams, $existsParams);
+            }
         }
 
         $having = '';
@@ -212,6 +236,7 @@ class mdl extends CRUD {
             SELECT
                 p.id                AS product_id,
                 p.name              AS product_name,
+                p.image             AS image,
                 pa.sku              AS sku,
                 p.category_id,
                 oc.classification   AS category_name,
@@ -246,7 +271,7 @@ class mdl extends CRUD {
             WHERE {$where}
             GROUP BY p.id
             {$having}
-            ORDER BY p.name ASC
+            ORDER BY quantity_total DESC, p.name ASC
         ";
         $r = $this->_Read($query, $data);
         return is_array($r) ? $r : [];
@@ -256,13 +281,15 @@ class mdl extends CRUD {
         // Coherente con qStock: el stock se filtra por la sucursal del ALMACEN.
         //   - Con sucursal: INNER JOIN -> KPIs solo de productos con existencias en ella.
         //   - Sin sucursal: LEFT JOIN  -> consolidado (todos los productos de la empresa).
+        // LEFT JOIN siempre (coherente con qStock): los KPIs cuentan TODO el catalogo,
+        // incluidos los productos sin existencia en la sucursal -> se reflejan en
+        // total_agotado. Con INNER quedaban fuera del conteo.
         $stockWhere  = 'st.active = 1';
         $stockParams = [];
         $joinType    = 'LEFT';
         if (!empty($array['subsidiaries_id'])) {
             $stockWhere   .= ' AND w.subsidiaries_id = ?';
             $stockParams[] = $array['subsidiaries_id'];
-            $joinType      = 'INNER';
         }
 
         $where       = 'p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?';
@@ -1121,7 +1148,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bdAlpha}subsidiaries s ON s.id = mv.subsidiaries_id
             LEFT JOIN {$this->bdAlpha}usr_users    u ON u.id = mv.user_id
             WHERE {$where}
-            ORDER BY mv.occurred_at DESC
+            ORDER BY mv.stock_post DESC, mv.occurred_at DESC
             LIMIT 500
         ";
         $r = $this->_Read($query, $data);

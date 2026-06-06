@@ -158,7 +158,12 @@
       "PowerShell(Move-Item \"c:\\\\wamp64\\\\credentials\\\\coffeedrive-1fc8e1431f5b.json\" \"c:\\\\wamp64\\\\credentials\\\\coffeedrive.json\" -Force; $json = Get-Content \"c:\\\\wamp64\\\\credentials\\\\coffeedrive.json\" -Raw | ConvertFrom-Json; Write-Output \"type: $\\($json.type\\)\"; Write-Output \"client_email: $\\($json.client_email\\)\"; Write-Output \"project_id: $\\($json.project_id\\)\"; Write-Output \"private_key starts with: $\\($json.private_key.Substring\\(0,40\\)\\)...\")",
       "PowerShell(try { Invoke-WebRequest -Uri \"https://curl.se/ca/cacert.pem\" -OutFile \"c:\\\\wamp64\\\\credentials\\\\cacert.pem\" -UseBasicParsing -ErrorAction Stop; $f = Get-Item \"c:\\\\wamp64\\\\credentials\\\\cacert.pem\"; Write-Output \"Descargado: $\\($f.FullName\\)\"; Write-Output \"Tamano: $\\($f.Length\\) bytes\" } catch { Write-Output \"ERROR: $_\" })",
       "PowerShell(Get-Command *)",
-      "Bash(Select-Object -First 50)"
+      "Bash(Select-Object -First 50)",
+      "Bash(php *)",
+      "PowerShell(& \"C:\\\\wamp64\\\\bin\\\\php\\\\php8.1.0\\\\php.exe\" -l \"C:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\dashboard-mermas-resumen.php\")",
+      "Bash(xxd)",
+      "Bash(cat)",
+      "Bash(python /tmp/fixphp.py)"
     ],
     "additionalDirectories": [
       "\\tmp",

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Mermas — Control Diario · FOGAJA · Huubie</title>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .scrollbar-thin::-webkit-scrollbar { width: 7px; height: 7px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #F1F5F9; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+        .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+        /* Paleta Arcilla (terracota / ámbar) — semáforo suave, sin rojos agresivos */
+        :root {
+            --clay:    #C05A40;   /* fuera de margen  */
+            --clay-d:  #A84A33;
+            --amber:   #D97706;   /* cerca del límite */
+            --emerald: #059669;   /* en margen        */
+        }
+    </style>
+</head>
+
+<body class="bg-[#F8FAFC] text-[#1E293B] h-screen flex flex-col overflow-hidden">
+
+    <div class="flex flex-1 min-h-0">
+
+        <!-- ====================== SIDEBAR ====================== -->
+        <aside class="w-56 shrink-0 bg-white border-r border-[#E2E8F0] flex flex-col">
+            <div class="h-16 flex items-center gap-2 px-4 border-b border-[#E2E8F0]">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C05A40] to-[#D97706] flex items-center justify-center">
+                    <i data-lucide="chef-hat" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-sm font-bold tracking-wide text-[#1E293B]">FOGAJA</span>
+                    <span class="text-[10px] text-[#94A3B8] uppercase tracking-wider">Huubie v1.0</span>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto scrollbar-thin py-4 space-y-1">
+                <div class="px-4 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-[#94A3B8] font-semibold">Inventarios</p>
+                </div>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    Resumen
+                </a>
+
+                <div>
+                    <button class="w-full flex items-center justify-between px-4 py-2.5 text-sm text-[#1E293B] bg-[#FBF0EC] border-l-2 border-[#C05A40]">
+                        <span class="flex items-center gap-3">
+                            <i data-lucide="trash-2" class="w-4 h-4 text-[#C05A40]"></i>
+                            Mermas
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-[#C05A40]"></i>
+                    </button>
+                    <ul class="bg-[#FCFAF9] py-1">
+                        <li><a href="dashboard-mermas-control-diario.html" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs bg-[#C05A40]/10 text-[#C05A40] border-l-2 border-[#C05A40] font-semibold">Control Diario</a></li>
+                        <li><a href="dashboard-mermas-margenes.html" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9] transition">Márgenes por Producto</a></li>
+                        <li><a href="dashboard-mermas-historico-light.html" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9] transition">Histórico</a></li>
+                        <li><a href="../../pos-mermas.php" class="flex items-center gap-2 pl-11 pr-4 py-2 text-xs text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9] transition">Visor Mermas</a></li>
+                    </ul>
+                </div>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="package-plus" class="w-4 h-4"></i>
+                    Entradas
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="boxes" class="w-4 h-4"></i>
+                    Stock
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                    Traspasos
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="package" class="w-4 h-4"></i>
+                    Productos
+                </a>
+
+                <div class="px-4 mt-6 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-[#94A3B8] font-semibold">Operación</p>
+                </div>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="receipt" class="w-4 h-4"></i>
+                    Ventas
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    Reportes
+                </a>
+            </nav>
+
+            <div class="border-t border-[#E2E8F0] p-3 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#C05A40] to-[#D97706] flex items-center justify-center text-xs font-bold text-white">RM</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold truncate text-[#1E293B]">Rosy Martínez</p>
+                    <p class="text-[10px] text-[#059669] flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#059669] pulse-dot"></span>
+                        En línea
+                    </p>
+                </div>
+                <button class="text-[#94A3B8] hover:text-[#C05A40]">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ====================== MAIN ====================== -->
+        <main class="flex-1 flex flex-col min-w-0 min-h-0">
+
+            <!-- HEADER -->
+            <header class="h-16 shrink-0 bg-white border-b border-[#E2E8F0] flex items-center px-6 gap-4">
+                <nav class="flex items-center gap-2 text-sm">
+                    <i data-lucide="home" class="w-4 h-4 text-[#94A3B8]"></i>
+                    <span class="text-[#94A3B8]">Inventarios</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-[#CBD5E1]"></i>
+                    <span class="text-[#94A3B8]">Mermas</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-[#CBD5E1]"></i>
+                    <span class="text-[#1E293B] font-medium">Control Diario</span>
+                </nav>
+                <div class="flex-1"></div>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
+                    <i data-lucide="sun" class="w-4 h-4 text-[#D97706]"></i>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-[#94A3B8] uppercase tracking-wider">Turno</span>
+                        <span class="text-xs font-semibold text-[#1E293B]">Matutino · 06:00–14:00</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
+                    <i data-lucide="clock" class="w-4 h-4 text-[#C05A40]"></i>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-[#94A3B8] uppercase tracking-wider">Hora actual</span>
+                        <span id="liveClock" class="text-xs font-semibold tabular-nums text-[#1E293B]">--:--:--</span>
+                    </div>
+                </div>
+                <button class="relative w-9 h-9 flex items-center justify-center rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#C05A40] transition">
+                    <i data-lucide="bell" class="w-4 h-4 text-[#475569]"></i>
+                    <span class="absolute -top-1 -right-1 w-4 h-4 bg-[#C05A40] text-[10px] font-bold text-white rounded-full flex items-center justify-center">3</span>
+                </button>
+            </header>
+
+            <!-- CONTENT -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-6">
+
+                <!-- HERO + ALERTAS -->
+                <section class="bg-white rounded-xl p-6 border border-[#E8E2DD] shadow-sm">
+                    <div class="flex items-start justify-between gap-6 flex-wrap">
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="px-2.5 py-1 rounded-md bg-[#C05A40]/10 text-[#C05A40] text-[10px] font-bold uppercase tracking-wider border border-[#C05A40]/20">
+                                    Producción · Fogaza
+                                </span>
+                                <span class="text-xs text-[#94A3B8]">Sucursal Centro · Cocina principal</span>
+                            </div>
+                            <h1 class="text-2xl font-bold tracking-tight text-[#1E293B]">Control Diario de Mermas</h1>
+                            <p class="text-sm text-[#64748B] mt-1">
+                                Seguimiento de la producción de fogaza del turno y desviaciones fuera del margen aceptable. Última actualización: <span class="text-[#475569] font-medium">hace 2 minutos</span>.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-[#E2E8F0] text-sm text-[#475569] hover:border-[#CBD5E1] hover:bg-[#F8FAFC] transition">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                Exportar
+                            </button>
+                            <button class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#C05A40] hover:bg-[#A84A33] text-sm font-semibold text-white shadow-sm shadow-[#C05A40]/20 transition">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Registrar merma
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Alertas (tonos suaves) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
+                        <div class="bg-[#FBF0EC] border border-[#C05A40]/25 rounded-lg p-4 flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#C05A40]/15 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="alert-triangle" class="w-5 h-5 text-[#C05A40]"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-[#1E293B]">3 productos fuera de margen</p>
+                                <p class="text-[11px] text-[#64748B]">Fogaza rústica, Oreja y Bisquet exceden el límite aceptable</p>
+                            </div>
+                        </div>
+                        <div class="bg-[#FFFBEB] border border-[#D97706]/25 rounded-lg p-4 flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#D97706]/15 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="trending-up" class="w-5 h-5 text-[#D97706]"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-[#1E293B]">+12.4% vs semana anterior</p>
+                                <p class="text-[11px] text-[#64748B]">La merma total está creciendo. Conviene revisar causas.</p>
+                            </div>
+                        </div>
+                        <div class="bg-[#ECFDF5] border border-[#059669]/25 rounded-lg p-4 flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#059669]/15 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="check-circle-2" class="w-5 h-5 text-[#059669]"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-[#1E293B]">5 productos en margen</p>
+                                <p class="text-[11px] text-[#64748B]">Bolillo, Concha, Pan de caja y otros dentro de parámetros</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- KPI CARDS -->
+                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-[#64748B] uppercase tracking-wider">Producido hoy</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#C05A40]/10 flex items-center justify-center">
+                                <i data-lucide="wheat" class="w-4 h-4 text-[#C05A40]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-[#1E293B]">5,120</p>
+                        <p class="text-xs text-[#94A3B8] mt-1">unidades de fogaza</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-[#64748B] uppercase tracking-wider">Merma del día</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#D97706]/10 flex items-center justify-center">
+                                <i data-lucide="trash-2" class="w-4 h-4 text-[#D97706]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-[#1E293B]">247</p>
+                        <p class="text-xs text-[#94A3B8] mt-1">unidades retiradas</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-[#64748B] uppercase tracking-wider">% Merma promedio</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#059669]/10 flex items-center justify-center">
+                                <i data-lucide="percent" class="w-4 h-4 text-[#059669]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-[#1E293B]">4.8<span class="text-lg text-[#94A3B8]">%</span></p>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#059669] bg-[#ECFDF5] px-2 py-0.5 rounded-full border border-[#059669]/25">
+                                <i data-lucide="trending-down" class="w-3 h-3"></i> -0.3%
+                            </span>
+                            <span class="text-[11px] text-[#94A3B8]">vs ayer</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-[#64748B] uppercase tracking-wider">Valor perdido</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#C05A40]/10 flex items-center justify-center">
+                                <i data-lucide="dollar-sign" class="w-4 h-4 text-[#C05A40]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-[#1E293B]">$1,847<span class="text-lg text-[#94A3B8]">.50</span></p>
+                        <p class="text-xs text-[#94A3B8] mt-1">MXN · turno actual</p>
+                    </div>
+                </section>
+
+                <!-- GRAFICOS: Producido vs Merma + Motivos -->
+                <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Producido vs Merma por producto -->
+                    <div class="lg:col-span-2 bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-sm font-bold text-[#1E293B]">Producido vs Merma · por producto (hoy)</h2>
+                                <p class="text-xs text-[#94A3B8] mt-0.5">Unidades producidas y merma del turno, con línea de margen aceptable</p>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-[#64748B]">
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-2 rounded-sm bg-[#E2C9BD]"></span>Producido</span>
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-2 rounded-sm bg-[#C05A40]"></span>Merma</span>
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded-full bg-[#059669]"></span>Margen</span>
+                            </div>
+                        </div>
+                        <div class="h-[280px]">
+                            <canvas id="prodVsMermaChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top motivos -->
+                    <div class="bg-white rounded-xl p-5 border border-[#E8E2DD] shadow-sm">
+                        <h2 class="text-sm font-bold text-[#1E293B] mb-1">Motivos de merma</h2>
+                        <p class="text-xs text-[#94A3B8] mb-4">Distribución por tipo · turno actual</p>
+                        <div class="h-[200px] mb-4">
+                            <canvas id="motivosChart"></canvas>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-2 text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#C05A40]"></span>Caducidad</span>
+                                <span class="font-bold text-[#1E293B]">45%</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-2 text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#D97706]"></span>Dañado</span>
+                                <span class="font-bold text-[#1E293B]">30%</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-2 text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#0EA5E9]"></span>Error producción</span>
+                                <span class="font-bold text-[#1E293B]">15%</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-2 text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#8B7355]"></span>Robo/Faltante</span>
+                                <span class="font-bold text-[#1E293B]">10%</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TABLA: Control diario por producto -->
+                <section class="bg-white rounded-xl border border-[#E8E2DD] shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-[#EEE7E2] flex items-center justify-between">
+                        <div>
+                            <h2 class="text-sm font-bold text-[#1E293B]">Control diario por producto</h2>
+                            <p class="text-xs text-[#94A3B8] mt-0.5">Producción de fogaza y derivados del turno · semáforo por margen aceptable</p>
+                        </div>
+                        <div class="flex items-center gap-2 text-[11px]">
+                            <span class="flex items-center gap-1.5 text-[#64748B]"><span class="w-2.5 h-2.5 rounded-full bg-[#059669]"></span>En margen</span>
+                            <span class="flex items-center gap-1.5 text-[#64748B]"><span class="w-2.5 h-2.5 rounded-full bg-[#D97706]"></span>Cerca</span>
+                            <span class="flex items-center gap-1.5 text-[#64748B]"><span class="w-2.5 h-2.5 rounded-full bg-[#C05A40]"></span>Fuera</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto scrollbar-thin">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-[#EEE7E2] text-[11px] uppercase tracking-wider text-[#94A3B8]">
+                                    <th class="text-left font-semibold px-5 py-3">Producto</th>
+                                    <th class="text-right font-semibold px-3 py-3">Producido</th>
+                                    <th class="text-right font-semibold px-3 py-3">Merma</th>
+                                    <th class="text-left font-semibold px-3 py-3">% Merma</th>
+                                    <th class="text-right font-semibold px-3 py-3">Margen máx</th>
+                                    <th class="text-center font-semibold px-3 py-3">Estado</th>
+                                    <th class="text-right font-semibold px-3 py-3">Valor perdido</th>
+                                    <th class="text-right font-semibold px-5 py-3">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-[#F1ECE8]">
+                                <!-- Fuera de margen -->
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#C05A40]/10 flex items-center justify-center text-[#C05A40]"><i data-lucide="wheat" class="w-4 h-4"></i></div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-[#1E293B]">Fogaza rústica</p>
+                                                <p class="text-[10px] text-[#94A3B8]">Panadería · FOG-001</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">320</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">39</td>
+                                    <td class="px-3 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#C05A40] tabular-nums w-12">12.2%</span>
+                                            <div class="flex-1 h-2 bg-[#F1ECE8] rounded-full overflow-hidden w-24"><div class="h-full bg-[#C05A40] rounded-full" style="width:100%"></div></div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#94A3B8]">4.0%</td>
+                                    <td class="text-center px-3 py-3"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FBF0EC] text-[#C05A40] border border-[#C05A40]/25">Fuera</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$312.00</td>
+                                    <td class="text-right px-5 py-3"><button class="inline-flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-md border border-[#E2E8F0] text-[#475569] hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver</button></td>
+                                </tr>
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#0EA5E9]/10 flex items-center justify-center text-[#0EA5E9]"><i data-lucide="cookie" class="w-4 h-4"></i></div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-[#1E293B]">Oreja</p>
+                                                <p class="text-[10px] text-[#94A3B8]">Hojaldre · ORE-014</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">500</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">58</td>
+                                    <td class="px-3 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#C05A40] tabular-nums w-12">11.6%</span>
+                                            <div class="flex-1 h-2 bg-[#F1ECE8] rounded-full overflow-hidden w-24"><div class="h-full bg-[#C05A40] rounded-full" style="width:95%"></div></div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#94A3B8]">5.0%</td>
+                                    <td class="text-center px-3 py-3"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FBF0EC] text-[#C05A40] border border-[#C05A40]/25">Fuera</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$464.00</td>
+                                    <td class="text-right px-5 py-3"><button class="inline-flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-md border border-[#E2E8F0] text-[#475569] hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver</button></td>
+                                </tr>
+                                <!-- Cerca del límite -->
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#D97706]/10 flex items-center justify-center text-[#D97706]"><i data-lucide="croissant" class="w-4 h-4"></i></div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-[#1E293B]">Bisquet</p>
+                                                <p class="text-[10px] text-[#94A3B8]">Bollería · BIS-007</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">480</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">23</td>
+                                    <td class="px-3 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#D97706] tabular-nums w-12">4.8%</span>
+                                            <div class="flex-1 h-2 bg-[#F1ECE8] rounded-full overflow-hidden w-24"><div class="h-full bg-[#D97706] rounded-full" style="width:80%"></div></div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#94A3B8]">5.0%</td>
+                                    <td class="text-center px-3 py-3"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FFFBEB] text-[#D97706] border border-[#D97706]/25">Cerca</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$184.00</td>
+                                    <td class="text-right px-5 py-3"><button class="inline-flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-md border border-[#E2E8F0] text-[#475569] hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver</button></td>
+                                </tr>
+                                <!-- En margen -->
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#059669]/10 flex items-center justify-center text-[#059669]"><i data-lucide="circle-dot" class="w-4 h-4"></i></div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-[#1E293B]">Bolillo</p>
+                                                <p class="text-[10px] text-[#94A3B8]">Panadería · BOL-002</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">1,200</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">36</td>
+                                    <td class="px-3 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#059669] tabular-nums w-12">3.0%</span>
+                                            <div class="flex-1 h-2 bg-[#F1ECE8] rounded-full overflow-hidden w-24"><div class="h-full bg-[#059669] rounded-full" style="width:50%"></div></div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#94A3B8]">6.0%</td>
+                                    <td class="text-center px-3 py-3"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#059669]/25">En margen</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$108.00</td>
+                                    <td class="text-right px-5 py-3"><button class="inline-flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-md border border-[#E2E8F0] text-[#475569] hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver</button></td>
+                                </tr>
+                                <tr class="hover:bg-[#FCFAF9] transition">
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg bg-[#059669]/10 flex items-center justify-center text-[#059669]"><i data-lucide="shell" class="w-4 h-4"></i></div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-[#1E293B]">Concha</p>
+                                                <p class="text-[10px] text-[#94A3B8]">Pan dulce · CON-009</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">900</td>
+                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">27</td>
+                                    <td class="px-3 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-[#059669] tabular-nums w-12">3.0%</span>
+                                            <div class="flex-1 h-2 bg-[#F1ECE8] rounded-full overflow-hidden w-24"><div class="h-full bg-[#059669] rounded-full" style="width:50%"></div></div>
+                                        </div>
+                                    </td>
+                                    <td class="text-right tabular-nums px-3 py-3 text-[#94A3B8]">6.0%</td>
+                                    <td class="text-center px-3 py-3"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#059669]/25">En margen</span></td>
+                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$81.00</td>
+                                    <td class="text-right px-5 py-3"><button class="inline-flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-md border border-[#E2E8F0] text-[#475569] hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- FOOTER -->
+                <footer class="text-center text-[11px] text-[#94A3B8] pt-4 pb-2">
+                    <p>© 2026 FOGAJA · Huubie POS · Dashboard Mermas — Control Diario</p>
+                </footer>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        if (window.lucide) lucide.createIcons();
+
+        // Reloj en vivo
+        const clockEl = document.getElementById('liveClock');
+        const pad = (n) => String(n).padStart(2, '0');
+        const tick = () => {
+            const d = new Date();
+            clockEl.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        };
+        tick();
+        setInterval(tick, 1000);
+
+        // Opciones comunes (tema light)
+        const gridColor = '#E2E8F0';
+        const tickColor = '#64748B';
+        const tooltipCfg = {
+            backgroundColor: '#FFFFFF',
+            titleColor: '#1E293B',
+            bodyColor: '#475569',
+            borderColor: '#E2E8F0',
+            borderWidth: 1,
+            padding: 10,
+            displayColors: true
+        };
+
+        // Producido vs Merma por producto + línea de margen
+        const ctxPM = document.getElementById('prodVsMermaChart').getContext('2d');
+        new Chart(ctxPM, {
+            type: 'bar',
+            data: {
+                labels: ['Fogaza rústica', 'Oreja', 'Bisquet', 'Bolillo', 'Concha', 'Pan caja'],
+                datasets: [
+                    { label: 'Producido', data: [320, 500, 480, 1200, 900, 720], backgroundColor: '#E2C9BD', borderRadius: 5, maxBarThickness: 34 },
+                    { label: 'Merma',     data: [39, 58, 23, 36, 27, 22],          backgroundColor: '#C05A40', borderRadius: 5, maxBarThickness: 34 },
+                    { label: 'Margen aceptable', type: 'line', data: [13, 25, 24, 72, 54, 43], borderColor: '#059669', borderDash: [5, 5], borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: tooltipCfg },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: tickColor, font: { size: 10 } } },
+                    y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 } }, beginAtZero: true }
+                }
+            }
+        });
+
+        // Motivos (doughnut) — colores de catálogo suavizados
+        const ctxMot = document.getElementById('motivosChart').getContext('2d');
+        new Chart(ctxMot, {
+            type: 'doughnut',
+            data: {
+                labels: ['Caducidad', 'Dañado', 'Error producción', 'Robo/Faltante'],
+                datasets: [{
+                    data: [45, 30, 15, 10],
+                    backgroundColor: ['#C05A40', '#D97706', '#0EA5E9', '#8B7355'],
+                    borderColor: '#FFFFFF',
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: { legend: { display: false }, tooltip: tooltipCfg }
+            }
+        });
+    </script>
+</body>
+</html>
