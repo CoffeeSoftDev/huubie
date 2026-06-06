@@ -6,18 +6,18 @@ class mdl extends CRUD {
 
     public $util;
     public $bd;
-    public $bdAlpha;
+    public $bdErp;
 
     public function __construct() {
-        $this->util    = new Utileria;
-        $this->bd      = 'fayxzvov_reginas.';
-        $this->bdAlpha = 'fayxzvov_alpha.';
+        $this->util  = new Utileria;
+        $this->bd    = 'fayxzvov_inventory.';
+        $this->bdErp = 'fayxzvov_erp.';
     }
 
     function lsSucursales($array) {
         $query = "
             SELECT id, name AS valor, companies_id
-            FROM {$this->bdAlpha}subsidiaries
+            FROM {$this->bdErp}subsidiaries
             WHERE companies_id = ? AND active = 1
             ORDER BY name ASC
         ";
@@ -43,7 +43,7 @@ class mdl extends CRUD {
                 w.subsidiaries_id,
                 s.name AS subsidiary_name
             FROM {$this->bd}warehouse w
-            LEFT JOIN {$this->bdAlpha}subsidiaries s ON s.id = w.subsidiaries_id
+            LEFT JOIN {$this->bdErp}subsidiaries s ON s.id = w.subsidiaries_id
             WHERE {$where}
             ORDER BY s.name ASC, w.is_default DESC, w.name ASC
         ";
@@ -65,19 +65,18 @@ class mdl extends CRUD {
     function qProductsForTransfer($array) {
         $query = "
             SELECT
-                p.id                                       AS id,
-                p.name                                     AS nombre,
-                pa.sku                                     AS sku,
-                oc.classification                          AS categoria,
-                COALESCE(pa.cost_unit, p.price, 0)         AS costo,
-                p.price                                    AS precio,
-                p.image                                    AS image
-            FROM {$this->bd}order_products p
-            LEFT JOIN {$this->bdAlpha}subsidiaries  ps ON ps.id = p.subsidiaries_id
-            LEFT JOIN {$this->bd}product_attribute  pa ON pa.product_id = p.id AND pa.active = 1
-            LEFT JOIN {$this->bd}order_category     oc ON oc.id = p.category_id
-            WHERE p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?
-            ORDER BY p.name ASC
+                i.id                                       AS id,
+                i.name                                     AS nombre,
+                ia.sku                                     AS sku,
+                ic.name                                    AS categoria,
+                COALESCE(ia.cost_unit, i.price, 0)         AS costo,
+                i.price                                    AS precio,
+                i.image                                    AS image
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
+            WHERE i.active = 1 AND i.companies_id = ?
+            ORDER BY i.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -114,7 +113,7 @@ class mdl extends CRUD {
                 m.evidence_url,
                 m.total_products,
                 m.total_units,
-                m.total_cost_loss,
+                m.total_cost            AS total_cost_loss,
                 m.status,
                 m.created_at,
                 m.updated_at,
@@ -131,8 +130,8 @@ class mdl extends CRUD {
             FROM {$this->bd}inventory_shrinkage m
             LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
             LEFT JOIN {$this->bd}warehouse         w  ON w.id  = m.warehouse_id
-            LEFT JOIN {$this->bdAlpha}subsidiaries s  ON s.id  = m.subsidiaries_id
-            LEFT JOIN {$this->bdAlpha}usr_users    u  ON u.id  = m.user_id
+            LEFT JOIN {$this->bdErp}subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN {$this->bdErp}users          u  ON u.id  = m.user_id
             WHERE {$where}
             ORDER BY m.created_at DESC
         ";
@@ -156,9 +155,9 @@ class mdl extends CRUD {
 
         $query = "
             SELECT
-                COUNT(m.id)                       AS total_mermas,
-                IFNULL(SUM(m.total_cost_loss), 0) AS total_costo,
-                IFNULL(SUM(m.total_units), 0)     AS total_unidades
+                COUNT(m.id)                   AS total_mermas,
+                IFNULL(SUM(m.total_cost), 0)  AS total_costo,
+                IFNULL(SUM(m.total_units), 0) AS total_unidades
             FROM {$this->bd}inventory_shrinkage m
             WHERE {$where}
         ";
@@ -187,6 +186,7 @@ class mdl extends CRUD {
         $query = "
             SELECT
                 m.*,
+                m.total_cost   AS total_cost_loss,
                 sr.name        AS reason_name,
                 sr.color_hex   AS reason_color,
                 sr.icon        AS reason_icon,
@@ -196,8 +196,8 @@ class mdl extends CRUD {
             FROM {$this->bd}inventory_shrinkage m
             LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
             LEFT JOIN {$this->bd}warehouse         w  ON w.id  = m.warehouse_id
-            LEFT JOIN {$this->bdAlpha}subsidiaries s  ON s.id  = m.subsidiaries_id
-            LEFT JOIN {$this->bdAlpha}usr_users    u  ON u.id  = m.user_id
+            LEFT JOIN {$this->bdErp}subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN {$this->bdErp}users          u  ON u.id  = m.user_id
             WHERE m.id = ?
             LIMIT 1
         ";
@@ -211,18 +211,18 @@ class mdl extends CRUD {
                 d.id,
                 d.quantity,
                 d.cost,
-                d.subtotal_loss,
+                d.subtotal AS subtotal_loss,
                 d.previous_stock,
                 d.resulting_stock,
-                d.product_id,
-                p.name AS product_name,
-                pa.sku,
-                p.category_id,
-                oc.classification AS category_name
+                d.item_id AS product_id,
+                i.name AS product_name,
+                ia.sku,
+                i.category_id,
+                ic.name AS category_name
             FROM {$this->bd}detail_inventory_shrinkage d
-            INNER JOIN {$this->bd}order_products p ON p.id = d.product_id
-            LEFT  JOIN {$this->bd}product_attribute pa ON pa.product_id = p.id AND pa.active = 1
-            LEFT  JOIN {$this->bd}order_category   oc ON oc.id = p.category_id
+            INNER JOIN {$this->bd}item i ON i.id = d.item_id
+            LEFT  JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT  JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
             WHERE d.inventory_shrinkage_id = ? AND d.active = 1
             ORDER BY d.id ASC
         ";
@@ -233,7 +233,7 @@ class mdl extends CRUD {
     function insertMerma($array) {
         $query = "
             INSERT INTO {$this->bd}inventory_shrinkage
-                (folio, note, evidence_url, total_products, total_units, total_cost_loss,
+                (folio, note, evidence_url, total_products, total_units, total_cost,
                  status, shrinkage_reason_id, warehouse_id,
                  subsidiaries_id, user_id, companies_id)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
@@ -244,8 +244,8 @@ class mdl extends CRUD {
     function insertMermaDetail($array) {
         $query = "
             INSERT INTO {$this->bd}detail_inventory_shrinkage
-                (quantity, cost, subtotal_loss, previous_stock, resulting_stock,
-                 product_id, inventory_shrinkage_id)
+                (quantity, cost, subtotal, previous_stock, resulting_stock,
+                 item_id, inventory_shrinkage_id)
             VALUES (?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
@@ -282,7 +282,7 @@ class mdl extends CRUD {
         $query = "
             SELECT id, quantity
             FROM {$this->bd}stock
-            WHERE product_id = ? AND warehouse_id = ? AND active = 1
+            WHERE item_id = ? AND warehouse_id = ? AND active = 1
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
@@ -292,7 +292,7 @@ class mdl extends CRUD {
     function insertStockRow($array) {
         $query = "
             INSERT INTO {$this->bd}stock
-                (quantity, last_movement_at, warehouse_id, product_id, companies_id)
+                (quantity, last_movement_at, warehouse_id, item_id, companies_id)
             VALUES (?, NOW(), ?, ?, ?)
         ";
         return $this->_CUD($query, $array);
