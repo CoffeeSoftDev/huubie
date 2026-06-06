@@ -2,12 +2,12 @@
    PALETA DE COLORES - SISTEMA ERP
    ======================================== */
 
-/* PRIMARY BLUE - #1C64F2 (Flowbite blue-600, paleta coffee/app) */
+/* PRIMARY TERRACOTA - #C05A40 (paleta "Arcilla Invernal" — visor) */
 :root {
-    --primary-blue: #1C64F2;
-    --primary-blue-hover: #1A56DB;
-    --primary-blue-light: #3F83F8;
-    --primary-blue-dark: #1E429F;
+    --primary-blue: #C05A40;
+    --primary-blue-hover: #A84A33;
+    --primary-blue-light: #E8A68F;
+    --primary-blue-dark: #8F3D2A;
 }
 
 /* SECONDARY - DARK SLATE #0F172A (bg-slate-900) */
@@ -67,7 +67,7 @@
 .btn-primary:hover {
     background-color: var(--primary-blue-hover) !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(28, 100, 242, 0.3);
+    box-shadow: 0 4px 6px rgba(192, 90, 64, 0.3);
 }
 
 /* ========================================
@@ -221,7 +221,7 @@
    ======================================== */
 
 .alert-primary {
-    background-color: rgba(28, 100, 242, 0.1);
+    background-color: rgba(192, 90, 64, 0.1);
     border-left: 4px solid var(--primary-blue);
     color: var(--primary-blue-dark);
     padding: 1rem;
@@ -325,7 +325,7 @@
 }
 
 .table-striped-primary tbody tr:nth-child(odd) {
-    background-color: rgba(28, 100, 242, 0.05);
+    background-color: rgba(192, 90, 64, 0.05);
 }
 
 .table-striped-secondary tbody tr:nth-child(odd) {
@@ -338,7 +338,7 @@
 
 .form-control:focus {
     border-color: var(--primary-blue);
-    box-shadow: 0 0 0 0.2rem rgba(28, 100, 242, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(192, 90, 64, 0.25);
 }
 
 .form-control.is-valid {
@@ -354,7 +354,7 @@
    ======================================== */
 
 .shadow-primary {
-    box-shadow: 0 4px 6px rgba(28, 100, 242, 0.3);
+    box-shadow: 0 4px 6px rgba(192, 90, 64, 0.3);
 }
 
 .shadow-success {
@@ -374,7 +374,7 @@
    ======================================== */
 
 .hover-primary:hover {
-    background-color: rgba(28, 100, 242, 0.1);
+    background-color: rgba(192, 90, 64, 0.1);
     transition: background-color 0.3s ease;
 }
 

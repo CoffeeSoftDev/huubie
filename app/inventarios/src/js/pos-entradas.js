@@ -159,9 +159,17 @@ class App extends Templates {
             },
             {
                 opc:      'select',
+                id:       'subsidiaries_id',
+                lbl:      'Sucursal:',
+                class:    'col-12 col-md-4 col-lg-2',
+                onchange: 'app.onChangeFilters()',
+                data:     [{ id: '', valor: '-- Todas --' }]
+            },
+            {
+                opc:      'select',
                 id:       'fOrigen',
                 lbl:      'Origen:',
-                class:    'col-12 col-md-3 col-lg-3',
+                class:    'col-12 col-md-4 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     [{ id: '', valor: '-- Todos --' }].concat(this.dataInit.origenes || [])
@@ -170,7 +178,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fEstado',
                 lbl:      'Estado:',
-                class:    'col-12 col-md-3 col-lg-3',
+                class:    'col-12 col-md-6 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    'Activas',
                 data:     this.dataInit.estados || []
@@ -180,7 +188,7 @@ class App extends Templates {
                 id:        'btnNuevaEntrada',
                 text:      'Agregar Entrada',
                 color_btn: 'primary',
-                class:     'col-12 col-md-3 col-lg-3',
+                class:     'col-12 col-md-6 col-lg-3',
                 onClick:   () => entradasView.openEntradaForm()
             }
         ];

@@ -74,20 +74,24 @@ class ctrl extends mdl {
             'subsidiaries_id' => $_POST['subsidiaries_id']  ?? '',
             'category_id'     => $_POST['category_id']      ?? '',
             'nivel'           => $_POST['nivel']            ?? '',
+            'movimiento'      => $_POST['movimiento']       ?? '',
             'q'               => $_POST['q']                ?? ''
         ]);
         $row = [];
         foreach ($rows as $r) {
             $qty = (float) $r['quantity_total'];
             $min = (float) $r['stock_min'];
+            $max = (float) $r['stock_max'];
             $row[] = [
                 'id'         => $r['product_id'],
-                'SKU'        => $r['sku'] ?: '-',
-                'Producto'   => $r['product_name'],
+                'Producto'   => [
+                    'class' => 'justify-start px-2 py-2',
+                    'html'  => $this->_productCell($r['image'] ?? '', $r['product_name'], $r['product_id'], $r['sku'] ?: '')
+                ],
                 'Categoria'  => $r['category_name'] ?: '-',
-                'Stock'      => $this->_qty($qty),
-                'Min'        => $this->_qty($min),
-                'Max'        => $this->_qty((float) $r['stock_max']),
+                'Stock'      => $qty > 0 ? $this->_qty($qty) : '-',
+                'Min'        => $min > 0 ? $this->_qty($min) : '-',
+                'Max'        => $max > 0 ? $this->_qty($max) : '-',
                 'Unidad'     => $r['unit_code'] ?: '-',
                 'Estado'     => $this->_levelBadge($qty, $min),
                 'a'          => [
@@ -1088,6 +1092,44 @@ class ctrl extends mdl {
     private function _qty($n) {
         $n = (float) $n;
         return (fmod($n, 1) == 0) ? (string) (int) $n : (string) round($n, 2);
+    }
+
+    // Celda de producto con miniatura (misma presentacion que el admin de productos):
+    // caja fija 40x40 con icono gris de fondo y la imagen encima. Fallback en cadena
+    // local -> produccion -> icono (al remover el <img>). Clic en la miniatura abre el
+    // panel de detalle del visor (app.selectProduct).
+    private function _productCell($image, $name, $id = 0, $sku = '') {
+        $path  = ltrim((string) $image, '/');
+        $local = !empty($path) ? '/' . $path : '';
+        $prod  = !empty($path) ? 'https://huubie.com.mx/' . $path : '';
+        $label = htmlspecialchars(trim((string) $name), ENT_QUOTES);
+        $sku   = trim((string) $sku);
+        $id    = (int) $id;
+
+        $imgTag = !empty($local)
+            ? '<img src="' . $local . '" data-prod="' . $prod . '"'
+                . ' onerror="if(this.dataset.prod){this.src=this.dataset.prod;this.dataset.prod=\'\';}else{this.remove();}"'
+                . ' alt="Producto" class="absolute inset-0 w-full h-full object-cover" />'
+            : '';
+
+        $click = $id ? ' onclick="app.selectProduct(' . $id . ')" title="Clic para ver detalle"' : '';
+        $hover = $id ? ' cursor-pointer transition duration-150 hover:ring-2 hover:ring-blue-400/60 hover:scale-105' : '';
+
+        $skuTag = $sku !== ''
+            ? '<span class="font-mono text-[10px] text-gray-400">' . htmlspecialchars($sku, ENT_QUOTES) . '</span>'
+            : '';
+
+        return '
+            <div class="flex items-center gap-3">
+                <div class="relative flex-shrink-0 w-10 h-10 rounded-md bg-[#1F2A37] flex items-center justify-center overflow-hidden' . $hover . '"' . $click . '>
+                    <i class="icon-cube text-gray-500 text-lg"></i>
+                    ' . $imgTag . '
+                </div>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-sm text-white">' . $label . '</span>
+                    ' . $skuTag . '
+                </div>
+            </div>';
     }
 
     private function _levelBadge($qty, $min) {
