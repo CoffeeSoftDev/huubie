@@ -2495,8 +2495,20 @@ body.ia-drawer-resizing * {
     font-size: 10px; color: var(--vsr-text-mute2);
     margin-top: 7px; padding: 0 2px;
     display: flex; align-items: center; gap: 8px;
+    min-width: 0;
 }
-.ia-input-hint .ia-model-pill { margin-left: auto; }
+.ia-input-hint .ia-model-pill {
+    margin-left: auto;
+    min-width: 0;        /* permite que el flex item encoja por debajo de su contenido */
+    flex-shrink: 1;      /* el selector cede espacio antes de desbordar el drawer */
+}
+/* Botones de accion compactos (solo icono) */
+.ia-editor-toggle.is-icon-only {
+    padding: 3px;
+    width: 24px; height: 24px;
+    justify-content: center;
+    flex-shrink: 0;
+}
 
 /* Adjuntar imagenes en el composer */
 .ia-attach-btn {
@@ -2577,6 +2589,11 @@ body.ia-drawer-resizing * {
     background-repeat: no-repeat;
     background-position: right 7px center;
     outline: none;
+    /* Trunca el nombre del modelo con elipsis en vez de desbordar el drawer */
+    max-width: 170px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .ia-model-pill:hover, .ia-model-pill:focus { border-color: var(--vsr-accent); color: var(--vsr-text); }
 .ia-model-pill option {

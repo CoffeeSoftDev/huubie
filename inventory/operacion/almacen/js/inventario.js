@@ -1,10 +1,26 @@
+const SAMPLE_MOVIMIENTO = {
+    tipo: 'Entrada',
+    warehouse_id: '',
+    note: '',
+    lineas: []
+};
+
+const SAMPLE_LINEA = {
+    item_id: '',
+    quantity: 1,
+    cost: 0,
+    unit_id: null
+};
+
 class Inventario extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
-        this.PROJECT_NAME = "inventario";
+        this.PROJECT_NAME = 'inventario';
+        this.lineas       = [];
     }
 
     render() {
+        this.lineas = [];
         this.layout();
         this.filterBar();
         this.lsMovimientos();
@@ -12,500 +28,373 @@ class Inventario extends Templates {
 
     layout() {
         this.primaryLayout({
-            parent: "container-inventario",
+            parent: 'container-inventario',
             id: this.PROJECT_NAME,
-            class: "w-full",
+            class: 'w-full',
             card: {
-                filterBar: { class: "w-full mb-3 border rounded p-3", id: `filterBar${this.PROJECT_NAME}` },
-                container: { class: "w-full h-full", id: `container${this.PROJECT_NAME}` }
+                filterBar: {
+                    class: 'w-full mb-3',
+                    id: `filterBar${this.PROJECT_NAME}`
+                },
+                container: {
+                    class: 'w-full h-full',
+                    id: `container${this.PROJECT_NAME}`
+                }
             }
         });
-
-
     }
 
     filterBar() {
+        const tiposMovimiento = [
+            { id: 'Todos',   valor: 'Todos'   },
+            { id: 'ENTRADA', valor: 'Entrada' },
+            { id: 'MERMA',   valor: 'Salida'  }
+        ];
+
         this.createfilterBar({
             parent: `filterBar${this.PROJECT_NAME}`,
             data: [
                 {
-                    opc: "input-calendar",
-                    id: "calendar",
-                    lbl: "Rango de Fechas",
-                    class: "col-12 col-md-3"
+                    opc: 'input-calendar',
+                    id: 'calendarInventario',
+                    lbl: 'Rango de Fechas',
+                    class: 'col-12 col-md-3'
                 },
                 {
-                    opc: "select",
-                    id: "tipo_movimiento",
-                    lbl: "Tipo de Movimiento",
-                    class: "col-12 col-md-2",
-                    data: [
-                        { id: "Todos", valor: "Todos" },
-                        ...tipoMovimiento
-                    ],
-                    onchange: "inventario.lsMovimientos()"
+                    opc: 'select',
+                    id: 'tipo_movimiento',
+                    lbl: 'Tipo de Movimiento',
+                    class: 'col-12 col-md-2',
+                    data: tiposMovimiento,
+                    onchange: 'inventario.lsMovimientos()'
                 },
-
                 {
-                    opc: "button",
-                    id: "btnNuevaLista",
-                    text: "Nueva Lista",
-                    class: "col-12 col-md-2",
-                    className:'w-100',
-                    icono: "icon-plus",
-                    color_btn: "primary",
-                    onClick: () => this.addMovimiento()
+                    opc: 'button',
+                    id: 'btnNuevoMovimiento',
+                    text: 'Nuevo Movimiento',
+                    class: 'col-12 col-md-2',
+                    className: 'w-100',
+                    icono: 'icon-plus',
+                    color_btn: 'primary',
+                    onClick: () => this.showCapturePanel()
                 }
             ]
         });
 
         dataPicker({
-            parent: "calendar",
+            parent: 'calendarInventario',
             onSelect: () => this.lsMovimientos()
         });
     }
 
     lsMovimientos() {
-        let rangePicker = getDataRangePicker("calendar");
+        const picker = $('#calendarInventario').data('daterangepicker');
+        const fi = picker ? picker.startDate.format('YYYY-MM-DD') : '';
+        const ff = picker ? picker.endDate.format('YYYY-MM-DD') : '';
 
         this.createTable({
             parent: `container${this.PROJECT_NAME}`,
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
             data: {
-                opc: "lsMovimientos",
-                fi: rangePicker.fi,
-                ff: rangePicker.ff
+                opc: 'lsMovimientos',
+                fi: fi,
+                ff: ff,
+                tipo_movimiento: $('#tipo_movimiento').val() || 'Todos'
             },
             coffeesoft: true,
             conf: { datatable: true, pag: 15 },
             attr: {
                 id: `tb${this.PROJECT_NAME}`,
-                theme: "light",
-                title: "Lista de Movimientos de Inventario",
-                subtitle: "Historial de entradas y salidas",
+                theme: 'light',
+                title: 'Movimientos de Inventario',
+                subtitle: 'Historial de entradas y salidas',
                 center: [1, 2, 3, 4, 5, 6]
             }
         });
     }
 
-    addMovimiento() {
-        this.createModalForm({
-            id: "formMovimientoAdd",
-            data: { opc: "addMovimiento" },
-            theme:'light',
-            coffeesoft:true,
-            bootbox: {
-                title: "Nueva Lista de Movimiento",
-                size:'small',
-                closeButton: true
-            },
-            json: this.jsonMovimiento(),
-            success: (response) => {
-                console.log(response)
+    // -- Capture panel --
 
-                if (response.status === 200) {
+    showCapturePanel() {
+        this.lineas = [];
 
-                    captura.render(response.id_movimiento);
-                } else {
-                    alert({
-                        icon: "error",
-                        text: response.message,
-                        btn1: true,
-                        btn1Text: "Ok"
-                    });
-                }
-            }
-        });
+        const opcionesAlmacen = (typeof almacenesInventario !== 'undefined' && almacenesInventario.length)
+            ? almacenesInventario
+            : (typeof almacenes !== 'undefined' ? almacenes : []);
+
+        const defaultWarehouse = opcionesAlmacen.find(a => a.is_default == 1) || opcionesAlmacen[0] || {};
+
+        const productosDisp = typeof productosInventario !== 'undefined' ? productosInventario : [];
+
+        $(`#container${this.PROJECT_NAME}`).html(
+            '<div id="captureHeader"></div><div id="captureBody"></div>'
+        );
+
+        this.renderCaptureHeader();
+        this.renderCaptureForm(opcionesAlmacen, defaultWarehouse, productosDisp);
+        this.renderLineasTable();
     }
 
-    cancelMovimiento(id, event) {
-        this.swalQuestion({
-            opts: {
-                title: "¿Cancelar Movimiento?",
-                html: `¿?<br>
-                       Esta acción revertirá los cambios de stock realizados.`,
-                icon: "warning"
-            },
-            data: {
-                opc: "cancelMovimiento",
-                id: id
-            },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({
-                            icon: "success",
-                            title: "Movimiento Cancelado",
-                            text: response.message,
-                            btn1: true
-                        });
-                        this.lsMovimientos();
-                    } else {
-                        alert({
-                            icon: "error",
-                            text: response.message,
-                            btn1: true
-                        });
-                    }
-                }
-            }
-        });
-    }
+    renderCaptureHeader() {
+        $('#captureHeader').html(
+            '<div id="captureActions"></div>'
+        );
 
-    jsonMovimiento() {
-        return [
-            {
-                opc: "input",
-                id: "date",
-                lbl: "Fecha del Movimiento",
-                type: "date",
-                class: "col-12 mb-3",
-                value: moment().format('YYYY-MM-DD')
-            },
-            {
-                opc: "select",
-                id: "movement_type_id",
-                lbl: "Tipo de Movimiento",
-                class: "col-12 mb-3",
-                data: tipoMovimiento,
-                text: "valor",
-                value: "id"
-            },
-
-        ];
-    }
-}
-
-class CapturaMovimiento extends Templates {
-    constructor(link, div_modulo) {
-        super(link, div_modulo);
-        this.PROJECT_NAME = "capturaInventario";
-        this.idMovimiento = null;
-    }
-
-    async render(idMovimiento) {
-        this.idMovimiento = idMovimiento;
-
-        const movimiento = await useFetch({
-            url: this._link,
-            data: { opc: "getMovimiento", id: idMovimiento }
-        });
-
-        if (movimiento.status === 200) {
-            this.movimientoData = movimiento.data;
-            this.layout();
-            this.lsDetalleMovimiento();
-        }
-    }
-
-    layout() {
-        const container = $("<div>", {
-            id: this.PROJECT_NAME,
-            class: "w-full p-4"
-        });
-
-        const header = $("<div>", {
-            class: "mb-4 pb-4 border flex justify-between items-center rounded-lg p-4"
-        }).html(`
-            <div class="flex items-center gap-3">
-                <span class="text-2xl">📦</span>
-                <div>
-                    <h2 class="text-xl font-semibold text-gray-800">Captura de inventarios</h2>
-                    <p class="text-gray-500 text-sm">Folio: ${this.movimientoData.folio} | Tipo: ${this.movimientoData.tipo_movimiento}</p>
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <button id="btnGuardarMovimiento" class="px-6 py-2 bg-green-500 w-32 hover:bg-green-600 text-white text-sm rounded-lg font-medium transition">
-                    Guardar lista
-                </button>
-                <button id="btnCancelarCaptura" class="px-6 py-2 bg-red-400 w-32 hover:bg-red-500 text-white text-sm rounded-lg font-medium transition">
-                    Salir
-                </button>
-            </div>
-        `);
-
-        const mainContent = $("<div>", {
-            class: "grid grid-cols-12 gap-4 mb-4"
-        });
-
-        const leftSection = $("<div>", {
-            class: "col-span-3"
-        }).html(`
-            <div class="border rounded-lg p-4 h-full">
-                <div id="resumenMovimiento"></div>
-            </div>
-        `);
-
-        const rightSection = $("<div>", {
-            class: "col-span-9"
-        }).html(`
-            <div class="border rounded-lg p-4">
-                <div id="seccionAgregarProducto"></div>
-                <div id="tablaProductos"></div>
-            </div>
-        `);
-
-        mainContent.append(leftSection, rightSection);
-
-        container.append(header, mainContent);
-        $("#container-inventario").html(container);
-
-        $("#btnGuardarMovimiento").on("click", () => this.guardarMovimiento());
-        $("#btnCancelarCaptura").on("click", () => this.cancelarCaptura());
-
-        this.filterAddProduct();
-        this.updateResumen();
-    }
-
-    filterAddProduct() {
         this.createfilterBar({
-            parent: "seccionAgregarProducto",
+            parent: 'captureActions',
             data: [
                 {
-                    opc: "select",
-                    id: "selectProducto",
-                    lbl: "Producto",
-                    class: "col-12 col-md-3",
-                    data: productos,
-                    placeholder: "Seleccionar producto",
-                },
-                {
-                    opc: "input",
-                    id: "inputCantidad",
-                    lbl: "Cantidad",
-                    tipo: "numero",
-                    class: "col-12 col-md-3",
-                    value: "1",
-                    min: "1"
-                },
-                {
-                    opc: "button",
-                    id: "btnAgregarProducto",
-                    text: "Agregar",
+                    opc: 'button',
+                    id: 'btnGuardarCaptura',
+                    text: 'Guardar Movimiento',
+                    class: 'col-12 col-md-2',
                     className: 'w-100',
-                    class: "col-12 col-md-3",
-                    icono: "icon-plus",
-                    onClick: () => this.addProducto()
+                    icono: 'icon-ok',
+                    color_btn: 'success',
+                    onClick: () => this.guardarMovimiento()
+                },
+                {
+                    opc: 'button',
+                    id: 'btnCancelarCaptura',
+                    text: 'Cancelar',
+                    class: 'col-12 col-md-2',
+                    className: 'w-100',
+                    icono: 'icon-cancel',
+                    color_btn: 'danger',
+                    onClick: () => this.cancelarCaptura()
+                }
+            ]
+        });
+    }
+
+    renderCaptureForm(opcionesAlmacen, defaultWarehouse, productosDisp) {
+        const tiposCaptura = [
+            { id: 'Entrada', valor: 'Entrada' },
+            { id: 'Salida',  valor: 'Salida'  }
+        ];
+
+        this.coffeeForm({
+            parent: 'captureBody',
+            id: 'formCaptura',
+            class: 'flex flex-wrap items-end gap-y-2 mb-4 p-3 border rounded bg-white',
+            json: [
+                {
+                    opc: 'select',
+                    id: 'capTipo',
+                    lbl: 'Tipo de Movimiento',
+                    class: 'w-full sm:w-1/4 px-2',
+                    data: tiposCaptura
+                },
+                {
+                    opc: 'select',
+                    id: 'capAlmacen',
+                    lbl: 'Almacén',
+                    class: 'w-full sm:w-1/4 px-2',
+                    data: opcionesAlmacen
+                },
+                {
+                    opc: 'input',
+                    id: 'capNota',
+                    lbl: 'Nota',
+                    class: 'w-full sm:w-1/2 px-2',
+                    required: false
                 }
             ]
         });
 
-        $("#selectProducto").option_select({ select2: true,
-             placeholder: 'Selecciona uno o más módulos',
-              multiple: true });
+        if (defaultWarehouse.id) {
+            $('#capAlmacen').val(defaultWarehouse.id);
+        }
 
+        this.renderAgregarLinea(productosDisp);
     }
 
-    async addProducto() {
-        const idProducto = $("#selectProducto").val();
-        const cantidad = parseInt($("#inputCantidad").val());
+    renderAgregarLinea(productosDisp) {
+        $('#captureBody').append('<div id="agregarLinea"></div><div id="tablaLineas"></div>');
 
-        if (!idProducto) {
-            alert({
-                icon: "warning",
-                text: "Selecciona un producto",
-                btn1: true
-            });
+        this.coffeeForm({
+            parent: 'agregarLinea',
+            id: 'formLinea',
+            class: 'flex flex-wrap items-end gap-y-2 mb-3 p-3 border rounded bg-gray-50',
+            json: [
+                {
+                    opc: 'select',
+                    id: 'lineaProducto',
+                    lbl: 'Insumo',
+                    class: 'w-full sm:w-1/3 px-2',
+                    data: productosDisp
+                },
+                {
+                    opc: 'input',
+                    id: 'lineaCantidad',
+                    lbl: 'Cantidad',
+                    tipo: 'numero',
+                    class: 'w-full sm:w-1/4 px-2',
+                    value: '1'
+                },
+                {
+                    opc: 'input',
+                    id: 'lineaCosto',
+                    lbl: 'Costo unitario',
+                    tipo: 'cifra',
+                    class: 'w-full sm:w-1/4 px-2',
+                    value: '0'
+                },
+                {
+                    opc: 'button',
+                    id: 'btnAgregarLinea',
+                    text: 'Agregar',
+                    class: 'w-full sm:w-1/6 px-2',
+                    className: 'w-100',
+                    icono: 'icon-plus',
+                    color_btn: 'primary',
+                    onClick: () => this.agregarLinea(productosDisp)
+                }
+            ]
+        });
+    }
+
+    agregarLinea(productosDisp) {
+        const itemId   = $('#lineaProducto').val();
+        const cantidad = parseFloat($('#lineaCantidad').val());
+        const costo    = parseFloat($('#lineaCosto').val());
+
+        if (!itemId) {
+            alert({ icon: 'warning', text: 'Selecciona un insumo', btn1: true });
             return;
         }
 
-        if (cantidad <= 0) {
-            alert({
-                icon: "warning",
-                text: "La cantidad debe ser mayor a cero",
-                btn1: true
-            });
+        if (isNaN(cantidad) || cantidad <= 0) {
+            alert({ icon: 'warning', text: 'La cantidad debe ser mayor a cero', btn1: true });
             return;
         }
 
-        const response = await useFetch({
-            url: this._link,
-            data: {
-                opc: "addProductoMovimiento",
-                id_movimiento: this.idMovimiento,
-                product_id: idProducto,
-                quantity: cantidad
-            }
-        });
-
-        if (response.status === 200) {
-            $("#selectProducto").val(null).trigger("change");
-            $("#inputCantidad").val(1);
-
-            this.lsDetalleMovimiento();
-            this.updateResumen();
-        } else {
-            alert({
-                icon: "error",
-                text: response.message,
-                btn1: true
-            });
+        if (isNaN(costo) || costo < 0) {
+            alert({ icon: 'warning', text: 'El costo no puede ser negativo', btn1: true });
+            return;
         }
+
+        const producto = (productosDisp || []).find(p => String(p.id) === String(itemId));
+        const unitId   = producto ? producto.unit_id : null;
+
+        this.lineas.push({
+            item_id:  itemId,
+            quantity: cantidad,
+            cost:     costo,
+            unit_id:  unitId,
+            nombre:   producto ? producto.valor : itemId
+        });
+
+        $('#lineaProducto').val('');
+        $('#lineaCantidad').val('1');
+        $('#lineaCosto').val('0');
+
+        this.renderLineasTable();
     }
 
-    lsDetalleMovimiento() {
-        this.createTable({
-            parent: "tablaProductos",
-            idFilterBar: `filterBar`,
-
-            data: {
-                opc: "lsDetalleMovimiento",
-                id_movimiento: this.idMovimiento
+    renderLineasTable() {
+        const rows = this.lineas.map((l, idx) => ({
+            id:       idx,
+            Insumo:   l.nombre,
+            Cantidad: l.quantity,
+            Costo:    {
+                html:  '$' + parseFloat(l.cost).toFixed(2),
+                class: 'text-end'
             },
-            coffeesoft: true,
-            conf: { datatable: true },
-            attr: {
-                id: "tbDetalleMovimiento",
-                theme: "light",
-                striped:true,
-                center: [ 1, 3, 4,5]
+            Subtotal: {
+                html:  '$' + (l.quantity * l.cost).toFixed(2),
+                class: 'text-end'
             },
-            success: () => {
-                this.updateResumen();
+            Acción: {
+                html:  `<button class="btn btn-sm btn-danger" onclick="inventario.quitarLinea(${idx})"><i class="icon-trash"></i></button>`,
+                class: 'text-center'
             }
+        }));
+
+        this.createCoffeTable({
+            parent: 'tablaLineas',
+            id: 'tbLineasCaptura',
+            theme: 'light',
+            title: 'Líneas del movimiento',
+            subtitle: `${this.lineas.length} insumo(s) agregado(s)`,
+            data: {
+                thead: ['Insumo', 'Cantidad', 'Costo', 'Subtotal', 'Acción'],
+                row:   rows
+            },
+            center: [1, 4],
+            right:  [2, 3]
         });
     }
 
-    async deleteProducto(idDetalle) {
-        const response = await useFetch({
-            url: this._link,
-            data: {
-                opc: "deleteProductoMovimiento",
-                id: idDetalle
-            }
-        });
-
-        if (response.status === 200) {
-            this.lsDetalleMovimiento();
-            this.updateResumen();
-        } else {
-            alert({
-                icon: "error",
-                text: response.message,
-                btn1: true
-            });
-        }
-    }
-
-    async updateResumen() {
-        const detalles = await useFetch({
-            url: this._link,
-            data: {
-                opc: "lsDetalleMovimiento",
-                id_movimiento: this.idMovimiento
-            }
-        });
-
-
-        const totalProductos = detalles.ls ? detalles.ls.length : 0;
-        const totalUnidades = detalles.ls ? detalles.ls.reduce((sum, item) => sum + parseInt(item.cantidad), 0) : 0;
-
-        const tipoColor = this.movimientoData.tipo_movimiento === 'Entrada'
-            ? 'text-green-600'
-            : 'text-red-600';
-
-        const tipoIcon = this.movimientoData.tipo_movimiento === 'Entrada'
-            ? '↑'
-            : '↓';
-
-        const resumen = $("<div>", {
-            class: "sticky top-4"
-        }).html(`
-            <h3 class="font-semibold text-gray-700 mb-3 pb-2 border-b">Resumen</h3>
-
-            <div class="space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-600 text-sm">Folio:</span>
-                    <span class="font-bold text-gray-900">${this.movimientoData.folio}</span>
-                </div>
-
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-600 text-sm">Tipo:</span>
-                    <span class="font-semibold ${tipoColor}">${tipoIcon} ${this.movimientoData.tipo_movimiento}</span>
-                </div>
-            </div>
-
-            <hr class="my-3 border-gray-200">
-
-            <div class="space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-600 text-sm">Productos:</span>
-                    <span class="font-bold text-lg text-gray-900">${totalProductos}</span>
-                </div>
-
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-600 text-sm">Total unidades:</span>
-                    <span class="font-bold text-lg text-gray-900">${totalUnidades}</span>
-                </div>
-            </div>
-        `);
-
-        $("#resumenMovimiento").html(resumen);
+    quitarLinea(idx) {
+        this.lineas.splice(idx, 1);
+        this.renderLineasTable();
     }
 
     async guardarMovimiento() {
+        if (!this.lineas.length) {
+            alert({ icon: 'warning', text: 'Agrega al menos un insumo', btn1: true });
+            return;
+        }
+
+        const tipo        = $('#capTipo').val();
+        const warehouseId = $('#capAlmacen').val();
+        const note        = $('#capNota').val();
+
+        if (!warehouseId) {
+            alert({ icon: 'warning', text: 'Selecciona un almacén', btn1: true });
+            return;
+        }
+
+        const lineasPayload = this.lineas.map(l => ({
+            item_id:  l.item_id,
+            quantity: l.quantity,
+            cost:     l.cost,
+            unit_id:  l.unit_id
+        }));
+
         const response = await useFetch({
             url: this._link,
             data: {
-                opc: "guardarMovimiento",
-                id_movimiento: this.idMovimiento
+                opc:          'addMovimiento',
+                tipo:         tipo,
+                warehouse_id: warehouseId,
+                note:         note,
+                lineas:       JSON.stringify(lineasPayload)
             }
         });
 
         if (response.status === 200) {
             alert({
-                icon: "success",
-                title: "Lista Guardada",
-                text: response.message,
-                btn1: true,
-                btn1Text: "Aceptar"
+                icon:     'success',
+                title:    'Movimiento registrado',
+                text:     response.message + ' — Folio: ' + response.folio,
+                btn1:     true,
+                btn1Text: 'Aceptar'
             });
-
-            inventario.render();
+            this.render();
         } else {
             alert({
-                icon: "error",
-                text: response.message,
-                btn1: true
+                icon:  'error',
+                text:  response.message,
+                btn1:  true
             });
         }
     }
 
     cancelarCaptura() {
-        Swal.fire({
-            title: "¿Cancelar Captura?",
-            text: "¿Deseas regresar sin guardar los cambios?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#d33",
-            cancelButtonColor: "#6c757d",
-            confirmButtonText: "Sí, Cancelar",
-            cancelButtonText: "No, Continuar"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                inventario.render();
+        this.swalQuestion({
+            opts: {
+                title: '¿Cancelar captura?',
+                html:  'Los datos ingresados se perderán.',
+                icon:  'warning'
+            },
+            data: {},
+            methods: {
+                send: () => {
+                    this.render();
+                }
             }
         });
-    }
-
-    async editMovimiento(idMovimiento) {
-        this.idMovimiento = idMovimiento;
-
-        const movimiento = await useFetch({
-            url: this._link,
-            data: { opc: "getMovimiento", id: idMovimiento }
-        });
-
-        if (movimiento.status === 200) {
-            this.movimientoData = movimiento.data;
-            this.layout();
-            this.lsDetalleMovimiento();
-        } else {
-            alert({
-                icon: "error",
-                text: movimiento.message || "No se pudo cargar el movimiento",
-                btn1: true
-            });
-        }
     }
 }

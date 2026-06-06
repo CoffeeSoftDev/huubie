@@ -2093,13 +2093,23 @@ class CoffeeIA {
             files.forEach(f => this._addImageFile(f));
             $(e.target).val('');
         });
-        $('#iaInputTextarea').on('paste', (e) => {
+        // Pegar (Ctrl+V) a nivel de todo el chat: con el drawer abierto puedes
+        // pegar un screenshot sin tener el foco dentro del textarea.
+        $(document).off('paste.coffeeIA').on('paste.coffeeIA', (e) => {
+            if (!this.isOpen) return;
             const cd = e.originalEvent && e.originalEvent.clipboardData;
             if (!cd || !cd.items) return;
+            let pasted = 0;
             for (const it of cd.items) {
                 if (it.kind === 'file' && /^image\//.test(it.type)) {
                     const f = it.getAsFile();
-                    if (f) this._addImageFile(f);
+                    if (f) { this._addImageFile(f); pasted++; }
+                }
+            }
+            if (pasted) {
+                e.preventDefault();
+                if (typeof visorView !== 'undefined' && visorView) {
+                    visorView.toast(pasted === 1 ? 'Imagen pegada' : pasted + ' imagenes pegadas', 'success');
                 }
             }
         });

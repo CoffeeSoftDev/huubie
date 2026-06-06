@@ -143,7 +143,13 @@ class OllamaClient {
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => $method,
             CURLOPT_HTTPHEADER    => $headers,
-            CURLOPT_TIMEOUT       => OLLAMA_TIMEOUT,
+            // En streaming NO usamos CURLOPT_TIMEOUT (tope total): una generacion
+            // larga abortaria a mitad aunque sigan llegando tokens. Usamos timeout
+            // de INACTIVIDAD: solo corta si el upstream se queda mudo OLLAMA_TIMEOUT
+            // segundos sin enviar ni 1 byte (señal real de cuelgue).
+            CURLOPT_CONNECTTIMEOUT => 30,
+            CURLOPT_LOW_SPEED_LIMIT => 1,
+            CURLOPT_LOW_SPEED_TIME  => OLLAMA_TIMEOUT,
             CURLOPT_POSTFIELDS    => ($body !== null ? json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) : null),
             CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$raw, &$meta, $onChunk) {
                 $raw    .= $data;

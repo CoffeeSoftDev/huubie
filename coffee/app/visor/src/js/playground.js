@@ -272,14 +272,25 @@ function pgBind() {
         Array.from(e.target.files || []).forEach(f => pgAddImageFile(f));
         $(e.target).val('');
     });
-    $('#pgInput').on('paste', e => {
+    // Pegar (Ctrl+V) a nivel de toda la pagina: puedes pegar un screenshot sin
+    // tener el foco dentro del textarea del chat.
+    $(document).on('paste', e => {
+        // No interceptar si el foco esta en un campo de edicion de texto (ej. el
+        // editor de prompt del modal de conocimiento): ahi se pega texto normal.
+        const isPromptEditor = e.target && e.target.id === 'pgPromptEditor';
+        if (isPromptEditor) return;
         const cd = e.originalEvent && e.originalEvent.clipboardData;
         if (!cd || !cd.items) return;
+        let pasted = 0;
         for (const it of cd.items) {
             if (it.kind === 'file' && /^image\//.test(it.type)) {
                 const f = it.getAsFile();
-                if (f) pgAddImageFile(f);
+                if (f) { pgAddImageFile(f); pasted++; }
             }
+        }
+        if (pasted) {
+            e.preventDefault();
+            pgToast(pasted === 1 ? 'Imagen pegada' : pasted + ' imágenes pegadas', 'success');
         }
     });
     const $wrap = $('.ia-input-wrap');

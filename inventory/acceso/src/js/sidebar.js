@@ -146,14 +146,28 @@ class Sidebar {
     }
 
     highlightCurrentRoute() {
-        const currentUrl = window.location.pathname;
+        // Normaliza rutas: sin index.php ni barra final, para comparar
+        // ignorando el prefijo del host (p.ej. /huubie/...) y el archivo.
+        const norm = (p) => String(p || "").replace(/index\.php$/i, "").replace(/\/+$/, "");
+        const currentUrl = norm(window.location.pathname);
+
+        let matched = null;
+        let matchedLen = -1;
         this.parent.find("button[data-url]").each(function () {
-            const button = $(this);
-            if (button.data("url") === currentUrl) {
-                button.addClass("bg-[#C05A40]");
-                button.find("i").removeClass("text-gray-400").addClass("text-white");
+            const url = norm($(this).data("url"));
+            if (!url) return;
+            // Coincide si la ruta actual termina con la url del item.
+            // Nos quedamos con el match mas largo (mas especifico).
+            if ((currentUrl === url || currentUrl.endsWith(url)) && url.length > matchedLen) {
+                matched = $(this);
+                matchedLen = url.length;
             }
         });
+
+        if (matched) {
+            matched.addClass("bg-[#C05A40]");
+            matched.find("i").removeClass("text-gray-400").addClass("text-white");
+        }
     }
 }
 

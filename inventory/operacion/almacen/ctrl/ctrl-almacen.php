@@ -57,6 +57,11 @@ class ctrl extends mdl {
                 'Categoría'  => $item['categoria'] ?? '-',
                 'Unidad'     => $item['unidad'] ?? '-',
                 'Stock'      => $item['quantity'],
+                'Mín'        => $item['stock_min'] ?? '-',
+                'Máx'        => $item['stock_max'] ?? '-',
+                'Vida útil'  => isset($item['shelf_life_days']) && $item['shelf_life_days'] !== null
+                    ? $item['shelf_life_days'] . ' días'
+                    : '-',
                 'Costo'      => [
                     'html'  => '$' . number_format($item['cost'], 2),
                     'class' => 'text-end '
@@ -101,10 +106,12 @@ class ctrl extends mdl {
         $companies_id    = $_SESSION['companies_id'];
         $subsidiaries_id = $_SESSION['subsidiaries_id'];
 
+        // NOTA: 'price' se omite a propósito. La columna item.price es DOUBLE NOT NULL DEFAULT 0
+        // y util->sql() convierte el 0 en NULL por la comparación débil (0 == '') que en PHP 7.4
+        // evalúa true. Al no enviarlo, la BD aplica su DEFAULT 0 y se evita el error 1048.
         $item = [
             'name'            => $_POST['name'] ?? '',
             'image'           => $_POST['image'] ?? '',
-            'price'           => ($_POST['price'] ?? '') === '' ? 0 : $_POST['price'],
             'category_id'     => $_POST['category_id'] ?? null,
             'subsidiaries_id' => $subsidiaries_id,
             'companies_id'    => $companies_id,
@@ -117,13 +124,14 @@ class ctrl extends mdl {
         if ($create) {
             $itemId = $this->getMaxItemId();
 
+            // Campos numéricos NOT NULL con DEFAULT 0 (cost_unit, stock_min): se omiten cuando
+            // van vacíos para que aplique el DEFAULT de la BD. Si se mandara 0, util->sql() lo
+            // convertiría en NULL (gotcha 0 == '' en PHP 7.4) y violaría el NOT NULL.
             $attribute = [
                 'sku'               => $this->getNextSku(),
                 'description'       => $_POST['description'] ?? '',
-                'cost_unit'         => ($_POST['cost_unit'] ?? '') === '' ? 0 : $_POST['cost_unit'],
-                'stock_min'         => ($_POST['stock_min'] ?? '') === '' ? 0 : $_POST['stock_min'],
-                'stock_max'         => ($_POST['stock_max'] ?? '') === '' ? 0 : $_POST['stock_max'],
                 'shelf_life_days'   => ($_POST['shelf_life_days'] ?? '') === '' ? null : $_POST['shelf_life_days'],
+                'stock_max'         => ($_POST['stock_max'] ?? '') === '' ? null : $_POST['stock_max'],
                 'warehouse_area_id' => ($_POST['warehouse_area_id'] ?? '') === '' ? null : $_POST['warehouse_area_id'],
                 'unit_id'           => $_POST['unit_id'] ?? null,
                 'item_id'           => $itemId,
@@ -131,6 +139,10 @@ class ctrl extends mdl {
                 'created_at'        => $now,
                 'active'            => 1
             ];
+
+            // Solo se incluyen si traen valor real; si no, la BD usa su DEFAULT 0.
+            if (($_POST['cost_unit'] ?? '') !== '') $attribute['cost_unit'] = $_POST['cost_unit'];
+            if (($_POST['stock_min'] ?? '') !== '') $attribute['stock_min'] = $_POST['stock_min'];
 
             $this->createItemAttribute($this->util->sql($attribute));
 

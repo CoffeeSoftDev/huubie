@@ -83,6 +83,8 @@ class mdl extends CRUD {
                 ia.sku,
                 ia.cost_unit AS cost,
                 ia.stock_min,
+                ia.stock_max,
+                ia.shelf_life_days,
                 ia.description,
                 ic.name AS categoria,
                 u.code  AS unidad,

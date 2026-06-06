@@ -16,6 +16,7 @@ require_once('layout/core-libraries.php');
 <script src="https://rawcdn.githack.com/SomxS/Grupo-Varoch/refs/heads/main/src/js/plugins.js"></script>
 <script src="https://www.plugins.erp-varoch.com/ERP/JS/complementos.js"></script>
 <link rel="stylesheet" href="../../src/css/dark-mode.css">
+<link rel="stylesheet" href="css/almacen-sidebar.css?t=<?php echo time(); ?>">
 
 <body>
     <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
@@ -45,6 +46,8 @@ require_once('layout/core-libraries.php');
     <!-- Módulo de Catálogo -->
     <script src="js/almacen.js?t=<?php echo time(); ?>"></script>
     <script src="js/inventario.js?t=<?php echo time(); ?>"></script>
+    <script src="js/entradas.js?t=<?php echo time(); ?>"></script>
+    <script src="js/mermas.js?t=<?php echo time(); ?>"></script>
     <script src="js/catalogo.js?t=<?php echo time(); ?>"></script>
     <script src="js/movimientos.js?t=<?php echo time(); ?>"></script>
     <script src="js/existencias.js?t=<?php echo time(); ?>"></script>

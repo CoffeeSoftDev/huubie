@@ -72,7 +72,13 @@
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/app/inventarios/ctrl/ctrl-inventarios.php\")",
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" \"c:/tmp/diag_stock.php\")",
       "Bash(del \"c:\\\\tmp\\\\diag_stock.php\")",
-      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" \"c:/tmp/verify_stock.php\")"
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" \"c:/tmp/verify_stock.php\")",
+      "Bash(\"c:/wamp64/bin/mariadb/mariadb10.11.5/bin/mysql.exe\" -u root fayxzvov_inventory -e \"SHOW COLUMNS FROM item;\")",
+      "Bash(\"c:/wamp64/bin/mysql/mysql5.7.40/bin/mysql.exe\" -u root fayxzvov_inventory -e \"SHOW COLUMNS FROM item;\")",
+      "Bash(\"c:/wamp64/bin/mariadb/mariadb10.10.2/bin/mysql.exe\" -u root fayxzvov_inventory -e \"SHOW COLUMNS FROM item;\")",
+      "PowerShell(Start-Process \"http://localhost/huubie/inventory/operacion/almacen/sidebar-preview.html\")",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/inventory/operacion/almacen/mdl/mdl-almacen.php\")",
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/inventory/operacion/almacen/ctrl/ctrl-almacen.php\")"
     ],
     "additionalDirectories": [
       "\\tmp"

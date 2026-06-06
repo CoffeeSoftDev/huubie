@@ -6,17 +6,19 @@ session_start();
 class mdl extends CRUD {
     protected $util;
     public $bd;
+    public $erp;
 
     public function __construct() {
         $this->util = new Utileria;
         $this->bd = "fayxzvov_inventory.";
+        $this->erp = "fayxzvov_erp.";
     }
 
     // Selects
 
     function lsProductos() {
         $query = "
-            SELECT i.id, i.name AS valor, ia.unit_id
+            SELECT i.id, i.name AS valor, ia.unit_id, COALESCE(ia.cost_unit, i.price, 0) AS cost_unit
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
             WHERE i.active = 1
@@ -228,5 +230,322 @@ class mdl extends CRUD {
             ORDER BY mv.id DESC
         ";
         return $this->_Read($query, $array);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Catalogos Entradas / Mermas
+    // ─────────────────────────────────────────────────────────────────
+
+    function lsInflowOrigins() {
+        $query = "
+            SELECT id, code, name AS valor, requires_supplier, color_hex, icon
+            FROM {$this->bd}inflow_origin
+            WHERE active = 1
+            ORDER BY id ASC
+        ";
+        return $this->_Read($query, []);
+    }
+
+    function lsShrinkageReasons() {
+        $query = "
+            SELECT id, code, name AS valor, color_hex, icon
+            FROM {$this->bd}shrinkage_reason
+            WHERE active = 1
+            ORDER BY id ASC
+        ";
+        return $this->_Read($query, []);
+    }
+
+    function lsSuppliers($array) {
+        $query = "
+            SELECT id, name AS valor, contact_name, phone
+            FROM {$this->bd}supplier
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY name ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Entradas (inventory_inflow)
+    // ─────────────────────────────────────────────────────────────────
+
+    function listEntradas($array) {
+        $where = 'i.active = 1 AND i.companies_id = ?';
+        $data  = [$array['companies_id']];
+
+        if (!empty($array['subsidiaries_id'])) {
+            $where .= ' AND i.subsidiaries_id = ?';
+            $data[] = $array['subsidiaries_id'];
+        }
+        if (!empty($array['origin_id'])) {
+            $where .= ' AND i.inflow_origin_id = ?';
+            $data[] = $array['origin_id'];
+        }
+        if (!empty($array['status'])) {
+            if ($array['status'] === 'Activas') {
+                $where .= " AND i.status <> 'Cancelada'";
+            } else {
+                $where .= ' AND i.status = ?';
+                $data[] = $array['status'];
+            }
+        }
+        if (!empty($array['fi']) && !empty($array['ff'])) {
+            $where .= ' AND i.date_inflow BETWEEN ? AND ?';
+            $data[] = $array['fi'];
+            $data[] = $array['ff'];
+        }
+
+        $query = "
+            SELECT
+                i.id, i.folio, i.note, i.total_products, i.total_units, i.total_cost,
+                i.date_inflow, i.status,
+                io.name AS origin_name, io.color_hex AS origin_color,
+                w.name  AS warehouse_name,
+                sp.name AS supplier_name,
+                s.name  AS subsidiary_name,
+                u.fullname AS user_name
+            FROM {$this->bd}inventory_inflow i
+            LEFT JOIN {$this->bd}inflow_origin io ON io.id = i.inflow_origin_id
+            LEFT JOIN {$this->bd}warehouse     w  ON w.id  = i.warehouse_id
+            LEFT JOIN {$this->bd}supplier      sp ON sp.id = i.supplier_id
+            LEFT JOIN {$this->erp}subsidiaries s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN {$this->erp}users        u  ON u.id  = i.user_id
+            WHERE {$where}
+            ORDER BY i.date_inflow DESC, i.id DESC
+        ";
+        return $this->_Read($query, $data);
+    }
+
+    function getEntradaKpis($array) {
+        $where = 'i.active = 1 AND i.companies_id = ?';
+        $data  = [$array['companies_id']];
+
+        if (!empty($array['subsidiaries_id'])) {
+            $where .= ' AND i.subsidiaries_id = ?';
+            $data[] = $array['subsidiaries_id'];
+        }
+        if (!empty($array['fi']) && !empty($array['ff'])) {
+            $where .= ' AND i.date_inflow BETWEEN ? AND ?';
+            $data[] = $array['fi'];
+            $data[] = $array['ff'];
+        }
+
+        $query = "
+            SELECT
+                COUNT(i.id)                                       AS total_entradas,
+                IFNULL(SUM(i.total_cost), 0)                      AS total_costo,
+                IFNULL(SUM(i.total_units), 0)                     AS total_unidades,
+                COUNT(CASE WHEN i.status = 'Aplicada' THEN 1 END) AS total_aplicadas
+            FROM {$this->bd}inventory_inflow i
+            WHERE {$where}
+        ";
+        $r = $this->_Read($query, $data);
+        return $r[0] ?? ['total_entradas' => 0, 'total_costo' => 0, 'total_unidades' => 0, 'total_aplicadas' => 0];
+    }
+
+    function getEntradaHeader($array) {
+        $query = "
+            SELECT
+                i.*,
+                io.name AS origin_name, io.code AS origin_code,
+                w.name  AS warehouse_name,
+                sp.name AS supplier_name,
+                s.name  AS subsidiary_name,
+                u.fullname AS user_name
+            FROM {$this->bd}inventory_inflow i
+            LEFT JOIN {$this->bd}inflow_origin io ON io.id = i.inflow_origin_id
+            LEFT JOIN {$this->bd}warehouse     w  ON w.id  = i.warehouse_id
+            LEFT JOIN {$this->bd}supplier      sp ON sp.id = i.supplier_id
+            LEFT JOIN {$this->erp}subsidiaries s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN {$this->erp}users        u  ON u.id  = i.user_id
+            WHERE i.id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return $r[0] ?? null;
+    }
+
+    function getEntradaDetail($array) {
+        $query = "
+            SELECT
+                d.id, d.batch_code, d.quantity, d.cost, d.subtotal,
+                d.previous_stock, d.resulting_stock, d.expires_at,
+                d.item_id, it.name AS item_name, ia.sku, un.code AS unit_code
+            FROM {$this->bd}detail_inventory_inflow d
+            INNER JOIN {$this->bd}item it ON it.id = d.item_id
+            LEFT  JOIN {$this->bd}item_attribute ia ON ia.item_id = it.id AND ia.active = 1
+            LEFT  JOIN {$this->bd}unit un ON un.id = d.unit_id
+            WHERE d.inventory_inflow_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function insertEntrada($array) {
+        $query = "
+            INSERT INTO {$this->bd}inventory_inflow
+                (folio, note, total_products, total_units, total_cost, date_inflow, status,
+                 inflow_origin_id, warehouse_id, supplier_id, subsidiaries_id, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function insertEntradaDetail($array) {
+        $query = "
+            INSERT INTO {$this->bd}detail_inventory_inflow
+                (batch_code, quantity, cost, subtotal, previous_stock, resulting_stock,
+                 expires_at, item_id, inventory_inflow_id, unit_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function cancelEntradaById($array) {
+        $query = "
+            UPDATE {$this->bd}inventory_inflow
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Mermas (inventory_shrinkage)
+    // ─────────────────────────────────────────────────────────────────
+
+    function listMermas($array) {
+        $where = 'm.active = 1 AND m.companies_id = ?';
+        $data  = [$array['companies_id']];
+
+        if (!empty($array['subsidiaries_id'])) {
+            $where .= ' AND m.subsidiaries_id = ?';
+            $data[] = $array['subsidiaries_id'];
+        }
+        if (!empty($array['reason_id'])) {
+            $where .= ' AND m.shrinkage_reason_id = ?';
+            $data[] = $array['reason_id'];
+        }
+        if (!empty($array['status'])) {
+            if ($array['status'] === 'Activas') {
+                $where .= " AND m.status <> 'Cancelada'";
+            } else {
+                $where .= ' AND m.status = ?';
+                $data[] = $array['status'];
+            }
+        }
+        if (!empty($array['fi']) && !empty($array['ff'])) {
+            $where .= ' AND m.date_shrinkage BETWEEN ? AND ?';
+            $data[] = $array['fi'];
+            $data[] = $array['ff'];
+        }
+
+        $query = "
+            SELECT
+                m.id, m.folio, m.note, m.total_products, m.total_units, m.total_cost,
+                m.date_shrinkage, m.status,
+                sr.name AS reason_name, sr.color_hex AS reason_color,
+                w.name  AS warehouse_name,
+                s.name  AS subsidiary_name,
+                u.fullname AS user_name
+            FROM {$this->bd}inventory_shrinkage m
+            LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN {$this->bd}warehouse        w  ON w.id  = m.warehouse_id
+            LEFT JOIN {$this->erp}subsidiaries    s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN {$this->erp}users           u  ON u.id  = m.user_id
+            WHERE {$where}
+            ORDER BY m.date_shrinkage DESC, m.id DESC
+        ";
+        return $this->_Read($query, $data);
+    }
+
+    function getMermaKpis($array) {
+        $where = "m.active = 1 AND m.status <> 'Cancelada' AND m.companies_id = ?";
+        $data  = [$array['companies_id']];
+
+        if (!empty($array['subsidiaries_id'])) {
+            $where .= ' AND m.subsidiaries_id = ?';
+            $data[] = $array['subsidiaries_id'];
+        }
+        if (!empty($array['fi']) && !empty($array['ff'])) {
+            $where .= ' AND m.date_shrinkage BETWEEN ? AND ?';
+            $data[] = $array['fi'];
+            $data[] = $array['ff'];
+        }
+
+        $query = "
+            SELECT
+                COUNT(m.id)                     AS total_mermas,
+                IFNULL(SUM(m.total_cost), 0)    AS total_costo,
+                IFNULL(SUM(m.total_units), 0)   AS total_unidades
+            FROM {$this->bd}inventory_shrinkage m
+            WHERE {$where}
+        ";
+        $r = $this->_Read($query, $data);
+        return $r[0] ?? ['total_mermas' => 0, 'total_costo' => 0, 'total_unidades' => 0];
+    }
+
+    function getMermaHeader($array) {
+        $query = "
+            SELECT
+                m.*,
+                sr.name AS reason_name, sr.code AS reason_code,
+                w.name  AS warehouse_name,
+                s.name  AS subsidiary_name,
+                u.fullname AS user_name
+            FROM {$this->bd}inventory_shrinkage m
+            LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN {$this->bd}warehouse        w  ON w.id  = m.warehouse_id
+            LEFT JOIN {$this->erp}subsidiaries    s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN {$this->erp}users           u  ON u.id  = m.user_id
+            WHERE m.id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return $r[0] ?? null;
+    }
+
+    function getMermaDetail($array) {
+        $query = "
+            SELECT
+                d.id, d.quantity, d.cost, d.subtotal,
+                d.previous_stock, d.resulting_stock,
+                d.item_id, it.name AS item_name, ia.sku
+            FROM {$this->bd}detail_inventory_shrinkage d
+            INNER JOIN {$this->bd}item it ON it.id = d.item_id
+            LEFT  JOIN {$this->bd}item_attribute ia ON ia.item_id = it.id AND ia.active = 1
+            WHERE d.inventory_shrinkage_id = ? AND d.active = 1
+            ORDER BY d.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function insertMerma($array) {
+        $query = "
+            INSERT INTO {$this->bd}inventory_shrinkage
+                (folio, note, total_products, total_units, total_cost, date_shrinkage, status,
+                 shrinkage_reason_id, warehouse_id, subsidiaries_id, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function insertMermaDetail($array) {
+        $query = "
+            INSERT INTO {$this->bd}detail_inventory_shrinkage
+                (quantity, cost, subtotal, previous_stock, resulting_stock, item_id, inventory_shrinkage_id)
+            VALUES (?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function cancelMermaById($array) {
+        $query = "
+            UPDATE {$this->bd}inventory_shrinkage
+            SET status = 'Cancelada', updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
     }
 }

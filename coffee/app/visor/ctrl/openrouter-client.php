@@ -200,7 +200,12 @@ class OpenRouterClient {
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => 'POST',
             CURLOPT_HTTPHEADER    => $headers,
-            CURLOPT_TIMEOUT       => OPENROUTER_TIMEOUT,
+            // Streaming: timeout de INACTIVIDAD en vez de tope total, para que una
+            // generacion larga no aborte mientras sigan llegando tokens. Solo corta
+            // si el upstream se queda mudo OPENROUTER_TIMEOUT segundos.
+            CURLOPT_CONNECTTIMEOUT  => 30,
+            CURLOPT_LOW_SPEED_LIMIT => 1,
+            CURLOPT_LOW_SPEED_TIME  => OPENROUTER_TIMEOUT,
             CURLOPT_POSTFIELDS    => json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
             CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$usage, &$modelSeen, $onChunk) {
                 $buffer .= $data;

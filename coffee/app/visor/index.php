@@ -295,17 +295,14 @@
                         <button id="iaAttachBtn" class="ia-attach-btn" title="Adjuntar imagen (tambien Ctrl+V para pegar)">
                             <i data-lucide="paperclip" class="w-3 h-3"></i>
                         </button>
-                        <button id="iaClearBtn" title="Limpiar conversacion" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;">
-                            <i data-lucide="trash-2" class="w-3 h-3" style="display:inline-block;vertical-align:middle;margin-right:3px;"></i>
-                            Limpiar
+                        <button id="iaClearBtn" class="ia-attach-btn" title="Limpiar conversacion">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
                         </button>
-                        <button id="iaEditorToggle" class="ia-editor-toggle" title="Activar modo editor">
+                        <button id="iaEditorToggle" class="ia-editor-toggle is-icon-only" title="Activar modo editor">
                             <i data-lucide="pencil-line" class="w-3 h-3"></i>
-                            <span>Editor</span>
                         </button>
-                        <button id="iaCanvasToggle" class="ia-editor-toggle" title="Activar modo lienzo">
+                        <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo lienzo">
                             <i data-lucide="layout-template" class="w-3 h-3"></i>
-                            <span>Lienzo</span>
                         </button>
                         <select id="iaModelSelect" class="ia-model-pill" title="Modelo activo">
                             <optgroup label="Ollama Cloud">

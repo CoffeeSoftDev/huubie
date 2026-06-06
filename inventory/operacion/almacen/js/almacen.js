@@ -4,8 +4,9 @@ let categorias, unidades, areas, proveedores, almacenes;
 
 // Inventario.
 let api_inventario = 'ctrl/ctrl-inventario.php';
-let inventario, captura;
-let tipoMovimiento, productosInventario;
+let inventario, entradas, mermas;
+let productosInventario, almacenesInventario;
+let origenesEntrada, proveedoresEntrada, motivosMerma;
 
 // Movimientos.
 let api_movimientos = 'ctrl/ctrl-movimientos.php';
@@ -28,18 +29,35 @@ $(async () => {
     main = new Main(api, "root");
     main.render();
 
+    // Catalogo
+    cataloge = new Catalogo(api_catalogo, "root");
+    category = new Category(api_catalogo, "root");
+    area = new Area(api_catalogo, "root");
+    zone = new Zone(api_catalogo, "root");
+    warehouse = new Warehouse(api_catalogo, "root");
+    inflow = new InflowOrigin(api_catalogo, "root");
+    shrinkage = new ShrinkageReason(api_catalogo, "root");
+
+    cataloge.render();
+
     // Productos.
     products = new Productos(api, "root");
     products.render();
 
-    // // Inventario.
-    // const invt                = await useFetch({ url: api_inventario, data: { opc: "init" } });
-    //       tipoMovimiento      = invt.tipoMovimiento;
-    //       productosInventario = invt.productos;
+    // Inventario.
+    const invt          = await useFetch({ url: api_inventario, data: { opc: "init" } });
+    productosInventario = invt.productos    || [];
+    almacenesInventario = invt.almacenes    || [];
+    origenesEntrada     = invt.origenes     || [];
+    proveedoresEntrada  = invt.proveedores  || [];
+    motivosMerma        = invt.motivos      || [];
 
-    // inventario = new Inventario(api_inventario, "root");
-    // captura = new CapturaMovimiento(api_inventario, "root");
-    // inventario.render();
+    inventario = new Inventario(api_inventario, "root");
+    inventario.render();
+
+    // Entradas y Mermas (render perezoso al abrir su tab).
+    entradas = new Entradas(api_inventario, "root");
+    mermas   = new Mermas(api_inventario, "root");
 
     // // Movimientos.
 
@@ -53,16 +71,7 @@ $(async () => {
 
 
 
-    // Catalogo
-    cataloge  = new Catalogo(api_catalogo, "root");
-    category  = new Category(api_catalogo, "root");
-    area      = new Area(api_catalogo, "root");
-    zone      = new Zone(api_catalogo, "root");
-    warehouse = new Warehouse(api_catalogo, "root");
-    inflow    = new InflowOrigin(api_catalogo, "root");
-    shrinkage = new ShrinkageReason(api_catalogo, "root");
 
-    cataloge.render();
 
 });
 
@@ -100,7 +109,6 @@ class Main extends Templates {
                     id: "catalogo",
                     tab: "Catálogo",
                     lucideIcon: "book-open",
-                    active: true,
 
                     onClick: () => cataloge.render()
                 },
@@ -112,14 +120,29 @@ class Main extends Templates {
 
                     onClick: () => products.render()
                 },
-                // {
-                //     id: "inventario",
-                //     tab: "Inventario",
-                //     lucideIcon: "clipboard-list",
+                {
+                    id: "inventario",
+                    tab: "Inventario",
+                    lucideIcon: "clipboard-list",
 
+                    active: true,
 
-                //     onClick: () => inventario.render()
-                // },
+                    onClick: () => inventario.render()
+                },
+                {
+                    id: "entradas",
+                    tab: "Entradas",
+                    lucideIcon: "arrow-down-to-line",
+
+                    onClick: () => entradas.render()
+                },
+                {
+                    id: "mermas",
+                    tab: "Mermas",
+                    lucideIcon: "trending-down",
+
+                    onClick: () => mermas.render()
+                },
                 // {
                 //     id: "movimientos",
                 //     tab: "Movimientos",
@@ -313,6 +336,7 @@ class Productos extends Templates {
                 id: "stock_min",
                 lbl: "Inventario Mínimo",
                 tipo: "numero",
+                required: false,
                 class: "col-12 col-md-6 mb-3"
             },
             {
@@ -320,6 +344,7 @@ class Productos extends Templates {
                 id: "stock_max",
                 lbl: "Inventario Máximo",
                 tipo: "numero",
+                required: false,
                 class: "col-12 col-md-6 mb-3"
             },
             {
@@ -358,16 +383,14 @@ class Productos extends Templates {
                     alert({
                         icon: "success",
                         text: response.message,
-                        btn1: true,
-                        btn1Text: "Aceptar"
+                        timer: 1500
                     });
                     this.lsMateriales();
                 } else {
                     alert({
                         icon: "error",
                         text: response.message,
-                        btn1: true,
-                        btn1Text: "Ok"
+                        timer: 2500
                     });
                 }
             }
@@ -397,16 +420,14 @@ class Productos extends Templates {
                         alert({
                             icon: "success",
                             text: response.message,
-                            btn1: true,
-                            btn1Text: "Aceptar"
+                            timer: 1500
                         });
                         this.lsMateriales();
                     } else {
                         alert({
                             icon: "error",
                             text: response.message,
-                            btn1: true,
-                            btn1Text: "Ok"
+                            timer: 2500
                         });
                     }
                 }
@@ -436,16 +457,14 @@ class Productos extends Templates {
                         alert({
                             icon: "success",
                             text: response.message,
-                            btn1: true,
-                            btn1Text: "Aceptar"
+                            timer: 1500
                         });
                         this.lsMateriales();
                     } else {
                         alert({
                             icon: "error",
                             text: response.message,
-                            btn1: true,
-                            btn1Text: "Ok"
+                            timer: 2500
                         });
                     }
                 }

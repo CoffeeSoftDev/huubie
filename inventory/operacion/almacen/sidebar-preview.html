@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!--
+  PREVIEW standalone (sin login). Valida:
+   - Rail #menu-sidebar re-tematizado (item activo = barra + fondo + icono terracota)
+   - Contenedor del módulo con look de card del Visor en tema oscuro
+  Carga los CSS reales (dark-mode.css + almacen-sidebar.css). Botón para alternar tema.
+  Se puede borrar.
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview · Rail + Contenedor (estilo Visor)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Reglas de posición del rail (copiadas de inventory/src/css/general.css) */
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; padding-left: 80px; padding-top: 64px; background: #F3F4F6; transition: background .2s; }
+        body.dark-mode { background: #111928; }
+        #menu-navbar { position: fixed; top: 0; left: 0; right: 0; height: 64px; background: #fff; border-bottom: 1px solid #E5E7EB; display: flex; align-items: center; padding: 0 18px; gap: 10px; z-index: 50; }
+        body.dark-mode #menu-navbar { background: #141d2b; border-bottom-color: #374151; }
+        #menu-navbar .logo { width: 30px; height: 30px; border-radius: 8px; background: #C05A40; color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+        #menu-navbar b { font-size: 14px; color: #111827; }
+        body.dark-mode #menu-navbar b { color: #f5f5f5; }
+        #menu-sidebar { width: 80px; height: calc(100vh - 64px); position: fixed; left: 0; top: 64px; z-index: 40; }
+        .demo-main { padding: 24px; }
+        .theme-btn { margin-left: auto; font-size: 12px; padding: 6px 12px; border-radius: 8px; border: 1px solid #E5E7EB; background:#fff; cursor:pointer; color:#374151; }
+        body.dark-mode .theme-btn { background:#1F2A37; border-color:#374151; color:#f5f5f5; }
+        /* Mock de contenido dentro del contenedor */
+        .mock-tabs { display:flex; gap:8px; margin-bottom:14px; }
+        .mock-tab { font-size:12px; padding:7px 14px; border-radius:8px; background:#fff; border:1px solid #E5E7EB; color:#374151; }
+        .mock-tab.active { background:#C05A40; color:#fff; border-color:#C05A40; }
+        body.dark-mode .mock-tab { background:#1F2A37; border-color:#374151; color:#9CA3AF; }
+        body.dark-mode .mock-tab.active { background:#C05A40; color:#fff; }
+        .mock-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .mock-table th, .mock-table td { text-align:left; padding:9px 12px; border-bottom:1px solid #E5E7EB; color:#374151; }
+        body.dark-mode .mock-table th, body.dark-mode .mock-table td { border-color:#374151; color:#e5e5e5; }
+        body.dark-mode .mock-table thead th { color:#9CA3AF; }
+    </style>
+    <!-- CSS reales del módulo -->
+    <link rel="stylesheet" href="../../src/css/dark-mode.css">
+    <link rel="stylesheet" href="css/almacen-sidebar.css?v=5">
+</head>
+<body>
+    <div id="menu-navbar">
+        <span class="logo">CI</span>
+        <b>Coffee Inventory</b>
+        <button class="theme-btn" onclick="document.body.classList.toggle('dark-mode')">Alternar claro / oscuro</button>
+    </div>
+
+    <!-- HTML idéntico al que genera sidebar.js -->
+    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2">
+        <button class="w-12 h-12 bg-[#C05A40] hover:bg-[#C05A40] rounded-xl flex items-center justify-center transition" title="Inicio">
+            <i data-lucide="house" class="text-white w-6 h-6"></i>
+        </button>
+        <button class="w-12 h-12 hover:bg-[#C05A40] rounded-xl flex items-center justify-center transition" title="Reportes">
+            <i data-lucide="contact" class="text-gray-400 hover:text-white w-6 h-6"></i>
+        </button>
+        <button class="w-12 h-12 hover:bg-[#C05A40] rounded-xl flex items-center justify-center transition" title="Dashboard">
+            <i data-lucide="gauge" class="text-gray-400 hover:text-white w-6 h-6"></i>
+        </button>
+    </div>
+
+    <!-- Estructura del módulo (primaryLayout del Main) -->
+    <main>
+        <div id="main__content">
+            <div id="root">
+                <div class="demo-main">
+                    <p style="font-size:12px;color:#6B7280;margin:0 0 14px;">Pulsa «Alternar claro / oscuro». En oscuro, el contenedor (<code>#containeralmacenMain</code>) toma el look de card del Visor: fondo <code>#1F2A37</code> + borde <code>#374151</code>.</p>
+                    <div id="almacenMain" class="w-full">
+                        <div id="singleLayout" class="flex flex-col col-12">
+                            <div id="filterBaralmacenMain" class="w-full"></div>
+                            <div id="containeralmacenMain" class="w-full h-full">
+                                <div class="mock-tabs">
+                                    <span class="mock-tab active">Catálogo</span>
+                                    <span class="mock-tab">Productos</span>
+                                </div>
+                                <table class="mock-table">
+                                    <thead><tr><th>Nombre</th><th>Almacén</th><th>Estado</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Café en grano</td><td>Central</td><td>Activo</td></tr>
+                                        <tr><td>Leche entera</td><td>Central</td><td>Activo</td></tr>
+                                        <tr><td>Vasos 12oz</td><td>Sucursal Norte</td><td>Activo</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>
