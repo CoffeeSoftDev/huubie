@@ -71,6 +71,13 @@ class App extends Templates {
 
     layout() {
 
+        // #root tiene min-height global (general.css) calculado con 4rem que NO
+        // contempla el navbar real ni el breadcrumb, por lo que desborda el viewport.
+        // Anulamos ese min-height y le damos una altura exacta segun su posicion real,
+        // dejando el scroll interno al tableWrap. Se reajusta en resize.
+        this.fitRootHeight();
+        $(window).off('resize.stock').on('resize.stock', () => this.fitRootHeight());
+
         const mainPanel = {
             type: 'div',
             id:   'mainPanel',
@@ -79,20 +86,20 @@ class App extends Templates {
                 {
                     id:    'viewHeader',
                     text:  '#viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                    class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id: 'filterBar',
-                    class: 'px-4 py-2 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
                     text:  '#tableWrap',
-                    class: 'p-3 flex-1 min-h-0 overflow-auto'
+                    class: 'p-3 flex-1 min-h-0 overflow-auto bg-white'
                 }
             ]
         };
@@ -100,7 +107,7 @@ class App extends Templates {
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class:'detail-drawer fixed inset-y-0 right-0 z-50 w-full max-w-md transform translate-x-full transition-transform duration-300 ease-out md:relative md:translate-x-0 md:w-[420px] md:max-w-none md:transition-none md:z-auto flex-shrink-0 bg-[#141d2b] border-l border-[#374151] flex flex-col overflow-hidden shadow-2xl md:shadow-none',
+            class:'detail-drawer fixed inset-y-0 right-0 z-50 w-full max-w-md transform translate-x-full transition-transform duration-300 ease-out md:relative md:translate-x-0 md:w-[420px] md:max-w-none md:transition-none md:z-auto flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden shadow-2xl md:shadow-none',
             children: [
                 {
                     id:    'emptyDetail',
@@ -118,7 +125,7 @@ class App extends Templates {
         const backdrop = {
             type: 'div',
             id:   'detailBackdrop',
-            class: 'detail-backdrop hidden fixed inset-0 bg-black/60 z-40 md:hidden'
+            class: 'detail-backdrop hidden fixed inset-0 bg-black/40 z-40 md:hidden'
         };
 
         this.createLayout({
@@ -126,12 +133,26 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-row overflow-hidden relative',
+                class:     'flex-1 min-h-0 w-full flex flex-row overflow-hidden relative bg-white rounded-lg border border-gray-200',
                 container: [mainPanel, detailPanel, backdrop]
             }
         });
 
         $('#detailBackdrop').off('click').on('click', () => this.selectProduct(null));
+    }
+
+    fitRootHeight() {
+        const $root = $('#root');
+        if (!$root.length) return;
+        const top    = $root[0].getBoundingClientRect().top; // distancia desde el viewport
+        const bottom = 20; // respiro inferior (padding de #main__content)
+        $root.css({
+            display:       'flex',
+            flexDirection: 'column',
+            minHeight:     0,
+            height:        `calc(100vh - ${Math.ceil(top)}px - ${bottom}px)`,
+            overflow:      'hidden'
+        });
     }
 
     openDetailDrawer() {
