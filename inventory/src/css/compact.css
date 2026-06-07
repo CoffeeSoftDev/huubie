@@ -54,8 +54,7 @@ label,
  
 /* Buttons */
 .btn {
-    /* font-size: 0.8rem !important; */
-    /* padding: 0.35rem 0.75rem !important; */
+    font-size: 0.85rem !important;
 }
 
 .btn-sm {

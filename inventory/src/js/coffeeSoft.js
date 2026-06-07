@@ -28,6 +28,7 @@ const CF_CSS = {
     label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
     error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
     btnPrimary: 'tw-btn w-full rounded-lg bg-[#003360]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#003360] active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnInvernal: 'tw-btn w-full rounded-lg bg-[#C05A40] px-4 py-2 text-sm font-semibold text-white hover:bg-[#A84A33] active:bg-[#8F3D2A] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnInfo: 'tw-btn w-full rounded-lg bg-[#0078D7]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#0078D7] active:bg-[#0078D7] focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnSuccess: 'tw-btn w-full rounded-lg bg-[#7aab20]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#7aab20] active:bg-[#7aab20] focus:outline-none focus:ring-2 focus:ring-[#7aab20] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDanger: 'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
@@ -45,6 +46,7 @@ const CF_CSS = {
 
 const CF_BTN_COLORS = {
     primary: 'btnPrimary',
+    invernal: 'btnInvernal',
     secondary: 'btnSecondary',
     success: 'btnSuccess',
     danger: 'btnDanger',
@@ -3846,6 +3848,19 @@ class Components extends Complements {
             defaults.border_table = "border border-slate-200 rounded-lg";
             defaults.border_row = "border-b border-slate-200";
             defaults.color_row_alt = "bg-slate-50";
+        }
+
+        // Tema propio "Arcilla Invernal" (paleta terracota de inventory).
+        // Header gris cálido sobrio + texto terracota como acento (no agresivo).
+        if (options.theme === 'invernal') {
+            defaults.color_th = "bg-stone-200 text-[#6E2F20]";
+            defaults.color_row = "";
+            defaults.color_group = "bg-[#F7E3DC] text-[#6E2F20]";
+            defaults.class = "w-full text-sm";
+            defaults.border_table = "border border-[#EFC9BC] rounded-lg";
+            defaults.border_row = "border-b border-[#F7E3DC]";
+            defaults.border_color = "border-[#EFC9BC]";
+            defaults.color_row_alt = "bg-[#FBF3EF]";
         }
 
         const opts = Object.assign({}, defaults, options);

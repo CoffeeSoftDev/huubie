@@ -32,3 +32,13 @@ table a {
   background-color: var(--primary);
   border-color: var(--primary);
 }
+
+/* Fila seleccionada en tablas master-detail (createCoffeeTable3).
+   Acento "Arcilla Invernal": tinte terracota + barra lateral.
+   !important porque el bg de striping va por clase Tailwind en cada <td>. */
+tr.row-active > td {
+  background-color: var(--primary1) !important;
+}
+tr.row-active > td:first-child {
+  box-shadow: inset 4px 0 0 0 var(--primary);
+}

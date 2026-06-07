@@ -3,8 +3,6 @@ let app, entradas, entradasView;
 
 let subsidiaries_id;
 
-window.updateSession = () => { };
-
 $(async () => {
     entradasView = new EntradasView(apiEntradas, 'root');
     entradas     = new Entradas(apiEntradas, 'root');
@@ -179,7 +177,7 @@ class App extends Templates {
                 opc:       'button',
                 id:        'btnNuevaEntrada',
                 text:      'Agregar Entrada',
-                color_btn: 'primary',
+                color_btn: 'invernal',
                 class:     'col-12 col-md-6 col-lg-3',
                 onClick:   () => entradasView.openEntradaForm()
             }
@@ -322,7 +320,7 @@ class Entradas extends Templates {
         this.createCoffeeTable3({
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
-            theme:        'light',
+            theme:        'invernal',
             center:       [2, 3, 7],
             right:        [4],
             actionsAlign: 'left',

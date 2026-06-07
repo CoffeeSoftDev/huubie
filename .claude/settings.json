@@ -78,7 +78,8 @@
       "Bash(\"c:/wamp64/bin/mariadb/mariadb10.10.2/bin/mysql.exe\" -u root fayxzvov_inventory -e \"SHOW COLUMNS FROM item;\")",
       "PowerShell(Start-Process \"http://localhost/huubie/inventory/operacion/almacen/sidebar-preview.html\")",
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/inventory/operacion/almacen/mdl/mdl-almacen.php\")",
-      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/inventory/operacion/almacen/ctrl/ctrl-almacen.php\")"
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/inventory/operacion/almacen/ctrl/ctrl-almacen.php\")",
+      "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\index.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\playground.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\documents-admin.php\")"
     ],
     "additionalDirectories": [
       "\\tmp"

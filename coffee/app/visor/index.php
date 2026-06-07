@@ -31,6 +31,25 @@
 
 <body class="visor-body" data-theme="dark">
 
+    <!-- Rail de navegacion entre modulos (Visor / Playground / Admin) -->
+    <nav class="app-rail" aria-label="Modulos">
+        <div class="app-rail-logo">CS</div>
+        <div class="app-rail-nav">
+            <a href="index.php" class="app-rail-item active" title="Visor de Agentes">
+                <i data-lucide="layout-dashboard"></i>
+                <span class="app-rail-label">Visor</span>
+            </a>
+            <a href="playground.php" class="app-rail-item" title="Playground de Agentes">
+                <i data-lucide="flask-conical"></i>
+                <span class="app-rail-label">Lab</span>
+            </a>
+            <a href="documents-admin.php" class="app-rail-item" title="Admin de Documentos">
+                <i data-lucide="folder-cog"></i>
+                <span class="app-rail-label">Admin</span>
+            </a>
+        </div>
+    </nav>
+
     <header class="visor-header">
         <div class="vsr-header-left">
             <div class="visor-logo">VS</div>
@@ -60,16 +79,6 @@
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 <span class="btn-label">Refrescar</span>
             </button>
-
-            <a href="playground.php" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Playground de agentes">
-                <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i>
-                Playground
-            </a>
-
-            <a href="documents-admin.php" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Administrar documentos">
-                <i data-lucide="settings" class="w-3.5 h-3.5"></i>
-                Admin
-            </a>
 
             <button id="btnThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">
                 <i data-lucide="moon" class="w-4 h-4"></i>
