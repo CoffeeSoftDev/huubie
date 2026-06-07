@@ -86,7 +86,9 @@
       "Bash(sed -i '36,61d' js/almacen.js)",
       "Bash(sed -n '30,45p' js/almacen.js)",
       "Bash(sed -i '81,111d' js/almacen.js)",
-      "Bash(sed -n '60,95p' js/almacen.js)"
+      "Bash(sed -n '60,95p' js/almacen.js)",
+      "Bash(c:/wamp64/bin/php/php7.4.33/php.exe -l inventory/operacion/almacen/ctrl/ctrl-stock.php)",
+      "Bash(c:/wamp64/bin/php/php7.4.33/php.exe _test_stock.php)"
     ],
     "additionalDirectories": [
       "\\tmp"

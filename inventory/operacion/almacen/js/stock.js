@@ -474,7 +474,7 @@ class StockView extends Templates {
 
         if (!opts.json || opts.json.length === 0) {
             grid.html(`
-                <p class="col-span-full text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic text-center py-2">
+                <p class="col-span-full text-[10px] text-gray-500 italic text-center py-2">
                     ${esc(opts.labels.empty)}
                 </p>
             `);
@@ -500,13 +500,13 @@ class StockView extends Templates {
             class:  'flex items-center justify-between w-full',
             json:   { title: '', subtitle: '', toggles: [], back: null },
             classes: {
-                title:    'text-base font-bold text-white',
-                subtitle: 'text-[10px] text-[var(--cs-text-secondary,#D1D5DB)]',
-                groupLbl: 'text-[9px] text-[var(--cs-text-muted,#9CA3AF)] uppercase tracking-wider font-bold',
-                btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[var(--cs-border,#374151)] text-[var(--cs-text-secondary,#D1D5DB)] hover:bg-[var(--cs-bg-input,#1F2937)] transition-colors',
-                btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-[var(--cs-accent-purple,#7C3AED)] bg-[var(--cs-accent-purple,#7C3AED)]/15 text-white',
-                sep:      'text-[var(--cs-border,#374151)]',
-                backBtn:  'w-8 h-8 rounded-full bg-[var(--cs-bg-input,#1F2937)] hover:bg-[var(--cs-accent-purple,#7C3AED)]/15 border border-[var(--cs-border,#374151)] hover:border-[var(--cs-accent-purple,#7C3AED)] flex items-center justify-center text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors flex-shrink-0'
+                title:    'text-lg font-bold text-gray-800',
+                subtitle: 'text-xs text-gray-500',
+                groupLbl: 'text-[9px] text-gray-500 uppercase tracking-wider font-bold',
+                btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors',
+                btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-violet-400 bg-violet-50 text-violet-700',
+                sep:      'text-gray-300',
+                backBtn:  'w-8 h-8 rounded-full bg-gray-100 hover:bg-violet-50 border border-gray-200 hover:border-violet-400 flex items-center justify-center text-gray-500 hover:text-violet-700 transition-colors flex-shrink-0'
             },
             onToggle: () => { },
             onBack:   null
@@ -607,8 +607,8 @@ class StockView extends Templates {
                 purple:  'var(--cs-accent-purple,#7C3AED)'
             },
             classes: {
-                info:   'text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
-                legend: 'flex items-center gap-3 text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
+                info:   'text-[10px] text-gray-500',
+                legend: 'flex items-center gap-3 text-[10px] text-gray-500',
                 item:   'flex items-center gap-1'
             }
         };
@@ -649,8 +649,8 @@ class StockView extends Templates {
             class:  'flex items-center gap-1 border-b border-transparent',
             json:   [],
             classes: {
-                tab:       'px-3 py-2 text-[11px] font-medium text-[var(--cs-text-muted,#9CA3AF)] border-b-2 border-transparent hover:text-white transition-colors cursor-pointer',
-                tabActive: 'px-3 py-2 text-[11px] font-bold text-[var(--cs-accent-purple,#A78BFA)] border-b-2 border-[var(--cs-accent-purple,#7C3AED)] cursor-pointer'
+                tab:       'px-3 py-2 text-[11px] font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-800 transition-colors cursor-pointer',
+                tabActive: 'px-3 py-2 text-[11px] font-bold text-violet-600 border-b-2 border-violet-600 cursor-pointer'
             },
             onChange: () => { }
         };
@@ -689,7 +689,7 @@ class StockView extends Templates {
         const defaults = {
             parent:       'root',
             id:           'productDetailPanel',
-            class:        'w-full h-full flex-shrink-0 bg-[var(--cs-bg-header,#141d2b)] border-l border-[var(--cs-border,#374151)] flex flex-col overflow-hidden',
+            class:        'w-full h-full flex-shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-hidden',
             json:         null,
             sucursalId:   '',
             sucursalName: 'Todas las sucursales',
@@ -716,14 +716,14 @@ class StockView extends Templates {
                 { id: 'sur',     name: 'Reginas Sur'     }
             ],
             statusMap: {
-                ok:      { palette: 'emerald', icon: 'check-circle-2', label: 'Stock OK',   msg: 'Nivel saludable, dentro del rango optimo.',                stockColor: 'text-emerald-300' },
-                bajo:    { palette: 'orange',  icon: 'alert-triangle', label: 'Stock Bajo', msg: 'El nivel actual esta por debajo del minimo recomendado.', stockColor: 'text-orange-300'  },
-                agotado: { palette: 'rose',    icon: 'x-circle',       label: 'Agotado',    msg: 'No hay existencias disponibles.',                          stockColor: 'text-rose-300'    }
+                ok:      { palette: 'emerald', icon: 'check-circle-2', label: 'Stock OK',   msg: 'Nivel saludable, dentro del rango optimo.',                stockColor: 'text-emerald-600' },
+                bajo:    { palette: 'orange',  icon: 'alert-triangle', label: 'Stock Bajo', msg: 'El nivel actual esta por debajo del minimo recomendado.', stockColor: 'text-orange-600'  },
+                agotado: { palette: 'rose',    icon: 'x-circle',       label: 'Agotado',    msg: 'No hay existencias disponibles.',                          stockColor: 'text-rose-600'    }
             },
             statusPalettes: {
-                emerald: { bg: 'bg-emerald-500/8', border: 'border-emerald-500/20', text: 'text-emerald-300' },
-                orange:  { bg: 'bg-orange-500/8',  border: 'border-orange-500/20',  text: 'text-orange-300'  },
-                rose:    { bg: 'bg-rose-500/8',    border: 'border-rose-500/20',    text: 'text-rose-300'    }
+                emerald: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
+                orange:  { bg: 'bg-orange-50',  border: 'border-orange-200',  text: 'text-orange-700'  },
+                rose:    { bg: 'bg-rose-50',    border: 'border-rose-200',    text: 'text-rose-700'    }
             },
             vidaMap: {
                 critico: { palette: 'rose',    icon: 'alert-octagon', label: 'Critica',   msg: 'Caducidad inminente, prioriza la rotacion.' },
@@ -732,16 +732,16 @@ class StockView extends Templates {
                 na:      { palette: 'slate',   icon: 'minus',         label: 'No aplica', msg: 'Producto sin vida util registrada.'         }
             },
             vidaPalettes: {
-                rose:    { bg: 'bg-rose-500/8',    border: 'border-rose-500/20',    text: 'text-rose-300'    },
-                amber:   { bg: 'bg-amber-500/8',   border: 'border-amber-500/20',   text: 'text-amber-300'   },
-                emerald: { bg: 'bg-emerald-500/8', border: 'border-emerald-500/20', text: 'text-emerald-300' },
-                slate:   { bg: 'bg-slate-500/8',   border: 'border-slate-500/20',   text: 'text-slate-300'   }
+                rose:    { bg: 'bg-rose-50',    border: 'border-rose-200',    text: 'text-rose-700'    },
+                amber:   { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700'   },
+                emerald: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
+                slate:   { bg: 'bg-slate-50',   border: 'border-slate-200',   text: 'text-slate-600'   }
             },
             movMap: {
-                in:     { bg: 'bg-green-500/15',  iconColor: 'text-green-400',  icon: 'arrow-down',  qtyColor: 'text-green-400'  },
-                out:    { bg: 'bg-red-500/15',    iconColor: 'text-red-400',    icon: 'arrow-up',    qtyColor: 'text-red-400'    },
-                tr:     { bg: 'bg-purple-500/15', iconColor: 'text-purple-400', icon: 'repeat',      qtyColor: 'text-purple-400' },
-                adjust: { bg: 'bg-orange-500/15', iconColor: 'text-orange-400', icon: 'settings-2',  qtyColor: 'text-orange-400' }
+                in:     { bg: 'bg-green-100',  iconColor: 'text-green-600',  icon: 'arrow-down',  qtyColor: 'text-green-600'  },
+                out:    { bg: 'bg-red-100',    iconColor: 'text-red-600',    icon: 'arrow-up',    qtyColor: 'text-red-600'    },
+                tr:     { bg: 'bg-purple-100', iconColor: 'text-purple-600', icon: 'repeat',      qtyColor: 'text-purple-600' },
+                adjust: { bg: 'bg-orange-100', iconColor: 'text-orange-600', icon: 'settings-2',  qtyColor: 'text-orange-600' }
             },
             onClose: () => { }
         };
@@ -763,18 +763,18 @@ class StockView extends Templates {
 
         if (!opts.json) {
             aside.html(`
-                <div class="px-4 py-3 border-b border-[var(--cs-border,#374151)] flex-shrink-0 flex items-center justify-between">
+                <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-bold text-white">Vista del Producto</h3>
-                        <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.comportLbl)}</p>
+                        <h3 class="text-sm font-bold text-gray-800">Vista del Producto</h3>
+                        <p class="text-[10px] text-gray-500">${esc(opts.labels.comportLbl)}</p>
                     </div>
                 </div>
                 <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
-                    <div class="w-14 h-14 rounded-full bg-[var(--cs-bg-input,#1F2937)] border border-[var(--cs-border,#374151)] flex items-center justify-center mb-3">
-                        <i data-lucide="package-search" class="w-6 h-6 text-[var(--cs-text-muted,#9CA3AF)]"></i>
+                    <div class="w-14 h-14 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-3">
+                        <i data-lucide="package-search" class="w-6 h-6 text-gray-500"></i>
                     </div>
-                    <p class="text-[11px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.emptyTitle)}</p>
-                    <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
+                    <p class="text-[11px] text-gray-500">${esc(opts.labels.emptyTitle)}</p>
+                    <p class="text-[10px] text-gray-500 mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
                 </div>
             `);
             $(`#${opts.parent}`).html(aside);
@@ -793,16 +793,16 @@ class StockView extends Templates {
         const vidaPalette   = opts.vidaPalettes[vidaCfg.palette];
         const vidaText      = p.vida && p.vida.dias != null ? `${p.vida.dias} dias restantes` : 'Sin caducidad activa';
 
-        const stockColor = (q) => q === 0 ? 'text-red-400' : (q < p.min ? 'text-orange-400' : 'text-green-400');
+        const stockColor = (q) => q === 0 ? 'text-red-600' : (q < p.min ? 'text-orange-600' : 'text-green-600');
 
         const branchListHtml = (opts.sucursales || []).map(s => {
             const q      = (p.stockSuc || {})[s.id] != null ? p.stockSuc[s.id] : 0;
-            const active = sucId === s.id ? 'border-[var(--cs-accent-purple,#7C3AED)]' : 'border-[var(--cs-border,#374151)]';
+            const active = sucId === s.id ? 'border-violet-400 bg-violet-50' : 'border-gray-200 bg-gray-50';
             return `
-                <div class="flex items-center justify-between bg-[var(--cs-bg-input,#1F2937)] rounded-md px-2.5 py-1.5 border ${active}">
+                <div class="flex items-center justify-between rounded-md px-2.5 py-1.5 border ${active}">
                     <div class="flex items-center gap-2">
-                        <i data-lucide="store" class="w-5 h-5 ${q === 0 ? 'text-gray-500' : 'text-[#c4b5fd]'}"></i>
-                        <span class="text-[11px] ${q === 0 ? 'text-gray-500' : 'text-white'}">${esc(s.name)}</span>
+                        <i data-lucide="store" class="w-5 h-5 ${q === 0 ? 'text-gray-400' : 'text-violet-500'}"></i>
+                        <span class="text-[11px] ${q === 0 ? 'text-gray-400' : 'text-gray-800'}">${esc(s.name)}</span>
                     </div>
                     <span class="text-[11px] font-bold ${stockColor(q)}">${q}</span>
                 </div>`;
@@ -824,16 +824,16 @@ class StockView extends Templates {
         const movsHtml   = movsToShow.map(m => {
             const cfg = opts.movMap[m.type] || opts.movMap.adjust;
             return `
-                <div class="flex items-start gap-2 bg-[var(--cs-bg-input,#1F2937)] rounded-md px-2.5 py-1.5 border border-[var(--cs-border,#374151)]">
+                <div class="flex items-start gap-2 bg-gray-50 rounded-md px-2.5 py-1.5 border border-gray-200">
                     <div class="w-5 h-5 rounded ${cfg.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
                         <i data-lucide="${cfg.icon}" class="w-2.5 h-2.5 ${cfg.iconColor}"></i>
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between">
-                            <p class="text-[10px] font-medium text-white">${esc(m.label)}</p>
+                            <p class="text-[10px] font-medium text-gray-800">${esc(m.label)}</p>
                             <span class="text-[10px] font-bold ${cfg.qtyColor}">${esc(m.qty)}</span>
                         </div>
-                        <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(m.when)}</p>
+                        <p class="text-[9px] text-gray-500">${esc(m.when)}</p>
                     </div>
                 </div>`;
         }).join('');
@@ -841,12 +841,12 @@ class StockView extends Templates {
         const subtitle = sucId ? `Existencias en ${esc(sucName)}` : 'Vista consolidada (todas las sucursales)';
 
         aside.html(`
-            <div class="px-4 py-3 border-b border-[var(--cs-border,#374151)] flex-shrink-0 flex items-center justify-between">
+            <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
                 <div>
-                    <h3 class="text-sm font-bold text-white">Vista del Producto</h3>
-                    <p class="text-[10px] text-[var(--cs-text-muted,#9CA3AF)]" id="${opts.id}_subtitle">${subtitle}</p>
+                    <h3 class="text-sm font-bold text-gray-800">Vista del Producto</h3>
+                    <p class="text-[10px] text-gray-500" id="${opts.id}_subtitle">${subtitle}</p>
                 </div>
-                <button id="${opts.id}_close" class="text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors p-1" title="Cerrar">
+                <button id="${opts.id}_close" class="text-gray-600 hover:text-gray-800 transition-colors p-1" title="Cerrar">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -854,28 +854,28 @@ class StockView extends Templates {
             </div>
 
             <div class="flex-1 overflow-y-auto cs-scroll px-4 py-3 space-y-3">
-                <div class="bg-[var(--cs-bg-input,#1F2937)] rounded-lg p-2 border border-[var(--cs-border,#374151)]">
+                <div class="bg-gray-50 rounded-lg p-2 border border-gray-200">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded-md ${p.iconBg} flex items-center justify-center ${p.iconText} flex-shrink-0">
                             <i data-lucide="cake" class="w-4 h-4"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-xs font-bold text-white truncate leading-tight">${esc(p.name)}</p>
-                            <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)] truncate">SKU: ${esc(p.sku)} · ${esc(p.categoria)}</p>
+                            <p class="text-xs font-bold text-gray-800 truncate leading-tight">${esc(p.name)}</p>
+                            <p class="text-[9px] text-gray-500 truncate">SKU: ${esc(p.sku)} · ${esc(p.categoria)}</p>
                         </div>
                     </div>
-                    <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-[var(--cs-border,#374151)]">
+                    <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-gray-200">
                         <div class="text-center leading-tight">
-                            <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] uppercase">${esc(opts.labels.stock)}</p>
+                            <p class="text-[8px] text-gray-500 uppercase">${esc(opts.labels.stock)}</p>
                             <p class="text-sm font-bold ${status.stockColor}">${stockVal}</p>
                         </div>
                         <div class="text-center leading-tight">
-                            <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] uppercase">${esc(opts.labels.min)}</p>
-                            <p class="text-sm font-bold text-white">${p.min}</p>
+                            <p class="text-[8px] text-gray-500 uppercase">${esc(opts.labels.min)}</p>
+                            <p class="text-sm font-bold text-gray-800">${p.min}</p>
                         </div>
                         <div class="text-center leading-tight">
-                            <p class="text-[8px] text-[var(--cs-text-muted,#9CA3AF)] uppercase">${esc(opts.labels.max)}</p>
-                            <p class="text-sm font-bold text-white">${p.max}</p>
+                            <p class="text-[8px] text-gray-500 uppercase">${esc(opts.labels.max)}</p>
+                            <p class="text-sm font-bold text-gray-800">${p.max}</p>
                         </div>
                     </div>
                 </div>
@@ -899,20 +899,20 @@ class StockView extends Templates {
 
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
-                        <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.existencias)}</h4>
+                        <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${esc(opts.labels.existencias)}</h4>
                         <span class="text-[9px] text-gray-500">Total: ${(p.stockSuc && p.stockSuc[''] != null) ? p.stockSuc[''] : 0}</span>
                     </div>
                     <div class="space-y-1.5">${branchListHtml}</div>
                 </div>
 
                 <div>
-                    <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[var(--cs-text-muted,#9CA3AF)] mb-1.5">${esc(opts.labels.almacenes)}</h4>
+                    <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">${esc(opts.labels.almacenes)}</h4>
                     <div class="flex flex-wrap gap-1.5">${almacenesHtml}</div>
                 </div>
 
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
-                        <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[var(--cs-text-muted,#9CA3AF)]">${esc(opts.labels.historial)}</h4>
+                        <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${esc(opts.labels.historial)}</h4>
                         <span class="text-[9px] text-gray-500">${movsToShow.length} de ${movsAll.length}${movsAll.length > 10 ? ' (ultimos 10)' : ''}</span>
                     </div>
                     <div class="space-y-1.5">${movsHtml || '<p class="text-[10px] text-gray-500 italic">Sin movimientos</p>'}</div>

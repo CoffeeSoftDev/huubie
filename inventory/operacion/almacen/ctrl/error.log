@@ -1,3 +1,947 @@
+[ 2026-06-07 09:56:04 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:56:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:55:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND m.shrinkage_reason_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:55:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:53:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:52:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:52:35 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:51:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.inflow_origin_id = ? AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:51:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.inflow_origin_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:51:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:51:40 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:51:23 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:49:27 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:49:04 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:48:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:48:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status = ? AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:48:35 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:46:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:46:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:46:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:46:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:46:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:46:19 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-07 09:46:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.subsidiaries_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
 [ 2026-06-06 23:43:06 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: ROSY$

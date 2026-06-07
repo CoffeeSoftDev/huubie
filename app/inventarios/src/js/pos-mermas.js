@@ -1403,7 +1403,7 @@ class MermasView extends Templates {
                             <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider font-bold">${esc(opts.labels.detalleLbl)}</p>
                             <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider font-bold">${items.length} ${items.length === 1 ? 'producto' : 'productos'}</p>
                         </div>
-                        <div class="bg-[#1F2937] rounded-lg p-1.5">
+                        <div class="bg-[#1F2937] rounded-lg p-2">
                             <div class="overflow-x-auto">${productTable(m)}</div>
                             <!-- Perdida total debajo de la tabla -->
                             <div class="flex items-center justify-between mt-2 pt-2">

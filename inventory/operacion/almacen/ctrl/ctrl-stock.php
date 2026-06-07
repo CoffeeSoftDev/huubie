@@ -164,7 +164,7 @@ class ctrl extends mdl {
             'almacenes' => $almacenes,
             'movs'      => $movs,
             'vida'      => ['dias' => $dias, 'label' => $vidaLabel],
-            'iconBg'    => 'bg-[#1F2A37]',
+            'iconBg'    => 'bg-gray-100',
             'iconText'  => 'text-gray-500'
         ];
 
@@ -199,12 +199,12 @@ class ctrl extends mdl {
 
         return '
             <div class="flex items-center gap-3">
-                <div class="relative flex-shrink-0 w-10 h-10 rounded-md bg-[#1F2A37] flex items-center justify-center overflow-hidden' . $hover . '"' . $click . '>
-                    <i class="icon-cube text-gray-500 text-lg"></i>
+                <div class="relative flex-shrink-0 w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center overflow-hidden' . $hover . '"' . $click . '>
+                    <i class="icon-cube text-gray-400 text-lg"></i>
                     ' . $imgTag . '
                 </div>
                 <div class="flex flex-col leading-tight">
-                    <span class="text-sm text-white">' . $label . '</span>
+                    <span class="text-sm text-gray-800">' . $label . '</span>
                     ' . $skuTag . '
                 </div>
             </div>';

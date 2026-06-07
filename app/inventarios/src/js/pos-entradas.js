@@ -1151,7 +1151,7 @@ class EntradasView extends Templates {
         const defaults = {
             parent:    'root',
             id:        'entradaDetailPanel',
-            class:     'w-full h-full flex-shrink-0 bg-[#141d2b] border-l border-[#374151] flex flex-col overflow-hidden',
+            class:     'w-full h-full flex-shrink-0 bg-[#141d2b] flex flex-col overflow-hidden',
             json:      null,
             labels: {
                 emptyTitle:  'Selecciona una entrada',
@@ -1244,7 +1244,7 @@ class EntradasView extends Templates {
             const base       = 'flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5';
             const off        = 'opacity-40 cursor-not-allowed';
             const wrap       = (inner) => `
-                <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">${inner}</div>`;
+                <div class="px-4 py-3 flex gap-2 flex-shrink-0">${inner}</div>`;
 
             // Modo edicion (sobre una entrada Aplicada): Guardar + Cancelar edicion.
             if (editing) {
@@ -1286,14 +1286,14 @@ class EntradasView extends Templates {
 
         // Estado vacio: sin entrada seleccionada.
         const emptyView = () => `
-            <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
+            <div class="px-3 py-3 flex-shrink-0 flex items-center justify-between">
                 <div>
                     <h3 class="text-sm font-bold text-white">Vista de la Entrada</h3>
                     <p class="text-[10px] text-[#9CA3AF]">${esc(opts.labels.subtitleLbl)}</p>
                 </div>
             </div>
             <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
-                <div class="w-14 h-14 rounded-full bg-[#1F2937] border border-[#374151] flex items-center justify-center mb-3">
+                <div class="w-14 h-14 rounded-full bg-[#1F2937] flex items-center justify-center mb-3">
                     <i data-lucide="arrow-down-to-line" class="w-6 h-6 text-[#9CA3AF]"></i>
                 </div>
                 <p class="text-[11px] text-[#9CA3AF]">${esc(opts.labels.emptyTitle)}</p>
@@ -1334,9 +1334,9 @@ class EntradasView extends Templates {
                     : '';
 
                 return `
-                    <tr class="border-b border-[#374151]/40 hover:bg-[#1F2937]/40 transition-colors">
+                    <tr class="hover:bg-[#1F2937]/40 transition-colors">
                         <td class="py-1.5 px-2">
-                            <p class="text-[12px] font-bold text-white leading-tight truncate">${esc(p.nombre)}</p>
+                            <p class="text-[12px] font-semibold text-white leading-tight truncate">${esc(p.nombre)}</p>
                         </td>
                         ${reportadaCol}
                         <td class="py-1.5 px-2 text-center whitespace-nowrap">${entroCell}</td>
@@ -1357,7 +1357,7 @@ class EntradasView extends Templates {
                 : '';
             const totalFoot = (e.productos || []).length ? `
                     <tfoot>
-                        <tr class="border-t border-[#374151] bg-[#0E1521]/60">
+                        <tr class="bg-[#0E1521]/60">
                             <td class="py-2 px-2 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</td>
                             ${reportadaFoot}
                             <td class="py-2 px-2 text-center font-bold text-green-400 whitespace-nowrap" id="${opts.id}_footEntro">+${totEntro}</td>
@@ -1369,7 +1369,7 @@ class EntradasView extends Templates {
             return `
                 <table class="w-full text-[11px] border-collapse">
                     <thead>
-                        <tr class="text-[10px] text-[#9CA3AF] uppercase tracking-wider bg-[#0E1521] border-b border-[#374151]">
+                        <tr class="text-[10px] text-[#9CA3AF] uppercase tracking-wider bg-[#0E1521]">
                             <th class="py-2 px-2 text-left font-bold">Producto</th>
                             ${reportadaHead}
                             <th class="py-2 px-2 text-center font-bold">${entroLabel}</th>
@@ -1410,7 +1410,7 @@ class EntradasView extends Templates {
             const estadoBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${estadoC.bg};color:${estadoC.fg};">${esc(e.estado)}</span>`;
 
             return `
-                <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
+                <div class="px-3 py-3 flex-shrink-0 flex items-center justify-between">
                     <div>
                         <h3 class="text-sm font-bold ${folioCol}">Entrada ${esc(e.folio)}</h3>
                         <p class="text-[10px] text-[#9CA3AF]">${esc(fmtFecha(e.fechaIso))}</p>
@@ -1428,7 +1428,7 @@ class EntradasView extends Templates {
                 <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
 
                     <!-- Resumen -->
-                    <div class="bg-[#1F2937] rounded-lg p-2 border border-[#374151] space-y-2">
+                    <div class="bg-[#1F2937] rounded-lg p-3 space-y-2">
                         <div class="flex justify-between items-center text-[11px]">
                             <span class="text-[#9CA3AF]">${esc(opts.labels.origen)}</span>
                             ${origenBadge}
@@ -1462,12 +1462,14 @@ class EntradasView extends Templates {
                             <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider">${esc(opts.labels.detalleLbl)}</p>
                             ${hint ? `<span class="text-[10px] text-[#9CA3AF] text-right">${esc(hint)}</span>` : ''}
                         </div>
-                        <div class="overflow-x-auto rounded-lg border border-[#374151]">${productTable(e, editable, esProduccion, editing)}</div>
+                        <div class="bg-[#1F2937] rounded-lg p-2">
+                            <div class="overflow-x-auto">${productTable(e, editable, esProduccion, editing)}</div>
+                        </div>
                     </div>
 
                     <!-- Nota -->
                     ${e.nota ? `
-                    <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151]">
+                    <div class="bg-[#1F2937] rounded-lg p-3">
                         <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-1">${esc(opts.labels.notaLbl)}</p>
                         <p class="text-[11px] text-gray-300">${esc(e.nota)}</p>
                     </div>` : ''}
