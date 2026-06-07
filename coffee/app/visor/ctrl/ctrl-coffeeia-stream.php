@@ -63,15 +63,25 @@ try {
     });
 
     $meta       = isset($result['meta']) && is_array($result['meta']) ? $result['meta'] : [];
-    $tokensUsed = $meta['eval_count'] ?? ($meta['usage']['completion_tokens'] ?? 0);
+    $usage      = isset($meta['usage']) && is_array($meta['usage']) ? $meta['usage'] : [];
+
+    $inTokens   = $meta['prompt_eval_count'] ?? ($usage['prompt_tokens']     ?? 0);
+    $outTokens  = $meta['eval_count']        ?? ($usage['completion_tokens'] ?? 0);
+    $tokensUsed = (int) $outTokens;
+
+    // Costo REAL en USD solo lo trae OpenRouter (usage.cost). Ollama -> null.
+    $costUsd    = isset($usage['cost']) ? (float) $usage['cost'] : null;
     $credits    = $tokensUsed > 0 ? round($tokensUsed / 1000, 4) : 0;
 
     $send('done', [
-        'ok'               => true,
-        'elapsed_ms'       => (int) round((microtime(true) - $t0) * 1000),
-        'tokens_used'      => (int) $tokensUsed,
-        'credits_estimate' => $credits,
-        'model'            => $meta['model'] ?? ($model ?: ''),
+        'ok'                => true,
+        'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
+        'tokens_used'       => (int) $tokensUsed,
+        'prompt_tokens'     => (int) $inTokens,
+        'completion_tokens' => (int) $outTokens,
+        'cost_usd'          => $costUsd,
+        'credits_estimate'  => $credits,
+        'model'             => $meta['model'] ?? ($model ?: ''),
     ]);
 } catch (Throwable $e) {
     $send('error', ['error' => "Error al conectar con $provider: " . $e->getMessage()]);

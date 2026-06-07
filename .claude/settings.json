@@ -81,7 +81,12 @@
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l \"c:/wamp64/www/huubie/inventory/operacion/almacen/ctrl/ctrl-almacen.php\")",
       "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\index.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\playground.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\documents-admin.php\")",
       "PowerShell($php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\index.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\playground.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\documents-admin.php\"; Test-Path \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\src\\\\js\\\\app-rail.js\")",
-      "PowerShell(Remove-Item \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\src\\\\js\\\\app-rail.js\" -Force; $php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\index.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\playground.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\documents-admin.php\")"
+      "PowerShell(Remove-Item \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\src\\\\js\\\\app-rail.js\" -Force; $php = \"c:\\\\wamp64\\\\bin\\\\php\\\\php7.4.33\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\index.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\playground.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\documents-admin.php\")",
+      "Bash(c:/wamp64/bin/php/php7.4.33/php.exe c:/tmp/test-save.php c:/wamp64/www/huubie/inventory/operacion/almacen/ctrl/ctrl-salidas.php)",
+      "Bash(sed -i '36,61d' js/almacen.js)",
+      "Bash(sed -n '30,45p' js/almacen.js)",
+      "Bash(sed -i '81,111d' js/almacen.js)",
+      "Bash(sed -n '60,95p' js/almacen.js)"
     ],
     "additionalDirectories": [
       "\\tmp"

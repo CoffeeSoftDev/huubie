@@ -10,6 +10,33 @@
 const PG_API        = 'ctrl/ctrl-visor.php';
 const PG_API_STREAM = 'ctrl/ctrl-coffeeia-stream.php';
 
+/**
+ * Footer de metadatos de un mensaje IA (gemelo del helper del Visor).
+ * Prioriza el COSTO REAL en USD (OpenRouter via usage.cost); si no hay costo
+ * (modelos Ollama) cae al "Credits" estimado por tokens. Suma tokens in/out y tiempo.
+ */
+function pgMetaItems(meta) {
+    if (!meta) return '';
+    const elapsedSec = meta.elapsed_ms > 0 ? (meta.elapsed_ms / 1000).toFixed(1) + 's' : '—';
+
+    let costItem;
+    if (meta.cost != null && !isNaN(meta.cost)) {
+        const c   = Number(meta.cost);
+        const txt = (c === 0 || c >= 0.0001) ? '$' + c.toFixed(4) : '<$0.0001';
+        costItem = `<span class="meta-item" title="Costo real de OpenRouter (USD)"><span class="dot"></span>Costo: <strong>${txt}</strong></span>`;
+    } else {
+        costItem = `<span class="meta-item" title="Estimacion por tokens de salida"><span class="dot"></span>Credits: <strong>${meta.credits ?? '—'}</strong></span>`;
+    }
+
+    let toksItem = '';
+    if (meta.promptTokens != null || meta.completionTokens != null) {
+        const fmt = n => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n || 0));
+        toksItem = `<span class="meta-item" title="Tokens entrada / salida">Tokens: <strong>${fmt(meta.promptTokens)} in / ${fmt(meta.completionTokens)} out</strong></span>`;
+    }
+
+    return costItem + toksItem + `<span class="meta-item">Time: <strong>${elapsedSec}</strong></span>`;
+}
+
 const PG_STORE_KEY  = 'playground:settings:v1';
 
 // Agentes que el playground sabe presentar. `render` define como interpretar
@@ -665,8 +692,11 @@ async function pgSend(text, images) {
     await stream.drain();
     pg.history.push({ role: 'assistant', content: received });
     pgFinalizeResponse(stream, received, {
-        credits:    meta.credits_estimate,
-        elapsed_ms: meta.elapsed_ms
+        credits:          meta.credits_estimate,
+        cost:             meta.cost_usd,            // costo real USD (OpenRouter) o null (Ollama)
+        promptTokens:     meta.prompt_tokens,
+        completionTokens: meta.completion_tokens,
+        elapsed_ms:       meta.elapsed_ms
     }, false);
     pgPlayPopSound();
     pgFinish();
@@ -822,11 +852,9 @@ function pgCreateAIStream() {
             if (conjuring) { $msg.find('.ia-conjuring').remove(); $text.show(); }
             let metaHtml = '';
             if (meta) {
-                const elapsedSec = meta.elapsed_ms > 0 ? (meta.elapsed_ms / 1000).toFixed(1) + 's' : '—';
                 metaHtml = `
                     <div class="ia-msg-meta-footer">
-                        <span class="meta-item"><span class="dot"></span>Credits: <strong>${meta.credits ?? '—'}</strong></span>
-                        <span class="meta-item">Time: <strong>${elapsedSec}</strong></span>
+                        ${pgMetaItems(meta)}
                         <span class="meta-actions">
                             <button class="meta-iconbtn ia-copy-btn" title="Copiar respuesta"><i data-lucide="copy" class="w-3 h-3"></i></button>
                         </span>

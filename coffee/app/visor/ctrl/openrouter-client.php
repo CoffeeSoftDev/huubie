@@ -40,6 +40,9 @@ class OpenRouterClient {
             'model'    => $model ?: $this->defaultModel,
             'messages' => $this->adaptMessages($messages),
             'stream'   => false,
+            // Pide a OpenRouter el costo REAL de la llamada (USD) dentro de usage.cost,
+            // ademas del desglose prompt/completion tokens. Sin esto solo llegan tokens.
+            'usage'    => ['include' => true],
         ];
         // Mapea las "options" estilo Ollama (temperature, top_p, num_predict...)
         // a sus equivalentes OpenAI mas comunes.
@@ -71,6 +74,8 @@ class OpenRouterClient {
             'messages'       => $this->adaptMessages($messages),
             'stream'         => true,
             'stream_options' => ['include_usage' => true],
+            // Igual que en chat(): trae usage.cost (USD real) en el chunk final.
+            'usage'          => ['include' => true],
         ];
         if (isset($opts['temperature'])) $payload['temperature'] = $opts['temperature'];
         if (isset($opts['top_p']))       $payload['top_p']       = $opts['top_p'];

@@ -2,18 +2,6 @@ let api = 'ctrl/ctrl-almacen.php';
 let main, products;
 let categorias, unidades, areas, proveedores, almacenes;
 
-// Inventario.
-let api_inventario = 'ctrl/ctrl-inventario.php';
-let inventario, entradas, salidas;
-let productosInventario, almacenesInventario;
-let origenesEntrada, proveedoresEntrada, motivosSalida;
-
-// Movimientos.
-let api_movimientos = 'ctrl/ctrl-movimientos.php';
-let movimientos;
-
-let categorias_movimientos, meses, anios;
-
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
 let  cataloge, category, area, zone, warehouse, inflow, shrinkage;
@@ -43,36 +31,6 @@ $(async () => {
     // Productos.
     products = new Productos(api, "root");
     products.render();
-
-    // Inventario.
-    const invt          = await useFetch({ url: api_inventario, data: { opc: "init" } });
-    productosInventario = invt.productos    || [];
-    almacenesInventario = invt.almacenes    || [];
-    origenesEntrada     = invt.origenes     || [];
-    proveedoresEntrada  = invt.proveedores  || [];
-    motivosSalida        = invt.motivos      || [];
-
-    inventario = new Inventario(api_inventario, "root");
-    inventario.render();
-
-    // Entradas y Salidas (render perezoso al abrir su tab).
-    entradas = new Entradas(api_inventario, "root");
-    salidas   = new Salidas(api_inventario, "root");
-
-    // // Movimientos.
-
-    // const req = await useFetch({ url: api_movimientos, data: { opc: "init" } });
-    // categorias_movimientos = req.categorias;
-    // meses = req.meses;
-    // anios = req.anios;
-
-    // movimientos = new Movimientos(api_movimientos, "root");
-    // movimientos.render();
-
-
-
-
-
 });
 
 class Main extends Templates {
@@ -110,6 +68,8 @@ class Main extends Templates {
                     tab: "Catálogo",
                     lucideIcon: "book-open",
 
+                    active: true,
+
                     onClick: () => cataloge.render()
                 },
                 {
@@ -120,37 +80,6 @@ class Main extends Templates {
 
                     onClick: () => products.render()
                 },
-                {
-                    id: "inventario",
-                    tab: "Inventario",
-                    lucideIcon: "clipboard-list",
-
-                    active: true,
-
-                    onClick: () => inventario.render()
-                },
-                {
-                    id: "entradas",
-                    tab: "Entradas",
-                    lucideIcon: "arrow-down-to-line",
-
-                    onClick: () => entradas.render()
-                },
-                {
-                    id: "salidas",
-                    tab: "Salidas",
-                    lucideIcon: "trending-down",
-
-                    onClick: () => salidas.render()
-                },
-                // {
-                //     id: "movimientos",
-                //     tab: "Movimientos",
-                //     lucideIcon: "arrow-left-right",
-
-                //     onClick: () => movimientos.renderMovimiento()
-                // },
-               
             ]
         });
     }

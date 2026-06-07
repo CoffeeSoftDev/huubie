@@ -65,6 +65,10 @@
                     <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (free)</option>
                     <option value="google/gemma-4-31b-it:free">Gemma 4 31B (free)</option>
                 </optgroup>
+                <optgroup label="OpenRouter (de pago)">
+                    <option value="qwen/qwen3.7-max">Qwen3.7 Max (pago)</option>
+                    <option value="qwen/qwen3.6-27b">Qwen3.6 27B (pago)</option>
+                </optgroup>
             </select>
 
             <button id="pgThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">

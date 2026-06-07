@@ -3,8 +3,6 @@ let app, stock, stockView;
 
 let turno, subsidiaries_id;
 
-window.updateSession = () => { };
-
 const NIVELES_STOCK = [
     { id: '',        valor: 'Todos los niveles' },
     { id: 'ok',      valor: 'Stock OK'          },
@@ -25,10 +23,7 @@ $(async () => {
     await app.init();
 });
 
-
 class App extends Templates {
-
- 
 
     constructor(link, divModule) {
         super(link, divModule);
@@ -260,8 +255,6 @@ class App extends Templates {
     }
 
 }
-
-
 class Stock extends Templates {
 
     // -- Bootstrap --
@@ -337,8 +330,6 @@ class Stock extends Templates {
         app.selectProduct(id);
     }
 }
-
-
 class StockView extends Templates {
 
     // -- Bootstrap --
@@ -790,6 +781,7 @@ class StockView extends Templates {
         const stockVal      = (p.stockSuc || {})[sucId] != null ? p.stockSuc[sucId] : (p.stockSuc[''] || 0);
         const status        = opts.statusMap[p.estado] || opts.statusMap.ok;
         const statusPalette = opts.statusPalettes[status.palette];
+        const tieneVida     = !!(p.vida && p.vida.label && p.vida.label !== 'na');
         const vidaCfg       = opts.vidaMap[(p.vida && p.vida.label) || 'na'];
         const vidaPalette   = opts.vidaPalettes[vidaCfg.palette];
         const vidaText      = p.vida && p.vida.dias != null ? `${p.vida.dias} dias restantes` : 'Sin caducidad activa';
@@ -896,13 +888,14 @@ class StockView extends Templates {
                 </div>
 
                 <!-- Bloque VIDA UTIL -->
+                ${tieneVida ? `
                 <div class="rounded-lg border ${vidaPalette.border} ${vidaPalette.bg} px-3 py-2 flex items-start gap-2">
                     <i data-lucide="${vidaCfg.icon}" class="w-4 h-4 ${vidaPalette.text} flex-shrink-0 mt-0.5"></i>
                     <div class="flex-1 min-w-0">
                         <strong class="block text-xs ${vidaPalette.text}">${esc(opts.labels.vidaUtilLbl)}: ${esc(vidaCfg.label)} · ${esc(vidaText)}</strong>
                         <p class="text-[10px] text-gray-400">${esc(vidaCfg.msg)}</p>
                     </div>
-                </div>
+                </div>` : ''}
 
                 <!-- EXISTENCIAS POR SUCURSAL -->
                 <div>

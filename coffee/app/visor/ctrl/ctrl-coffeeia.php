@@ -31,9 +31,22 @@ try {
 $elapsed = (int) round((microtime(true) - $t0) * 1000);
 
 $reply       = $result['message']['content'] ?? ($result['response'] ?? '');
-$tokensUsed  = $result['eval_count'] ?? ($result['usage']['completion_tokens'] ?? 0);
-$credits     = $tokensUsed > 0 ? round($tokensUsed / 1000, 4) : 0;
+$usage       = isset($result['usage']) && is_array($result['usage']) ? $result['usage'] : [];
 $modelUsed   = $result['model'] ?? ($model ?: 'qwen3-coder:480b-cloud');
+
+// Desglose de tokens. Ollama usa prompt_eval_count/eval_count; OpenRouter (dialecto
+// OpenAI) usa prompt_tokens/completion_tokens. Tomamos lo que exista.
+$inTokens    = $result['prompt_eval_count'] ?? ($usage['prompt_tokens']     ?? 0);
+$outTokens   = $result['eval_count']        ?? ($usage['completion_tokens'] ?? 0);
+$tokensUsed  = (int) $outTokens;
+
+// Costo REAL en USD: solo OpenRouter lo devuelve (usage.cost) gracias a usage.include.
+// Para Ollama (local/cloud propio) no hay costo monetario -> null.
+$costUsd     = isset($usage['cost']) ? (float) $usage['cost'] : null;
+
+// "Credits" estimado heredado (tokens de salida / 1000). Se mantiene como fallback
+// para Ollama, donde no hay costo real que mostrar.
+$credits     = $tokensUsed > 0 ? round($tokensUsed / 1000, 4) : 0;
 
 echo json_encode([
     'ok'              => true,
@@ -41,5 +54,8 @@ echo json_encode([
     'model'           => $modelUsed,
     'elapsed_ms'      => $elapsed,
     'tokens_used'     => (int) $tokensUsed,
+    'prompt_tokens'   => (int) $inTokens,
+    'completion_tokens'=> (int) $outTokens,
+    'cost_usd'        => $costUsd,
     'credits_estimate'=> $credits,
 ], JSON_UNESCAPED_UNICODE);

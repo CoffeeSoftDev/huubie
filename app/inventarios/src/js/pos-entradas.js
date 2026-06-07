@@ -1308,7 +1308,9 @@ class EntradasView extends Templates {
         // o al editar una entrada ya aplicada (parte de lo que ya entro); en otros casos
         // es solo lectura.
         const productTable = (e, editable, mostrarReportada, startFromConfirmed) => {
-            const cols = mostrarReportada ? 6 : 5;
+            const cols = mostrarReportada ? 5 : 4;
+
+            let totReportada = 0, totEntro = 0, totSubtotal = 0;
 
             const rows = (e.productos || []).map(p => {
                 // Valor inicial del input: en edicion parte de la cantidad confirmada (lo
@@ -1317,6 +1319,10 @@ class EntradasView extends Templates {
                 const real     = editable ? startQty : Number(p.cantReal);
                 const subtotal = real * Number(p.costo);
 
+                totReportada += Number(p.cant || 0);
+                totEntro     += real;
+                totSubtotal  += subtotal;
+
                 const entroCell = editable
                     ? `<input type="number" min="0" step="any"
                               class="entrada-real-qty no-spin w-16 px-1.5 py-1 text-right rounded bg-[#141d2b] border border-[#374151] text-white text-[13px] focus:border-[#7C3AED] focus:outline-none"
@@ -1324,38 +1330,55 @@ class EntradasView extends Templates {
                     : `<span class="text-green-400 font-bold">+${real}</span>`;
 
                 const reportadaCol = mostrarReportada
-                    ? `<td class="py-1.5 px-1 text-center text-[#9CA3AF]">${p.cant}</td>`
+                    ? `<td class="py-1.5 px-2 text-center text-[#9CA3AF]">${p.cant}</td>`
                     : '';
 
                 return `
-                    <tr class="border-b border-[#374151]/50">
-                        <td class="py-1.5 px-1">
-                            <p class="text-[12px] font-bold text-white leading-tight">${esc(p.nombre)}</p>
+                    <tr class="border-b border-[#374151]/40 hover:bg-[#1F2937]/40 transition-colors">
+                        <td class="py-1.5 px-2">
+                            <p class="text-[12px] font-bold text-white leading-tight truncate">${esc(p.nombre)}</p>
                         </td>
                         ${reportadaCol}
-                        <td class="py-1.5 px-1 text-center whitespace-nowrap">${entroCell}</td>
-                        <td class="py-1.5 px-1 text-right text-white whitespace-nowrap">${fmtMoney(p.costo)}</td>
-                        <td class="py-1.5 px-1 text-right text-white font-bold whitespace-nowrap" data-subtotal-for="${p.detailId}">${fmtMoneyShort(subtotal)}</td>
+                        <td class="py-1.5 px-2 text-center whitespace-nowrap">${entroCell}</td>
+                        <td class="py-1.5 px-2 text-right text-white whitespace-nowrap">${fmtMoney(p.costo)}</td>
+                        <td class="py-1.5 px-2 text-right text-white font-bold whitespace-nowrap" data-subtotal-for="${p.detailId}">${fmtMoneyShort(subtotal)}</td>
                     </tr>`;
             }).join('');
 
             const reportadaHead = mostrarReportada
-                ? `<th class="py-1 px-1 text-center font-semibold">Report.</th>`
+                ? `<th class="py-2 px-2 text-center font-bold">Rep.</th>`
                 : '';
-            const entroLabel = mostrarReportada ? 'Entro' : esc(opts.labels.cant);
+            const entroLabel = mostrarReportada ? 'Entró' : esc(opts.labels.cant);
+
+            // Fila TOTAL al pie: suma de Entró (verde) y Subtotal (negrita). Las columnas
+            // sin agregado (Rep., Costo) muestran un guion.
+            const reportadaFoot = mostrarReportada
+                ? `<td class="py-2 px-2 text-center text-[#6B7280]">—</td>`
+                : '';
+            const totalFoot = (e.productos || []).length ? `
+                    <tfoot>
+                        <tr class="border-t border-[#374151] bg-[#0E1521]/60">
+                            <td class="py-2 px-2 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</td>
+                            ${reportadaFoot}
+                            <td class="py-2 px-2 text-center font-bold text-green-400 whitespace-nowrap" id="${opts.id}_footEntro">+${totEntro}</td>
+                            <td class="py-2 px-2 text-right text-[#6B7280]">—</td>
+                            <td class="py-2 px-2 text-right font-bold text-white whitespace-nowrap" id="${opts.id}_footSubtotal">${fmtMoney(totSubtotal)}</td>
+                        </tr>
+                    </tfoot>` : '';
 
             return `
                 <table class="w-full text-[11px] border-collapse">
                     <thead>
-                        <tr class="text-[11px] text-[#9CA3AF] tracking-wider border-b border-[#374151]">
-                            <th class="py-1 px-1 text-left font-semibold">Producto</th>
+                        <tr class="text-[10px] text-[#9CA3AF] uppercase tracking-wider bg-[#0E1521] border-b border-[#374151]">
+                            <th class="py-2 px-2 text-left font-bold">Producto</th>
                             ${reportadaHead}
-                            <th class="py-1 px-1 text-center font-semibold">${entroLabel}</th>
-                            <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.costo)}</th>
-                            <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.subtotal)}</th>
+                            <th class="py-2 px-2 text-center font-bold">${entroLabel}</th>
+                            <th class="py-2 px-2 text-right font-bold">${esc(opts.labels.costo)}</th>
+                            <th class="py-2 px-2 text-right font-bold">${esc(opts.labels.subtotal)}</th>
                         </tr>
                     </thead>
                     <tbody>${rows || `<tr><td colspan="${cols}" class="py-2 text-center text-[12px] text-gray-500 italic">Sin productos</td></tr>`}</tbody>
+                    ${totalFoot}
                 </table>`;
         };
 
@@ -1439,7 +1462,7 @@ class EntradasView extends Templates {
                             <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider">${esc(opts.labels.detalleLbl)}</p>
                             ${hint ? `<span class="text-[10px] text-[#9CA3AF] text-right">${esc(hint)}</span>` : ''}
                         </div>
-                        <div class="overflow-x-auto">${productTable(e, editable, esProduccion, editing)}</div>
+                        <div class="overflow-x-auto rounded-lg border border-[#374151]">${productTable(e, editable, esProduccion, editing)}</div>
                     </div>
 
                     <!-- Nota -->
@@ -1499,6 +1522,8 @@ class EntradasView extends Templates {
                     });
                     $(`#${opts.id}_totUds`).text(`${(e.productos || []).length} tipos / ${uds} uds`);
                     $(`#${opts.id}_totCosto`).text(fmtMoney(costo));
+                    $(`#${opts.id}_footEntro`).text('+' + uds);
+                    $(`#${opts.id}_footSubtotal`).text(fmtMoney(costo));
                 };
                 $(`#${opts.id}`).on('input', '.entrada-real-qty', recalc);
 
