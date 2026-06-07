@@ -414,24 +414,24 @@ class StockView extends Templates {
                 empty: 'Sin indicadores'
             },
             tones: {
-                default: 'text-white',
-                success: 'cs-text-success text-[var(--cs-success,#3FC189)]',
-                warning: 'cs-text-warning text-[var(--cs-warning,#FBBF24)]',
-                danger:  'cs-text-danger  text-[#FDA4AF]',
-                info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]',
-                purple:  'cs-text-purple  text-[#FCD34D]'
+                default: 'text-gray-800',
+                success: 'text-green-600',
+                warning: 'text-amber-500',
+                danger:  'text-red-600',
+                info:    'text-blue-600',
+                purple:  'text-purple-600'
             },
             iconBgTones: {
-                default: 'bg-slate-500/15',
-                success: 'bg-emerald-500/15',
-                warning: 'bg-amber-500/15',
-                danger:  'bg-rose-500/28',
-                info:    'bg-blue-500/15',
-                purple:  'bg-amber-500/28'
+                default: 'bg-slate-100',
+                success: 'bg-emerald-100',
+                warning: 'bg-amber-100',
+                danger:  'bg-rose-100',
+                info:    'bg-blue-100',
+                purple:  'bg-purple-100'
             },
-            cardClass:  'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
-            labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)] whitespace-nowrap truncate',
-            valueClass: 'cs-kpi-value text-sm font-bold',
+            cardClass:  'bg-white rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:shadow-md transition-shadow',
+            labelClass: 'text-[10px] uppercase tracking-wider font-bold text-gray-500 whitespace-nowrap truncate',
+            valueClass: 'text-lg font-bold',
             iconWrapClass: 'w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0',
             iconClass:     'w-3.5 h-3.5',
             onClick:    () => { }
