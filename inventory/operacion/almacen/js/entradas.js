@@ -320,7 +320,7 @@ class Entradas extends Templates {
         this.createCoffeeTable3({
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
-            theme:        'invernal',
+            theme:        'light',
             center:       [2, 3, 7],
             right:        [4],
             actionsAlign: 'left',
