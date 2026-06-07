@@ -27,6 +27,7 @@ class Access extends MAccess {
             setcookie("company_id", $usr['company_id'], $expira, "/");
             setcookie("company",    $usr['company'],    $expira, "/");
 
+            $_SESSION['IDU']    = $usr['IDU'];                                            // id usuario
             $_SESSION['user_id']    = $usr['IDU'];                                            // id usuario
             $_SESSION['company_id'] = $usr['company_id'];                                     // id compania
             $_SESSION['company']    = $usr['company'];                                        // nombre de la compania
