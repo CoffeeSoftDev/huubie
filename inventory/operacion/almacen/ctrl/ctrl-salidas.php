@@ -6,7 +6,7 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
-require_once '../mdl/mdl-mermas.php';
+require_once '../mdl/mdl-salidas.php';
 require_once '../../../conf/coffeSoft.php';
 
 class ctrl extends mdl {
@@ -46,13 +46,13 @@ class ctrl extends mdl {
             'user_id'         => $this->userId,
             'sucursales'      => $this->lsSucursales([$this->companiesId]),
             'almacenes'       => $this->lsWarehouses(['companies_id' => $this->companiesId]),
-            'motivos_merma'   => $this->lsShrinkageReasons(),
+            'motivos_salida'   => $this->lsShrinkageReasons(),
             'productos'       => $productos
         ];
     }
 
-    function lsMermas() {
-        $rows = $this->qMermas([
+    function lsSalidas() {
+        $rows = $this->qSalidas([
             'companies_id'    => $this->companiesId,
             'subsidiaries_id' => $_POST['subsidiaries_id'] ?? '',
             'reason_id'       => $_POST['reason_id']       ?? '',
@@ -62,24 +62,24 @@ class ctrl extends mdl {
         ]);
 
         $row = [];
-        foreach ($rows as $merma) {
+        foreach ($rows as $salida) {
             $row[] = [
-                'id'         => $merma['id'],
-                'Folio'      => $merma['folio'],
-                'Motivo'     => badge($merma['reason_name'], $merma['reason_color']),
-                'Sucursal'   => $merma['subsidiary_name'] ?: '-',
-                'Almacen'    => $merma['warehouse_name']  ?: '-',
-                'Productos'  => (int) $merma['total_products'],
-                'Unidades'   => (float) $merma['total_units'],
-                'Costo'      => '<span class="text-red-400">' . evaluar((float) $merma['total_cost_loss']) . '</span>',
-                'Fecha'      => date('Y-m-d H:i', strtotime($merma['created_at'])),
-                'Estado'     => statusBadge($merma['status']),
-                'Registrado' => $merma['user_name'] ?: '-',
+                'id'         => $salida['id'],
+                'Folio'      => $salida['folio'],
+                'Motivo'     => badge($salida['reason_name'], $salida['reason_color']),
+                'Sucursal'   => $salida['subsidiary_name'] ?: '-',
+                'Almacen'    => $salida['warehouse_name']  ?: '-',
+                'Productos'  => (int) $salida['total_products'],
+                'Unidades'   => (float) $salida['total_units'],
+                'Costo'      => '<span class="text-red-400">' . evaluar((float) $salida['total_cost_loss']) . '</span>',
+                'Fecha'      => date('Y-m-d H:i', strtotime($salida['created_at'])),
+                'Estado'     => statusBadge($salida['status']),
+                'Registrado' => $salida['user_name'] ?: '-',
                 'a' => [
                     [
                         'class'   => 'btn btn-sm btn-secondary me-1',
                         'html'    => '<i class="icon-eye"></i>',
-                        'onclick' => "mermas.getMerma({$merma['id']})"
+                        'onclick' => "salidas.getSalida({$salida['id']})"
                     ]
                 ]
             ];
@@ -87,8 +87,8 @@ class ctrl extends mdl {
         return ['status' => 200, 'row' => $row];
     }
 
-    function showMermas() {
-        $kpis = $this->getMermaKpis([
+    function showSalidas() {
+        $kpis = $this->getSalidaKpis([
             'companies_id'    => $this->companiesId,
             'subsidiaries_id' => $_POST['subsidiaries_id'] ?? '',
             'fi'              => $_POST['fi']              ?? '',
@@ -97,15 +97,15 @@ class ctrl extends mdl {
         return ['status' => 200, 'counts' => $kpis];
     }
 
-    function getMerma() {
+    function getSalida() {
         $id     = (int) $_POST['id'];
-        $header = $this->qGetMerma([$id]);
-        if (!$header) return ['status' => 404, 'message' => 'Merma no encontrada'];
-        $detail = $this->getMermaDetail([$id]);
+        $header = $this->qGetSalida([$id]);
+        if (!$header) return ['status' => 404, 'message' => 'Salida no encontrada'];
+        $detail = $this->getSalidaDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
 
-    function saveMerma() {
+    function saveSalida() {
         $payload   = json_decode($_POST['payload'] ?? '[]', true);
         $productos = $payload['productos'] ?? [];
 
@@ -137,7 +137,7 @@ class ctrl extends mdl {
             }
         }
 
-        $ok = $this->insertMerma([
+        $ok = $this->insertSalida([
             $folio,
             $payload['note']         ?? null,
             $evidenceUrl,
@@ -152,13 +152,13 @@ class ctrl extends mdl {
             $this->companiesId
         ]);
 
-        if (!$ok) return ['status' => 500, 'message' => 'No se pudo registrar la merma'];
+        if (!$ok) return ['status' => 500, 'message' => 'No se pudo registrar la salida'];
 
-        $mermaRow = $this->_Read(
+        $salidaRow = $this->_Read(
             "SELECT id FROM {$this->bd}inventory_shrinkage WHERE folio = ? AND companies_id = ? LIMIT 1",
             [$folio, $this->companiesId]
         );
-        $mermaId = (int) ($mermaRow[0]['id'] ?? 0);
+        $salidaId = (int) ($salidaRow[0]['id'] ?? 0);
 
         foreach ($productos as $producto) {
             $productId = (int) $producto['product_id'];
@@ -170,14 +170,14 @@ class ctrl extends mdl {
             $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
             $post     = max(0, $prev - $qty);
 
-            $this->insertMermaDetail([
+            $this->insertSalidaDetail([
                 $qty,
                 $cost,
                 $qty * $cost,
                 $prev,
                 $post,
                 $productId,
-                $mermaId
+                $salidaId
             ]);
 
             if ($stockRow) {
@@ -185,22 +185,22 @@ class ctrl extends mdl {
             }
         }
 
-        return ['status' => 200, 'message' => 'Merma registrada', 'folio' => $folio, 'id' => $mermaId];
+        return ['status' => 200, 'message' => 'Salida registrada', 'folio' => $folio, 'id' => $salidaId];
     }
 
-    function cancelMerma() {
+    function cancelSalida() {
         $id     = (int) $_POST['id'];
-        $header = $this->qGetMerma([$id]);
+        $header = $this->qGetSalida([$id]);
 
         if (!$header) {
-            return ['status' => 404, 'message' => 'Merma no encontrada'];
+            return ['status' => 404, 'message' => 'Salida no encontrada'];
         }
         if ($header['status'] === 'Cancelada') {
-            return ['status' => 400, 'message' => 'La merma ya esta cancelada'];
+            return ['status' => 400, 'message' => 'La salida ya esta cancelada'];
         }
 
         $warehouse = (int) $header['warehouse_id'];
-        $detail    = $this->getMermaDetail([$id]);
+        $detail    = $this->getSalidaDetail([$id]);
         foreach ($detail as $d) {
             $productId = (int) $d['product_id'];
             $qty       = (float) $d['quantity'];
@@ -213,33 +213,33 @@ class ctrl extends mdl {
             }
         }
 
-        $r = $this->qCancelMerma([$id]);
+        $r = $this->qCancelSalida([$id]);
         return [
             'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Merma cancelada y stock restaurado' : 'No se pudo cancelar'
+            'message' => $r ? 'Salida cancelada y stock restaurado' : 'No se pudo cancelar'
         ];
     }
 
-    function deleteMerma() {
+    function deleteSalida() {
         $id     = (int) $_POST['id'];
-        $header = $this->qGetMerma([$id]);
-        if (!$header) return ['status' => 404, 'message' => 'Merma no encontrada'];
+        $header = $this->qGetSalida([$id]);
+        if (!$header) return ['status' => 404, 'message' => 'Salida no encontrada'];
         if (($header['status'] ?? '') !== 'Cancelada') {
-            return ['status' => 400, 'message' => 'Solo se puede eliminar una merma cancelada'];
+            return ['status' => 400, 'message' => 'Solo se puede eliminar una salida cancelada'];
         }
-        $r = $this->deleteMermaById([$id]);
+        $r = $this->deleteSalidaById([$id]);
         return [
             'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Merma eliminada' : 'No se pudo eliminar'
+            'message' => $r ? 'Salida eliminada' : 'No se pudo eliminar'
         ];
     }
 
-    function saveMermaEvidence() {
+    function saveSalidaEvidence() {
         $id     = (int) $_POST['id'];
-        $header = $this->qGetMerma([$id]);
-        if (!$header) return ['status' => 404, 'message' => 'Merma no encontrada'];
+        $header = $this->qGetSalida([$id]);
+        if (!$header) return ['status' => 404, 'message' => 'Salida no encontrada'];
         if (($header['status'] ?? '') === 'Cancelada') {
-            return ['status' => 400, 'message' => 'No se puede modificar la evidencia de una merma cancelada'];
+            return ['status' => 400, 'message' => 'No se puede modificar la evidencia de una salida cancelada'];
         }
 
         $dir    = __DIR__ . '/../../../../inventory/uploads/mermas/';
@@ -251,7 +251,7 @@ class ctrl extends mdl {
                 $oldFile = $dir . basename($oldUrl);
                 if (is_file($oldFile)) @unlink($oldFile);
             }
-            $this->updateMermaEvidence([null, $id]);
+            $this->updateSalidaEvidence([null, $id]);
             return ['status' => 200, 'message' => 'Evidencia eliminada', 'evidence_url' => null];
         }
 
@@ -275,7 +275,7 @@ class ctrl extends mdl {
             if (is_file($oldFile)) @unlink($oldFile);
         }
 
-        $this->updateMermaEvidence([$url, $id]);
+        $this->updateSalidaEvidence([$url, $id]);
         return ['status' => 200, 'message' => 'Evidencia actualizada', 'evidence_url' => $url];
     }
 }

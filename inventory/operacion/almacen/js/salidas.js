@@ -1,14 +1,14 @@
-let apiMermas = 'ctrl/ctrl-mermas.php';
-let app, mermas, mermasView;
+let apiSalidas = 'ctrl/ctrl-salidas.php';
+let app, salidas, salidasView;
 
 let subsidiaries_id;
 
 window.updateSession = () => { };
 
 $(async () => {
-    mermasView = new MermasView(apiMermas, 'root');
-    mermas     = new Mermas(apiMermas, 'root');
-    app        = new App(apiMermas, 'root');
+    salidasView = new SalidasView(apiSalidas, 'root');
+    salidas     = new Salidas(apiSalidas, 'root');
+    app        = new App(apiSalidas, 'root');
     await app.init();
 });
 
@@ -16,17 +16,17 @@ class App extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'mermas';
+        this.PROJECT_NAME = 'salidas';
         this.subId        = null;
     }
 
     async init() {
-        const r = await useFetch({ url: apiMermas, data: { opc: 'init' } });
+        const r = await useFetch({ url: apiSalidas, data: { opc: 'init' } });
         if (r && r.status === 200) {
             this.dataInit = {
                 subsidiaries_id: r.subsidiaries_id || '',
                 sucursales:      r.sucursales       || [],
-                motivos:         r.motivos_merma    || [],
+                motivos:         r.motivos_salida    || [],
                 almacenes:       r.almacenes        || [],
                 productos:       r.productos        || []
             };
@@ -48,14 +48,14 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        mermasView.renderHeader({
-            title:    'Mermas de Inventario',
+        salidasView.renderHeader({
+            title:    'Salidas de Inventario',
             subtitle: 'Control de perdidas por sucursal, motivo y periodo'
         });
-        mermasView.renderDetail(null);
+        salidasView.renderDetail(null);
         this.populateFilters();
-        mermas.lsMermas();
-        mermas.lsKpis();
+        salidas.lsSalidas();
+        salidas.lsKpis();
     }
 
     layout() {
@@ -141,11 +141,11 @@ class App extends Templates {
             },
             {
                 opc:       'button',
-                id:        'btnNuevaMerma',
-                text:      'Nueva Merma',
+                id:        'btnNuevaSalida',
+                text:      'Nueva Salida',
                 color_btn: 'primary',
                 class:     'col-12 col-md-2 col-lg-3',
-                onClick:   () => mermas.openMermaForm()
+                onClick:   () => salidas.openSalidaForm()
             }
         ];
 
@@ -228,8 +228,8 @@ class App extends Templates {
     }
 
     async onChangeFilters() {
-        mermas.lsMermas();
-        await mermas.lsKpis();
+        salidas.lsSalidas();
+        await salidas.lsKpis();
     }
 
     updateFooterInfo(text) {
@@ -237,18 +237,18 @@ class App extends Templates {
     }
 }
 
-class Mermas extends Templates {
+class Salidas extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'mermas';
+        this.PROJECT_NAME = 'salidas';
     }
 
-    async lsMermas() {
+    async lsSalidas() {
         const f = app.getFilters();
         const r = await useFetch({
-            url:  apiMermas,
-            data: Object.assign({ opc: 'lsMermas' }, {
+            url:  apiSalidas,
+            data: Object.assign({ opc: 'lsSalidas' }, {
                 subsidiaries_id: f.subsidiaries_id,
                 reason_id:       f.motivo,
                 fi:              f.fi,
@@ -269,7 +269,7 @@ class Mermas extends Templates {
             scrollable:   false,
             striped:      true,
             f_size:       12,
-            emptyMessage: 'No se encontraron mermas con los filtros aplicados',
+            emptyMessage: 'No se encontraron salidas con los filtros aplicados',
             emptyIcon:    'icon-trash-empty',
             data:         data
         });
@@ -280,15 +280,15 @@ class Mermas extends Templates {
         if (total > 0 && typeof simple_data_table === 'function') {
             simple_data_table(`#tb${this.PROJECT_NAME}`, 10);
         }
-        app.updateFooterInfo(`Mostrando ${total} merma${total !== 1 ? 's' : ''}`);
+        app.updateFooterInfo(`Mostrando ${total} salida${total !== 1 ? 's' : ''}`);
     }
 
     async lsKpis() {
         const f = app.getFilters();
         const r = await useFetch({
-            url:  apiMermas,
+            url:  apiSalidas,
             data: {
-                opc:             'showMermas',
+                opc:             'showSalidas',
                 subsidiaries_id: f.subsidiaries_id,
                 fi:              f.fi,
                 ff:              f.ff
@@ -303,23 +303,23 @@ class Mermas extends Templates {
 
         const kpis = [
             { id: 'kpiPerdida',   label: 'Perdida total', value: fmt(c.total_costo),                   tone: 'danger'  },
-            { id: 'kpiRegistros', label: 'Registros',     value: parseInt(c.total_mermas   || 0, 10),  tone: 'default' },
+            { id: 'kpiRegistros', label: 'Registros',     value: parseInt(c.total_salidas   || 0, 10),  tone: 'default' },
             { id: 'kpiUnidades',  label: 'Unidades',      value: parseInt(c.total_unidades || 0, 10),  tone: 'warning' },
             { id: 'kpiMotivo',    label: 'Motivo top',    value: c.motivo_top || '-',                   tone: 'purple'  }
         ];
-        mermasView.renderInfoCards(kpis);
+        salidasView.renderInfoCards(kpis);
     }
 
-    async getMerma(id) {
-        const r = await useFetch({ url: apiMermas, data: { opc: 'getMerma', id: id } });
+    async getSalida(id) {
+        const r = await useFetch({ url: apiSalidas, data: { opc: 'getSalida', id: id } });
         if (r && r.status === 200) {
-            mermasView.renderDetail(this.mapMermaDetail(r.header || {}, r.detail || []));
+            salidasView.renderDetail(this.mapSalidaDetail(r.header || {}, r.detail || []));
         } else {
-            mermasView.renderDetail(null);
+            salidasView.renderDetail(null);
         }
     }
 
-    mapMermaDetail(h, detail) {
+    mapSalidaDetail(h, detail) {
         const created = String(h.created_at || '');
         const ev      = h.evidence_url || '';
         const ver     = String(h.updated_at || h.created_at || '').replace(/[^0-9]/g, '');
@@ -351,12 +351,12 @@ class Mermas extends Templates {
         };
     }
 
-    openMermaForm() {
+    openSalidaForm() {
         const curSub = $('#subsidiaries_id').val() || app.subId;
-        if (!this.mermaFormApi) {
-            this.mermaFormApi = mermasView.mermaForm({
+        if (!this.salidaFormApi) {
+            this.salidaFormApi = salidasView.salidaForm({
                 parent: 'body',
-                id:     'mermaFormModal',
+                id:     'salidaFormModal',
                 json:   app.dataInit.productos || [],
                 data: {
                     motivos:         (app.dataInit.motivos    || []).filter(m => m.id !== ''),
@@ -381,39 +381,39 @@ class Mermas extends Templates {
                     };
 
                     const r = await useFetch({
-                        url:  apiMermas,
-                        data: { opc: 'saveMerma', payload: JSON.stringify(backendPayload) }
+                        url:  apiSalidas,
+                        data: { opc: 'saveSalida', payload: JSON.stringify(backendPayload) }
                     });
 
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || ('Merma ' + r.folio + ' registrada') });
-                        this.lsMermas();
+                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || ('Salida ' + r.folio + ' registrada') });
+                        this.lsSalidas();
                         this.lsKpis();
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la merma' });
+                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la salida' });
                     }
                 },
                 onClose: () => {}
             });
         }
-        this.mermaFormApi.setData({ subsidiaries_id: curSub, fecha: moment().format('YYYY-MM-DD') });
-        this.mermaFormApi.open();
+        this.salidaFormApi.setData({ subsidiaries_id: curSub, fecha: moment().format('YYYY-MM-DD') });
+        this.salidaFormApi.open();
     }
 
-    async printMerma(arg) {
+    async printSalida(arg) {
         let m = arg;
         if (!m || typeof m !== 'object') {
-            const r = await useFetch({ url: apiMermas, data: { opc: 'getMerma', id: arg } });
+            const r = await useFetch({ url: apiSalidas, data: { opc: 'getSalida', id: arg } });
             if (!(r && r.status === 200)) {
-                if (typeof alert === 'function') alert({ icon: 'error', text: 'No se pudo cargar la merma para imprimir' });
+                if (typeof alert === 'function') alert({ icon: 'error', text: 'No se pudo cargar la salida para imprimir' });
                 return;
             }
-            m = this.mapMermaDetail(r.header || {}, r.detail || []);
+            m = this.mapSalidaDetail(r.header || {}, r.detail || []);
         }
-        this.renderMermaDoc(m);
+        this.renderSalidaDoc(m);
     }
 
-    renderMermaDoc(m) {
+    renderSalidaDoc(m) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
@@ -458,17 +458,17 @@ class Mermas extends Templates {
         const reg            = m.registrado_por && m.registrado_por.name ? m.registrado_por.name : '-';
         const fechaImpresion = fmtFecha(new Date().toISOString());
 
-        const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Merma ${esc(m.folio||'')}</title>
+        const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Salida ${esc(m.folio||'')}</title>
         <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}tr.cat td{background:#efefef;font-weight:700;text-transform:uppercase;font-size:10px;color:#000;letter-spacing:.5px;padding:3px 8px;border-top:1px solid #000}.cat-count{float:right;color:#666;font-weight:600}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.nota{margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;color:#222}.nota b{display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555}.doc-footer{margin-top:28px;display:flex;justify-content:space-between;font-size:10px;color:#777;border-top:1px solid #ccc;padding-top:10px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
         </head><body>
         <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
         <div class="sheet">
-            <div class="doc-header"><div><div class="doc-title">Comprobante de Merma</div><div style="font-size:12px;color:#555;margin-top:3px">${esc(m.sucursal||'')}${m.almacen?' &middot; '+esc(m.almacen):''}</div></div><div><div class="folio">${esc(m.folio||'-')}</div>${m.status?`<span class="status">${esc(m.status)}</span>`:''}</div></div>
+            <div class="doc-header"><div><div class="doc-title">Comprobante de Salida</div><div style="font-size:12px;color:#555;margin-top:3px">${esc(m.sucursal||'')}${m.almacen?' &middot; '+esc(m.almacen):''}</div></div><div><div class="folio">${esc(m.folio||'-')}</div>${m.status?`<span class="status">${esc(m.status)}</span>`:''}</div></div>
             <div class="info-grid"><div class="info-item"><span class="k">Motivo</span><span class="v">${esc(m.motivo||'-')}</span></div><div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(m.fecha))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(m.sucursal||'-')}</span></div><div class="info-item"><span class="k">Almacen</span><span class="v">${esc(m.almacen||'-')}</span></div><div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(reg)}</span></div><div class="info-item"><span class="k">Productos</span><span class="v">${items.length} tipos · ${totUds} uds</span></div></div>
             <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="r">Costo unit.</th><th class="r">Subtotal</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="4" class="c">Sin productos</td></tr>'}</tbody></table>
             <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${items.length}</span></div><div class="totals-row"><span>Unidades</span><span>${totUds}</span></div><div class="totals-row grand"><span>Perdida total</span><span>-${fmtMoney(totCosto)}</span></div></div></div>
             ${m.nota?`<div class="nota"><b>Nota</b>${esc(m.nota)}</div>`:''}
-            <div class="doc-footer"><span>Huubie &middot; Inventarios &middot; Comprobante de merma</span><span>Generado: ${esc(fechaImpresion)}</span></div>
+            <div class="doc-footer"><span>Huubie &middot; Inventarios &middot; Comprobante de salida</span><span>Generado: ${esc(fechaImpresion)}</span></div>
         </div></body></html>`;
 
         const w = window.open('', '_blank', 'width=900,height=1000');
@@ -478,22 +478,22 @@ class Mermas extends Templates {
         w.focus();
     }
 
-    cancelMerma(id) {
+    cancelSalida(id) {
         this.swalQuestion({
             opts: {
-                title:             'Cancelar esta merma?',
+                title:             'Cancelar esta salida?',
                 text:              'El stock de los productos sera restaurado. Accion irreversible.',
                 icon:              'warning',
                 confirmButtonText: 'Si, cancelar',
                 cancelButtonText:  'No'
             },
-            data: { opc: 'cancelMerma', id: id },
+            data: { opc: 'cancelSalida', id: id },
             methods: {
                 send: (r) => {
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Merma cancelada' });
-                        mermasView.renderDetail(null);
-                        this.lsMermas();
+                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Salida cancelada' });
+                        salidasView.renderDetail(null);
+                        this.lsSalidas();
                         this.lsKpis();
                     } else {
                         if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo cancelar' });
@@ -503,22 +503,22 @@ class Mermas extends Templates {
         });
     }
 
-    deleteMerma(id) {
+    deleteSalida(id) {
         this.swalQuestion({
             opts: {
-                title:             'Eliminar esta merma?',
+                title:             'Eliminar esta salida?',
                 text:              'El formato cancelado se quitara del visor. Accion irreversible.',
                 icon:              'warning',
                 confirmButtonText: 'Si, eliminar',
                 cancelButtonText:  'No'
             },
-            data: { opc: 'deleteMerma', id: id },
+            data: { opc: 'deleteSalida', id: id },
             methods: {
                 send: (r) => {
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Merma eliminada' });
-                        mermasView.renderDetail(null);
-                        this.lsMermas();
+                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Salida eliminada' });
+                        salidasView.renderDetail(null);
+                        this.lsSalidas();
                         this.lsKpis();
                     } else {
                         if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo eliminar' });
@@ -531,12 +531,12 @@ class Mermas extends Templates {
     async uploadEvidence(id, dataUrl) {
         if (!dataUrl) return;
         const r = await useFetch({
-            url:  apiMermas,
-            data: { opc: 'saveMermaEvidence', id: id, evidence_b64: dataUrl }
+            url:  apiSalidas,
+            data: { opc: 'saveSalidaEvidence', id: id, evidence_b64: dataUrl }
         });
         if (r && r.status === 200) {
             if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Evidencia actualizada' });
-            this.getMerma(id);
+            this.getSalida(id);
         } else {
             if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo guardar la evidencia' });
         }
@@ -546,17 +546,17 @@ class Mermas extends Templates {
         this.swalQuestion({
             opts: {
                 title:             'Quitar evidencia?',
-                text:              'Se eliminara la foto de evidencia de esta merma.',
+                text:              'Se eliminara la foto de evidencia de esta salida.',
                 icon:              'warning',
                 confirmButtonText: 'Si, quitar',
                 cancelButtonText:  'No'
             },
-            data: { opc: 'saveMermaEvidence', id: id, evidence_b64: '' },
+            data: { opc: 'saveSalidaEvidence', id: id, evidence_b64: '' },
             methods: {
                 send: (r) => {
                     if (r && r.status === 200) {
                         if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Evidencia eliminada' });
-                        this.getMerma(id);
+                        this.getSalida(id);
                     } else {
                         if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo eliminar la evidencia' });
                     }
@@ -566,23 +566,23 @@ class Mermas extends Templates {
     }
 }
 
-class MermasView extends Templates {
+class SalidasView extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'mermas';
+        this.PROJECT_NAME = 'salidas';
     }
 
-    renderDetail(merma) {
-        this.mermaDetailPanel({
+    renderDetail(salida) {
+        this.salidaDetailPanel({
             parent:           'detailPanel',
-            json:             merma,
+            json:             salida,
             onClose:          ()  => this.renderDetail(null),
-            onImprimir:       (m) => { if (m) mermas.printMerma(m); },
-            onCancelar:       (m) => { if (m) mermas.cancelMerma(m.id); },
-            onDelete:         (m) => { if (m) mermas.deleteMerma(m.id); },
-            onUploadEvidence: (m, dataUrl) => { if (m) mermas.uploadEvidence(m.id, dataUrl); },
-            onRemoveEvidence: (m) => { if (m) mermas.removeEvidence(m.id); }
+            onImprimir:       (m) => { if (m) salidas.printSalida(m); },
+            onCancelar:       (m) => { if (m) salidas.cancelSalida(m.id); },
+            onDelete:         (m) => { if (m) salidas.deleteSalida(m.id); },
+            onUploadEvidence: (m, dataUrl) => { if (m) salidas.uploadEvidence(m.id, dataUrl); },
+            onRemoveEvidence: (m) => { if (m) salidas.removeEvidence(m.id); }
         });
     }
 
@@ -680,14 +680,14 @@ class MermasView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    mermaDetailPanel(options) {
+    salidaDetailPanel(options) {
         const defaults = {
             parent:   'root',
-            id:       'mermaDetailPanel',
+            id:       'salidaDetailPanel',
             class:    'w-full h-full flex-shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-hidden',
             json:     null,
             labels: {
-                emptyTitle:  'Selecciona una merma',
+                emptyTitle:  'Selecciona una salida',
                 emptyHint:   'Haz click en cualquier fila o en el icono ojo para ver el detalle aqui.',
                 subtitleLbl: 'Detalle de la perdida',
                 motivo:      'Motivo',
@@ -709,7 +709,7 @@ class MermasView extends Templates {
                 imprimir:    'Imprimir',
                 cancelar:    'Cancelar',
                 eliminar:    'Eliminar',
-                folioPrefix: 'Merma'
+                folioPrefix: 'Salida'
             },
             motivoPalettes: {
                 'Caducidad':        { bg: 'rgba(224,36,36,0.18)',  fg: '#F87171', icon: 'calendar-x'     },
@@ -809,7 +809,7 @@ class MermasView extends Templates {
         const emptyView = () => `
             <div class="px-3 py-3 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
                 <div>
-                    <h3 class="text-sm font-bold text-gray-800">Vista de la Merma</h3>
+                    <h3 class="text-sm font-bold text-gray-800">Vista de la Salida</h3>
                     <p class="text-[10px] text-gray-500">${esc(opts.labels.subtitleLbl)}</p>
                 </div>
             </div>
@@ -974,12 +974,12 @@ class MermasView extends Templates {
             `;
         };
 
-        const mermaId  = opts.json ? String(opts.json.id) : '';
+        const salidaId  = opts.json ? String(opts.json.id) : '';
         const $prevAside = $(`#${opts.id}`);
-        const samePrev   = mermaId !== '' && $prevAside.length && $prevAside.attr('data-merma-id') === mermaId;
+        const samePrev   = salidaId !== '' && $prevAside.length && $prevAside.attr('data-salida-id') === salidaId;
         const prevTop    = samePrev ? ($(`#${opts.id}_scroll`).scrollTop() || 0) : 0;
 
-        const aside = $('<aside>', { id: opts.id, class: opts.class, 'data-merma-id': mermaId });
+        const aside = $('<aside>', { id: opts.id, class: opts.class, 'data-salida-id': salidaId });
         aside.html(opts.json ? filledView(opts.json) : emptyView());
 
         $parent.html(aside);

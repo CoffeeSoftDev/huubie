@@ -31,25 +31,6 @@
 
 <body class="visor-body" data-theme="dark">
 
-    <!-- Rail de navegacion entre modulos (Visor / Playground / Admin) -->
-    <nav class="app-rail" aria-label="Modulos">
-        <div class="app-rail-logo">CS</div>
-        <div class="app-rail-nav">
-            <a href="index.php" class="app-rail-item active" title="Visor de Agentes">
-                <i data-lucide="layout-dashboard"></i>
-                <span class="app-rail-label">Visor</span>
-            </a>
-            <a href="playground.php" class="app-rail-item" title="Playground de Agentes">
-                <i data-lucide="flask-conical"></i>
-                <span class="app-rail-label">Lab</span>
-            </a>
-            <a href="documents-admin.php" class="app-rail-item" title="Admin de Documentos">
-                <i data-lucide="folder-cog"></i>
-                <span class="app-rail-label">Admin</span>
-            </a>
-        </div>
-    </nav>
-
     <header class="visor-header">
         <div class="vsr-header-left">
             <div class="visor-logo">VS</div>
@@ -99,6 +80,24 @@
     </header>
 
     <div class="visor-body-row">
+
+        <!-- Rail de navegacion entre modulos (Visor / Playground / Admin) -->
+        <nav class="app-rail" aria-label="Modulos">
+            <div class="app-rail-nav">
+                <a href="index.php" class="app-rail-item active" title="Visor de Agentes">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span class="app-rail-label">Visor</span>
+                </a>
+                <a href="playground.php" class="app-rail-item" title="Playground de Agentes">
+                    <i data-lucide="flask-conical"></i>
+                    <span class="app-rail-label">Lab</span>
+                </a>
+                <a href="documents-admin.php" class="app-rail-item" title="Admin de Documentos">
+                    <i data-lucide="folder-cog"></i>
+                    <span class="app-rail-label">Admin</span>
+                </a>
+            </div>
+        </nav>
 
         <aside class="visor-sidebar">
             <div class="sidebar-search-wrap">

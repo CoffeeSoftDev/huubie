@@ -1,4 +1,4 @@
-class MermaForm {
+class SalidaForm {
 
     constructor(options) {
 
@@ -15,7 +15,7 @@ class MermaForm {
 
         const defaults = {
             parent: 'body',
-            id:     'mermaFormModal',
+            id:     'salidaFormModal',
             class:  'hidden fixed inset-0 z-[100] flex items-center justify-center',
             json:   [],
             data: {
@@ -29,7 +29,7 @@ class MermaForm {
                 nota:            ''
             },
             labels: {
-                title:        'Registrar Merma',
+                title:        'Registrar Salida',
                 subtitle:     'Reporta productos dañados, vencidos o perdidos',
                 motivo:       'Motivo',
                 sucursal:     'Sucursal',
@@ -50,7 +50,7 @@ class MermaForm {
                 emptyHint:    'Usa el buscador para empezar',
                 limpiar:      'Limpiar',
                 cancelar:     'Cancelar',
-                registrar:    'Registrar Merma',
+                registrar:    'Registrar Salida',
                 stockAuto:    'El stock se descontara automaticamente',
                 agregar:      'Agregar'
             },
@@ -346,7 +346,7 @@ class MermaForm {
     }
 
     ensureStyles() {
-        if (document.getElementById('mermaFormStyles')) return;
+        if (document.getElementById('salidaFormStyles')) return;
         const css = `
             input.no-spin::-webkit-inner-spin-button,
             input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none !important; appearance: none !important; margin: 0 !important; }
@@ -361,7 +361,7 @@ class MermaForm {
             tr.mf-flash { animation: mfFlash 0.6s ease-out; }
             .mf-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid #D1D5DB; background: #F3F4F6; font-size: 8px; line-height: 1; color: #6B7280; font-family: monospace; }`;
         const style = document.createElement('style');
-        style.id = 'mermaFormStyles';
+        style.id = 'salidaFormStyles';
         style.textContent = css;
         document.head.appendChild(style);
     }
@@ -545,7 +545,7 @@ class MermaForm {
         const $qty = $(`#${popId}_qty`);
         $qty.trigger('focus').trigger('select');
 
-        const close = () => { $(document).off('mousedown.qtyPopMerma'); $pop.remove(); };
+        const close = () => { $(document).off('mousedown.qtyPopSalida'); $pop.remove(); };
         const backToSearch = () => {
             close();
             this.resetSearchState();
@@ -569,7 +569,7 @@ class MermaForm {
             if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); backToSearch(); } // no propagar: el Escape global cierra el modal entero
         });
         // Click fuera del popover (y fuera del buscador) lo cierra sin agregar.
-        setTimeout(() => $(document).on('mousedown.qtyPopMerma', (ev) => {
+        setTimeout(() => $(document).on('mousedown.qtyPopSalida', (ev) => {
             if (!$(ev.target).closest(`#${popId}, #${o.id}_buscarProducto`).length) backToSearch();
         }), 0);
     }
@@ -697,7 +697,7 @@ class MermaForm {
 
     clearLote() {
         if (!this.lote.length) return;
-        if (confirm('Eliminar todos los productos de la merma?')) {
+        if (confirm('Eliminar todos los productos de la salida?')) {
             this.lote = [];
             this.renderLote();
         }
@@ -769,7 +769,7 @@ class MermaForm {
 
     doRegistrar() {
         if (!this.lote.length) {
-            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Agrega al menos un producto a la merma' });
+            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Agrega al menos un producto a la salida' });
             return;
         }
         const o = this.opts;
@@ -808,7 +808,7 @@ class MermaForm {
         // El registro es definitivo y descuenta stock del almacen: se pide confirmacion.
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                title:              'Registrar esta merma?',
+                title:              'Registrar esta salida?',
                 html:               `Se registraran <strong>${totUds}</strong> uds con una perdida de <strong>${this.fmtMoney(totCosto)}</strong>.<br>El stock se descontara del almacen y la accion es definitiva.`,
                 icon:               'warning',
                 showCancelButton:   true,
@@ -842,7 +842,7 @@ class MermaForm {
         wrap.on('change', `#${id}_photoInput`,  (e) => this.onPhotoChange(e.target.files && e.target.files[0]));
         wrap.on('click',  `#${id}_photoRemove`, (e) => { e.stopPropagation(); this.removePhoto(); });
 
-        $(document).off('keydown.mermaForm').on('keydown.mermaForm', (e) => {
+        $(document).off('keydown.salidaForm').on('keydown.salidaForm', (e) => {
             if (e.key === 'Escape' && !this.wrap.hasClass('hidden')) this.closeModal();
         });
     }
@@ -917,6 +917,6 @@ class MermaForm {
     }
 }
 
-Templates.prototype.mermaForm = function (options) {
-    return new MermaForm(options);
+Templates.prototype.salidaForm = function (options) {
+    return new SalidaForm(options);
 };

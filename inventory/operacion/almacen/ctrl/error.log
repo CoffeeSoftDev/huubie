@@ -1,3 +1,615 @@
+[ 2026-06-06 20:59:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:57:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:51:53 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:51:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:50:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:50:19 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:48:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:48:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:44:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:41:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:41:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:40:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:40:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:39:47 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:39:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:39:23 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
+[ 2026-06-06 20:10:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.evidence_url' in 'field list'
+
+
 [ 2026-06-06 11:04:10 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

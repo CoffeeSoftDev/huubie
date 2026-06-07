@@ -4,9 +4,9 @@ let categorias, unidades, areas, proveedores, almacenes;
 
 // Inventario.
 let api_inventario = 'ctrl/ctrl-inventario.php';
-let inventario, entradas, mermas;
+let inventario, entradas, salidas;
 let productosInventario, almacenesInventario;
-let origenesEntrada, proveedoresEntrada, motivosMerma;
+let origenesEntrada, proveedoresEntrada, motivosSalida;
 
 // Movimientos.
 let api_movimientos = 'ctrl/ctrl-movimientos.php';
@@ -50,14 +50,14 @@ $(async () => {
     almacenesInventario = invt.almacenes    || [];
     origenesEntrada     = invt.origenes     || [];
     proveedoresEntrada  = invt.proveedores  || [];
-    motivosMerma        = invt.motivos      || [];
+    motivosSalida        = invt.motivos      || [];
 
     inventario = new Inventario(api_inventario, "root");
     inventario.render();
 
-    // Entradas y Mermas (render perezoso al abrir su tab).
+    // Entradas y Salidas (render perezoso al abrir su tab).
     entradas = new Entradas(api_inventario, "root");
-    mermas   = new Mermas(api_inventario, "root");
+    salidas   = new Salidas(api_inventario, "root");
 
     // // Movimientos.
 
@@ -137,11 +137,11 @@ class Main extends Templates {
                     onClick: () => entradas.render()
                 },
                 {
-                    id: "mermas",
-                    tab: "Mermas",
+                    id: "salidas",
+                    tab: "Salidas",
                     lucideIcon: "trending-down",
 
-                    onClick: () => mermas.render()
+                    onClick: () => salidas.render()
                 },
                 // {
                 //     id: "movimientos",

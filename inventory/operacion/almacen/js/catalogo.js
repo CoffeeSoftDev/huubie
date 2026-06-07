@@ -877,7 +877,7 @@ class ShrinkageReason extends Templates {
                 theme: "light",
                 striped: true,
                 title: "Motivos de salida",
-                subtitle: "Razones de merma o salida del almacén",
+                subtitle: "Razones de salida del almacén",
                 center: [1, 3]
             }
         });

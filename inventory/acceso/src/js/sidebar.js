@@ -51,11 +51,11 @@ class Sidebar {
             parent: "#menu-sidebar",
             logo: "../../src/img/logos/coffee_icon.png",
             menuItems: [
-                { icon: "house", url: "/inventory/operacion/almacen/", title: "Inicio" },
-                { icon: "contact", url: "/inventory/operacion/almacen/reporte.php", title: "Reportes" },
-                { icon: "gauge", url: "/inventory/finanzas/administrador/", title: "Dashboard" },
                 { icon: "arrow-down-to-line", url: "/inventory/operacion/almacen/entradas.php", title: "Entradas" },
-                { icon: "trash-2", url: "/inventory/operacion/almacen/mermas.php", title: "Mermas" },
+                // { icon: "contact", url: "/inventory/operacion/almacen/reporte.php", title: "Reportes" },
+                // { icon: "gauge", url: "/inventory/finanzas/administrador/", title: "Dashboard" },
+                { icon: "arrow-up-from-line", url: "/inventory/operacion/almacen/salidas.php", title: "Salidas" },
+                { icon: "house", url: "/inventory/operacion/almacen/", title: "Admin" },
                 { icon: "shield-user", url: "/inventory/admin/accesos/", title: "Accesos" },
             ],
         };
@@ -105,13 +105,15 @@ class Sidebar {
     createMenuItems(menuItems) {
         return menuItems
             .map((item) => {
-                const activeClass = item.active ? "bg-[#C05A40]" : "";
+                const activeClass = item.active ? "is-active" : "";
                 const dataAttr = item.url ? `data-url="${item.url}"` : item.action ? `data-action="${item.action}"` : "";
                 const title = item.title || "";
-                
+
+                // Estilo rail del Visor: icono arriba, nombre debajo.
                 return `
-                    <button class="w-12 h-12 ${activeClass} hover:bg-[#C05A40] rounded-xl flex items-center justify-center transition" ${dataAttr} title="${title}">
-                        <i data-lucide="${item.icon}" class="${item.active ? 'text-white' : 'text-gray-400 hover:text-white'} w-6 h-6"></i>
+                    <button class="menu-rail-item ${activeClass}" ${dataAttr} title="${title}">
+                        <i data-lucide="${item.icon}"></i>
+                        <span class="menu-rail-label">${title}</span>
                     </button>
                 `;
             })
@@ -168,8 +170,7 @@ class Sidebar {
         });
 
         if (matched) {
-            matched.addClass("bg-[#C05A40]");
-            matched.find("i").removeClass("text-gray-400").addClass("text-white");
+            matched.addClass("is-active");
         }
     }
 }

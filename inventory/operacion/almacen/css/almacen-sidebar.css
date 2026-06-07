@@ -1,70 +1,11 @@
 /* ─────────────────────────────────────────────────────────────
- *  Almacén — Re-tematizado del rail #menu-sidebar
- *  Aplica la estética de la sidebar del Visor de Agentes
- *  (coffee/app/visor/src/css/visor.css) en su modo "colapsado"
- *  (rail de solo iconos), variante LIGHT "Arcilla Invernal".
+ *  Almacén — estilos propios del módulo.
  *
- *  NO cambia el layout: el rail conserva su ancho de 80px y su
- *  posición fija (general.css). Solo cambia el aspecto de los
- *  botones: de "pastilla" terracota a item plano con border-left
- *  de acento, hover gris e iconos en color mute/terracota.
+ *  NOTA: el rail #menu-sidebar ahora se estiliza de forma unificada
+ *  en src/css/sidebar.css (clase .menu-rail-item / .is-active), igual
+ *  para todas las páginas del módulo. Las reglas que antes vivían aquí
+ *  para re-tematizar el rail se eliminaron para no pisar ese estilo.
  * ───────────────────────────────────────────────────────────── */
-
-#menu-sidebar {
-    background-color: #FFFFFF;
-    border-right: 1px solid #E5E7EB;
-    align-items: stretch;   /* vence items-center -> items full-width del rail */
-    padding: 8px 0;         /* vence py-4 */
-    gap: 2px;               /* vence gap-2 */
-}
-
-/* Cada item del rail (botón con icono lucide) */
-#menu-sidebar > button {
-    width: 100%;
-    height: 46px;
-    border-radius: 0;       /* quita rounded-xl */
-    border-left: 3px solid transparent;
-    background: transparent;
-    transition: background-color .12s ease, color .12s ease;
-}
-
-#menu-sidebar > button i {
-    width: 22px;
-    height: 22px;
-    color: #94A3B8;         /* icono inactivo en slate (igual al visor) */
-}
-
-/* Hover: fondo gris claro + icono oscuro (igual al visor) */
-#menu-sidebar > button:hover {
-    background: #F3F4F6;
-}
-#menu-sidebar > button:hover i {
-    color: #111827;
-}
-
-/* Activo: el JS (sidebar.js) marca la ruta actual con la clase
-   bg-[#C05A40] y pone el icono en text-white. Lo reinterpretamos
-   como el item activo del visor: degradado tenue + border-left
-   de acento e icono terracota. */
-#menu-sidebar > button.bg-\[\#C05A40\] {
-    background: linear-gradient(90deg, rgba(192, 90, 64, 0.18) 0%, transparent 100%) !important;
-    border-left-color: #C05A40 !important;     /* barra lateral de acento (3px) */
-}
-#menu-sidebar > button.bg-\[\#C05A40\] i {
-    color: #C05A40 !important;                 /* icono terracota pleno (vence text-white) */
-}
-
-/* ── Tema oscuro: ajustes del rail ───────────────────────────── */
-/* En dark el contenedor del rail ya es #141d2b (dark-mode.css); solo
-   corregimos el hover (gris claro -> oscuro) para que no destelle. */
-body.dark-mode #menu-sidebar > button:hover {
-    background: #1F2937;
-}
-body.dark-mode #menu-sidebar > button:hover i {
-    color: #FFFFFF;
-}
-/* El item activo (degradado terracota + barra + icono terracota) ya
-   contrasta bien sobre el fondo oscuro, no necesita cambios. */
 
 /* ─────────────────────────────────────────────────────────────
  *  Tema oscuro — Contenedor del módulo como "card" del Visor

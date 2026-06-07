@@ -58,7 +58,7 @@ class mdl extends CRUD {
             WHERE active = 1
             ORDER BY id ASC
         ";
-        $r = $this->_Read($query);
+        $r = $this->_Read($query, null);
         return is_array($r) ? $r : [];
     }
 
@@ -82,7 +82,7 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function qMermas($array) {
+    function qSalidas($array) {
         $where = 'm.active = 1 AND m.companies_id = ?';
         $data  = [$array['companies_id']];
 
@@ -139,7 +139,7 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function getMermaKpis($array) {
+    function getSalidaKpis($array) {
         $where = "m.active = 1 AND m.status <> 'Cancelada' AND m.companies_id = ?";
         $data  = [$array['companies_id']];
 
@@ -155,7 +155,7 @@ class mdl extends CRUD {
 
         $query = "
             SELECT
-                COUNT(m.id)                   AS total_mermas,
+                COUNT(m.id)                   AS total_salidas,
                 IFNULL(SUM(m.total_cost), 0)  AS total_costo,
                 IFNULL(SUM(m.total_units), 0) AS total_unidades
             FROM {$this->bd}inventory_shrinkage m
@@ -163,7 +163,7 @@ class mdl extends CRUD {
         ";
         $r    = $this->_Read($query, $data);
         $base = !empty($r) ? $r[0] : [
-            'total_mermas'   => 0,
+            'total_salidas'   => 0,
             'total_costo'    => 0,
             'total_unidades' => 0
         ];
@@ -182,7 +182,7 @@ class mdl extends CRUD {
         return $base;
     }
 
-    function qGetMerma($array) {
+    function qGetSalida($array) {
         $query = "
             SELECT
                 m.*,
@@ -205,7 +205,7 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
-    function getMermaDetail($array) {
+    function getSalidaDetail($array) {
         $query = "
             SELECT
                 d.id,
@@ -230,7 +230,7 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function insertMerma($array) {
+    function insertSalida($array) {
         $query = "
             INSERT INTO {$this->bd}inventory_shrinkage
                 (folio, note, evidence_url, total_products, total_units, total_cost,
@@ -241,7 +241,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function insertMermaDetail($array) {
+    function insertSalidaDetail($array) {
         $query = "
             INSERT INTO {$this->bd}detail_inventory_shrinkage
                 (quantity, cost, subtotal, previous_stock, resulting_stock,
@@ -251,7 +251,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function qCancelMerma($array) {
+    function qCancelSalida($array) {
         $query = "
             UPDATE {$this->bd}inventory_shrinkage
             SET status = 'Cancelada', updated_at = NOW()
@@ -260,7 +260,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function updateMermaEvidence($array) {
+    function updateSalidaEvidence($array) {
         $query = "
             UPDATE {$this->bd}inventory_shrinkage
             SET evidence_url = ?, updated_at = NOW()
@@ -269,7 +269,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function deleteMermaById($array) {
+    function deleteSalidaById($array) {
         $query = "
             UPDATE {$this->bd}inventory_shrinkage
             SET active = 0, updated_at = NOW()

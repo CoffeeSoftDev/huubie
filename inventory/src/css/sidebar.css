@@ -49,8 +49,71 @@
     #sidebar {
         transform: translateX(-100%);
     }
-    
+
     #sidebar.sidebar-open {
         transform: translateX(0);
     }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Rail de navegacion #menu-sidebar — estilo del Visor de Agentes:
+   icono arriba, nombre debajo, item activo con tinte de acento y
+   marcador en el borde izquierdo. (Acento Arcilla Invernal #C05A40)
+   ────────────────────────────────────────────────────────────── */
+#menu-sidebar {
+    gap: 4px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+}
+
+.menu-rail-item {
+    position: relative;
+    width: 48px;
+    min-height: 46px;
+    border-radius: 11px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 7px 2px;
+    color: #6B7280;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-align: center;
+    transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.menu-rail-item i,
+.menu-rail-item svg { width: 19px; height: 19px; flex-shrink: 0; }
+.menu-rail-label {
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.menu-rail-item:hover {
+    color: #111827;
+    background: #F3F4F6;
+    border-color: #E5E7EB;
+}
+.menu-rail-item.is-active {
+    color: #C05A40;
+    background: rgba(192, 90, 64, .10);
+    border-color: rgba(192, 90, 64, .12);
+}
+
+/* Dark mode */
+body.dark-mode .menu-rail-item { color: #9CA3AF; }
+body.dark-mode .menu-rail-item:hover {
+    color: #ffffff;
+    background: #1a2332;
+    border-color: rgba(55, 65, 81, .4);
+}
+body.dark-mode .menu-rail-item.is-active {
+    color: #E8A68F;
+    background: rgba(192, 90, 64, .18);
+    border-color: rgba(192, 90, 64, .22);
 }

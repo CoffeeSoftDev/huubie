@@ -83,14 +83,14 @@ class ctrl extends mdl {
             $row[] = [
                 'id'         => $r['id'],
                 'Folio'      => $r['folio'],
-                'Origen'     => $this->_pillBadge($r['origin_name'], $r['origin_color']),
+                'Fecha'      => formatSpanishDate($r['date_inflow']),
+                'Origen'     => $this->pillBadge($r['origin_name'], $r['origin_color']),
                 'Sucursal'   => $r['subsidiary_name'] ?: '-',
                 'Almacen'    => $r['warehouse_name']  ?: '-',
                 'Proveedor'  => $r['supplier_name']   ?: '<span class="italic text-gray-400">N/A</span>',
                 'Productos'  => (int) $r['total_products'],
                 'Costo'      => evaluar((float) $r['total_cost']),
-                'Fecha'      => $r['date_inflow'],
-                'Estado'     => $this->_statusBadge($r['status']),
+                'Estado'     => $this->statusBadge($r['status']),
                 'Registrado' => $r['user_name'] ?: '-',
                 'a'          => $a
             ];
@@ -403,7 +403,7 @@ class ctrl extends mdl {
         ];
     }
 
-    private function _statusBadge($status) {
+    private function statusBadge($status) {
         $map = [
             'Aplicada'  => ['bg' => 'rgba(63,193,137,0.18)', 'fg' => '#3FC189'],
             'Pendiente' => ['bg' => 'rgba(251,191,36,0.18)', 'fg' => '#FBBF24'],
@@ -413,7 +413,7 @@ class ctrl extends mdl {
         return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>" . strtoupper($status) . "</span>";
     }
 
-    private function _pillBadge($label, $colorHex) {
+    private function pillBadge($label, $colorHex) {
         $label = $label ?: '-';
         $color = $colorHex ?: '#9CA3AF';
         $hex   = ltrim($color, '#');
