@@ -83,7 +83,7 @@ class ctrl extends mdl {
 
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
-        $_POST['companies_id'] = $_SESSION['companies_id'];
+        $_POST['companies_id'] = $_SESSION['company_id'];
 
         // El select envía '' cuando no se elige almacén → NULL para respetar la FK.
         $_POST['warehouse_id'] = ($_POST['warehouse_id'] ?? '') === '' ? null : $_POST['warehouse_id'];
@@ -226,7 +226,7 @@ class ctrl extends mdl {
 
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
-        $_POST['companies_id'] = $_SESSION['companies_id'];
+        $_POST['companies_id'] = $_SESSION['company_id'];
 
         $exists = $this->existsAreaByName([$_POST['name']]);
 
@@ -358,7 +358,7 @@ class ctrl extends mdl {
 
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
-        $_POST['companies_id'] = $_SESSION['companies_id'];
+        $_POST['companies_id'] = $_SESSION['company_id'];
 
         $exists = $this->existsZoneByName([$_POST['name']]);
 
@@ -756,8 +756,8 @@ class ctrl extends mdl {
 
         $_POST['created_at']      = date('Y-m-d H:i:s');
         $_POST['active']          = 1;
-        $_POST['companies_id']    = $_SESSION['companies_id'];
-        $_POST['subsidiaries_id'] = $_SESSION['subsidiaries_id'];
+        $_POST['companies_id']    = $_SESSION['company_id'];
+        $_POST['subsidiaries_id'] = $_SESSION['branch_id'];
 
         $exists = $this->existsWarehouseByName([$_POST['name']]);
 

@@ -19,7 +19,7 @@ class mdl extends CRUD {
             SELECT id, name AS valor
             FROM {$this->bd}warehouse_area
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -30,7 +30,7 @@ class mdl extends CRUD {
             SELECT id, name AS valor
             FROM {$this->bd}item_category
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -41,7 +41,7 @@ class mdl extends CRUD {
             SELECT id, code AS valor
             FROM {$this->bd}unit
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY code ASC
         ";
         return $this->_Read($query, []);
@@ -50,7 +50,7 @@ class mdl extends CRUD {
     // Existencias
 
     function listExistencias($filters) {
-        $whereConditions = ['i.companies_id = '.$_SESSION['companies_id'], 'i.active = 1'];
+        $whereConditions = ['i.companies_id = '.$_SESSION['company_id'], 'i.active = 1'];
         $params = [];
 
         if (!empty($filters['zona']) && $filters['zona'] != 'Todos') {
@@ -102,7 +102,7 @@ class mdl extends CRUD {
     }
 
     function getResumen($filters) {
-        $whereConditions = ['i.companies_id = '.$_SESSION['companies_id'], 'i.active = 1'];
+        $whereConditions = ['i.companies_id = '.$_SESSION['company_id'], 'i.active = 1'];
         $params = [];
 
         if (!empty($filters['zona']) && $filters['zona'] != 'Todos') {
@@ -172,7 +172,7 @@ class mdl extends CRUD {
                 WHERE active = 1
                 GROUP BY item_id
             ) st ON st.item_id = i.id
-            WHERE i.id = ? AND i.companies_id = ".$_SESSION['companies_id']."
+            WHERE i.id = ? AND i.companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;

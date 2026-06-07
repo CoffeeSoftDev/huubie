@@ -103,8 +103,8 @@ class ctrl extends mdl {
         $message = 'No se pudo agregar el insumo';
 
         $now             = date('Y-m-d H:i:s');
-        $companies_id    = $_SESSION['companies_id'];
-        $subsidiaries_id = $_SESSION['subsidiaries_id'];
+        $companies_id    = $_SESSION['company_id'];
+        $subsidiaries_id = $_SESSION['branch_id'];
 
         // NOTA: 'price' se omite a propósito. La columna item.price es DOUBLE NOT NULL DEFAULT 0
         // y util->sql() convierte el 0 en NULL por la comparación débil (0 == '') que en PHP 7.4

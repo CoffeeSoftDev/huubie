@@ -11,7 +11,7 @@ class ctrl extends mdl {
             'productos'   => $this->lsProductos(),
             'almacenes'   => $this->lsAlmacenes(),
             'origenes'    => $this->lsInflowOrigins(),
-            'proveedores' => $this->lsSuppliers([$_SESSION['companies_id']]),
+            'proveedores' => $this->lsSuppliers([$_SESSION['company_id']]),
             'motivos'     => $this->lsShrinkageReasons()
         ];
     }
@@ -26,8 +26,8 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Debe agregar al menos un insumo'];
         }
 
-        $companies_id    = $_SESSION['companies_id'];
-        $subsidiaries_id = $_SESSION['subsidiaries_id'];
+        $companies_id    = $_SESSION['company_id'];
+        $subsidiaries_id = $_SESSION['branch_id'];
         $userId          = $_SESSION['user_id'];
         $today           = date('Y-m-d');
 
@@ -196,15 +196,15 @@ class ctrl extends mdl {
             'status'      => 200,
             'origenes'    => $this->lsInflowOrigins(),
             'almacenes'   => $this->lsAlmacenes(),
-            'proveedores' => $this->lsSuppliers([$_SESSION['companies_id']]),
+            'proveedores' => $this->lsSuppliers([$_SESSION['company_id']]),
             'productos'   => $this->lsProductos()
         ];
     }
 
     function lsEntradas() {
         $ls = $this->listEntradas([
-            'companies_id'    => $_SESSION['companies_id'],
-            'subsidiaries_id' => $_SESSION['subsidiaries_id'],
+            'companies_id'    => $_SESSION['company_id'],
+            'subsidiaries_id' => $_SESSION['branch_id'],
             'origin_id'       => $_POST['origin_id'] ?? '',
             'status'          => $_POST['status']    ?? '',
             'fi'              => $_POST['fi']         ?? '',
@@ -244,8 +244,8 @@ class ctrl extends mdl {
 
     function showEntradas() {
         $kpis = $this->getEntradaKpis([
-            'companies_id'    => $_SESSION['companies_id'],
-            'subsidiaries_id' => $_SESSION['subsidiaries_id'],
+            'companies_id'    => $_SESSION['company_id'],
+            'subsidiaries_id' => $_SESSION['branch_id'],
             'fi'              => $_POST['fi'] ?? '',
             'ff'              => $_POST['ff'] ?? ''
         ]);
@@ -268,8 +268,8 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Debe agregar al menos un producto'];
         }
 
-        $companiesId    = $_SESSION['companies_id'];
-        $subsidiariesId = $_SESSION['subsidiaries_id'];
+        $companiesId    = $_SESSION['company_id'];
+        $subsidiariesId = $_SESSION['branch_id'];
         $userId         = $_SESSION['user_id'];
         $warehouseId    = $payload['warehouse_id'];
         $originId       = $payload['inflow_origin_id'];
@@ -355,8 +355,8 @@ class ctrl extends mdl {
 
     function lsSalidas() {
         $ls = $this->listSalidas([
-            'companies_id'    => $_SESSION['companies_id'],
-            'subsidiaries_id' => $_SESSION['subsidiaries_id'],
+            'companies_id'    => $_SESSION['company_id'],
+            'subsidiaries_id' => $_SESSION['branch_id'],
             'reason_id'       => $_POST['reason_id'] ?? '',
             'status'          => $_POST['status']    ?? '',
             'fi'              => $_POST['fi']         ?? '',
@@ -395,8 +395,8 @@ class ctrl extends mdl {
 
     function showSalidas() {
         $kpis = $this->getSalidaKpis([
-            'companies_id'    => $_SESSION['companies_id'],
-            'subsidiaries_id' => $_SESSION['subsidiaries_id'],
+            'companies_id'    => $_SESSION['company_id'],
+            'subsidiaries_id' => $_SESSION['branch_id'],
             'fi'              => $_POST['fi'] ?? '',
             'ff'              => $_POST['ff'] ?? ''
         ]);
@@ -419,8 +419,8 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Debe agregar al menos un producto'];
         }
 
-        $companiesId    = $_SESSION['companies_id'];
-        $subsidiariesId = $_SESSION['subsidiaries_id'];
+        $companiesId    = $_SESSION['company_id'];
+        $subsidiariesId = $_SESSION['branch_id'];
         $userId         = $_SESSION['user_id'];
         $warehouseId    = $payload['warehouse_id'];
         $reasonId       = $payload['shrinkage_reason_id'];
@@ -479,7 +479,7 @@ class ctrl extends mdl {
                 $post = floatval($row['quantity']) + floatval($d['quantity']);
                 $this->updateStockQty([$post, $row['id']]);
             } else {
-                $this->insertStock([floatval($d['quantity']), $warehouseId, $d['item_id'], $_SESSION['companies_id']]);
+                $this->insertStock([floatval($d['quantity']), $warehouseId, $d['item_id'], $_SESSION['company_id']]);
             }
         }
 

@@ -6,26 +6,62 @@ $opc = $_POST['opc'];
 require_once('../mdl/mdl-access.php');
 
 class Access extends MAccess {
+    function login() {
+            $user = trim(str_replace("'", "", $_POST['usuario'] ?? ''));
+            $pass = str_replace("'", "", $_POST['clave'] ?? '');
 
-  
+            $usr = $this->getUserByCredentials([$user]);
 
-    function company(){
+            // Verifica la contrasena: bcrypt (password) con respaldo MD5 (key) para credenciales heredadas.
+            $valid = $usr && (
+                (!empty($usr['password']) && password_verify($pass, $usr['password'])) ||
+                (!empty($usr['user_key']) && $usr['user_key'] === md5($pass))
+            );
+
+            if (!$valid) {
+                return false;
+            }
+
+            $expira = time() + (365 * 24 * 60 * 60);
+            setcookie("IDU",        $usr['IDU'],        $expira, "/");
+            setcookie("company_id", $usr['company_id'], $expira, "/");
+            setcookie("company",    $usr['company'],    $expira, "/");
+
+            $_SESSION['user_id']    = $usr['IDU'];                                            // id usuario
+            $_SESSION['company_id'] = $usr['company_id'];                                     // id compania
+            $_SESSION['company']    = $usr['company'];                                        // nombre de la compania
+            $_SESSION['user']       = trim(($usr['name'] ?? '') . ' ' . ($usr['last_name'] ?? ''));
+            $_SESSION['is_owner']   = $usr['is_owner'];
+            $_SESSION['last_activity'] = time();
+
+            return [
+                "IDU"        => $usr['IDU'],
+                "company_id" => $usr['company_id'],
+                "company"    => $usr['company'],
+                "user"       => $_SESSION['user'],
+                "photo"      => $usr['photo'] ?? '',
+            ];
+    }
+
+    function company() {
         $sql = !empty($_SESSION['IDU']) ? $this->getSessionUser([$_SESSION['IDU']]) : null;
 
-        $negocio = $_SESSION['UDN'] ?? ($sql['negocio'] ?? '');
+        $company = $_SESSION['company'] ?? ($sql['company'] ?? '');
 
         return [
-            "photo"   => $sql['photo'] ?? '',
-            "user"    => $sql['user'] ?? 'Usuario',
-            "rol"     => $sql['rol'] ?? '',
-            "level"   => isset($sql['level']) ? (int)$sql['level'] : 0,
-            "udn"     => $negocio,
-            "negocio" => $negocio,
+            "photo"      => $sql['photo'] ?? '',
+            "user"       => $sql['user'] ?? ($_SESSION['user'] ?? 'Usuario'),
+            "rol"        => $sql['rol'] ?? '',
+            "level"      => isset($sql['level']) ? (int)$sql['level'] : 0,
+            "company"    => $company,
+            "company_id" => $sql['company_id'] ?? ($_SESSION['company_id'] ?? null),
+            // Compatibilidad con el navbar (lee udn/negocio).
+            "udn"        => $company,
+            "negocio"    => $company,
         ];
     }
 
-
-    function sidebar(){
+    function sidebar() {
         $sidebar = [
             [
                 "text"    => "Ventas",
@@ -39,7 +75,7 @@ class Access extends MAccess {
             ]
         ];
 
-        if($_SESSION['ROL'] === 1 ){
+        if((int)($_SESSION['is_owner'] ?? 0) === 1 ){
           $sidebar[] = [
             "text"    => "Configuracion",
             "submenu" => [
@@ -81,8 +117,9 @@ class Access extends MAccess {
 
         return $sidebar;
     }
-      // SESSION
-    function checkSession(){
+
+    // SESSION
+    function checkSession() {
         define('SESSION_TIMEOUT', 1800);  // 30 minutos
         define('WARNING_TIME', 300);      // 5 minutos antes de expirar
 
@@ -113,11 +150,13 @@ class Access extends MAccess {
 
         return $result;
     }
-    function updateSession(){
+
+    function updateSession() {
         $_SESSION['last_activity'] = time();  // Actualizar la actividad de la sesión
         return [ "status" => 200, "message" => "Sesión actualizada"];
     }
-    function logout(){
+
+    function logout() {
         sleep(2);
         session_unset();
         session_destroy();

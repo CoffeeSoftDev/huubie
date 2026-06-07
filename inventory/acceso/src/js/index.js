@@ -1,4 +1,4 @@
-window.link = "acceso/ctrl/ctrl-index.php";
+window.link = "acceso/ctrl/ctrl-access.php";
 
 
 $(() => {
@@ -25,8 +25,8 @@ function storage(data) {
         const HASH = HREF.pathname.split("/").filter(Boolean);
         const ERP = HASH[0];
     
-        // window.location.href = HREF.origin + "/" + ERP + "/"+data.ruta;
-        window.location.href = HREF.origin + "/" + ERP + "/operacion/almacen/";
+        // window.location.href = HREF.origin + "/" + ERP + "/operacion/almacen/";
+        window.location.href = HREF.origin + "/" + ERP + "/sucursales/";  
     } else {
         showLoginError('Usuario y/o clave incorrectos.');
     }

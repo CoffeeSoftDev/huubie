@@ -1,3 +1,540 @@
+[ 2026-06-06 23:43:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                mv.id,
+                mv.folio,
+                DATE_FORMAT(mv.occurred_at, '%d/%m/%Y %H:%i') AS fecha,
+                mv.movement_type AS tipo,
+                i.name AS producto,
+                mv.quantity,
+                mv.stock_prev,
+                mv.stock_post,
+                mv.cost_total,
+                mv.status,
+                u.fullname AS responsable
+            FROM fayxzvov_inventory.inventory_movement mv
+            LEFT JOIN fayxzvov_inventory.item i ON i.id = mv.item_id
+            LEFT JOIN fayxzvov_erp.users u ON u.id = mv.user_id
+            WHERE DATE(mv.occurred_at) BETWEEN ? AND ?
+            AND (? = 'Todos' OR mv.movement_type = ?)
+            AND mv.companies_id = 1
+            ORDER BY mv.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.fullname' in 'field list'
+
+
+[ 2026-06-06 23:18:24 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor, is_default
+            FROM fayxzvov_inventory.warehouse
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY is_default DESC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY is_default DESC, name ASC' at line 5
+
+
+[ 2026-06-06 23:18:23 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT i.id, i.name AS valor, ia.unit_id, COALESCE(ia.cost_unit, i.price, 0) AS cost_unit
+            FROM fayxzvov_inventory.item i
+            LEFT JOIN fayxzvov_inventory.item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            WHERE i.active = 1
+            AND i.companies_id = 
+            ORDER BY i.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY i.name ASC' at line 6
+
+
+[ 2026-06-06 23:18:23 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                ic.id,
+                ic.name as valor,
+                ic.warehouse_id,
+                w.name as warehouse_name,
+                DATE_FORMAT(ic.created_at, '%d/%m/%Y') as date_creation,
+                ic.active
+            FROM fayxzvov_inventory.item_category ic
+            LEFT JOIN fayxzvov_inventory.warehouse w ON w.id = ic.warehouse_id
+            WHERE ic.active = ?
+            AND ic.companies_id = 
+            ORDER BY ic.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY ic.id DESC' at line 12
+
+
+[ 2026-06-06 23:12:28 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 23:12:28 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.supplier
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 23:12:28 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse_area
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 23:12:28 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 23:12:28 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.item_category
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:59:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.subsidiaries' doesn't exist
+
+
+[ 2026-06-06 22:59:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                w.id,
+                w.name,
+                w.name AS valor,
+                w.is_default,
+                w.subsidiaries_id,
+                w.warehouse_area_id,
+                wa.name AS area_name,
+                wa.color_hex AS area_color,
+                s.name AS subsidiary_name
+            FROM fayxzvov_inventory.warehouse w
+            LEFT JOIN fayxzvov_inventory.warehouse_area wa ON wa.id = w.warehouse_area_id
+            LEFT JOIN fayxzvov_erp.subsidiaries s ON s.id = w.subsidiaries_id
+            WHERE w.active = 1 AND w.companies_id = ?
+            ORDER BY s.name ASC, w.is_default DESC, w.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.subsidiaries' doesn't exist
+
+
+[ 2026-06-06 22:59:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor, companies_id
+            FROM fayxzvov_erp.subsidiaries
+            WHERE companies_id = ? AND active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.subsidiaries' doesn't exist
+
+
+[ 2026-06-06 22:58:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                COUNT(i.id)                        AS total_entradas,
+                IFNULL(SUM(i.total_cost), 0)       AS total_costo,
+                IFNULL(SUM(i.total_units), 0)      AS total_unidades,
+                SUM(i.status = 'Aplicada')         AS total_aplicadas
+            FROM fayxzvov_inventory.inventory_inflow i
+            WHERE i.active = 1 AND i.companies_id = ? AND i.status = ? AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.inventory_inflow' doesn't exist
+
+
+[ 2026-06-06 22:58:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.status = ? AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.inventory_inflow' doesn't exist
+
+
+[ 2026-06-06 22:58:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                i.id,
+                i.folio,
+                i.note,
+                i.total_products,
+                i.total_units,
+                i.total_cost,
+                i.status,
+                i.date_inflow,
+                i.inflow_origin_id,
+                io.name        AS origin_name,
+                io.code        AS origin_code,
+                io.color_hex   AS origin_color,
+                i.warehouse_id,
+                w.name         AS warehouse_name,
+                i.subsidiaries_id,
+                s.name         AS subsidiary_name,
+                i.supplier_id,
+                sp.name        AS supplier_name,
+                i.user_id,
+                u.fullname     AS user_name,
+                i.confirmed_user_id,
+                cu.fullname    AS confirmed_user_name,
+                i.confirmed_at
+            FROM fayxzvov_inventory.inventory_inflow i
+            LEFT JOIN fayxzvov_inventory.inflow_origin      io ON io.id = i.inflow_origin_id
+            LEFT JOIN fayxzvov_inventory.warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN fayxzvov_erp.subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN fayxzvov_inventory.supplier            sp ON sp.id = i.supplier_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = i.user_id
+            LEFT JOIN fayxzvov_erp.users            cu ON cu.id = i.confirmed_user_id
+            WHERE i.active = 1 AND i.companies_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+            ORDER BY i.date_inflow DESC, i.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.inventory_inflow' doesn't exist
+
+
+[ 2026-06-06 22:58:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                COUNT(i.id)                        AS total_entradas,
+                IFNULL(SUM(i.total_cost), 0)       AS total_costo,
+                IFNULL(SUM(i.total_units), 0)      AS total_unidades,
+                SUM(i.status = 'Aplicada')         AS total_aplicadas
+            FROM fayxzvov_inventory.inventory_inflow i
+            WHERE i.active = 1 AND i.companies_id = ? AND i.status <> 'Cancelada' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.inventory_inflow' doesn't exist
+
+
+[ 2026-06-06 22:58:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, color_hex
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.inflow_origin' doesn't exist
+
+
+[ 2026-06-06 22:58:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name, name AS valor
+            FROM fayxzvov_inventory.supplier
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.supplier' doesn't exist
+
+
+[ 2026-06-06 22:58:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                w.id,
+                w.name,
+                w.name AS valor,
+                w.is_default,
+                w.subsidiaries_id,
+                w.warehouse_area_id,
+                wa.name AS area_name,
+                wa.color_hex AS area_color,
+                s.name AS subsidiary_name
+            FROM fayxzvov_inventory.warehouse w
+            LEFT JOIN fayxzvov_inventory.warehouse_area wa ON wa.id = w.warehouse_area_id
+            LEFT JOIN fayxzvov_erp.subsidiaries s ON s.id = w.subsidiaries_id
+            WHERE w.active = 1 AND w.companies_id = ?
+            ORDER BY s.name ASC, w.is_default DESC, w.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.warehouse' doesn't exist
+
+
+[ 2026-06-06 22:58:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor, companies_id
+            FROM fayxzvov_erp.subsidiaries
+            WHERE companies_id = ? AND active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.subsidiaries' doesn't exist
+
+
+[ 2026-06-06 22:58:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                i.id                                       AS id,
+                i.name                                     AS nombre,
+                ia.sku                                     AS sku,
+                ic.name                                    AS categoria,
+                COALESCE(ia.cost_unit, i.price, 0)         AS costo,
+                i.price                                    AS precio,
+                i.image                                    AS image
+            FROM fayxzvov_inventory.item i
+            LEFT JOIN fayxzvov_inventory.item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN fayxzvov_inventory.item_category   ic ON ic.id = i.category_id
+            WHERE i.active = 1 AND i.companies_id = ?
+            ORDER BY i.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.item' doesn't exist
+
+
+[ 2026-06-06 22:36:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:36:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.supplier
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:36:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse_area
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:36:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:36:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.item_category
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:35:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:35:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.supplier
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:35:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse_area
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:35:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-06-06 22:35:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.item_category
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
 [ 2026-06-06 20:59:49 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$

@@ -25,7 +25,7 @@ class mdl extends CRUD {
             FROM {$this->bd}item_category ic
             LEFT JOIN {$this->bd}warehouse w ON w.id = ic.warehouse_id
             WHERE ic.active = ?
-            AND ic.companies_id = ".$_SESSION['companies_id']."
+            AND ic.companies_id = ".$_SESSION['company_id']."
             ORDER BY ic.id DESC
         ";
         return $this->_Read($query, $array);
@@ -64,7 +64,7 @@ class mdl extends CRUD {
             FROM {$this->bd}item_category
             WHERE LOWER(name) = LOWER(?)
             AND active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
@@ -83,7 +83,7 @@ class mdl extends CRUD {
                 active
             FROM {$this->bd}warehouse_area
             WHERE active = ?
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY id DESC
         ";
         return $this->_Read($query, $array);
@@ -122,7 +122,7 @@ class mdl extends CRUD {
             FROM {$this->bd}warehouse_area
             WHERE LOWER(name) = LOWER(?)
             AND active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
@@ -140,7 +140,7 @@ class mdl extends CRUD {
                 active
             FROM {$this->bd}unit
             WHERE active = ?
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY id DESC
         ";
         return $this->_Read($query, $array);
@@ -179,7 +179,7 @@ class mdl extends CRUD {
             FROM {$this->bd}unit
             WHERE LOWER(name) = LOWER(?)
             AND active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
@@ -312,7 +312,7 @@ class mdl extends CRUD {
             FROM {$this->bd}warehouse w
             LEFT JOIN {$this->bd}warehouse_area wa ON w.warehouse_area_id = wa.id
             WHERE w.active = ?
-            AND w.companies_id = ".$_SESSION['companies_id']."
+            AND w.companies_id = ".$_SESSION['company_id']."
             ORDER BY w.id DESC
         ";
         return $this->_Read($query, $array);
@@ -351,7 +351,7 @@ class mdl extends CRUD {
             FROM {$this->bd}warehouse
             WHERE LOWER(name) = LOWER(?)
             AND active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
@@ -363,7 +363,7 @@ class mdl extends CRUD {
             SELECT id, name as valor
             FROM {$this->bd}warehouse_area
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -375,7 +375,7 @@ class mdl extends CRUD {
             SELECT id, name as valor
             FROM {$this->bd}warehouse
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
