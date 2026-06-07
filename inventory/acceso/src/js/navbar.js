@@ -40,8 +40,8 @@ class Navbar {
                     </button>
                     <div class="nav-logo"><i data-lucide="coffee" class="w-5 h-5"></i></div>
                     <div class="flex flex-col leading-tight">
-                        <span class="navbar-title">${this.settings.negocio || this.settings.company}</span>
-                        <span class="navbar-subtitle">CoffeeInventory</span>
+                        <span class="navbar-title">CoffeeSoft</span>
+                        <span class="navbar-subtitle">${this.settings.negocio || this.settings.company}</span>
                     </div>
                 </div>
 

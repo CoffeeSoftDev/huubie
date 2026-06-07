@@ -109,15 +109,15 @@ class App extends Templates {
             const card = `
                 <div class="branch-menu-card suc-card cursor-pointer rounded-xl p-4 text-left transition-all duration-200 select-none
                     ${isSelected
-                        ? 'border-2 suc-border hover:!border-[#7959FB]'
-                        : 'border suc-border hover:!border-[#7C3AED]'
+                        ? 'border-2 suc-border hover:!border-[#C05A40]'
+                        : 'border suc-border hover:!border-[#C05A40]'
                     }" data-id="${branch.id}">
                     <div class="flex items-start justify-between mb-3">
                         <div class="bg-blue-600 rounded-lg p-2.5 flex-shrink-0">
                             <i data-lucide="store" class="w-5 h-5 text-white"></i>
                         </div>
                         ${isSelected
-                            ? '<span class="text-[10px] font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[rgba(124,58,237,0.12)] border border-[rgba(124,58,237,0.3)] text-[#7C3AED] hover:bg-[rgba(124,58,237,0.25)] transition-colors self-start leading-none">ÚLTIMA USADA</span>'
+                            ? '<span class="text-[10px] font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[rgba(192,90,64,0.12)] border border-[rgba(192,90,64,0.3)] text-[#C05A40] hover:bg-[rgba(192,90,64,0.25)] transition-colors self-start leading-none">ÚLTIMA USADA</span>'
                             : '<i data-lucide="arrow-right" class="w-4 h-4 suc-muted mt-1 flex-shrink-0"></i>'
                         }
                     </div>
@@ -155,7 +155,7 @@ class App extends Templates {
                             icon: 'error',
                             title: 'No se pudo seleccionar la sucursal',
                             text: (res && res.message) ? res.message : 'Intenta de nuevo.',
-                            confirmButtonColor: '#7C3AED',
+                            confirmButtonColor: '#C05A40',
                             heightAuto: false
                         });
                     }
@@ -174,7 +174,7 @@ class App extends Templates {
                 showCancelButton: true,
                 confirmButtonText: 'Sí, cerrar sesión',
                 cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#7C3AED',
+                confirmButtonColor: '#C05A40',
                 cancelButtonColor: '#9CA3AF',
                 reverseButtons: true,
                 scrollbarPadding: false,

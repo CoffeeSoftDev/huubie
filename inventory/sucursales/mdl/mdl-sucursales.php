@@ -12,9 +12,10 @@ class mdl extends CRUD {
     /**
      * Sucursales a las que el usuario tiene acceso.
      * Los dueños (is_owner = 1) ven todas las sucursales activas de su compañía;
-     * el resto solo las asignadas en users_braches.
+     * el resto ven su sucursal de pertenencia (users.branch_id) más las asignadas
+     * en users_braches.
      *
-     * @param array $array [user_id, company_id, is_owner, user_id]
+     * @param array $array [user_id, company_id, is_owner, user_id, user_id]
      */
     function getBranchesByUser($array) {
         $query = "
@@ -31,9 +32,10 @@ class mdl extends CRUD {
             INNER JOIN users u     ON u.id = ?
             WHERE b.company_id = ?
                 AND b.is_active = 1
-                AND ( ? = 1 OR b.id IN (
-                    SELECT branch_id FROM users_braches WHERE user_id = ?
-                ) )
+                AND ( ? = 1
+                    OR b.id = (SELECT branch_id FROM users WHERE id = ?)
+                    OR b.id IN (SELECT branch_id FROM users_braches WHERE user_id = ?)
+                )
             ORDER BY b.name
         ";
         return $this->_Read($query, $array);

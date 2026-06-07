@@ -11,7 +11,7 @@ class ctrl extends mdl {
         $companyId = $_SESSION['company_id'] ?? 0;
         $isOwner   = (int) ($_SESSION['is_owner'] ?? 0);
 
-        $rows        = $this->getBranchesByUser([$userId, $companyId, $isOwner, $userId]);
+        $rows        = $this->getBranchesByUser([$userId, $companyId, $isOwner, $userId, $userId]);
         $branches    = [];
         $nameUser    = $_SESSION['user'] ?? '';
         $companyLogo = null;

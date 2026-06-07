@@ -151,13 +151,13 @@ class Subsidiaries extends Templates {
         this.createTable({
             parent: 'table-subsidiaries',
             idFilterBar: 'filterbar-subsidiaries',
-            data: { opc: 'lsSubsidiaries' },
+            data: { opc: 'lsBranches' },
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
             attr: {
                 id: 'tbSubsidiaries',
                 theme: 'light',
-                center: [4, 5],
+                center: [3],
                 right: []
             }
         });
@@ -166,7 +166,7 @@ class Subsidiaries extends Templates {
     addSubsidiary() {
         this.createModalForm({
             id: 'formSubsidiaryAdd',
-            data: { opc: 'addSubsidiary' },
+            data: { opc: 'addBranch' },
             theme: 'light',
             coffeesoft: true,
             bootbox: { title: 'Nueva Sucursal' },
@@ -176,7 +176,7 @@ class Subsidiaries extends Templates {
     }
 
     async editSubsidiary(id) {
-        const request = await useFetch({ url: this._link, data: { opc: 'getSubsidiary', id: id } });
+        const request = await useFetch({ url: this._link, data: { opc: 'getBranch', id: id } });
         if (request.status !== 200) {
             alert({ icon: 'error', text: request.message || 'No se pudo cargar la sucursal', btn1: true });
             return;
@@ -184,7 +184,7 @@ class Subsidiaries extends Templates {
 
         this.createModalForm({
             id: 'formSubsidiaryEdit',
-            data: { opc: 'editSubsidiary', id: id },
+            data: { opc: 'editBranch', id: id },
             theme: 'light',
             coffeesoft: true,
             bootbox: { title: 'Editar Sucursal' },
@@ -202,7 +202,7 @@ class Subsidiaries extends Templates {
                 text: `¿Deseas ${action} esta sucursal?`,
                 icon: 'warning'
             },
-            data: { opc: 'toggleSubsidiary', id: id, active: active },
+            data: { opc: 'toggleBranch', id: id, active: active },
             methods: { send: (r) => this._afterSave(r) }
         });
     }
@@ -223,25 +223,9 @@ class Subsidiaries extends Templates {
             },
             {
                 opc: 'input',
-                id: 'address',
-                lbl: 'Dirección',
+                id: 'ubication',
+                lbl: 'Ubicación',
                 class: 'col-12 mb-3'
-            },
-            {
-                opc: 'input',
-                id: 'phone',
-                lbl: 'Teléfono',
-                class: 'col-12 col-md-6 mb-3'
-            },
-            {
-                opc: 'select',
-                id: 'is_main',
-                lbl: '¿Sucursal principal?',
-                class: 'col-12 col-md-6 mb-3',
-                data: [
-                    { id: '0', valor: 'No' },
-                    { id: '1', valor: 'Sí' }
-                ]
             }
         ];
     }
@@ -292,7 +276,7 @@ class Users extends Templates {
             attr: {
                 id: 'tbUsersAcc',
                 theme: 'light',
-                center: [6],
+                center: [4],
                 right: []
             }
         });
@@ -318,7 +302,7 @@ class Users extends Templates {
         }
 
         const data = request.data;
-        if (data.subsidiaries_id != null) data.subsidiaries_id = String(data.subsidiaries_id);
+        if (data.branch_id != null) data.branch_id = String(data.branch_id);
 
         this.createModalForm({
             id: 'formUserEdit',
@@ -375,37 +359,32 @@ class Users extends Templates {
         const fields = [
             {
                 opc: 'input',
-                id: 'fullname',
-                lbl: 'Nombre del colaborador',
-                class: 'col-12 mb-3',
+                id: 'name',
+                lbl: 'Nombre(s)',
+                class: 'col-12 col-md-6 mb-3',
                 required: true
             },
             {
                 opc: 'input',
-                id: 'username',
-                lbl: 'Nombre de usuario',
-                class: 'col-12 col-md-6 mb-3',
-                required: true
+                id: 'last_name',
+                lbl: 'Apellidos',
+                class: 'col-12 col-md-6 mb-3'
             },
             {
                 opc: 'input',
                 id: 'email',
-                lbl: 'Correo',
+                lbl: 'Correo (con el que inicia sesión)',
                 type: 'email',
-                class: 'col-12 col-md-6 mb-3'
-            },
-            {
-                opc: 'input',
-                id: 'phone',
-                lbl: 'Teléfono',
-                class: 'col-12 col-md-6 mb-3'
+                class: 'col-12 mb-3',
+                required: true
             },
             {
                 opc: 'select',
-                id: 'subsidiaries_id',
+                id: 'branch_id',
                 lbl: 'Sucursal asignada',
-                class: 'col-12 col-md-6 mb-3',
-                data: [{ id: '', valor: '-- Sin asignar --' }].concat(sucursalesData)
+                class: 'col-12 mb-3',
+                required: true,
+                data: sucursalesData
             }
         ];
 

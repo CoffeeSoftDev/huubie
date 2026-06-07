@@ -163,7 +163,8 @@
       "PowerShell(& \"C:\\\\wamp64\\\\bin\\\\php\\\\php8.1.0\\\\php.exe\" -l \"C:\\\\wamp64\\\\www\\\\huubie\\\\app\\\\inventarios\\\\dashboard-mermas-resumen.php\")",
       "Bash(xxd)",
       "Bash(cat)",
-      "Bash(python /tmp/fixphp.py)"
+      "Bash(python /tmp/fixphp.py)",
+      "PowerShell($php = \\(Get-ChildItem \"C:\\\\wamp64\\\\bin\\\\php\" -Directory | Select-Object -Last 1\\).FullName + \"\\\\php.exe\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\inventory\\\\admin\\\\accesos\\\\ctrl\\\\ctrl-accesos.php\"; & $php -l \"c:\\\\wamp64\\\\www\\\\huubie\\\\inventory\\\\admin\\\\accesos\\\\mdl\\\\mdl-accesos.php\")"
     ],
     "additionalDirectories": [
       "\\tmp",
