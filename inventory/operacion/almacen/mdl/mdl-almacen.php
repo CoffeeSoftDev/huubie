@@ -19,7 +19,7 @@ class mdl extends CRUD {
             SELECT id, name AS valor
             FROM {$this->bd}item_category
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -30,7 +30,7 @@ class mdl extends CRUD {
             SELECT id, code, name AS valor
             FROM {$this->bd}unit
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -41,7 +41,7 @@ class mdl extends CRUD {
             SELECT id, name AS valor
             FROM {$this->bd}warehouse_area
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -52,7 +52,7 @@ class mdl extends CRUD {
             SELECT id, name AS valor
             FROM {$this->bd}supplier
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -63,7 +63,7 @@ class mdl extends CRUD {
             SELECT id, name AS valor
             FROM {$this->bd}warehouse
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
@@ -101,7 +101,7 @@ class mdl extends CRUD {
                 WHERE active = 1
                 GROUP BY item_id
             ) st ON st.item_id = i.id
-            WHERE i.companies_id = ".$_SESSION['companies_id']."
+            WHERE i.companies_id = ".$_SESSION['company_id']."
         ";
 
         $params = [];
@@ -161,7 +161,7 @@ class mdl extends CRUD {
             SELECT COUNT(*) as count
             FROM {$this->bd}item_attribute
             WHERE sku = ? AND active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['count'] > 0;

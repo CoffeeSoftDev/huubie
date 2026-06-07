@@ -10,7 +10,7 @@ class Dashboard extends CRUD {
     }
 
     public function getTotalProductos() {
-        $query = "SELECT COUNT(*) as total FROM {$this->bd}item WHERE active = 1 AND companies_id = ".$_SESSION['companies_id'];
+        $query = "SELECT COUNT(*) as total FROM {$this->bd}item WHERE active = 1 AND companies_id = ".$_SESSION['company_id'];
         $result = $this->_Read($query, []);
         return $result[0]['total'] ?? 0;
     }
@@ -21,7 +21,7 @@ class Dashboard extends CRUD {
             FROM {$this->bd}stock st
             INNER JOIN {$this->bd}item i ON i.id = st.item_id
             WHERE st.active = 1 AND i.active = 1
-            AND i.companies_id = ".$_SESSION['companies_id'];
+            AND i.companies_id = ".$_SESSION['company_id'];
         $result = $this->_Read($query, []);
         return $result[0]['total'] ?? 0;
     }
@@ -39,7 +39,7 @@ class Dashboard extends CRUD {
                     SELECT item_id, SUM(quantity) AS qty
                     FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
                 ) t ON t.item_id = i.id
-                WHERE i.active = 1 AND i.companies_id = ".$_SESSION['companies_id']."
+                WHERE i.active = 1 AND i.companies_id = ".$_SESSION['company_id']."
                 HAVING qty <= min AND qty > 0
             ) x
         ";
@@ -54,7 +54,7 @@ class Dashboard extends CRUD {
             INNER JOIN {$this->bd}item i ON i.id = st.item_id
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
             WHERE st.active = 1 AND i.active = 1
-            AND i.companies_id = ".$_SESSION['companies_id'];
+            AND i.companies_id = ".$_SESSION['company_id'];
         $result = $this->_Read($query, []);
         return $result[0]['total'] ?? 0;
     }
@@ -68,7 +68,7 @@ class Dashboard extends CRUD {
                 mv.quantity as cantidad
             FROM {$this->bd}inventory_movement mv
             INNER JOIN {$this->bd}item i ON i.id = mv.item_id
-            WHERE mv.companies_id = ".$_SESSION['companies_id']."
+            WHERE mv.companies_id = ".$_SESSION['company_id']."
             ORDER BY mv.id DESC
             LIMIT 10
         ";
@@ -86,7 +86,7 @@ class Dashboard extends CRUD {
                 SELECT item_id, SUM(quantity) AS qty
                 FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
             ) t ON t.item_id = i.id
-            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['companies_id']."
+            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['company_id']."
             AND COALESCE(t.qty, 0) <= COALESCE(ia.stock_min, 0)
             ORDER BY stock ASC
             LIMIT 5

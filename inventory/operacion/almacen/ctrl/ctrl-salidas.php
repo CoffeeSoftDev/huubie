@@ -17,8 +17,8 @@ class ctrl extends mdl {
 
     public function __construct() {
         parent::__construct();
-        $this->companiesId    = (int) ($_SESSION['companies_id']    ?? $_POST['companies_id']    ?? 0);
-        $this->subsidiariesId = (int) ($_SESSION['subsidiaries_id'] ?? $_POST['subsidiaries_id'] ?? 0);
+        $this->companiesId    = (int) ($_SESSION['company_id']    ?? $_POST['companies_id']    ?? 0);
+        $this->subsidiariesId = (int) ($_SESSION['branch_id'] ?? $_POST['subsidiaries_id'] ?? 0);
         $this->userId         = (int) ($_SESSION['user_id']         ?? $_POST['user_id']         ?? 0);
     }
 

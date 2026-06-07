@@ -56,18 +56,46 @@ class MAccess extends CRUD {
     }
 
     function getSessionUser($array) {
+        // [id usuario]
         $query = "
             SELECT
-                u.idUser   AS id,
-                u.usser    AS user,
-                u.usr_photo AS photo,
-                u.usr_perfil AS level,
-                pf.perfil  AS rol,
-                udn.UDN    AS negocio
-            FROM {$this->bd}usuarios u
-            INNER JOIN {$this->bd}perfiles pf ON pf.idPerfil = u.usr_perfil
-            INNER JOIN {$this->bd}udn ON udn.idUDN = u.usr_udn
-            WHERE u.idUser = ?
+                u.id        AS id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user,
+                u.photo     AS photo,
+                u.is_owner  AS level,
+                u.company_id AS company_id,
+                c.name      AS company,
+                r.name      AS rol
+            FROM {$this->bd}users u
+            LEFT JOIN {$this->bd}companies c ON c.id = u.company_id
+            LEFT JOIN {$this->bd}users_braches ub ON ub.user_id = u.id
+            LEFT JOIN {$this->bd}roles r ON r.id = ub.role_id
+            WHERE u.id = ?
+            LIMIT 1
+        ";
+
+        $result = $this->_Read($query, $array);
+        return !empty($result) ? $result[0] : null;
+    }
+
+    function getUserByCredentials($array) {
+        // [email]
+        $query = "
+            SELECT
+                u.id         AS IDU,
+                u.name       AS name,
+                u.last_name  AS last_name,
+                u.email      AS email,
+                u.password   AS password,
+                u.`key`      AS user_key,
+                u.photo      AS photo,
+                u.is_owner   AS is_owner,
+                u.company_id AS company_id,
+                c.name       AS company
+            FROM {$this->bd}users u
+            LEFT JOIN {$this->bd}companies c ON c.id = u.company_id
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
             LIMIT 1
         ";
 

@@ -22,7 +22,7 @@ class mdl extends CRUD {
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
             WHERE i.active = 1
-            AND i.companies_id = ".$_SESSION['companies_id']."
+            AND i.companies_id = ".$_SESSION['company_id']."
             ORDER BY i.name ASC
         ";
         return $this->_Read($query, []);
@@ -33,7 +33,7 @@ class mdl extends CRUD {
             SELECT id, name AS valor, is_default
             FROM {$this->bd}warehouse
             WHERE active = 1
-            AND companies_id = ".$_SESSION['companies_id']."
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY is_default DESC, name ASC
         ";
         return $this->_Read($query, []);
@@ -79,7 +79,7 @@ class mdl extends CRUD {
             ORDER BY id DESC
             LIMIT 1
         ";
-        $r = $this->_Read($query, [$_SESSION['companies_id'], $prefix . '%']);
+        $r = $this->_Read($query, [$_SESSION['company_id'], $prefix . '%']);
         $next = 1;
         if (!empty($r)) {
             $num  = (int) preg_replace('/[^0-9]/', '', substr($r[0]['folio'], strlen($prefix)));
@@ -169,7 +169,7 @@ class mdl extends CRUD {
             LEFT JOIN fayxzvov_erp.users u ON u.id = mv.user_id
             WHERE DATE(mv.occurred_at) BETWEEN ? AND ?
             AND (? = 'Todos' OR mv.movement_type = ?)
-            AND mv.companies_id = ".$_SESSION['companies_id']."
+            AND mv.companies_id = ".$_SESSION['company_id']."
             ORDER BY mv.id DESC
         ";
         return $this->_Read($query, $array);
@@ -188,7 +188,7 @@ class mdl extends CRUD {
                 SELECT item_id, SUM(quantity) AS qty
                 FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
             ) t ON t.item_id = i.id
-            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['companies_id']."
+            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['company_id']."
         ";
         $r = $this->_Read($query, []);
         return $r[0] ?? null;
@@ -207,7 +207,7 @@ class mdl extends CRUD {
                 SELECT item_id, SUM(quantity) AS qty
                 FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
             ) t ON t.item_id = i.id
-            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['companies_id']."
+            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['company_id']."
             AND COALESCE(t.qty, 0) <= COALESCE(ia.stock_min, 0)
             ORDER BY stock_actual ASC
         ";
@@ -226,7 +226,7 @@ class mdl extends CRUD {
                 mv.stock_post
             FROM {$this->bd}inventory_movement mv
             WHERE mv.item_id = ?
-            AND mv.companies_id = ".$_SESSION['companies_id']."
+            AND mv.companies_id = ".$_SESSION['company_id']."
             ORDER BY mv.id DESC
         ";
         return $this->_Read($query, $array);

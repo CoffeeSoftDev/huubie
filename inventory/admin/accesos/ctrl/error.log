@@ -1,0 +1,48 @@
+[ 2026-06-06 22:58:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name, address, phone, is_main, active, companies_id
+            FROM fayxzvov_erp.subsidiaries
+            WHERE companies_id = ? AND active = ?
+            ORDER BY is_main DESC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.subsidiaries' doesn't exist
+
+
+[ 2026-06-06 22:58:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_erp.subsidiaries
+            WHERE companies_id = ? AND active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.subsidiaries' doesn't exist
+
+
+[ 2026-06-06 22:41:59 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name, address, phone, is_main, active, companies_id
+            FROM fayxzvov_erp.subsidiaries
+            WHERE companies_id = ? AND active = ?
+            ORDER BY is_main DESC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.subsidiaries' doesn't exist
+
+
+[ 2026-06-06 22:41:59 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_erp.subsidiaries
+            WHERE companies_id = ? AND active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.subsidiaries' doesn't exist
+
+
