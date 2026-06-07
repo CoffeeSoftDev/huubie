@@ -167,6 +167,8 @@ class Subsidiaries extends Templates {
         this.createModalForm({
             id: 'formSubsidiaryAdd',
             data: { opc: 'addSubsidiary' },
+            theme: 'light',
+            coffeesoft: true,
             bootbox: { title: 'Nueva Sucursal' },
             json: this.jsonSubsidiary(),
             success: (r) => this._afterSave(r)
@@ -183,6 +185,8 @@ class Subsidiaries extends Templates {
         this.createModalForm({
             id: 'formSubsidiaryEdit',
             data: { opc: 'editSubsidiary', id: id },
+            theme: 'light',
+            coffeesoft: true,
             bootbox: { title: 'Editar Sucursal' },
             autofill: request.data,
             json: this.jsonSubsidiary(),
@@ -298,6 +302,8 @@ class Users extends Templates {
         this.createModalForm({
             id: 'formUserAdd',
             data: { opc: 'addUser' },
+            theme: 'light',
+            coffeesoft: true,
             bootbox: { title: 'Nuevo Usuario' },
             json: this.jsonUser(false),
             success: (r) => this._afterSave(r)
@@ -317,6 +323,8 @@ class Users extends Templates {
         this.createModalForm({
             id: 'formUserEdit',
             data: { opc: 'editUser', id: id },
+            theme: 'light',
+            coffeesoft: true,
             bootbox: { title: 'Editar Usuario' },
             autofill: data,
             json: this.jsonUser(true),
@@ -328,6 +336,8 @@ class Users extends Templates {
         this.createModalForm({
             id: 'formUserPassword',
             data: { opc: 'changePassword', id: id },
+            theme: 'light',
+            coffeesoft: true,
             bootbox: { title: 'Cambiar Contraseña' },
             json: [
                 {
