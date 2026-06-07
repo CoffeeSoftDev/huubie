@@ -256,131 +256,95 @@
                     </div>
                 </section>
 
-                <!-- TABLA HISTORICA DIARIA -->
+                <!-- TABS: HISTÓRICO DIARIO + COMPORTAMIENTO POR PRODUCTO -->
                 <section class="bg-white rounded-xl border border-[#E8E2DD] shadow-sm overflow-hidden">
-                    <div class="px-5 py-4 border-b border-[#EEE7E2] flex items-center justify-between">
-                        <div>
-                            <h2 class="text-sm font-bold text-[#1E293B]">Registro histórico diario</h2>
-                            <p class="text-xs text-[#94A3B8] mt-0.5">Producción y merma por categoría · últimos registros</p>
-                        </div>
+                    <!-- Tab bar -->
+                    <div class="flex items-center border-b border-[#EEE7E2] px-2 overflow-x-auto scrollbar-thin">
+                        <button data-tab="productos" class="tab-btn px-4 py-3 text-sm font-semibold text-[#C05A40] border-b-2 border-[#C05A40] -mb-px transition flex items-center gap-2 whitespace-nowrap">
+                            <i data-lucide="package" class="w-4 h-4"></i>
+                            Comportamiento por producto
+                        </button>
+                        <button data-tab="diario" class="tab-btn px-4 py-3 text-sm font-medium text-[#64748B] border-b-2 border-transparent hover:text-[#1E293B] -mb-px transition flex items-center gap-2 whitespace-nowrap">
+                            <i data-lucide="calendar-days" class="w-4 h-4"></i>
+                            Registro histórico diario
+                        </button>
                     </div>
-                    <div class="overflow-x-auto scrollbar-thin">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-[#EEE7E2] text-[11px] uppercase tracking-wider text-[#94A3B8]">
-                                    <th class="text-left font-semibold px-5 py-3">Fecha</th>
-                                    <th class="text-right font-semibold px-3 py-3">Producido</th>
-                                    <th class="text-right font-semibold px-3 py-3">Merma uds</th>
-                                    <th class="text-left font-semibold px-3 py-3">% Merma</th>
-                                    <th class="text-left font-semibold px-3 py-3">Motivo top</th>
-                                    <th class="text-right font-semibold px-3 py-3">Valor perdido</th>
-                                    <th class="text-center font-semibold px-5 py-3">Estado del día</th>
-                                </tr>
-                            </thead>
-                            <tbody id="histTbody" class="divide-y divide-[#F1ECE8]">
-                                <tr class="hover:bg-[#FCFAF9] transition">
-                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Mié 04 Jun</span></div></td>
-                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">5,120</td>
-                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">247</td>
-                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#D97706] tabular-nums">4.8%</span></td>
-                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#C05A40]"></span>Caducidad</span></td>
-                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$1,847.50</td>
-                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FFFBEB] text-[#D97706] border border-[#D97706]/25">Cerca</span></td>
-                                </tr>
-                                <tr class="hover:bg-[#FCFAF9] transition">
-                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Mar 03 Jun</span></div></td>
-                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">5,030</td>
-                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">312</td>
-                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#C05A40] tabular-nums">6.2%</span></td>
-                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#D97706]"></span>Dañado</span></td>
-                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$2,310.00</td>
-                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FBF0EC] text-[#C05A40] border border-[#C05A40]/25">Fuera</span></td>
-                                </tr>
-                                <tr class="hover:bg-[#FCFAF9] transition">
-                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Lun 02 Jun</span></div></td>
-                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">4,980</td>
-                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">189</td>
-                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#059669] tabular-nums">3.8%</span></td>
-                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#C05A40]"></span>Caducidad</span></td>
-                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$1,398.00</td>
-                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#059669]/25">En margen</span></td>
-                                </tr>
-                                <tr class="hover:bg-[#FCFAF9] transition">
-                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Dom 01 Jun</span></div></td>
-                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">3,420</td>
-                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">142</td>
-                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#059669] tabular-nums">4.2%</span></td>
-                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#0EA5E9]"></span>Error producción</span></td>
-                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$1,065.00</td>
-                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#059669]/25">En margen</span></td>
-                                </tr>
-                                <tr class="hover:bg-[#FCFAF9] transition">
-                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Sáb 31 May</span></div></td>
-                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">5,210</td>
-                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">358</td>
-                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#C05A40] tabular-nums">6.9%</span></td>
-                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#D97706]"></span>Dañado</span></td>
-                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$2,684.00</td>
-                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FBF0EC] text-[#C05A40] border border-[#C05A40]/25">Fuera</span></td>
-                                </tr>
-                                <tr class="hover:bg-[#FCFAF9] transition">
-                                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Vie 30 May</span></div></td>
-                                    <td class="text-right tabular-nums px-3 py-3 text-[#475569]">5,080</td>
-                                    <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">203</td>
-                                    <td class="px-3 py-3"><span class="text-xs font-bold text-[#059669] tabular-nums">4.0%</span></td>
-                                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#C05A40]"></span>Caducidad</span></td>
-                                    <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$1,521.00</td>
-                                    <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#059669]/25">En margen</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="px-5 py-3 border-t border-[#EEE7E2] flex items-center justify-between text-xs text-[#94A3B8]">
-                        <span id="histCount">Mostrando 6 de 31 días</span>
-                        <div class="flex items-center gap-1">
-                            <button class="w-7 h-7 rounded-md border border-[#E2E8F0] flex items-center justify-center hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
-                            <button class="w-7 h-7 rounded-md border border-[#E2E8F0] flex items-center justify-center hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
-                        </div>
-                    </div>
-                </section>
 
-                <!-- COMPORTAMIENTO POR PRODUCTO -->
-                <section class="bg-white rounded-xl border border-[#E8E2DD] shadow-sm overflow-hidden">
-                    <div class="px-5 py-4 border-b border-[#EEE7E2] flex items-center justify-between gap-4 flex-wrap">
-                        <div>
-                            <h2 id="prodTitle" class="text-sm font-bold text-[#1E293B]">Comportamiento por producto</h2>
-                            <p id="prodSub" class="text-xs text-[#94A3B8] mt-0.5">Mermas diarias por producto · últimos 7 días</p>
+                    <!-- Tab content: diario -->
+                    <div data-tab-content="diario" class="hidden">
+                        <div class="px-5 py-3 border-b border-[#EEE7E2]">
+                            <p class="text-xs text-[#94A3B8]">Producción y merma por categoría · últimos registros</p>
                         </div>
-                        <div class="relative">
-                            <i data-lucide="search" class="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2"></i>
-                            <input id="prodSearch" type="text" placeholder="Buscar producto..." class="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] outline-none focus:border-[#C05A40] focus:ring-2 focus:ring-[#C05A40]/10 w-48" />
+                        <div class="overflow-x-auto scrollbar-thin">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-[#EEE7E2] text-[11px] uppercase tracking-wider text-[#94A3B8]">
+                                        <th class="text-left font-semibold px-5 py-3">Fecha</th>
+                                        <th class="text-right font-semibold px-3 py-3">Producido</th>
+                                        <th class="text-right font-semibold px-3 py-3">Merma uds</th>
+                                        <th class="text-left font-semibold px-3 py-3">% Merma</th>
+                                        <th class="text-left font-semibold px-3 py-3">Motivo top</th>
+                                        <th class="text-right font-semibold px-3 py-3">Valor perdido</th>
+                                        <th class="text-center font-semibold px-5 py-3">Estado del día</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="histTbody" class="divide-y divide-[#F1ECE8]">
+                                    <tr class="hover:bg-[#FCFAF9] transition">
+                                        <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#94A3B8]"></i><span class="font-medium text-[#1E293B]">Mié 04 Jun</span></div></td>
+                                        <td class="text-right tabular-nums px-3 py-3 text-[#475569]">5,120</td>
+                                        <td class="text-right tabular-nums font-bold px-3 py-3 text-[#1E293B]">247</td>
+                                        <td class="px-3 py-3"><span class="text-xs font-bold text-[#D97706] tabular-nums">4.8%</span></td>
+                                        <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 text-xs text-[#475569]"><span class="w-2 h-2 rounded-full bg-[#C05A40]"></span>Caducidad</span></td>
+                                        <td class="text-right tabular-nums font-semibold px-3 py-3 text-[#1E293B]">$1,847.50</td>
+                                        <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FFFBEB] text-[#D97706] border border-[#D97706]/25">Cerca</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="px-5 py-3 border-t border-[#EEE7E2] flex items-center justify-between text-xs text-[#94A3B8]">
+                            <span id="histCount">Mostrando 6 de 31 días</span>
+                            <div class="flex items-center gap-1">
+                                <button class="w-7 h-7 rounded-md border border-[#E2E8F0] flex items-center justify-center hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                                <button class="w-7 h-7 rounded-md border border-[#E2E8F0] flex items-center justify-center hover:border-[#C05A40] hover:text-[#C05A40] transition"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                            </div>
                         </div>
                     </div>
-                    <div class="overflow-x-auto scrollbar-thin">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-[#EEE7E2] text-[10px] uppercase tracking-wider text-[#94A3B8]">
-                                    <th class="text-left font-semibold px-5 py-3">Producto</th>
-                                    <th class="text-center font-semibold px-2 py-3">Vie 30</th>
-                                    <th class="text-center font-semibold px-2 py-3">Sáb 31</th>
-                                    <th class="text-center font-semibold px-2 py-3">Dom 01</th>
-                                    <th class="text-center font-semibold px-2 py-3">Lun 02</th>
-                                    <th class="text-center font-semibold px-2 py-3">Mar 03</th>
-                                    <th class="text-center font-semibold px-2 py-3">Mié 04</th>
-                                    <th class="text-center font-semibold px-2 py-3">Jue 05</th>
-                                    <th class="text-right font-semibold px-3 py-3">Total 7d</th>
-                                    <th class="text-center font-semibold px-5 py-3">Tendencia</th>
-                                </tr>
-                            </thead>
-                            <tbody id="prodTbody" class="divide-y divide-[#F1ECE8]"></tbody>
-                        </table>
-                    </div>
-                    <div class="px-5 py-3 border-t border-[#EEE7E2] flex items-center justify-between text-xs text-[#94A3B8]">
-                        <span id="prodCount">—</span>
-                        <span class="flex items-center gap-3">
-                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm" style="background:rgba(192,90,64,.05)"></span>menor merma</span>
-                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm" style="background:rgba(192,90,64,.25)"></span>mayor merma</span>
-                        </span>
+
+                    <!-- Tab content: productos -->
+                    <div data-tab-content="productos">
+                        <div class="px-5 py-3 border-b border-[#EEE7E2] flex items-center justify-between gap-4 flex-wrap">
+                            <p id="prodSub" class="text-xs text-[#94A3B8]">Mermas diarias por producto · últimos 7 días</p>
+                            <div class="relative">
+                                <i data-lucide="search" class="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                                <input id="prodSearch" type="text" placeholder="Buscar producto..." class="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] outline-none focus:border-[#C05A40] focus:ring-2 focus:ring-[#C05A40]/10 w-48" />
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto scrollbar-thin">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-[#EEE7E2] text-[10px] uppercase tracking-wider text-[#94A3B8]">
+                                        <th class="text-left font-semibold px-5 py-3">Producto</th>
+                                        <th class="text-center font-semibold px-2 py-3">Vie 30</th>
+                                        <th class="text-center font-semibold px-2 py-3">Sáb 31</th>
+                                        <th class="text-center font-semibold px-2 py-3">Dom 01</th>
+                                        <th class="text-center font-semibold px-2 py-3">Lun 02</th>
+                                        <th class="text-center font-semibold px-2 py-3">Mar 03</th>
+                                        <th class="text-center font-semibold px-2 py-3">Mié 04</th>
+                                        <th class="text-center font-semibold px-2 py-3">Jue 05</th>
+                                        <th class="text-right font-semibold px-3 py-3">Total 7d</th>
+                                        <th class="text-center font-semibold px-5 py-3">Tendencia</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prodTbody" class="divide-y divide-[#F1ECE8]"></tbody>
+                            </table>
+                        </div>
+                        <div class="px-5 py-3 border-t border-[#EEE7E2] flex items-center justify-between text-xs text-[#94A3B8]">
+                            <span id="prodCount">—</span>
+                            <span class="flex items-center gap-3">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm" style="background:rgba(192,90,64,.05)"></span>menor merma</span>
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm" style="background:rgba(192,90,64,.25)"></span>mayor merma</span>
+                            </span>
+                        </div>
                     </div>
                 </section>
 
@@ -468,6 +432,35 @@
             'Tarta fresa':      { cat: 'pasteleria', serie: [ 7,  8,  6,  7, 10,  7,  9] }
         };
 
+        // Configuración de periodos. Cada uno define cuántos días renderiza la tendencia,
+        // los días totales del periodo (para conteos y escalado de KPIs/donut), y etiquetas.
+        const PERIODOS = {
+            'semana':    { name: 'semana',    dias: 7,  totalDias: 7,  factor: 7 / 30,  delta: 'vs semana anterior',    cuenta: '7 días' },
+            'mes':       { name: 'mes',       dias: 28, totalDias: 31, factor: 1,        delta: 'vs mes anterior',       cuenta: '31 días' },
+            'trimestre': { name: 'trimestre', dias: 90, totalDias: 90, factor: 90 / 30, delta: 'vs trimestre anterior', cuenta: '90 días' }
+        };
+
+        // Series base por periodo derivadas de SERIE_BASE.
+        const SERIES_POR_PERIODO = {
+            'semana':    SERIE_BASE.slice(-7),
+            'mes':       SERIE_BASE.slice(),
+            'trimestre': [
+                ...SERIE_BASE.map(v => +(v - 0.3).toFixed(1)),
+                ...SERIE_BASE.map(v => +(v + 0.2).toFixed(1)),
+                ...SERIE_BASE
+            ].map(v => +(Math.max(2, Math.min(9, v))).toFixed(1)).slice(0, 90)
+        };
+
+        // Estado actual del dashboard.
+        let currentCat = 'todas';
+        let currentPeriod = 'mes';
+
+        function labelsFor(n) {
+            const arr = [];
+            for (let i = 1; i <= n; i++) arr.push('D' + i);
+            return arr;
+        }
+
         // Semáforo a partir del % de merma vs el objetivo de la categoría.
         function estado(pct, obj) {
             if (pct < obj)        return { txt: 'En margen', text: '#059669', bg: '#ECFDF5', bd: 'rgba(5,150,105,.25)' };
@@ -497,8 +490,7 @@
         }
 
         // ====================== GRÁFICAS ======================
-        const labels28 = [];
-        for (let i = 0; i < 28; i++) labels28.push('D' + (i + 1));
+        const labels28 = labelsFor(28);
 
         const trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), {
             type: 'line',
@@ -550,9 +542,13 @@
         function render(catKey) {
             const cat = CATS[catKey] || CATS['todas'];
             const esTodas = catKey === 'todas';
+            const periodo = PERIODOS[currentPeriod] || PERIODOS['mes'];
+            const baseSerie = SERIES_POR_PERIODO[currentPeriod] || SERIE_BASE;
+            currentCat = catKey;
 
             // -- Tendencia --
-            const serie = SERIE_BASE.map(v => +clamp(v * cat.f, 9).toFixed(1));
+            const serie = baseSerie.map(v => +clamp(v * cat.f, 9).toFixed(1));
+            trendChart.data.labels = labelsFor(serie.length);
             trendChart.data.datasets[0].data = serie;
             trendChart.data.datasets[0].borderColor = cat.color;
             trendChart.data.datasets[0].pointBackgroundColor = cat.color;
@@ -562,19 +558,22 @@
                 g.addColorStop(1, hexToRgba(cat.color, 0.00));
                 return g;
             };
-            trendChart.data.datasets[1].data = Array(28).fill(cat.obj);
+            trendChart.data.datasets[1].data = Array(serie.length).fill(cat.obj);
             trendChart.update();
+            document.getElementById('trendTitle').textContent = `Tendencia de % de merma · ${periodo.cuenta}`;
             document.getElementById('trendSub').textContent = `% diario de merma vs margen objetivo (${cat.obj}%) · ${cat.name}`;
 
-            // -- Panel de desglose (categorías o productos de la categoría) --
-            const items = cat.productos;
+            // -- Panel de desglose (categorías o productos de la categoría), escalado al periodo --
+            const items = cat.productos.map(([nombre, uds]) => [nombre, Math.round(uds * periodo.factor)]);
             catChart.data.labels = items.map(x => x[0]);
             catChart.data.datasets[0].data = items.map(x => x[1]);
             catChart.data.datasets[0].backgroundColor = items.map((_, i) => esTodas ? PALETTE[i % PALETTE.length] : hexToRgba(cat.color, 1 - i * 0.18));
             catChart.update();
 
             document.getElementById('catPanelTitle').textContent = esTodas ? 'Mermas por categoría' : `Mermas · ${cat.name}`;
-            document.getElementById('catPanelSub').textContent = esTodas ? 'Unidades de merma acumuladas del mes' : 'Productos de la categoría · acumulado del mes';
+            document.getElementById('catPanelSub').textContent = esTodas
+                ? `Unidades de merma acumuladas · ${periodo.cuenta}`
+                : `Productos de la categoría · acumulado ${periodo.cuenta}`;
             document.getElementById('catBreakdownList').innerHTML = items.map((x, i) => {
                 const color = esTodas ? PALETTE[i % PALETTE.length] : hexToRgba(cat.color, 1 - i * 0.18);
                 return `<div class="flex items-center justify-between text-xs">
@@ -592,6 +591,10 @@
             document.getElementById('kpiMejor').textContent = mejor;
             document.getElementById('kpiMejorLabel').textContent = `Mejor día del periodo · ${cat.name}`;
             document.getElementById('kpiValor').textContent = '$' + fmt(Math.round(totalUds * COSTO_UDS));
+            document.getElementById('kpiAcumLabel').textContent = periodo.name;
+            document.getElementById('kpiValorLabel').textContent = periodo.name;
+            document.getElementById('kpiValorDias').textContent = periodo.totalDias;
+            document.getElementById('kpiAcumDelta').textContent = periodo.delta;
 
             // -- Tabla histórica (escalada al share de la categoría) --
             const rows = ROWS_BASE.map(r => {
@@ -613,7 +616,7 @@
                     <td class="text-center px-5 py-3"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold" style="color:${e.text};background:${e.bg};border:1px solid ${e.bd}">${e.txt}</span></td>
                 </tr>`;
             }).join('');
-            document.getElementById('histCount').textContent = `Mostrando ${rows.length} de 31 días · ${cat.name}`;
+            document.getElementById('histCount').textContent = `Mostrando ${rows.length} de ${periodo.totalDias} días · ${cat.name}`;
 
             // -- Comportamiento por producto (7 días) --
             renderProductos(catKey);
@@ -685,9 +688,12 @@
             tbody.innerHTML = rows.join('');
 
             const cat = CATS[catKey] || CATS['todas'];
-            document.getElementById('prodTitle').textContent = catKey === 'todas'
-                ? 'Comportamiento por producto · todas las categorías'
-                : `Comportamiento · ${cat.name}`;
+            const prodTitleEl = document.getElementById('prodTitle');
+            if (prodTitleEl) {
+                prodTitleEl.textContent = catKey === 'todas'
+                    ? 'Comportamiento por producto · todas las categorías'
+                    : `Comportamiento · ${cat.name}`;
+            }
             document.getElementById('prodSub').textContent = `Mermas diarias por producto · últimos 7 días${catKey === 'todas' ? '' : ' · ' + cat.name}`;
             document.getElementById('prodCount').textContent = `${entries.length} producto${entries.length === 1 ? '' : 's'}${filterCat ? ' en ' + cat.name : ''}`;
         }
@@ -696,11 +702,48 @@
         const selCat = document.getElementById('filtroCategoria');
         if (selCat) selCat.addEventListener('change', (e) => render(e.target.value));
 
+        // Toggle de periodo (Semana / Mes / Trimestre).
+        const periodoBtns = document.querySelectorAll('[data-periodo]');
+        const activeBtnClasses    = ['bg-[#C05A40]', 'text-white', 'font-semibold', 'shadow-sm'];
+        const inactiveBtnClasses  = ['text-[#64748B]', 'hover:text-[#1E293B]', 'transition'];
+        periodoBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentPeriod = btn.dataset.periodo;
+                periodoBtns.forEach(b => {
+                    activeBtnClasses.forEach(c => b.classList.remove(c));
+                    inactiveBtnClasses.forEach(c => b.classList.add(c));
+                });
+                inactiveBtnClasses.forEach(c => btn.classList.remove(c));
+                activeBtnClasses.forEach(c => btn.classList.add(c));
+                render(currentCat);
+            });
+        });
+
         // Buscador de "Comportamiento por producto" → filtra solo esa tabla.
         const prodSearch = document.getElementById('prodSearch');
         if (prodSearch) prodSearch.addEventListener('input', () => renderProductos(selCat?.value || 'todas'));
 
-        // Render inicial (Todas).
+        // Tabs · Registro histórico diario / Comportamiento por producto.
+        const tabBtns = document.querySelectorAll('[data-tab]');
+        const tabPanels = document.querySelectorAll('[data-tab-content]');
+        const tabActiveClasses   = ['text-[#C05A40]', 'border-[#C05A40]', 'font-semibold'];
+        const tabInactiveClasses = ['text-[#64748B]', 'border-transparent', 'font-medium', 'hover:text-[#1E293B]'];
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.tab;
+                tabBtns.forEach(b => {
+                    tabActiveClasses.forEach(c => b.classList.remove(c));
+                    tabInactiveClasses.forEach(c => b.classList.add(c));
+                });
+                tabInactiveClasses.forEach(c => btn.classList.remove(c));
+                tabActiveClasses.forEach(c => btn.classList.add(c));
+                tabPanels.forEach(p => {
+                    p.classList.toggle('hidden', p.dataset.tabContent !== target);
+                });
+            });
+        });
+
+        // Render inicial (Todas · Mes).
         render('todas');
     </script>
 </body>
