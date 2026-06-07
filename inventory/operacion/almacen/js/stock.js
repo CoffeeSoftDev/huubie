@@ -209,7 +209,7 @@ class App extends Templates {
         this.createfilterBar({
             parent: 'filterBar',
             coffeesoft:true,
-            theme:'dark',
+            theme:'light',
             data:   filters
         });
     }
@@ -299,7 +299,7 @@ class Stock extends Templates {
             },
             attr: {
                 id:           `tb${this.PROJECT_NAME}`,
-                theme:        'dark',
+                theme:        'light',
                 striped:      true,
                 f_size:       12,
                 center:       [3, 7, 8],
