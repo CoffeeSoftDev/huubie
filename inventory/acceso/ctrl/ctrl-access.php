@@ -27,10 +27,13 @@ class Access extends MAccess {
             setcookie("company_id", $usr['company_id'], $expira, "/");
             setcookie("company",    $usr['company'],    $expira, "/");
 
-            $_SESSION['IDU']        = $usr['IDU'];                                            // id usuario (clave que validan las páginas: sucursales, almacén, etc.)
-            $_SESSION['user_id']    = $usr['IDU'];                                            // alias id usuario
-            $_SESSION['company_id'] = $usr['company_id'];                                     // id compania
-            $_SESSION['company']    = $usr['company'];                                        // nombre de la compania
+            $_SESSION['IDU']        = $usr['IDU'];             // id usuario (clave que validan las páginas: sucursales, almacén, etc.)
+            $_SESSION['user_id']    = $usr['IDU'];             // alias id usuario
+            $_SESSION['company_id'] = $usr['company_id'];      // id compania
+            $_SESSION['branch_id'] = $usr['branch_id'];        // id sucursal
+            $_SESSION['company']    = $usr['company'];         // nombre de la compania
+            $_SESSION['branch']      = $usr['branch'];         // nombre de la sucursal
+
             $_SESSION['user']       = trim(($usr['name'] ?? '') . ' ' . ($usr['last_name'] ?? ''));
             $_SESSION['is_owner']   = $usr['is_owner'];
             $_SESSION['last_activity'] = time();

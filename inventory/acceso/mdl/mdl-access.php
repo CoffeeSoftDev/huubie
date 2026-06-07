@@ -91,9 +91,12 @@ class MAccess extends CRUD {
                 u.photo      AS photo,
                 u.is_owner   AS is_owner,
                 u.company_id AS company_id,
-                c.name       AS company
+                c.name       AS company,
+                u.branch_id  AS branch_id,
+                b.name       AS branch
             FROM {$this->bd}users u
             LEFT JOIN {$this->bd}companies c ON c.id = u.company_id
+            LEFT JOIN {$this->bd}branches b ON b.id = u.branch_id
             WHERE LOWER(u.email) = LOWER(?)
                 AND u.status = 'active'
             LIMIT 1

@@ -11,71 +11,69 @@ require_once '../mdl/mdl-accesos.php';
 class ctrl extends mdl {
 
     public $companiesId;
-    public $subsidiariesId;
+    public $branchId;
     public $userId;
 
     public function __construct() {
         parent::__construct();
-        $this->companiesId    = (int) ($_SESSION['companies_id']    ?? $_POST['companies_id']    ?? 0);
-        $this->subsidiariesId = (int) ($_SESSION['subsidiaries_id'] ?? $_POST['subsidiaries_id'] ?? 0);
-        $this->userId         = (int) ($_SESSION['user_id']         ?? $_POST['user_id']         ?? 0);
+        $this->companiesId = (int) ($_SESSION['company_id'] ?? $_POST['company_id'] ?? 0);
+        $this->branchId    = (int) ($_SESSION['branch_id']  ?? $_POST['branch_id']  ?? 0);
+        $this->userId      = (int) ($_SESSION['IDU'] ?? $_SESSION['user_id'] ?? $_POST['user_id'] ?? 0);
     }
 
     function init() {
         $company = $this->qCompany([$this->companiesId]);
         return [
-            'status'          => 200,
-            'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $this->subsidiariesId,
-            'company_name'    => $company['name'] ?? '—',
-            'statusFilter'    => [
+            'status'       => 200,
+            'company_id'   => $this->companiesId,
+            'branch_id'    => $this->branchId,
+            'company_name' => $company['name'] ?? '—',
+            'statusFilter' => [
                 ['id' => '1', 'valor' => 'Activos'],
                 ['id' => '0', 'valor' => 'Inactivos']
             ],
-            'sucursales'      => $this->qSubsidiariesForSelect([$this->companiesId])
+            'sucursales'   => $this->qBranchesForSelect([$this->companiesId])
         ];
     }
 
-    /* ====================== Sucursales ====================== */
+    /* ====================== Sucursales (branches) ====================== */
 
-    function lsSubsidiaries() {
+    function lsBranches() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
-        $ls = $this->qSubsidiaries([$this->companiesId, $active]);
+        $ls = $this->qBranches([$this->companiesId, $active]);
 
         $row = [];
-        foreach ($ls as $s) {
+        foreach ($ls as $b) {
             $a = [];
             $a[] = [
                 'class'   => 'btn btn-sm btn-primary me-1',
                 'html'    => '<i class="icon-pencil"></i>',
-                'onclick' => 'subsidiaries.editSubsidiary(' . $s['id'] . ')'
+                'onclick' => 'subsidiaries.editSubsidiary(' . $b['id'] . ')'
             ];
-            if ($s['active'] == 1) {
+            if ($b['is_active'] == 1) {
                 $a[] = [
                     'class'   => 'btn btn-sm btn-danger',
                     'html'    => '<i class="icon-toggle-on"></i>',
-                    'onclick' => 'subsidiaries.toggleSubsidiary(' . $s['id'] . ', 0)'
+                    'onclick' => 'subsidiaries.toggleSubsidiary(' . $b['id'] . ', 0)'
                 ];
             } else {
                 $a[] = [
                     'class'   => 'btn btn-sm btn-outline-success',
                     'html'    => '<i class="icon-toggle-off"></i>',
-                    'onclick' => 'subsidiaries.toggleSubsidiary(' . $s['id'] . ', 1)'
+                    'onclick' => 'subsidiaries.toggleSubsidiary(' . $b['id'] . ', 1)'
                 ];
             }
 
-            $name = htmlspecialchars($s['name']);
-            if ((int) $s['id'] === $this->subsidiariesId) {
+            $name = htmlspecialchars($b['name']);
+            if ((int) $b['id'] === $this->branchId) {
                 $name .= ' <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#7a2e1d] text-[#f0a58f]">Tu sucursal</span>';
             }
 
             $row[] = [
-                'id'         => $s['id'],
+                'id'         => $b['id'],
                 'Sucursal'   => $name,
-                'Dirección'  => $s['address'] ?: '-',
-                'Teléfono'   => $s['phone']   ?: '-',
-                'Principal'  => $s['is_main'] ? '<i class="icon-ok text-green-600"></i>' : '-',
-                'Estado'     => renderStatus($s['active']),
+                'Ubicación'  => $b['ubication'] ?: '-',
+                'Estado'     => renderStatus($b['is_active']),
                 'a'          => $a
             ];
         }
@@ -83,8 +81,8 @@ class ctrl extends mdl {
         return ['status' => 200, 'row' => $row, 'ls' => $ls];
     }
 
-    function getSubsidiary() {
-        $data = $this->qSubsidiary([(int) $_POST['id'], $this->companiesId]);
+    function getBranch() {
+        $data = $this->qBranch([(int) $_POST['id'], $this->companiesId]);
         return [
             'status'  => $data ? 200 : 404,
             'message' => $data ? 'OK' : 'Sucursal no encontrada',
@@ -92,17 +90,15 @@ class ctrl extends mdl {
         ];
     }
 
-    function addSubsidiary() {
+    function addBranch() {
         $name = trim($_POST['name'] ?? '');
         if ($name === '') {
             return ['status' => 400, 'message' => 'El nombre de la sucursal es obligatorio'];
         }
 
-        $ok = $this->qInsertSubsidiary([
+        $ok = $this->qInsertBranch([
             $name,
-            trim($_POST['address'] ?? '') ?: null,
-            trim($_POST['phone'] ?? '') ?: null,
-            !empty($_POST['is_main']) ? 1 : 0,
+            trim($_POST['ubication'] ?? '') ?: null,
             $this->companiesId
         ]);
 
@@ -112,23 +108,21 @@ class ctrl extends mdl {
         ];
     }
 
-    function editSubsidiary() {
+    function editBranch() {
         $id   = (int) $_POST['id'];
         $name = trim($_POST['name'] ?? '');
         if ($name === '') {
             return ['status' => 400, 'message' => 'El nombre de la sucursal es obligatorio'];
         }
 
-        $current = $this->qSubsidiary([$id, $this->companiesId]);
+        $current = $this->qBranch([$id, $this->companiesId]);
         if (!$current) {
             return ['status' => 404, 'message' => 'Sucursal no encontrada'];
         }
 
-        $ok = $this->qUpdateSubsidiary([
+        $ok = $this->qUpdateBranch([
             $name,
-            trim($_POST['address'] ?? '') ?: null,
-            trim($_POST['phone'] ?? '') ?: null,
-            !empty($_POST['is_main']) ? 1 : 0,
+            trim($_POST['ubication'] ?? '') ?: null,
             $id,
             $this->companiesId
         ]);
@@ -139,16 +133,16 @@ class ctrl extends mdl {
         ];
     }
 
-    function toggleSubsidiary() {
+    function toggleBranch() {
         $id     = (int) $_POST['id'];
         $active = (int) $_POST['active'];
 
-        $current = $this->qSubsidiary([$id, $this->companiesId]);
+        $current = $this->qBranch([$id, $this->companiesId]);
         if (!$current) {
             return ['status' => 404, 'message' => 'Sucursal no encontrada'];
         }
 
-        $ok = $this->qSetSubsidiaryActive([$active, $id, $this->companiesId]);
+        $ok = $this->qSetBranchActive([$active, $id, $this->companiesId]);
         return [
             'status'  => $ok ? 200 : 500,
             'message' => $ok ? ($active ? 'Sucursal activada' : 'Sucursal desactivada') : 'No se pudo actualizar el estado'
@@ -159,7 +153,8 @@ class ctrl extends mdl {
 
     function lsUsers() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
-        $ls = $this->qUsers([$this->companiesId, $active]);
+        $status = $active === 1 ? 'active' : 'inactive';
+        $ls = $this->qUsers([$this->companiesId, $status]);
 
         $row = [];
         foreach ($ls as $u) {
@@ -174,7 +169,7 @@ class ctrl extends mdl {
                 'html'    => '<i class="icon-key"></i>',
                 'onclick' => 'users.changePassword(' . $u['id'] . ')'
             ];
-            if ($u['active'] == 1) {
+            if ($u['status'] === 'active') {
                 $a[] = [
                     'class'   => 'btn btn-sm btn-danger',
                     'html'    => '<i class="icon-toggle-on"></i>',
@@ -188,15 +183,18 @@ class ctrl extends mdl {
                 ];
             }
 
+            $fullname = trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
+            if ((int) $u['is_owner'] === 1) {
+                $fullname .= ' <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#7a2e1d] text-[#f0a58f]">Dueño</span>';
+            }
+
             $row[] = [
-                'id'         => $u['id'],
-                'Colaborador'=> htmlspecialchars($u['fullname']),
-                'Usuario'    => htmlspecialchars($u['username']),
-                'Correo'     => $u['email'] ?: '-',
-                'Sucursal'   => $u['subsidiary_name'] ?: '<span class="italic text-gray-400">Sin asignar</span>',
-                'Últ. acceso'=> $u['last_login'] ?: 'Nunca',
-                'Estado'     => renderStatus($u['active']),
-                'a'          => $a
+                'id'          => $u['id'],
+                'Colaborador' => $fullname,
+                'Correo'      => $u['email'] ?: '-',
+                'Sucursal'    => $u['branch_name'] ?: '<span class="italic text-gray-400">Sin asignar</span>',
+                'Estado'      => renderStatus($u['status'] === 'active' ? 1 : 0),
+                'a'           => $a
             ];
         }
 
@@ -213,28 +211,38 @@ class ctrl extends mdl {
     }
 
     function addUser() {
-        $fullname = trim($_POST['fullname'] ?? '');
-        $username = trim($_POST['username'] ?? '');
+        $name     = trim($_POST['name'] ?? '');
+        $lastName = trim($_POST['last_name'] ?? '');
+        $email    = trim($_POST['email'] ?? '');
         $password = (string) ($_POST['password'] ?? '');
+        $branchId = (int) ($_POST['branch_id'] ?? 0);
 
-        if ($fullname === '' || $username === '') {
-            return ['status' => 400, 'message' => 'Nombre y usuario son obligatorios'];
+        if ($name === '' || $email === '') {
+            return ['status' => 400, 'message' => 'Nombre y correo son obligatorios'];
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['status' => 400, 'message' => 'El correo no es válido'];
+        }
+        if ($branchId <= 0) {
+            return ['status' => 400, 'message' => 'Debes asignar una sucursal al usuario'];
         }
         if (strlen($password) < 4) {
             return ['status' => 400, 'message' => 'La contraseña debe tener al menos 4 caracteres'];
         }
-        if ($this->qUsernameExists([$username, $this->companiesId])) {
-            return ['status' => 409, 'message' => 'Ya existe un usuario con ese nombre de usuario'];
+        if ($this->qEmailExists([$email, $this->companiesId])) {
+            return ['status' => 409, 'message' => 'Ya existe un usuario con ese correo'];
+        }
+        if (!$this->qBranch([$branchId, $this->companiesId])) {
+            return ['status' => 400, 'message' => 'La sucursal seleccionada no es válida'];
         }
 
         $ok = $this->qInsertUser([
-            $fullname,
-            $username,
-            trim($_POST['email'] ?? '') ?: null,
-            trim($_POST['phone'] ?? '') ?: null,
+            $name,
+            $lastName ?: null,
+            $email,
             password_hash($password, PASSWORD_BCRYPT),
-            1, // role_id por defecto (no hay catalogo de roles aun)
-            !empty($_POST['subsidiaries_id']) ? (int) $_POST['subsidiaries_id'] : null,
+            md5($password),
+            $branchId,
             $this->companiesId
         ]);
 
@@ -246,26 +254,36 @@ class ctrl extends mdl {
 
     function editUser() {
         $id       = (int) $_POST['id'];
-        $fullname = trim($_POST['fullname'] ?? '');
-        $username = trim($_POST['username'] ?? '');
+        $name     = trim($_POST['name'] ?? '');
+        $lastName = trim($_POST['last_name'] ?? '');
+        $email    = trim($_POST['email'] ?? '');
+        $branchId = (int) ($_POST['branch_id'] ?? 0);
 
-        if ($fullname === '' || $username === '') {
-            return ['status' => 400, 'message' => 'Nombre y usuario son obligatorios'];
+        if ($name === '' || $email === '') {
+            return ['status' => 400, 'message' => 'Nombre y correo son obligatorios'];
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['status' => 400, 'message' => 'El correo no es válido'];
+        }
+        if ($branchId <= 0) {
+            return ['status' => 400, 'message' => 'Debes asignar una sucursal al usuario'];
         }
         $current = $this->qUser([$id, $this->companiesId]);
         if (!$current) {
             return ['status' => 404, 'message' => 'Usuario no encontrado'];
         }
-        if ($this->qUsernameExistsExcept([$username, $this->companiesId, $id])) {
-            return ['status' => 409, 'message' => 'Ya existe otro usuario con ese nombre de usuario'];
+        if ($this->qEmailExistsExcept([$email, $this->companiesId, $id])) {
+            return ['status' => 409, 'message' => 'Ya existe otro usuario con ese correo'];
+        }
+        if (!$this->qBranch([$branchId, $this->companiesId])) {
+            return ['status' => 400, 'message' => 'La sucursal seleccionada no es válida'];
         }
 
         $ok = $this->qUpdateUser([
-            $fullname,
-            $username,
-            trim($_POST['email'] ?? '') ?: null,
-            trim($_POST['phone'] ?? '') ?: null,
-            !empty($_POST['subsidiaries_id']) ? (int) $_POST['subsidiaries_id'] : null,
+            $name,
+            $lastName ?: null,
+            $email,
+            $branchId,
             $id,
             $this->companiesId
         ]);
@@ -290,6 +308,7 @@ class ctrl extends mdl {
 
         $ok = $this->qUpdateUserPassword([
             password_hash($password, PASSWORD_BCRYPT),
+            md5($password),
             $id,
             $this->companiesId
         ]);
@@ -312,7 +331,8 @@ class ctrl extends mdl {
             return ['status' => 404, 'message' => 'Usuario no encontrado'];
         }
 
-        $ok = $this->qSetUserActive([$active, $id, $this->companiesId]);
+        $status = $active === 1 ? 'active' : 'inactive';
+        $ok = $this->qSetUserStatus([$status, $id, $this->companiesId]);
         return [
             'status'  => $ok ? 200 : 500,
             'message' => $ok ? ($active ? 'Usuario activado' : 'Usuario desactivado') : 'No se pudo actualizar el estado'
