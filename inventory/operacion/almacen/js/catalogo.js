@@ -25,44 +25,7 @@ class Catalogo extends Templates {
             theme: "light",
             type: "button",
             json: [
-                {
-                    id: "categorias",
-                    tab: "Categoría",
-                    lucideIcon: "folder-tree",
-                    active: true,
-                    onClick: () => category.lsCategory()
-                },
-                {
-                    id: "unidades",
-                    tab: "Unidad",
-                    lucideIcon: "ruler",
-                    class: "mb-1",
-                    onClick: () => zone.lsZone()
-                },
-                {
-                    id: "areas",
-                    tab: "Área",
-                    lucideIcon: "map-pin",
-                    onClick: () => area.lsArea()
-                },
-                {
-                    id: "warehouses",
-                    tab: "Almacenes",
-                    lucideIcon: "warehouse",
-                    onClick: () => warehouse.lsWarehouse()
-                },
-                {
-                    id: "inflows",
-                    tab: "Origen entradas",
-                    lucideIcon: "log-in",
-                    onClick: () => inflow.lsInflow()
-                },
-                {
-                    id: "shrinkages",
-                    tab: "Motivos salida",
-                    lucideIcon: "log-out",
-                    onClick: () => shrinkage.lsShrinkage()
-                }
+            
             ]
         });
 

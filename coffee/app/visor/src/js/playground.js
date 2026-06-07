@@ -10,6 +10,25 @@
 const PG_API        = 'ctrl/ctrl-visor.php';
 const PG_API_STREAM = 'ctrl/ctrl-coffeeia-stream.php';
 
+// Extensiones tratadas como TEXTO plano (gemelo del Visor): se leen con readAsText
+// y se embeben al contexto del chat. Los binarios (pdf/docx/xlsx) no entran aqui.
+const PG_TEXT_EXTS = [
+    'txt', 'md', 'markdown', 'rtf', 'log', 'csv', 'tsv',
+    'html', 'htm', 'xml', 'svg', 'json', 'json5', 'yaml', 'yml', 'toml', 'ini', 'env', 'conf',
+    'js', 'mjs', 'cjs', 'ts', 'jsx', 'tsx', 'css', 'scss', 'less',
+    'php', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'c', 'h', 'cpp', 'cs', 'swift',
+    'sql', 'sh', 'bash', 'ps1', 'bat', 'vue', 'astro'
+];
+const PG_TEXT_MIME_RE = /^(text\/|application\/(json|xml|javascript|x-yaml|x-sh|sql)|image\/svg)/i;
+
+/** Decide si un File es texto plano (por extension o MIME). */
+function pgIsTextFile(file) {
+    if (!file) return false;
+    const ext = (file.name || '').split('.').pop().toLowerCase();
+    if (PG_TEXT_EXTS.indexOf(ext) !== -1) return true;
+    return PG_TEXT_MIME_RE.test(file.type || '');
+}
+
 /**
  * Footer de metadatos de un mensaje IA (gemelo del helper del Visor).
  * Prioriza el COSTO REAL en USD (OpenRouter via usage.cost); si no hay costo
@@ -96,6 +115,7 @@ const pg = {
     knowledge: new Set(),    // grimorios seleccionados como contexto
     canvasMode: false,       // modo lienzo (genera HTML renderizable)
     pendingImages: [],       // [{ dataUrl, base64, mime, name }]
+    pendingDocs: [],         // [{ name, content, size }] documentos de texto adjuntos
     history:   [],
     isBusy:    false,
     _abort:    null,         // AbortController de la consulta en curso (botón Detener)
@@ -293,14 +313,14 @@ function pgBind() {
         pgSaveSettings();
     });
 
-    // Adjuntar imagenes: boton, file input, paste y drag&drop
+    // Adjuntar archivos: imagenes -> vision; texto/codigo/html/md/csv/json -> contexto.
     $('#pgAttachBtn').on('click', () => $('#pgImageInput').trigger('click'));
     $('#pgImageInput').on('change', e => {
-        Array.from(e.target.files || []).forEach(f => pgAddImageFile(f));
+        Array.from(e.target.files || []).forEach(f => pgAddFile(f));
         $(e.target).val('');
     });
-    // Pegar (Ctrl+V) a nivel de toda la pagina: puedes pegar un screenshot sin
-    // tener el foco dentro del textarea del chat.
+    // Pegar (Ctrl+V) a nivel de toda la pagina: puedes pegar un screenshot o archivo
+    // sin tener el foco dentro del textarea del chat.
     $(document).on('paste', e => {
         // No interceptar si el foco esta en un campo de edicion de texto (ej. el
         // editor de prompt del modal de conocimiento): ahi se pega texto normal.
@@ -310,14 +330,13 @@ function pgBind() {
         if (!cd || !cd.items) return;
         let pasted = 0;
         for (const it of cd.items) {
-            if (it.kind === 'file' && /^image\//.test(it.type)) {
-                const f = it.getAsFile();
-                if (f) { pgAddImageFile(f); pasted++; }
-            }
+            if (it.kind !== 'file') continue;
+            const f = it.getAsFile();
+            if (f && (/^image\//.test(it.type) || pgIsTextFile(f))) { pgAddFile(f); pasted++; }
         }
         if (pasted) {
             e.preventDefault();
-            pgToast(pasted === 1 ? 'Imagen pegada' : pasted + ' imágenes pegadas', 'success');
+            pgToast(pasted === 1 ? 'Adjunto pegado' : pasted + ' adjuntos pegados', 'success');
         }
     });
     const $wrap = $('.ia-input-wrap');
@@ -327,7 +346,7 @@ function pgBind() {
         e.preventDefault();
         $wrap.removeClass('is-drag-over');
         const dt = e.originalEvent && e.originalEvent.dataTransfer;
-        (dt ? Array.from(dt.files || []) : []).forEach(f => { if (/^image\//.test(f.type)) pgAddImageFile(f); });
+        (dt ? Array.from(dt.files || []) : []).forEach(f => pgAddFile(f));
     });
 
     // Tabs del sandbox
@@ -390,6 +409,13 @@ function pgApplyCanvasUI() {
 }
 
 /* ── Imagenes adjuntas ── */
+// Dispatcher: enruta el File a imagen (vision) o documento de texto (contexto).
+function pgAddFile(file) {
+    if (!file) return;
+    if (/^image\//.test(file.type)) { pgAddImageFile(file); return; }
+    if (pgIsTextFile(file))         { pgAddDocFile(file);   return; }
+    pgToast('Formato no soportado: ' + (file.name || 'archivo') + ' (solo imágenes y texto)', 'warn');
+}
 function pgAddImageFile(file) {
     if (!file || !/^image\//.test(file.type)) return;
     if (file.size > 8 * 1024 * 1024) { pgToast('Imagen demasiado grande (máx 8 MB)', 'warn'); return; }
@@ -411,16 +437,49 @@ function pgRemoveImage(idx) {
     pg.pendingImages.splice(idx, 1);
     pgRenderImageStrip();
 }
+function pgAddDocFile(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { pgToast('Archivo demasiado grande (máx 5 MB de texto)', 'warn'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+        pg.pendingDocs.push({
+            name:    file.name || 'documento',
+            content: String(ev.target.result || ''),
+            size:    file.size || 0
+        });
+        pgRenderImageStrip();
+    };
+    reader.readAsText(file);
+}
+function pgRemoveDoc(idx) {
+    if (idx < 0 || idx >= pg.pendingDocs.length) return;
+    pg.pendingDocs.splice(idx, 1);
+    pgRenderImageStrip();
+}
+// Render unificado del strip de adjuntos (imagenes + documentos de texto).
 function pgRenderImageStrip() {
     const $strip = $('#pgImageStrip');
-    if (!pg.pendingImages.length) { $strip.hide().empty(); return; }
-    $strip.html(pg.pendingImages.map((img, i) => `
+    if (!pg.pendingImages.length && !pg.pendingDocs.length) { $strip.hide().empty(); return; }
+
+    const imgHtml = pg.pendingImages.map((img, i) => `
         <div class="ia-img-chip" title="${pgEscape(img.name)}">
             <img src="${img.dataUrl}" alt="">
             <button type="button" class="ia-img-chip-remove" data-idx="${i}" title="Quitar"><i data-lucide="x"></i></button>
         </div>
-    `).join('')).show();
+    `).join('');
+
+    const fmtKb = (b) => b >= 1024 ? (b / 1024).toFixed(b >= 10240 ? 0 : 1) + ' KB' : b + ' B';
+    const docHtml = pg.pendingDocs.map((doc, i) => `
+        <div class="ia-doc-chip" title="${pgEscape(doc.name)} (${fmtKb(doc.size)})">
+            <i data-lucide="file-text" class="ia-doc-chip-icon"></i>
+            <span class="ia-doc-chip-name">${pgEscape(doc.name)}</span>
+            <button type="button" class="ia-doc-chip-remove" data-doc-idx="${i}" title="Quitar"><i data-lucide="x"></i></button>
+        </div>
+    `).join('');
+
+    $strip.html(imgHtml + docHtml).show();
     $strip.find('.ia-img-chip-remove').off('click').on('click', e => pgRemoveImage(parseInt($(e.currentTarget).data('idx'), 10)));
+    $strip.find('.ia-doc-chip-remove').off('click').on('click', e => pgRemoveDoc(parseInt($(e.currentTarget).data('doc-idx'), 10)));
     if (window.lucide) lucide.createIcons();
 }
 
@@ -509,12 +568,16 @@ function pgSubmit() {
     const $ta  = $('#pgInput');
     const text = $ta.val().trim();
     const hasImages = pg.pendingImages.length > 0;
-    if (!text && !hasImages) return;
+    const hasDocs   = pg.pendingDocs.length > 0;
+    if (!text && !hasImages && !hasDocs) return;
     $ta.val('').css('height', 'auto');
     const images = pg.pendingImages.slice();
+    const docs   = pg.pendingDocs.slice();
     pg.pendingImages = [];
+    pg.pendingDocs   = [];
     pgRenderImageStrip();
-    pgSend(text || 'Describe esta imagen.', images);
+    const fallback = hasImages ? 'Describe esta imagen.' : (hasDocs ? 'Analiza el documento adjunto.' : '');
+    pgSend(text || fallback, images, docs);
 }
 
 /* Re-pregunta al agente para que rehaga el último resultado con el sistema de
@@ -533,15 +596,24 @@ function pgRegenerateForTheme() {
     pgSend(`Adapta ${what} anterior ${sys}. Conserva la misma estructura y funcionalidad; cambia solo clases, tokens y estilos para respetar ese sistema de diseño.`, []);
 }
 
-function pgAppendUser(text, previews) {
+function pgAppendUser(text, previews, docsMeta) {
     $('#pgChatBody .pg-empty').remove();
     let imgs = '';
     if (Array.isArray(previews) && previews.length) {
         imgs = '<div class="ia-msg-imgs">' + previews.map(u => `<img src="${u}" alt="imagen adjunta" loading="lazy">`).join('') + '</div>';
     }
-    const $m = $(`<div class="ia-msg user"><div class="ia-msg-text">${imgs}${text ? `<p>${pgEscape(text)}</p>` : ''}</div></div>`);
+    let docs = '';
+    if (Array.isArray(docsMeta) && docsMeta.length) {
+        const fmtKb = (b) => b >= 1024 ? (b / 1024).toFixed(b >= 10240 ? 0 : 1) + ' KB' : (b || 0) + ' B';
+        docs = '<div class="ia-msg-docs">' + docsMeta.map(d => `
+            <span class="ia-msg-doc-chip" title="${pgEscape(d.name)} (${fmtKb(d.size)})">
+                <i data-lucide="file-text"></i><span>${pgEscape(d.name)}</span>
+            </span>`).join('') + '</div>';
+    }
+    const $m = $(`<div class="ia-msg user"><div class="ia-msg-text">${imgs}${docs}${text ? `<p>${pgEscape(text)}</p>` : ''}</div></div>`);
     $m.find('.ia-msg-imgs img').on('click', function () { const s = $(this).attr('src'); if (s) window.open(s, '_blank'); });
     $('#pgChatBody').append($m);
+    if (window.lucide) lucide.createIcons();
     pgScroll();
 }
 function pgAppendTyping() {
@@ -568,14 +640,27 @@ function pgQuantumLoader(text) {
          + txt + `</div>`;
 }
 
-async function pgSend(text, images) {
+async function pgSend(text, images, docs) {
     pgSetBusy(true);
     images = Array.isArray(images) ? images : [];
+    docs   = Array.isArray(docs)   ? docs   : [];
 
-    const userMsg = { role: 'user', content: text };
+    // Documentos de texto adjuntos: su contenido se embebe en el content (asi el
+    // modelo lo recuerda via history); en la burbuja solo mostramos texto + chips.
+    let contentForModel = text;
+    if (docs.length) {
+        const blocks = docs.map(d =>
+            `--- INICIO DOC ADJUNTO: ${d.name} ---\n${d.content}\n--- FIN DOC: ${d.name} ---`
+        ).join('\n\n');
+        contentForModel = (text ? text + '\n\n' : '') +
+            '=== DOCUMENTOS ADJUNTOS POR EL USUARIO ===\n' + blocks;
+    }
+
+    const userMsg = { role: 'user', content: contentForModel };
     if (images.length) { userMsg.images = images.map(i => i.base64); userMsg.imagesPreview = images.map(i => i.dataUrl); }
+    if (docs.length) userMsg.docsMeta = docs.map(d => ({ name: d.name, size: d.size }));
     pg.history.push(userMsg);
-    pgAppendUser(text, userMsg.imagesPreview);
+    pgAppendUser(text, userMsg.imagesPreview, userMsg.docsMeta);
 
     const $typing = pgAppendTyping();
     pgScroll();

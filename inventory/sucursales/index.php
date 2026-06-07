@@ -3,7 +3,7 @@ session_start();
 
 // Validar sesión de usuario
 if (empty($_SESSION["IDU"])) {
-    header("Location: /inventory/");
+    header("Location: ../");
     exit();
 }
 ?>

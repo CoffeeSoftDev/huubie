@@ -1027,7 +1027,7 @@ class MermasView extends Templates {
         const defaults = {
             parent:   'root',
             id:       'mermaDetailPanel',
-            class:    'w-full h-full flex-shrink-0 bg-[#141d2b] border-l border-[#374151] flex flex-col overflow-hidden',
+            class:    'w-full h-full flex-shrink-0 bg-[#141d2b] flex flex-col overflow-hidden',
             json:     null,
             labels: {
                 emptyTitle:  'Selecciona una merma',
@@ -1172,7 +1172,7 @@ class MermasView extends Templates {
                     </button>`;
 
             return `
-                <div class="px-4 py-3 border-t border-[#374151] flex gap-2 flex-shrink-0">
+                <div class="px-4 py-3 flex gap-2 flex-shrink-0">
                     <button id="${opts.id}_print" ${empty ? 'disabled' : ''} class="${base} bg-sky-600 ${empty ? off : 'hover:bg-sky-500 hover:shadow-lg hover:shadow-sky-500/20 transition-all'}">
                         <i data-lucide="printer" class="w-3.5 h-3.5"></i>${esc(opts.labels.imprimir)}
                     </button>
@@ -1182,14 +1182,14 @@ class MermasView extends Templates {
 
         // Estado vacio: sin merma seleccionada.
         const emptyView = () => `
-            <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-center justify-between">
+            <div class="px-3 py-3 flex-shrink-0 flex items-center justify-between">
                 <div>
                     <h3 class="text-sm font-bold text-white">Vista de la Merma</h3>
                     <p class="text-[10px] text-[#9CA3AF]">${esc(opts.labels.subtitleLbl)}</p>
                 </div>
             </div>
             <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
-                <div class="w-14 h-14 rounded-full bg-[#1F2937] border border-[#374151] flex items-center justify-center mb-3">
+                <div class="w-14 h-14 rounded-full bg-[#1F2937] flex items-center justify-center mb-3">
                     <i data-lucide="package-x" class="w-6 h-6 text-[#9CA3AF]"></i>
                 </div>
                 <p class="text-[11px] text-[#9CA3AF]">${esc(opts.labels.emptyTitle)}</p>
@@ -1217,14 +1217,14 @@ class MermasView extends Templates {
                 const costoUnit = Number(it.costo_unit || 0);
                 const subtotal  = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * costoUnit;
                 return `
-                    <tr class="border-b border-[#374151]/50">
-                        <td class="py-1.5 px-1">
-                            <p class="text-[11px] font-bold text-white leading-tight">${esc(it.name)}</p>
+                    <tr>
+                        <td class="py-1 px-1">
+                            <p class="text-[11px] font-semibold text-white leading-tight">${esc(it.name)}</p>
                             ${it.sku ? `<p class="text-[10px] text-[#9CA3AF] leading-tight">${esc(it.sku)}</p>` : ''}
                         </td>
-                        <td class="py-1.5 px-1 text-center whitespace-nowrap"><span class="text-rose-400 font-bold">-${it.qty}</span></td>
-                        <td class="py-1.5 px-1 text-right text-white whitespace-nowrap">${fmtMoney(costoUnit)}</td>
-                        <td class="py-1.5 px-1 text-right text-white font-bold whitespace-nowrap">-${fmtMoney(subtotal)}</td>
+                        <td class="py-1 px-1 text-center whitespace-nowrap"><span class="text-rose-400 font-bold">-${it.qty}</span></td>
+                        <td class="py-1 px-1 text-right text-white whitespace-nowrap">${fmtMoney(costoUnit)}</td>
+                        <td class="py-1 px-1 text-right text-white font-bold whitespace-nowrap">-${fmtMoney(subtotal)}</td>
                     </tr>`;
             };
 
@@ -1233,7 +1233,7 @@ class MermasView extends Templates {
             const groupBlock = (g) => {
                 const head = `
                     <tr>
-                        <td colspan="4" class="px-2 pt-2.5 pb-1 bg-indigo-500/10">
+                        <td colspan="4" class="px-2 pt-1.5 pb-0.5 bg-indigo-500/10">
                             <div class="flex items-center justify-between">
                                 <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300 truncate">${esc(g.categoria)}</span>
                                 <span class="text-[10px] text-gray-500 flex-shrink-0 ml-2">${g.items.length}</span>
@@ -1248,7 +1248,7 @@ class MermasView extends Templates {
             return `
                 <table class="w-full text-[11px] border-collapse">
                     <thead>
-                        <tr class="text-[10px] text-[#9CA3AF] uppercase tracking-wider border-b border-[#374151]">
+                        <tr class="text-[10px] text-[#9CA3AF] uppercase tracking-wider">
                             <th class="py-1 px-1 text-left font-semibold">Producto</th>
                             <th class="py-1 px-1 text-center font-semibold">${esc(opts.labels.cant)}</th>
                             <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.costo)}</th>
@@ -1270,7 +1270,7 @@ class MermasView extends Templates {
             if (!foto) {
                 if (!editable) {
                     return `
-                        <div class="bg-[#1F2937] rounded-lg p-4 border border-dashed border-[#374151] flex flex-col items-center justify-center min-h-[100px]">
+                        <div class="bg-[#1F2937] rounded-lg p-4 flex flex-col items-center justify-center min-h-[100px]">
                             <i data-lucide="image-off" class="w-7 h-7 text-[#374151] mb-2"></i>
                             <p class="text-[10px] text-[#9CA3AF] italic">${esc(opts.labels.sinFoto)}</p>
                         </div>`;
@@ -1278,7 +1278,7 @@ class MermasView extends Templates {
                 return `
                     ${inputHtml}
                     <button type="button" id="${opts.id}_evdUpload"
-                            class="w-full bg-[#1F2937] rounded-lg p-4 border border-dashed border-[#374151] hover:border-sky-500/60 flex flex-col items-center justify-center min-h-[100px] transition-colors group">
+                            class="w-full bg-[#1F2937] rounded-lg p-4 hover:border-sky-500/60 flex flex-col items-center justify-center min-h-[100px] transition-colors group">
                         <i data-lucide="upload-cloud" class="w-7 h-7 text-[#9CA3AF] group-hover:text-sky-400 mb-2"></i>
                         <p class="text-[10px] text-[#9CA3AF] group-hover:text-white">${esc(opts.labels.subirFoto)}</p>
                     </button>`;
@@ -1287,7 +1287,7 @@ class MermasView extends Templates {
             // Con foto, solo lectura (cancelada).
             if (!editable) {
                 return `
-                    <div class="rounded-lg overflow-hidden border border-[#374151]">
+                    <div class="rounded-lg overflow-hidden">
                         <img src="${esc(foto)}" alt="Evidencia" class="w-full h-32 object-cover" />
                     </div>`;
             }
@@ -1297,7 +1297,7 @@ class MermasView extends Templates {
             const btnBase = 'px-2 py-1 text-[10px] font-semibold text-white rounded-md flex items-center gap-1 transition-colors';
             return `
                 ${inputHtml}
-                <div class="relative rounded-lg overflow-hidden border border-[#374151]">
+                <div class="relative rounded-lg overflow-hidden">
                     <img src="${esc(foto)}" alt="Evidencia" class="w-full h-32 object-cover" />
                     <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5 flex items-center justify-end gap-1.5">
                         <button type="button" id="${opts.id}_evdUpload" class="${btnBase} bg-sky-600/90 hover:bg-sky-500">
@@ -1354,7 +1354,7 @@ class MermasView extends Templates {
             const editable = m.status !== 'Cancelada';
 
             return `
-                <div class="px-3 py-3 border-b border-[#374151] flex-shrink-0 flex items-start justify-between">
+                <div class="px-3 py-3 flex-shrink-0 flex items-start justify-between">
                     <div>
                         <div class="flex items-center gap-2">
                             <h3 class="text-base font-bold text-white">${esc(opts.labels.folioPrefix)} ${esc(m.folio || '')}</h3>
@@ -1374,7 +1374,7 @@ class MermasView extends Templates {
                 <div id="${opts.id}_scroll" class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
 
                     <!-- Resumen -->
-                    <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151] space-y-2.5">
+                    <div class="bg-[#1F2937] rounded-lg p-3 space-y-2.5">
                         <div class="flex justify-between items-center text-[11px]">
                             <span class="text-[#9CA3AF]">${esc(opts.labels.motivo)}</span>
                             ${motivoBadge}
@@ -1403,10 +1403,10 @@ class MermasView extends Templates {
                             <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider font-bold">${esc(opts.labels.detalleLbl)}</p>
                             <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider font-bold">${items.length} ${items.length === 1 ? 'producto' : 'productos'}</p>
                         </div>
-                        <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151]">
+                        <div class="bg-[#1F2937] rounded-lg p-1.5">
                             <div class="overflow-x-auto">${productTable(m)}</div>
                             <!-- Perdida total debajo de la tabla -->
-                            <div class="flex items-center justify-between mt-3 pt-3 border-t border-dashed border-[#374151]">
+                            <div class="flex items-center justify-between mt-2 pt-2">
                                 <span class="text-[11px] text-[#9CA3AF] uppercase font-bold">${esc(opts.labels.perdidaTot)}</span>
                                 <span class="text-xl font-extrabold text-white">-${fmtMoney(totCosto)}</span>
                             </div>
@@ -1421,7 +1421,7 @@ class MermasView extends Templates {
 
                     <!-- Nota -->
                     ${m.nota ? `
-                    <div class="bg-[#1F2937] rounded-lg p-3 border border-[#374151]">
+                    <div class="bg-[#1F2937] rounded-lg p-3">
                         <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-1">${esc(opts.labels.notaLbl)}</p>
                         <p class="text-[11px] text-gray-300">${esc(m.nota)}</p>
                     </div>` : ''}

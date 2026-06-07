@@ -1908,6 +1908,26 @@ const COFFEEIA_EDITOR_KEY = 'visor:coffeeia:editorMode';
 const COFFEEIA_CANVAS_KEY = 'visor:coffeeia:canvasMode';
 const COFFEEIA_MODEL_KEY  = 'visor:coffeeia:model';
 
+// Extensiones de archivo que tratamos como TEXTO plano: se leen con readAsText y
+// se inyectan al contexto del chat (no como imagen). Cubre texto, codigo, marcado
+// y datos. Los binarios (pdf/docx/xlsx) NO entran aqui: no son texto plano.
+const IA_TEXT_EXTS = [
+    'txt', 'md', 'markdown', 'rtf', 'log', 'csv', 'tsv',
+    'html', 'htm', 'xml', 'svg', 'json', 'json5', 'yaml', 'yml', 'toml', 'ini', 'env', 'conf',
+    'js', 'mjs', 'cjs', 'ts', 'jsx', 'tsx', 'css', 'scss', 'less',
+    'php', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'c', 'h', 'cpp', 'cs', 'swift',
+    'sql', 'sh', 'bash', 'ps1', 'bat', 'vue', 'astro'
+];
+const IA_TEXT_MIME_RE = /^(text\/|application\/(json|xml|javascript|x-yaml|x-sh|sql)|image\/svg)/i;
+
+/** Decide si un File es texto plano (por extension o MIME). */
+function iaIsTextFile(file) {
+    if (!file) return false;
+    const ext = (file.name || '').split('.').pop().toLowerCase();
+    if (IA_TEXT_EXTS.indexOf(ext) !== -1) return true;
+    return IA_TEXT_MIME_RE.test(file.type || '');
+}
+
 /**
  * Construye los <span> del footer de metadatos de un mensaje IA.
  * Prioriza el COSTO REAL en USD (lo trae OpenRouter via usage.cost); si no hay
@@ -1953,6 +1973,7 @@ class CoffeeIA {
         this.canvasMode    = this._loadCanvasMode();
         this.pendingEdits  = null;   // [{ find, with, status }]
         this.pendingImages = [];     // [{ dataUrl, base64, mime, name }]
+        this.pendingDocs   = [];     // [{ name, content, size }] archivos de texto adjuntos al mensaje
         this.model         = this._loadModel();
 
         this.bind();
@@ -2115,30 +2136,30 @@ class CoffeeIA {
             this.style.height = Math.min(this.scrollHeight, 200) + 'px';
         });
 
-        // Adjuntar imagenes: boton, file input, paste y drag&drop
+        // Adjuntar archivos: boton, file input, paste y drag&drop.
+        // Imagenes -> vision; texto/codigo/html/md/csv/json -> contexto del chat.
         $('#iaAttachBtn').on('click', () => $('#iaImageInput').trigger('click'));
         $('#iaImageInput').on('change', (e) => {
             const files = Array.from(e.target.files || []);
-            files.forEach(f => this._addImageFile(f));
+            files.forEach(f => this._addFile(f));
             $(e.target).val('');
         });
         // Pegar (Ctrl+V) a nivel de todo el chat: con el drawer abierto puedes
-        // pegar un screenshot sin tener el foco dentro del textarea.
+        // pegar un screenshot o un archivo sin tener el foco dentro del textarea.
         $(document).off('paste.coffeeIA').on('paste.coffeeIA', (e) => {
             if (!this.isOpen) return;
             const cd = e.originalEvent && e.originalEvent.clipboardData;
             if (!cd || !cd.items) return;
             let pasted = 0;
             for (const it of cd.items) {
-                if (it.kind === 'file' && /^image\//.test(it.type)) {
-                    const f = it.getAsFile();
-                    if (f) { this._addImageFile(f); pasted++; }
-                }
+                if (it.kind !== 'file') continue;
+                const f = it.getAsFile();
+                if (f && (/^image\//.test(it.type) || iaIsTextFile(f))) { this._addFile(f); pasted++; }
             }
             if (pasted) {
                 e.preventDefault();
                 if (typeof visorView !== 'undefined' && visorView) {
-                    visorView.toast(pasted === 1 ? 'Imagen pegada' : pasted + ' imagenes pegadas', 'success');
+                    visorView.toast(pasted === 1 ? 'Adjunto pegado' : pasted + ' adjuntos pegados', 'success');
                 }
             }
         });
@@ -2150,7 +2171,7 @@ class CoffeeIA {
             $wrap.removeClass('is-drag-over');
             const dt = e.originalEvent && e.originalEvent.dataTransfer;
             const files = dt ? Array.from(dt.files || []) : [];
-            files.forEach(f => { if (/^image\//.test(f.type)) this._addImageFile(f); });
+            files.forEach(f => this._addFile(f));
         });
 
         $(document).on('keydown.coffeeIA', (e) => {
@@ -2227,6 +2248,18 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
     }
 
+    /* ── Adjuntos del composer (imagenes + documentos de texto) ── */
+
+    /** Dispatcher: enruta el File a imagen (vision) o documento de texto (contexto). */
+    _addFile(file) {
+        if (!file) return;
+        if (/^image\//.test(file.type)) { this._addImageFile(file); return; }
+        if (iaIsTextFile(file))         { this._addDocFile(file);   return; }
+        if (typeof visorView !== 'undefined' && visorView) {
+            visorView.toast('Formato no soportado: ' + (file.name || 'archivo') + ' (solo imagenes y texto)', 'warn');
+        }
+    }
+
     /* ── Imagenes adjuntas en el composer ── */
 
     _addImageFile(file) {
@@ -2258,14 +2291,45 @@ class CoffeeIA {
         this._renderImageStrip();
     }
 
+    /* ── Documentos de texto adjuntos en el composer ── */
+
+    _addDocFile(file) {
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            if (typeof visorView !== 'undefined' && visorView) {
+                visorView.toast('Archivo demasiado grande (max 5 MB de texto)', 'warn');
+            }
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            this.pendingDocs.push({
+                name:    file.name || 'documento',
+                content: String(ev.target.result || ''),
+                size:    file.size || 0
+            });
+            this._renderImageStrip();
+        };
+        reader.readAsText(file);
+    }
+
+    _removeDoc(idx) {
+        if (idx < 0 || idx >= this.pendingDocs.length) return;
+        this.pendingDocs.splice(idx, 1);
+        this._renderImageStrip();
+    }
+
+    /* ── Render unificado del strip de adjuntos (imagenes + documentos) ── */
+
     _renderImageStrip() {
         const $strip = $('#iaImageStrip');
         if (!$strip.length) return;
-        if (!this.pendingImages.length) {
+        if (!this.pendingImages.length && !this.pendingDocs.length) {
             $strip.hide().empty();
             return;
         }
-        const html = this.pendingImages.map((img, i) => `
+
+        const imgHtml = this.pendingImages.map((img, i) => `
             <div class="ia-img-chip" title="${this._escape(img.name)}">
                 <img src="${img.dataUrl}" alt="">
                 <button type="button" class="ia-img-chip-remove" data-idx="${i}" title="Quitar">
@@ -2273,10 +2337,26 @@ class CoffeeIA {
                 </button>
             </div>
         `).join('');
-        $strip.html(html).show();
+
+        const fmtKb  = (b) => b >= 1024 ? (b / 1024).toFixed(b >= 10240 ? 0 : 1) + ' KB' : b + ' B';
+        const docHtml = this.pendingDocs.map((doc, i) => `
+            <div class="ia-doc-chip" title="${this._escape(doc.name)} (${fmtKb(doc.size)})">
+                <i data-lucide="file-text" class="ia-doc-chip-icon"></i>
+                <span class="ia-doc-chip-name">${this._escape(doc.name)}</span>
+                <button type="button" class="ia-doc-chip-remove" data-doc-idx="${i}" title="Quitar">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+        `).join('');
+
+        $strip.html(imgHtml + docHtml).show();
         $strip.find('.ia-img-chip-remove').off('click').on('click', (e) => {
             const idx = parseInt($(e.currentTarget).data('idx'), 10);
             this._removeImage(idx);
+        });
+        $strip.find('.ia-doc-chip-remove').off('click').on('click', (e) => {
+            const idx = parseInt($(e.currentTarget).data('doc-idx'), 10);
+            this._removeDoc(idx);
         });
         if (window.lucide) lucide.createIcons();
     }
@@ -2288,12 +2368,16 @@ class CoffeeIA {
         const $ta   = $('#iaInputTextarea');
         const text  = $ta.val().trim();
         const hasImages = this.pendingImages.length > 0;
-        if (!text && !hasImages) return;
+        const hasDocs   = this.pendingDocs.length > 0;
+        if (!text && !hasImages && !hasDocs) return;
         $ta.val('').css('height', 'auto');
         const images = this.pendingImages.slice();
+        const docs   = this.pendingDocs.slice();
         this.pendingImages = [];
+        this.pendingDocs   = [];
         this._renderImageStrip();
-        this._sendMessage(text || 'Describe esta imagen.', images);
+        const fallback = hasImages ? 'Describe esta imagen.' : (hasDocs ? 'Analiza el documento adjunto.' : '');
+        this._sendMessage(text || fallback, images, docs);
     }
 
     /* ── Estado ocupado: el boton Enviar se transforma en Detener (aborta el fetch). ── */
@@ -2316,24 +2400,38 @@ class CoffeeIA {
 
     /* ── Core: send message ── */
 
-    async _sendMessage(text, images) {
+    async _sendMessage(text, images, docs) {
         if (this.isBusy) return;
         this._setBusy(true);
 
         images = Array.isArray(images) ? images : [];
+        docs   = Array.isArray(docs)   ? docs   : [];
 
         // Switch to chat state (first message)
         if (!this._inChatMode()) {
             this._switchToChat();
         }
 
-        const userMsg = { role: 'user', content: text };
+        // Documentos de texto adjuntos: su contenido se EMBEBE en el content del
+        // mensaje (asi el modelo lo recuerda en toda la conversacion via history),
+        // pero en la burbuja solo mostramos el texto + chips con el nombre.
+        let contentForModel = text;
+        if (docs.length) {
+            const blocks = docs.map(d =>
+                `--- INICIO DOC ADJUNTO: ${d.name} ---\n${d.content}\n--- FIN DOC: ${d.name} ---`
+            ).join('\n\n');
+            contentForModel = (text ? text + '\n\n' : '') +
+                '=== DOCUMENTOS ADJUNTOS POR EL USUARIO ===\n' + blocks;
+        }
+
+        const userMsg = { role: 'user', content: contentForModel };
         if (images.length) {
             userMsg.images        = images.map(i => i.base64);
             userMsg.imagesPreview = images.map(i => i.dataUrl);
         }
+        if (docs.length) userMsg.docsMeta = docs.map(d => ({ name: d.name, size: d.size }));
         this.history.push(userMsg);
-        this._appendUserMessage(text, userMsg.imagesPreview);
+        this._appendUserMessage(text, userMsg.imagesPreview, userMsg.docsMeta);
 
         // Typing indicator
         const $typing = this._appendTyping();
@@ -2934,19 +3032,30 @@ class CoffeeIA {
         } catch (e) { /* autoplay bloqueado / formato no soportado — ignorar */ }
     }
 
-    _appendUserMessage(text, images) {
+    _appendUserMessage(text, images, docsMeta) {
         let imgsHtml = '';
         if (Array.isArray(images) && images.length) {
             imgsHtml = '<div class="ia-msg-imgs">' +
                 images.map(u => `<img src="${u}" alt="imagen adjunta" loading="lazy">`).join('') +
                 '</div>';
         }
+        let docsHtml = '';
+        if (Array.isArray(docsMeta) && docsMeta.length) {
+            const fmtKb = (b) => b >= 1024 ? (b / 1024).toFixed(b >= 10240 ? 0 : 1) + ' KB' : (b || 0) + ' B';
+            docsHtml = '<div class="ia-msg-docs">' +
+                docsMeta.map(d => `
+                    <span class="ia-msg-doc-chip" title="${this._escape(d.name)} (${fmtKb(d.size)})">
+                        <i data-lucide="file-text"></i><span>${this._escape(d.name)}</span>
+                    </span>`).join('') +
+                '</div>';
+        }
         const textHtml = text ? `<p>${this._escape(text)}</p>` : '';
         const $msg = $(`
             <div class="ia-msg user">
-                <div class="ia-msg-text">${imgsHtml}${textHtml}</div>
+                <div class="ia-msg-text">${imgsHtml}${docsHtml}${textHtml}</div>
             </div>
         `);
+        if (window.lucide) lucide.createIcons();
         $msg.find('.ia-msg-imgs img').on('click', function () {
             const src = $(this).attr('src');
             if (src) window.open(src, '_blank');

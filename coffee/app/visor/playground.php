@@ -54,11 +54,13 @@
 
             <select id="pgModelSelect" class="ia-model-pill" title="Modelo activo">
                 <optgroup label="Ollama Cloud">
-                    <option value="qwen3-coder:480b-cloud">Qwen3 Coder 480B</option>
-                    <option value="qwen3-vl:235b-cloud">Qwen3 VL 235B (vision)</option>
-                    <option value="qwen3.5:397b-cloud">Qwen 3.5 397B</option>
-                    <option value="minimax-m3:cloud">MiniMax M3</option>
-                    <option value="kimi-k2.6:cloud">Kimi K2.6</option>
+                    <option value="glm-5.1:cloud">GLM 5.1 (código)</option>
+                    <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
+                    <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>
+                    <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
+                    <option value="gemini-3-flash-preview:cloud">Gemini 3 Flash (rápido, vision)</option>
+                    <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
+                    <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
                 </optgroup>
                 <optgroup label="OpenRouter (free)">
                     <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
@@ -125,9 +127,9 @@
                         <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
-                <input id="pgImageInput" type="file" accept="image/*" multiple style="display:none;">
+                <input id="pgImageInput" type="file" accept="image/*,text/*,.md,.markdown,.csv,.tsv,.html,.htm,.xml,.svg,.json,.yaml,.yml,.toml,.ini,.env,.conf,.log,.js,.mjs,.ts,.jsx,.tsx,.css,.scss,.less,.php,.py,.rb,.go,.rs,.java,.kt,.c,.h,.cpp,.cs,.sql,.sh,.bash,.ps1,.bat,.vue,.astro" multiple style="display:none;">
                 <div class="ia-input-hint">
-                    <button id="pgAttachBtn" class="ia-attach-btn" title="Adjuntar imagen (también Ctrl+V para pegar)">
+                    <button id="pgAttachBtn" class="ia-attach-btn" title="Adjuntar imagen o documento de texto (también Ctrl+V para pegar)">
                         <i data-lucide="paperclip" class="w-3 h-3"></i>
                     </button>
                     <button id="pgClearBtn" title="Limpiar conversación" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;">

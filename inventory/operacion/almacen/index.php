@@ -45,11 +45,6 @@ require_once('layout/core-libraries.php');
     
     <!-- Módulo de Catálogo -->
     <script src="js/almacen.js?t=<?php echo time(); ?>"></script>
-    <script src="js/inventario.js?t=<?php echo time(); ?>"></script>
-    <script src="js/entradas.js?t=<?php echo time(); ?>"></script>
-    <script src="js/salidas.js?t=<?php echo time(); ?>"></script>
     <script src="js/catalogo.js?t=<?php echo time(); ?>"></script>
-    <script src="js/movimientos.js?t=<?php echo time(); ?>"></script>
-    <script src="js/existencias.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

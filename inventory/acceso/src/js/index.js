@@ -21,12 +21,10 @@ function storage(data) {
     if(data != false){
         localStorage.clear();
         sessionStorage.clear();
-        const HREF = new URL(window.location.href);
-        const HASH = HREF.pathname.split("/").filter(Boolean);
-        const ERP = HASH[0];
-    
-        // window.location.href = HREF.origin + "/" + ERP + "/operacion/almacen/";
-        window.location.href = HREF.origin + "/" + ERP + "/sucursales/";  
+
+        // Redirección relativa a la ubicación del login (inventory/), así funciona
+        // sin importar en qué subcarpeta esté montado el proyecto (huubie/inventory/, raíz, etc.).
+        window.location.href = "sucursales/";
     } else {
         showLoginError('Usuario y/o clave incorrectos.');
     }

@@ -3,9 +3,9 @@ if(isset($_COOKIE['IDU'])){
     echo '<script>
         let ruta = localStorage.getItem("url");
         if (ruta) {
-            const HREF = new URL(window.location.href);
-            const ERP = HREF.pathname.split("/").filter(Boolean)[0];
-            window.location.href = HREF.origin + "/" + ERP + "/" + ruta;
+            // Redirección relativa a la ubicación del login (inventory/), igual que en index.js:
+            // funciona sin importar la subcarpeta donde esté montado el proyecto.
+            window.location.href = ruta.replace(/^\/+/, "");
         }
     </script>';
 }

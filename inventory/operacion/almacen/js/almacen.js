@@ -63,23 +63,54 @@ class Main extends Templates {
             theme: "light",
             type: "short",
             json: [
-                {
-                    id: "catalogo",
-                    tab: "Catálogo",
-                    lucideIcon: "book-open",
-
-                    active: true,
-
-                    onClick: () => cataloge.render()
-                },
+              
                 {
                     id: "productos",
                     tab: "Productos",
                     lucideIcon: "package",
                     class: "mb-1",
-
+                    active: true,
                     onClick: () => products.render()
                 },
+
+                {
+                    id: "categorias",
+                    tab: "Categoría",
+                    lucideIcon: "folder-tree",
+                   
+                    onClick: () => category.lsCategory()
+                },
+                {
+                    id: "unidades",
+                    tab: "Unidad",
+                    lucideIcon: "ruler",
+                    class: "mb-1",
+                    onClick: () => zone.lsZone()
+                },
+                {
+                    id: "areas",
+                    tab: "Área",
+                    lucideIcon: "map-pin",
+                    onClick: () => area.lsArea()
+                },
+                {
+                    id: "warehouses",
+                    tab: "Almacenes",
+                    lucideIcon: "warehouse",
+                    onClick: () => warehouse.lsWarehouse()
+                },
+                {
+                    id: "inflows",
+                    tab: "Origen entradas",
+                    lucideIcon: "log-in",
+                    onClick: () => inflow.lsInflow()
+                },
+                {
+                    id: "shrinkages",
+                    tab: "Motivos salida",
+                    lucideIcon: "log-out",
+                    onClick: () => shrinkage.lsShrinkage()
+                }
             ]
         });
     }

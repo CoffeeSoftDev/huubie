@@ -2553,6 +2553,32 @@ body.ia-drawer-resizing * {
 .ia-img-chip-remove:hover { background: #ef4444; }
 .ia-img-chip-remove i { width: 10px; height: 10px; }
 
+/* Chip de documento de texto adjunto en el composer */
+.ia-doc-chip {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 5px;
+    max-width: 170px; height: 28px;
+    padding: 0 22px 0 8px;
+    border-radius: 7px;
+    border: 1px solid var(--vsr-border-input);
+    background: var(--vsr-bg-input);
+    flex-shrink: 0;
+}
+.ia-doc-chip-icon { width: 13px; height: 13px; color: var(--vsr-accent-soft); flex-shrink: 0; }
+.ia-doc-chip-name {
+    font-size: 11px; color: var(--vsr-text-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ia-doc-chip-remove {
+    position: absolute; top: 50%; right: 4px; transform: translateY(-50%);
+    width: 15px; height: 15px; border-radius: 50%;
+    background: rgba(0,0,0,.55); color: #fff;
+    border: none; cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+}
+.ia-doc-chip-remove:hover { background: #ef4444; }
+.ia-doc-chip-remove i { width: 9px; height: 9px; }
+
 .ia-input-wrap.is-drag-over {
     border-color: var(--vsr-accent);
     background: var(--vsr-accent-tint);
@@ -2570,6 +2596,23 @@ body.ia-drawer-resizing * {
     display: block;
 }
 .ia-msg-imgs img:hover { border-color: var(--vsr-accent); }
+
+/* Chips de documentos adjuntos dentro del mensaje del usuario */
+.ia-msg-docs {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 6px;
+}
+.ia-msg-doc-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    max-width: 220px;
+    padding: 3px 9px;
+    border-radius: 7px;
+    border: 1px solid var(--vsr-border-soft);
+    background: var(--vsr-bg-input);
+    font-size: 11px; color: var(--vsr-text-soft);
+}
+.ia-msg-doc-chip i { width: 12px; height: 12px; color: var(--vsr-accent-soft); flex-shrink: 0; }
+.ia-msg-doc-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Model pill (select) */
 .ia-model-pill {

@@ -27,7 +27,8 @@ class Access extends MAccess {
             setcookie("company_id", $usr['company_id'], $expira, "/");
             setcookie("company",    $usr['company'],    $expira, "/");
 
-            $_SESSION['user_id']    = $usr['IDU'];                                            // id usuario
+            $_SESSION['IDU']        = $usr['IDU'];                                            // id usuario (clave que validan las páginas: sucursales, almacén, etc.)
+            $_SESSION['user_id']    = $usr['IDU'];                                            // alias id usuario
             $_SESSION['company_id'] = $usr['company_id'];                                     // id compania
             $_SESSION['company']    = $usr['company'];                                        // nombre de la compania
             $_SESSION['user']       = trim(($usr['name'] ?? '') . ' ' . ($usr['last_name'] ?? ''));

@@ -2,7 +2,7 @@
 session_start();
 
 // Validar sesión de usuario
-if (empty($_COOKIE["IDU"])) {
+if (empty($_SESSION["IDU"])) {
     require_once('../../acceso/ctrl/ctrl-logout.php');
     exit();
 }
@@ -15,28 +15,32 @@ require_once('layout/core-libraries.php');
 <script src="../../src/js/coffeeSoft.js"></script>
 <script src="https://rawcdn.githack.com/SomxS/Grupo-Varoch/refs/heads/main/src/js/plugins.js"></script>
 <script src="https://www.plugins.erp-varoch.com/ERP/JS/complementos.js"></script>
+<link rel="stylesheet" href="../../src/css/dark-mode.css">
 
 <body>
-    <?php require_once('../../layout/navbar.php'); ?>
-
+    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
     <main>
-        <section id="sidebar"></section>
+        <div id="menu-navbar"></div>
 
         <div id="main__content">
             <!-- Breadcrumb Navigation -->
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item text-uppercase text-muted">Operación</li>
-                    <li class="breadcrumb-item fw-bold active">Movimientos de Inventario</li>
+                    <li class="breadcrumb-item fw-bold active">Visor de Stock</li>
                 </ol>
             </nav>
 
-            <!-- Main Container -->
-            <div class="main-container" id="root"></div>
-
-            <!-- Módulo de Movimientos -->
-            <script src="js/movimientos.js?t=<?php echo time(); ?>"></script>
+            <!-- Contenedor principal -->
+            <div class="" id="root"></div>
         </div>
     </main>
+
+    <!-- Importación navbar y sidebar -->
+    <script src="../../acceso/src/js/navbar.js"></script>
+    <script src="../../acceso/src/js/sidebar.js"></script>
+
+    <!-- Módulo de Stock -->
+    <script src="js/stock.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>
