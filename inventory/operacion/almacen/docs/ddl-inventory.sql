@@ -3,6 +3,10 @@
 -- Identidad (tenant) en fayxzvov_erp · módulo en fayxzvov_inventory
 -- MySQL 8.0 · InnoDB · latin1_swedish_ci
 -- Generado desde diagramas-er-inventory.md
+-- NOTA (migracion jun-2026): el modulo usa `branch_id` -> `fayxzvov_erp`.`branches`.
+--   La columna `subsidiaries_id` quedo obsoleta. Las tablas del tenant aqui abajo
+--   (subsidiaries/users.subsidiaries_id) reflejan el modelo legacy; el tenant vivo
+--   en fayxzvov_erp ya usa `branches` con `users.branch_id`.
 -- =====================================================================
 
 -- ───────────────────────────────────────────────
@@ -155,14 +159,14 @@ CREATE TABLE `warehouse` (
   `created_at`        DATETIME DEFAULT CURRENT_TIMESTAMP,
   `active`            TINYINT NOT NULL DEFAULT 1,
   `warehouse_area_id` INT NULL,
-  `subsidiaries_id`   INT NOT NULL,
+  `branch_id`   INT NOT NULL,
   `companies_id`      INT NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_warehouse_area` (`warehouse_area_id`),
-  KEY `idx_warehouse_subsidiary` (`subsidiaries_id`),
+  KEY `idx_warehouse_branch` (`branch_id`),
   KEY `idx_warehouse_company` (`companies_id`),
   CONSTRAINT `fk_warehouse_area`       FOREIGN KEY (`warehouse_area_id`) REFERENCES `warehouse_area` (`id`),
-  CONSTRAINT `fk_warehouse_subsidiary` FOREIGN KEY (`subsidiaries_id`)   REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
+  CONSTRAINT `fk_warehouse_branch` FOREIGN KEY (`branch_id`)   REFERENCES `fayxzvov_erp`.`branches` (`id`),
   CONSTRAINT `fk_warehouse_company`    FOREIGN KEY (`companies_id`)      REFERENCES `fayxzvov_erp`.`companies` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
@@ -175,14 +179,14 @@ CREATE TABLE `item` (
   `created_at`      DATETIME DEFAULT CURRENT_TIMESTAMP,
   `active`          TINYINT NOT NULL DEFAULT 1,
   `category_id`     INT NULL,
-  `subsidiaries_id` INT NULL,
+  `branch_id` INT NULL,
   `companies_id`    INT NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_item_category` (`category_id`),
-  KEY `idx_item_subsidiary` (`subsidiaries_id`),
+  KEY `idx_item_branch` (`branch_id`),
   KEY `idx_item_company` (`companies_id`),
   CONSTRAINT `fk_item_category`   FOREIGN KEY (`category_id`)     REFERENCES `item_category` (`id`),
-  CONSTRAINT `fk_item_subsidiary` FOREIGN KEY (`subsidiaries_id`) REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
+  CONSTRAINT `fk_item_branch` FOREIGN KEY (`branch_id`) REFERENCES `fayxzvov_erp`.`branches` (`id`),
   CONSTRAINT `fk_item_company`    FOREIGN KEY (`companies_id`)    REFERENCES `fayxzvov_erp`.`companies` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
@@ -251,7 +255,7 @@ CREATE TABLE `inventory_inflow` (
   `supplier_id`       INT NULL,
   `user_id`           INT NULL,
   `confirmed_user_id` INT NULL,
-  `subsidiaries_id`   INT NOT NULL,
+  `branch_id`   INT NOT NULL,
   `companies_id`      INT NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_inflow_origin` (`inflow_origin_id`),
@@ -259,14 +263,14 @@ CREATE TABLE `inventory_inflow` (
   KEY `idx_inflow_supplier` (`supplier_id`),
   KEY `idx_inflow_user` (`user_id`),
   KEY `idx_inflow_cuser` (`confirmed_user_id`),
-  KEY `idx_inflow_subsidiary` (`subsidiaries_id`),
+  KEY `idx_inflow_branch` (`branch_id`),
   KEY `idx_inflow_company` (`companies_id`),
   CONSTRAINT `fk_inflow_origin`     FOREIGN KEY (`inflow_origin_id`)  REFERENCES `inflow_origin` (`id`),
   CONSTRAINT `fk_inflow_warehouse`  FOREIGN KEY (`warehouse_id`)      REFERENCES `warehouse` (`id`),
   CONSTRAINT `fk_inflow_supplier`   FOREIGN KEY (`supplier_id`)       REFERENCES `supplier` (`id`),
   CONSTRAINT `fk_inflow_user`       FOREIGN KEY (`user_id`)           REFERENCES `fayxzvov_erp`.`users` (`id`),
   CONSTRAINT `fk_inflow_cuser`      FOREIGN KEY (`confirmed_user_id`) REFERENCES `fayxzvov_erp`.`users` (`id`),
-  CONSTRAINT `fk_inflow_subsidiary` FOREIGN KEY (`subsidiaries_id`)   REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
+  CONSTRAINT `fk_inflow_branch` FOREIGN KEY (`branch_id`)   REFERENCES `fayxzvov_erp`.`branches` (`id`),
   CONSTRAINT `fk_inflow_company`    FOREIGN KEY (`companies_id`)      REFERENCES `fayxzvov_erp`.`companies` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
@@ -310,18 +314,18 @@ CREATE TABLE `inventory_shrinkage` (
   `shrinkage_reason_id` INT NULL,
   `warehouse_id`        INT NOT NULL,
   `user_id`             INT NULL,
-  `subsidiaries_id`     INT NOT NULL,
+  `branch_id`     INT NOT NULL,
   `companies_id`        INT NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_shrink_reason` (`shrinkage_reason_id`),
   KEY `idx_shrink_warehouse` (`warehouse_id`),
   KEY `idx_shrink_user` (`user_id`),
-  KEY `idx_shrink_subsidiary` (`subsidiaries_id`),
+  KEY `idx_shrink_branch` (`branch_id`),
   KEY `idx_shrink_company` (`companies_id`),
   CONSTRAINT `fk_shrink_reason`     FOREIGN KEY (`shrinkage_reason_id`) REFERENCES `shrinkage_reason` (`id`),
   CONSTRAINT `fk_shrink_warehouse`  FOREIGN KEY (`warehouse_id`)        REFERENCES `warehouse` (`id`),
   CONSTRAINT `fk_shrink_user`       FOREIGN KEY (`user_id`)             REFERENCES `fayxzvov_erp`.`users` (`id`),
-  CONSTRAINT `fk_shrink_subsidiary` FOREIGN KEY (`subsidiaries_id`)     REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
+  CONSTRAINT `fk_shrink_branch` FOREIGN KEY (`branch_id`)     REFERENCES `fayxzvov_erp`.`branches` (`id`),
   CONSTRAINT `fk_shrink_company`    FOREIGN KEY (`companies_id`)        REFERENCES `fayxzvov_erp`.`companies` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
@@ -344,33 +348,56 @@ CREATE TABLE `detail_inventory_shrinkage` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- ── Kardex (lectura) ──
-CREATE TABLE `inventory_movement` (
-  `id`              INT NOT NULL AUTO_INCREMENT,
-  `movement_uid`    VARCHAR(40)  NULL,
-  `movement_type`   VARCHAR(20)  NULL,
-  `folio`           VARCHAR(20)  NULL,
-  `note`            VARCHAR(255) NULL,
-  `quantity`        DOUBLE NOT NULL DEFAULT 0,
-  `stock_prev`      DOUBLE NOT NULL DEFAULT 0,
-  `stock_post`      DOUBLE NOT NULL DEFAULT 0,
-  `cost_unit`       DOUBLE NOT NULL DEFAULT 0,
-  `cost_total`      DOUBLE NOT NULL DEFAULT 0,
-  `occurred_at`     DATETIME NULL,
-  `status`          VARCHAR(20) NULL,
-  `item_id`         INT NOT NULL,
-  `warehouse_id`    INT NOT NULL,
-  `user_id`         INT NULL,
-  `subsidiaries_id` INT NOT NULL,
-  `companies_id`    INT NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_mov_item` (`item_id`),
-  KEY `idx_mov_warehouse` (`warehouse_id`),
-  KEY `idx_mov_user` (`user_id`),
-  KEY `idx_mov_subsidiary` (`subsidiaries_id`),
-  KEY `idx_mov_company` (`companies_id`),
-  CONSTRAINT `fk_mov_item`       FOREIGN KEY (`item_id`)         REFERENCES `item` (`id`),
-  CONSTRAINT `fk_mov_warehouse`  FOREIGN KEY (`warehouse_id`)    REFERENCES `warehouse` (`id`),
-  CONSTRAINT `fk_mov_user`       FOREIGN KEY (`user_id`)         REFERENCES `fayxzvov_erp`.`users` (`id`),
-  CONSTRAINT `fk_mov_subsidiary` FOREIGN KEY (`subsidiaries_id`) REFERENCES `fayxzvov_erp`.`subsidiaries` (`id`),
-  CONSTRAINT `fk_mov_company`    FOREIGN KEY (`companies_id`)    REFERENCES `fayxzvov_erp`.`companies` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+-- inventory_movement NO es una tabla fisica: es una VISTA que unifica los
+-- detalles ya registrados por cada modulo de movimiento (entradas, mermas).
+-- Asi el historial se alimenta solo y queda siempre consistente con el stock,
+-- sin necesidad de INSERTs paralelos. Mismo patron que app/inventarios.
+-- Al agregar traspasos/ajustes, sumar su propio UNION ALL aqui.
+CREATE OR REPLACE VIEW `inventory_movement` AS
+    -- ── ENTRADAS (ingreso, cantidad positiva) ──
+    SELECT
+        CONCAT('IN-', d.id)                          AS movement_uid,
+        'ENTRADA'                                    AS movement_type,
+        r.folio                                      AS folio,
+        r.note                                       AS note,
+        COALESCE(d.confirmed_quantity, d.quantity)   AS quantity,
+        d.previous_stock                             AS stock_prev,
+        d.resulting_stock                            AS stock_post,
+        d.cost                                       AS cost_unit,
+        d.subtotal                                   AS cost_total,
+        COALESCE(r.date_inflow, DATE(r.created_at))  AS occurred_at,
+        r.created_at                                 AS created_at,
+        r.status                                     AS status,
+        d.item_id                                    AS item_id,
+        r.warehouse_id                               AS warehouse_id,
+        r.user_id                                    AS user_id,
+        r.branch_id                                  AS branch_id,
+        r.companies_id                               AS companies_id
+    FROM `detail_inventory_inflow` d
+    JOIN `inventory_inflow` r ON r.id = d.inventory_inflow_id
+    WHERE d.active = 1 AND r.active = 1 AND r.status <> 'Cancelada'
+
+    UNION ALL
+
+    -- ── SALIDAS / MERMAS (egreso, cantidad negativa) ──
+    SELECT
+        CONCAT('SH-', d.id),
+        'MERMA',
+        r.folio,
+        r.note,
+        -d.quantity,
+        d.previous_stock,
+        d.resulting_stock,
+        d.cost,
+        d.subtotal,
+        COALESCE(r.date_shrinkage, DATE(r.created_at)),
+        r.created_at,
+        r.status,
+        d.item_id,
+        r.warehouse_id,
+        r.user_id,
+        r.branch_id,
+        r.companies_id
+    FROM `detail_inventory_shrinkage` d
+    JOIN `inventory_shrinkage` r ON r.id = d.inventory_shrinkage_id
+    WHERE d.active = 1 AND r.active = 1 AND r.status <> 'Cancelada';

@@ -235,4 +235,46 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-context-item .ci-name { font-size: 12.5px; font-weight: 600; color: var(--vsr-text-soft); }
 .pg-context-item .ci-meta { font-size: 11px; color: var(--vsr-text-mute2); margin-left: auto; }
 
+/* ── Tarjeta-miniatura de template renderizado (dentro de la burbuja del chat) ── */
+.pg-chat-tpl {
+    display: flex; gap: 10px; align-items: stretch;
+    margin-top: 8px; padding: 8px;
+    background: var(--vsr-bg-card);
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 11px; cursor: pointer;
+    transition: border-color .15s, transform .12s, box-shadow .15s;
+}
+.pg-chat-tpl:hover { border-color: var(--vsr-accent); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.32); }
+.pg-chat-tpl.is-active { border-color: var(--vsr-accent); box-shadow: 0 0 0 1px var(--vsr-accent); }
+
+.pg-chat-tpl-thumb {
+    position: relative; flex: 0 0 auto;
+    width: 150px; height: 94px;
+    overflow: hidden;
+    background: var(--vsr-bg-base);
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 8px;
+    pointer-events: none;   /* el clic lo captura la tarjeta */
+}
+.pg-chat-tpl-frame {
+    /* Renderizamos a 840×520 y lo escalamos para que entre completo en la miniatura. */
+    width: 840px; height: 520px; border: 0;
+    transform: scale(0.1785); transform-origin: top left;
+    pointer-events: none;
+}
+
+.pg-chat-tpl-info {
+    display: flex; flex-direction: column; justify-content: center; gap: 3px;
+    min-width: 0; flex: 1 1 auto;
+}
+.pg-chat-tpl-title {
+    font-size: 12.5px; font-weight: 600; color: var(--vsr-text-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pg-chat-tpl-sub { font-size: 11px; color: var(--vsr-text-mute2); }
+.pg-chat-tpl-cta {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--vsr-accent-soft);
+}
+
 .pg-modal-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--vsr-border); }

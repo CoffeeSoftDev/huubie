@@ -80,10 +80,10 @@ FROM (
 ) v
 CROSS JOIN `fayxzvov_erp`.`companies` c;
 
--- ── 8) warehouse default por sucursal ──
-INSERT INTO `warehouse` (`name`, `is_default`, `active`, `subsidiaries_id`, `companies_id`)
-SELECT 'Almacén General', 1, 1, s.`id`, s.`companies_id`
-FROM `fayxzvov_erp`.`subsidiaries` s
+-- ── 8) warehouse default por sucursal (branch) ──
+INSERT INTO `warehouse` (`name`, `is_default`, `active`, `branch_id`, `companies_id`)
+SELECT 'Almacén General', 1, 1, b.`id`, b.`company_id`
+FROM `fayxzvov_erp`.`branches` b
 WHERE NOT EXISTS (
-  SELECT 1 FROM `warehouse` w WHERE w.`subsidiaries_id` = s.`id` AND w.`is_default` = 1
+  SELECT 1 FROM `warehouse` w WHERE w.`branch_id` = b.`id` AND w.`is_default` = 1
 );

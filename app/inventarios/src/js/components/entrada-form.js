@@ -1,9 +1,9 @@
 const SAMPLE_ENTRADA = {
     json: [
-        { id: '1', nombre: 'Café Americano 250g',  sku: 'CAF-001', stock: 12, costo: 85.00,  icon: 'coffee',      bg: 'bg-amber-500/15',  color: 'text-amber-400',  image: '' },
-        { id: '2', nombre: 'Té Verde 100g',         sku: 'TE-002',  stock: 3,  costo: 55.50,  icon: 'leaf',        bg: 'bg-green-500/15',  color: 'text-green-400',  image: '' },
-        { id: '3', nombre: 'Azúcar Morena 1kg',     sku: 'AZU-003', stock: 0,  costo: 32.00,  icon: 'package',     bg: 'bg-gray-500/15',   color: 'text-gray-400',   image: '' },
-        { id: '4', nombre: 'Leche Entera 1L',       sku: 'LEC-004', stock: 24, costo: 28.00,  icon: 'droplets',    bg: 'bg-blue-500/15',   color: 'text-blue-400',   image: '' }
+        { id: '1', nombre: 'Café Americano 250g',  sku: 'CAF-001', stock: 12, costo: 85.00,  categoria: 'Bebidas calientes', icon: 'coffee',      bg: 'bg-amber-500/15',  color: 'text-amber-400',  image: '' },
+        { id: '2', nombre: 'Té Verde 100g',         sku: 'TE-002',  stock: 3,  costo: 55.50,  categoria: 'Bebidas calientes', icon: 'leaf',        bg: 'bg-green-500/15',  color: 'text-green-400',  image: '' },
+        { id: '3', nombre: 'Azúcar Morena 1kg',     sku: 'AZU-003', stock: 0,  costo: 32.00,  categoria: 'Insumos',           icon: 'package',     bg: 'bg-gray-500/15',   color: 'text-gray-400',   image: '' },
+        { id: '4', nombre: 'Leche Entera 1L',       sku: 'LEC-004', stock: 24, costo: 28.00,  categoria: 'Lácteos',           icon: 'droplets',    bg: 'bg-blue-500/15',   color: 'text-blue-400',   image: '' }
     ],
     data: {
         origenes:   [
@@ -109,10 +109,13 @@ class EntradaForm {
         this.opts.data   = Object.assign({}, defaults.data,   o.data   || {});
         this.opts.labels = Object.assign({}, defaults.labels, o.labels || {});
 
-        this.lote         = [];
-        this.searchTerm   = '';
-        this.activeIdx    = 0;      // resultado resaltado para navegacion por teclado
-        this.catalogItems = [];     // resultados visibles actuales del catalogo
+        this.lote          = [];
+        this.searchTerm    = '';
+        this.activeIdx     = 0;             // resultado resaltado para navegacion por teclado
+        this.catalogItems  = [];            // resultados visibles actuales del catalogo
+        this.collapsedCats = new Set();     // categorias plegadas en el catalogo
+        this.editMode      = false;         // true cuando se edita una entrada existente
+        this.editId        = null;          // id de la entrada en edicion
 
         this.ensureStyles();
         this.mount();
@@ -132,8 +135,8 @@ class EntradaForm {
                         <i data-lucide="package-plus" class="w-5 h-5 text-white"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold text-white">${this.esc(o.labels.title)}</h3>
-                        <p class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
+                        <h3 id="${o.id}_title" class="text-sm font-bold text-white">${this.esc(o.labels.title)}</h3>
+                        <p id="${o.id}_subtitle" class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
                     </div>
                 </div>
                 <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close>
@@ -188,12 +191,12 @@ class EntradaForm {
         const cls = this.cls;
         return `
             <div class="flex-shrink-0">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">${this.esc(o.labels.buscar)}</p>
+                <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">${this.esc(o.labels.buscar)}</p>
                 <div class="relative">
                     <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center">
                         <i data-lucide="search" class="w-3.5 h-3.5"></i>
                     </span>
-                    <input id="${o.id}_buscarProducto" type="text" placeholder="${this.esc(o.labels.placeholder)}" class="${cls.search}" autocomplete="off">
+                    <input id="${o.id}_buscarProducto" type="text" placeholder="${this.esc(o.labels.placeholder)}" class="${cls.search} !text-[10px]" autocomplete="off">
                 </div>
                 <p class="mt-1.5 text-[9px] text-gray-500 flex items-center flex-wrap gap-x-1.5 gap-y-1 leading-none">
                     <span class="ef-kbd">&uarr;&darr;</span><span>navegar</span>
@@ -268,7 +271,7 @@ class EntradaForm {
                 <div class="flex gap-2 flex-shrink-0">
                     <button class="${cls.btnOut}" data-modal-close>${this.esc(o.labels.cancelar)}</button>
                     <button id="${o.id}_btnRegistrar" class="${cls.btnOk}">
-                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
+                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span id="${o.id}_btnRegistrarLbl">${this.esc(o.labels.registrar)}</span>
                     </button>
                 </div>
             </div>`;
@@ -336,6 +339,20 @@ class EntradaForm {
     }
 
     renderProductsTable() {
+        // Agrupa el lote por categoria conservando el indice original en this.lote
+        // (lo usan removeProducto / updateField / refreshRow via data-idx).
+        const groups = {};
+        this.lote.forEach((p, i) => {
+            const cat = (p.categoria && String(p.categoria).trim()) || 'Sin categoria';
+            (groups[cat] = groups[cat] || []).push({ p, i });
+        });
+        const catNames = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es'));
+
+        const body = catNames.map(c => {
+            const rows = groups[c].map(({ p, i }) => this.renderProductRow(p, i)).join('');
+            return this.renderLoteCatRow(c, groups[c].length) + rows;
+        }).join('');
+
         return `
             <table class="w-full border-collapse">
                 <thead class="sticky top-0 z-10 bg-[#0f1825] border-b border-gray-700/60">
@@ -347,25 +364,38 @@ class EntradaForm {
                         <th class="w-10 px-2 py-2"></th>
                     </tr>
                 </thead>
-                <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}</tbody>
+                <tbody>${body}</tbody>
             </table>`;
+    }
+
+    // Fila separadora de categoria dentro de la tabla del lote.
+    renderLoteCatRow(cat, count) {
+        return `
+            <tr class="ef-lote-cat">
+                <td colspan="5" class="px-3 pt-2.5 pb-1 bg-[#0f172a]/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-purple-300/80 truncate">${this.esc(cat)}</span>
+                        <span class="text-[9px] text-gray-600 flex-shrink-0 ml-2">${count}</span>
+                    </div>
+                </td>
+            </tr>`;
     }
 
     renderSearchResult(p, i) {
         const stockColor = p.stock === 0 ? 'text-red-400' : p.stock < 5 ? 'text-orange-400' : 'text-green-400';
         const stockBg    = p.stock === 0 ? 'bg-red-500/10' : p.stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
         return `
-            <div class="ef-cat-item rounded-md flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent border-b border-gray-800/40 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
-                ${this.prodThumb(p, 'w-9 h-9', 'w-4 h-4')}
+            <div class="ef-cat-item rounded-md flex items-center gap-2.5 px-2.5 py-1.5 cursor-pointer hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent border-b border-gray-800/40 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
+                ${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}
                 <div class="flex-1 min-w-0">
-                    <p class="text-[11px] font-semibold text-white truncate">${this.esc(p.nombre)}</p>
+                    <p class="text-[10px] font-semibold text-white truncate">${this.esc(p.nombre)}</p>
                     <div class="flex items-center gap-1.5 mt-0.5">
-                        <span class="text-[9px] px-1.5 py-0.5 rounded ${stockBg} ${stockColor} font-bold">Stock ${p.stock || 0}</span>
-                        <span class="text-[9px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
+                        <span class="text-[8px] px-1.5 py-0.5 rounded ${stockBg} ${stockColor} font-bold">Stock ${p.stock || 0}</span>
+                        <span class="text-[8px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
                     </div>
                 </div>
-                <div class="w-7 h-7 rounded-lg bg-purple-600/15 border border-purple-500/30 flex items-center justify-center text-purple-400 flex-shrink-0 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-500 transition-all">
-                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <div class="w-6 h-6 rounded-lg bg-purple-600/15 border border-purple-500/30 flex items-center justify-center text-purple-400 flex-shrink-0 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-500 transition-all">
+                    <i data-lucide="plus" class="w-3 h-3"></i>
                 </div>
             </div>`;
     }
@@ -403,7 +433,7 @@ class EntradaForm {
                 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
                     ${this.renderConfigRow()}
                     <div class="flex flex-1 min-h-0">
-                        <div class="w-[300px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
+                        <div class="w-[360px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
                             ${this.renderSearchPanel()}
                         </div>
                         <div class="flex-1 flex flex-col min-w-0 min-h-0">
@@ -440,13 +470,32 @@ class EntradaForm {
         const $cat = $(`#${o.id}_catalogoLista`);
         const term = (this.searchTerm || '').toLowerCase();
         const items = (o.json || [])
-            .filter(p => !this.lote.some(x => x.id === p.id))
+            .filter(p => !this.lote.some(x => String(x.id) === String(p.id)))
             .filter(p => !term || (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
 
-        this.catalogItems = items;
-        if (this.activeIdx >= items.length) this.activeIdx = Math.max(0, items.length - 1);
+        // Agrupa por categoria, ordenando alfabeticamente los grupos.
+        const groups = {};
+        items.forEach(p => {
+            const cat = (p.categoria && String(p.categoria).trim()) || 'Sin categoria';
+            (groups[cat] = groups[cat] || []).push(p);
+        });
+        const catNames = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es'));
 
-        if (!items.length) {
+        // Si hay termino de busqueda se expanden todas las categorias para no
+        // ocultar coincidencias detras de una seccion plegada.
+        const searching = !!term;
+
+        // Reconstruye la lista plana SOLO con los items visibles (categorias
+        // expandidas) para que la navegacion por teclado (activeIdx) siga
+        // alineada con lo que realmente se pinta en el DOM.
+        const ordered = [];
+        catNames.forEach(c => {
+            if (searching || !this.collapsedCats.has(c)) groups[c].forEach(p => ordered.push(p));
+        });
+        this.catalogItems = ordered;
+        if (this.activeIdx >= ordered.length) this.activeIdx = Math.max(0, ordered.length - 1);
+
+        if (!catNames.length) {
             $cat.html(`
                 <div class="flex flex-col items-center justify-center py-8 text-center px-2">
                     <div class="w-10 h-10 rounded-lg bg-gray-800/40 border border-gray-700/50 flex items-center justify-center mb-2">
@@ -455,10 +504,32 @@ class EntradaForm {
                     <p class="text-[10px] text-gray-500">${term ? this.esc(o.labels.searchHint) : 'Sin productos disponibles'}</p>
                 </div>`);
         } else {
-            $cat.html(items.map((p, i) => this.renderSearchResult(p, i)).join(''));
+            let gi = 0; // indice global continuo a traves de las categorias visibles
+            const html = catNames.map(c => {
+                const collapsed = !searching && this.collapsedCats.has(c);
+                const rows = collapsed ? '' : groups[c].map(p => this.renderSearchResult(p, gi++)).join('');
+                return this.renderCatHeader(c, groups[c].length, collapsed) + rows;
+            }).join('');
+            $cat.html(html);
         }
         if (window.lucide) lucide.createIcons();
         this.highlightActive();
+    }
+
+    // Encabezado colapsable de seccion de categoria dentro del catalogo de busqueda.
+    renderCatHeader(cat, count, collapsed) {
+        return `
+            <div class="ef-cat-head flex items-center gap-1.5 px-2 py-1 bg-[#0f172a]/60 border-b border-gray-800/60 cursor-pointer select-none hover:bg-[#0f172a] transition-colors" data-cat-toggle="${this.esc(cat)}">
+                <i data-lucide="chevron-down" class="w-2.5 h-2.5 text-purple-300/70 transition-transform ${collapsed ? '-rotate-90' : ''}"></i>
+                <span class="text-[8px] font-bold uppercase tracking-wider text-purple-300/80 truncate flex-1">${this.esc(cat)}</span>
+                <span class="text-[8px] text-gray-600 flex-shrink-0 ml-2">${count}</span>
+            </div>`;
+    }
+
+    toggleCat(cat) {
+        if (this.collapsedCats.has(cat)) this.collapsedCats.delete(cat);
+        else                             this.collapsedCats.add(cat);
+        this.renderCatalogo();
     }
 
     renderLote() {
@@ -706,12 +777,36 @@ class EntradaForm {
         this.wrap.addClass('hidden');
         this.lote = [];
         this.renderLote();
+        if (this.editMode) this.applyEditUI(false);
+        this.editMode  = false;
+        this.editId    = null;
+        this.editFolio = null;
         this.opts.onClose();
     }
 
     doRegistrar() {
         if (!this.lote.length) { alert('Agrega al menos un producto al lote'); return; }
         const o = this.opts;
+
+        // Modo edicion: el almacen/sucursal/origen no cambian (los fija el header de
+        // la entrada en el backend). Solo viajan los renglones, con su detail_id para
+        // distinguir altas (sin id) de cambios (con id); las bajas las infiere el
+        // backend al faltar un detail_id que antes existia.
+        if (this.editMode) {
+            const payload = {
+                note:      $(`#${o.id}_inpNota`).val(),
+                productos: this.lote.map(p => ({
+                    detail_id:  p.detailId || null,
+                    product_id: p.id,
+                    quantity:   Number(p.cantidad || 0),
+                    cost:       Number(p.costo || 0)
+                }))
+            };
+            o.onUpdate({ id: this.editId, folio: this.editFolio, payload: payload });
+            this.closeModal();
+            return;
+        }
+
         const warehouseId = $(`#${o.id}_selAlmacen`).val();
         if (!warehouseId) { alert('Selecciona un almacen'); return; }
         const payload = {
@@ -961,6 +1056,7 @@ class EntradaForm {
         wrap.on('input', `#${id}_buscarProducto`,     (e) => this.doSearch(e.target.value));
         wrap.on('keydown', `#${id}_buscarProducto`,   (e) => this.onSearchKeydown(e));
         wrap.on('keydown', 'input[data-field="cantidad"]', (e) => this.onQtyKeydown(e));
+        wrap.on('click', '[data-cat-toggle]',         (e) => this.toggleCat($(e.currentTarget).attr('data-cat-toggle')));
         wrap.on('click', '[data-add-id]',             (e) => this.addProducto($(e.currentTarget).attr('data-add-id')));
         wrap.on('click', '[data-remove]',             (e) => this.removeProducto(Number($(e.currentTarget).attr('data-remove'))));
         wrap.on('input', 'input[data-field]',         (e) => this.updateField($(e.currentTarget)));
@@ -1011,6 +1107,80 @@ class EntradaForm {
             this.refreshAlmacenes(newData.subsidiaries_id);
         }
         if (newData && 'nota' in newData)            $(`#${id}_inpNota`).val(newData.nota);
+    }
+
+    // Abre el modal para EDITAR una entrada existente: precarga sus renglones en el
+    // lote (conservando detail_id para el backend) y bloquea origen/sucursal/almacen
+    // (no se cambian en edicion). La entrada llega con el shape de mapEntradaDetail.
+    openEdit(entrada) {
+        if (!entrada || !entrada.id) return;
+        this.editMode  = true;
+        this.editId    = entrada.id;
+        this.editFolio = entrada.folio || '';
+
+        const catalogo = this.opts.json || [];
+        const byId = {};
+        catalogo.forEach(c => { byId[String(c.id)] = c; });
+
+        // Cada renglon parte de la cantidad realmente aplicada (cantReal); enriquece
+        // categoria/icono/stock desde el catalogo para que la tabla agrupe y pinte igual.
+        this.lote = (entrada.productos || []).map(p => {
+            const cat = byId[String(p.id)] || {};
+            return {
+                id:        p.id,
+                detailId:  p.detailId,
+                nombre:    p.nombre,
+                sku:       p.sku,
+                costo:     Number(p.costo || 0),
+                cantidad:  Number(p.cantReal != null ? p.cantReal : (p.cant || 0)),
+                stock:     Number(cat.stock || 0),
+                categoria: cat.categoria || p.categoria || 'Sin categoria',
+                icon:      cat.icon  || p.icon  || 'package',
+                bg:        cat.bg    || p.bg    || 'bg-gray-700/40',
+                color:     cat.color || p.color || 'text-gray-300',
+                image:     cat.image || p.image || ''
+            };
+        });
+
+        const id = this.opts.id;
+        // Refleja el contexto real de la entrada en los selects (quedan bloqueados:
+        // el backend usa el almacen del header, no estos campos).
+        if (entrada.origenId != null)       $(`#${id}_selOrigen`).val(String(entrada.origenId));
+        if (entrada.subsidiariesId != null) {
+            $(`#${id}_selSucursal`).val(String(entrada.subsidiariesId));
+            this.refreshAlmacenes(entrada.subsidiariesId);
+        }
+        if (entrada.warehouseId != null)    $(`#${id}_selAlmacen`).val(String(entrada.warehouseId));
+
+        this.applyEditUI(true, entrada);
+        this.renderLote();
+
+        $(`#${id}_inpNota`).val(entrada.nota || '');
+
+        this.wrap.removeClass('hidden');
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => $(`#${id}_buscarProducto`).trigger('focus'), 50);
+    }
+
+    // Alterna la UI entre alta (false) y edicion (true): textos del header/boton y
+    // bloqueo de los selects de contexto (origen/sucursal/almacen/fecha).
+    applyEditUI(on, entrada) {
+        const o  = this.opts;
+        const id = o.id;
+        const ctxSelectors = [`#${id}_selOrigen`, `#${id}_selSucursal`, `#${id}_selAlmacen`, `#${id}_inpFecha`];
+
+        if (on) {
+            const folio = (entrada && entrada.folio) ? entrada.folio : '';
+            $(`#${id}_title`).text(`Editar entrada ${folio}`.trim());
+            $(`#${id}_subtitle`).text('Agrega o quita productos de la entrada');
+            $(`#${id}_btnRegistrarLbl`).text('Guardar cambios');
+            ctxSelectors.forEach(sel => $(sel).prop('disabled', true).addClass('opacity-50 cursor-not-allowed'));
+        } else {
+            $(`#${id}_title`).text(o.labels.title);
+            $(`#${id}_subtitle`).text(o.labels.subtitle);
+            $(`#${id}_btnRegistrarLbl`).text(o.labels.registrar);
+            ctxSelectors.forEach(sel => $(sel).prop('disabled', false).removeClass('opacity-50 cursor-not-allowed'));
+        }
     }
 
     // -- Helpers --

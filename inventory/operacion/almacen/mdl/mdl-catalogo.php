@@ -130,7 +130,7 @@ class mdl extends CRUD {
 
     // Unidad -> unit
 
-    function listZone($array) {
+    function listUnit($array) {
         $query = "
             SELECT
                 id,
@@ -146,7 +146,7 @@ class mdl extends CRUD {
         return $this->_Read($query, $array);
     }
 
-    function getZoneById($array) {
+    function getUnitById($array) {
         $query = "
             SELECT *
             FROM {$this->bd}unit
@@ -156,7 +156,7 @@ class mdl extends CRUD {
         return $result[0] ?? null;
     }
 
-    function createZone($array) {
+    function createUnit($array) {
         return $this->_Insert([
             'table'  => "{$this->bd}unit",
             'values' => $array['values'],
@@ -164,7 +164,7 @@ class mdl extends CRUD {
         ]);
     }
 
-    function updateZone($array) {
+    function updateUnit($array) {
         return $this->_Update([
             'table'  => "{$this->bd}unit",
             'values' => $array['values'],
@@ -173,7 +173,7 @@ class mdl extends CRUD {
         ]);
     }
 
-    function existsZoneByName($array) {
+    function existsUnitByName($array) {
         $query = "
             SELECT COUNT(*) as total
             FROM {$this->bd}unit

@@ -93,6 +93,16 @@ const PG_THEMES = {
         data: 'dark', bodyClass: 'coffee-varoch', bg: '#0E1521', fg: '#E5E7EB',
         note: 'Sistema Coffee-Varoch (Grupo Varoch): clases .cv-* con <body class="coffee-varoch" data-theme="dark">. Tema DARK.'
     },
+    // CoffeeSoft "Arcilla Invernal" (módulo inventory). Tailwind con la escala
+    // `blue` remapeada a terracota vía tailwind-theme.js (jsUrls, va tras el CDN)
+    // + variables CSS y utilidades de colors.css/color-palette.css. Solo LIGHT.
+    'coffeesoft-light': {
+        label: 'CoffeeSoft · Arcilla Invernal', grimoire: 'grimorio-coffeesoft.md',
+        cssUrls: ['../../../inventory/src/css/colors.css', '../../../inventory/src/css/color-palette.css'],
+        jsUrls: ['../../../inventory/src/js/tailwind-theme.js'], cssFrom: null,
+        data: '', bodyClass: '', bg: '#F2F5F9', fg: '#1A1A1A',
+        note: 'Sistema CoffeeSoft "Arcilla Invernal": Tailwind con la escala blue REMAPEADA a terracota (bg-blue-600 = #C05A40, hover blue-700 = #A84A33) — usa clases blue-* y rendirán terracota, NUNCA azul. También dispones de las variables --primary/--secondary y utilidades .btn-*/.badge-*/.alert-* de color-palette.css. Tema LIGHT únicamente (fondo #F2F5F9, cards #FAFCFF). No generes toggle ni variante oscura.'
+    },
     // Lienzo libre: sin grimorio ni paleta impuesta. El agente conjura solo con
     // su propio conocimiento (Tailwind disponible en el sandbox). Canvas neutro.
     'free': {
@@ -121,6 +131,9 @@ const pg = {
     _abort:    null,         // AbortController de la consulta en curso (botón Detener)
     lastHtml:  '',           // ultimo HTML generado (para "abrir en pestaña")
     lastTheme: 'huubie-ui',
+    templates: [],           // historial de templates renderizados (sesión): {id, html, isDoc, theme, themeLabel, title, ts}
+    _activeTplId: null,      // template actualmente cargado en el sandbox
+    _lastUserText: '',       // último prompt del usuario (titula los templates)
     splitW:    '',           // ancho del panel de chat (px) — splitter
     zoom:      100,          // zoom del preview (%) — escala el contenido del iframe
     _popSound: null,
@@ -554,6 +567,8 @@ async function pgSavePrompt() {
 /* ── Chat ── */
 function pgClearChat() {
     pg.history = [];
+    pg.templates = [];
+    pg._activeTplId = null;
     $('#pgChatBody').html(`
         <div class="pg-empty">
             <i data-lucide="sparkles"></i>
@@ -570,6 +585,7 @@ function pgSubmit() {
     const hasImages = pg.pendingImages.length > 0;
     const hasDocs   = pg.pendingDocs.length > 0;
     if (!text && !hasImages && !hasDocs) return;
+    if (text) pg._lastUserText = text;   // titula los templates del historial
     $ta.val('').css('height', 'auto');
     const images = pg.pendingImages.slice();
     const docs   = pg.pendingDocs.slice();
@@ -793,17 +809,19 @@ async function pgSend(text, images, docs) {
  * `interrupted` marca respuestas cortadas (timeout/red/límite del modelo). */
 function pgFinalizeResponse(stream, received, meta, interrupted) {
     const renderToCanvas = !!pg.canvasMode;
-    const cfg  = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
     const html = renderToCanvas ? pgExtractHtml(received) : '';
 
-    // En modo lienzo con HTML: el componente va al sandbox y en el chat dejamos
-    // solo el texto no-HTML + una nota. En cualquier otro caso, el chat muestra
-    // la respuesta tal cual (incluido el HTML como bloque de código).
+    // En modo lienzo con HTML: el componente va al sandbox y su código a la
+    // pestaña "Código". En el chat NO mostramos el HTML crudo — solo el texto
+    // explicativo (lo que NO sea HTML) + una nota; la miniatura clicable se
+    // añade aparte. Aplica a cualquier agente (CoffeeMagic, CoffeeIA, etc.).
     let displayText = received;
-    if (renderToCanvas && cfg.render === 'html' && html) {
-        let rest = received.replace(/```[ \t]*html[\s\S]*?```/i, '').trim();
-        if (rest === received.trim()) rest = '';   // no había fence → era HTML crudo
-        if (pgLooksLikeHtml(rest)) rest = '';       // lo que queda sigue siendo HTML
+    if (renderToCanvas && html) {
+        // Eliminar TODO bloque ```...``` cuyo contenido parezca HTML (deja intactos
+        // los bloques js/php/etc. que el agente pueda incluir como explicación).
+        let rest = received.replace(/```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/gi,
+            (block) => pgLooksLikeHtml(block) ? '' : block).trim();
+        if (pgLooksLikeHtml(rest)) rest = '';   // lo que queda sigue siendo HTML crudo (sin fence)
         const note = interrupted
             ? '⚠️ *Respuesta cortada — componente parcial renderizado en el sandbox →*'
             : '🪄 *Componente renderizado en el sandbox →*';
@@ -813,7 +831,10 @@ function pgFinalizeResponse(stream, received, meta, interrupted) {
     }
 
     stream.complete(displayText, meta, received);
-    if (renderToCanvas) pgRenderToSandbox(received);
+    if (renderToCanvas) {
+        const tpl = pgRenderToSandbox(received);
+        if (tpl) pgAppendTemplateCard(stream.$msg, tpl);   // miniatura clicable dentro del chat
+    }
 }
 
 /* Rescata el contenido parcial cuando el stream se corta a media generación.
@@ -871,6 +892,11 @@ function pgCreateAIStream() {
     let last = performance.now(), credit = 0;
     let conjuring = false, fullBuf = '', $conjSub = null;
     const HTML_FENCE = /```[ \t]*html/i;
+    // HTML crudo sin fence: en modo lienzo el agente suele devolver el componente
+    // directo (sin ```). En cuanto aparece un tag estructural entramos a "Conjurando…"
+    // para NO pintar el código en el chat (el código se ve en la pestaña "Código").
+    const RAW_HTML = /<(!doctype html|html|head|body|section|main|header|nav|article|aside|footer|form|table|ul|ol|div|button|h[1-6])[\s>]/i;
+    const shouldConjure = (buf) => HTML_FENCE.test(buf) || (pg.canvasMode && RAW_HTML.test(buf));
 
     function enterConjuring() {
         conjuring = true;
@@ -921,7 +947,7 @@ function pgCreateAIStream() {
         push(piece) {
             if (!piece) return;
             fullBuf += piece;
-            if (!conjuring && HTML_FENCE.test(fullBuf)) enterConjuring();
+            if (!conjuring && shouldConjure(fullBuf)) enterConjuring();
             if (conjuring) {
                 const lines = fullBuf.split('\n').length;
                 if ($conjSub) $conjSub.text('Tejiendo el HTML · ' + lines + (lines === 1 ? ' línea' : ' líneas'));
@@ -984,18 +1010,81 @@ function pgRenderToSandbox(received) {
     if (cfg.render === 'html') {
         const html = pgExtractHtml(received);   // tolerante: fence o crudo
         pgRenderSandbox(html || pgMarkdown(received), !html);
-        return;
+        return html ? pgPushTemplate(html, false) : null;   // solo componentes reales al historial
     }
     if (cfg.render === 'code') {
         pgShowSandboxCode(pgExtractCode(received) || received);
         const html = pgExtractHtml(received);
-        if (html) pgRenderSandbox(html, false);
-        return;
+        if (html) { pgRenderSandbox(html, false); return pgPushTemplate(html, false); }
+        return null;
     }
     // Agente markdown: documento. Solo desvía a HTML si vino en fence explícito.
     const fenced = pgExtractCode(received, 'html');
-    if (fenced) pgRenderSandbox(fenced, false);
-    else        pgRenderSandbox(pgMarkdown(received), true);
+    if (fenced) { pgRenderSandbox(fenced, false); return pgPushTemplate(fenced, false); }
+    pgRenderSandbox(pgMarkdown(received), true);
+    return null;
+}
+
+/* ── Historial de templates renderizados (sesión) ──
+ * Cada componente HTML que se vuelca al sandbox se registra y se muestra como
+ * una tarjeta-miniatura clicable DENTRO de la burbuja del chat que lo generó.
+ * Al hacer clic se vuelve a renderizar en el sandbox (restaurando su tema).
+ * Vive solo en memoria: se vacía al limpiar la conversación o recargar. */
+function pgPushTemplate(html, isDoc) {
+    if (!html) return null;
+    const id = 'tpl-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const rawTitle = (pg._lastUserText || '').trim();
+    const title = rawTitle
+        ? (rawTitle.length > 46 ? rawTitle.slice(0, 46) + '…' : rawTitle)
+        : 'Componente';
+    const tpl = {
+        id, html, isDoc: !!isDoc,
+        theme:      pg.theme,
+        themeLabel: (PG_THEMES[pg.theme] || {}).label || pg.theme,
+        title, ts: Date.now()
+    };
+    pg.templates.push(tpl);
+    if (pg.templates.length > 50) pg.templates.shift();   // tope de sesión
+    pg._activeTplId = id;
+    return tpl;
+}
+
+/* Inserta la tarjeta-miniatura clicable al final de la burbuja del chat. */
+function pgAppendTemplateCard($msg, tpl) {
+    if (!$msg || !$msg.length || !tpl) return;
+    const $card = $(`
+        <div class="pg-chat-tpl${tpl.id === pg._activeTplId ? ' is-active' : ''}" data-tpl-id="${tpl.id}" title="Clic para ver en el sandbox">
+            <div class="pg-chat-tpl-thumb"><iframe class="pg-chat-tpl-frame" sandbox="allow-scripts" scrolling="no" tabindex="-1" aria-hidden="true"></iframe></div>
+            <div class="pg-chat-tpl-info">
+                <span class="pg-chat-tpl-title">${pgEscape(tpl.title)}</span>
+                <span class="pg-chat-tpl-sub">${pgEscape(tpl.themeLabel)}</span>
+                <span class="pg-chat-tpl-cta"><i data-lucide="eye" class="w-3 h-3"></i>Ver en el sandbox</span>
+            </div>
+        </div>`);
+    $msg.append($card);
+    const fr = $card.find('.pg-chat-tpl-frame')[0];
+    if (fr) fr.srcdoc = pgWrapHtml(tpl.html, tpl.theme, tpl.isDoc);
+    $card.on('click', () => pgRestoreTemplate(tpl.id));
+    if (window.lucide) lucide.createIcons();
+    pgScroll();
+}
+
+function pgRestoreTemplate(id) {
+    const t = pg.templates.find(x => x.id === id);
+    if (!t) return;
+    pg._activeTplId = id;
+    // Restaurar el tema con el que se generó (el sandbox lo envuelve con ese sistema).
+    if (t.theme && PG_THEMES[t.theme] && t.theme !== pg.theme) {
+        pg.theme = t.theme;
+        $('#pgThemeSelect').val(t.theme);
+        $('#pgSandboxTheme').text((PG_THEMES[t.theme] || {}).label || t.theme);
+        pgSaveSettings();
+    }
+    pgRenderSandbox(t.html, t.isDoc);
+    // Resalta en el chat la tarjeta activa.
+    $('.pg-chat-tpl').removeClass('is-active');
+    $(`.pg-chat-tpl[data-tpl-id="${id}"]`).addClass('is-active');
+    pgToast('Template cargado en el sandbox', 'success');
 }
 function pgRenderSandbox(htmlBody, isDoc) {
     $('#pgSandboxEmpty').hide();
@@ -1045,21 +1134,25 @@ function pgIsFullDoc(html) {
            /<head[\s>]/i.test(html) || /<body[\s>]/i.test(html);
 }
 
-// Reune los assets de un sistema de diseño: <link> + <style> embebido + atributos.
+// Reune los assets de un sistema de diseño: <link> + <style> embebido + <script> + atributos.
 function pgThemeAssets(t) {
     const appBase = new URL('.', document.baseURI).href;
     let links = (t.cssUrls || []).map(u =>
         `<link rel="stylesheet" href="${new URL(u, document.baseURI).href}">`).join('');
+    // Scripts del tema (p.ej. tailwind-theme.js de CoffeeSoft). DEBEN inyectarse
+    // justo después del CDN de Tailwind para que su tailwind.config tenga efecto.
+    let scripts = (t.jsUrls || []).map(u =>
+        `<script src="${new URL(u, document.baseURI).href}"><\/script>`).join('');
     let style = '';
     if (t.cssFrom === 'grimorio-coffee-varoch.md' && pg._varochCss) {
         style = `<style>${pg._varochCss}</style>`;
     }
-    return { appBase, links, style };
+    return { appBase, links, style, scripts };
 }
 
 function pgWrapHtml(body, themeKey, isDoc) {
     const t = PG_THEMES[themeKey] || PG_THEMES[PG_DEFAULT_THEME];
-    const { appBase, links, style } = pgThemeAssets(t);
+    const { appBase, links, style, scripts } = pgThemeAssets(t);
     const htmlAttr = t.data ? ` data-theme="${t.data}"` : '';
     // Coffee-Varoch matchea por `.coffee-varoch[data-theme]` en el MISMO elemento
     // (el body), por eso el data-theme también va en el <body> cuando hay bodyClass.
@@ -1079,7 +1172,7 @@ function pgWrapHtml(body, themeKey, isDoc) {
         } else {
             doc = `<html${htmlAttr}>` + doc + '</html>';
         }
-        const headInject = `<base href="${appBase}">${links}${style}`;
+        const headInject = `<base href="${appBase}">${scripts}${links}${style}`;
         if (/<head(\s[^>]*)?>/i.test(doc)) {
             doc = doc.replace(/<head(\s[^>]*)?>/i, m => `${m}${headInject}`);
         } else {
@@ -1117,6 +1210,7 @@ function pgWrapHtml(body, themeKey, isDoc) {
     return `<!DOCTYPE html><html${htmlAttr}><head><meta charset="utf-8">
         <base href="${appBase}">
         <script src="https://cdn.tailwindcss.com"><\/script>
+        ${scripts}
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
         ${links}${style}
         <script src="https://unpkg.com/lucide@latest"><\/script>

@@ -1,5 +1,8 @@
 # Diagramas ER por sección — Módulo Inventory / Almacén
 
+> ⚠️ **Actualización jun-2026:** la sucursal del módulo es **`branch_id` → `fayxzvov_erp.branches`**
+> (antes `subsidiaries_id` → `subsidiaries`). Léase `branch_id`/`branches` donde aparezca lo viejo.
+
 > Vista de revisión generada desde [propuesta-bd-inventory.md](propuesta-bd-inventory.md) (rev5).
 > Una **ficha por tabla**, agrupada por sección, para revisar de un vistazo.
 

@@ -12,14 +12,14 @@ require_once '../../../conf/coffeSoft.php';
 class ctrl extends mdl {
 
     public $companiesId;
-    public $subsidiariesId;
+    public $branchId;
     public $userId;
 
     public function __construct() {
         parent::__construct();
-        $this->companiesId    = (int) ($_SESSION['company_id']    ?? $_POST['companies_id']    ?? 0);
-        $this->subsidiariesId = (int) ($_SESSION['branch_id'] ?? $_POST['subsidiaries_id'] ?? 0);
-        $this->userId         = (int) ($_SESSION['user_id']         ?? $_POST['user_id']         ?? 0);
+        $this->companiesId = (int) ($_SESSION['company_id'] ?? $_POST['companies_id'] ?? 0);
+        $this->branchId    = (int) ($_SESSION['branch_id']  ?? $_POST['branch_id']    ?? 0);
+        $this->userId      = (int) ($_SESSION['user_id']    ?? $_POST['user_id']      ?? 0);
     }
 
     function init() {
@@ -42,7 +42,7 @@ class ctrl extends mdl {
         return [
             'status'          => 200,
             'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $this->subsidiariesId,
+            'branch_id'       => $this->branchId,
             'user_id'         => $this->userId,
             'sucursales'      => $this->lsSucursales([$this->companiesId]),
             'almacenes'       => $this->lsWarehouses(['companies_id' => $this->companiesId]),
@@ -51,11 +51,23 @@ class ctrl extends mdl {
         ];
     }
 
+    function lsStockByWarehouse() {
+        $warehouseId = (int) ($_POST['warehouse_id'] ?? 0);
+        $map = [];
+        if ($warehouseId > 0) {
+            foreach ($this->qStockByWarehouse([$warehouseId]) as $row) {
+                $map[(string) $row['item_id']] = (float) $row['quantity'];
+            }
+        }
+        return ['status' => 200, 'stock' => $map];
+    }
+
     function lsSalidas() {
         $rows = $this->qSalidas([
             'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $_POST['subsidiaries_id'] ?? '',
+            'branch_id'       => $_POST['branch_id'] ?? '',
             'reason_id'       => $_POST['reason_id']       ?? '',
+            'status'          => $_POST['status']          ?? '',
             'fi'              => $_POST['fi']              ?? '',
             'ff'              => $_POST['ff']              ?? '',
             'q'               => $_POST['q']               ?? ''
@@ -67,7 +79,7 @@ class ctrl extends mdl {
                 'id'         => $salida['id'],
                 'Folio'      => $salida['folio'],
                 'Motivo'     => badge($salida['reason_name'], $salida['reason_color']),
-                'Sucursal'   => $salida['subsidiary_name'] ?: '-',
+                'Sucursal'   => $salida['branch_name'] ?: '-',
                 'Almacen'    => $salida['warehouse_name']  ?: '-',
                 'Productos'  => (int) $salida['total_products'],
                 'Unidades'   => (float) $salida['total_units'],
@@ -90,7 +102,9 @@ class ctrl extends mdl {
     function showSalidas() {
         $kpis = $this->getSalidaKpis([
             'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $_POST['subsidiaries_id'] ?? '',
+            'branch_id'       => $_POST['branch_id'] ?? '',
+            'reason_id'       => $_POST['reason_id']       ?? '',
+            'status'          => $_POST['status']          ?? '',
             'fi'              => $_POST['fi']              ?? '',
             'ff'              => $_POST['ff']              ?? ''
         ]);
@@ -147,7 +161,7 @@ class ctrl extends mdl {
             $payload['status']       ?? 'Aplicada',
             (int) $payload['shrinkage_reason_id'],
             (int) $payload['warehouse_id'],
-            (int) ($payload['subsidiaries_id'] ?? $this->subsidiariesId),
+            (int) ($payload['branch_id'] ?? $this->branchId),
             $this->userId,
             $this->companiesId
         ]);
@@ -168,7 +182,7 @@ class ctrl extends mdl {
 
             $stockRow = $this->getStockRow([$productId, $warehouse]);
             $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
-            $post     = max(0, $prev - $qty);
+            $post     = $prev - $qty;
 
             $this->insertSalidaDetail([
                 $qty,

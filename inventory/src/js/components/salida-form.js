@@ -23,7 +23,7 @@ class SalidaForm {
                 sucursales:      [],
                 almacenes:       [],
                 motivo:          '',
-                subsidiaries_id: '',
+                branch_id: '',
                 warehouse_id:    '',
                 fecha:           '',
                 nota:            ''
@@ -56,7 +56,8 @@ class SalidaForm {
             },
             onSubmit: () => {},
             onClose:  () => {},
-            onSearch: null
+            onSearch: null,
+            onWarehouseChange: null
         };
 
         const o = options || {};
@@ -101,7 +102,7 @@ class SalidaForm {
         const o   = this.opts;
         const cls = this.cls;
         const almacenesVisibles = (o.data.almacenes || []).filter(a =>
-            !o.data.subsidiaries_id || String(a.subsidiaries_id) === String(o.data.subsidiaries_id)
+            !o.data.branch_id || String(a.branch_id) === String(o.data.branch_id)
         );
         return `
             <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50">
@@ -118,7 +119,7 @@ class SalidaForm {
                         <label class="${cls.label}">${this.esc(o.labels.sucursal)}</label>
                         ${this.selectWrap(`
                             <select id="${o.id}_selSucursal" class="${cls.select}">
-                                ${(o.data.sucursales || []).map(it => this.optionTag(it, o.data.subsidiaries_id)).join('')}
+                                ${(o.data.sucursales || []).map(it => this.optionTag(it, o.data.branch_id)).join('')}
                             </select>
                         `)}
                     </div>
@@ -232,6 +233,19 @@ class SalidaForm {
             </div>`;
     }
 
+    // Detalle "Stock actual -> resultante" con aviso cuando la cantidad deja el stock en negativo.
+    stockHint(p) {
+        const cant       = Number(p.cantidad || 0);
+        const stockNum   = Number(p.stock || 0);
+        const nuevoStock = stockNum - cant;
+        const stockColor = stockNum === 0 ? 'text-rose-600' : stockNum < 5 ? 'text-orange-500' : 'text-gray-500';
+        const nuevoColor = nuevoStock < 0 ? 'text-rose-600' : nuevoStock < 5 ? 'text-orange-500' : 'text-gray-700';
+        const negBadge   = nuevoStock < 0
+            ? ` <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 text-[8px] font-bold uppercase tracking-wide" data-neg-warn title="El stock de este producto quedara en negativo">Stock insuficiente</span>`
+            : '';
+        return `Stock <strong class="${stockColor}">${stockNum}</strong> <span class="text-gray-400">&darr;</span> <strong class="${nuevoColor}" data-nuevo-stock>${nuevoStock}</strong>${negBadge}`;
+    }
+
     renderProductRow(p, i) {
         const cls         = this.cls;
         const cant        = Number(p.cantidad || 0);
@@ -239,9 +253,6 @@ class SalidaForm {
         const costoFmt    = costoNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const subtotal    = (cant * costoNum).toFixed(2);
         const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const nuevoStock  = Number(p.stock || 0) - cant;
-        const stockColor  = p.stock === 0 ? 'text-rose-600' : p.stock < 5 ? 'text-orange-500' : 'text-gray-500';
-        const nuevoColor  = nuevoStock < 0 ? 'text-rose-600' : nuevoStock < 5 ? 'text-orange-500' : 'text-gray-700';
         return `
             <tr class="border-b border-gray-100 last:border-b-0 hover:bg-rose-500/5 transition-colors" data-idx="${i}">
                 <td class="px-3 py-2 align-middle">
@@ -252,7 +263,7 @@ class SalidaForm {
                             <div class="flex items-center gap-1.5 mt-0.5">
                                 <span class="text-[9px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
                                 <span class="text-gray-300">.</span>
-                                <span class="text-[9px] text-gray-500">Stock <strong class="${stockColor}">${p.stock || 0}</strong> <span class="text-gray-400">&darr;</span> <strong class="${nuevoColor}" data-nuevo-stock>${nuevoStock}</strong></span>
+                                <span class="text-[9px] text-gray-500" data-stock-hint>${this.stockHint(p)}</span>
                             </div>
                         </div>
                     </div>
@@ -689,10 +700,9 @@ class SalidaForm {
         const cant        = Number(p.cantidad || 0);
         const costoNum    = Number(p.costo || 0);
         const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const nuevoStock  = Number(p.stock || 0) - cant;
         const $row = $(`#${o.id}_listaProductos tr[data-idx="${i}"]`);
         $row.find('[data-subtotal]').text('-$' + subtotalFmt);
-        $row.find('[data-nuevo-stock]').text(nuevoStock);
+        $row.find('[data-stock-hint]').html(this.stockHint(p));
     }
 
     clearLote() {
@@ -704,13 +714,28 @@ class SalidaForm {
     }
 
     // Filtra los almacenes visibles por la sucursal seleccionada.
-    refreshAlmacenes(subsidiariesId) {
+    refreshAlmacenes(branchId) {
         const o     = this.opts;
         const $sel  = $(`#${o.id}_selAlmacen`);
         const items = (o.data.almacenes || []).filter(a =>
-            !subsidiariesId || String(a.subsidiaries_id) === String(subsidiariesId)
+            !branchId || String(a.branch_id) === String(branchId)
         );
         $sel.html(items.map(it => this.optionTag(it)).join(''));
+    }
+
+    // Pide al host el stock del almacen seleccionado y lo refleja en el catalogo
+    // y en el lote (el stock vive por almacen+item, asi que cambia con el almacen).
+    reloadStock(warehouseId) {
+        if (typeof this.opts.onWarehouseChange !== 'function') return;
+        this.opts.onWarehouseChange(warehouseId, (stockMap) => this.applyStock(stockMap));
+    }
+
+    applyStock(stockMap) {
+        const map = stockMap || {};
+        const at  = (p) => Number(map[String(p.id)] || 0);
+        (this.opts.json || []).forEach(p => { p.stock = at(p); });
+        this.lote.forEach(p => { p.stock = at(p); });
+        this.renderLote();
     }
 
     // -- Foto / evidencia --
@@ -828,7 +853,8 @@ class SalidaForm {
         const id   = this.opts.id;
 
         wrap.on('click', '[data-modal-close]',        () => this.closeModal());
-        wrap.on('change', `#${id}_selSucursal`,       (e) => this.refreshAlmacenes(e.target.value));
+        wrap.on('change', `#${id}_selSucursal`,       (e) => { this.refreshAlmacenes(e.target.value); this.reloadStock($(`#${id}_selAlmacen`).val()); });
+        wrap.on('change', `#${id}_selAlmacen`,         (e) => this.reloadStock(e.target.value));
         wrap.on('input', `#${id}_buscarProducto`,     (e) => this.doSearch(e.target.value));
         wrap.on('keydown', `#${id}_buscarProducto`,   (e) => this.onSearchKeydown(e));
         wrap.on('keydown', 'input[data-field="cantidad"]', (e) => this.onQtyKeydown(e));
@@ -852,6 +878,7 @@ class SalidaForm {
     open() {
         this.wrap.removeClass('hidden');
         if (window.lucide) lucide.createIcons();
+        this.reloadStock($(`#${this.opts.id}_selAlmacen`).val());
         setTimeout(() => $(`#${this.opts.id}_buscarProducto`).trigger('focus'), 50);
     }
 
@@ -863,9 +890,9 @@ class SalidaForm {
         Object.assign(this.opts.data, newData || {});
         const id = this.opts.id;
         if (newData && 'motivo' in newData)          $(`#${id}_selMotivo`).val(newData.motivo);
-        if (newData && 'subsidiaries_id' in newData) {
-            $(`#${id}_selSucursal`).val(newData.subsidiaries_id);
-            this.refreshAlmacenes(newData.subsidiaries_id);
+        if (newData && 'branch_id' in newData) {
+            $(`#${id}_selSucursal`).val(newData.branch_id);
+            this.refreshAlmacenes(newData.branch_id);
         }
         if (newData && 'warehouse_id' in newData)    $(`#${id}_selAlmacen`).val(newData.warehouse_id);
         if (newData && 'fecha' in newData)           $(`#${id}_inpFecha`).val(newData.fecha);

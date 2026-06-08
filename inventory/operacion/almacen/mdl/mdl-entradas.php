@@ -15,10 +15,12 @@ class mdl extends CRUD {
     }
 
     function lsSucursales($array) {
+        // La sucursal del usuario vive en `branches` (users.branch_id -> branches.id).
+        // Todo el modulo de inventario usa branch_id apuntando a branches.
         $query = "
-            SELECT id, name AS valor, companies_id
-            FROM {$this->bdErp}subsidiaries
-            WHERE companies_id = ? AND active = 1
+            SELECT id, name AS valor, company_id AS companies_id
+            FROM {$this->bdErp}branches
+            WHERE company_id = ? AND is_active = 1
             ORDER BY name ASC
         ";
         $r = $this->_Read($query, $array);
@@ -29,9 +31,9 @@ class mdl extends CRUD {
         $where = 'w.active = 1 AND w.companies_id = ?';
         $data  = [$array['companies_id']];
 
-        if (!empty($array['subsidiaries_id'])) {
-            $where .= ' AND w.subsidiaries_id = ?';
-            $data[] = $array['subsidiaries_id'];
+        if (!empty($array['branch_id'])) {
+            $where .= ' AND w.branch_id = ?';
+            $data[] = $array['branch_id'];
         }
 
         $query = "
@@ -40,14 +42,14 @@ class mdl extends CRUD {
                 w.name,
                 w.name AS valor,
                 w.is_default,
-                w.subsidiaries_id,
+                w.branch_id,
                 w.warehouse_area_id,
                 wa.name AS area_name,
                 wa.color_hex AS area_color,
-                s.name AS subsidiary_name
+                s.name AS branch_name
             FROM {$this->bd}warehouse w
             LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = w.warehouse_area_id
-            LEFT JOIN {$this->bdErp}subsidiaries s ON s.id = w.subsidiaries_id
+            LEFT JOIN {$this->bdErp}branches s ON s.id = w.branch_id
             WHERE {$where}
             ORDER BY s.name ASC, w.is_default DESC, w.name ASC
         ";
@@ -141,9 +143,9 @@ class mdl extends CRUD {
         $where = 'i.active = 1 AND i.companies_id = ?';
         $data  = [$array['companies_id']];
 
-        if (!empty($array['subsidiaries_id'])) {
-            $where .= ' AND i.subsidiaries_id = ?';
-            $data[] = $array['subsidiaries_id'];
+        if (!empty($array['branch_id'])) {
+            $where .= ' AND i.branch_id = ?';
+            $data[] = $array['branch_id'];
         }
         if (!empty($array['origin_id'])) {
             $where .= ' AND i.inflow_origin_id = ?';
@@ -184,19 +186,19 @@ class mdl extends CRUD {
                 io.color_hex   AS origin_color,
                 i.warehouse_id,
                 w.name         AS warehouse_name,
-                i.subsidiaries_id,
-                s.name         AS subsidiary_name,
+                i.branch_id,
+                s.name         AS branch_name,
                 i.supplier_id,
                 sp.name        AS supplier_name,
                 i.user_id,
-                u.fullname     AS user_name,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))    AS user_name,
                 i.confirmed_user_id,
-                cu.fullname    AS confirmed_user_name,
+                TRIM(CONCAT(COALESCE(cu.name, ''), ' ', COALESCE(cu.last_name, '')))  AS confirmed_user_name,
                 i.confirmed_at
             FROM {$this->bd}inventory_inflow i
             LEFT JOIN {$this->bd}inflow_origin      io ON io.id = i.inflow_origin_id
             LEFT JOIN {$this->bd}warehouse           w  ON w.id  = i.warehouse_id
-            LEFT JOIN {$this->bdErp}subsidiaries   s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN {$this->bdErp}branches       s  ON s.id  = i.branch_id
             LEFT JOIN {$this->bd}supplier            sp ON sp.id = i.supplier_id
             LEFT JOIN {$this->bdErp}users            u  ON u.id  = i.user_id
             LEFT JOIN {$this->bdErp}users            cu ON cu.id = i.confirmed_user_id
@@ -211,9 +213,9 @@ class mdl extends CRUD {
         $where = 'i.active = 1 AND i.companies_id = ?';
         $data  = [$array['companies_id']];
 
-        if (!empty($array['subsidiaries_id'])) {
-            $where .= ' AND i.subsidiaries_id = ?';
-            $data[] = $array['subsidiaries_id'];
+        if (!empty($array['branch_id'])) {
+            $where .= ' AND i.branch_id = ?';
+            $data[] = $array['branch_id'];
         }
         if (!empty($array['origin_id'])) {
             $where .= ' AND i.inflow_origin_id = ?';
@@ -264,14 +266,14 @@ class mdl extends CRUD {
                 io.code        AS origin_code,
                 io.color_hex   AS origin_color,
                 w.name         AS warehouse_name,
-                s.name         AS subsidiary_name,
+                s.name         AS branch_name,
                 sp.name        AS supplier_name,
-                u.fullname     AS user_name,
-                cu.fullname    AS confirmed_user_name
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))    AS user_name,
+                TRIM(CONCAT(COALESCE(cu.name, ''), ' ', COALESCE(cu.last_name, '')))  AS confirmed_user_name
             FROM {$this->bd}inventory_inflow i
             LEFT JOIN {$this->bd}inflow_origin    io ON io.id = i.inflow_origin_id
             LEFT JOIN {$this->bd}warehouse         w  ON w.id  = i.warehouse_id
-            LEFT JOIN {$this->bdErp}subsidiaries s  ON s.id  = i.subsidiaries_id
+            LEFT JOIN {$this->bdErp}branches     s  ON s.id  = i.branch_id
             LEFT JOIN {$this->bd}supplier          sp ON sp.id = i.supplier_id
             LEFT JOIN {$this->bdErp}users          u  ON u.id  = i.user_id
             LEFT JOIN {$this->bdErp}users          cu ON cu.id = i.confirmed_user_id
@@ -313,7 +315,7 @@ class mdl extends CRUD {
             INSERT INTO {$this->bd}inventory_inflow
                 (folio, note, total_products, total_units, total_cost,
                  status, inflow_origin_id, warehouse_id, supplier_id,
-                 subsidiaries_id, user_id, companies_id, date_inflow)
+                 branch_id, user_id, companies_id, date_inflow)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);

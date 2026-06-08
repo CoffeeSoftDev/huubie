@@ -289,9 +289,9 @@ class ctrl extends mdl {
         ];
     }
 
-    function lsZone() {
+    function lsUnit() {
         $active = $_POST['active'] ?? 1;
-        $ls     = $this->listZone([$active]);
+        $ls     = $this->listUnit([$active]);
         $rows   = [];
 
         foreach ($ls as $item) {
@@ -301,18 +301,18 @@ class ctrl extends mdl {
                 $a[] = [
                     'class'   => 'btn btn-sm btn-primary me-1',
                     'html'    => '<i class="icon-pencil"></i>',
-                    'onclick' => 'zone.editZone(' . $item['id'] . ')'
+                    'onclick' => 'unit.editUnit(' . $item['id'] . ')'
                 ];
                 $a[] = [
                     'class'   => 'btn btn-sm btn-danger',
                     'html'    => '<i class="icon-toggle-on"></i>',
-                    'onclick' => 'zone.statusZone(' . $item['id'] . ', ' . $item['active'] . ')'
+                    'onclick' => 'unit.statusUnit(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             } else {
                 $a[] = [
                     'class'   => 'btn btn-sm btn-outline-success',
                     'html'    => '<i class="icon-toggle-off"></i>',
-                    'onclick' => 'zone.statusZone(' . $item['id'] . ', ' . $item['active'] . ')'
+                    'onclick' => 'unit.statusUnit(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             }
 
@@ -331,18 +331,18 @@ class ctrl extends mdl {
         ];
     }
 
-    function getZone() {
+    function getUnit() {
         $id      = $_POST['id'];
         $status  = 404;
-        $message = 'Zona no encontrada';
+        $message = 'Unidad no encontrada';
         $data    = null;
 
-        $zone    = $this->getZoneById([$id]);
+        $unit    = $this->getUnitById([$id]);
 
-        if ($zone) {
+        if ($unit) {
             $status  = 200;
-            $message = 'Zona encontrada';
-            $data    = $zone;
+            $message = 'Unidad encontrada';
+            $data    = $unit;
         }
 
         return [
@@ -352,28 +352,28 @@ class ctrl extends mdl {
         ];
     }
 
-    function addZone() {
+    function addUnit() {
         $status  = 500;
-        $message = 'Error al crear zona';
+        $message = 'Error al crear unidad';
 
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
         $_POST['companies_id'] = $_SESSION['company_id'];
 
-        $exists = $this->existsZoneByName([$_POST['name']]);
+        $exists = $this->existsUnitByName([$_POST['name']]);
 
         if ($exists > 0) {
             return [
                 'status'  => 409,
-                'message' => 'Ya existe una zona con ese nombre'
+                'message' => 'Ya existe una unidad con ese nombre'
             ];
         }
 
-        $create = $this->createZone($this->util->sql($_POST));
+        $create = $this->createUnit($this->util->sql($_POST));
 
         if ($create) {
             $status  = 200;
-            $message = 'Zona creada exitosamente';
+            $message = 'Unidad creada exitosamente';
         }
 
         return [
@@ -382,20 +382,20 @@ class ctrl extends mdl {
         ];
     }
 
-    function editZone() {
+    function editUnit() {
         $status  = 500;
-        $message = 'Error al editar zona';
+        $message = 'Error al editar unidad';
 
         // Regla CoffeeSoft: sql(,1) usa el ULTIMO campo como WHERE.
         $id = $_POST['id'];
         unset($_POST['id']);
         $_POST['id'] = $id;
 
-        $edit    = $this->updateZone($this->util->sql($_POST, 1));
+        $edit    = $this->updateUnit($this->util->sql($_POST, 1));
 
         if ($edit) {
             $status  = 200;
-            $message = 'Zona actualizada correctamente';
+            $message = 'Unidad actualizada correctamente';
         }
 
         return [
@@ -404,15 +404,15 @@ class ctrl extends mdl {
         ];
     }
 
-    function statusZone() {
+    function statusUnit() {
         $status  = 500;
-        $message = 'Error al cambiar el estado de la zona';
+        $message = 'Error al cambiar el estado de la unidad';
 
-        $update = $this->updateZone($this->util->sql($_POST, 1));
+        $update = $this->updateUnit($this->util->sql($_POST, 1));
 
         if ($update) {
             $status  = 200;
-            $message = 'Estado de la zona actualizado correctamente';
+            $message = 'Estado de la unidad actualizado correctamente';
         }
 
         return [
@@ -756,8 +756,8 @@ class ctrl extends mdl {
 
         $_POST['created_at']      = date('Y-m-d H:i:s');
         $_POST['active']          = 1;
-        $_POST['companies_id']    = $_SESSION['company_id'];
-        $_POST['subsidiaries_id'] = $_SESSION['branch_id'];
+        $_POST['companies_id'] = $_SESSION['company_id'];
+        $_POST['branch_id']    = $_SESSION['branch_id'];
 
         $exists = $this->existsWarehouseByName([$_POST['name']]);
 

@@ -1,7 +1,7 @@
 let apiStock = 'ctrl/ctrl-stock.php';
 let app, stock, stockView;
 
-let subsidiaries_id;
+let branch_id;
 
 const NIVELES_STOCK = [
     { id: '',        valor: 'Todos los niveles' },
@@ -36,21 +36,21 @@ class App extends Templates {
         const r = await useFetch({ url: apiStock, data: { opc: 'init' } });
         if (r && r.status === 200) {
             this.dataInit = {
-                subsidiaries_id: r.subsidiaries_id || '',
+                branch_id: r.branch_id || '',
                 sucursales:      r.sucursales      || [],
                 categorias:      r.categorias      || [],
                 niveles:         NIVELES_STOCK
             };
         } else {
             this.dataInit = {
-                subsidiaries_id: '',
+                branch_id: '',
                 sucursales:      [],
                 categorias:      [],
                 niveles:         NIVELES_STOCK
             };
         }
-        this.subId      = this.dataInit.subsidiaries_id;
-        subsidiaries_id = this.subId;
+        this.subId      = this.dataInit.branch_id;
+        branch_id = this.subId;
 
         this.render();
     }
@@ -70,13 +70,6 @@ class App extends Templates {
     }
 
     layout() {
-
-        // #root tiene min-height global (general.css) calculado con 4rem que NO
-        // contempla el navbar real ni el breadcrumb, por lo que desborda el viewport.
-        // Anulamos ese min-height y le damos una altura exacta segun su posicion real,
-        // dejando el scroll interno al tableWrap. Se reajusta en resize.
-        this.fitRootHeight();
-        $(window).off('resize.stock').on('resize.stock', () => this.fitRootHeight());
 
         const mainPanel = {
             type: 'div',
@@ -141,20 +134,6 @@ class App extends Templates {
         $('#detailBackdrop').off('click').on('click', () => this.selectProduct(null));
     }
 
-    fitRootHeight() {
-        const $root = $('#root');
-        if (!$root.length) return;
-        const top    = $root[0].getBoundingClientRect().top; // distancia desde el viewport
-        const bottom = 20; // respiro inferior (padding de #main__content)
-        $root.css({
-            display:       'flex',
-            flexDirection: 'column',
-            minHeight:     0,
-            height:        `calc(100vh - ${Math.ceil(top)}px - ${bottom}px)`,
-            overflow:      'hidden'
-        });
-    }
-
     openDetailDrawer() {
         $('#detailPanel').removeClass('translate-x-full');
         $('#detailBackdrop').removeClass('hidden');
@@ -170,7 +149,7 @@ class App extends Templates {
         let filters = [
             {
                 opc:      'select',
-                id:       'subsidiaries_id',
+                id:       'branch_id',
                 lbl:      'Sucursal:',
                 class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeSucursal()',
@@ -217,8 +196,8 @@ class App extends Templates {
     populateFilters() {
         const sucursales = this.dataInit.sucursales || [];
         if (sucursales.length) {
-            this.populateSelect('subsidiaries_id', sucursales);
-            $('#subsidiaries_id').val(this.subId);
+            this.populateSelect('branch_id', sucursales);
+            $('#branch_id').val(this.subId);
         }
     }
 
@@ -234,7 +213,7 @@ class App extends Templates {
 
     getFilters() {
         return {
-            subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
+            branch_id: $('#branch_id').val() || this.subId || '',
             categoria:       $('#fCategoria').val()     || '',
             nivel:           $('#fNivel').val()         || '',
             movimiento:      $('#fMovimiento').val()    || '',
@@ -291,7 +270,7 @@ class Stock extends Templates {
             conf:        { datatable: true, pag: 15 },
             data: {
                 opc:             'lsStock',
-                subsidiaries_id: f.subsidiaries_id,
+                branch_id: f.branch_id,
                 category_id:     f.categoria,
                 nivel:           f.nivel,
                 movimiento:      f.movimiento,
@@ -314,8 +293,11 @@ class Stock extends Templates {
         const r = await useFetch({
             url: apiStock,
             data: {
-                opc:             'showStock',
-                subsidiaries_id: f.subsidiaries_id
+                opc:         'showStock',
+                branch_id:   f.branch_id,
+                category_id: f.categoria,
+                movimiento:  f.movimiento,
+                q:           f.q
             }
         });
 
@@ -360,8 +342,8 @@ class StockView extends Templates {
         this.productDetailPanel({
             parent:      'detailPanel',
             json:        producto,
-            sucursalId:  $('#subsidiaries_id').val() || '',
-            sucursalName: $('#subsidiaries_id option:selected').text() || 'Todas las sucursales',
+            sucursalId:  $('#branch_id').val() || '',
+            sucursalName: $('#branch_id option:selected').text() || 'Todas las sucursales',
             sucursales:  sucursalesReales.length ? sucursalesReales : undefined,
             onClose:     () => app.selectProduct(null)
         });
@@ -793,7 +775,7 @@ class StockView extends Templates {
         const vidaPalette   = opts.vidaPalettes[vidaCfg.palette];
         const vidaText      = p.vida && p.vida.dias != null ? `${p.vida.dias} dias restantes` : 'Sin caducidad activa';
 
-        const stockColor = (q) => q === 0 ? 'text-red-600' : (q < p.min ? 'text-orange-600' : 'text-green-600');
+        const stockColor = (q) => q <= 0 ? 'text-red-600' : (q < p.min ? 'text-orange-600' : 'text-green-600');
 
         const branchListHtml = (opts.sucursales || []).map(s => {
             const q      = (p.stockSuc || {})[s.id] != null ? p.stockSuc[s.id] : 0;
@@ -801,8 +783,8 @@ class StockView extends Templates {
             return `
                 <div class="flex items-center justify-between rounded-md px-2.5 py-1.5 border ${active}">
                     <div class="flex items-center gap-2">
-                        <i data-lucide="store" class="w-5 h-5 ${q === 0 ? 'text-gray-400' : 'text-violet-500'}"></i>
-                        <span class="text-[11px] ${q === 0 ? 'text-gray-400' : 'text-gray-800'}">${esc(s.name)}</span>
+                        <i data-lucide="store" class="w-5 h-5 ${q <= 0 ? 'text-gray-400' : 'text-violet-500'}"></i>
+                        <span class="text-[11px] ${q <= 0 ? 'text-gray-400' : 'text-gray-800'}">${esc(s.name)}</span>
                     </div>
                     <span class="text-[11px] font-bold ${stockColor(q)}">${q}</span>
                 </div>`;
@@ -823,6 +805,13 @@ class StockView extends Templates {
         const movsToShow = movsAll.slice(0, 10);
         const movsHtml   = movsToShow.map(m => {
             const cfg = opts.movMap[m.type] || opts.movMap.adjust;
+            const tieneStock = m.prev != null && m.post != null;
+            const stockTrace = tieneStock ? `
+                        <p class="text-[9px] text-gray-500 mt-0.5 flex items-center gap-1">
+                            <span>Antes: <strong class="text-gray-700">${esc(m.prev)}</strong></span>
+                            <i data-lucide="arrow-right" class="w-2.5 h-2.5 text-gray-400"></i>
+                            <span>Quedo: <strong class="text-gray-700">${esc(m.post)}</strong></span>
+                        </p>` : '';
             return `
                 <div class="flex items-start gap-2 bg-gray-50 rounded-md px-2.5 py-1.5 border border-gray-200">
                     <div class="w-5 h-5 rounded ${cfg.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -834,6 +823,7 @@ class StockView extends Templates {
                             <span class="text-[10px] font-bold ${cfg.qtyColor}">${esc(m.qty)}</span>
                         </div>
                         <p class="text-[9px] text-gray-500">${esc(m.when)}</p>
+                        ${stockTrace}
                     </div>
                 </div>`;
         }).join('');
@@ -857,12 +847,15 @@ class StockView extends Templates {
                 <div class="bg-gray-50 rounded-lg p-2 border border-gray-200">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded-md ${p.iconBg} flex items-center justify-center ${p.iconText} flex-shrink-0">
-                            <i data-lucide="cake" class="w-4 h-4"></i>
+                            <i data-lucide="package" class="w-4 h-4"></i>
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-xs font-bold text-gray-800 truncate leading-tight">${esc(p.name)}</p>
                             <p class="text-[9px] text-gray-500 truncate">SKU: ${esc(p.sku)} · ${esc(p.categoria)}</p>
                         </div>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ${statusPalette.border} ${statusPalette.bg} ${statusPalette.text} text-[10px] font-bold flex-shrink-0">
+                            <i data-lucide="${status.icon}" class="w-3 h-3"></i>${esc(status.label)}
+                        </span>
                     </div>
                     <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-gray-200">
                         <div class="text-center leading-tight">
@@ -877,14 +870,6 @@ class StockView extends Templates {
                             <p class="text-[8px] text-gray-500 uppercase">${esc(opts.labels.max)}</p>
                             <p class="text-sm font-bold text-gray-800">${p.max}</p>
                         </div>
-                    </div>
-                </div>
-
-                <div class="rounded-lg border ${statusPalette.border} ${statusPalette.bg} px-3 py-2 flex items-start gap-2">
-                    <i data-lucide="${status.icon}" class="w-4 h-4 ${statusPalette.text} flex-shrink-0 mt-0.5"></i>
-                    <div class="flex-1 min-w-0">
-                        <strong class="block text-xs ${statusPalette.text}">Estado: ${esc(status.label)}</strong>
-                        <p class="text-[10px] text-gray-400">${esc(status.msg)}</p>
                     </div>
                 </div>
 

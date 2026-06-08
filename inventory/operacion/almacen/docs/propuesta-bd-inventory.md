@@ -1,5 +1,10 @@
 # Propuesta de Base de Datos — Módulo Inventory / Almacén
 
+> ⚠️ **Actualización jun-2026 (migración `subsidiaries` → `branches`):** en el esquema
+> vivo y en el código, la columna de sucursal del módulo es **`branch_id`** y referencia
+> **`fayxzvov_erp.branches`** (no `subsidiaries`). Donde este documento diga `subsidiaries_id`
+> o la tabla `subsidiaries`, léase `branch_id` / `branches`. Ver `ddl-inventory.sql`.
+
 > Documento generado por **Coffee Intelligence 🧠☕** siguiendo `db-rules.md` (CoffeeSoft/Huubie).
 > Fecha: 2026-06-04 · Proyecto: `c:\wamp64\www\huubie\inventory`
 > **Revisión 4** — esquema espejo (Entrada/Salida) con **tenant propio `companies → subsidiaries` en `fayxzvov_erp`** (módulo vendible).

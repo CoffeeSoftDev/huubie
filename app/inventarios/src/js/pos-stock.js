@@ -232,6 +232,20 @@ class App extends Templates {
         }
     }
 
+    // Cambio de unidad desde el navbar (evento 'branchChanged' de coffeeSoft).
+    // switchBranch ya persistio la sucursal en sesion antes de disparar el evento,
+    // asi que aqui solo refrescamos tabla + KPIs con el nuevo subId, sin reconstruir
+    // todo el layout (lo que haria el fallback de Templates al llamar init()).
+    onBranchChange(detail) {
+        if (detail && detail.id != null) {
+            this.subId      = detail.id;
+            subsidiaries_id = this.subId;
+        }
+        if (this.selectedId) this.selectProduct(null);
+        stock.lsStock();
+        stock.lsKpis();
+    }
+
     onChangeSucursal() {
         stock.lsKpis();
         if (this.selectedId) stock.getProducto(this.selectedId);

@@ -1,7 +1,7 @@
 let apiSalidas = 'ctrl/ctrl-salidas.php';
 let app, salidas, salidasView;
 
-let subsidiaries_id;
+let branch_id;
 
 window.updateSession = () => { };
 
@@ -18,13 +18,14 @@ class App extends Templates {
         super(link, divModule);
         this.PROJECT_NAME = 'salidas';
         this.subId        = null;
+        this.statusDefault = 'Aplicada';
     }
 
     async init() {
         const r = await useFetch({ url: apiSalidas, data: { opc: 'init' } });
         if (r && r.status === 200) {
             this.dataInit = {
-                subsidiaries_id: r.subsidiaries_id || '',
+                branch_id: r.branch_id || '',
                 sucursales:      r.sucursales       || [],
                 motivos:         r.motivos_salida    || [],
                 almacenes:       r.almacenes        || [],
@@ -32,15 +33,15 @@ class App extends Templates {
             };
         } else {
             this.dataInit = {
-                subsidiaries_id: '',
+                branch_id: '',
                 sucursales:      [],
                 motivos:         [],
                 almacenes:       [],
                 productos:       []
             };
         }
-        this.subId      = this.dataInit.subsidiaries_id;
-        subsidiaries_id = this.subId;
+        this.subId      = this.dataInit.branch_id;
+        branch_id = this.subId;
 
         this.render();
     }
@@ -116,7 +117,7 @@ class App extends Templates {
                 opc:         'input',
                 id:          'fRango',
                 lbl:         'Rango:',
-                class:       'col-12 col-md-4 col-lg-3',
+                class:       'col-12 col-md-6 col-lg-3',
                 readonly:    true,
                 placeholder: 'Selecciona un rango',
                 value:       '',
@@ -124,9 +125,9 @@ class App extends Templates {
             },
             {
                 opc:      'select',
-                id:       'subsidiaries_id',
+                id:       'branch_id',
                 lbl:      'Sucursal:',
-                class:    'col-12 col-md-3 col-lg-3',
+                class:    'col-12 col-md-3 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 data:     [{ id: '', valor: '-- Todas --' }]
             },
@@ -134,17 +135,30 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fMotivo',
                 lbl:      'Motivo:',
-                class:    'col-12 col-md-3 col-lg-3',
+                class:    'col-12 col-md-3 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     [{ id: '', valor: '-- Todos --' }]
+            },
+            {
+                opc:      'select',
+                id:       'fEstado',
+                lbl:      'Estado:',
+                class:    'col-12 col-md-6 col-lg-2',
+                onchange: 'app.onChangeFilters()',
+                value:    this.statusDefault,
+                data: [
+                    { id: '',          valor: '-- Todos --' },
+                    { id: 'Aplicada',  valor: 'Aplicada'    },
+                    { id: 'Cancelada', valor: 'Cancelada'   }
+                ]
             },
             {
                 opc:       'button',
                 id:        'btnNuevaSalida',
                 text:      'Nueva Salida',
                 color_btn: 'primary',
-                class:     'col-12 col-md-2 col-lg-3',
+                class:     'col-12 col-md-6 col-lg-3',
                 onClick:   () => salidas.openSalidaForm()
             }
         ];
@@ -202,8 +216,8 @@ class App extends Templates {
     populateFilters() {
         const sucursales = this.dataInit.sucursales || [];
         if (sucursales.length) {
-            this.populateSelect('subsidiaries_id', sucursales);
-            $('#subsidiaries_id').val(this.subId);
+            this.populateSelect('branch_id', sucursales);
+            $('#branch_id').val(this.subId);
         }
         this.populateSelect('fMotivo', this.dataInit.motivos || []);
     }
@@ -220,10 +234,11 @@ class App extends Templates {
 
     getFilters() {
         return {
-            subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
+            branch_id: $('#branch_id').val() || this.subId || '',
             fi:              this.rangeFi               || '',
             ff:              this.rangeFf               || '',
-            motivo:          $('#fMotivo').val()        || ''
+            motivo:          $('#fMotivo').val()        || '',
+            status:          $('#fEstado').val()        || ''
         };
     }
 
@@ -249,8 +264,9 @@ class Salidas extends Templates {
         const r = await useFetch({
             url:  apiSalidas,
             data: Object.assign({ opc: 'lsSalidas' }, {
-                subsidiaries_id: f.subsidiaries_id,
+                branch_id: f.branch_id,
                 reason_id:       f.motivo,
+                status:          f.status,
                 fi:              f.fi,
                 ff:              f.ff
             })
@@ -289,7 +305,9 @@ class Salidas extends Templates {
             url:  apiSalidas,
             data: {
                 opc:             'showSalidas',
-                subsidiaries_id: f.subsidiaries_id,
+                branch_id: f.branch_id,
+                reason_id:       f.motivo,
+                status:          f.status,
                 fi:              f.fi,
                 ff:              f.ff
             }
@@ -333,7 +351,7 @@ class Salidas extends Templates {
             motivo_color:   h.reason_color || '',
             motivo_icon:    h.reason_icon  || '',
             fecha:          created ? created.replace(' ', 'T') : '',
-            sucursal:       h.subsidiary_name || '',
+            sucursal:       h.branch_name || '',
             almacen:        h.warehouse_name  || '',
             registrado_por: h.user_name ? { name: h.user_name } : null,
             nota:           h.note         || '',
@@ -352,7 +370,7 @@ class Salidas extends Templates {
     }
 
     openSalidaForm() {
-        const curSub = $('#subsidiaries_id').val() || app.subId;
+        const curSub = $('#branch_id').val() || app.subId;
         if (!this.salidaFormApi) {
             this.salidaFormApi = salidasView.salidaForm({
                 parent: 'body',
@@ -363,7 +381,15 @@ class Salidas extends Templates {
                     sucursales:      (app.dataInit.sucursales || []).filter(s => s.id !== ''),
                     almacenes:       app.dataInit.almacenes || [],
                     fecha:           moment().format('YYYY-MM-DD'),
-                    subsidiaries_id: curSub
+                    branch_id: curSub
+                },
+                onWarehouseChange: async (warehouseId, cb) => {
+                    if (!warehouseId) { cb({}); return; }
+                    const r = await useFetch({
+                        url:  apiSalidas,
+                        data: { opc: 'lsStockByWarehouse', warehouse_id: warehouseId }
+                    });
+                    cb((r && r.status === 200) ? (r.stock || {}) : {});
                 },
                 onSubmit: async (payload) => {
                     const backendPayload = {
@@ -372,7 +398,7 @@ class Salidas extends Templates {
                         status:              'Aplicada',
                         shrinkage_reason_id: payload.motivo,
                         warehouse_id:        payload.warehouseId,
-                        subsidiaries_id:     payload.sucursalId,
+                        branch_id:     payload.sucursalId,
                         productos:           payload.items.map(it => ({
                             product_id: it.id,
                             quantity:   it.qty,
@@ -396,7 +422,7 @@ class Salidas extends Templates {
                 onClose: () => {}
             });
         }
-        this.salidaFormApi.setData({ subsidiaries_id: curSub, fecha: moment().format('YYYY-MM-DD') });
+        this.salidaFormApi.setData({ branch_id: curSub, fecha: moment().format('YYYY-MM-DD') });
         this.salidaFormApi.open();
     }
 

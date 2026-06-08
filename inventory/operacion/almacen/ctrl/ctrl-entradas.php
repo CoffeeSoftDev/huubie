@@ -12,14 +12,14 @@ require_once '../../../conf/coffeSoft.php';
 class ctrl extends mdl {
 
     public $companiesId;
-    public $subsidiariesId;
+    public $branchId;
     public $userId;
 
     public function __construct() {
         parent::__construct();
-        $this->companiesId    = (int) ($_SESSION['company_id']    ?? $_POST['companies_id']    ?? 0);
-        $this->subsidiariesId = (int) ($_SESSION['branch_id'] ?? $_POST['subsidiaries_id'] ?? 0);
-        $this->userId         = (int) ($_SESSION['user_id']         ?? $_POST['user_id']         ?? 0);
+        $this->companiesId = (int) ($_SESSION['company_id'] ?? $_POST['companies_id'] ?? 0);
+        $this->branchId    = (int) ($_SESSION['branch_id']  ?? $_POST['branch_id']    ?? 0);
+        $this->userId      = (int) ($_SESSION['user_id']    ?? $_POST['user_id']      ?? 0);
     }
 
     function init() {
@@ -42,7 +42,7 @@ class ctrl extends mdl {
         return [
             'status'           => 200,
             'companies_id'     => $this->companiesId,
-            'subsidiaries_id'  => $this->subsidiariesId,
+            'branch_id'        => $this->branchId,
             'user_id'          => $this->userId,
             'sucursales'       => $this->lsSucursales([$this->companiesId]),
             'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
@@ -62,7 +62,7 @@ class ctrl extends mdl {
     function lsEntradas() {
         $rows = $this->qEntradas([
             'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $_POST['subsidiaries_id'] ?? '',
+            'branch_id'       => $_POST['branch_id'] ?? '',
             'origin_id'       => $_POST['origin_id']       ?? '',
             'status'          => $_POST['status']          ?? '',
             'fi'              => $_POST['fi']              ?? '',
@@ -84,8 +84,8 @@ class ctrl extends mdl {
                 'id'         => $r['id'],
                 'Folio'      => $r['folio'],
                 'Fecha'      => formatSpanishDate($r['date_inflow']),
-                'Origen'     => $this->pillBadge($r['origin_name'], $r['origin_color']),
-                'Sucursal'   => $r['subsidiary_name'] ?: '-',
+                'Origen'     => badge($r['origin_name'], $r['origin_color']),
+                'Sucursal'   => $r['branch_name'] ?: '-',
                 'Almacen'    => $r['warehouse_name']  ?: '-',
                 'Proveedor'  => $r['supplier_name']   ?: '<span class="italic text-gray-400">N/A</span>',
                 'Productos'  => (int) $r['total_products'],
@@ -101,7 +101,7 @@ class ctrl extends mdl {
     function showEntradas() {
         $kpis = $this->getEntradaKpis([
             'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $_POST['subsidiaries_id'] ?? '',
+            'branch_id'       => $_POST['branch_id'] ?? '',
             'origin_id'       => $_POST['origin_id']       ?? '',
             'status'          => $_POST['status']          ?? '',
             'fi'              => $_POST['fi']              ?? '',
@@ -115,6 +115,8 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetEntrada([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        // Badge del origen con la misma formula y color (color_hex) que el catalogo y la tabla.
+        $header['origin_badge'] = badge($header['origin_name'] ?? '', $header['origin_color'] ?? '#9CA3AF');
         $detail = $this->qGetEntradaDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
@@ -192,7 +194,7 @@ class ctrl extends mdl {
             (int) $payload['inflow_origin_id'],
             (int) $payload['warehouse_id'],
             !empty($payload['supplier_id']) ? (int) $payload['supplier_id'] : null,
-            (int) ($payload['subsidiaries_id'] ?? $this->subsidiariesId),
+            (int) ($payload['branch_id'] ?? $this->branchId),
             $this->userId,
             $this->companiesId,
             !empty($payload['date_inflow']) ? $payload['date_inflow'] : date('Y-m-d')
@@ -413,16 +415,6 @@ class ctrl extends mdl {
         return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>" . strtoupper($status) . "</span>";
     }
 
-    private function pillBadge($label, $colorHex) {
-        $label = $label ?: '-';
-        $color = $colorHex ?: '#9CA3AF';
-        $hex   = ltrim($color, '#');
-        $r     = hexdec(substr($hex, 0, 2));
-        $g     = hexdec(substr($hex, 2, 2));
-        $b     = hexdec(substr($hex, 4, 2));
-        $bg    = "rgba($r,$g,$b,0.18)";
-        return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$bg};color:{$color};'>{$label}</span>";
-    }
 }
 
 $obj = new ctrl();

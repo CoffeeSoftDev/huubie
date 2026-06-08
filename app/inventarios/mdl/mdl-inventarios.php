@@ -168,20 +168,19 @@ class mdl extends CRUD {
         // NO por la sucursal del catalogo del producto. Por eso se pre-agrega en una
         // subconsulta por producto: asi el SUM no se infla aunque hubiera mas de un
         // product_attribute activo, y el filtro de sucursal aplica sobre el almacen.
-        //   - Con sucursal: INNER JOIN -> solo productos con existencias en esa sucursal,
-        //     sumando unicamente el stock de sus almacenes.
-        //   - Sin sucursal: LEFT JOIN  -> consolidado de todas (productos sin stock incluidos).
-        // LEFT JOIN siempre: el visor lista TODO el catalogo activo de la empresa,
-        // incluso productos sin existencia (quantity_total = 0 -> AGOTADO). Con INNER
-        // se perdian los que nunca tuvieron una fila de stock en la sucursal: salian
-        // invisibles en vez de aparecer en 0. El filtro de sucursal vive dentro de la
-        // subconsulta (sobre el almacen), no en el tipo de JOIN.
+        //   - Con sucursal (unidad del navbar): INNER JOIN -> solo los productos ASIGNADOS
+        //     a esa sucursal, es decir los que tienen al menos una fila de stock en alguno
+        //     de sus almacenes (aunque la cantidad sea 0 -> AGOTADO visible). Los productos
+        //     que esa unidad no maneja quedan fuera del listado.
+        //   - Sin sucursal: LEFT JOIN -> consolidado de TODA la empresa (catalogo completo,
+        //     incluidos productos sin ninguna fila de stock -> quantity_total = 0).
         $stockWhere  = 'st.active = 1';
         $stockParams = [];
         $joinType    = 'LEFT';
         if (!empty($array['subsidiaries_id'])) {
             $stockWhere   .= ' AND w.subsidiaries_id = ?';
             $stockParams[] = $array['subsidiaries_id'];
+            $joinType      = 'INNER';
         }
 
         $where       = 'p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?';
@@ -279,17 +278,16 @@ class mdl extends CRUD {
 
     function getStockKpis($array) {
         // Coherente con qStock: el stock se filtra por la sucursal del ALMACEN.
-        //   - Con sucursal: INNER JOIN -> KPIs solo de productos con existencias en ella.
-        //   - Sin sucursal: LEFT JOIN  -> consolidado (todos los productos de la empresa).
-        // LEFT JOIN siempre (coherente con qStock): los KPIs cuentan TODO el catalogo,
-        // incluidos los productos sin existencia en la sucursal -> se reflejan en
-        // total_agotado. Con INNER quedaban fuera del conteo.
+        //   - Con sucursal (unidad del navbar): INNER JOIN -> KPIs solo de los productos
+        //     ASIGNADOS a esa sucursal (con fila de stock en ella, agotados incluidos).
+        //   - Sin sucursal: LEFT JOIN -> consolidado de TODO el catalogo de la empresa.
         $stockWhere  = 'st.active = 1';
         $stockParams = [];
         $joinType    = 'LEFT';
         if (!empty($array['subsidiaries_id'])) {
             $stockWhere   .= ' AND w.subsidiaries_id = ?';
             $stockParams[] = $array['subsidiaries_id'];
+            $joinType      = 'INNER';
         }
 
         $where       = 'p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?';
@@ -664,6 +662,55 @@ class mdl extends CRUD {
         $query = "
             UPDATE {$this->bd}inventory_inflow
             SET total_units = ?, total_cost = ?, updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Edicion completa de un renglon existente: cantidad real (confirmed_quantity),
+    // costo, subtotal y snapshot de stock. A diferencia de confirmEntradaDetail,
+    // tambien actualiza el costo.
+    function updateEntradaDetailFull($array) {
+        // [confirmed_quantity, cost, subtotal, previous_stock, resulting_stock, id]
+        $query = "
+            UPDATE {$this->bd}detail_inventory_inflow
+            SET confirmed_quantity = ?, cost = ?, subtotal = ?, previous_stock = ?, resulting_stock = ?
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Edicion de un renglon de una entrada PENDIENTE (orden de produccion): cambia la
+    // cantidad PLANEADA (quantity, no confirmed_quantity) y el costo; el snapshot de
+    // stock queda sin aplicar (previous = resulting).
+    function updateEntradaDetailPlanned($array) {
+        // [quantity, cost, subtotal, previous_stock, resulting_stock, id]
+        $query = "
+            UPDATE {$this->bd}detail_inventory_inflow
+            SET quantity = ?, cost = ?, subtotal = ?, previous_stock = ?, resulting_stock = ?
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Baja logica de un renglon (al quitarlo en la edicion). El stock se revierte
+    // aparte, antes de llamar a esto.
+    function disableEntradaDetail($array) {
+        // [id]
+        $query = "
+            UPDATE {$this->bd}detail_inventory_inflow
+            SET active = 0
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Recalcula header completo tras una edicion: tipos, unidades, costo y nota.
+    function updateEntradaHeaderFull($array) {
+        // [total_products, total_units, total_cost, note, id]
+        $query = "
+            UPDATE {$this->bd}inventory_inflow
+            SET total_products = ?, total_units = ?, total_cost = ?, note = ?, updated_at = NOW()
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);

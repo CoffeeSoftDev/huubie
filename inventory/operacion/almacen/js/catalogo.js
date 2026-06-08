@@ -30,7 +30,7 @@ class Catalogo extends Templates {
         });
 
         category.filterBarCategory();
-        zone.filterBarZone();
+        unit.filterBarUnit();
         area.filterBarArea();
         warehouse.filterBarWarehouse();
         inflow.filterBarInflow();
@@ -329,18 +329,18 @@ class Area extends Templates {
     }
 }
 
-class Zone extends Templates {
+class Unit extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
-        this.PROJECT_NAME = "zone";
+        this.PROJECT_NAME = "unit";
     }
 
-    filterBarZone() {
+    filterBarUnit() {
         const container = $("#container-unidades");
-        container.html('<div id="filterbar-zone" class="mb-2"></div><div id="table-zone"></div>');
+        container.html('<div id="filterbar-unit" class="mb-2"></div><div id="table-unit"></div>');
 
         this.createfilterBar({
-            parent: "filterbar-zone",
+            parent: "filterbar-unit",
             data: [
                 {
                     opc: "select",
@@ -351,29 +351,29 @@ class Zone extends Templates {
                         { id: "1", valor: "Activos" },
                         { id: "0", valor: "Inactivos" }
                     ],
-                    onchange: "zone.lsZone()"
+                    onchange: "unit.lsUnit()"
                 },
                 {
                     opc: "button",
                     class: "col-12 col-md-2",
                     className: 'w-100',
-                    id: "btnNewZone",
+                    id: "btnNewUnit",
                     text: "Nueva unidad",
-                    onClick: () => this.addZone()
+                    onClick: () => this.addUnit()
                 }
             ]
         });
     }
 
-    lsZone() {
+    lsUnit() {
         this.createTable({
-            parent: "table-zone",
-            idFilterBar: "filterbar-zone",
-            data: { opc: "lsZone" },
+            parent: "table-unit",
+            idFilterBar: "filterbar-unit",
+            data: { opc: "lsUnit" },
             coffeesoft: true,
             conf: { datatable: true, pag: 15 },
             attr: {
-                id: "tbZone",
+                id: "tbUnit",
                 theme: "light",
                 title: "Unidades de medida",
                 subtitle: "Unidades para capturar insumos (pza, kg, lt)",
@@ -382,18 +382,18 @@ class Zone extends Templates {
         });
     }
 
-    addZone() {
+    addUnit() {
         this.createModalForm({
-            id: "formZoneAdd",
-            data: { opc: "addZone" },
+            id: "formUnitAdd",
+            data: { opc: "addUnit" },
             theme: 'light',
             coffeesoft: true,
             bootbox: { title: "Agregar unidad", size: 'small', closeButton: true },
-            json: this.jsonZone(),
+            json: this.jsonUnit(),
             success: (response) => {
                 if (response.status === 200) {
                     alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                    this.lsZone();
+                    this.lsUnit();
                 } else {
                     alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                 }
@@ -401,22 +401,22 @@ class Zone extends Templates {
         });
     }
 
-    async editZone(id) {
-        const request = await useFetch({ url: this._link, data: { opc: "getZone", id: id } });
+    async editUnit(id) {
+        const request = await useFetch({ url: this._link, data: { opc: "getUnit", id: id } });
 
         if (request.status === 200) {
             this.createModalForm({
-                id: "formZoneEdit",
-                data: { opc: "editZone", id: id },
+                id: "formUnitEdit",
+                data: { opc: "editUnit", id: id },
                 theme: 'light',
                 coffeesoft: true,
                 bootbox: { title: "Editar unidad", size: 'small', closeButton: true },
                 autofill: request.data,
-                json: this.jsonZone(),
+                json: this.jsonUnit(),
                 success: (response) => {
                     if (response.status === 200) {
                         alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsZone();
+                        this.lsUnit();
                     } else {
                         alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                     }
@@ -425,18 +425,18 @@ class Zone extends Templates {
         }
     }
 
-    statusZone(id, active) {
+    statusUnit(id, active) {
         const action = active === 1 ? "desactivar" : "activar";
         const actionTitle = active === 1 ? "Desactivar" : "Activar";
 
         this.swalQuestion({
             opts: { title: `¿${actionTitle} unidad?`, text: `Esta acción ${action}á la unidad`, icon: "warning" },
-            data: { opc: "statusZone", active: active === 1 ? 0 : 1, id: id },
+            data: { opc: "statusUnit", active: active === 1 ? 0 : 1, id: id },
             methods: {
                 send: (response) => {
                     if (response.status === 200) {
                         alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsZone();
+                        this.lsUnit();
                     } else {
                         alert({ icon: "error", text: response.message, btn1: true });
                     }
@@ -445,7 +445,7 @@ class Zone extends Templates {
         });
     }
 
-    jsonZone() {
+    jsonUnit() {
         return [
             {
                 opc: "input",
@@ -1048,6 +1048,6 @@ function wireBadgeSimulator(formId) {
 }
 
 // El arranque del catalogo lo hace el orquestador almacen.js (index.php):
-// declara las globales (cataloge, category, area, zone) e instancia/renderiza
+// declara las globales (cataloge, category, area, unit) e instancia/renderiza
 // estas clases. Aqui solo se definen las clases para evitar la doble
 // declaracion `let category` que rompia el parseo de catalogo.js.

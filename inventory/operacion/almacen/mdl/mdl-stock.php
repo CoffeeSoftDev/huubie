@@ -16,9 +16,9 @@ class mdl extends CRUD {
 
     function lsSucursales($array) {
         $query = "
-            SELECT id, name AS valor, companies_id
-            FROM {$this->bdErp}subsidiaries
-            WHERE companies_id = ? AND active = 1
+            SELECT id, name AS valor, company_id AS companies_id
+            FROM {$this->bdErp}branches
+            WHERE company_id = ? AND is_active = 1
             ORDER BY name ASC
         ";
         $r = $this->_Read($query, $array);
@@ -39,9 +39,9 @@ class mdl extends CRUD {
     function qStock($array) {
         $stockWhere  = 'st.active = 1';
         $stockParams = [];
-        if (!empty($array['subsidiaries_id'])) {
-            $stockWhere   .= ' AND w.subsidiaries_id = ?';
-            $stockParams[] = $array['subsidiaries_id'];
+        if (!empty($array['branch_id'])) {
+            $stockWhere   .= ' AND w.branch_id = ?';
+            $stockParams[] = $array['branch_id'];
         }
 
         $where       = 'i.active = 1 AND i.companies_id = ?';
@@ -62,9 +62,9 @@ class mdl extends CRUD {
             $exists       = "SELECT 1 FROM {$this->bd}inventory_movement mvf
                              WHERE mvf.item_id = i.id AND mvf.companies_id = ?";
             $existsParams = [$array['companies_id']];
-            if (!empty($array['subsidiaries_id'])) {
-                $exists        .= ' AND mvf.subsidiaries_id = ?';
-                $existsParams[] = $array['subsidiaries_id'];
+            if (!empty($array['branch_id'])) {
+                $exists        .= ' AND mvf.branch_id = ?';
+                $existsParams[] = $array['branch_id'];
             }
             if ($array['movimiento'] === 'con') {
                 $where .= " AND EXISTS ($exists)";
@@ -133,13 +133,41 @@ class mdl extends CRUD {
     function getStockKpis($array) {
         $stockWhere  = 'st.active = 1';
         $stockParams = [];
-        if (!empty($array['subsidiaries_id'])) {
-            $stockWhere   .= ' AND w.subsidiaries_id = ?';
-            $stockParams[] = $array['subsidiaries_id'];
+        if (!empty($array['branch_id'])) {
+            $stockWhere   .= ' AND w.branch_id = ?';
+            $stockParams[] = $array['branch_id'];
         }
 
         $where       = 'i.active = 1 AND i.companies_id = ?';
         $whereParams = [$array['companies_id']];
+
+        if (!empty($array['category_id'])) {
+            $where        .= ' AND i.category_id = ?';
+            $whereParams[] = $array['category_id'];
+        }
+
+        if (!empty($array['q'])) {
+            $where        .= ' AND (i.name LIKE ? OR ia.sku LIKE ?)';
+            $whereParams[] = '%' . $array['q'] . '%';
+            $whereParams[] = '%' . $array['q'] . '%';
+        }
+
+        if (!empty($array['movimiento'])) {
+            $exists       = "SELECT 1 FROM {$this->bd}inventory_movement mvf
+                             WHERE mvf.item_id = i.id AND mvf.companies_id = ?";
+            $existsParams = [$array['companies_id']];
+            if (!empty($array['branch_id'])) {
+                $exists        .= ' AND mvf.branch_id = ?';
+                $existsParams[] = $array['branch_id'];
+            }
+            if ($array['movimiento'] === 'con') {
+                $where      .= " AND EXISTS ($exists)";
+                $whereParams = array_merge($whereParams, $existsParams);
+            } elseif ($array['movimiento'] === 'sin') {
+                $where      .= " AND NOT EXISTS ($exists)";
+                $whereParams = array_merge($whereParams, $existsParams);
+            }
+        }
 
         $data = array_merge($stockParams, $whereParams);
 
@@ -177,14 +205,14 @@ class mdl extends CRUD {
                 st.last_movement_at,
                 w.id                AS warehouse_id,
                 w.name              AS warehouse_name,
-                w.subsidiaries_id,
-                s.name              AS subsidiary_name,
+                w.branch_id,
+                s.name              AS branch_name,
                 wa.name             AS area_name,
                 wa.color_hex        AS area_color
             FROM {$this->bd}stock st
             INNER JOIN {$this->bd}warehouse      w  ON w.id = st.warehouse_id
             LEFT  JOIN {$this->bd}warehouse_area wa ON wa.id = w.warehouse_area_id
-            LEFT  JOIN {$this->bdErp}subsidiaries s ON s.id = w.subsidiaries_id
+            LEFT  JOIN {$this->bdErp}branches s ON s.id = w.branch_id
             WHERE st.item_id = ? AND st.active = 1
             ORDER BY s.name ASC, w.name ASC
         ";
@@ -233,14 +261,17 @@ class mdl extends CRUD {
                 mv.quantity,
                 mv.cost_unit,
                 mv.cost_total,
+                mv.stock_prev,
+                mv.stock_post,
                 mv.occurred_at,
+                mv.created_at,
                 mv.warehouse_id,
                 w.name AS warehouse_name,
-                mv.subsidiaries_id
+                mv.branch_id
             FROM {$this->bd}inventory_movement mv
             LEFT JOIN {$this->bd}warehouse w ON w.id = mv.warehouse_id
             WHERE mv.item_id = ? AND mv.companies_id = ?
-            ORDER BY mv.occurred_at DESC
+            ORDER BY mv.created_at DESC
             LIMIT 20
         ";
         $r = $this->_Read($query, $array);

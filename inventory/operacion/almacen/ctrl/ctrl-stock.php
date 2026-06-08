@@ -12,20 +12,20 @@ require_once '../../../conf/coffeSoft.php';
 class ctrl extends mdl {
 
     public $companiesId;
-    public $subsidiariesId;
+    public $branchId;
     public $userId;
 
     public function __construct() {
         parent::__construct();
-        $this->companiesId    = (int) ($_SESSION['company_id']    ?? $_POST['companies_id']    ?? 0);
-        $this->subsidiariesId = (int) ($_SESSION['branch_id']     ?? $_POST['subsidiaries_id'] ?? 0);
-        $this->userId         = (int) ($_SESSION['user_id']       ?? $_POST['user_id']         ?? 0);
+        $this->companiesId = (int) ($_SESSION['company_id'] ?? $_POST['companies_id'] ?? 0);
+        $this->branchId    = (int) ($_SESSION['branch_id']  ?? $_POST['branch_id']    ?? 0);
+        $this->userId      = (int) ($_SESSION['user_id']    ?? $_POST['user_id']      ?? 0);
     }
 
     function init() {
         return [
             'status'          => 200,
-            'subsidiaries_id' => $this->subsidiariesId,
+            'branch_id'       => $this->branchId,
             'sucursales'      => $this->lsSucursales([$this->companiesId]),
             'categorias'      => $this->lsCategories([$this->companiesId])
         ];
@@ -34,7 +34,7 @@ class ctrl extends mdl {
     function lsStock() {
         $rows = $this->qStock([
             'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $_POST['subsidiaries_id'] ?? '',
+            'branch_id'       => $_POST['branch_id'] ?? '',
             'category_id'     => $_POST['category_id']     ?? '',
             'nivel'           => $_POST['nivel']           ?? '',
             'movimiento'      => $_POST['movimiento']      ?? '',
@@ -53,7 +53,7 @@ class ctrl extends mdl {
                     'html'  => $this->_productCell($r['image'] ?? '', $r['product_name'], $r['product_id'], $r['sku'] ?: '')
                 ],
                 'Categoria' => $r['category_name'] ?: '-',
-                'Stock'     => $qty > 0 ? $this->_qty($qty) : '-',
+                'Stock'     => $this->_qty($qty),
                 'Min'       => $min > 0 ? $this->_qty($min) : '-',
                 'Max'       => $max > 0 ? $this->_qty($max) : '-',
                 'Unidad'    => $r['unit_code'] ?: '-',
@@ -72,8 +72,11 @@ class ctrl extends mdl {
 
     function showStock() {
         $kpis = $this->getStockKpis([
-            'companies_id'    => $this->companiesId,
-            'subsidiaries_id' => $_POST['subsidiaries_id'] ?? ''
+            'companies_id' => $this->companiesId,
+            'branch_id'    => $_POST['branch_id']    ?? '',
+            'category_id'  => $_POST['category_id']  ?? '',
+            'movimiento'   => $_POST['movimiento']   ?? '',
+            'q'            => $_POST['q']             ?? ''
         ]);
         return ['status' => 200, 'counts' => $kpis];
     }
@@ -94,7 +97,7 @@ class ctrl extends mdl {
         }
         $stockSuc = ['' => $total];
         foreach ($stockRows as $s) {
-            $sid = (string) $s['subsidiaries_id'];
+            $sid = (string) $s['branch_id'];
             $stockSuc[$sid] = ($stockSuc[$sid] ?? 0) + (float) $s['quantity'];
         }
 
@@ -136,6 +139,8 @@ class ctrl extends mdl {
                 'type'  => $type,
                 'label' => $label,
                 'qty'   => $qty >= 0 ? '+' . $qty : (string) $qty,
+                'prev'  => $m['stock_prev'] !== null ? $this->_qty($m['stock_prev']) : null,
+                'post'  => $m['stock_post'] !== null ? $this->_qty($m['stock_post']) : null,
                 'when'  => ($m['occurred_at'] ?? '') . ' · ' . ($m['warehouse_name'] ?? '-')
             ];
         }

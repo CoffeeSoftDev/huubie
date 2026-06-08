@@ -2631,6 +2631,11 @@ class CoffeeIA {
         // Al terminar, complete() renderiza el componente. No depende del modo lienzo.
         let conjuring = false, fullBuf = '', $conjSub = null;
         const HTML_FENCE = /```[ \t]*html/i;
+        // HTML crudo sin fence: en modo lienzo la IA suele devolver el componente
+        // directo (sin ```). En cuanto aparece un tag estructural entramos a
+        // "Conjurando…" para NO teclear el código en el chat (se ve en el tab Código).
+        const RAW_HTML = /<(!doctype html|html|head|body|section|main|header|nav|article|aside|footer|form|table|ul|ol|div|button|h[1-6])[\s>]/i;
+        const shouldConjure = (buf) => HTML_FENCE.test(buf) || (self.canvasMode && RAW_HTML.test(buf));
         function enterConjuring() {
             conjuring = true;
             if (raf) { cancelAnimationFrame(raf); raf = null; }
@@ -2690,7 +2695,7 @@ class CoffeeIA {
             push(piece) {
                 if (!piece) return;
                 fullBuf += piece;
-                if (!conjuring && HTML_FENCE.test(fullBuf)) enterConjuring();
+                if (!conjuring && shouldConjure(fullBuf)) enterConjuring();
                 if (conjuring) {
                     // No pintamos el HTML crudo: solo avanzamos el progreso de la card.
                     const lines = fullBuf.split('\n').length;
@@ -2705,6 +2710,10 @@ class CoffeeIA {
             },
             complete(displayedText, meta, copyText) {
                 if (conjuring) { $msg.find('.ia-conjuring').remove(); $text.show(); }
+                // Modo lienzo: si la IA devolvió HTML crudo (sin fence), lo envolvemos
+                // en ```html para que se renderice como bloque de Vista previa (con su
+                // tab Código) y NO se pinte el markup suelto en la burbuja.
+                displayedText = self._normalizeCanvasHtml(displayedText);
                 let metaHtml = '';
                 if (meta) {
                     metaHtml = `
@@ -3554,6 +3563,23 @@ class CoffeeIA {
         $('#iaBodyChat').empty().hide();
         $('#iaBodyEmpty').show();
         this._syncContext();
+    }
+
+    /* ── Normalización de HTML del modo lienzo ── */
+
+    _looksLikeHtml(t) {
+        return /<!doctype html|<html[\s>]|<head[\s>]|<body[\s>]|<(div|section|main|header|nav|table|article|ul|ol|form|button|span|img|svg|h[1-6]|p)[\s>]/i.test(t || '');
+    }
+
+    // En modo lienzo, si el texto trae HTML crudo SIN fence lo envolvemos en
+    // ```html para que _postProcessMessage lo convierta en bloque de Vista previa.
+    // Si ya viene con fence ```html, se deja tal cual (ya lo maneja el post-proceso).
+    _normalizeCanvasHtml(text) {
+        if (!this.canvasMode || !text) return text;
+        if (/```[ \t]*html/i.test(text)) return text;
+        const body = text.replace(/```[a-z0-9+-]*[ \t]*/gi, '').trim();
+        if (this._looksLikeHtml(body)) return '```html\n' + body + '\n```';
+        return text;
     }
 
     /* ── Minimal markdown → HTML ── */

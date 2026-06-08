@@ -24,12 +24,12 @@ require_once('layout/core-libraries.php');
 
         <div id="main__content">
             <!-- Breadcrumb Navigation -->
-            <nav aria-label="breadcrumb">
+            <!-- <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item text-uppercase text-muted">Operación</li>
                     <li class="breadcrumb-item fw-bold active">Salidas</li>
                 </ol>
-            </nav>
+            </nav> -->
 
             <!-- Contenedor principal -->
             <div class="" id="root"></div>

@@ -506,6 +506,128 @@ class ctrl extends mdl {
         ];
     }
 
+    // Edicion COMPLETA de los renglones de una entrada: permite agregar productos que
+    // faltaron, quitar renglones y cambiar cantidades. Aplica a dos estados:
+    //   - Aplicada: ajusta el stock del almacen por el DELTA de cada renglon (no reaplica
+    //     todo). Altas suman, bajas revierten, cambios ajustan por la diferencia.
+    //   - Pendiente (orden de produccion): edita el PLAN (cantidad planeada) sin tocar el
+    //     stock; este se aplica recien al Confirmar la produccion.
+    // El almacen/sucursal/origen NO cambian: se usa siempre el warehouse del header
+    // para evitar descuadres de stock entre almacenes.
+    function updateEntrada() {
+        $id     = (int) $_POST['id'];
+        $header = $this->qGetEntrada([$id]);
+
+        if (!$header) {
+            return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+        if (!in_array($header['status'], ['Aplicada', 'Pendiente'], true)) {
+            return ['status' => 400, 'message' => 'Solo se puede editar una entrada aplicada o pendiente'];
+        }
+
+        $payload   = json_decode($_POST['payload'] ?? '[]', true);
+        $productos = $payload['productos'] ?? [];
+        if (empty($productos)) {
+            return ['status' => 400, 'message' => 'La entrada debe quedar con al menos un producto'];
+        }
+
+        // Solo una entrada Aplicada toca el stock. La produccion Pendiente aun no lo
+        // aplico, asi que editarla solo cambia el plan (snapshots con prev = post).
+        $applyStock = ($header['status'] === 'Aplicada');
+        $warehouse  = (int) $header['warehouse_id'];
+
+        // Detalle vigente indexado por id de renglon, para distinguir altas/cambios/bajas.
+        $detail = $this->qGetEntradaDetail([$id]);
+        $byId   = [];
+        foreach ($detail as $d) {
+            $byId[(int) $d['id']] = $d;
+        }
+
+        $sentIds       = [];
+        $totalProducts = 0;
+        $totalUnits    = 0;
+        $totalCost     = 0;
+
+        foreach ($productos as $p) {
+            $detailId  = !empty($p['detail_id']) ? (int) $p['detail_id'] : 0;
+            $productId = (int) $p['product_id'];
+            $qty       = max(0, (float) $p['quantity']);
+            $cost      = (float) $p['cost'];
+            $subtotal  = $qty * $cost;
+
+            $stockRow = $this->getStockRow([$productId, $warehouse]);
+            $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
+
+            if ($detailId && isset($byId[$detailId])) {
+                $d = $byId[$detailId];
+                if ($applyStock) {
+                    // Aplicada: ajusta el stock por el delta vs. lo ya aplicado y guarda
+                    // la cantidad real (confirmed_quantity).
+                    $oldQty = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
+                    $delta  = $qty - $oldQty;
+                    $post   = max(0, $prev + $delta);
+                    $this->updateEntradaDetailFull([$qty, $cost, $subtotal, $prev, $post, $detailId]);
+                    if ($delta != 0) {
+                        if ($stockRow) {
+                            $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                        } else if ($qty > 0) {
+                            $this->insertStockRow([$post, $warehouse, $productId, $this->companiesId]);
+                        }
+                    }
+                } else {
+                    // Pendiente: solo cambia la cantidad planeada (quantity); sin tocar stock.
+                    $this->updateEntradaDetailPlanned([$qty, $cost, $subtotal, $prev, $prev, $detailId]);
+                }
+                $sentIds[] = $detailId;
+            } else {
+                // Renglon nuevo (producto que falto capturar).
+                $post = $applyStock ? ($prev + $qty) : $prev;
+                $this->insertEntradaDetail([
+                    null, $qty, $cost, $subtotal, $prev, $post, null, $productId, $id, null
+                ]);
+                if ($applyStock) {
+                    if ($stockRow) {
+                        $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                    } else {
+                        $this->insertStockRow([$post, $warehouse, $productId, $this->companiesId]);
+                    }
+                }
+            }
+
+            $totalProducts++;
+            $totalUnits += $qty;
+            $totalCost  += $subtotal;
+        }
+
+        // Bajas: renglones que estaban y ya no vienen -> dar de baja. En Aplicada se
+        // revierte su stock; en Pendiente nunca se aplico, asi que solo se desactiva.
+        foreach ($detail as $d) {
+            $did = (int) $d['id'];
+            if (in_array($did, $sentIds)) continue;
+
+            if ($applyStock) {
+                $applied  = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
+                $stockRow = $this->getStockRow([(int) $d['product_id'], $warehouse]);
+                if ($stockRow) {
+                    $post = max(0, (float) $stockRow['quantity'] - $applied);
+                    $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                }
+            }
+            $this->disableEntradaDetail([$did]);
+        }
+
+        $note = array_key_exists('note', $payload) ? $payload['note'] : $header['note'];
+        $this->updateEntradaHeaderFull([$totalProducts, $totalUnits, $totalCost, $note, $id]);
+
+        $udsTxt = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
+        $sufijo = $applyStock ? "{$udsTxt} uds en el almacen" : "{$udsTxt} uds planeadas";
+        return [
+            'status'  => 200,
+            'message' => "Entrada actualizada: {$totalProducts} productos ({$sufijo})",
+            'id'      => $id
+        ];
+    }
+
     function reverseEntrada() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetEntrada([$id]);

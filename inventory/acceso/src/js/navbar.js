@@ -17,8 +17,10 @@ class Navbar {
         const defaults = {
             company:  "N/A",
             user:     "Usuario",
+            email:    "",
             rol:      "",
             negocio:  "",
+            sucursal: "",
             level:    0,
             parent:   "body",
         };
@@ -69,34 +71,35 @@ class Navbar {
 
             <div class="relative z-50">
                 <div id="userMenuDropdown" class="nav-dropdown absolute right-3 mt-2 w-72 opacity-0 scale-95 invisible">
-                    <!-- Negocio -->
-                    <div class="px-4 pt-4 pb-3">
-                        <p class="nav-dd-label">Negocio</p>
-                        <div class="flex items-center gap-2.5 mt-1.5">
-                            <div class="nav-biz-icon"><i data-lucide="building-2" class="w-4 h-4"></i></div>
-                            <span class="nav-biz-name">${this.settings.negocio || '—'}</span>
+                    <!-- Encabezado: usuario -->
+                    <div class="nav-user-head">
+                        <div class="nav-head-avatar">
+                            ${initials}
+                            <span class="nav-status-dot"></span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="nav-head-name">${this.settings.user}</p>
+                            <p class="nav-head-email">${this.settings.email || ''}</p>
                         </div>
                     </div>
 
-                    <div class="nav-divider"></div>
-
-                    <!-- Sesión activa -->
-                    <div class="px-3 py-3">
-                        <p class="nav-dd-label px-1 mb-2">Sesión iniciada</p>
-                        <div class="nav-account-card active">
-                            <div class="nav-acc-avatar">${initials}</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="nav-acc-name">${this.settings.user}</p>
-                                <p class="nav-acc-rol">${this.settings.rol || 'Sin rol'}</p>
+                    <!-- Contexto de operación: company / sucursal -->
+                    <div class="nav-context">
+                        <p class="nav-dd-label">Contexto de operación</p>
+                        <button id="btnBranchSelector" class="nav-context-card">
+                            <div class="nav-context-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></div>
+                            <div class="flex-1 min-w-0 text-left">
+                                <p class="nav-context-name">${this.settings.negocio || '—'}</p>
+                                <p class="nav-context-sub">${this.settings.sucursal || '—'}</p>
                             </div>
-                            <i data-lucide="check" class="nav-check w-5 h-5"></i>
-                        </div>
+                            <i data-lucide="chevron-right" class="nav-context-chevron w-4 h-4"></i>
+                        </button>
                     </div>
 
                     <div class="nav-divider"></div>
 
                     <!-- Acciones -->
-                    <div class="px-4 py-3">
+                    <div class="px-3 py-3">
                         <button id="btnLogout" class="nav-logout-btn">
                             <i data-lucide="log-out" class="w-4 h-4"></i>
                             Cerrar sesión
@@ -138,34 +141,48 @@ class Navbar {
             .nav-chevron { color:#9CA3AF; transition:transform .2s ease; }
             #btnUserMenu.open .nav-chevron { transform:rotate(180deg); }
 
-            .nav-dropdown { background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px; box-shadow:0 14px 38px rgba(17,24,39,.14); transition:all .22s ease; transform-origin:top right; }
+            .nav-dropdown { background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; box-shadow:0 14px 38px rgba(17,24,39,.14); transition:all .22s ease; transform-origin:top right; overflow:hidden; }
             .nav-dd-label { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:#9CA3AF; font-weight:600; }
-            .nav-biz-icon { width:34px; height:34px; border-radius:10px; background:rgba(192,90,64,.10); border:1px solid rgba(192,90,64,.22); display:flex; align-items:center; justify-content:center; color:#C05A40; }
-            .nav-biz-name { font-size:15px; font-weight:700; color:#111827; }
             .nav-divider { height:1px; background:#E5E7EB; }
 
-            .nav-account-card { display:flex; align-items:center; gap:12px; padding:10px; border-radius:12px; border:1px solid transparent; transition:all .15s ease; }
-            .nav-account-card.active { background:rgba(192,90,64,.08); border-color:rgba(192,90,64,.25); }
-            .nav-acc-avatar { width:40px; height:40px; border-radius:9999px; background:#C05A40; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px; box-shadow:0 4px 12px rgba(192,90,64,.32); flex-shrink:0; }
-            .nav-acc-name { font-size:14px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-            .nav-acc-rol  { font-size:12px; color:#6B7280; }
-            .nav-check { color:#C05A40; flex-shrink:0; }
+            /* Encabezado de usuario */
+            .nav-user-head { display:flex; align-items:center; gap:12px; padding:16px; }
+            .nav-head-avatar { position:relative; width:46px; height:46px; border-radius:9999px; background:#EEF1F5; display:flex; align-items:center; justify-content:center; color:#6B7280; font-weight:700; font-size:15px; letter-spacing:.5px; flex-shrink:0; }
+            .nav-status-dot { position:absolute; right:0; bottom:1px; width:12px; height:12px; border-radius:9999px; background:#22C55E; border:2px solid #FFFFFF; }
+            .nav-head-name { font-size:15px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .nav-head-email { font-size:12.5px; color:#9CA3AF; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-            .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:9px; border:1px solid #9D3434; color:#9D3434; border-radius:12px; font-weight:600; font-size:14px; transition:all .15s ease; }
-            .nav-logout-btn:hover { background:#832B2B; color:#fff; }
+            /* Contexto de operación */
+            .nav-context { padding:4px 16px 16px; }
+            .nav-context .nav-dd-label { margin-bottom:8px; }
+            .nav-context-card { width:100%; display:flex; align-items:center; gap:12px; padding:12px; border-radius:12px; border:1px solid #E5E7EB; background:#FFFFFF; transition:all .15s ease; }
+            .nav-context-card:hover { background:#F9FAFB; border-color:rgba(192,90,64,.30); }
+            .nav-context-icon { width:38px; height:38px; border-radius:10px; background:rgba(192,90,64,.10); border:1px solid rgba(192,90,64,.22); display:flex; align-items:center; justify-content:center; color:#C05A40; flex-shrink:0; }
+            .nav-context-name { font-size:14.5px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .nav-context-sub { font-size:12px; color:#9CA3AF; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .nav-context-chevron { color:#9CA3AF; flex-shrink:0; }
+
+            .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1px solid #E5E7EB; color:#DC2626; border-radius:12px; font-weight:600; font-size:14px; background:#FFFFFF; transition:all .15s ease; }
+            .nav-logout-btn:hover { background:#FEF2F2; border-color:#FECACA; }
 
             /* ── Soporte dark-mode (toggle del sidebar) ── */
             body.dark-mode .navbar-title,
             body.dark-mode .nav-user-name,
-            body.dark-mode .nav-biz-name,
-            body.dark-mode .nav-acc-name { color:#F9FAFB; }
+            body.dark-mode .nav-head-name,
+            body.dark-mode .nav-context-name { color:#F9FAFB; }
             body.dark-mode .nav-user-rol,
-            body.dark-mode .nav-acc-rol { color:#9CA3AF; }
+            body.dark-mode .nav-head-email,
+            body.dark-mode .nav-context-sub { color:#9CA3AF; }
             body.dark-mode .nav-user-pill { border-left-color:rgba(148,163,184,.18); }
             body.dark-mode .nav-user-pill:hover { background:rgba(148,163,184,.10); border-color:rgba(148,163,184,.18); }
             body.dark-mode .nav-dropdown { background:#1F2A37; border-color:rgba(55,65,81,.6); box-shadow:0 14px 38px rgba(0,0,0,.45); }
             body.dark-mode .nav-divider { background:rgba(55,65,81,.6); }
-            body.dark-mode .nav-account-card.active { background:rgba(192,90,64,.18); border-color:rgba(192,90,64,.35); }
+            body.dark-mode .nav-head-avatar { background:rgba(148,163,184,.14); color:#CBD5E1; }
+            body.dark-mode .nav-status-dot { border-color:#1F2A37; }
+            body.dark-mode .nav-context-card { background:transparent; border-color:rgba(55,65,81,.6); }
+            body.dark-mode .nav-context-card:hover { background:rgba(148,163,184,.08); border-color:rgba(192,90,64,.40); }
+            body.dark-mode .nav-logout-btn { background:transparent; border-color:rgba(55,65,81,.6); color:#F87171; }
+            body.dark-mode .nav-logout-btn:hover { background:rgba(220,38,38,.12); border-color:rgba(220,38,38,.35); }
         </style>`;
     }
 
@@ -232,11 +249,13 @@ $(async () => {
 
     let navbar = new Navbar();
     navbar.init({
-        user:    data.user    || 'Usuario',
-        rol:     data.rol     || '',
-        negocio: data.negocio || data.udn || '',
-        company: data.udn     || '',
-        level:   data.level   || 0,
-        parent:  "#menu-navbar",
+        user:     data.user     || 'Usuario',
+        email:    data.email    || '',
+        rol:      data.rol      || '',
+        negocio:  data.negocio  || data.udn || '',
+        company:  data.udn      || '',
+        sucursal: data.sucursal || data.branch || '',
+        level:    data.level    || 0,
+        parent:   "#menu-navbar",
     });
 });

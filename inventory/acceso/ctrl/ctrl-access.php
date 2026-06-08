@@ -50,15 +50,23 @@ class Access extends MAccess {
     function company() {
         $sql = !empty($_SESSION['IDU']) ? $this->getSessionUser([$_SESSION['IDU']]) : null;
 
-        $company = $_SESSION['company'] ?? ($sql['company'] ?? '');
+        // Se prioriza el valor vivo de la BD sobre el cacheado en sesion (login viejo),
+        // asi un rename de compania/sucursal se refleja sin cerrar sesion.
+        $company = $sql['company'] ?? ($_SESSION['company'] ?? '');
+        // Sucursal asignada: se resuelve desde branches por branch_id (igual que inventario).
+        $branch  = $sql['branch'] ?? ($_SESSION['branch'] ?? '');
 
         return [
             "photo"      => $sql['photo'] ?? '',
             "user"       => $sql['user'] ?? ($_SESSION['user'] ?? 'Usuario'),
+            "email"      => $sql['email'] ?? ($_SESSION['email'] ?? ''),
             "rol"        => $sql['rol'] ?? '',
             "level"      => isset($sql['level']) ? (int)$sql['level'] : 0,
             "company"    => $company,
             "company_id" => $sql['company_id'] ?? ($_SESSION['company_id'] ?? null),
+            "sucursal"   => $branch,
+            "branch"     => $branch,
+            "branch_id"  => $sql['branch_id'] ?? ($_SESSION['branch_id'] ?? null),
             // Compatibilidad con el navbar (lee udn/negocio).
             "udn"        => $company,
             "negocio"    => $company,

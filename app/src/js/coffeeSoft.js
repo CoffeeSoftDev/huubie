@@ -3829,13 +3829,14 @@ class Components extends Complements {
 
         if (options.theme === 'dark') {
             defaults.dark = true;
-            defaults.color_th = "bg-[#374151] text-gray-300";
-            defaults.color_row = "bg-[#283341]";
-            defaults.color_group = "bg-[#334155] text-white";
-            defaults.class = "w-full table-auto text-sm text-gray-300";
-            defaults.border_table = "";
-            defaults.border_row = "border-t border-gray-700";
-            defaults.color_row_alt = "bg-[#2D3748]";
+            defaults.color_th = "bg-slate-800/60 text-slate-500";
+            defaults.color_row = "bg-slate-800/40";
+            defaults.color_group = "bg-slate-700/40 text-slate-200";
+            defaults.class = "w-full table-auto text-sm text-slate-300";
+            defaults.border_table = "!border !border-slate-700/40 rounded-lg";
+            defaults.border_row = "border-t border-slate-700/20";
+            defaults.border_color = "border-slate-700/30";
+            defaults.color_row_alt = "bg-slate-800/40";
         }
 
         if (options.theme === 'slate') {
@@ -4116,7 +4117,7 @@ class Components extends Complements {
                 if (isFixed && fixedInfo) {
                     cellClass += ` sticky z-10 border-r border-gray-200 `;
                     if (!colorBg && !bg_grupo && !(opts.extends && typeof data[key] === 'object' && data[key]?.class)) {
-                        cellClass += opts.theme === 'dark' ? ' bg-[#1E293B] ' : ' bg-gray-100 ';
+                        cellClass += opts.theme === 'dark' ? ' bg-slate-800/40 ' : ' bg-gray-100 ';
                     }
                 }
 
@@ -4169,7 +4170,7 @@ class Components extends Complements {
 
                         const hasCustomBg = customData.class && /bg-\[#?[^\]]+\]|bg-[a-z]+-\d+/.test(customData.class);
                         if (!hasCustomBg && !colorBg && !bg_grupo) {
-                            cellAttributes.class += opts.theme === 'dark' ? ' bg-[#1E293B] ' : ' bg-gray-100 ';
+                            cellAttributes.class += opts.theme === 'dark' ? ' bg-slate-800/40 ' : ' bg-gray-100 ';
                         }
                     }
 
@@ -4512,6 +4513,9 @@ class Components extends Complements {
         #${opts.id} tbody tr td:last-child {
             border-right: none !important;
         }
+        #${opts.id} thead th {
+            border-bottom: 1px solid ${opts.theme === 'dark' ? 'rgba(51, 65, 85, 0.4)' : '#E5E7EB'} !important;
+        }
         ${opts.scrollable ? `
         #${opts.id} th:not(.sticky),
         #${opts.id} td:not(.sticky) {
@@ -4529,7 +4533,7 @@ class Components extends Complements {
             cursor: pointer;
         }
         #${opts.id} tbody tr.ct3-hoverable:hover td {
-            background-color: ${opts.theme === 'dark' ? '#334155' : '#E5E7EB'} !important;
+            background-color: ${opts.theme === 'dark' ? 'rgba(51, 65, 85, 0.2)' : '#E5E7EB'} !important;
             transition: background-color 0.15s ease;
         }` : ''}
         `).appendTo("head");

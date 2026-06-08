@@ -16,16 +16,16 @@ const SAMPLE_ENTRADA = {
             { id: '2', valor: 'Distribuidora Norte' }
         ],
         sucursales: [
-            { id: '1', valor: 'Sucursal Centro', subsidiaries_id: '1' },
-            { id: '2', valor: 'Sucursal Norte',  subsidiaries_id: '2' }
+            { id: '1', valor: 'Sucursal Centro', branch_id: '1' },
+            { id: '2', valor: 'Sucursal Norte',  branch_id: '2' }
         ],
         almacenes:  [
-            { id: '1', valor: 'Almacen General', subsidiaries_id: '1' },
-            { id: '2', valor: 'Almacen Frio',    subsidiaries_id: '1' },
-            { id: '3', valor: 'Almacen Norte',   subsidiaries_id: '2' }
+            { id: '1', valor: 'Almacen General', branch_id: '1' },
+            { id: '2', valor: 'Almacen Frio',    branch_id: '1' },
+            { id: '3', valor: 'Almacen Norte',   branch_id: '2' }
         ],
         fecha:           '2026-06-01',
-        subsidiaries_id: '1',
+        branch_id: '1',
         warehouse_id:    '1',
         nota:            ''
     }
@@ -61,7 +61,7 @@ class EntradaForm {
                 almacenes:       [],
                 proveedores:     [],
                 fecha:           '',
-                subsidiaries_id: '',
+                branch_id: '',
                 warehouse_id:    '',
                 nota:            ''
             },
@@ -166,7 +166,7 @@ class EntradaForm {
         const o   = this.opts;
         const cls = this.cls;
         const almacenesVisibles = (o.data.almacenes || []).filter(a =>
-            !o.data.subsidiaries_id || String(a.subsidiaries_id) === String(o.data.subsidiaries_id)
+            !o.data.branch_id || String(a.branch_id) === String(o.data.branch_id)
         );
         return `
             <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60">
@@ -183,7 +183,7 @@ class EntradaForm {
                         <label class="${cls.label}">${this.esc(o.labels.sucursal)}</label>
                         ${this.selectWrap(`
                             <select id="${o.id}_selSucursal" class="${cls.select}">
-                                ${(o.data.sucursales || []).map(it => this.optionTag(it, o.data.subsidiaries_id)).join('')}
+                                ${(o.data.sucursales || []).map(it => this.optionTag(it, o.data.branch_id)).join('')}
                             </select>
                         `)}
                     </div>
@@ -339,7 +339,7 @@ class EntradaForm {
                     <span class="ef-kbd">Enter</span><span>agregar</span>
                 </p>
             </div>
-            <div id="${o.id}_catalogoLista" class="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1 -mr-1 cs-scroll ef-scroll bg-gray-50 border border-gray-200 rounded-lg p-1.5"></div>`;
+            <div id="${o.id}_catalogoLista" class="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 cs-scroll ef-scroll bg-gray-50 border border-gray-200 rounded-lg p-1.5"></div>`;
     }
 
     renderResumen() {
@@ -520,6 +520,7 @@ class EntradaForm {
             .ef-scroll::-webkit-scrollbar-track { background: transparent; }
             .ef-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
             .ef-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+            .ef-cat-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 10; background: #F9FAFB; }
             .ef-cat-item.ef-active { background: rgba(192,90,64,0.10); box-shadow: inset 0 0 0 1px rgba(192,90,64,0.45); }
             @keyframes efFlash { 0% { background-color: rgba(16,185,129,0.20); } 100% { background-color: transparent; } }
             tr.ef-flash { animation: efFlash 0.6s ease-out; }
@@ -582,10 +583,22 @@ class EntradaForm {
             .filter(p => !this.lote.some(x => x.id === p.id))
             .filter(p => !term || (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
 
-        this.catalogItems = items;
-        if (this.activeIdx >= items.length) this.activeIdx = Math.max(0, items.length - 1);
+        // Agrupa por categoria (mismo patron que Salidas/Mermas). this.catalogItems
+        // debe quedar en el MISMO orden en que se pintan los .ef-cat-item, porque
+        // highlightActive() y la navegacion con flechas indexan por posicion en el DOM.
+        const byCat = {};
+        items.forEach(p => {
+            const cat = (p.categoria && String(p.categoria).trim()) || 'Sin categoria';
+            (byCat[cat] = byCat[cat] || { categoria: cat, items: [] }).items.push(p);
+        });
+        const groups  = Object.keys(byCat).sort((a, b) => a.localeCompare(b, 'es')).map(c => byCat[c]);
+        const ordered = [];
+        groups.forEach(g => g.items.forEach(p => ordered.push(p)));
 
-        if (!items.length) {
+        this.catalogItems = ordered;
+        if (this.activeIdx >= ordered.length) this.activeIdx = Math.max(0, ordered.length - 1);
+
+        if (!ordered.length) {
             $cat.html(`
                 <div class="flex flex-col items-center justify-center py-8 text-center px-2">
                     <div class="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center mb-2">
@@ -594,7 +607,15 @@ class EntradaForm {
                     <p class="text-[11px] text-gray-500">${term ? this.esc(o.labels.searchHint) : 'Sin productos disponibles'}</p>
                 </div>`);
         } else {
-            $cat.html(items.map((p, i) => this.renderSearchResult(p, i)).join(''));
+            let idx = 0;
+            $cat.html(groups.map(g => {
+                const head = `
+                    <div class="ef-cat-head sticky top-0 z-10 bg-gray-50 px-3 py-1 border-b border-gray-200 flex items-center justify-between">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-gray-500 truncate">${this.esc(g.categoria)}</span>
+                        <span class="text-[10px] text-gray-400 flex-shrink-0 ml-2">${g.items.length}</span>
+                    </div>`;
+                return head + g.items.map(p => this.renderSearchResult(p, idx++)).join('');
+            }).join(''));
         }
         if (window.lucide) lucide.createIcons();
         this.highlightActive();
@@ -1082,11 +1103,11 @@ class EntradaForm {
         if (window.lucide) lucide.createIcons();
     }
 
-    refreshAlmacenes(subsidiariesId) {
+    refreshAlmacenes(branchId) {
         const o     = this.opts;
         const $sel  = $(`#${o.id}_selAlmacen`);
         const items = (o.data.almacenes || []).filter(a =>
-            !subsidiariesId || String(a.subsidiaries_id) === String(subsidiariesId)
+            !branchId || String(a.branch_id) === String(branchId)
         );
         $sel.html(items.map(it => this.optionTag(it)).join(''));
     }
@@ -1160,9 +1181,9 @@ class EntradaForm {
         Object.assign(this.opts.data, newData || {});
         const id = this.opts.id;
         if (newData && 'fecha' in newData)           $(`#${id}_inpFecha`).val(newData.fecha);
-        if (newData && 'subsidiaries_id' in newData) {
-            $(`#${id}_selSucursal`).val(newData.subsidiaries_id);
-            this.refreshAlmacenes(newData.subsidiaries_id);
+        if (newData && 'branch_id' in newData) {
+            $(`#${id}_selSucursal`).val(newData.branch_id);
+            this.refreshAlmacenes(newData.branch_id);
         }
         if (newData && 'nota' in newData)            $(`#${id}_inpNota`).val(newData.nota);
     }

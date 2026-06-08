@@ -40,6 +40,7 @@
                 <i data-lucide="palette" class="w-4 h-4"></i>
                 <select id="pgThemeSelect" class="pg-select">
                     <option value="huubie-ui">Huubie UI (dark)</option>
+                    <option value="coffeesoft-light">CoffeeSoft · Arcilla Invernal</option>
                     <option value="coffee-varoch-light">Coffee-Varoch (light)</option>
                     <option value="coffee-varoch-dark">Coffee-Varoch (dark)</option>
                     <option value="free">Libre (sin paleta)</option>

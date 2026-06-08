@@ -16,9 +16,9 @@ class mdl extends CRUD {
 
     function lsSucursales($array) {
         $query = "
-            SELECT id, name AS valor, companies_id
-            FROM {$this->bdErp}subsidiaries
-            WHERE companies_id = ? AND active = 1
+            SELECT id, name AS valor, company_id AS companies_id
+            FROM {$this->bdErp}branches
+            WHERE company_id = ? AND is_active = 1
             ORDER BY name ASC
         ";
         $r = $this->_Read($query, $array);
@@ -29,9 +29,9 @@ class mdl extends CRUD {
         $where = 'w.active = 1 AND w.companies_id = ?';
         $data  = [$array['companies_id']];
 
-        if (!empty($array['subsidiaries_id'])) {
-            $where .= ' AND w.subsidiaries_id = ?';
-            $data[] = $array['subsidiaries_id'];
+        if (!empty($array['branch_id'])) {
+            $where .= ' AND w.branch_id = ?';
+            $data[] = $array['branch_id'];
         }
 
         $query = "
@@ -40,10 +40,10 @@ class mdl extends CRUD {
                 w.name,
                 w.name AS valor,
                 w.is_default,
-                w.subsidiaries_id,
-                s.name AS subsidiary_name
+                w.branch_id,
+                s.name AS branch_name
             FROM {$this->bd}warehouse w
-            LEFT JOIN {$this->bdErp}subsidiaries s ON s.id = w.subsidiaries_id
+            LEFT JOIN {$this->bdErp}branches s ON s.id = w.branch_id
             WHERE {$where}
             ORDER BY s.name ASC, w.is_default DESC, w.name ASC
         ";
@@ -82,17 +82,31 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    function qStockByWarehouse($array) {
+        $query = "
+            SELECT item_id, quantity
+            FROM {$this->bd}stock
+            WHERE warehouse_id = ? AND active = 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     function qSalidas($array) {
         $where = 'm.active = 1 AND m.companies_id = ?';
         $data  = [$array['companies_id']];
 
-        if (!empty($array['subsidiaries_id'])) {
-            $where .= ' AND m.subsidiaries_id = ?';
-            $data[] = $array['subsidiaries_id'];
+        if (!empty($array['branch_id'])) {
+            $where .= ' AND m.branch_id = ?';
+            $data[] = $array['branch_id'];
         }
         if (!empty($array['reason_id'])) {
             $where .= ' AND m.shrinkage_reason_id = ?';
             $data[] = $array['reason_id'];
+        }
+        if (!empty($array['status'])) {
+            $where .= ' AND m.status = ?';
+            $data[] = $array['status'];
         }
         if (!empty($array['fi']) && !empty($array['ff'])) {
             $where .= ' AND DATE(m.created_at) BETWEEN ? AND ?';
@@ -123,14 +137,14 @@ class mdl extends CRUD {
                 sr.icon             AS reason_icon,
                 m.warehouse_id,
                 w.name              AS warehouse_name,
-                m.subsidiaries_id,
-                s.name              AS subsidiary_name,
+                m.branch_id,
+                s.name              AS branch_name,
                 m.user_id,
-                u.fullname          AS user_name
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name
             FROM {$this->bd}inventory_shrinkage m
             LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
             LEFT JOIN {$this->bd}warehouse         w  ON w.id  = m.warehouse_id
-            LEFT JOIN {$this->bdErp}subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN {$this->bdErp}branches   s  ON s.id  = m.branch_id
             LEFT JOIN {$this->bdErp}users          u  ON u.id  = m.user_id
             WHERE {$where}
             ORDER BY m.created_at DESC
@@ -143,9 +157,17 @@ class mdl extends CRUD {
         $where = "m.active = 1 AND m.status <> 'Cancelada' AND m.companies_id = ?";
         $data  = [$array['companies_id']];
 
-        if (!empty($array['subsidiaries_id'])) {
-            $where .= ' AND m.subsidiaries_id = ?';
-            $data[] = $array['subsidiaries_id'];
+        if (!empty($array['branch_id'])) {
+            $where .= ' AND m.branch_id = ?';
+            $data[] = $array['branch_id'];
+        }
+        if (!empty($array['reason_id'])) {
+            $where .= ' AND m.shrinkage_reason_id = ?';
+            $data[] = $array['reason_id'];
+        }
+        if (!empty($array['status'])) {
+            $where .= ' AND m.status = ?';
+            $data[] = $array['status'];
         }
         if (!empty($array['fi']) && !empty($array['ff'])) {
             $where .= ' AND DATE(m.created_at) BETWEEN ? AND ?';
@@ -191,12 +213,12 @@ class mdl extends CRUD {
                 sr.color_hex   AS reason_color,
                 sr.icon        AS reason_icon,
                 w.name         AS warehouse_name,
-                s.name         AS subsidiary_name,
-                u.fullname     AS user_name
+                s.name         AS branch_name,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name
             FROM {$this->bd}inventory_shrinkage m
             LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
             LEFT JOIN {$this->bd}warehouse         w  ON w.id  = m.warehouse_id
-            LEFT JOIN {$this->bdErp}subsidiaries   s  ON s.id  = m.subsidiaries_id
+            LEFT JOIN {$this->bdErp}branches   s  ON s.id  = m.branch_id
             LEFT JOIN {$this->bdErp}users          u  ON u.id  = m.user_id
             WHERE m.id = ?
             LIMIT 1
@@ -235,7 +257,7 @@ class mdl extends CRUD {
             INSERT INTO {$this->bd}inventory_shrinkage
                 (folio, note, evidence_url, total_products, total_units, total_cost,
                  status, shrinkage_reason_id, warehouse_id,
-                 subsidiaries_id, user_id, companies_id)
+                 branch_id, user_id, companies_id)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);

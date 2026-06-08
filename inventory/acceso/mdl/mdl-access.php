@@ -61,13 +61,17 @@ class MAccess extends CRUD {
             SELECT
                 u.id        AS id,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user,
+                u.email     AS email,
                 u.photo     AS photo,
                 u.is_owner  AS level,
                 u.company_id AS company_id,
                 c.name      AS company,
+                u.branch_id AS branch_id,
+                s.name      AS branch,
                 r.name      AS rol
             FROM {$this->bd}users u
             LEFT JOIN {$this->bd}companies c ON c.id = u.company_id
+            LEFT JOIN {$this->bd}branches s ON s.id = u.branch_id
             LEFT JOIN {$this->bd}users_braches ub ON ub.user_id = u.id
             LEFT JOIN {$this->bd}roles r ON r.id = ub.role_id
             WHERE u.id = ?

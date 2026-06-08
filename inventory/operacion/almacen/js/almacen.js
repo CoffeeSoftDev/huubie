@@ -4,7 +4,7 @@ let categorias, unidades, areas, proveedores, almacenes;
 
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
-let  cataloge, category, area, zone, warehouse, inflow, shrinkage;
+let  cataloge, category, area, unit, warehouse, inflow, shrinkage;
 
 $(async () => {
     const data     = await useFetch({ url: api, data: { opc: "init" } });
@@ -21,7 +21,7 @@ $(async () => {
     cataloge = new Catalogo(api_catalogo, "root");
     category = new Category(api_catalogo, "root");
     area = new Area(api_catalogo, "root");
-    zone = new Zone(api_catalogo, "root");
+    unit = new Unit(api_catalogo, "root");
     warehouse = new Warehouse(api_catalogo, "root");
     inflow = new InflowOrigin(api_catalogo, "root");
     shrinkage = new ShrinkageReason(api_catalogo, "root");
@@ -85,7 +85,7 @@ class Main extends Templates {
                     tab: "Unidad",
                     lucideIcon: "ruler",
                     class: "mb-1",
-                    onClick: () => zone.lsZone()
+                    onClick: () => unit.lsUnit()
                 },
                 {
                     id: "areas",
@@ -165,14 +165,6 @@ class Productos extends Templates {
                     lbl: "Categoría",
                     class: "col-12 col-md-2",
                     data: [{ id: '', valor: 'Todos' }, ...categorias],
-                    onchange: 'products.lsMateriales()'
-                },
-                {
-                    opc: "select",
-                    id: "area",
-                    lbl: "Área",
-                    class: "col-12 col-md-2",
-                    data: [{ id: '', valor: 'Todos' }, ...areas],
                     onchange: 'products.lsMateriales()'
                 },
                 {

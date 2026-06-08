@@ -1,7 +1,7 @@
 let apiEntradas = 'ctrl/ctrl-entradas.php';
 let app, entradas, entradasView;
 
-let subsidiaries_id;
+let branch_id;
 
 $(async () => {
     entradasView = new EntradasView(apiEntradas, 'root');
@@ -23,7 +23,7 @@ class App extends Templates {
         const r = await useFetch({ url: apiEntradas, data: { opc: 'init' } });
         if (r && r.status === 200) {
             this.dataInit = {
-                subsidiaries_id: r.subsidiaries_id || '',
+                branch_id: r.branch_id || '',
                 sucursales:      r.sucursales        || [],
                 origenes:        r.origenes_entrada  || [],
                 estados:         r.estados_entrada   || [],
@@ -33,7 +33,7 @@ class App extends Templates {
             };
         } else {
             this.dataInit = {
-                subsidiaries_id: '',
+                branch_id: '',
                 sucursales:      [],
                 origenes:        [],
                 estados:         [],
@@ -42,8 +42,8 @@ class App extends Templates {
                 productos:       []
             };
         }
-        this.subId      = this.dataInit.subsidiaries_id;
-        subsidiaries_id = this.subId;
+        this.subId      = this.dataInit.branch_id;
+        branch_id = this.subId;
 
         this.render();
     }
@@ -62,14 +62,6 @@ class App extends Templates {
     }
 
     layout() {
-        // #root tiene min-height global (general.css) calculado con 4rem que NO
-        // contempla el navbar real (64px) ni el breadcrumb ni los paddings, por lo
-        // que desborda el viewport y genera scroll. Anulamos ese min-height y le
-        // damos una altura exacta segun su posicion real, dejando el scroll
-        // interno al tableWrap. Se reajusta en resize.
-        this.fitRootHeight();
-        $(window).off('resize.entradas').on('resize.entradas', () => this.fitRootHeight());
-
         const mainPanel = {
             type: 'div',
             id:   'mainPanel',
@@ -121,20 +113,6 @@ class App extends Templates {
         });
     }
 
-    fitRootHeight() {
-        const $root = $('#root');
-        if (!$root.length) return;
-        const top    = $root[0].getBoundingClientRect().top; // distancia desde el viewport
-        const bottom = 20; // respiro inferior (padding de #main__content)
-        $root.css({
-            display:       'flex',
-            flexDirection: 'column',
-            minHeight:     0,
-            height:        `calc(100vh - ${Math.ceil(top)}px - ${bottom}px)`,
-            overflow:      'hidden'
-        });
-    }
-
     filterBar() {
         let filters = [
             {
@@ -149,7 +127,7 @@ class App extends Templates {
             },
             {
                 opc:      'select',
-                id:       'subsidiaries_id',
+                id:       'branch_id',
                 lbl:      'Sucursal:',
                 class:    'col-12 col-md-4 col-lg-2',
                 onchange: 'app.onChangeFilters()',
@@ -235,8 +213,19 @@ class App extends Templates {
     populateFilters() {
         const sucursales = this.dataInit.sucursales || [];
         if (sucursales.length) {
-            this.populateSelect('subsidiaries_id', sucursales);
-            $('#subsidiaries_id').val(this.subId);
+            this.populateSelect('branch_id', sucursales);
+        }
+        // jQuery compara con === al setear val(): el backend manda branch_id
+        // como number mientras los <option> guardan strings, por lo que .val(number)
+        // no matcheaba y el select quedaba en blanco. Forzamos string y si la
+        // sucursal del usuario no esta en la lista caemos a "-- Todas --".
+        const $sel   = $('#branch_id');
+        const target = String(this.subId == null ? '' : this.subId);
+        if (target && $sel.find(`option[value="${target}"]`).length) {
+            $sel.val(target);
+        } else {
+            $sel.val('');
+            this.subId = '';
         }
     }
 
@@ -252,7 +241,7 @@ class App extends Templates {
 
     getFilters() {
         return {
-            subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
+            branch_id: $('#branch_id').val() || this.subId || '',
             origen:          $('#fOrigen').val()        || '',
             estado:          $('#fEstado').val()        || '',
             fi:              this.rangeFi               || '',
@@ -306,7 +295,7 @@ class Entradas extends Templates {
         const r = await useFetch({
             url:  apiEntradas,
             data: Object.assign({ opc: 'lsEntradas' }, {
-                subsidiaries_id: f.subsidiaries_id,
+                branch_id: f.branch_id,
                 origin_id:       f.origen,
                 status:          f.estado,
                 fi:              f.fi,
@@ -348,7 +337,7 @@ class Entradas extends Templates {
             url:  apiEntradas,
             data: {
                 opc:             'showEntradas',
-                subsidiaries_id: f.subsidiaries_id,
+                branch_id: f.branch_id,
                 origin_id:       f.origen,
                 status:          f.estado,
                 fi:              f.fi,
@@ -362,7 +351,7 @@ class Entradas extends Templates {
 
         const kpis = [
             { id: 'kpiEntradas',  label: 'Entradas',    value: parseInt(c.total_entradas  || 0, 10), tone: 'success' },
-            { id: 'kpiCosto',     label: 'Costo Total', value: '$' + Math.round(costo).toLocaleString('en-US'), tone: 'default' },
+            { id: 'kpiCosto',     label: 'Costo Total', value: '$' + costo.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), tone: 'default' },
             { id: 'kpiUnidades',  label: 'Unidades',    value: parseInt(c.total_unidades  || 0, 10), tone: 'warning' },
             { id: 'kpiAplicadas', label: 'Aplicadas',   value: parseInt(c.total_aplicadas || 0, 10), tone: 'purple'  }
         ];
@@ -389,7 +378,8 @@ class Entradas extends Templates {
             estado:        h.status,
             origen:        h.origin_name,
             origenCode:    h.origin_code,
-            sucursal:      h.subsidiary_name,
+            origenBadge:   h.origin_badge || '',
+            sucursal:      h.branch_name,
             almacen:       h.warehouse_name,
             proveedor:     h.supplier_name,
             registrado:    h.user_name,
@@ -618,7 +608,7 @@ class EntradasView extends Templates {
     }
 
     openEntradaForm() {
-        const curSub = $('#subsidiaries_id').val() || app.subId;
+        const curSub = $('#branch_id').val() || app.subId;
         if (!this.entradaFormApi) {
             this.entradaFormApi = this.entradaForm({
                 parent: 'body',
@@ -630,7 +620,7 @@ class EntradasView extends Templates {
                     almacenes:       app.dataInit.almacenes   || [],
                     proveedores:     app.dataInit.proveedores || [],
                     fecha:           moment().format('YYYY-MM-DD'),
-                    subsidiaries_id: curSub
+                    branch_id: curSub
                 },
                 onCreateSupplier: async (data, done) => {
                     const r = await useFetch({
@@ -650,7 +640,7 @@ class EntradasView extends Templates {
                         date_inflow:      payload.fecha,
                         inflow_origin_id: payload.origen,
                         warehouse_id:     payload.warehouseId,
-                        subsidiaries_id:  payload.sucursalId,
+                        branch_id:  payload.sucursalId,
                         supplier_id:      payload.supplierId || null,
                         productos:        payload.productos.map(p => ({
                             product_id: p.id,
@@ -675,7 +665,7 @@ class EntradasView extends Templates {
                 onClose: () => {}
             });
         }
-        this.entradaFormApi.setData({ subsidiaries_id: curSub, fecha: moment().format('YYYY-MM-DD') });
+        this.entradaFormApi.setData({ branch_id: curSub, fecha: moment().format('YYYY-MM-DD') });
         this.entradaFormApi.open();
     }
 
@@ -694,8 +684,8 @@ class EntradasView extends Templates {
                 purple:  'text-purple-600'
             },
             cardClass:  'bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow',
-            labelClass: 'text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1',
-            valueClass: 'text-2xl font-bold',
+            labelClass: 'text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right',
+            valueClass: 'text-2xl font-bold text-right',
             onClick:    () => {}
         };
 
@@ -869,16 +859,16 @@ class EntradasView extends Templates {
                 </div>
 
                 <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
-                    <div class="flex items-center gap-2 text-xs">
+                    <div class="flex items-center justify-between gap-2 text-xs">
                         <span class="text-gray-500 w-20 flex-shrink-0">Origen</span>
-                        <span class="px-2 py-0.5 rounded text-xs font-bold" style="background:${oP.bg};color:${oP.fg};">${esc(e.origen || '-')}</span>
+                        ${e.origenBadge ? e.origenBadge : `<span class="px-2 py-0.5 rounded text-xs font-bold" style="background:${oP.bg};color:${oP.fg};">${esc(e.origen || '-')}</span>`}
                     </div>
-                    <div class="flex items-center gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Sucursal</span><span class="text-gray-700">${esc(e.sucursal || '-')}</span></div>
-                    <div class="flex items-center gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Almacen</span><span class="text-gray-700">${esc(e.almacen || '-')}</span></div>
-                    ${e.proveedor ? `<div class="flex items-center gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Proveedor</span><span class="text-gray-700">${esc(e.proveedor)}</span></div>` : ''}
-                    <div class="flex items-center gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Registrado</span><span class="text-gray-700">${esc(e.registrado || '-')}</span></div>
-                    ${e.confirmadoPor ? `<div class="flex items-center gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Confirmado</span><span class="text-gray-700">${esc(e.confirmadoPor)}</span></div>` : ''}
-                    ${e.nota ? `<div class="flex items-start gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Nota</span><span class="text-gray-700">${esc(e.nota)}</span></div>` : ''}
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Sucursal</span><span class="text-gray-700 text-right">${esc(e.sucursal || '-')}</span></div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Almacen</span><span class="text-gray-700 text-right">${esc(e.almacen || '-')}</span></div>
+                    ${e.proveedor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Proveedor</span><span class="text-gray-700 text-right">${esc(e.proveedor)}</span></div>` : ''}
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Registrado</span><span class="text-gray-700 text-right">${esc(e.registrado || '-')}</span></div>
+                    ${e.confirmadoPor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Confirmado</span><span class="text-gray-700 text-right">${esc(e.confirmadoPor)}</span></div>` : ''}
+                    ${e.nota ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Nota</span><span class="text-gray-700 text-right">${esc(e.nota)}</span></div>` : ''}
                 </div>
 
                 <div class="flex-1 overflow-y-auto px-4 py-3">
