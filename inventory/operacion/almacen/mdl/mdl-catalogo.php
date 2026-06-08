@@ -307,10 +307,12 @@ class mdl extends CRUD {
                 w.name as valor,
                 w.is_default,
                 wa.name as area_name,
+                b.name as branch_name,
                 DATE_FORMAT(w.created_at, '%d/%m/%Y') as date_creation,
                 w.active
             FROM {$this->bd}warehouse w
             LEFT JOIN {$this->bd}warehouse_area wa ON w.warehouse_area_id = wa.id
+            LEFT JOIN branches b ON b.id = w.branch_id
             WHERE w.active = ?
             AND w.companies_id = ".$_SESSION['company_id']."
             ORDER BY w.id DESC
@@ -379,5 +381,18 @@ class mdl extends CRUD {
             ORDER BY name ASC
         ";
         return $this->_Read($query, []);
+    }
+
+    // Sucursales activas de la compañía para selects de formularios (cada almacén pertenece a una sucursal).
+    // Params: [company_id]
+    function listBranchesSelect($array) {
+        $query = "
+            SELECT b.id, b.name as valor
+            FROM branches b
+            WHERE b.company_id = ?
+            AND b.is_active = 1
+            ORDER BY b.name ASC
+        ";
+        return $this->_Read($query, $array);
     }
 }

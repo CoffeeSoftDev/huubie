@@ -516,7 +516,7 @@ class Warehouse extends Templates {
                 striped: true,
                 title: "Almacenes",
                 subtitle: "Almacenes físicos de la sucursal",
-                center: [3, 4]
+                center: [4, 5]
             }
         });
     }
@@ -528,8 +528,14 @@ class Warehouse extends Templates {
         return [{ id: "", valor: "Sin área" }, ...areas];
     }
 
+    // Carga las sucursales accesibles para el select del formulario
+    async getBranches() {
+        const request = await useFetch({ url: this._link, data: { opc: "lsBranchesSelect" } });
+        return (request.status === 200 && request.data) ? request.data : [];
+    }
+
     async addWarehouse() {
-        const areas = await this.getAreas();
+        const [areas, branches] = await Promise.all([this.getAreas(), this.getBranches()]);
 
         this.createModalForm({
             id: "formWarehouseAdd",
@@ -537,7 +543,7 @@ class Warehouse extends Templates {
             theme: 'light',
             coffeesoft: true,
             bootbox: { title: "Agregar almacén", size: 'small', closeButton: true },
-            json: this.jsonWarehouse(areas),
+            json: this.jsonWarehouse(areas, branches),
             success: (response) => {
                 if (response.status === 200) {
                     alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
@@ -553,7 +559,7 @@ class Warehouse extends Templates {
         const request = await useFetch({ url: this._link, data: { opc: "getWarehouse", id: id } });
 
         if (request.status === 200) {
-            const areas = await this.getAreas();
+            const [areas, branches] = await Promise.all([this.getAreas(), this.getBranches()]);
 
             this.createModalForm({
                 id: "formWarehouseEdit",
@@ -562,7 +568,7 @@ class Warehouse extends Templates {
                 coffeesoft: true,
                 bootbox: { title: "Editar almacén", size: 'small', closeButton: true },
                 autofill: request.data,
-                json: this.jsonWarehouse(areas),
+                json: this.jsonWarehouse(areas, branches),
                 success: (response) => {
                     if (response.status === 200) {
                         alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
@@ -595,7 +601,7 @@ class Warehouse extends Templates {
         });
     }
 
-    jsonWarehouse(areas) {
+    jsonWarehouse(areas, branches) {
         return [
             {
                 opc: "input",
@@ -603,6 +609,14 @@ class Warehouse extends Templates {
                 lbl: "Nombre del almacén",
                 tipo: "texto",
                 class: "col-12 mb-3",
+                required: true
+            },
+            {
+                opc: "select",
+                id: "branch_id",
+                lbl: "Sucursal",
+                class: "col-12 mb-3",
+                data: branches,
                 required: true
             },
             {

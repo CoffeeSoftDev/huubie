@@ -716,6 +716,7 @@ class ctrl extends mdl {
             $rows[] = [
                 'id'          => $item['id'],
                 'Almacén'     => $item['valor'],
+                'Sucursal'    => $item['branch_name'] ?? '—',
                 'Área'        => $item['area_name'] ?? '—',
                 'Por defecto' => ($item['is_default'] == 1 ? 'Sí' : 'No'),
                 'Estado'      => renderStatus($item['active']),
@@ -754,10 +755,14 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear almacén';
 
-        $_POST['created_at']      = date('Y-m-d H:i:s');
-        $_POST['active']          = 1;
+        $_POST['created_at']   = date('Y-m-d H:i:s');
+        $_POST['active']       = 1;
         $_POST['companies_id'] = $_SESSION['company_id'];
-        $_POST['branch_id']    = $_SESSION['branch_id'];
+
+        // La sucursal se elige en el formulario; si no llega, se usa la de la sesión.
+        if (($_POST['branch_id'] ?? '') === '') {
+            $_POST['branch_id'] = $_SESSION['branch_id'];
+        }
 
         $exists = $this->existsWarehouseByName([$_POST['name']]);
 
@@ -832,6 +837,15 @@ class ctrl extends mdl {
         return [
             'status' => 200,
             'data'   => $this->listWarehousesSelect()
+        ];
+    }
+
+    function lsBranchesSelect() {
+        $companyId = $_SESSION['company_id'] ?? 0;
+
+        return [
+            'status' => 200,
+            'data'   => $this->listBranchesSelect([$companyId])
         ];
     }
 }

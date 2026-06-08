@@ -176,6 +176,97 @@ class ctrl extends mdl {
         return ['status' => 200, 'producto' => $producto];
     }
 
+    function predict() {
+        $product_id = (int) $_POST['id'];
+
+        $product   = $this->getProduct([$product_id]);
+        if (empty($product)) {
+            return ['status' => 404, 'message' => 'Producto no encontrado'];
+        }
+
+        $stockRows = $this->getStockByProduct([$product_id]);
+        $movsRows  = $this->getMovimientosByProduct([$product_id, $this->companiesId]);
+
+        $total = 0;
+        foreach ($stockRows as $s) {
+            $total += (float) $s['quantity'];
+        }
+
+        $salidas = [];
+        foreach ($movsRows as $m) {
+            if ($m['movement_type'] === 'MERMA' || (float) $m['quantity'] < 0) {
+                $salidas[] = abs((float) $m['quantity']);
+            }
+        }
+
+        $min = (float) ($product['stock_min'] ?? 0);
+        $max = (float) ($product['stock_max'] ?? 0);
+
+        $movResumen = [];
+        foreach ($movsRows as $m) {
+            $q = (float) $m['quantity'];
+            $movResumen[] = [
+                'tipo'  => $m['movement_type'],
+                'qty'   => $q,
+                'fecha' => $m['occurred_at'] ?? $m['created_at'] ?? ''
+            ];
+        }
+
+        $promptData = json_encode([
+            'producto'  => $product['name'],
+            'sku'       => $product['sku'] ?? '',
+            'stock'     => $total,
+            'stock_min' => $min,
+            'stock_max' => $max,
+            'movimientos' => $movResumen
+        ], JSON_UNESCAPED_UNICODE);
+
+        $systemMsg = 'Eres un asistente de inventario. Analiza el stock y movimientos del producto y responde UNICAMENTE con un objeto JSON sin texto adicional, sin markdown, sin bloques de codigo. El JSON debe tener exactamente estas claves: dias_agotamiento (entero, estimacion de dias hasta agotarse basandose en el consumo historico), reorden_sugerido (entero, unidades sugeridas para reordenar), resumen (string en espanol, maximo 2 oraciones explicando el patron y la recomendacion).';
+
+        $userMsg = "Analiza este producto y devuelve el JSON solicitado:\n" . $promptData;
+
+        $messages = [
+            ['role' => 'system', 'content' => $systemMsg],
+            ['role' => 'user',   'content' => $userMsg]
+        ];
+
+        // La IA es opcional: se carga aqui (no en el tope) para no acoplar el
+        // resto del modulo a la disponibilidad de credenciales/red de Ollama.
+        try {
+            require_once '../../../../coffee/app/visor/ctrl/ollama-client.php';
+            $client = new OllamaClient();
+            $result = $client->chat($messages, null, ['temperature' => 0.2]);
+        } catch (Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo conectar con la IA: ' . $e->getMessage()];
+        }
+
+        $raw = $result['message']['content'] ?? '';
+
+        $raw = preg_replace('/^```(?:json)?\s*/i', '', trim($raw));
+        $raw = preg_replace('/\s*```$/', '', $raw);
+        $raw = trim($raw);
+
+        $json = json_decode($raw, true);
+
+        if (!is_array($json) || !isset($json['dias_agotamiento'])) {
+            preg_match('/\{.*\}/s', $raw, $m2);
+            if (!empty($m2[0])) {
+                $json = json_decode($m2[0], true);
+            }
+        }
+
+        if (!is_array($json)) {
+            return ['status' => 500, 'message' => 'La IA no devolvio JSON valido', 'raw' => substr($raw, 0, 300)];
+        }
+
+        return [
+            'status'           => 200,
+            'dias_agotamiento' => (int) ($json['dias_agotamiento'] ?? 0),
+            'reorden_sugerido' => (int) ($json['reorden_sugerido'] ?? 0),
+            'resumen'          => (string) ($json['resumen'] ?? '')
+        ];
+    }
+
     private function _qty($n) {
         $n = (float) $n;
         return (fmod($n, 1) == 0) ? (string) (int) $n : (string) round($n, 2);
