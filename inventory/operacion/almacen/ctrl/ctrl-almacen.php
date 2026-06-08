@@ -63,7 +63,7 @@ class ctrl extends mdl {
                     ? $item['shelf_life_days'] . ' días'
                     : '-',
                 'Costo'      => [
-                    'html'  => '$' . number_format($item['cost'], 2),
+                    'html'  => '$' . number_format($item['cost'], 3),
                     'class' => 'text-end '
                 ],
                 'Estado'     => renderStatus($item['active']),
@@ -106,9 +106,12 @@ class ctrl extends mdl {
         $companies_id = $_SESSION['company_id'];
         $branch_id    = $_SESSION['branch_id'];
 
-        // NOTA: 'price' se omite a propósito. La columna item.price es DOUBLE NOT NULL DEFAULT 0
-        // y util->sql() convierte el 0 en NULL por la comparación débil (0 == '') que en PHP 7.4
-        // evalúa true. Al no enviarlo, la BD aplica su DEFAULT 0 y se evita el error 1048.
+        // price se calcula en el backend: tax es el porcentaje (0, 8, 16...) que se guarda tal
+        // cual y price = price_without_tax + (price_without_tax * tax / 100).
+        $price_without_tax = ($_POST['price_without_tax'] ?? '') === '' ? 0 : floatval($_POST['price_without_tax']);
+        $tax               = ($_POST['tax'] ?? '') === '' ? 0 : floatval($_POST['tax']);
+        $price             = $price_without_tax + ($price_without_tax * $tax / 100);
+
         $item = [
             'name'            => $_POST['name'] ?? '',
             'image'           => $_POST['image'] ?? '',
@@ -119,7 +122,17 @@ class ctrl extends mdl {
             'active'          => 1
         ];
 
-        $create = $this->createMaterial($this->util->sql($item));
+        // price, price_without_tax y tax se anexan DESPUÉS de util->sql() para evitar el gotcha
+        // 0 == '' (PHP 7.4), que convertiría un 0 en NULL y violaría item.price NOT NULL.
+        $sql = $this->util->sql($item);
+        $sql['values'][] = 'price';
+        $sql['values'][] = 'price_without_tax';
+        $sql['values'][] = 'tax';
+        $sql['data'][]   = $price;
+        $sql['data'][]   = $price_without_tax;
+        $sql['data'][]   = $tax;
+
+        $create = $this->createMaterial($sql);
 
         if ($create) {
             $itemId = $this->getMaxItemId();
@@ -162,13 +175,20 @@ class ctrl extends mdl {
 
         $id = $_POST['id'];
 
+        // price se calcula en el backend a partir de price_without_tax y del porcentaje tax.
+        $price_without_tax = ($_POST['price_without_tax'] ?? '') === '' ? 0 : floatval($_POST['price_without_tax']);
+        $tax               = ($_POST['tax'] ?? '') === '' ? 0 : floatval($_POST['tax']);
+        $price             = $price_without_tax + ($price_without_tax * $tax / 100);
+
         $editItem = $this->updateMaterial([
-            'values' => 'name = ?, image = ?, price = ?, category_id = ?',
+            'values' => 'name = ?, image = ?, price = ?, price_without_tax = ?, tax = ?, category_id = ?',
             'where'  => 'id = ?',
             'data'   => [
                 $_POST['name'] ?? '',
                 $_POST['image'] ?? '',
-                ($_POST['price'] ?? '') === '' ? 0 : $_POST['price'],
+                $price,
+                $price_without_tax,
+                $tax,
                 $_POST['category_id'] ?? null,
                 $id
             ]

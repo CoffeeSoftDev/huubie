@@ -270,19 +270,37 @@ class Productos extends Templates {
             },
             {
                 opc: "input",
+                id: "price_without_tax",
+                lbl: "Precio sin impuesto ",
+                tipo: "cifra",
+                class: "col-12 col-md-6 mb-3",
+                required: true,
+                onkeyup: "products.calcCostUnit()",
+                onchange: "products.calcCostUnit()"
+            },
+            {
+                opc: "select",
+                id: "tax",
+                lbl: "Impuesto (IVA)",
+                class: "col-12 col-md-6 mb-3",
+                onchange: "products.calcCostUnit()",
+                data: [
+                    { id: '0', valor: 'Sin impuesto (0%)' },
+                    { id: '8', valor: 'IVA 8%' },
+                    { id: '16', valor: 'IVA 16%' }
+                ]
+            },
+            {
+                // Costo unitario = precio sin impuesto + IVA. Se calcula en vivo (calcCostUnit)
+                // por eso es readonly: lo llena la fórmula, no el usuario.
+                opc: "input",
                 id: "cost_unit",
                 lbl: "Costo Unitario ",
                 tipo: "cifra",
                 class: "col-12 col-md-6 mb-3",
-                required: true
+                required: true,
+                // readonly: true
             },
-            // {
-            //     opc: "input",
-            //     id: "price",
-            //     lbl: "Precio de Venta",
-            //     tipo: "cifra",
-            //     class: "col-12 col-md-6 mb-3"
-            // },
             {
                 opc: "input",
                 id: "stock_min",
@@ -317,6 +335,15 @@ class Productos extends Templates {
                 rows: 3
             }
         ];
+    }
+
+    // Calcula en vivo: costo unitario = precio sin impuesto + (precio sin impuesto * IVA / 100).
+    // Si no hay precio base no toca el campo, para no borrar el costo de productos existentes al editar.
+    calcCostUnit() {
+        const base = parseFloat($('#price_without_tax').val());
+        if (isNaN(base)) return;
+        const taxPct = parseFloat($('#tax').val()) || 0;
+        $('#cost_unit').val((base + (base * taxPct / 100)).toFixed(3));
     }
 
     addMaterial() {

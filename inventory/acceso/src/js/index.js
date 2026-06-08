@@ -17,14 +17,12 @@ $(() => {
 });
 
 function storage(data) {
-    console.log(data);
     if(data != false){
         localStorage.clear();
         sessionStorage.clear();
 
-        // Redirección relativa a la ubicación del login (inventory/), así funciona
-        // sin importar en qué subcarpeta esté montado el proyecto (huubie/inventory/, raíz, etc.).
-        window.location.href = "sucursales/";
+        // window.location.href = "sucursales/";
+        window.location.href = "operacion/almacen/";
     } else {
         showLoginError('Usuario y/o clave incorrectos.');
     }
