@@ -1,5 +1,5 @@
 let apiStock = 'ctrl/ctrl-stock.php';
-let app, stock, stockView;
+let app, stock, stockView, stockPrediction;
 
 let branch_id;
 
@@ -17,9 +17,10 @@ const MOVIMIENTOS_STOCK = [
 ];
 
 $(async () => {
-    stockView = new StockView(apiStock, 'root');
-    stock     = new Stock(apiStock, 'root');
-    app       = new App(apiStock, 'root');
+    stockView      = new StockView(apiStock, 'root');
+    stock          = new Stock(apiStock, 'root');
+    stockPrediction = new StockPrediction(apiStock, 'root');
+    app            = new App(apiStock, 'root');
     await app.init();
 });
 
@@ -317,6 +318,7 @@ class Stock extends Templates {
         const r = await useFetch({ url: apiStock, data: { opc: 'getProducto', id: id } });
         if (r && r.status === 200) {
             stockView.renderDetail(r.producto);
+            stockPrediction.render(id);
         } else {
             stockView.renderDetail(null);
         }
@@ -667,6 +669,78 @@ class StockView extends Templates {
         });
     }
 
+    aiPredictionCard(options) {
+        const defaults = {
+            parent:          'aiPrediction',
+            id:              'aiPredictionCard',
+            state:           'loading',
+            dias:            0,
+            reorden:         0,
+            resumen:         '',
+            errorMsg:        'No se pudo obtener la prediccion.',
+            accentColor:     '#C05A40',
+            accentBg:        'bg-amber-50',
+            accentBorder:    'border-amber-200',
+            accentText:      'text-amber-800',
+            accentSubtext:   'text-amber-600'
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        let inner = '';
+
+        if (opts.state === 'loading') {
+            inner = `
+                <div class="flex items-center gap-2 py-1">
+                    <svg class="animate-spin w-4 h-4 flex-shrink-0" style="color:${opts.accentColor};" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                    </svg>
+                    <span class="text-[11px] ${opts.accentSubtext}">Analizando patron...</span>
+                </div>
+            `;
+        } else if (opts.state === 'error') {
+            inner = `
+                <div class="flex items-center gap-2">
+                    <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0 ${opts.accentSubtext}"></i>
+                    <p class="text-[11px] ${opts.accentSubtext}">${esc(opts.errorMsg)}</p>
+                </div>
+            `;
+        } else {
+            const diasHtml   = `<strong class="font-bold" style="color:${opts.accentColor};">${esc(opts.dias)} dias</strong>`;
+            const reordHtml  = `<strong class="font-bold" style="color:${opts.accentColor};">${esc(opts.reorden)} unidades</strong>`;
+
+            inner = `
+                <p class="text-[11px] ${opts.accentText} leading-relaxed">
+                    Al ritmo actual, el stock se agotara en ~${diasHtml}.
+                    Sugerimos reorden de ${reordHtml}.
+                </p>
+                ${opts.resumen ? `<p class="text-[10px] ${opts.accentSubtext} mt-1 leading-relaxed">${esc(opts.resumen)}</p>` : ''}
+            `;
+        }
+
+        const card = `
+            <div id="${opts.id}" class="rounded-lg border ${opts.accentBorder} ${opts.accentBg} px-3 py-2.5">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0"
+                          style="background:rgba(192,90,64,0.12);">
+                        <i data-lucide="lightbulb" class="w-3.5 h-3.5" style="color:${opts.accentColor};"></i>
+                    </span>
+                    <span class="text-[11px] font-bold ${opts.accentText} uppercase tracking-wide">Prediccion IA</span>
+                </div>
+                ${inner}
+            </div>
+        `;
+
+        $(`#${opts.parent}`).html(card);
+        if (window.lucide) lucide.createIcons();
+    }
+
     productDetailPanel(options) {
         const defaults = {
             parent:       'root',
@@ -725,6 +799,12 @@ class StockView extends Templates {
                 tr:     { bg: 'bg-purple-100', iconColor: 'text-purple-600', icon: 'repeat',      qtyColor: 'text-purple-600' },
                 adjust: { bg: 'bg-orange-100', iconColor: 'text-orange-600', icon: 'settings-2',  qtyColor: 'text-orange-600' }
             },
+            movFilter: {
+                btn:         'px-2 py-0.5 rounded text-[10px] font-medium text-gray-500 whitespace-nowrap hover:bg-gray-100 transition-colors',
+                btnActive:   'px-2 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap transition-colors',
+                activeStyle: 'background:#C05A40;',
+                labels: { todos: 'Todos', in: '+ Entradas', out: '- Salidas' }
+            },
             onClose: () => { }
         };
 
@@ -736,6 +816,8 @@ class StockView extends Templates {
         opts.vidaMap        = Object.assign({}, defaults.vidaMap,        o.vidaMap        || {});
         opts.vidaPalettes   = Object.assign({}, defaults.vidaPalettes,   o.vidaPalettes   || {});
         opts.movMap         = Object.assign({}, defaults.movMap,         o.movMap         || {});
+        opts.movFilter      = Object.assign({}, defaults.movFilter,      o.movFilter      || {});
+        opts.movFilter.labels = Object.assign({}, defaults.movFilter.labels, (o.movFilter || {}).labels || {});
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -801,9 +883,17 @@ class StockView extends Templates {
             </span>`;
         }).join('');
 
-        const movsAll    = p.movs || [];
-        const movsToShow = movsAll.slice(0, 10);
-        const movsHtml   = movsToShow.map(m => {
+        const movsAll = p.movs || [];
+
+        // Direccion del movimiento: por tipo explicito y, si no, por el signo del qty.
+        const movDir = (m) => {
+            if (m.type === 'in')  return 'in';
+            if (m.type === 'out') return 'out';
+            const q = String(m.qty == null ? '' : m.qty).trim();
+            return q.charAt(0) === '-' ? 'out' : 'in';
+        };
+
+        const movItemHtml = (m) => {
             const cfg = opts.movMap[m.type] || opts.movMap.adjust;
             const tieneStock = m.prev != null && m.post != null;
             const stockTrace = tieneStock ? `
@@ -826,7 +916,16 @@ class StockView extends Templates {
                         ${stockTrace}
                     </div>
                 </div>`;
-        }).join('');
+        };
+
+        const renderMovs = (filter) => {
+            let list = movsAll;
+            if (filter === 'in')  list = movsAll.filter(m => movDir(m) === 'in');
+            if (filter === 'out') list = movsAll.filter(m => movDir(m) === 'out');
+            const toShow = list.slice(0, 10);
+            return toShow.map(movItemHtml).join('')
+                || '<p class="text-[10px] text-gray-500 italic">Sin movimientos</p>';
+        };
 
         const subtitle = sucId ? `Existencias en ${esc(sucName)}` : 'Vista consolidada (todas las sucursales)';
 
@@ -882,25 +981,31 @@ class StockView extends Templates {
                     </div>
                 </div>` : ''}
 
+                <div id="aiPrediction"></div>
+
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
-                        <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${esc(opts.labels.existencias)}</h4>
+                        <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500 leading-tight">${esc(opts.labels.existencias)}</h4>
                         <span class="text-[9px] text-gray-500">Total: ${(p.stockSuc && p.stockSuc[''] != null) ? p.stockSuc[''] : 0}</span>
                     </div>
                     <div class="space-y-1.5">${branchListHtml}</div>
                 </div>
 
                 <div>
-                    <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">${esc(opts.labels.almacenes)}</h4>
+                    <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500 leading-tight mb-1.5">${esc(opts.labels.almacenes)}</h4>
                     <div class="flex flex-wrap gap-1.5">${almacenesHtml}</div>
                 </div>
 
                 <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${esc(opts.labels.historial)}</h4>
-                        <span class="text-[9px] text-gray-500">${movsToShow.length} de ${movsAll.length}${movsAll.length > 10 ? ' (ultimos 10)' : ''}</span>
+                    <div class="flex items-center justify-between mb-2 gap-2">
+                        <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500 leading-tight">${esc(opts.labels.historial)}</h4>
+                        <div class="flex items-center gap-1 flex-shrink-0" id="${opts.id}_movFilters">
+                            <button type="button" data-mov-filter="todos" class="${opts.movFilter.btnActive}" style="${opts.movFilter.activeStyle}">${esc(opts.movFilter.labels.todos)}</button>
+                            <button type="button" data-mov-filter="in"    class="${opts.movFilter.btn}">${esc(opts.movFilter.labels.in)}</button>
+                            <button type="button" data-mov-filter="out"   class="${opts.movFilter.btn}">${esc(opts.movFilter.labels.out)}</button>
+                        </div>
                     </div>
-                    <div class="space-y-1.5">${movsHtml || '<p class="text-[10px] text-gray-500 italic">Sin movimientos</p>'}</div>
+                    <div class="space-y-1.5" id="${opts.id}_movsList">${renderMovs('todos')}</div>
                 </div>
             </div>
         `);
@@ -909,5 +1014,54 @@ class StockView extends Templates {
         if (window.lucide) lucide.createIcons();
 
         $(`#${opts.id}_close`).on('click', () => opts.onClose(p));
+
+        const $movFilters = $(`#${opts.id}_movFilters`);
+        $movFilters.on('click', '[data-mov-filter]', function () {
+            const filter = $(this).attr('data-mov-filter');
+            $movFilters.find('[data-mov-filter]').each(function () {
+                const isActive = $(this).attr('data-mov-filter') === filter;
+                this.className = isActive ? opts.movFilter.btnActive : opts.movFilter.btn;
+                this.setAttribute('style', isActive ? opts.movFilter.activeStyle : '');
+            });
+            $(`#${opts.id}_movsList`).html(renderMovs(filter));
+            if (window.lucide) lucide.createIcons();
+        });
+    }
+}
+
+class StockPrediction extends Templates {
+
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME  = 'POSStock';
+        this._currentId    = null;
+        this._containerId  = 'aiPrediction';
+    }
+
+    async render(productId) {
+        this._currentId = productId;
+
+        const $wrap = $(`#${this._containerId}`);
+        if (!$wrap.length) return;
+
+        stockView.aiPredictionCard({ parent: this._containerId, state: 'loading' });
+
+        const r = await useFetch({ url: apiStock, data: { opc: 'predict', id: productId } });
+
+        if (this._currentId !== productId) return;
+
+        if (!r || r.status !== 200) {
+            const msg = (r && r.message) ? r.message : 'Error al conectar con la IA.';
+            stockView.aiPredictionCard({ parent: this._containerId, state: 'error', errorMsg: msg });
+            return;
+        }
+
+        stockView.aiPredictionCard({
+            parent:  this._containerId,
+            state:   'ready',
+            dias:    r.dias_agotamiento,
+            reorden: r.reorden_sugerido,
+            resumen: r.resumen
+        });
     }
 }
