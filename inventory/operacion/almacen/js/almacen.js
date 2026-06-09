@@ -204,8 +204,8 @@ class Productos extends Templates {
                 theme: 'light',
                 class: 'w-100 lowercase',
                 striped:true,
-                center: [1,3,4,7],
-                right: [5],
+                center: [1,7],
+                right: [5,6,7,8],
                 f_size: 12
             },
             success: (response) => {

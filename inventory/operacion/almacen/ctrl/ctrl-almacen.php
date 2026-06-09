@@ -62,7 +62,16 @@ class ctrl extends mdl {
                 'Vida útil'  => isset($item['shelf_life_days']) && $item['shelf_life_days'] !== null
                     ? $item['shelf_life_days'] . ' días'
                     : '-',
-                'Costo'      => [
+
+                'Costo unitario'      => [
+                    'html'  => '$' . number_format($item['cost_unit'], 3),
+                    'class' => 'text-end'
+                ],
+                'IVA (%)'            => [
+                    'html'  => $item['tax'] . '%',
+                    'class' => 'text-end'
+                ],
+                'Precio con IVA'      => [
                     'html'  => '$' . number_format($item['cost'], 3),
                     'class' => 'text-end '
                 ],
