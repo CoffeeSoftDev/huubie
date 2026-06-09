@@ -73,7 +73,7 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                    class: 'px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
