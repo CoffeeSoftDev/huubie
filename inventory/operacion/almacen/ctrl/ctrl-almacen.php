@@ -102,15 +102,26 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'No se pudo agregar el insumo';
 
+        // Los datos (incluido price) llegan calculados desde el frontend. Si falta algún
+        // dato obligatorio se devuelve error para que el frontend muestre la alerta con
+        // este message.
+        $required = ['name', 'price', 'price_without_tax', 'tax'];
+        foreach ($required as $field) {
+            if (($_POST[$field] ?? '') === '') {
+                return [
+                    'status'  => 400,
+                    'message' => 'Faltan datos obligatorios del insumo'
+                ];
+            }
+        }
+
         $now          = date('Y-m-d H:i:s');
         $companies_id = $_SESSION['company_id'];
         $branch_id    = $_SESSION['branch_id'];
 
-        // price se calcula en el backend: tax es el porcentaje (0, 8, 16...) que se guarda tal
-        // cual y price = price_without_tax + (price_without_tax * tax / 100).
-        $price_without_tax = ($_POST['price_without_tax'] ?? '') === '' ? 0 : floatval($_POST['price_without_tax']);
-        $tax               = ($_POST['tax'] ?? '') === '' ? 0 : floatval($_POST['tax']);
-        $price             = $price_without_tax + ($price_without_tax * $tax / 100);
+        $price             = floatval($_POST['price']);
+        $price_without_tax = floatval($_POST['price_without_tax']);
+        $tax               = floatval($_POST['tax']);
 
         $item = [
             'name'            => $_POST['name'] ?? '',
