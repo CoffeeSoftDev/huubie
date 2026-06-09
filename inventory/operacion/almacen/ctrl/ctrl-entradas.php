@@ -169,8 +169,8 @@ class ctrl extends mdl {
         $isProduction = $origin && strtoupper($origin['code']) === 'PRODUCCION';
         $status       = $isProduction ? 'Pendiente' : 'Aplicada';
 
-        // Origenes de compra/proveedor exigen indicar a quien se le hace la entrada.
-        if ($origin && mdl::originRequiresSupplier($origin['code']) && empty($payload['supplier_id'])) {
+        // El origen exige proveedor segun la columna requires_supplier (por dato, no por code).
+        if ($origin && (int) ($origin['requires_supplier'] ?? 0) === 1 && empty($payload['supplier_id'])) {
             return ['status' => 400, 'message' => 'Este origen requiere seleccionar un proveedor'];
         }
 

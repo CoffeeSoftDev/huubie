@@ -215,18 +215,10 @@ class App extends Templates {
         if (sucursales.length) {
             this.populateSelect('branch_id', sucursales);
         }
-        // jQuery compara con === al setear val(): el backend manda branch_id
-        // como number mientras los <option> guardan strings, por lo que .val(number)
-        // no matcheaba y el select quedaba en blanco. Forzamos string y si la
-        // sucursal del usuario no esta en la lista caemos a "-- Todas --".
-        const $sel   = $('#branch_id');
-        const target = String(this.subId == null ? '' : this.subId);
-        if (target && $sel.find(`option[value="${target}"]`).length) {
-            $sel.val(target);
-        } else {
-            $sel.val('');
-            this.subId = '';
-        }
+        // Por defecto arrancamos en "-- Todas --" para mostrar las entradas de
+        // todas las sucursales. this.subId conserva la sucursal real del usuario
+        // para precargarla en el formulario de nueva entrada (openEntradaForm).
+        $('#branch_id').val('');
     }
 
     populateSelect(id, data) {
@@ -240,8 +232,11 @@ class App extends Templates {
     }
 
     getFilters() {
+        const $branch = $('#branch_id');
         return {
-            branch_id: $('#branch_id').val() || this.subId || '',
+            // Respetamos el select aunque valga '' (-- Todas --); solo caemos a la
+            // sucursal del usuario si el select aun no existe en el DOM.
+            branch_id: $branch.length ? ($branch.val() || '') : (this.subId || ''),
             origen:          $('#fOrigen').val()        || '',
             estado:          $('#fEstado').val()        || '',
             fi:              this.rangeFi               || '',
@@ -895,8 +890,12 @@ class EntradasView extends Templates {
                         <button id="${opts.id}_cancelEdit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-gray-700 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center gap-1.5">
                             ${esc(opts.labels.cancelarEd)}
                         </button>
+                    ` : (isCancelled ? `
+                        <button id="${opts.id}_print" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-sky-600 hover:bg-sky-500 flex items-center justify-center gap-1.5">
+                            <i data-lucide="printer" class="w-3.5 h-3.5"></i>${esc(opts.labels.imprimir)}
+                        </button>
                     ` : `
-                        <button id="${opts.id}_print" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-sky-600 hover:bg-sky-500 flex items-center justify-center gap-1.5 ${isCancelled ? 'opacity-40' : ''}">
+                        <button id="${opts.id}_print" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-sky-600 hover:bg-sky-500 flex items-center justify-center gap-1.5">
                             <i data-lucide="printer" class="w-3.5 h-3.5"></i>${esc(opts.labels.imprimir)}
                         </button>
                         ${isPending ? `
@@ -904,14 +903,14 @@ class EntradasView extends Templates {
                                 <i data-lucide="check" class="w-3.5 h-3.5"></i>${esc(opts.labels.confirmar)}
                             </button>
                         ` : `
-                            <button id="${opts.id}_edit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center gap-1.5 ${isCancelled ? 'opacity-40 cursor-not-allowed' : ''}">
+                            <button id="${opts.id}_edit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center gap-1.5">
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>${esc(opts.labels.editar)}
                             </button>
                         `}
-                        <button id="${opts.id}_reverse" ${isCancelled ? 'disabled' : ''} class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-rose-600 flex items-center justify-center gap-1.5 ${isCancelled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-rose-500'}">
+                        <button id="${opts.id}_reverse" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-rose-600 hover:bg-rose-500 flex items-center justify-center gap-1.5">
                             <i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.reversar)}
                         </button>
-                    `}
+                    `)}
                 </div>
             </div>
         `);

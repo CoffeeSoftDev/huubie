@@ -139,9 +139,10 @@ class ctrl extends mdl {
                 'type'  => $type,
                 'label' => $label,
                 'qty'   => $qty >= 0 ? '+' . $qty : (string) $qty,
-                'prev'  => $m['stock_prev'] !== null ? $this->_qty($m['stock_prev']) : null,
-                'post'  => $m['stock_post'] !== null ? $this->_qty($m['stock_post']) : null,
-                'when'  => ($m['occurred_at'] ?? '') . ' · ' . ($m['warehouse_name'] ?? '-')
+                'prev'   => $m['stock_prev'] !== null ? $this->_qty($m['stock_prev']) : null,
+                'post'   => $m['stock_post'] !== null ? $this->_qty($m['stock_post']) : null,
+                'when'   => ($m['occurred_at'] ?? '') . ' · ' . ($m['warehouse_name'] ?? '-'),
+                'branch' => $m['branch_name'] ?? ''
             ];
         }
 
@@ -212,13 +213,26 @@ class ctrl extends mdl {
             ];
         }
 
+        // Tendencia de rotacion: consumo (salidas) por dia de los ultimos 7
+        // dias + delta contra la semana previa. Es dato real, no inferido por
+        // la IA; se la pasamos al modelo para fundamentar la recomendacion.
+        $trend = $this->_buildTendencia($product_id);
+
         $promptData = json_encode([
             'producto'  => $product['name'],
             'sku'       => $product['sku'] ?? '',
             'stock'     => $total,
             'stock_min' => $min,
             'stock_max' => $max,
-            'movimientos' => $movResumen
+            'movimientos'         => $movResumen,
+            'actividad_diaria_7d' => array_map(fn($t) => [
+                'fecha'   => $t['fecha'],
+                'entrada' => $t['entrada'],
+                'salida'  => $t['salida']
+            ], $trend['tendencia']),
+            'entradas_7d'         => $trend['entradas'],
+            'salidas_7d'          => $trend['salidas'],
+            'variacion_pct_semana' => $trend['delta']
         ], JSON_UNESCAPED_UNICODE);
 
         $systemMsg = 'Eres un asistente de inventario. Analiza el stock y movimientos del producto y responde UNICAMENTE con un objeto JSON sin texto adicional, sin markdown, sin bloques de codigo. El JSON debe tener exactamente estas claves: dias_agotamiento (entero, estimacion de dias hasta agotarse basandose en el consumo historico), reorden_sugerido (entero, unidades sugeridas para reordenar), resumen (string en espanol, maximo 2 oraciones explicando el patron y la recomendacion).';
@@ -230,40 +244,138 @@ class ctrl extends mdl {
             ['role' => 'user',   'content' => $userMsg]
         ];
 
-        // La IA es opcional: se carga aqui (no en el tope) para no acoplar el
-        // resto del modulo a la disponibilidad de credenciales/red de Ollama.
+        // La IA es opcional: si falla (red/credenciales/JSON invalido) igual
+        // devolvemos la tendencia real para que el grafico se dibuje. Por eso
+        // estas rutas NO cortan con status 500: marcan ia_ok = false.
+        $iaOk    = false;
+        $iaMsg   = '';
+        $dias    = 0;
+        $reorden = 0;
+        $resumen = '';
+
         try {
             require_once '../../../../coffee/app/visor/ctrl/ollama-client.php';
             $client = new OllamaClient();
             $result = $client->chat($messages, null, ['temperature' => 0.2]);
-        } catch (Throwable $e) {
-            return ['status' => 500, 'message' => 'No se pudo conectar con la IA: ' . $e->getMessage()];
-        }
 
-        $raw = $result['message']['content'] ?? '';
+            $raw = $result['message']['content'] ?? '';
+            $raw = preg_replace('/^```(?:json)?\s*/i', '', trim($raw));
+            $raw = preg_replace('/\s*```$/', '', $raw);
+            $raw = trim($raw);
 
-        $raw = preg_replace('/^```(?:json)?\s*/i', '', trim($raw));
-        $raw = preg_replace('/\s*```$/', '', $raw);
-        $raw = trim($raw);
-
-        $json = json_decode($raw, true);
-
-        if (!is_array($json) || !isset($json['dias_agotamiento'])) {
-            preg_match('/\{.*\}/s', $raw, $m2);
-            if (!empty($m2[0])) {
-                $json = json_decode($m2[0], true);
+            $json = json_decode($raw, true);
+            if (!is_array($json) || !isset($json['dias_agotamiento'])) {
+                preg_match('/\{.*\}/s', $raw, $m2);
+                if (!empty($m2[0])) {
+                    $json = json_decode($m2[0], true);
+                }
             }
+
+            if (is_array($json)) {
+                $iaOk    = true;
+                $dias    = (int) ($json['dias_agotamiento'] ?? 0);
+                $reorden = (int) ($json['reorden_sugerido'] ?? 0);
+                $resumen = (string) ($json['resumen'] ?? '');
+            } else {
+                $iaMsg = 'La IA no devolvio una respuesta valida.';
+            }
+        } catch (Throwable $e) {
+            $iaMsg = 'No se pudo conectar con la IA.';
         }
 
-        if (!is_array($json)) {
-            return ['status' => 500, 'message' => 'La IA no devolvio JSON valido', 'raw' => substr($raw, 0, 300)];
+        // Proyeccion de stock a 7 dias: extrapolacion lineal con el promedio
+        // diario de salidas de los ultimos 7 dias. No depende de la IA: si no
+        // hay historial de salidas devolvemos serie vacia y el frontend solo
+        // pintara el historico + el texto IA.
+        $proyeccion = [];
+        $salidas7d  = (float) $trend['salidas'];
+        if ($salidas7d > 0) {
+            $promedioSalida = $salidas7d / 7.0;
+            $diaLetra = [1 => 'L', 2 => 'M', 3 => 'M', 4 => 'J', 5 => 'V', 6 => 'S', 7 => 'D'];
+            for ($offset = 1; $offset <= 7; $offset++) {
+                $ts   = strtotime("+{$offset} days");
+                $date = date('Y-m-d', $ts);
+                $stockFuturo = max(0.0, (float) $total - ($promedioSalida * $offset));
+                $proyeccion[] = [
+                    'dia'    => $diaLetra[(int) date('N', $ts)],
+                    'offset' => $offset,
+                    'fecha'  => $date,
+                    'stock'  => $stockFuturo
+                ];
+            }
         }
 
         return [
             'status'           => 200,
-            'dias_agotamiento' => (int) ($json['dias_agotamiento'] ?? 0),
-            'reorden_sugerido' => (int) ($json['reorden_sugerido'] ?? 0),
-            'resumen'          => (string) ($json['resumen'] ?? '')
+            'ia_ok'            => $iaOk,
+            'mensaje_ia'       => $iaMsg,
+            'dias_agotamiento' => $dias,
+            'reorden_sugerido' => $reorden,
+            'resumen'          => $resumen,
+            'tendencia'        => $trend['tendencia'],
+            'tendencia_delta'  => $trend['delta'],
+            'tendencia_total'  => $trend['total'],
+            'tendencia_entradas' => $trend['entradas'],
+            'tendencia_salidas'  => $trend['salidas'],
+            'stock_actual'     => (float) $total,
+            'stock_min'        => $min,
+            'proyeccion_stock' => $proyeccion
+        ];
+    }
+
+    // Construye la serie de 7 dias (entradas y salidas por dia) y el delta %
+    // de actividad total (entradas + salidas) contra la semana anterior, a
+    // partir de los movimientos reales del producto.
+    private function _buildTendencia($product_id) {
+        $rows = $this->getMovActividadDiaria([$product_id, $this->companiesId]);
+
+        $map = [];
+        foreach ($rows as $r) {
+            // DATE() en MySQL puede devolver la fecha con hora cuando el
+            // driver PDO la serializa como datetime. Normalizamos a 'Y-m-d'
+            // para que el match por clave con date('Y-m-d', ...) funcione.
+            $key = date('Y-m-d', strtotime((string) $r['dia']));
+            $map[$key] = [
+                'entrada' => (float) $r['entrada'],
+                'salida'  => (float) $r['salida']
+            ];
+        }
+
+        $diaLetra = [1 => 'L', 2 => 'M', 3 => 'M', 4 => 'J', 5 => 'V', 6 => 'S', 7 => 'D'];
+
+        $tendencia = [];
+        $sumEnt = 0;
+        $sumSal = 0;
+        for ($i = 6; $i >= 0; $i--) {
+            $ts   = strtotime("-{$i} days");
+            $date = date('Y-m-d', $ts);
+            $ent  = $map[$date]['entrada'] ?? 0;
+            $sal  = $map[$date]['salida']  ?? 0;
+            $sumEnt += $ent;
+            $sumSal += $sal;
+            $tendencia[] = [
+                'dia'     => $diaLetra[(int) date('N', $ts)],
+                'entrada' => $ent,
+                'salida'  => $sal,
+                'fecha'   => $date
+            ];
+        }
+
+        $sumPrev = 0;
+        for ($i = 13; $i >= 7; $i--) {
+            $date     = date('Y-m-d', strtotime("-{$i} days"));
+            $sumPrev += ($map[$date]['entrada'] ?? 0) + ($map[$date]['salida'] ?? 0);
+        }
+
+        $sum7  = $sumEnt + $sumSal;
+        $delta = $sumPrev > 0 ? (int) round((($sum7 - $sumPrev) / $sumPrev) * 100) : null;
+
+        return [
+            'tendencia' => $tendencia,
+            'total'     => $sum7,
+            'entradas'  => $sumEnt,
+            'salidas'   => $sumSal,
+            'delta'     => $delta
         ];
     }
 

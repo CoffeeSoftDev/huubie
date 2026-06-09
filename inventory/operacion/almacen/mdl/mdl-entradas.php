@@ -59,7 +59,7 @@ class mdl extends CRUD {
 
     function lsInflowOrigins() {
         $query = "
-            SELECT id, code, name, name AS valor, color_hex
+            SELECT id, code, name, name AS valor, color_hex, requires_supplier
             FROM {$this->bd}inflow_origin
             WHERE active = 1
             ORDER BY id ASC
@@ -67,14 +67,11 @@ class mdl extends CRUD {
         $r = $this->_Read($query, null);
         if (!is_array($r)) return [];
         foreach ($r as &$o) {
-            $o['requires_supplier'] = self::originRequiresSupplier($o['code']) ? 1 : 0;
+            // requires_supplier se administra por dato en la tabla inflow_origin,
+            // no por code. Asi cualquier origen puede exigir proveedor sin tocar codigo.
+            $o['requires_supplier'] = (int) $o['requires_supplier'];
         }
         return $r;
-    }
-
-    // Codigos de origen que obligan a indicar un proveedor en la entrada.
-    static function originRequiresSupplier($code) {
-        return in_array(strtoupper((string) $code), ['COMPRA', 'PROVEEDOR']);
     }
 
     function lsSuppliers($array) {
@@ -130,7 +127,7 @@ class mdl extends CRUD {
 
     function getInflowOrigin($array) {
         $query = "
-            SELECT id, code, name, color_hex
+            SELECT id, code, name, color_hex, requires_supplier
             FROM {$this->bd}inflow_origin
             WHERE id = ?
             LIMIT 1
