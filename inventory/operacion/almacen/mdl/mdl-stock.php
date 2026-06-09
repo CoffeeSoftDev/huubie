@@ -267,12 +267,34 @@ class mdl extends CRUD {
                 mv.created_at,
                 mv.warehouse_id,
                 w.name AS warehouse_name,
-                mv.branch_id
+                mv.branch_id,
+                b.name AS branch_name
             FROM {$this->bd}inventory_movement mv
             LEFT JOIN {$this->bd}warehouse w ON w.id = mv.warehouse_id
+            LEFT JOIN {$this->bdErp}branches b ON b.id = mv.branch_id
             WHERE mv.item_id = ? AND mv.companies_id = ?
             ORDER BY mv.created_at DESC
             LIMIT 20
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Actividad de movimiento agregada por dia de los ultimos 14 dias:
+    // entradas (quantity > 0) y salidas (quantity < 0) por separado. Alimenta
+    // la tendencia de comportamiento de 7 dias + el delta contra la semana
+    // previa.
+    function getMovActividadDiaria($array) {
+        $query = "
+            SELECT
+                DATE(mv.occurred_at) AS dia,
+                SUM(CASE WHEN mv.quantity > 0 THEN mv.quantity ELSE 0 END)      AS entrada,
+                SUM(CASE WHEN mv.quantity < 0 THEN ABS(mv.quantity) ELSE 0 END) AS salida
+            FROM {$this->bd}inventory_movement mv
+            WHERE mv.item_id = ? AND mv.companies_id = ?
+              AND mv.occurred_at >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+            GROUP BY DATE(mv.occurred_at)
+            ORDER BY dia ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];

@@ -671,18 +671,30 @@ class StockView extends Templates {
 
     aiPredictionCard(options) {
         const defaults = {
-            parent:          'aiPrediction',
-            id:              'aiPredictionCard',
-            state:           'loading',
-            dias:            0,
-            reorden:         0,
-            resumen:         '',
-            errorMsg:        'No se pudo obtener la prediccion.',
-            accentColor:     '#C05A40',
-            accentBg:        'bg-amber-50',
-            accentBorder:    'border-amber-200',
-            accentText:      'text-amber-800',
-            accentSubtext:   'text-amber-600'
+            parent:           'aiPrediction',
+            id:               'aiPredictionCard',
+            state:            'loading',
+            iaOk:             true,
+            iaMsg:            '',
+            dias:             0,
+            reorden:          0,
+            resumen:          '',
+            tendencia:        [],
+            tendenciaDelta:   null,
+            proyeccion:       [],
+            stockActual:      0,
+            stockMin:         0,
+            entradaColor:     '#3FC189',
+            salidaColor:      '#C05A40',
+            historicoColor:   '#94A3B8',
+            proyeccionColor:  '#475569',
+            minLineColor:     '#CBD5E1',
+            errorMsg:         'No se pudo obtener la prediccion.',
+            accentColor:      '#475569',
+            accentBg:         'bg-slate-50',
+            accentBorder:     'border-slate-200',
+            accentText:       'text-slate-800',
+            accentSubtext:    'text-slate-600'
         };
 
         const o    = options || {};
@@ -711,7 +723,7 @@ class StockView extends Templates {
                     <p class="text-[11px] ${opts.accentSubtext}">${esc(opts.errorMsg)}</p>
                 </div>
             `;
-        } else {
+        } else if (opts.iaOk) {
             const diasHtml   = `<strong class="font-bold" style="color:${opts.accentColor};">${esc(opts.dias)} dias</strong>`;
             const reordHtml  = `<strong class="font-bold" style="color:${opts.accentColor};">${esc(opts.reorden)} unidades</strong>`;
 
@@ -722,18 +734,210 @@ class StockView extends Templates {
                 </p>
                 ${opts.resumen ? `<p class="text-[10px] ${opts.accentSubtext} mt-1 leading-relaxed">${esc(opts.resumen)}</p>` : ''}
             `;
+        } else {
+            // IA no disponible: mostramos solo la tendencia real (grafico abajo).
+            inner = `
+                <p class="text-[11px] ${opts.accentSubtext} leading-relaxed flex items-start gap-1.5">
+                    <i data-lucide="info" class="w-3.5 h-3.5 flex-shrink-0 mt-0.5"></i>
+                    <span>${esc(opts.iaMsg || 'Recomendacion IA no disponible.')} Mostramos el comportamiento real.</span>
+                </p>
+            `;
+        }
+
+        // Grafico de proyeccion: curva de stock acumulado, dos trazos SVG
+        // (historico solido + proyeccion 7d con marcadores circulares). Funciona
+        // sin IA: cuando la IA no responde seguimos dibujando el forecast con
+        // datos reales. Estado vacio explicito cuando no hubo movimientos.
+        let chartHtml = '';
+        if (opts.state === 'ready' && Array.isArray(opts.tendencia) && opts.tendencia.length) {
+            const d = opts.tendenciaDelta;
+            let deltaHtml;
+            if (d === null || d === undefined) {
+                deltaHtml = `<span class="text-[9px] text-gray-400">Sin histórico previo</span>`;
+            } else if (d >= 0) {
+                deltaHtml = `<span class="text-[9px] font-bold text-emerald-600">+${esc(d)}% vs semana anterior</span>`;
+            } else {
+                deltaHtml = `<span class="text-[9px] font-bold text-rose-600">${esc(d)}% vs semana anterior</span>`;
+            }
+
+            // Reconstruimos la curva de stock retrocediendo desde hoy.
+            // Recorremos del mas reciente al mas antiguo: hoy = stockActual;
+            // dia anterior = stock_ayer = stock_hoy + (entrada_hoy - salida_hoy).
+            const stockActualNum = Number(opts.stockActual) || 0;
+            const serieRev = [];
+            let stockRev = stockActualNum;
+            for (let i = opts.tendencia.length - 1; i >= 0; i--) {
+                const t = opts.tendencia[i];
+                serieRev.push({ dia: t.dia, fecha: t.fecha, stock: stockRev });
+                // stock del dia anterior: si hoy entraron X y salieron Y,
+                // ayer habia (stock_hoy - X + Y) unidades. En otras palabras,
+                // restamos el delta (entrada - salida) que se movio entre
+                // aquel dia y hoy.
+                const mov = (Number(t.entrada) || 0) - (Number(t.salida) || 0);
+                stockRev = stockRev - mov;
+            }
+            const serieHistFinal = serieRev.reverse();
+
+            // Serie proyectada: la entrega el backend (proyeccion_stock) o
+            // construimos en el cliente si no viene. Cada punto es stock
+            // proyectado en dia futuro.
+            const proy = Array.isArray(opts.proyeccion) ? opts.proyeccion : [];
+
+            // Si no hay historico real con stock y tampoco proyeccion, vacio.
+            const sumAll = opts.tendencia.reduce(
+                (acc, t) => acc + (Number(t.entrada) || 0) + (Number(t.salida) || 0), 0
+            );
+
+            let bodyHtml;
+            if (sumAll <= 0 && proy.length === 0) {
+                bodyHtml = `
+                    <div class="flex flex-col items-center justify-center h-16 text-center">
+                        <i data-lucide="bar-chart-2" class="w-4 h-4 text-gray-300 mb-1"></i>
+                        <span class="text-[9px] text-gray-400">Sin movimientos en los últimos 7 días</span>
+                    </div>`;
+            } else {
+                // Calculo de coordenadas SVG.
+                // - Eje X: 7 puntos historicos + 7 puntos proyectados = 14.
+                //   Reservamos un pequeno margen a la izquierda para la etiqueta
+                //   "mín" y a la derecha para etiquetas futuras.
+                // - Eje Y: stock en unidades. Si todos los valores son 0,
+                //   usamos un minimo artificial para que la linea se vea.
+                const w = 280, h = 70;
+                const padL = 6, padR = 6, padT = 6, padB = 14;
+                const innerW = w - padL - padR;
+                const innerH = h - padT - padB;
+
+                const puntosAll = [
+                    ...serieHistFinal.map(p => p.stock),
+                    ...proy.map(p => Number(p.stock) || 0)
+                ];
+                let yMin = Math.min(...puntosAll);
+                let yMax = Math.max(...puntosAll);
+                // Si el rango es 0 (stock plano) o casi, fijamos un minimo.
+                if (yMax - yMin < 1) {
+                    yMin = Math.max(0, yMax - 1);
+                    yMax = yMax + 1;
+                }
+                // Margen extra arriba y abajo del 10% para que la linea no
+                // toque los bordes.
+                const yPad = (yMax - yMin) * 0.1 || 0.5;
+                yMin = Math.max(0, yMin - yPad);
+                yMax = yMax + yPad;
+
+                const totalPuntos = 14;
+                const xStep = innerW / (totalPuntos - 1);
+
+                const toX = (i) => padL + i * xStep;
+                const toY = (v) => padT + (1 - (v - yMin) / (yMax - yMin)) * innerH;
+
+                // Polilinea historica (7 puntos, indices 0..6).
+                const histPts = serieHistFinal.map((p, i) => `${toX(i).toFixed(1)},${toY(p.stock).toFixed(1)}`).join(' ');
+                // Polilinea proyectada: arranca en el ultimo historico (i=6) y
+                // avanza 7 puntos mas (i=7..13).
+                const proyPts = proy.map((p, j) => {
+                    const i = 6 + (j + 1);
+                    return `${toX(i).toFixed(1)},${toY(Number(p.stock) || 0).toFixed(1)}`;
+                });
+                const proyPtsStr = `${toX(6).toFixed(1)},${toY(serieHistFinal[serieHistFinal.length - 1].stock).toFixed(1)} ${proyPts.join(' ')}`;
+
+                // Marcadores circulares para cada punto proyectado.
+                const markers = proy.map((p, j) => {
+                    const i = 6 + (j + 1);
+                    return `<circle cx="${toX(i).toFixed(1)}" cy="${toY(Number(p.stock) || 0).toFixed(1)}" r="2.5" fill="${opts.proyeccionColor}" stroke="white" stroke-width="0.8" />`;
+                }).join('');
+
+                // Etiqueta "IA" sobre el primer marcador proyectado.
+                let iaLabel = '';
+                if (proy.length > 0) {
+                    const iaLabelX = toX(7);
+                    const iaLabelY = toY(Number(proy[0].stock) || 0) - 5;
+                    iaLabel = `<text x="${iaLabelX.toFixed(1)}" y="${iaLabelY.toFixed(1)}" font-size="7" font-weight="700" fill="${opts.proyeccionColor}" text-anchor="middle" font-family="ui-sans-serif, system-ui">IA</text>`;
+                }
+
+                // Linea de stock minimo (si hay dato).
+                let minLine = '';
+                if (Number(opts.stockMin) > 0 && Number(opts.stockMin) >= yMin && Number(opts.stockMin) <= yMax) {
+                    const minY = toY(Number(opts.stockMin));
+                    minLine = `
+                        <line x1="${padL}" y1="${minY.toFixed(1)}" x2="${(w - padR).toFixed(1)}" y2="${minY.toFixed(1)}"
+                              stroke="${opts.minLineColor}" stroke-width="0.8" stroke-dasharray="2,2" />
+                        <text x="${(w - padR - 2).toFixed(1)}" y="${(minY - 2).toFixed(1)}" font-size="6" fill="${opts.minLineColor}" text-anchor="end" font-family="ui-sans-serif, system-ui">mín</text>
+                    `;
+                }
+
+                // Eje X inferior.
+                const xAxisY = (h - padB + 4).toFixed(1);
+                const xAxis = `<line x1="${padL}" y1="${xAxisY}" x2="${(w - padR).toFixed(1)}" y2="${xAxisY}" stroke="#E2E8F0" stroke-width="0.6" />`;
+
+                // Etiquetas de dias en X: H-6, H-5, ..., H0, +1, ..., +7.
+                // Usamos la letra del dia (L/M/M/J/V/S/D) en su lugar para
+                // menos ruido. Las futuras llevan prefijo "+".
+                const xLabels = serieHistFinal.map((p, i) => {
+                    const x = toX(i);
+                    const label = i === serieHistFinal.length - 1 ? 'Hoy' : p.dia;
+                    return `<text x="${x.toFixed(1)}" y="${(h - 2).toFixed(1)}" font-size="6" fill="#94A3B8" text-anchor="middle" font-family="ui-sans-serif, system-ui">${esc(label)}</text>`;
+                }).join('');
+                const xLabelsProy = proy.map((p, j) => {
+                    const i = 6 + (j + 1);
+                    return `<text x="${toX(i).toFixed(1)}" y="${(h - 2).toFixed(1)}" font-size="6" fill="${opts.proyeccionColor}" text-anchor="middle" font-weight="600" font-family="ui-sans-serif, system-ui">+${p.offset}</text>`;
+                }).join('');
+
+                const svg = `
+                    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="w-full h-16 block" xmlns="http://www.w3.org/2000/svg">
+                        ${minLine}
+                        ${xAxis}
+                        <polyline points="${histPts}" fill="none" stroke="${opts.historicoColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                        <polyline points="${proyPtsStr}" fill="none" stroke="${opts.proyeccionColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                        ${markers}
+                        ${iaLabel}
+                        ${xLabels}
+                        ${xLabelsProy}
+                    </svg>
+                `;
+
+                bodyHtml = `<div class="mt-1">${svg}</div>`;
+            }
+
+            // Leyenda: Historico / Proyeccion / Stock min (condicional).
+            const minLegend = Number(opts.stockMin) > 0
+                ? `<span class="flex items-center gap-1 text-[8px] text-gray-500">
+                        <span class="w-3 h-0.5" style="background:${opts.minLineColor};border-top:1px dashed ${opts.minLineColor};"></span>Stock mín
+                    </span>`
+                : '';
+            const legendHtml = `
+                <div class="flex items-center gap-3 mt-1.5">
+                    <span class="flex items-center gap-1 text-[8px] text-gray-500">
+                        <span class="w-2 h-0.5 rounded-full" style="background:${opts.historicoColor};"></span>Histórico
+                    </span>
+                    <span class="flex items-center gap-1 text-[8px] text-gray-500">
+                        <span class="w-2 h-2 rounded-full" style="background:${opts.proyeccionColor};"></span>Proyección IA
+                    </span>
+                    ${minLegend}
+                </div>`;
+
+            chartHtml = `
+                <div class="mt-2.5 pt-2.5 border-t" style="border-color:rgba(148,163,184,0.25);">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-500">Proyección IA · Stock 7 días</span>
+                        ${deltaHtml}
+                    </div>
+                    ${bodyHtml}
+                    ${legendHtml}
+                </div>
+            `;
         }
 
         const card = `
             <div id="${opts.id}" class="rounded-lg border ${opts.accentBorder} ${opts.accentBg} px-3 py-2.5">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0"
-                          style="background:rgba(192,90,64,0.12);">
+                          style="background:rgba(71,85,105,0.12);">
                         <i data-lucide="lightbulb" class="w-3.5 h-3.5" style="color:${opts.accentColor};"></i>
                     </span>
                     <span class="text-[11px] font-bold ${opts.accentText} uppercase tracking-wide">Prediccion IA</span>
                 </div>
                 ${inner}
+                ${chartHtml}
             </div>
         `;
 
@@ -902,6 +1106,11 @@ class StockView extends Templates {
                             <i data-lucide="arrow-right" class="w-2.5 h-2.5 text-gray-400"></i>
                             <span>Quedo: <strong class="text-gray-700">${esc(m.post)}</strong></span>
                         </p>` : '';
+            const sucursalTrace = m.branch ? `
+                        <p class="text-[9px] text-gray-500 mt-0.5 flex items-center gap-1">
+                            <i data-lucide="store" class="w-2.5 h-2.5 text-violet-500"></i>
+                            <span>${esc(m.branch)}</span>
+                        </p>` : '';
             return `
                 <div class="flex items-start gap-2 bg-gray-50 rounded-md px-2.5 py-1.5 border border-gray-200">
                     <div class="w-5 h-5 rounded ${cfg.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -913,6 +1122,7 @@ class StockView extends Templates {
                             <span class="text-[10px] font-bold ${cfg.qtyColor}">${esc(m.qty)}</span>
                         </div>
                         <p class="text-[9px] text-gray-500">${esc(m.when)}</p>
+                        ${sucursalTrace}
                         ${stockTrace}
                     </div>
                 </div>`;
@@ -1057,11 +1267,18 @@ class StockPrediction extends Templates {
         }
 
         stockView.aiPredictionCard({
-            parent:  this._containerId,
-            state:   'ready',
-            dias:    r.dias_agotamiento,
-            reorden: r.reorden_sugerido,
-            resumen: r.resumen
+            parent:         this._containerId,
+            state:          'ready',
+            iaOk:           r.ia_ok !== false,
+            iaMsg:          r.mensaje_ia || '',
+            dias:           r.dias_agotamiento,
+            reorden:        r.reorden_sugerido,
+            resumen:        r.resumen,
+            tendencia:      r.tendencia || [],
+            tendenciaDelta: (r.tendencia_delta === undefined ? null : r.tendencia_delta),
+            proyeccion:     r.proyeccion_stock || [],
+            stockActual:    r.stock_actual || 0,
+            stockMin:       r.stock_min || 0
         });
     }
 }

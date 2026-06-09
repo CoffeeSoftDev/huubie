@@ -166,6 +166,12 @@
                         <button id="pgZoomIn" class="pg-iconbtn" title="Acercar"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
                     </div>
                     <span id="pgSandboxTheme" class="pg-theme-chip">Huubie Dark</span>
+                    <button id="pgTemplatesBtn" class="pg-iconbtn" title="Plantillas guardadas">
+                        <i data-lucide="library" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="pgSaveTplBtn" class="pg-iconbtn" title="Guardar como plantilla reutilizable">
+                        <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
+                    </button>
                     <button id="pgSandboxDownload" class="pg-iconbtn" title="Descargar HTML">
                         <i data-lucide="download" class="w-3.5 h-3.5"></i>
                     </button>
@@ -231,6 +237,57 @@
             <footer class="pg-modal-foot">
                 <span id="pgKnowSummary" class="pg-hint">—</span>
                 <button id="pgKnowDone" class="cs-btn cs-btn-primary cs-btn-sm">Listo</button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ── Modal: Guardar plantilla ── -->
+    <div id="pgSaveTplModal" class="pg-modal hidden" aria-hidden="true">
+        <div class="pg-modal-backdrop"></div>
+        <div class="pg-modal-dialog" role="dialog" style="max-width:480px;">
+            <header class="pg-modal-head">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="bookmark-plus" class="w-4 h-4"></i>
+                    <h3>Guardar plantilla</h3>
+                </div>
+                <button id="pgSaveTplClose" class="pg-iconbtn" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </header>
+            <div class="pg-modal-body">
+                <p class="pg-hint">Se guardará el render actual en <code>documents/template/&lt;nombre&gt;/</code> junto con su tema y la conversación, para reutilizarla más adelante en un chat independiente.</p>
+                <label class="pg-hint" style="display:block;margin-bottom:6px;font-weight:600;color:var(--vsr-text-soft);">Nombre de la plantilla</label>
+                <input id="pgSaveTplName" type="text" class="pg-prompt-editor" style="height:auto;min-height:0;padding:9px 12px;font-family:inherit;" placeholder="ej. Card de producto" autocomplete="off">
+                <p id="pgSaveTplSlug" class="pg-hint" style="margin-top:8px;"></p>
+            </div>
+            <footer class="pg-modal-foot">
+                <span class="pg-hint">El nombre se normaliza para la carpeta.</span>
+                <div class="flex gap-2">
+                    <button id="pgSaveTplCancel" class="cs-btn cs-btn-ghost cs-btn-sm">Cancelar</button>
+                    <button id="pgSaveTplConfirm" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar
+                    </button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ── Modal: Plantillas guardadas ── -->
+    <div id="pgTemplatesModal" class="pg-modal hidden" aria-hidden="true">
+        <div class="pg-modal-backdrop"></div>
+        <div class="pg-modal-dialog" role="dialog">
+            <header class="pg-modal-head">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="library" class="w-4 h-4"></i>
+                    <h3>Plantillas guardadas</h3>
+                </div>
+                <button id="pgTemplatesClose" class="pg-iconbtn" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </header>
+            <div class="pg-modal-body">
+                <p class="pg-hint">Carga una plantilla en el sandbox y, si quieres, restaura su conversación para seguir iterándola en un chat independiente.</p>
+                <div id="pgTemplatesList" class="pg-context-list"></div>
+            </div>
+            <footer class="pg-modal-foot">
+                <span id="pgTemplatesSummary" class="pg-hint">—</span>
+                <button id="pgTemplatesDone" class="cs-btn cs-btn-primary cs-btn-sm">Cerrar</button>
             </footer>
         </div>
     </div>

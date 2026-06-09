@@ -232,6 +232,121 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     exit;
 }
 
+// Endpoint para GUARDAR una plantilla del Playground (POST savetemplate).
+// Cada plantilla vive en documents/template/<slug>/ con:
+//   template.html  -> el render listo para reutilizar
+//   meta.json      -> tema, agente, modelo, prompt, conversacion, etc.
+// La carpeta se crea si no existe (a diferencia de la accion 'save' generica).
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'savetemplate') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $name = trim($_POST['name'] ?? '');
+    $html = $_POST['html'] ?? '';
+    $meta = $_POST['meta'] ?? '';
+
+    if ($name === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Falta el nombre de la plantilla']);
+        exit;
+    }
+    if (trim($html) === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'No hay render que guardar']);
+        exit;
+    }
+
+    // Slug seguro para nombre de carpeta: minusculas, sin acentos ni caracteres raros.
+    $slug = strtolower($name);
+    $slug = strtr($slug, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n','ü'=>'u']);
+    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+    $slug = trim($slug, '-');
+    if ($slug === '') $slug = 'plantilla';
+
+    $baseDir = str_replace('\\', '/', __DIR__ . '/../documents/template');
+    $dir     = $baseDir . '/' . $slug;
+
+    if (!is_dir($dir) && !@mkdir($dir, 0777, true)) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo crear la carpeta: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    // meta.json: guarda el nombre original (con acentos), el slug y la marca de tiempo.
+    $metaArr = json_decode($meta, true);
+    if (!is_array($metaArr)) $metaArr = [];
+    $metaArr['name']      = $name;
+    $metaArr['slug']      = $slug;
+    $metaArr['savedAt']   = date('Y-m-d H:i:s');
+
+    $okHtml = @file_put_contents($dir . '/template.html', $html);
+    $okMeta = @file_put_contents($dir . '/meta.json', json_encode($metaArr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+
+    if ($okHtml === false || $okMeta === false) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo escribir la plantilla: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Plantilla guardada',
+        'slug'    => $slug,
+        'name'    => $name,
+        'path'    => 'coffee/app/visor/documents/template/' . $slug
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// Endpoint para LISTAR las plantillas guardadas (GET listtemplates).
+// Devuelve cada carpeta de documents/template/ con su meta.json + el HTML del render.
+if (($_GET['action'] ?? '') === 'listtemplates') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $baseDir   = str_replace('\\', '/', __DIR__ . '/../documents/template');
+    $templates = [];
+
+    if (is_dir($baseDir)) {
+        $entries = @scandir($baseDir);
+        foreach (($entries ?: []) as $e) {
+            if ($e === '.' || $e === '..') continue;
+            $dir = $baseDir . '/' . $e;
+            $htmlFile = $dir . '/template.html';
+            if (!is_dir($dir) || !is_file($htmlFile)) continue;
+
+            $metaArr = [];
+            if (is_file($dir . '/meta.json')) {
+                $decoded = json_decode(@file_get_contents($dir . '/meta.json'), true);
+                if (is_array($decoded)) $metaArr = $decoded;
+            }
+            $html = @file_get_contents($htmlFile);
+
+            $templates[] = [
+                'slug'    => $e,
+                'name'    => $metaArr['name']    ?? $e,
+                'title'   => $metaArr['title']   ?? ($metaArr['name'] ?? $e),
+                'theme'   => $metaArr['theme']   ?? null,
+                'themeLabel' => $metaArr['themeLabel'] ?? null,
+                'agentKey'   => $metaArr['agentKey']   ?? null,
+                'agentLabel' => $metaArr['agentLabel'] ?? null,
+                'model'      => $metaArr['model']       ?? null,
+                'prompt'     => $metaArr['prompt']      ?? '',
+                'userText'   => $metaArr['userText']    ?? '',
+                'isDoc'      => !empty($metaArr['isDoc']),
+                'history'    => is_array($metaArr['history'] ?? null) ? $metaArr['history'] : [],
+                'savedAt'    => $metaArr['savedAt'] ?? (is_file($htmlFile) ? date('Y-m-d H:i:s', filemtime($htmlFile)) : ''),
+                'size'       => fmtSize(strlen((string)$html)),
+                'html'       => (string)$html
+            ];
+        }
+        usort($templates, function ($a, $b) { return strcmp($b['savedAt'], $a['savedAt']); });
+    }
+
+    echo json_encode(['success' => true, 'templates' => $templates], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 // Endpoint para navegar el filesystem (modal "Examinar..." del custom picker)
 if (($_GET['action'] ?? '') === 'listdir') {
     header('Content-Type: application/json; charset=utf-8');

@@ -980,6 +980,7 @@ function alert(options) {
         imageHeight: opts.imgh,
         timer: opts.timer,
         heightAuto: false,
+        scrollbarPadding: false,
         allowOutsideClick: false,
         showConfirmButton: opts.btn1,
         confirmButtonText: opts.btn1Text,

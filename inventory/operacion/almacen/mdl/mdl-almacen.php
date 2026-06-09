@@ -89,6 +89,8 @@ class mdl extends CRUD {
                 ic.name AS categoria,
                 u.code  AS unidad,
                 wa.name AS area,
+                i.price_without_tax AS cost_unit,
+                i.tax,
                 COALESCE(st.qty, 0) AS quantity
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1

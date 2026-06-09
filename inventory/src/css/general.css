@@ -19,6 +19,28 @@ body {
   /* font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; */
 }
 
+/* SweetAlert2 no debe tocar el shell al abrir un alert:
+   - swal2-height-auto fuerza height:auto en el body -> el shell flex pierde
+     los 100vh y colapsa verticalmente ("se contrae").
+   - el padding-right que inyecta para compensar la scrollbar encoge el ancho,
+     pero aqui el scroll vive en #main__content (body ya es overflow:hidden) y
+     no hay barra que compensar.
+   Mantenemos el body fijo mientras el alert este visible. */
+body.swal2-shown,
+body.swal2-height-auto {
+  height: 100vh !important;
+  padding-right: 0 !important;
+}
+
+/* #main__content tiene transition: all 0.5s (para el push del sidebar). Al
+   abrir un alert, SweetAlert (sobre todo la version remota) toca el body un
+   instante y ese reflow de pocos px se vuelve un "encogerse y volver" animado.
+   Mientras el alert este visible congelamos la transicion del shell para que
+   cualquier reajuste sea instantaneo e imperceptible. */
+body.swal2-shown main > #main__content {
+  transition: none !important;
+}
+
 #content-wrapper {
   display: flex;
   flex-direction: row;

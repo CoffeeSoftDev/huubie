@@ -31,6 +31,10 @@ class ctrl extends mdl {
                 'categoria' => $p['categoria'] ?: 'Sin categoria',
                 'costo'     => (float) $p['costo'],
                 'precio'    => (float) ($p['precio'] ?? 0),
+                // Defaults de impuesto que el formulario precarga por renglon:
+                // base sin tax y porcentaje vienen del item (catalogo).
+                'price_without_tax' => $p['price_without_tax'] !== null ? (float) $p['price_without_tax'] : null,
+                'tax'               => $p['tax'] !== null ? (float) $p['tax'] : null,
                 'stock'     => 0,
                 'image'     => $p['image'] ?? '',
                 'icon'      => 'package',
@@ -169,19 +173,48 @@ class ctrl extends mdl {
         $isProduction = $origin && strtoupper($origin['code']) === 'PRODUCCION';
         $status       = $isProduction ? 'Pendiente' : 'Aplicada';
 
-        // Origenes de compra/proveedor exigen indicar a quien se le hace la entrada.
-        if ($origin && mdl::originRequiresSupplier($origin['code']) && empty($payload['supplier_id'])) {
+        // El origen exige proveedor segun la columna requires_supplier (por dato, no por code).
+        if ($origin && (int) ($origin['requires_supplier'] ?? 0) === 1 && empty($payload['supplier_id'])) {
             return ['status' => 400, 'message' => 'Este origen requiere seleccionar un proveedor'];
         }
 
         $folio = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId);
 
-        $totalProducts = count($productos);
+        // Normaliza el desglose de impuesto por renglon. tax es el porcentaje
+        // (0, 8, 16...) y el COSTO CON IMPUESTO es el valor pivote (lo que captura
+        // el usuario): la base sin impuesto se deriva = cost / (1 + tax/100). Si
+        // el front solo mandara la base, reconstruimos el costo.
+        $norm = [];
+        foreach ($productos as $p) {
+            $tax  = ($p['tax'] ?? '') === '' || $p['tax'] === null ? 0.0 : (float) $p['tax'];
+            $base = ($p['price_without_tax'] ?? '') === '' || $p['price_without_tax'] === null ? null : (float) $p['price_without_tax'];
+            $cost = ($p['cost'] ?? '') === '' || $p['cost'] === null ? null : (float) $p['cost'];
+
+            if ($cost === null) {
+                $cost = $base !== null ? $base + ($base * $tax / 100) : 0.0;
+            }
+            $base = $tax > 0 ? $cost / (1 + $tax / 100) : $cost;
+
+            $norm[] = [
+                'product_id'        => (int) $p['product_id'],
+                'quantity'          => (float) $p['quantity'],
+                'price_without_tax' => $base,
+                'tax'               => $tax,
+                'cost'              => $cost,
+                'batch_code'        => $p['batch_code'] ?? null,
+                'expires_at'        => $p['expires_at'] ?? null,
+                'unit_id'           => !empty($p['unit_id']) ? (int) $p['unit_id'] : null
+            ];
+        }
+
+        $totalProducts = count($norm);
         $totalUnits    = 0;
         $totalCost     = 0;
-        foreach ($productos as $p) {
-            $totalUnits += (float) $p['quantity'];
-            $totalCost  += (float) $p['quantity'] * (float) $p['cost'];
+        $totalBase     = 0;
+        foreach ($norm as $p) {
+            $totalUnits += $p['quantity'];
+            $totalCost  += $p['quantity'] * $p['cost'];
+            $totalBase  += $p['quantity'] * $p['price_without_tax'];
         }
 
         $ok = $this->insertEntrada([
@@ -190,6 +223,7 @@ class ctrl extends mdl {
             $totalProducts,
             $totalUnits,
             $totalCost,
+            $totalBase,
             $status,
             (int) $payload['inflow_origin_id'],
             (int) $payload['warehouse_id'],
@@ -208,11 +242,13 @@ class ctrl extends mdl {
         );
         $inflowId = (int) ($inflowRow[0]['id'] ?? 0);
 
-        foreach ($productos as $p) {
-            $productId = (int) $p['product_id'];
+        foreach ($norm as $p) {
+            $productId = $p['product_id'];
             $warehouse = (int) $payload['warehouse_id'];
-            $qty       = (float) $p['quantity'];
-            $cost      = (float) $p['cost'];
+            $qty       = $p['quantity'];
+            $base      = $p['price_without_tax'];
+            $tax       = $p['tax'];
+            $cost      = $p['cost'];
             $subtotal  = $qty * $cost;
 
             $stockRow = $this->getStockRow([$productId, $warehouse]);
@@ -220,17 +256,22 @@ class ctrl extends mdl {
             $post     = $isProduction ? $prev : $prev + $qty;
 
             $this->insertEntradaDetail([
-                $p['batch_code'] ?? null,
+                $p['batch_code'],
                 $qty,
                 $cost,
                 $subtotal,
+                $base,
+                $tax,
                 $prev,
                 $post,
-                $p['expires_at'] ?? null,
+                $p['expires_at'],
                 $productId,
                 $inflowId,
-                !empty($p['unit_id']) ? (int) $p['unit_id'] : null
+                $p['unit_id']
             ]);
+
+            // Reflejamos el ultimo costo capturado en el catalogo del item.
+            $this->updateItemTax([$cost, $base, $tax, $productId, $this->companiesId]);
 
             if (!$isProduction) {
                 if ($stockRow) {
@@ -268,11 +309,13 @@ class ctrl extends mdl {
         $detail     = $this->qGetEntradaDetail([$id]);
         $totalUnits = 0;
         $totalCost  = 0;
+        $totalBase  = 0;
         $affected   = 0;
         foreach ($detail as $d) {
             $detailId  = (int) $d['id'];
             $productId = (int) $d['product_id'];
             $cost      = (float) $d['cost'];
+            $base      = (float) $d['price_without_tax'];
             $realQty   = array_key_exists((string) $detailId, $quantities)
                 ? max(0, (float) $quantities[$detailId])
                 : (float) $d['quantity'];
@@ -293,9 +336,10 @@ class ctrl extends mdl {
             if ($realQty > 0) $affected++;
             $totalUnits += $realQty;
             $totalCost  += $subtotal;
+            $totalBase  += $realQty * $base;
         }
 
-        $this->updateEntradaTotals([$totalUnits, $totalCost, $id]);
+        $this->updateEntradaTotals([$totalUnits, $totalCost, $totalBase, $id]);
         $r = $this->qApplyEntrada([$this->userId, $id]);
 
         $udsTxt  = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
@@ -327,11 +371,13 @@ class ctrl extends mdl {
         $detail     = $this->qGetEntradaDetail([$id]);
         $totalUnits = 0;
         $totalCost  = 0;
+        $totalBase  = 0;
         $affected   = 0;
         foreach ($detail as $d) {
             $detailId  = (int) $d['id'];
             $productId = (int) $d['product_id'];
             $cost      = (float) $d['cost'];
+            $base      = (float) $d['price_without_tax'];
             $oldQty    = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
             $newQty    = array_key_exists((string) $detailId, $quantities)
                 ? max(0, (float) $quantities[$detailId])
@@ -356,9 +402,10 @@ class ctrl extends mdl {
 
             $totalUnits += $newQty;
             $totalCost  += $subtotal;
+            $totalBase  += $newQty * $base;
         }
 
-        $this->updateEntradaTotals([$totalUnits, $totalCost, $id]);
+        $this->updateEntradaTotals([$totalUnits, $totalCost, $totalBase, $id]);
 
         $udsTxt  = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
         $prodTxt = $affected . ' ' . ($affected === 1 ? 'producto ajustado' : 'productos ajustados');
@@ -403,6 +450,89 @@ class ctrl extends mdl {
             'status'  => $r ? 200 : 500,
             'message' => $r ? 'Entrada cancelada' : 'No se pudo cancelar'
         ];
+    }
+
+    // -- Formatos (plantillas de lote) --
+
+    // Devuelve los formatos visibles ya con sus productos rearmados con el shape
+    // del catalogo (init), para que el front pinte la lista y aplique el lote igual.
+    function lsFormatos() {
+        $headers = $this->qLsFormatos([$this->companiesId, $this->branchId, $this->userId]);
+        if (empty($headers)) return ['status' => 200, 'formatos' => []];
+
+        $ids   = array_map(function ($h) { return (int) $h['id']; }, $headers);
+        $items = $this->qFormatoItems($ids);
+
+        $byFormat = [];
+        foreach ($items as $it) {
+            $fid = (int) $it['inflow_format_id'];
+            // Mismo shape que init(): costo, base sin impuesto y porcentaje de tax
+            // salen del catalogo vigente (no se congelan en el formato), para que
+            // el front los siembre con seedTax igual que al agregar desde el buscador.
+            $byFormat[$fid][] = [
+                'id'                => (string) $it['id'],
+                'nombre'            => $it['nombre'],
+                'sku'               => $it['sku'] ?: '',
+                'categoria'         => $it['categoria'] ?: 'Sin categoria',
+                'costo'             => (float) $it['costo'],
+                'price_without_tax' => $it['price_without_tax'] !== null ? (float) $it['price_without_tax'] : null,
+                'tax'               => $it['tax'] !== null ? (float) $it['tax'] : null,
+                'cantidad'          => (float) $it['cantidad'],
+                'stock'             => 0,
+                'image'             => $it['image'] ?? '',
+                'icon'              => 'package',
+                'bg'                => 'bg-gray-100',
+                'color'             => 'text-gray-500'
+            ];
+        }
+
+        $formatos = [];
+        foreach ($headers as $h) {
+            $fid = (int) $h['id'];
+            $formatos[] = [
+                'id'        => $fid,
+                'name'      => $h['name'],
+                'scope'     => $h['scope'],
+                'productos' => $byFormat[$fid] ?? []
+            ];
+        }
+        return ['status' => 200, 'formatos' => $formatos];
+    }
+
+    function saveFormato() {
+        $name      = trim($_POST['name'] ?? '');
+        $scope     = $_POST['scope'] ?? 'user';
+        $productos = json_decode($_POST['productos'] ?? '[]', true);
+
+        if ($name === '')      return ['status' => 400, 'message' => 'El nombre del formato es obligatorio'];
+        if (empty($productos)) return ['status' => 400, 'message' => 'El formato no tiene productos'];
+        if (!in_array($scope, ['user', 'subsidiary', 'company'], true)) $scope = 'user';
+
+        $ok = $this->insertFormato([$name, $scope, $this->userId, $this->branchId, $this->companiesId]);
+        if (!$ok) return ['status' => 500, 'message' => 'No se pudo guardar el formato'];
+
+        $formatId = $this->qLastFormatoId([$this->companiesId, $this->userId]);
+        if (!$formatId) return ['status' => 500, 'message' => 'No se pudo recuperar el formato creado'];
+
+        foreach ($productos as $p) {
+            $itemId = (int) ($p['id'] ?? $p['product_id'] ?? 0);
+            $qty    = (float) ($p['cantidad'] ?? $p['quantity'] ?? 0);
+            if ($itemId <= 0 || $qty <= 0) continue;
+            $this->insertFormatoItem([$qty, $itemId, $formatId]);
+        }
+
+        return ['status' => 200, 'message' => 'Formato guardado', 'id' => $formatId];
+    }
+
+    function deleteFormato() {
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id <= 0) return ['status' => 400, 'message' => 'Formato invalido'];
+
+        $f = $this->qGetFormato([$id, $this->companiesId]);
+        if (!$f) return ['status' => 404, 'message' => 'Formato no encontrado'];
+
+        $ok = $this->qDeleteFormato([$id, $this->companiesId]);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Formato eliminado' : 'No se pudo eliminar el formato'];
     }
 
     private function statusBadge($status) {
