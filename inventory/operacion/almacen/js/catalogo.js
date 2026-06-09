@@ -111,6 +111,7 @@ class Category extends Templates {
                 if (response.status === 200) {
                     alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                     this.lsCategory();
+                    products.reloadCategorias();
                 } else {
                     alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                 }
@@ -136,6 +137,7 @@ class Category extends Templates {
                     if (response.status === 200) {
                         alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsCategory();
+                        products.reloadCategorias();
                     } else {
                         alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                     }
@@ -156,6 +158,7 @@ class Category extends Templates {
                     if (response.status === 200) {
                         alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsCategory();
+                        products.reloadCategorias();
                     } else {
                         alert({ icon: "error", text: response.message, btn1: true });
                     }
@@ -394,6 +397,7 @@ class Unit extends Templates {
                 if (response.status === 200) {
                     alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                     this.lsUnit();
+                    products.reloadUnidades();
                 } else {
                     alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                 }
@@ -417,6 +421,7 @@ class Unit extends Templates {
                     if (response.status === 200) {
                         alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsUnit();
+                        products.reloadUnidades();
                     } else {
                         alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
                     }
@@ -437,6 +442,7 @@ class Unit extends Templates {
                     if (response.status === 200) {
                         alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
                         this.lsUnit();
+                        products.reloadUnidades();
                     } else {
                         alert({ icon: "error", text: response.message, btn1: true });
                     }

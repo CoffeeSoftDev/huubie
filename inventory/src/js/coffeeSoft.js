@@ -2200,7 +2200,18 @@ class Components extends Complements {
         overlay.append(themeWrap);
 
         overlay.on('mousedown', (e) => { if (e.target === overlay[0] && o.backdropClose) close(); });
-        const onKey = (e) => { if (e.key === 'Escape') close(); };
+        // Escape cierra; Enter (desde un input/select de ESTE modal) equivale a pulsar Aceptar.
+        // Se respeta textarea (saltos de línea) y botones, evitando dobles envíos.
+        const onKey = (e) => {
+            if (e.key === 'Escape') { close(); return; }
+            if (e.key === 'Enter') {
+                if (!overlay[0].contains(e.target)) return;
+                const tag = (e.target.tagName || '').toLowerCase();
+                if (tag !== 'input' && tag !== 'select') return;
+                e.preventDefault();
+                o.onOk();
+            }
+        };
 
         $('body').append(overlay);
         document.body.style.overflow = 'hidden';

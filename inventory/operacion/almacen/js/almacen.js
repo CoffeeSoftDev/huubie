@@ -222,6 +222,21 @@ class Productos extends Templates {
         });
     }
 
+    // Recarga el catálogo global de categorías tras altas/ediciones hechas en la pestaña
+    // Categoría, para que el formulario y el filtro de Productos lo reflejen sin recargar
+    // la página (ambos leen el global `categorias`).
+    async reloadCategorias() {
+        const data = await useFetch({ url: this._link, data: { opc: "init" } });
+        categorias = data.categorias || [];
+    }
+
+    // Recarga el catálogo global de unidades tras altas/ediciones hechas en la pestaña
+    // Unidad, para que el formulario de Productos lo refleje sin recargar la página.
+    async reloadUnidades() {
+        const data = await useFetch({ url: this._link, data: { opc: "init" } });
+        unidades = data.unidades || [];
+    }
+
     jsonMaterial() {
         return [
             {
