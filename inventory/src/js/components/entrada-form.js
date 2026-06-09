@@ -119,7 +119,10 @@ class EntradaForm {
             onClose:         () => {},
             onSearch:        null,
             onUpdate:        () => {},
-            onCreateSupplier: null
+            onCreateSupplier: null,
+            onLoadFormatos:   null,
+            onSaveFormato:    null,
+            onDeleteFormato:  null
         };
 
         const o = options || {};
@@ -135,12 +138,13 @@ class EntradaForm {
         this.searchTerm   = '';
         this.activeIdx    = 0;      // resultado resaltado para navegacion por teclado
         this.catalogItems = [];     // resultados visibles actuales del catalogo
+        this.formatos     = [];     // cache de formatos (BD via callbacks, o localStorage de fallback)
 
         this.ensureStyles();
         this.mount();
         this.bindEvents();
         this.renderLote();
-        this.renderFormatosBadge();
+        this.refreshFormatos();
     }
 
     // -- Render estático --
@@ -430,9 +434,12 @@ class EntradaForm {
     renderProductRow(p, i) {
         const cls         = this.cls;
         const cant        = Number(p.cantidad || 0);
+        const taxNum      = Number(p.tax || 0);
         const costoNum    = Number(p.costo || 0);
+        const baseNum     = this.baseFromCost(costoNum, taxNum);
         const subtotal    = (cant * costoNum).toFixed(2);
         const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const baseFmt     = baseNum.toFixed(2);
         const nuevoStock  = Number(p.stock || 0) + cant;
         const stockColor  = p.stock === 0 ? 'text-red-500' : p.stock < 5 ? 'text-orange-500' : 'text-green-600';
         return `
@@ -460,11 +467,25 @@ class EntradaForm {
                     <input type="number" min="1" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
                 </td>
                 <td class="px-2 py-2 align-middle w-28">
-                    <div class="relative" title="Costo unitario">
+                    <div class="relative" title="Costo con impuesto">
                         <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
                             <i data-lucide="dollar-sign" class="w-3 h-3"></i>
                         </span>
                         <input type="number" min="0" step="0.01" value="${costoNum}" class="${cls.cashInp}" data-field="costo" data-idx="${i}">
+                    </div>
+                </td>
+                <td class="px-2 py-2 align-middle w-28">
+                    <div class="relative" title="Costo sin impuesto (calculado)">
+                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none flex items-center">
+                            <i data-lucide="dollar-sign" class="w-3 h-3"></i>
+                        </span>
+                        <input type="text" value="${baseFmt}" disabled tabindex="-1" class="no-spin w-full pl-6 pr-2.5 py-1.5 text-xs text-right text-gray-500 bg-gray-100 border border-gray-200 rounded cursor-not-allowed" data-costo-base>
+                    </div>
+                </td>
+                <td class="px-2 py-2 align-middle w-20">
+                    <div class="relative" title="Impuesto (%)">
+                        <input type="number" min="0" step="0.01" value="${taxNum}" class="no-spin w-full pr-5 pl-2.5 py-1.5 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all" data-field="tax" data-idx="${i}">
+                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[11px]">%</span>
                     </div>
                 </td>
                 <td class="px-5 py-2 align-middle text-right w-28">
@@ -487,7 +508,9 @@ class EntradaForm {
                         <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
                         <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-32">Stock</th>
                         <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Cantidad</th>
-                        <th class="text-left px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo unit.</th>
+                        <th class="text-left px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo c/imp</th>
+                        <th class="text-left px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo s/imp</th>
+                        <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Imp. %</th>
                         <th class="text-right px-5 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Subtotal</th>
                         <th class="w-10 px-2 py-2"></th>
                     </tr>
@@ -498,16 +521,15 @@ class EntradaForm {
 
     renderSearchResult(p, i) {
         const o          = this.opts;
-        const term       = this.searchTerm;
         const stockColor = p.stock === 0 ? 'text-red-500' : p.stock < 5 ? 'text-orange-500' : 'text-green-600';
         const costoFmt   = Number(p.costo || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return `
             <div class="ef-cat-item flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-blue-50/60 border-b border-gray-100 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
                 ${this.prodThumb(p, 'w-9 h-9', 'w-4 h-4')}
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-gray-800 truncate">${this.highlightTerm(p.nombre, term)}</p>
+                    <p class="text-xs font-semibold text-gray-800 truncate">${this.esc(p.nombre)}</p>
                     <p class="text-[10px] text-gray-500 truncate mt-0.5">
-                        <span class="font-mono">${this.highlightTerm(p.sku, term)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
+                        <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
                     </p>
                 </div>
                 <div class="text-right flex-shrink-0">
@@ -536,7 +558,6 @@ class EntradaForm {
             @keyframes efFlash { 0% { background-color: rgba(16,185,129,0.20); } 100% { background-color: transparent; } }
             tr.ef-flash { animation: efFlash 0.6s ease-out; }
             .ef-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid #D1D5DB; background: #F3F4F6; font-size: 9px; line-height: 1; color: #6B7280; font-family: monospace; }
-            .ef-mark { background: #EFC9BC; color: #8F3D2A; border-radius: 2px; padding: 0 1px; font-weight: 700; }
             .ef-cat-item.ef-active .ef-add-btn { background: #C05A40; border-color: #C05A40; color: #fff; }`;
         const style = document.createElement('style');
         style.id = 'entradaFormStyles';
@@ -551,7 +572,7 @@ class EntradaForm {
         this.wrap = $('<div>', { id: o.id, class: o.class });
         this.wrap.html(`
             <div class="absolute inset-0 bg-black/40" data-modal-close></div>
-            <div class="relative z-10 w-full max-w-[1080px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+            <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
                 ${this.renderHeader()}
                 ${this.renderConfigRow()}
                 ${this.renderSearchBar()}
@@ -704,12 +725,31 @@ class EntradaForm {
             existing.cantidad = Number(existing.cantidad || 0) + qty;
             idx = this.lote.indexOf(existing);
         } else {
-            this.lote.push(Object.assign({}, prod, { cantidad: qty }));
+            this.lote.push(Object.assign({}, prod, this.seedTax(prod), { cantidad: qty }));
             idx = this.lote.length - 1;
         }
         this.renderLote();
         this.flashRow(idx);
         return idx;
+    }
+
+    // Semilla de impuesto por renglon. El pivote editable es el costo CON
+    // impuesto; la base sin tax se calcula (= costo / (1 + tax/100)) y queda
+    // bloqueada. El porcentaje y la base de referencia salen del item.
+    seedTax(prod) {
+        const tax = Number(prod.tax || 0);
+        let costo = (prod.price_without_tax != null && prod.price_without_tax !== '')
+            ? Number(prod.price_without_tax) * (1 + tax / 100)
+            : Number(prod.costo || 0);
+        if (!isFinite(costo) || costo < 0) costo = 0;
+        return { costo: costo, tax: tax, costoSinTax: this.baseFromCost(costo, tax) };
+    }
+
+    // Base sin impuesto a partir del costo con impuesto y la tasa (%).
+    baseFromCost(costo, tax) {
+        const c = Number(costo || 0);
+        const t = Number(tax || 0);
+        return t > 0 ? c / (1 + t / 100) : c;
     }
 
     // Enter en el buscador: prioriza SKU exacto (lector de codigo), luego el
@@ -792,7 +832,12 @@ class EntradaForm {
         const field = $el.data('field');
         if (isNaN(idx) || !this.lote[idx] || !field) return;
         this.lote[idx][field] = $el.val();
-        if (field === 'cantidad' || field === 'costo') {
+        // costo (c/imp) e tax (%) son los pivotes; la base s/imp se deriva.
+        if (field === 'costo' || field === 'tax') {
+            const p = this.lote[idx];
+            p.costoSinTax = this.baseFromCost(p.costo, p.tax);
+        }
+        if (field === 'cantidad' || field === 'costo' || field === 'tax') {
             this.refreshRow(idx);
             this.updateTotals();
         }
@@ -804,9 +849,11 @@ class EntradaForm {
         if (!p) return;
         const cant        = Number(p.cantidad || 0);
         const costoNum    = Number(p.costo || 0);
+        const baseNum     = this.baseFromCost(costoNum, p.tax);
         const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const nuevoStock  = Number(p.stock || 0) + cant;
         const $row = $(`#${o.id}_listaProductos tr[data-idx="${i}"]`);
+        $row.find('[data-costo-base]').val(baseNum.toFixed(2));
         $row.find('[data-subtotal]').text('$' + subtotalFmt);
         $row.find('[data-nuevo-stock]').text(nuevoStock);
     }
@@ -854,9 +901,11 @@ class EntradaForm {
             productos:  this.lote.map(p => ({
                 id:     p.id,
                 nombre: p.nombre, sku: p.sku, icon: p.icon, bg: p.bg, color: p.color,
-                cant:   Number(p.cantidad || 0),
-                costo:  Number(p.costo || 0),
-                stockPrev: Number(p.stock || 0)
+                cant:           Number(p.cantidad || 0),
+                priceWithoutTax: Number(p.costoSinTax || 0),
+                tax:            Number(p.tax || 0),
+                costo:          Number(p.costo || 0),
+                stockPrev:      Number(p.stock || 0)
             })),
             totalUds:   this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0),
             totalCosto: this.lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0)
@@ -867,8 +916,26 @@ class EntradaForm {
 
     // -- Formatos --
 
-    loadFormatos() {
-        // Guarda contra localStorage corrupto: loadFormatos corre en el constructor,
+    // Fuente de verdad de los formatos: si el orquestador inyecta onLoadFormatos
+    // (entradas.js -> BD) se usa esa; si no, cae a localStorage (modo UI-first/SAMPLE).
+    async refreshFormatos() {
+        if (typeof this.opts.onLoadFormatos === 'function') {
+            try {
+                const list = await this.opts.onLoadFormatos();
+                this.formatos = Array.isArray(list) ? list : [];
+            } catch (e) {
+                this.formatos = [];
+            }
+        } else {
+            this.formatos = this.loadLocalFormatos();
+        }
+        this.renderFormatosBadge();
+        if (!$(`#${this.opts.id}_formatosDropdown`).hasClass('hidden')) this.renderFormatosLista();
+        return this.formatos;
+    }
+
+    loadLocalFormatos() {
+        // Guarda contra localStorage corrupto: refreshFormatos corre en el constructor,
         // un JSON invalido sin captura romperia la apertura del modal entero.
         try {
             const parsed = JSON.parse(localStorage.getItem(this.FORMATOS_KEY) || '[]');
@@ -878,7 +945,7 @@ class EntradaForm {
         }
     }
 
-    persistFormatos(arr) {
+    persistLocalFormatos(arr) {
         localStorage.setItem(this.FORMATOS_KEY, JSON.stringify(arr));
     }
 
@@ -970,21 +1037,20 @@ class EntradaForm {
                 .addClass('border-blue-300 bg-blue-50');
         });
 
-        $(`#${modalId}_confirm`).on('click', () => {
+        $(`#${modalId}_confirm`).on('click', async () => {
             const name = $(`#${modalId}_name`).val().trim();
             if (!name) { $(`#${modalId}_name`).focus(); return; }
-            const scope    = $(`input[name="${modalId}_scope"]:checked`).val() || 'user';
-            const formatos = this.loadFormatos();
-            formatos.unshift({
-                id:        Date.now(),
-                name:      name,
-                scope:     scope,
-                productos: this.lote.map(p => Object.assign({}, p)),
-                createdAt: new Date().toISOString()
-            });
-            this.persistFormatos(formatos);
-            this.renderFormatosBadge();
-            this.renderFormatosLista();
+            const scope     = $(`input[name="${modalId}_scope"]:checked`).val() || 'user';
+            const productos = this.lote.map(p => Object.assign({}, p));
+
+            if (typeof this.opts.onSaveFormato === 'function') {
+                await this.opts.onSaveFormato({ name: name, scope: scope, productos: productos });
+            } else {
+                const formatos = this.loadLocalFormatos();
+                formatos.unshift({ id: Date.now(), name: name, scope: scope, productos: productos, createdAt: new Date().toISOString() });
+                this.persistLocalFormatos(formatos);
+            }
+            await this.refreshFormatos();
             closeSaveModal();
         });
 
@@ -995,23 +1061,31 @@ class EntradaForm {
     }
 
     applyFormato(id) {
-        const f = this.loadFormatos().find(x => x.id === id);
+        const f = (this.formatos || []).find(x => String(x.id) === String(id));
         if (!f) return;
-        this.lote = f.productos.map(p => Object.assign({}, p));
+        // Rearma el lote por el mismo camino que agregar desde el buscador: seedTax
+        // deriva costo (c/imp), base s/imp e impuesto desde price_without_tax + tax
+        // del catalogo vigente, de modo que el formato refleja el precio/impuesto
+        // actual del producto en lugar de uno congelado al guardarlo.
+        this.lote = (f.productos || []).map(p =>
+            Object.assign({}, p, this.seedTax(p), { cantidad: Number(p.cantidad || 0) })
+        );
         $(`#${this.opts.id}_formatosDropdown`).addClass('hidden');
         this.renderLote();
     }
 
-    deleteFormato(id) {
+    async deleteFormato(id) {
         if (!confirm(this.opts.labels.confirmDel)) return;
-        const formatos = this.loadFormatos().filter(x => x.id !== id);
-        this.persistFormatos(formatos);
-        this.renderFormatosBadge();
-        this.renderFormatosLista();
+        if (typeof this.opts.onDeleteFormato === 'function') {
+            await this.opts.onDeleteFormato(id);
+        } else {
+            this.persistLocalFormatos(this.loadLocalFormatos().filter(x => String(x.id) !== String(id)));
+        }
+        await this.refreshFormatos();
     }
 
     renderFormatosBadge() {
-        const count = this.loadFormatos().length;
+        const count = (this.formatos || []).length;
         const $b = $(`#${this.opts.id}_cntFormatos`);
         if (count > 0) $b.text(count).removeClass('hidden');
         else           $b.addClass('hidden');
@@ -1020,7 +1094,7 @@ class EntradaForm {
     renderFormatosLista() {
         const o        = this.opts;
         const $lista   = $(`#${o.id}_formatosLista`);
-        const formatos = this.loadFormatos();
+        const formatos = this.formatos || [];
         if (!formatos.length) {
             $lista.html(`
                 <div class="flex flex-col items-center justify-center py-6 px-3 text-center">
@@ -1072,8 +1146,9 @@ class EntradaForm {
     toggleFormatosDropdown() {
         const $dd = $(`#${this.opts.id}_formatosDropdown`);
         if ($dd.hasClass('hidden')) {
-            this.renderFormatosLista();
+            this.renderFormatosLista();   // pinta lo que haya en cache de inmediato
             $dd.removeClass('hidden');
+            this.refreshFormatos();       // y recarga desde la fuente (BD) en segundo plano
         } else {
             $dd.addClass('hidden');
         }
@@ -1159,21 +1234,6 @@ class EntradaForm {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
-    }
-
-    // Resalta con <mark> las coincidencias del termino dentro del texto. Escapa
-    // cada fragmento por separado para no romper el HTML ni el resaltado.
-    highlightTerm(text, term) {
-        const str = String(text == null ? '' : text);
-        const q   = String(term == null ? '' : term).trim();
-        if (!q) return this.esc(str);
-        const safe  = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const parts = str.split(new RegExp(`(${safe})`, 'ig'));
-        // split con un grupo de captura intercala fragmentos: los indices impares
-        // son las coincidencias; los pares, el texto entre ellas.
-        return parts.map((part, i) =>
-            i % 2 === 1 ? `<mark class="ef-mark">${this.esc(part)}</mark>` : this.esc(part)
-        ).join('');
     }
 
     prodThumb(p, boxCls, iconCls) {

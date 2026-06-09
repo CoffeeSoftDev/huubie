@@ -114,6 +114,8 @@ class mdl extends CRUD {
                 ic.name                                    AS categoria,
                 COALESCE(ia.cost_unit, i.price, 0)         AS costo,
                 i.price                                    AS precio,
+                i.price_without_tax                        AS price_without_tax,
+                i.tax                                      AS tax,
                 i.image                                    AS image
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
@@ -289,6 +291,8 @@ class mdl extends CRUD {
                 d.confirmed_quantity,
                 d.cost,
                 d.subtotal,
+                d.price_without_tax,
+                d.tax,
                 d.previous_stock,
                 d.resulting_stock,
                 d.batch_code,
@@ -311,9 +315,10 @@ class mdl extends CRUD {
         $query = "
             INSERT INTO {$this->bd}inventory_inflow
                 (folio, note, total_products, total_units, total_cost,
+                 total_price_without_tax,
                  status, inflow_origin_id, warehouse_id, supplier_id,
                  branch_id, user_id, companies_id, date_inflow)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
     }
@@ -321,9 +326,22 @@ class mdl extends CRUD {
     function insertEntradaDetail($array) {
         $query = "
             INSERT INTO {$this->bd}detail_inventory_inflow
-                (batch_code, quantity, cost, subtotal, previous_stock, resulting_stock,
+                (batch_code, quantity, cost, subtotal, price_without_tax, tax,
+                 previous_stock, resulting_stock,
                  expires_at, item_id, inventory_inflow_id, unit_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Refleja en el item el ultimo costo capturado en la entrada: base sin
+    // impuesto, porcentaje de tax y precio recalculado (misma formula que el
+    // catalogo: price = price_without_tax + price_without_tax * tax / 100).
+    function updateItemTax($array) {
+        $query = "
+            UPDATE {$this->bd}item
+            SET price = ?, price_without_tax = ?, tax = ?
+            WHERE id = ? AND companies_id = ?
         ";
         return $this->_CUD($query, $array);
     }
@@ -340,7 +358,7 @@ class mdl extends CRUD {
     function updateEntradaTotals($array) {
         $query = "
             UPDATE {$this->bd}inventory_inflow
-            SET total_units = ?, total_cost = ?, updated_at = NOW()
+            SET total_units = ?, total_cost = ?, total_price_without_tax = ?, updated_at = NOW()
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);
@@ -389,6 +407,105 @@ class mdl extends CRUD {
             UPDATE {$this->bd}stock
             SET quantity = ?, last_movement_at = NOW(), updated_at = NOW()
             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // -- Formatos (plantillas reutilizables de lote) --
+
+    // Cabeceras visibles para el contexto actual segun el scope guardado:
+    // company (toda la empresa), subsidiary (misma sucursal) o user (solo el dueno).
+    function qLsFormatos($array) {
+        $query = "
+            SELECT id, name, scope, created_at
+            FROM {$this->bd}inflow_format
+            WHERE active = 1 AND companies_id = ?
+              AND ( scope = 'company'
+                 OR (scope = 'subsidiary' AND branch_id = ?)
+                 OR (scope = 'user' AND user_id = ?) )
+            ORDER BY created_at DESC, id DESC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Renglones de un conjunto de formatos, enriquecidos con los datos vigentes
+    // del catalogo (nombre/sku/categoria/costo/imagen) para rearmar el lote igual
+    // que init(). El costo se toma del catalogo, no se congela en el formato.
+    function qFormatoItems($ids) {
+        if (empty($ids)) return [];
+        $place = implode(',', array_fill(0, count($ids), '?'));
+        $query = "
+            SELECT
+                fi.inflow_format_id                AS inflow_format_id,
+                fi.quantity                        AS cantidad,
+                i.id                               AS id,
+                i.name                             AS nombre,
+                ia.sku                             AS sku,
+                ic.name                            AS categoria,
+                COALESCE(ia.cost_unit, i.price, 0) AS costo,
+                i.price_without_tax                AS price_without_tax,
+                i.tax                              AS tax,
+                i.image                            AS image
+            FROM {$this->bd}inflow_format_item fi
+            INNER JOIN {$this->bd}item            i  ON i.id = fi.item_id AND i.active = 1
+            LEFT  JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT  JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
+            WHERE fi.active = 1 AND fi.inflow_format_id IN ({$place})
+            ORDER BY i.name ASC
+        ";
+        $r = $this->_Read($query, $ids);
+        return is_array($r) ? $r : [];
+    }
+
+    function insertFormato($array) {
+        $query = "
+            INSERT INTO {$this->bd}inflow_format
+                (name, scope, user_id, branch_id, companies_id)
+            VALUES (?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // _CUD no devuelve el id generado (cierra la conexion); recuperamos el ultimo
+    // del usuario+empresa, mismo patron que saveEntrada con el folio.
+    function qLastFormatoId($array) {
+        $query = "
+            SELECT id
+            FROM {$this->bd}inflow_format
+            WHERE companies_id = ? AND user_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['id'] : 0;
+    }
+
+    function insertFormatoItem($array) {
+        $query = "
+            INSERT INTO {$this->bd}inflow_format_item
+                (quantity, item_id, inflow_format_id)
+            VALUES (?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function qGetFormato($array) {
+        $query = "
+            SELECT id, name, scope, user_id, branch_id, companies_id
+            FROM {$this->bd}inflow_format
+            WHERE id = ? AND companies_id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    function qDeleteFormato($array) {
+        $query = "
+            UPDATE {$this->bd}inflow_format
+            SET active = 0, updated_at = NOW()
+            WHERE id = ? AND companies_id = ?
         ";
         return $this->_CUD($query, $array);
     }

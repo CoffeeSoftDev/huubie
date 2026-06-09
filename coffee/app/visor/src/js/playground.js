@@ -132,6 +132,7 @@ const pg = {
     lastHtml:  '',           // ultimo HTML generado (para "abrir en pestaña")
     lastTheme: 'huubie-ui',
     templates: [],           // historial de templates renderizados (sesión): {id, html, isDoc, theme, themeLabel, title, ts}
+    _savedTemplates: [],     // plantillas persistentes leídas de documents/template/ (cache del modal)
     _activeTplId: null,      // template actualmente cargado en el sandbox
     _lastUserText: '',       // último prompt del usuario (titula los templates)
     splitW:    '',           // ancho del panel de chat (px) — splitter
@@ -406,7 +407,23 @@ function pgBind() {
     });
     $('#pgPromptSave').on('click', () => pgSavePrompt());
 
-    $(document).on('keydown', e => { if (e.key === 'Escape') pgCloseKnowledge(); });
+    // Guardar plantilla
+    $('#pgSaveTplBtn').on('click', () => pgOpenSaveTemplate());
+    $('#pgSaveTplClose, #pgSaveTplCancel').on('click', () => pgCloseSaveTemplate());
+    $('#pgSaveTplModal .pg-modal-backdrop').on('click', () => pgCloseSaveTemplate());
+    $('#pgSaveTplConfirm').on('click', () => pgConfirmSaveTemplate());
+    $('#pgSaveTplName').on('input', function () {
+        $('#pgSaveTplSlug').text(this.value.trim() ? 'Carpeta: documents/template/' + pgSlugify(this.value) + '/' : '');
+    }).on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pgConfirmSaveTemplate(); } });
+
+    // Plantillas guardadas
+    $('#pgTemplatesBtn').on('click', () => pgOpenTemplates());
+    $('#pgTemplatesClose, #pgTemplatesDone').on('click', () => pgCloseTemplates());
+    $('#pgTemplatesModal .pg-modal-backdrop').on('click', () => pgCloseTemplates());
+
+    $(document).on('keydown', e => {
+        if (e.key === 'Escape') { pgCloseKnowledge(); pgCloseSaveTemplate(); pgCloseTemplates(); }
+    });
 }
 
 /* ── Modo lienzo ── */
@@ -1235,6 +1252,162 @@ function pgDownloadHtml() {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1500);
     pgToast('HTML descargado', 'success');
+}
+
+/* ── Plantillas persistentes (documents/template/<slug>/) ──
+ * A diferencia del historial de sesión (pg.templates, en memoria), estas se
+ * guardan a disco: el render + su tema + la conversación que lo generó, para
+ * reabrirlas más tarde en un chat independiente. */
+
+// Gemelo JS del slug del backend: minúsculas, sin acentos, separadores a guion.
+function pgSlugify(name) {
+    return String(name || '').toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')   // quita acentos
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'plantilla';
+}
+
+function pgOpenSaveTemplate() {
+    if (!pg.lastHtml) { pgToast('Aún no hay render para guardar', 'warn'); return; }
+    const suggested = (pg._lastUserText || '').trim().slice(0, 46);
+    $('#pgSaveTplName').val(suggested);
+    $('#pgSaveTplSlug').text(suggested ? 'Carpeta: documents/template/' + pgSlugify(suggested) + '/' : '');
+    $('#pgSaveTplModal').removeClass('hidden').attr('aria-hidden', 'false');
+    setTimeout(() => $('#pgSaveTplName').trigger('focus'), 30);
+    if (window.lucide) lucide.createIcons();
+}
+function pgCloseSaveTemplate() {
+    $('#pgSaveTplModal').addClass('hidden').attr('aria-hidden', 'true');
+}
+
+async function pgConfirmSaveTemplate() {
+    const name = $('#pgSaveTplName').val().trim();
+    if (!name) { pgToast('Escribe un nombre para la plantilla', 'warn'); return; }
+    if (!pg.lastHtml) { pgToast('No hay render para guardar', 'warn'); return; }
+
+    const t = PG_THEMES[pg.lastTheme] || PG_THEMES[pg.theme] || {};
+    const meta = {
+        title:      (pg._lastUserText || name).slice(0, 120),
+        theme:      pg.lastTheme || pg.theme,
+        themeLabel: t.label || (pg.lastTheme || pg.theme),
+        agentKey:   pg.agentKey,
+        agentLabel: pgAgentLabel(),
+        model:      pg.model || '',
+        prompt:     pg.prompt || '',
+        userText:   pg._lastUserText || '',
+        isDoc:      !!pg._lastIsDoc,
+        history:    pg.history
+    };
+
+    const $btn = $('#pgSaveTplConfirm').prop('disabled', true);
+    try {
+        const form = new FormData();
+        form.append('action', 'savetemplate');
+        form.append('name', name);
+        form.append('html', pg.lastHtml);
+        form.append('meta', JSON.stringify(meta));
+        const res  = await fetch(PG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            pgCloseSaveTemplate();
+            pgToast('Plantilla guardada en ' + data.path, 'success');
+        } else {
+            pgToast(data.message || 'No se pudo guardar', 'error');
+        }
+    } catch (e) {
+        pgToast('Error de red al guardar la plantilla', 'error');
+    }
+    $btn.prop('disabled', false);
+}
+
+async function pgOpenTemplates() {
+    $('#pgTemplatesModal').removeClass('hidden').attr('aria-hidden', 'false');
+    $('#pgTemplatesList').html('<p class="pg-hint">Cargando plantillas…</p>');
+    if (window.lucide) lucide.createIcons();
+    try {
+        const res  = await fetch(`${PG_API}?action=listtemplates`, { cache: 'no-store' });
+        const data = await res.json();
+        pg._savedTemplates = data.templates || [];
+        pgRenderTemplatesList();
+    } catch (e) {
+        $('#pgTemplatesList').html('<p class="pg-hint">No se pudieron cargar las plantillas.</p>');
+    }
+}
+function pgCloseTemplates() {
+    $('#pgTemplatesModal').addClass('hidden').attr('aria-hidden', 'true');
+}
+function pgRenderTemplatesList() {
+    const items = pg._savedTemplates || [];
+    const $list = $('#pgTemplatesList').empty();
+    $('#pgTemplatesSummary').text(items.length ? `${items.length} plantilla(s)` : 'Sin plantillas');
+    if (!items.length) {
+        $list.append('<p class="pg-hint">Aún no has guardado plantillas. Usa el botón <i data-lucide="bookmark-plus" class="w-3 h-3" style="display:inline"></i> del sandbox.</p>');
+        if (window.lucide) lucide.createIcons();
+        return;
+    }
+    items.forEach(t => {
+        const meta = [t.themeLabel, t.agentLabel, t.savedAt].filter(Boolean).join(' · ');
+        const $row = $(`
+            <div class="pg-context-item" style="cursor:pointer;align-items:flex-start;flex-direction:column;gap:4px;">
+                <div style="display:flex;width:100%;align-items:center;gap:8px;">
+                    <i data-lucide="layout-template" class="w-4 h-4" style="color:var(--vsr-accent-soft);"></i>
+                    <span class="ci-name">${pgEscape(t.name)}</span>
+                    <span class="ci-meta">${pgEscape(t.size || '')}</span>
+                </div>
+                <span class="pg-hint" style="margin:0 0 0 24px;">${pgEscape(meta)}</span>
+            </div>`);
+        $row.on('click', () => pgLoadSavedTemplate(t));
+        $list.append($row);
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+/* Carga una plantilla de disco: restaura su tema, la pinta en el sandbox y deja
+ * su conversación lista para seguir iterando en un chat independiente. */
+function pgLoadSavedTemplate(t) {
+    if (!t || !t.html) { pgToast('Plantilla sin contenido', 'warn'); return; }
+
+    // Restaurar el tema con el que se generó.
+    if (t.theme && PG_THEMES[t.theme]) {
+        pg.theme = t.theme;
+        $('#pgThemeSelect').val(t.theme);
+        $('#pgSandboxTheme').text((PG_THEMES[t.theme] || {}).label || t.theme);
+        pgSaveSettings();
+    }
+    // Restaurar agente si difiere.
+    if (t.agentKey && PG_AGENTS[t.agentKey] && t.agentKey !== pg.agentKey) {
+        $('#pgAgentSelect').val(t.agentKey);
+        pgApplyAgent(t.agentKey, true);
+    }
+
+    // Arrancamos un chat independiente: limpiamos y, si la plantilla traía
+    // conversación, la rehidratamos para que el agente recuerde el contexto.
+    pgClearChat();
+    pg._lastUserText = t.userText || t.title || t.name || '';
+    if (Array.isArray(t.history) && t.history.length) {
+        pg.history = t.history.slice();
+        $('#pgChatBody .pg-empty').remove();
+        pg.history.forEach(m => {
+            if (m.role === 'user') {
+                pgAppendUser(
+                    (m.content || '').replace(/\n\n=== DOCUMENTOS ADJUNTOS[\s\S]*$/, '').trim(),
+                    m.imagesPreview, m.docsMeta
+                );
+            } else if (m.role === 'assistant') {
+                pgAppendAI(m.content || '');
+            }
+        });
+    }
+
+    pgRenderSandbox(t.html, !!t.isDoc);
+    // Registrar la plantilla en el historial de sesión + su tarjeta en el chat.
+    const tpl = pgPushTemplate(t.html, !!t.isDoc);
+    if (tpl) {
+        tpl.title = t.name || tpl.title;
+        const $last = $('#pgChatBody .ia-msg.ai').last();
+        pgAppendTemplateCard($last.length ? $last : $('#pgChatBody'), tpl);
+    }
+    pgCloseTemplates();
+    pgToast('Plantilla "' + (t.name || '') + '" cargada', 'success');
 }
 
 /* ── Helpers ── */

@@ -32,6 +32,15 @@ body.swal2-height-auto {
   padding-right: 0 !important;
 }
 
+/* #main__content tiene transition: all 0.5s (para el push del sidebar). Al
+   abrir un alert, SweetAlert (sobre todo la version remota) toca el body un
+   instante y ese reflow de pocos px se vuelve un "encogerse y volver" animado.
+   Mientras el alert este visible congelamos la transicion del shell para que
+   cualquier reajuste sea instantaneo e imperceptible. */
+body.swal2-shown main > #main__content {
+  transition: none !important;
+}
+
 #content-wrapper {
   display: flex;
   flex-direction: row;

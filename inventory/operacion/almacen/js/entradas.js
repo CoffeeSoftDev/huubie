@@ -638,9 +638,11 @@ class EntradasView extends Templates {
                         branch_id:  payload.sucursalId,
                         supplier_id:      payload.supplierId || null,
                         productos:        payload.productos.map(p => ({
-                            product_id: p.id,
-                            quantity:   p.cant,
-                            cost:       p.costo
+                            product_id:        p.id,
+                            quantity:          p.cant,
+                            price_without_tax: p.priceWithoutTax,
+                            tax:               p.tax,
+                            cost:              p.costo
                         }))
                     };
 
@@ -655,6 +657,34 @@ class EntradasView extends Templates {
                         entradas.lsKpis();
                     } else {
                         if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la entrada' });
+                    }
+                },
+                onLoadFormatos: async () => {
+                    const r = await useFetch({ url: apiEntradas, data: { opc: 'lsFormatos' } });
+                    return (r && r.status === 200) ? (r.formatos || []) : [];
+                },
+                onSaveFormato: async (data) => {
+                    const r = await useFetch({
+                        url:  apiEntradas,
+                        data: {
+                            opc:       'saveFormato',
+                            name:      data.name,
+                            scope:     data.scope,
+                            productos: JSON.stringify((data.productos || []).map(p => ({ id: p.id, cantidad: p.cantidad })))
+                        }
+                    });
+                    if (r && r.status === 200) {
+                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Formato guardado' });
+                    } else {
+                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo guardar el formato' });
+                    }
+                },
+                onDeleteFormato: async (id) => {
+                    const r = await useFetch({ url: apiEntradas, data: { opc: 'deleteFormato', id: id } });
+                    if (r && r.status === 200) {
+                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Formato eliminado' });
+                    } else {
+                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo eliminar el formato' });
                     }
                 },
                 onClose: () => {}
