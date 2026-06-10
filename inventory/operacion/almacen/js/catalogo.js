@@ -35,6 +35,7 @@ class Catalogo extends Templates {
         warehouse.filterBarWarehouse();
         inflow.filterBarInflow();
         shrinkage.filterBarShrinkage();
+        supplier.filterBarSupplier();
 
         category.lsCategory();
     }
@@ -317,7 +318,7 @@ class Area extends Templates {
                 opc: "input",
                 id: "name",
                 lbl: "Nombre del área",
-                tipo: "texto",
+                // tipo: "texto",
                 class: "col-12 mb-3",
                 required: true
             },
@@ -325,7 +326,7 @@ class Area extends Templates {
                 opc: "input",
                 id: "description",
                 lbl: "Descripción",
-                tipo: "texto",
+                // tipo: "texto",
                 class: "col-12 mb-3"
             }
         ];
@@ -964,6 +965,163 @@ class ShrinkageReason extends Templates {
                 class: "col-12 col-md-6 mb-3"
             },
             badgePreviewField()
+        ];
+    }
+}
+
+class Supplier extends Templates {
+    constructor(link, div_modulo) {
+        super(link, div_modulo);
+        this.PROJECT_NAME = "supplier";
+    }
+
+    filterBarSupplier() {
+        const container = $("#container-suppliers");
+        container.html('<div id="filterbar-supplier" class="mb-2"></div><div id="table-supplier"></div>');
+
+        this.createfilterBar({
+            parent: "filterbar-supplier",
+            data: [
+                {
+                    opc: "select",
+                    id: "active",
+                    lbl: "Estado",
+                    class: "col-12 col-md-2",
+                    data: [
+                        { id: "1", valor: "Activos" },
+                        { id: "0", valor: "Inactivos" }
+                    ],
+                    onchange: "supplier.lsSupplier()"
+                },
+                {
+                    opc: "button",
+                    class: "col-12 col-md-2",
+                    className: 'w-100',
+                    id: "btnNewSupplier",
+                    text: "Nuevo proveedor",
+                    onClick: () => this.addSupplier()
+                }
+            ]
+        });
+    }
+
+    lsSupplier() {
+        this.createTable({
+            parent: "table-supplier",
+            idFilterBar: "filterbar-supplier",
+            data: { opc: "lsSupplier" },
+            coffeesoft: true,
+            conf: { datatable: true, pag: 15 },
+            attr: {
+                id: "tbSupplier",
+                theme: "light",
+                striped: true,
+                title: "Proveedores",
+                subtitle: "Maestro de proveedores de la empresa",
+                center: [5]
+            }
+        });
+    }
+
+    addSupplier() {
+        this.createModalForm({
+            id: "formSupplierAdd",
+            data: { opc: "addSupplier" },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: "Agregar proveedor", size: 'small', closeButton: true },
+            json: this.jsonSupplier(),
+            success: (response) => {
+                if (response.status === 200) {
+                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                    this.lsSupplier();
+                } else {
+                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                }
+            }
+        });
+    }
+
+    async editSupplier(id) {
+        const request = await useFetch({ url: this._link, data: { opc: "getSupplier", id: id } });
+
+        if (request.status === 200) {
+            this.createModalForm({
+                id: "formSupplierEdit",
+                data: { opc: "editSupplier", id: id },
+                theme: 'light',
+                coffeesoft: true,
+                bootbox: { title: "Editar proveedor", size: 'small', closeButton: true },
+                autofill: request.data,
+                json: this.jsonSupplier(),
+                success: (response) => {
+                    if (response.status === 200) {
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.lsSupplier();
+                    } else {
+                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                    }
+                }
+            });
+        }
+    }
+
+    statusSupplier(id, active) {
+        const action = active === 1 ? "desactivar" : "activar";
+        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+
+        this.swalQuestion({
+            opts: { title: `¿${actionTitle} proveedor?`, text: `Esta acción ${action}á el proveedor`, icon: "warning" },
+            data: { opc: "statusSupplier", active: active === 1 ? 0 : 1, id: id },
+            methods: {
+                send: (response) => {
+                    if (response.status === 200) {
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.lsSupplier();
+                    } else {
+                        alert({ icon: "error", text: response.message, btn1: true });
+                    }
+                }
+            }
+        });
+    }
+
+    jsonSupplier() {
+        return [
+            {
+                opc: "input",
+                id: "name",
+                lbl: "Nombre del proveedor",
+                tipo: "texto",
+                class: "col-12 mb-3",
+                required: true
+            },
+            {
+                opc: "input",
+                id: "contact_name",
+                lbl: "Nombre de contacto",
+                tipo: "texto",
+                class: "col-12 col-md-6 mb-3",
+                required: false
+            },
+            {
+                opc: "input",
+                id: "phone",
+                lbl: "Teléfono",
+                tipo: "texto",
+                class: "col-12 col-md-6 mb-3",
+                required: false
+
+            },
+            {
+                opc: "input",
+                id: "email",
+                lbl: "Email",
+                tipo: "texto",
+                class: "col-12 mb-3",
+                required: false
+
+            }
         ];
     }
 }

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis solicitudes - Huubie Inventarios</title>
+
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema "Arcilla Invernal": remapea blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            }
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <!-- Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:#e5e7eb; }
+        /* Frame tipo telefono */
+        .phone-frame {
+            width:390px; height:844px; background:#f3f4f6;
+            border-radius:42px; box-shadow:0 25px 60px rgba(0,0,0,.35), 0 0 0 11px #1f2937, 0 0 0 13px #374151;
+            overflow:hidden; position:relative;
+        }
+        .phone-scroll { height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        .phone-scroll::-webkit-scrollbar{ width:0; display:none; }
+        .chips-scroll::-webkit-scrollbar{ height:0; display:none; }
+        .chips-scroll{ scrollbar-width:none; }
+        .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:26px; background:#1f2937; border-bottom-left-radius:16px; border-bottom-right-radius:16px; z-index:50; }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center py-8">
+
+<!-- ============================================================
+     FRAME TELEFONO ~390x844
+============================================================ -->
+<div class="phone-frame">
+    <div class="notch"></div>
+
+    <!-- Status bar simulado -->
+    <div class="absolute top-0 left-0 right-0 h-7 px-6 flex items-center justify-between text-[11px] font-semibold text-gray-700 z-40">
+        <span>9:41</span>
+        <span class="flex items-center gap-1">
+            <i data-lucide="signal" class="w-3.5 h-3.5"></i>
+            <i data-lucide="wifi" class="w-3.5 h-3.5"></i>
+            <i data-lucide="battery-full" class="w-4 h-4"></i>
+        </span>
+    </div>
+
+    <div class="phone-scroll pt-7 pb-24">
+
+        <!-- ===================== TOP BAR ===================== -->
+        <div class="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 pt-3 pb-3">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h1 class="text-lg font-bold text-gray-800 leading-tight">Mis solicitudes</h1>
+                    <button class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-100">
+                        <i data-lucide="map-pin" class="w-3 h-3"></i> Sucursal Centro
+                    </button>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                    RM
+                </div>
+            </div>
+
+            <!-- Chips de filtro horizontal scrollable -->
+            <div class="chips-scroll flex items-center gap-2 overflow-x-auto -mx-4 px-4">
+                <button class="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-blue-600 text-white whitespace-nowrap">Todas</button>
+                <button class="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 whitespace-nowrap hover:border-blue-400">Solicitada</button>
+                <button class="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 whitespace-nowrap hover:border-blue-400">Aprobada</button>
+                <button class="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 whitespace-nowrap hover:border-blue-400">Recibida</button>
+                <button class="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 whitespace-nowrap hover:border-blue-400">Rechazada</button>
+            </div>
+        </div>
+
+        <!-- ===================== LISTA DE CARDS ===================== -->
+        <div class="px-4 pt-3 space-y-3">
+
+            <!-- Card: Solicitada -->
+            <a href="mobile-detalle-solicitud.html" class="block bg-white rounded-xl border border-gray-200 p-3.5 active:scale-[.99] transition-transform shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-gray-800">OC-0007</span>
+                        <span class="text-[11px] text-gray-400">hace 20 min</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Solicitada</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-600 truncate flex-1 min-w-0">Harina, Azucar <span class="text-gray-400">+3</span></p>
+                    <span class="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 ml-2"><i data-lucide="package" class="w-3.5 h-3.5"></i> 5 materiales</span>
+                </div>
+            </a>
+
+            <!-- Card: Aprobada -->
+            <a href="mobile-detalle-solicitud.html" class="block bg-white rounded-xl border border-gray-200 p-3.5 active:scale-[.99] transition-transform shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-gray-800">OC-0006</span>
+                        <span class="text-[11px] text-gray-400">hace 2 h</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-500/15 text-blue-700 border border-blue-500/30">Aprobada</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-600 truncate flex-1 min-w-0">Cafe Americano 250g, Leche Entera 1L <span class="text-gray-400">+1</span></p>
+                    <span class="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 ml-2"><i data-lucide="package" class="w-3.5 h-3.5"></i> 3 materiales</span>
+                </div>
+            </a>
+
+            <!-- Card: Parcial / En recepcion -->
+            <a href="mobile-detalle-solicitud.html" class="block bg-white rounded-xl border border-gray-200 p-3.5 active:scale-[.99] transition-transform shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-gray-800">OC-0005</span>
+                        <span class="text-[11px] text-gray-400">ayer</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-orange-500/15 text-orange-600 border border-orange-500/30">En recepcion</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-600 truncate flex-1 min-w-0">Te Verde 100g, Servilletas <span class="text-gray-400">+4</span></p>
+                    <span class="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 ml-2"><i data-lucide="package" class="w-3.5 h-3.5"></i> 6 materiales</span>
+                </div>
+            </a>
+
+            <!-- Card: Recibida -->
+            <a href="mobile-detalle-solicitud.html" class="block bg-white rounded-xl border border-gray-200 p-3.5 active:scale-[.99] transition-transform shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-gray-800">OC-0004</span>
+                        <span class="text-[11px] text-gray-400">hace 3 dias</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-green-500/15 text-green-600 border border-green-500/30">Recibida</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-600 truncate flex-1 min-w-0">Vasos 12oz, Tapas <span class="text-gray-400">+1</span></p>
+                    <span class="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 ml-2"><i data-lucide="package" class="w-3.5 h-3.5"></i> 3 materiales</span>
+                </div>
+            </a>
+
+            <!-- Card: Rechazada -->
+            <a href="mobile-detalle-solicitud.html" class="block bg-white rounded-xl border border-gray-200 p-3.5 active:scale-[.99] transition-transform shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-gray-800">OC-0003</span>
+                        <span class="text-[11px] text-gray-400">hace 5 dias</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-500/15 text-red-600 border border-red-500/30">Rechazada</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-600 truncate flex-1 min-w-0">Charolas grandes <span class="text-gray-400">+2</span></p>
+                    <span class="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 ml-2"><i data-lucide="package" class="w-3.5 h-3.5"></i> 3 materiales</span>
+                </div>
+            </a>
+
+            <!-- Card: Borrador -->
+            <a href="mobile-detalle-solicitud.html" class="block bg-white rounded-xl border border-gray-200 p-3.5 active:scale-[.99] transition-transform shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-gray-800">OC-0002</span>
+                        <span class="text-[11px] text-gray-400">hace 1 semana</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-gray-500/15 text-gray-500 border border-gray-400/30">Borrador</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-600 truncate flex-1 min-w-0">Azucar Morena 1kg <span class="text-gray-400">+1</span></p>
+                    <span class="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 ml-2"><i data-lucide="package" class="w-3.5 h-3.5"></i> 2 materiales</span>
+                </div>
+            </a>
+
+        </div>
+    </div>
+
+    <!-- ===================== FAB Nueva solicitud ===================== -->
+    <a href="mobile-nueva-solicitud.html"
+       class="absolute bottom-20 right-5 w-14 h-14 rounded-full bg-blue-600 shadow-lg shadow-blue-600/40 flex items-center justify-center text-white active:scale-95 transition-transform z-40">
+        <i data-lucide="plus" class="w-6 h-6"></i>
+    </a>
+
+    <!-- ===================== BOTTOM NAV ===================== -->
+    <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 pt-2 pb-5 flex items-center justify-around z-30">
+        <button class="flex flex-col items-center gap-0.5 text-gray-400">
+            <i data-lucide="home" class="w-5 h-5"></i>
+            <span class="text-[10px] font-medium">Inicio</span>
+        </button>
+        <button class="flex flex-col items-center gap-0.5 text-blue-600">
+            <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold">Mis solicitudes</span>
+        </button>
+        <button class="flex flex-col items-center gap-0.5 text-gray-400">
+            <i data-lucide="user" class="w-5 h-5"></i>
+            <span class="text-[10px] font-medium">Perfil</span>
+        </button>
+    </div>
+
+</div>
+
+<script>
+    lucide.createIcons();
+</script>
+</body>
+</html>

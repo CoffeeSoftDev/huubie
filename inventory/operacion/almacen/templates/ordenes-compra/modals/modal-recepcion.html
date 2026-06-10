@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recepcion de materiales</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = { theme: { extend: {
+                colors: { blue: {50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'} },
+                fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+            }}};
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body{font-family:'Inter',system-ui,sans-serif;background:#e5e7eb}
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
+        .lbl{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:.25rem}
+        .inp{width:100%;padding:.375rem .625rem;font-size:.75rem;color:#1f2937;background:#fff;border:1px solid #d1d5db;border-radius:.375rem;outline:none}
+        .inp:focus{border-color:#C05A40;box-shadow:0 0 0 2px rgba(192,90,64,.15)}
+        .sel{width:100%;padding:.375rem .625rem;font-size:.75rem;color:#1f2937;background:#fff;border:1px solid #d1d5db;border-radius:.375rem;outline:none;appearance:none;cursor:pointer}
+        .sel:focus{border-color:#C05A40}
+        ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+    </style>
+</head>
+
+<body class="min-h-screen flex items-start justify-center p-4">
+
+<div class="w-full max-w-4xl bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col max-h-[95vh] overflow-hidden">
+
+    <!-- Header -->
+    <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center">
+                <i data-lucide="package-check" class="w-4 h-4 text-blue-700"></i>
+            </span>
+            <div>
+                <h2 class="text-sm font-bold text-gray-800">Recepcion de materiales</h2>
+                <p class="text-[11px] text-gray-500">Orden <span class="font-semibold text-gray-700">OC-0004</span> &middot; <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/15 text-orange-600 border border-orange-500/30">Parcial</span></p>
+            </div>
+        </div>
+        <button onclick="window.close()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+
+    <div class="overflow-y-auto px-5 py-4 flex-1">
+
+        <!-- Aviso: esto genera una entrada al inventario -->
+        <div class="mb-4 flex items-start gap-2.5 rounded-lg border-l-4 border-blue-600 bg-blue-600/5 px-3.5 py-2.5">
+            <i data-lucide="info" class="w-4 h-4 text-blue-700 mt-0.5 flex-shrink-0"></i>
+            <p class="text-[11px] text-gray-600 leading-relaxed">
+                Al confirmar, se generara una <span class="font-semibold text-gray-800">entrada al inventario</span> con las cantidades indicadas en
+                <span class="font-semibold text-gray-800">"Recibe ahora"</span> y se afectara el stock del almacen destino.
+                Si no recibes todo, la orden quedara en estado <span class="font-semibold text-orange-600">Parcial</span>.
+            </p>
+        </div>
+
+        <!-- Almacen destino -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            <div>
+                <label class="lbl">Almacen destino</label>
+                <select class="sel">
+                    <option>Almacen Norte</option>
+                    <option>Almacen General</option>
+                    <option>Almacen Frio</option>
+                </select>
+            </div>
+            <div>
+                <label class="lbl">Fecha de recepcion</label>
+                <input type="date" class="inp" value="2026-06-09">
+            </div>
+        </div>
+
+        <!-- ===== Tabla de recepcion ===== -->
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2">Producto</th>
+                        <th class="text-center font-semibold px-3 py-2 w-20">Pedido</th>
+                        <th class="text-center font-semibold px-3 py-2 w-24">Ya recibido</th>
+                        <th class="text-center font-semibold px-3 py-2 w-28">Recibe ahora</th>
+                        <th class="text-center font-semibold px-3 py-2 w-24">Por recibir</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <!-- Renglon COMPLETO (check verde, recibido = pedido) -->
+                    <tr class="bg-green-500/5">
+                        <td class="px-3 py-2">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-green-600 flex-shrink-0"></i>
+                                <div><p class="font-medium text-gray-700">Cafe Americano 250g</p><p class="text-[10px] text-gray-400">CAF-001</p></div>
+                            </div>
+                        </td>
+                        <td class="px-3 py-2 text-center text-gray-600">10</td>
+                        <td class="px-3 py-2 text-center font-semibold text-green-600">10</td>
+                        <td class="px-3 py-2 text-center">
+                            <input type="number" value="0" disabled class="no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-400 bg-gray-100 border border-gray-200 rounded cursor-not-allowed">
+                        </td>
+                        <td class="px-3 py-2 text-center font-bold text-green-600">0</td>
+                    </tr>
+                    <!-- Renglon PARCIAL (recibe ahora editable) -->
+                    <tr>
+                        <td class="px-3 py-2">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="circle-dashed" class="w-4 h-4 text-orange-400 flex-shrink-0"></i>
+                                <div><p class="font-medium text-gray-700">Te Verde 100g</p><p class="text-[10px] text-gray-400">TE-002</p></div>
+                            </div>
+                        </td>
+                        <td class="px-3 py-2 text-center text-gray-600">8</td>
+                        <td class="px-3 py-2 text-center text-gray-500">3</td>
+                        <td class="px-3 py-2 text-center">
+                            <input type="number" value="3" class="no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-blue-500 rounded outline-none focus:ring-2 focus:ring-blue-500/15">
+                        </td>
+                        <td class="px-3 py-2 text-center font-bold text-orange-500">2</td>
+                    </tr>
+                    <!-- Renglon SIN RECIBIR -->
+                    <tr>
+                        <td class="px-3 py-2">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="circle" class="w-4 h-4 text-gray-300 flex-shrink-0"></i>
+                                <div><p class="font-medium text-gray-700">Azucar Morena 1kg</p><p class="text-[10px] text-gray-400">AZU-003</p></div>
+                            </div>
+                        </td>
+                        <td class="px-3 py-2 text-center text-gray-600">15</td>
+                        <td class="px-3 py-2 text-center text-gray-500">0</td>
+                        <td class="px-3 py-2 text-center">
+                            <input type="number" value="15" class="no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15">
+                        </td>
+                        <td class="px-3 py-2 text-center font-bold text-gray-400">0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Nota de recepcion -->
+        <div class="mt-4">
+            <label class="lbl">Nota de recepcion <span class="text-gray-400 normal-case">(opcional)</span></label>
+            <textarea rows="2" class="inp resize-none" placeholder="Observaciones de la recepcion (faltantes, danos, etc.)..."></textarea>
+        </div>
+
+        <!-- Resumen -->
+        <div class="mt-4 flex items-center justify-end gap-8 text-xs">
+            <div><span class="text-gray-500">Unidades a recibir ahora: </span><span class="font-bold text-gray-800">18</span></div>
+            <div><span class="text-gray-500">Quedaran pendientes: </span><span class="font-bold text-orange-500">2</span></div>
+        </div>
+
+    </div>
+
+    <!-- Footer acciones -->
+    <div class="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+        <button onclick="window.close()" class="px-3.5 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
+        <button class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
+            <i data-lucide="package-check" class="w-3.5 h-3.5"></i> Confirmar recepcion
+        </button>
+    </div>
+</div>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>

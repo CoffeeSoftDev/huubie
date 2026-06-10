@@ -4,7 +4,7 @@ let categorias, unidades, areas, proveedores, almacenes;
 
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
-let  cataloge, category, area, unit, warehouse, inflow, shrinkage;
+let  cataloge, category, area, unit, warehouse, inflow, shrinkage, supplier;
 
 $(async () => {
     const data     = await useFetch({ url: api, data: { opc: "init" } });
@@ -25,6 +25,7 @@ $(async () => {
     warehouse = new Warehouse(api_catalogo, "root");
     inflow = new InflowOrigin(api_catalogo, "root");
     shrinkage = new ShrinkageReason(api_catalogo, "root");
+    supplier = new Supplier(api_catalogo, "root");
 
     cataloge.render();
 
@@ -98,6 +99,12 @@ class Main extends Templates {
                     tab: "Almacenes",
                     lucideIcon: "warehouse",
                     onClick: () => warehouse.lsWarehouse()
+                },
+                {
+                    id: "suppliers",
+                    tab: "Proveedores",
+                    lucideIcon: "truck",
+                    onClick: () => supplier.lsSupplier()
                 },
                 {
                     id: "inflows",

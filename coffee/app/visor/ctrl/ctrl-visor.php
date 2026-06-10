@@ -170,7 +170,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     $allowedExts = [
         'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
         'html','htm','css','scss','js','ts','php','py','rb','go','rs',
-        'java','c','cpp','cs','sh','sql','ini','conf','log','env'
+        'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio'
     ];
     $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
     if (!in_array($ext, $allowedExts, true)) {
@@ -850,8 +850,8 @@ if ($mode === 'drive') {
     $sectionExts = ($folderKey === 'custom')
         ? ['md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
            'html','htm','css','scss','js','ts','php','py','rb','go','rs',
-           'java','c','cpp','cs','sh','sql','ini','conf','log','env']
-        : ['md'];
+           'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio']
+        : ['md','drawio'];
 
     $agents    = readSection($rootDir, 'agentes', $relPrefix, $sectionExts);
     $grimoires = $subDir ? readSection($subDir, 'grimorios', $relPrefix . '/grimorios', $sectionExts) : [];
