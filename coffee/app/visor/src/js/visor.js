@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-visor.php';
 let apiIA = 'ctrl/ctrl-coffeeia.php';
-let visor, visorView, app, coffeeIA;
+let visor, visorView, app, coffeeIA, drawioBoard;
 
 const VISOR_STORAGE_KEY = 'visor:settings:v1';
 const VISOR_PINNED_KEY  = 'visor:pinned:v1';
@@ -18,9 +18,10 @@ const EDITABLE_EXTS = [
 ];
 
 $(async () => {
-    visorView = new VisorView('root');
-    visor     = new Visor(api, 'root');
-    app       = new App(api, 'root');
+    visorView   = new VisorView('root');
+    visor       = new Visor(api, 'root');
+    app         = new App(api, 'root');
+    drawioBoard = new DrawioBoard(app, api);
     await app.init();
     coffeeIA = new CoffeeIA(apiIA, app);
 });
@@ -407,6 +408,8 @@ class App {
         $('#btnRefresh').off('click').on('click', () => this.refresh());
         $('#btnCopyPath').off('click').on('click', () => this.copyPath());
         $('#btnOpenEditor').off('click').on('click', () => this.openInEditor());
+        $('#btnNewDiagram').off('click').on('click', () => { if (drawioBoard) drawioBoard.open(null); });
+        $('#btnCloseDiagram').off('click').on('click', () => this.exitDiagram());
         $('#btnEdit').off('click').on('click', () => this.enterEditMode());
         $('#btnSave').off('click').on('click', () => this.saveFile());
         $('#btnCancel').off('click').on('click', () => this.exitEditMode(false));
@@ -1011,6 +1014,14 @@ class App {
         visorView.toast('Abriendo en VS Code...', 'success');
     }
 
+    // Cierra el lienzo y muestra el .drawio activo como fuente (XML), sin reabrir.
+    exitDiagram() {
+        if (drawioBoard) drawioBoard.close();
+        const file = visor.getFile(this.allFiles, this.currentFile);
+        if (file) visorView.renderContent(file);
+        if (window.lucide) lucide.createIcons();
+    }
+
     bindSidebarClicks() {
         $('#sidebarList .sidebar-pin-btn').off('click').on('click', (e) => {
             e.stopPropagation();
@@ -1090,7 +1101,16 @@ class App {
 
         visorView.renderBreadcrumb(file, this.dataInit.header);
         visorView.renderFrontmatter(file);
-        visorView.renderContent(file);
+
+        // Los diagramas (.drawio) se abren en el lienzo draw.io, no como markdown.
+        const ext = (file.file || '').split('.').pop().toLowerCase();
+        if (ext === 'drawio') {
+            if (drawioBoard) drawioBoard.open(file);
+        } else {
+            if (drawioBoard && drawioBoard.active) drawioBoard.close();
+            visorView.renderContent(file);
+        }
+
         visorView.renderFooterSelection(file);
         this.updateEditButton();
 

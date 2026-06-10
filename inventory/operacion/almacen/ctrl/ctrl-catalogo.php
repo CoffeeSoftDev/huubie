@@ -825,6 +825,142 @@ class ctrl extends mdl {
         ];
     }
 
+    // Proveedores --
+
+    function lsSupplier() {
+        $active = $_POST['active'] ?? 1;
+        $ls     = $this->listSupplier([$active]);
+        $rows   = [];
+
+        foreach ($ls as $item) {
+            $a = [];
+
+            if ($active == 1) {
+                $a[] = [
+                    'class'   => 'btn btn-sm btn-primary me-1',
+                    'html'    => '<i class="icon-pencil"></i>',
+                    'onclick' => 'supplier.editSupplier(' . $item['id'] . ')'
+                ];
+                $a[] = [
+                    'class'   => 'btn btn-sm btn-danger',
+                    'html'    => '<i class="icon-toggle-on"></i>',
+                    'onclick' => 'supplier.statusSupplier(' . $item['id'] . ', ' . $item['active'] . ')'
+                ];
+            } else {
+                $a[] = [
+                    'class'   => 'btn btn-sm btn-outline-success',
+                    'html'    => '<i class="icon-toggle-off"></i>',
+                    'onclick' => 'supplier.statusSupplier(' . $item['id'] . ', ' . $item['active'] . ')'
+                ];
+            }
+
+            $rows[] = [
+                'id'        => $item['id'],
+                'Proveedor' => $item['valor'],
+                'Contacto'  => $item['contact_name'] ?? '—',
+                'Teléfono'  => $item['phone'] ?? '—',
+                'Email'     => $item['email'] ?? '—',
+                'Estado'    => renderStatus($item['active']),
+                'a'         => $a
+            ];
+        }
+
+        return [
+            'row' => $rows,
+            'ls'  => $ls
+        ];
+    }
+
+    function getSupplier() {
+        $id      = $_POST['id'];
+        $status  = 404;
+        $message = 'Proveedor no encontrado';
+        $data    = null;
+
+        $supplier = $this->getSupplierById([$id]);
+
+        if ($supplier) {
+            $status  = 200;
+            $message = 'Proveedor encontrado';
+            $data    = $supplier;
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message,
+            'data'    => $data
+        ];
+    }
+
+    function addSupplier() {
+        $status  = 500;
+        $message = 'Error al crear proveedor';
+
+        $_POST['created_at']   = date('Y-m-d H:i:s');
+        $_POST['active']       = 1;
+        $_POST['companies_id'] = $_SESSION['company_id'];
+
+        $exists = $this->existsSupplierByName([$_POST['name']]);
+
+        if ($exists > 0) {
+            return [
+                'status'  => 409,
+                'message' => 'Ya existe un proveedor con ese nombre'
+            ];
+        }
+
+        $create = $this->createSupplier($this->util->sql($_POST));
+
+        if ($create) {
+            $status  = 200;
+            $message = 'Proveedor creado exitosamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
+    }
+
+    function editSupplier() {
+        $status  = 500;
+        $message = 'Error al editar proveedor';
+
+        // Regla CoffeeSoft: sql(,1) usa el ULTIMO campo como WHERE.
+        $id = $_POST['id'];
+        unset($_POST['id']);
+        $_POST['id'] = $id;
+
+        $edit = $this->updateSupplier($this->util->sql($_POST, 1));
+
+        if ($edit) {
+            $status  = 200;
+            $message = 'Proveedor actualizado correctamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
+    }
+
+    function statusSupplier() {
+        $status  = 500;
+        $message = 'Error al cambiar el estado del proveedor';
+
+        $update = $this->updateSupplier($this->util->sql($_POST, 1));
+
+        if ($update) {
+            $status  = 200;
+            $message = 'Estado del proveedor actualizado correctamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
+    }
+
     // Catalogos auxiliares para selects de formularios
     function lsAreasSelect() {
         return [

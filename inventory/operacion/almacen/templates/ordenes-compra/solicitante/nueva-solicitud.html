@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva solicitud</title>
+
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema "Arcilla Invernal": remapea blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = { theme: { extend: {
+                colors: { blue: {50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'} },
+                fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+            }}};
+        }
+    </script>
+    <!-- Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body{font-family:'Inter',system-ui,sans-serif;background:#e5e7eb}
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
+        .lbl{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:.25rem}
+        .inp{width:100%;padding:.375rem .625rem;font-size:.75rem;color:#1f2937;background:#fff;border:1px solid #d1d5db;border-radius:.375rem;outline:none}
+        .inp:focus{border-color:#C05A40;box-shadow:0 0 0 2px rgba(192,90,64,.15)}
+        ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+    </style>
+</head>
+
+<!-- Modal: overlay + card centrada (clonado de modal-nueva-orden.html).
+     ROL SOLICITANTE: SIN costo, SIN tax, SIN proveedor. Sucursal fija como chip. -->
+<body class="min-h-screen flex items-start justify-center p-4">
+
+<div class="w-full max-w-3xl bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col max-h-[95vh] overflow-hidden">
+
+    <!-- Header -->
+    <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center">
+                <i data-lucide="clipboard-list" class="w-4 h-4 text-blue-700"></i>
+            </span>
+            <div>
+                <h2 class="text-sm font-bold text-gray-800">Nueva solicitud</h2>
+                <p class="text-[11px] text-gray-500">Arma la lista de materiales que necesitas</p>
+            </div>
+        </div>
+        <button onclick="window.close()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+
+    <div class="overflow-y-auto px-5 py-4 flex-1">
+
+        <!-- ===== Sucursal fija (chip, no editable) ===== -->
+        <div class="flex items-center justify-between gap-2 mb-4">
+            <div class="flex items-center gap-2.5 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5">
+                <i data-lucide="map-pin" class="w-4 h-4 text-blue-600"></i>
+                <div class="leading-tight">
+                    <p class="text-[9px] uppercase tracking-wider text-blue-700/70 font-semibold">Sucursal solicitante</p>
+                    <p class="text-xs font-bold text-gray-800">Sucursal Centro</p>
+                </div>
+                <i data-lucide="lock" class="w-3.5 h-3.5 text-blue-400"></i>
+            </div>
+            <p class="text-[11px] text-gray-400 hidden sm:block">Solicitado por <span class="font-semibold text-gray-600">Rosa Velazquez</span></p>
+        </div>
+
+        <!-- ===== Buscador de materiales ===== -->
+        <div class="mb-3">
+            <label class="lbl">Buscar materiales</label>
+            <div class="relative">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" class="inp" style="padding-left:2rem" placeholder="Buscar productos por nombre o SKU..." value="cafe">
+                <!-- Resultados (mock estatico) -->
+                <div class="mt-1 border border-gray-200 rounded-md divide-y divide-gray-100 bg-white shadow-sm">
+                    <div class="flex items-center justify-between px-3 py-2 hover:bg-blue-50 cursor-pointer">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded bg-amber-500/15 flex items-center justify-center"><i data-lucide="coffee" class="w-3.5 h-3.5 text-amber-500"></i></span>
+                            <div><p class="text-xs font-medium text-gray-700">Cafe Americano 250g</p><p class="text-[10px] text-gray-400">CAF-001 &middot; Bebidas</p></div>
+                        </div>
+                        <span class="text-[11px] font-semibold text-blue-700 flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar</span>
+                    </div>
+                    <div class="flex items-center justify-between px-3 py-2 hover:bg-blue-50 cursor-pointer">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded bg-amber-500/15 flex items-center justify-center"><i data-lucide="coffee" class="w-3.5 h-3.5 text-amber-500"></i></span>
+                            <div><p class="text-xs font-medium text-gray-700">Cafe Capuccino 250g</p><p class="text-[10px] text-gray-400">CAF-002 &middot; Bebidas</p></div>
+                        </div>
+                        <span class="text-[11px] font-semibold text-blue-700 flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar</span>
+                    </div>
+                    <div class="flex items-center justify-between px-3 py-2 hover:bg-blue-50 cursor-pointer">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded bg-gray-500/15 flex items-center justify-center"><i data-lucide="filter" class="w-3.5 h-3.5 text-gray-500"></i></span>
+                            <div><p class="text-xs font-medium text-gray-700">Filtros de cafe #4</p><p class="text-[10px] text-gray-400">CAF-FLT &middot; Insumos</p></div>
+                        </div>
+                        <span class="text-[11px] font-semibold text-blue-700 flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Tabla de materiales agregados (SIN costo, SIN tax, SIN proveedor) ===== -->
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2">Producto</th>
+                        <th class="text-center font-semibold px-3 py-2 w-44">Cantidad</th>
+                        <th class="text-center font-semibold px-3 py-2 w-12"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <!-- Renglon 1 -->
+                    <tr>
+                        <td class="px-3 py-2.5">
+                            <p class="font-medium text-gray-700">Cafe Americano 250g</p>
+                            <p class="text-[10px] text-gray-400">CAF-001</p>
+                        </td>
+                        <td class="px-3 py-2.5">
+                            <div class="flex items-center justify-center gap-2">
+                                <button class="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50">
+                                    <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <span class="w-9 text-center text-sm font-bold text-gray-800">10</span>
+                                <button class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white hover:bg-blue-700">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="px-3 py-2.5 text-center">
+                            <button class="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-rose-500 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <!-- Renglon 2 -->
+                    <tr>
+                        <td class="px-3 py-2.5">
+                            <p class="font-medium text-gray-700">Azucar Morena 1kg</p>
+                            <p class="text-[10px] text-gray-400">AZU-003</p>
+                        </td>
+                        <td class="px-3 py-2.5">
+                            <div class="flex items-center justify-center gap-2">
+                                <button class="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50">
+                                    <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <span class="w-9 text-center text-sm font-bold text-gray-800">15</span>
+                                <button class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white hover:bg-blue-700">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="px-3 py-2.5 text-center">
+                            <button class="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-rose-500 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <!-- Renglon 3 -->
+                    <tr>
+                        <td class="px-3 py-2.5">
+                            <p class="font-medium text-gray-700">Leche Entera 1L</p>
+                            <p class="text-[10px] text-gray-400">LEC-004</p>
+                        </td>
+                        <td class="px-3 py-2.5">
+                            <div class="flex items-center justify-center gap-2">
+                                <button class="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50">
+                                    <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <span class="w-9 text-center text-sm font-bold text-gray-800">24</span>
+                                <button class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white hover:bg-blue-700">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="px-3 py-2.5 text-center">
+                            <button class="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-rose-500 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <!-- Footer de la tabla: resumen de conteos (SIN total $) -->
+            <div class="bg-gray-50 border-t border-gray-200 px-3 py-2.5 flex items-center justify-end gap-8">
+                <div class="text-xs"><span class="text-gray-500">Materiales: </span><span class="font-bold text-gray-800">3</span></div>
+                <div class="text-xs"><span class="text-gray-500">Unidades totales: </span><span class="font-bold text-blue-600 text-sm">49</span></div>
+            </div>
+
+            <!-- Estado vacio (referencia) -->
+            <!--
+            <div class="px-4 py-10 text-center text-gray-400">
+                <i data-lucide="package-open" class="w-8 h-8 mx-auto mb-2"></i>
+                <p class="text-sm">Aun no agregas materiales. Busca y agrega desde arriba.</p>
+            </div>
+            -->
+        </div>
+
+        <!-- ===== Nota / justificacion ===== -->
+        <div class="mt-4">
+            <label class="lbl">Nota / justificacion <span class="text-gray-400 normal-case">(opcional)</span></label>
+            <textarea rows="3" class="inp resize-none" placeholder="Ej. Reabastecimiento semanal para la barra de bebidas calientes..."></textarea>
+        </div>
+
+    </div>
+
+    <!-- Footer acciones -->
+    <div class="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+        <button onclick="window.close()" class="px-3.5 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
+        <button class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar solicitud
+        </button>
+    </div>
+</div>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>

@@ -56,6 +56,8 @@ class Sidebar {
                 // { icon: "gauge", url: "/inventory/finanzas/administrador/", title: "Dashboard" },
                 { icon: "arrow-up-from-line", url: "/inventory/operacion/almacen/salidas.php", title: "Salidas" },
                 { icon: "boxes", url: "/inventory/operacion/almacen/stock.php", title: "Stock" },
+                { icon: "shopping-cart", url: "/inventory/operacion/almacen/ordenes.php", title: "Órdenes" },
+                { icon: "clipboard-list", url: "/inventory/operacion/almacen/solicitudes.php", title: "Solicitudes" },
                 { icon: "house", url: "/inventory/operacion/almacen/", title: "Admin" },
                 { icon: "shield-user", url: "/inventory/admin/accesos/", title: "Accesos" },
             ],

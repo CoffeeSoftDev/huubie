@@ -160,6 +160,14 @@
                         <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                         Copiar ruta
                     </button>
+                    <button id="btnNewDiagram" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Nuevo diagrama (lienzo draw.io)">
+                        <i data-lucide="pen-tool" class="w-3.5 h-3.5"></i>
+                        Diagrama
+                    </button>
+                    <button id="btnCloseDiagram" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Cerrar lienzo">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        Cerrar lienzo
+                    </button>
                     <button id="btnEdit" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Editar en el visor" disabled>
                         <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                         Editar
@@ -239,6 +247,9 @@
                     </div>
 
                 </div>
+
+                <!-- Lienzo de diagramas (draw.io embebido). Oculto salvo modo diagrama. -->
+                <div id="drawioStage" class="drawio-stage hidden"></div>
             </div>
 
             </div><!-- /.visor-main-col -->
@@ -419,6 +430,7 @@
 
     <script src="../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de solicitud - Huubie Inventarios</title>
+
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema "Arcilla Invernal": remapea blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            }
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <!-- Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; }
+        ::-webkit-scrollbar{width:8px;height:8px}
+        ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden text-gray-800">
+
+<!-- ============================================================
+     LAYOUT ESCRITORIO: shell blanco redondeado (sin frame de telefono).
+     Misma informacion del aside de mis-solicitudes, como pagina propia:
+       viewHeader (atras + folio + badge) + 2 columnas:
+         izquierda  = timeline VERTICAL + datos
+         derecha    = materiales con "recibido X de Y" (SIN costos)
+============================================================ -->
+<div class="h-screen p-3">
+<div id="detalle-solicitud" class="h-full w-full flex flex-col overflow-hidden bg-white rounded-lg border border-gray-200">
+
+    <!-- ===================== viewHeader ===================== -->
+    <div id="viewHeader" class="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+        <div class="flex items-center gap-3 min-w-0">
+            <a href="mis-solicitudes.html" class="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-600 flex-shrink-0">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <div class="flex items-center gap-3 min-w-0">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">Seguimiento de solicitud</p>
+                    <h1 class="text-lg font-bold text-gray-800 leading-tight">OC-0005</h1>
+                </div>
+                <span class="px-2.5 py-1 rounded text-[11px] font-bold bg-orange-500/15 text-orange-600 border border-orange-500/30">En recepcion</span>
+            </div>
+        </div>
+        <a href="nueva-solicitud.html"
+           class="px-4 py-2 text-xs font-semibold text-blue-700 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1.5">
+            <i data-lucide="copy" class="w-4 h-4"></i> Duplicar solicitud
+        </a>
+    </div>
+
+    <!-- ===================== 2 COLUMNAS ===================== -->
+    <div class="flex-1 min-h-0 overflow-auto bg-gray-50 px-4 py-5">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+            <!-- COLUMNA IZQUIERDA: timeline vertical + datos (2/5) -->
+            <div class="lg:col-span-2 space-y-4">
+
+                <!-- ===== Timeline VERTICAL del ciclo ===== -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-3">Ciclo de la solicitud</p>
+                    <ol class="relative ml-2">
+                        <!-- Paso 1: Solicitada (completado) -->
+                        <li class="relative pl-7 pb-5">
+                            <span class="absolute left-[7px] top-4 bottom-0 w-0.5 bg-green-500"></span>
+                            <span class="absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-green-500 ring-4 ring-white"></span>
+                            <p class="text-xs font-semibold text-gray-800">Solicitada</p>
+                            <p class="text-[10px] text-gray-400">07 jun 2026 &middot; 10:24</p>
+                        </li>
+                        <!-- Paso 2: Aprobada (completado) -->
+                        <li class="relative pl-7 pb-5">
+                            <span class="absolute left-[7px] top-4 bottom-0 w-0.5 bg-green-500"></span>
+                            <span class="absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-green-500 ring-4 ring-white"></span>
+                            <p class="text-xs font-semibold text-gray-800">Aprobada</p>
+                            <p class="text-[10px] text-gray-400">07 jun 2026 &middot; 15:40</p>
+                        </li>
+                        <!-- Paso 3: En recepcion (ACTUAL) -->
+                        <li class="relative pl-7 pb-5">
+                            <span class="absolute left-[7px] top-4 bottom-0 w-0.5 bg-gray-200"></span>
+                            <span class="absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-orange-500 ring-4 ring-orange-100"></span>
+                            <p class="text-xs font-bold text-orange-600">En recepcion</p>
+                            <p class="text-[10px] text-gray-400">en curso</p>
+                        </li>
+                        <!-- Paso 4: Recibida (pendiente) -->
+                        <li class="relative pl-7">
+                            <span class="absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-white border-2 border-gray-300"></span>
+                            <p class="text-xs font-semibold text-gray-400">Recibida</p>
+                            <p class="text-[10px] text-gray-400">Pendiente</p>
+                        </li>
+                    </ol>
+                </div>
+
+                <!-- ===== VARIANTE RECHAZADA (referencia backend) =====
+                     Cuando estado = Rechazada, mostrar este bloque rojo
+                     con el motivo en lugar de los pasos pendientes. -->
+                <!--
+                <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+                    <div class="flex items-start gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white flex-shrink-0">
+                            <i data-lucide="x" class="w-4.5 h-4.5"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-red-700">Motivo de rechazo</p>
+                            <p class="text-xs text-red-600/90 mt-0.5 leading-relaxed">El presupuesto del mes ya fue ejercido. Reenviar la solicitud en el siguiente periodo o reducir las cantidades.</p>
+                            <p class="text-[11px] text-red-500/70 mt-1.5">Rechazada por Luis Gomez &middot; 29 may 2026</p>
+                        </div>
+                    </div>
+                </div>
+                -->
+
+                <!-- Datos de la solicitud -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-2.5">
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Datos de la solicitud</p>
+                    <div class="flex items-center justify-between gap-2 text-xs">
+                        <span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="user" class="w-3.5 h-3.5"></i> Solicitado por</span>
+                        <span class="text-gray-800 font-medium text-right">Rosa Velazquez</span>
+                    </div>
+                    <div class="h-px bg-gray-100"></div>
+                    <div class="flex items-center justify-between gap-2 text-xs">
+                        <span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> Fecha</span>
+                        <span class="text-gray-800 font-medium text-right">07 jun 2026</span>
+                    </div>
+                    <div class="h-px bg-gray-100"></div>
+                    <div class="flex items-center justify-between gap-2 text-xs">
+                        <span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Sucursal</span>
+                        <span class="text-gray-800 font-medium text-right">Sucursal Centro</span>
+                    </div>
+                    <div class="h-px bg-gray-100"></div>
+                    <div class="flex items-center justify-between gap-2 text-xs">
+                        <span class="text-gray-500 flex items-center gap-1.5"><i data-lucide="warehouse" class="w-3.5 h-3.5"></i> Almacen destino</span>
+                        <span class="text-gray-800 font-medium text-right">Almacen General</span>
+                    </div>
+                </div>
+
+                <!-- Progreso de recepcion (resumen, sin costos) -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Progreso de recepcion</p>
+                        <span class="text-xs font-bold text-orange-600">36 / 89</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-orange-500 rounded-full" style="width:40%"></div>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">Unidades recibidas de las solicitadas. 3 de 6 materiales completados.</p>
+                </div>
+
+                <!-- Nota / justificacion -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Nota / justificacion</p>
+                    <p class="text-xs text-gray-600 leading-relaxed">Reabastecimiento semanal para la barra de bebidas calientes y desechables del turno matutino.</p>
+                </div>
+
+            </div>
+
+            <!-- COLUMNA DERECHA: materiales pedidos con "recibido X de Y" (3/5) -->
+            <div class="lg:col-span-3">
+                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+                        <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Materiales pedidos</p>
+                        <span class="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">6</span>
+                    </div>
+
+                    <!-- Tabla: Producto | Pedido | Recibido (SIN costos) -->
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-gray-500 text-[11px] uppercase tracking-wider bg-white">
+                                <th class="text-left font-semibold px-4 py-2 border-b border-gray-100">Producto</th>
+                                <th class="text-center font-semibold px-3 py-2 border-b border-gray-100 w-24">Pedido</th>
+                                <th class="text-left font-semibold px-3 py-2 border-b border-gray-100 w-44">Recibido</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Completo 10/10 -->
+                            <tr class="border-b border-gray-100">
+                                <td class="px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-800">Cafe Americano 250g</p>
+                                    <p class="text-[11px] text-gray-400">CAF-001</p>
+                                </td>
+                                <td class="px-3 py-3 text-center font-bold text-gray-800">10</td>
+                                <td class="px-3 py-3">
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-green-600">
+                                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Recibido 10 de 10
+                                    </span>
+                                </td>
+                            </tr>
+                            <!-- Parcial 5/8 -->
+                            <tr class="border-b border-gray-100">
+                                <td class="px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-800">Te Verde 100g</p>
+                                    <p class="text-[11px] text-gray-400">TE-002</p>
+                                </td>
+                                <td class="px-3 py-3 text-center font-bold text-gray-800">8</td>
+                                <td class="px-3 py-3">
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-600">
+                                        <i data-lucide="loader" class="w-3.5 h-3.5"></i> Recibido 5 de 8
+                                    </span>
+                                </td>
+                            </tr>
+                            <!-- Completo 15/15 -->
+                            <tr class="border-b border-gray-100">
+                                <td class="px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-800">Azucar Morena 1kg</p>
+                                    <p class="text-[11px] text-gray-400">AZU-003</p>
+                                </td>
+                                <td class="px-3 py-3 text-center font-bold text-gray-800">15</td>
+                                <td class="px-3 py-3">
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-green-600">
+                                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Recibido 15 de 15
+                                    </span>
+                                </td>
+                            </tr>
+                            <!-- Pendiente 0/24 -->
+                            <tr class="border-b border-gray-100">
+                                <td class="px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-800">Leche Entera 1L</p>
+                                    <p class="text-[11px] text-gray-400">LEC-004</p>
+                                </td>
+                                <td class="px-3 py-3 text-center font-bold text-gray-800">24</td>
+                                <td class="px-3 py-3">
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-400">
+                                        <i data-lucide="circle" class="w-3.5 h-3.5"></i> Recibido 0 de 24
+                                    </span>
+                                </td>
+                            </tr>
+                            <!-- Parcial 6/12 -->
+                            <tr class="border-b border-gray-100">
+                                <td class="px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-800">Servilletas paquete 500</p>
+                                    <p class="text-[11px] text-gray-400">SRV-010</p>
+                                </td>
+                                <td class="px-3 py-3 text-center font-bold text-gray-800">12</td>
+                                <td class="px-3 py-3">
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-600">
+                                        <i data-lucide="loader" class="w-3.5 h-3.5"></i> Recibido 6 de 12
+                                    </span>
+                                </td>
+                            </tr>
+                            <!-- Pendiente 0/20 -->
+                            <tr>
+                                <td class="px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-800">Vasos 12oz</p>
+                                    <p class="text-[11px] text-gray-400">VAS-012</p>
+                                </td>
+                                <td class="px-3 py-3 text-center font-bold text-gray-800">20</td>
+                                <td class="px-3 py-3">
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-400">
+                                        <i data-lucide="circle" class="w-3.5 h-3.5"></i> Recibido 0 de 20
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Footer de la tabla: solo conteos, SIN total $ -->
+                    <div class="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+                        <span class="text-xs text-gray-500">6 materiales <span class="mx-1">&middot;</span> 89 unidades pedidas</span>
+                        <span class="text-xs font-semibold text-orange-600">36 recibidas</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+</div>
+
+<script>
+    lucide.createIcons();
+</script>
+</body>
+</html>
