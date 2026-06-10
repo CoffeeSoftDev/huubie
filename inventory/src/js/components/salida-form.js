@@ -178,7 +178,7 @@ class SalidaForm {
         const o   = this.opts;
         const cls = this.cls;
         return `
-            <div class="px-4 py-2.5 border-b border-gray-200 flex items-center justify-between flex-shrink-0 bg-gradient-to-b from-gray-50 to-transparent">
+            <div class="px-4 py-2.5 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                 <div class="flex items-center gap-2">
                     <div class="w-6 h-6 rounded-md bg-rose-500/15 border border-rose-500/25 flex items-center justify-center">
                         <i data-lucide="boxes" class="w-3.5 h-3.5 text-rose-600"></i>

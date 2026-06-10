@@ -436,7 +436,7 @@ class EntradaForm {
         const cant        = Number(p.cantidad || 0);
         const taxNum      = Number(p.tax || 0);
         const costoNum    = Number(p.costo || 0);
-        const baseNum     = this.baseFromCost(costoNum, taxNum);
+        const baseNum     = (p.costoSinTax != null && p.costoSinTax !== '') ? Number(p.costoSinTax) : this.baseFromCost(costoNum, taxNum);
         const subtotal    = (cant * costoNum).toFixed(2);
         const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const baseFmt     = baseNum.toFixed(2);
@@ -475,11 +475,11 @@ class EntradaForm {
                     </div>
                 </td>
                 <td class="px-2 py-2 align-middle w-28">
-                    <div class="relative" title="Costo sin impuesto (calculado)">
-                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none flex items-center">
+                    <div class="relative" title="Costo sin impuesto">
+                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
                             <i data-lucide="dollar-sign" class="w-3 h-3"></i>
                         </span>
-                        <input type="text" value="${baseFmt}" disabled tabindex="-1" class="no-spin w-full pl-6 pr-2.5 py-1.5 text-xs text-right text-gray-500 bg-gray-100 border border-gray-200 rounded cursor-not-allowed" data-costo-base>
+                        <input type="number" min="0" step="0.01" value="${baseFmt}" class="${cls.cashInp}" data-field="costoSinTax" data-idx="${i}">
                     </div>
                 </td>
                 <td class="px-2 py-2 align-middle w-20">
@@ -733,16 +733,26 @@ class EntradaForm {
         return idx;
     }
 
-    // Semilla de impuesto por renglon. El pivote editable es el costo CON
-    // impuesto; la base sin tax se calcula (= costo / (1 + tax/100)) y queda
-    // bloqueada. El porcentaje y la base de referencia salen del item.
+    // Semilla de impuesto por renglon. Toma los tres valores directo del item
+    // del catalogo: precio (costo CON impuesto = i.price), price_without_tax
+    // (base SIN impuesto) y tax (%). Ambos costos quedan editables y se
+    // recalculan entre si; si falta alguno se deriva del otro con la tasa.
     seedTax(prod) {
         const tax = Number(prod.tax || 0);
-        let costo = (prod.price_without_tax != null && prod.price_without_tax !== '')
-            ? Number(prod.price_without_tax) * (1 + tax / 100)
-            : Number(prod.costo || 0);
+        // Base sin impuesto: directo del catalogo (price_without_tax).
+        let base = (prod.price_without_tax != null && prod.price_without_tax !== '')
+            ? Number(prod.price_without_tax)
+            : null;
+        // Costo con impuesto: directo del catalogo (precio/price); si no existe
+        // se deriva de la base + tax, y como ultimo recurso usa costo.
+        const precio = (prod.precio != null && prod.precio !== '') ? prod.precio
+                     : (prod.price != null && prod.price !== '')   ? prod.price
+                     : null;
+        let costo = (precio != null && Number(precio) > 0) ? Number(precio)
+                  : (base != null ? this.costFromBase(base, tax) : Number(prod.costo || 0));
         if (!isFinite(costo) || costo < 0) costo = 0;
-        return { costo: costo, tax: tax, costoSinTax: this.baseFromCost(costo, tax) };
+        if (base == null || !isFinite(base) || base < 0) base = this.baseFromCost(costo, tax);
+        return { costo: costo, tax: tax, costoSinTax: base };
     }
 
     // Base sin impuesto a partir del costo con impuesto y la tasa (%).
@@ -750,6 +760,13 @@ class EntradaForm {
         const c = Number(costo || 0);
         const t = Number(tax || 0);
         return t > 0 ? c / (1 + t / 100) : c;
+    }
+
+    // Costo con impuesto a partir de la base sin impuesto y la tasa (%).
+    costFromBase(base, tax) {
+        const b = Number(base || 0);
+        const t = Number(tax || 0);
+        return t > 0 ? b * (1 + t / 100) : b;
     }
 
     // Enter en el buscador: prioriza SKU exacto (lector de codigo), luego el
@@ -832,28 +849,35 @@ class EntradaForm {
         const field = $el.data('field');
         if (isNaN(idx) || !this.lote[idx] || !field) return;
         this.lote[idx][field] = $el.val();
-        // costo (c/imp) e tax (%) son los pivotes; la base s/imp se deriva.
-        if (field === 'costo' || field === 'tax') {
-            const p = this.lote[idx];
+        const p = this.lote[idx];
+        // Costo c/imp y costo s/imp se recalculan entre si usando el tax:
+        //  - al editar el costo c/imp se deriva la base s/imp,
+        //  - al editar la base s/imp (o el tax) se deriva el costo c/imp.
+        if (field === 'costo') {
             p.costoSinTax = this.baseFromCost(p.costo, p.tax);
+        } else if (field === 'costoSinTax' || field === 'tax') {
+            p.costo = this.costFromBase(p.costoSinTax, p.tax);
         }
-        if (field === 'cantidad' || field === 'costo' || field === 'tax') {
-            this.refreshRow(idx);
+        if (['cantidad', 'costo', 'costoSinTax', 'tax'].includes(field)) {
+            this.refreshRow(idx, field);
             this.updateTotals();
         }
     }
 
-    refreshRow(i) {
+    refreshRow(i, editedField) {
         const o = this.opts;
         const p = this.lote[i];
         if (!p) return;
         const cant        = Number(p.cantidad || 0);
         const costoNum    = Number(p.costo || 0);
-        const baseNum     = this.baseFromCost(costoNum, p.tax);
+        const baseNum     = Number(p.costoSinTax || 0);
         const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const nuevoStock  = Number(p.stock || 0) + cant;
         const $row = $(`#${o.id}_listaProductos tr[data-idx="${i}"]`);
-        $row.find('[data-costo-base]').val(baseNum.toFixed(2));
+        // Solo refresca el input que el usuario NO esta editando, para no pisar
+        // el cursor mientras teclea en costo c/imp o en costo s/imp.
+        if (editedField !== 'costo')       $row.find('[data-field="costo"]').val(costoNum.toFixed(2));
+        if (editedField !== 'costoSinTax') $row.find('[data-field="costoSinTax"]').val(baseNum.toFixed(2));
         $row.find('[data-subtotal]').text('$' + subtotalFmt);
         $row.find('[data-nuevo-stock]').text(nuevoStock);
     }
@@ -1272,6 +1296,7 @@ class EntradaForm {
             </div>`;
     }
 }
+
 
 Templates.prototype.entradaForm = function (options) {
     return new EntradaForm(options);
