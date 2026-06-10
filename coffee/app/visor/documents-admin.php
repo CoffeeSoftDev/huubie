@@ -51,6 +51,10 @@
                     <i data-lucide="flask-conical"></i>
                     <span class="app-rail-label">Lab</span>
                 </a>
+                <a href="forge.php" class="app-rail-item" title="Forge — Fábrica de Módulos">
+                    <i data-lucide="hammer"></i>
+                    <span class="app-rail-label">Forge</span>
+                </a>
                 <a href="documents-admin.php" class="app-rail-item active" title="Admin de Documentos">
                     <i data-lucide="folder-cog"></i>
                     <span class="app-rail-label">Admin</span>

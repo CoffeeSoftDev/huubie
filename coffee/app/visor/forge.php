@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Playground de Agentes — CoffeeSoft</title>
+    <title>Forge — Fábrica de Módulos · CoffeeSoft</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/css/ui-kit.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/playground.css?t=<?php echo time(); ?>">
+    <link rel="stylesheet" href="src/css/forge.css?t=<?php echo time(); ?>">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -23,10 +24,10 @@
 
     <header class="pg-header">
         <div class="pg-header-left">
-            <div class="pg-logo">PG</div>
+            <div class="pg-logo">FG</div>
             <div class="flex flex-col leading-tight">
-                <span class="pg-title">Playground de Agentes</span>
-                <span class="pg-subtitle">Entrena y prueba tus agentes CoffeeSoft</span>
+                <span class="pg-title">Forge — Fábrica de Módulos</span>
+                <span class="pg-subtitle">Tus agentes generan módulos CoffeeSoft y los materializan a disco</span>
             </div>
         </div>
 
@@ -89,11 +90,11 @@
                     <i data-lucide="layout-dashboard"></i>
                     <span class="app-rail-label">Visor</span>
                 </a>
-                <a href="playground.php" class="app-rail-item active" title="Playground de Agentes">
+                <a href="playground.php" class="app-rail-item" title="Playground de Agentes">
                     <i data-lucide="flask-conical"></i>
                     <span class="app-rail-label">Lab</span>
                 </a>
-                <a href="forge.php" class="app-rail-item" title="Forge — Fábrica de Módulos">
+                <a href="forge.php" class="app-rail-item active" title="Forge — Fábrica de Módulos">
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
                 </a>
@@ -162,6 +163,10 @@
                     <button class="pg-tab" data-sbtab="code">
                         <i data-lucide="code-2" class="w-3.5 h-3.5"></i> Código
                     </button>
+                    <button class="pg-tab" data-sbtab="module" id="fgModuleTab">
+                        <i data-lucide="package" class="w-3.5 h-3.5"></i> Módulo
+                        <span id="fgModuleCount" class="pg-count" style="display:none;">0</span>
+                    </button>
                 </div>
                 <div class="pg-sandbox-actions">
                     <div class="pg-zoom" title="Zoom del preview">
@@ -188,10 +193,30 @@
             <div class="pg-sandbox-body">
                 <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Sandbox"></iframe>
                 <pre id="pgSandboxCode" class="pg-sandbox-code hidden"><code></code></pre>
+
+                <!-- ── Panel Módulo: archivos generados + destino + acciones ── -->
+                <div id="pgModulePanel" class="fg-module-panel hidden">
+                    <div class="fg-module-bar">
+                        <div class="fg-module-dest">
+                            <label class="fg-module-label"><i data-lucide="folder-tree" class="w-3.5 h-3.5"></i> Proyecto destino</label>
+                            <select id="fgProjectSelect" class="pg-select"></select>
+                        </div>
+                        <div class="fg-module-actions">
+                            <button id="fgPreviewBtn" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Comparar contra el proyecto sin escribir">
+                                <i data-lucide="git-compare" class="w-3.5 h-3.5"></i> Previsualizar
+                            </button>
+                            <button id="fgMaterializeBtn" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" title="Escribir los archivos al proyecto">
+                                <i data-lucide="hammer" class="w-3.5 h-3.5"></i> Materializar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="fgModuleList" class="fg-module-list"></div>
+                </div>
+
                 <div id="pgSandboxEmpty" class="pg-empty pg-sandbox-empty">
                     <i data-lucide="layout-template"></i>
                     <div class="pg-empty-title">Sandbox vacío</div>
-                    <div class="pg-empty-sub">Lo que genere el agente se renderizará aquí con el tema elegido.</div>
+                    <div class="pg-empty-sub">Lo que genere el agente se renderizará aquí. Si produce un módulo multi-archivo, aparecerá en la pestaña <strong>Módulo</strong>.</div>
                 </div>
             </div>
         </section>
@@ -296,8 +321,35 @@
         </div>
     </div>
 
+    <!-- ── Modal: Previsualizar materialización (diff) ── -->
+    <div id="fgPreviewModal" class="pg-modal hidden" aria-hidden="true">
+        <div class="pg-modal-backdrop"></div>
+        <div class="pg-modal-dialog" role="dialog" style="max-width:880px;">
+            <header class="pg-modal-head">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="git-compare" class="w-4 h-4"></i>
+                    <h3>Previsualizar en <span id="fgPreviewProject">—</span></h3>
+                </div>
+                <button id="fgPreviewClose" class="pg-iconbtn" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </header>
+            <div class="pg-modal-body">
+                <p class="pg-hint">Revisa qué archivos son <strong>nuevos</strong> y cuáles <strong>sobrescriben</strong> uno existente. Nada se escribe hasta que pulses <strong>Materializar</strong>.</p>
+                <div id="fgPreviewList" class="fg-preview-list"></div>
+            </div>
+            <footer class="pg-modal-foot">
+                <span id="fgPreviewSummary" class="pg-hint">—</span>
+                <div class="flex gap-2">
+                    <button id="fgPreviewCancel" class="cs-btn cs-btn-ghost cs-btn-sm">Cancelar</button>
+                    <button id="fgPreviewConfirm" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
+                        <i data-lucide="hammer" class="w-3.5 h-3.5"></i> Materializar
+                    </button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
     <div id="pgToast" class="visor-toast"></div>
 
-    <script src="src/js/playground.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/forge.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>
