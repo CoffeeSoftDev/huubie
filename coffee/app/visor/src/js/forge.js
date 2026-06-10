@@ -1,14 +1,17 @@
 /* ──────────────────────────────────────────────────────────────
-   Playground de Agentes — pagina hermana del Visor.
-   Reusa los endpoints del visor SIN tocarlo:
-     - ctrl/ctrl-visor.php          → lista agentes + grimorios (con raw)
-     - ctrl/ctrl-coffeeia-stream.php → chat SSE (acepta systemOverride opcional)
-   Porta el motor de chat del Visor: typewriter, card "Conjurando…",
-   sonido al terminar, adjuntar imagenes y modo lienzo.
+   Forge — Fábrica de Módulos. Copia AISLADA del Playground (no lo toca).
+   Mismo motor de chat (typewriter, "Conjurando…", adjuntos, lienzo) y
+   mismos endpoints/modelos (Ollama Cloud / OpenRouter) + agentes .md.
+   Diverge del Playground en que el resultado del agente puede ser un
+   MÓDULO multi-archivo (ctrl PHP + mdl PHP + JS) que se materializa a
+   disco en un proyecto destino — no solo una maqueta para el iframe.
+     - ctrl/ctrl-visor.php           → lista agentes + grimorios (con raw)
+     - ctrl/ctrl-coffeeia-stream.php  → chat SSE (acepta systemOverride opcional)
    ────────────────────────────────────────────────────────────── */
 
 const PG_API        = 'ctrl/ctrl-visor.php';
 const PG_API_STREAM = 'ctrl/ctrl-coffeeia-stream.php';
+const FG_API        = 'ctrl/ctrl-forge.php';   // backend de la fábrica (projects/preview/materialize)
 
 // Extensiones tratadas como TEXTO plano (gemelo del Visor): se leen con readAsText
 // y se embeben al contexto del chat. Los binarios (pdf/docx/xlsx) no entran aqui.
@@ -56,7 +59,7 @@ function pgMetaItems(meta) {
     return costItem + toksItem + `<span class="meta-item">Time: <strong>${elapsedSec}</strong></span>`;
 }
 
-const PG_STORE_KEY  = 'playground:settings:v1';
+const PG_STORE_KEY  = 'forge:settings:v1';   // copia aislada — no comparte ajustes con el Playground
 
 // Agentes que el playground sabe presentar. `render` define como interpretar
 // la salida en el sandbox: 'html' (renderiza), 'code' (modulo), 'markdown' (doc).
@@ -138,7 +141,11 @@ const pg = {
     splitW:    '',           // ancho del panel de chat (px) — splitter
     zoom:      100,          // zoom del preview (%) — escala el contenido del iframe
     _popSound: null,
-    _varochCss: ''           // CSS embebido extraido del grimorio Coffee-Varoch
+    _varochCss: '',          // CSS embebido extraido del grimorio Coffee-Varoch
+    // ── Fábrica ──
+    module:   { files: [] }, // último módulo multi-archivo parseado de la respuesta
+    project:  '',            // proyecto destino elegido para materializar
+    projects: []             // proyectos destino disponibles (subcarpetas de www)
 };
 
 $(async () => {
@@ -146,9 +153,12 @@ $(async () => {
     pgApplyUiTheme(pg.uiTheme);
     pgApplySplit(pg.splitW);
     pgBind();
+    fgBind();
     await pgLoadLibrary();
+    await fgLoadProjects();
     pgApplyAgent(pg.agentKey, true);
     pgApplyCanvasUI();
+    fgRenderModulePanel();
     if (window.lucide) lucide.createIcons();
 });
 
@@ -213,6 +223,7 @@ function pgLoadSettings() {
         if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
         if (typeof s.model === 'string')         pg.model    = s.model;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
+        if (typeof s.project === 'string')       pg.project  = s.project;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
     } catch (e) {}
 }
@@ -220,7 +231,7 @@ function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
-            canvasMode: pg.canvasMode, splitW: pg.splitW, zoom: pg.zoom, knowledge: Array.from(pg.knowledge)
+            canvasMode: pg.canvasMode, splitW: pg.splitW, zoom: pg.zoom, project: pg.project, knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
 }
@@ -370,6 +381,8 @@ function pgBind() {
         const tab = $(this).data('sbtab');
         $('#pgSandboxFrame').toggleClass('hidden', tab !== 'preview');
         $('#pgSandboxCode').toggleClass('hidden', tab !== 'code');
+        $('#pgModulePanel').toggleClass('hidden', tab !== 'module');
+        if (tab === 'module') $('#pgSandboxEmpty').hide();
     });
 
     $('#pgSandboxOpen').on('click', () => {
@@ -733,6 +746,17 @@ async function pgSend(text, images, docs) {
             + `La UI/frontend del módulo que generes debe construirse con el sistema de diseño **${themeCfg.label}** (grimorio incluido en el contexto): usa sus clases y tokens, no inventes otra paleta. ${themeCfg.note}`;
     }
 
+    // Contrato de la Fábrica: para que Forge pueda materializar el módulo a
+    // disco, cada archivo debe venir en su propio bloque cercado con su ruta
+    // relativa en la PRIMERA línea, marcada con `@file:`.
+    if (cfgAgent.render === 'code') {
+        systemOverride += `\n\n## Salida como módulo (Forge)\n`
+            + `Entrega CADA archivo del módulo en su propio bloque cercado. La PRIMERA línea dentro del bloque debe ser su ruta relativa al proyecto, con el marcador \`@file:\` usando el comentario propio del lenguaje. Ejemplo:\n`
+            + "```php\n// @file: ctrl/ctrl-productos.php\n<?php /* ... */\n```\n"
+            + "```js\n// @file: src/js/productos.js\n/* ... */\n```\n"
+            + `Usa \`//\` para php/js/css, \`#\` para yaml, \`<!-- -->\` para html, \`--\` para sql. No mezcles varios archivos en un mismo bloque. La ruta es relativa a la raíz del proyecto destino (ej. \`alpha/pedidos/src/js/app.js\`).`;
+    }
+
     const payload = {
         messages: pg.history.map(m => {
             const o = { role: m.role, content: m.content };
@@ -851,6 +875,12 @@ function pgFinalizeResponse(stream, received, meta, interrupted) {
         const tpl = pgRenderToSandbox(received);
         if (tpl) pgAppendTemplateCard(stream.$msg, tpl);   // miniatura clicable dentro del chat
     }
+
+    // Fábrica: detectar módulo multi-archivo (marcadores @file) y, si lo hay,
+    // poblar el panel Módulo y saltar a su pestaña.
+    const modFiles = fgParseModule(received);
+    fgSetModule(modFiles);
+    if (modFiles.length) fgActivateModuleTab();
 }
 
 /* Rescata el contenido parcial cuando el stream se corta a media generación.
@@ -1463,4 +1493,200 @@ function pgToast(msg, type) {
     $t.text(msg).attr('data-tone', type || 'info').addClass('visible');
     clearTimeout(pg._toast);
     pg._toast = setTimeout(() => $t.removeClass('visible'), 2800);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FÁBRICA — parseo de módulos multi-archivo y materialización a disco.
+   El agente marca cada archivo con `@file: ruta` (primera línea del
+   bloque). Aquí se extraen, se muestran, se previsualizan contra el
+   proyecto destino (diff) y se escriben sólo tras confirmación.
+   ════════════════════════════════════════════════════════════════ */
+
+// Marcador de archivo: tolera el comentario propio de cada lenguaje
+// (// , # , -- , ; , /* */ , <!-- -->) o el @file desnudo.
+const FG_FILE_MARKER = /^[ \t]*(?:\/\/|#|--|;|\/\*|<!--)?[ \t]*@file:[ \t]*(.+?)[ \t]*(?:\*\/|-->)?[ \t]*$/i;
+
+/** Extrae [{path, lang, content}] de la respuesta del agente. */
+function fgParseModule(text) {
+    if (!text) return [];
+    const files = [];
+    const fenceRe = /```([a-z0-9+\-.]*)[ \t]*\r?\n([\s\S]*?)```/gi;
+    let m;
+    while ((m = fenceRe.exec(text)) !== null) {
+        const lang = (m[1] || '').toLowerCase();
+        let body   = m[2];
+        let path   = null;
+
+        // (a) el marcador es la primera línea no vacía DENTRO del bloque
+        const lines = body.split('\n');
+        let i = 0;
+        while (i < lines.length && lines[i].trim() === '') i++;
+        const inner = lines[i] != null ? lines[i].match(FG_FILE_MARKER) : null;
+        if (inner) {
+            path = inner[1].trim();
+            lines.splice(0, i + 1);
+            body = lines.join('\n').replace(/^\s*\r?\n/, '');
+        } else {
+            // (b) el marcador está en la línea justo ANTES del bloque cercado
+            const before = text.slice(0, m.index).split('\n').filter(l => l.trim() !== '');
+            const prev   = before.length ? before[before.length - 1] : '';
+            const pm = prev.match(FG_FILE_MARKER);
+            if (pm) path = pm[1].trim();
+        }
+        if (path) {
+            path = path.replace(/^["'`]+|["'`]+$/g, '').replace(/^\.\//, '');
+            files.push({ path, lang, content: body.replace(/\s+$/, '') });
+        }
+    }
+    return files;
+}
+
+/** Icono lucide por extensión de archivo. */
+function fgFileIcon(path) {
+    const ext = (String(path).split('.').pop() || '').toLowerCase();
+    if (ext === 'php') return 'file-code';
+    if (['js', 'mjs', 'ts'].indexOf(ext) !== -1) return 'file-code-2';
+    if (['css', 'scss', 'less'].indexOf(ext) !== -1) return 'palette';
+    if (['html', 'htm'].indexOf(ext) !== -1) return 'code-2';
+    if (['md', 'markdown', 'txt'].indexOf(ext) !== -1) return 'file-text';
+    if (['json', 'yml', 'yaml', 'xml'].indexOf(ext) !== -1) return 'braces';
+    if (ext === 'sql') return 'database';
+    return 'file';
+}
+
+/** Carga los proyectos destino (subcarpetas de www) en el selector. */
+async function fgLoadProjects() {
+    try {
+        const res  = await fetch(`${FG_API}?action=projects`, { cache: 'no-store' });
+        const data = await res.json();
+        pg.projects = data.projects || [];
+    } catch (e) { pg.projects = []; }
+    const $sel = $('#fgProjectSelect').empty();
+    pg.projects.forEach(p => $sel.append(`<option value="${pgEscape(p.key)}">${pgEscape(p.name)}</option>`));
+    if (pg.project && pg.projects.some(p => p.key === pg.project)) $sel.val(pg.project);
+    else pg.project = $sel.val() || '';
+}
+
+/** Guarda el módulo parseado y refresca badge + panel. */
+function fgSetModule(files) {
+    pg.module.files = Array.isArray(files) ? files : [];
+    const n = pg.module.files.length;
+    const $count = $('#fgModuleCount');
+    if (n > 0) $count.text(n).show(); else $count.hide();
+    fgRenderModulePanel();
+}
+
+/** Si hay módulo, salta a la pestaña Módulo. */
+function fgActivateModuleTab() {
+    if (!pg.module.files.length) return;
+    $('#pgSandboxEmpty').hide();
+    $('.pg-tab[data-sbtab="module"]').trigger('click');
+}
+
+function fgRenderModulePanel() {
+    const $list = $('#fgModuleList').empty();
+    const files = pg.module.files;
+    if (!files.length) {
+        $list.html('<div class="fg-module-empty"><i data-lucide="package-open"></i><p>El agente aún no generó un módulo. Pídele los archivos con el marcador <code>// @file: ruta</code> en cada bloque.</p></div>');
+        if (window.lucide) lucide.createIcons();
+        return;
+    }
+    files.forEach((f, i) => {
+        const lines = f.content ? f.content.split('\n').length : 0;
+        $list.append(`
+            <div class="fg-file" data-idx="${i}" title="Ver contenido">
+                <i data-lucide="${fgFileIcon(f.path)}" class="fg-file-icon"></i>
+                <span class="fg-file-path">${pgEscape(f.path)}</span>
+                <span class="fg-file-meta">${pgEscape(f.lang || '')}${f.lang ? ' · ' : ''}${lines} ln</span>
+            </div>`);
+    });
+    $list.find('.fg-file').on('click', function () {
+        const f = pg.module.files[parseInt($(this).data('idx'), 10)];
+        if (f) pgShowSandboxCode(f.content);
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+/** Previsualiza el módulo contra el proyecto destino (diff, sin escribir). */
+async function fgPreview() {
+    if (!pg.module.files.length) { pgToast('No hay módulo que previsualizar', 'warn'); return; }
+    if (!pg.project)             { pgToast('Elige un proyecto destino', 'warn'); return; }
+    const $b1 = $('#fgPreviewBtn').prop('disabled', true);
+    const $b2 = $('#fgMaterializeBtn').prop('disabled', true);
+    try {
+        const form = new FormData();
+        form.append('action', 'preview');
+        form.append('project', pg.project);
+        form.append('files', JSON.stringify(pg.module.files.map(f => ({ path: f.path, content: f.content }))));
+        const res  = await fetch(FG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) pgToast(data.message || 'Error al previsualizar', 'error');
+        else fgOpenPreviewModal(data);
+    } catch (e) { pgToast('Error de red al previsualizar', 'error'); }
+    $b1.prop('disabled', false); $b2.prop('disabled', false);
+}
+
+function fgOpenPreviewModal(data) {
+    $('#fgPreviewProject').text(data.project || pg.project);
+    const $list = $('#fgPreviewList').empty();
+    let nNew = 0, nMod = 0, nBlocked = 0;
+    (data.files || []).forEach(f => {
+        let badge, tone;
+        if (f.status === 'new')            { badge = 'NUEVO';       tone = 'new';     nNew++; }
+        else if (f.status === 'modified')  { badge = 'SOBRESCRIBE'; tone = 'mod';     nMod++; }
+        else if (f.status === 'identical') { badge = 'SIN CAMBIOS'; tone = 'same';            }
+        else                               { badge = 'BLOQUEADO';   tone = 'blocked'; nBlocked++; }
+        const meta = f.status === 'blocked'
+            ? pgEscape(f.reason || '')
+            : (f.status === 'modified' ? `${f.oldLines} → ${f.newLines} ln` : `${f.newLines || 0} ln`);
+        $list.append(`
+            <div class="fg-prev-row tone-${tone}">
+                <span class="fg-prev-badge">${badge}</span>
+                <span class="fg-prev-path">${pgEscape(f.path)}</span>
+                <span class="fg-prev-meta">${meta}</span>
+            </div>`);
+    });
+    const parts = [];
+    if (nNew)     parts.push(`${nNew} nuevo(s)`);
+    if (nMod)     parts.push(`${nMod} sobrescribe(n)`);
+    if (nBlocked) parts.push(`${nBlocked} bloqueado(s)`);
+    $('#fgPreviewSummary').text(parts.join(' · ') || 'Sin archivos');
+    $('#fgPreviewConfirm').prop('disabled', (nNew + nMod) === 0);
+    $('#fgPreviewModal').removeClass('hidden').attr('aria-hidden', 'false');
+    if (window.lucide) lucide.createIcons();
+}
+function fgClosePreviewModal() {
+    $('#fgPreviewModal').addClass('hidden').attr('aria-hidden', 'true');
+}
+
+/** Escribe el módulo al proyecto (tras confirmar en el modal de diff). */
+async function fgMaterialize() {
+    if (!pg.module.files.length || !pg.project) return;
+    const $btn = $('#fgPreviewConfirm').prop('disabled', true);
+    try {
+        const form = new FormData();
+        form.append('action', 'materialize');
+        form.append('project', pg.project);
+        form.append('files', JSON.stringify(pg.module.files.map(f => ({ path: f.path, content: f.content }))));
+        const res  = await fetch(FG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            pgToast(`Materializado: ${(data.written || []).length} archivo(s) en ${pg.project}`, 'success');
+            fgClosePreviewModal();
+        } else {
+            const errs = (data.errors || []).map(e => e.path + ': ' + e.reason).join('; ');
+            pgToast(errs ? ('No se escribieron: ' + errs) : (data.message || 'Error al materializar'), 'error');
+        }
+    } catch (e) { pgToast('Error de red al materializar', 'error'); }
+    $btn.prop('disabled', false);
+}
+
+/** Bindings de la capa fábrica. */
+function fgBind() {
+    $('#fgProjectSelect').on('change', e => { pg.project = e.target.value || ''; pgSaveSettings(); });
+    // Ambos botones pasan por el diff: nunca se escribe sin previsualizar.
+    $('#fgPreviewBtn, #fgMaterializeBtn').on('click', () => fgPreview());
+    $('#fgPreviewConfirm').on('click', () => fgMaterialize());
+    $('#fgPreviewClose, #fgPreviewCancel').on('click', () => fgClosePreviewModal());
+    $('#fgPreviewModal .pg-modal-backdrop').on('click', () => fgClosePreviewModal());
 }

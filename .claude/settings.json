@@ -92,7 +92,9 @@
       "Bash(sed -n '1,60p' operacion/almacen/layout/head.php)",
       "Bash(grep -rn \"\\\\.css\\\\|<style\" operacion/almacen/layout/head.php)",
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l ctrl/ctrl-visor.php)",
-      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l playground.php)"
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l playground.php)",
+      "Bash(timeout 90 claude -p \"Responde unicamente la palabra: pong\" --output-format stream-json --include-partial-messages --max-turns 1 --disallowedTools \"Bash Edit Write Read\")",
+      "Bash(timeout 90 claude -p \"Responde unicamente la palabra: pong\" --output-format stream-json --include-partial-messages --verbose --max-turns 1 --disallowedTools \"Bash Edit Write Read\")"
     ],
     "additionalDirectories": [
       "\\tmp"
