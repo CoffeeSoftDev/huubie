@@ -14,15 +14,15 @@
 return [
     'models' => [
         'minimax' => 'minimax-m3',   // MiniMax 3.0
-        'ollama'  => 'gpt-oss:120b', // modelo abierto de OpenAI
+        'ollama'  => 'gemma4:31b-cloud', // modelo abierto de OpenAI
     ],
 
     // Etiqueta visible de cada columna en la UI.
     'labels' => [
         'minimax' => 'MiniMax 3.0',
-        'ollama'  => 'GPT-OSS (OpenAI)',
+        'ollama'  => 'Gemma',
     ],
 
     // Opciones de muestreo comunes a ambos proveedores.
-    'options' => ['temperature' => 0.3],
+    'options' => ['temperature' => 0.7],
 ];

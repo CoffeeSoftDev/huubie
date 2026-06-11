@@ -7,34 +7,116 @@ require_once '../mdl/mdl-pos.php';
 class ctrl extends mdl {
 
     function init() {
-        $sucursales = $this->lsSucursales();
-        
         $sub_id   = $_SESSION['SUB'];
         $products = $this->lsProducts([$sub_id]);
         $turno    = $this->getOpenShiftBySubsidiary([$sub_id]);
         $folio    = $this->getMaxOrderFolio();
-        // $turnos     = $subsidiaries_id ? $this->lsCashShifts([$subsidiaries_id]) : [];
 
-        $turnoData = null;
-        if ($turno) {
-            $metrics   = $this->getShiftMetrics([$turno['id']]);
-            $turnoData = [
-                'id'      => $turno['id'],
-                'nombre'  => $turno['shift_name'],
-                'ventas'  => (float)$metrics['total_sales'],
-                'ordenes' => (int)$metrics['total_orders']
+        return [
+            'products'        => is_array($products) ? $products : [],
+            'turno'           => $this->turnoData($turno),
+            'id_sub'          => $sub_id,
+            'sucursal'        => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
+            'vendedor'        => $turno ? $turno['employee_name'] : '',
+            'folio'           => $folio,
+            'paymentTypes'    => $this->lsPaymentTypes() ?: [],
+            'discountReasons' => $this->lsDiscountReasons() ?: []
+        ];
+    }
+
+    private function turnoData($turno) {
+        if (!$turno) return null;
+
+        $metrics = $this->getShiftMetrics([$turno['id']]);
+        return [
+            'id'             => $turno['id'],
+            'nombre'         => $turno['shift_name'],
+            'opened_at'      => $turno['opened_at'],
+            'opening_amount' => (float)$turno['opening_amount'],
+            'employee'       => $turno['employee_name'],
+            'ventas'         => (float)$metrics['total_sales'],
+            'ordenes'        => (int)$metrics['total_orders']
+        ];
+    }
+
+    // =========================================================================
+    // Turno (HU-08 — mismo cash_shift que el módulo de pedidos)
+    // =========================================================================
+
+    function openShift() {
+        $sub_id = $_SESSION['SUB'];
+
+        $existing = $this->getOpenShiftBySubsidiary([$sub_id]);
+        if ($existing) {
+            return [
+                'status'  => 409,
+                'message' => 'Ya existe un turno abierto para esta sucursal.',
+                'turno'   => $this->turnoData($existing)
             ];
         }
+
+        $shift_name     = trim($_POST['shift_name'] ?? '');
+        $opening_amount = floatval($_POST['opening_amount'] ?? 0);
+
+        if ($opening_amount < 0) {
+            return ['status' => 400, 'message' => 'El fondo de caja no puede ser negativo'];
+        }
+
+        $this->createCashShift([
+            'values' => 'subsidiary_id, employee_id, shift_name, opened_at, opening_amount, status, active',
+            'data'   => [$sub_id, $_SESSION['ID'], $shift_name, date('Y-m-d H:i:s'), $opening_amount, 'open', 1]
+        ]);
+
+        $max   = $this->getMaxCashShift();
+        $turno = $max ? $this->getCashShiftById($max['id']) : null;
+
+        if (!$turno) {
+            return ['status' => 500, 'message' => 'Error al crear el turno'];
+        }
+
         return [
-            'products' => $products,
-            'turno'    => $turnoData,
-            'id_sub'    => $sub_id,
-            'sucursal' => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
-            'vendedor' => $turno ? $turno['employee_name'] : '',
-            'folio'    => $folio,
-            // 'subsidiaries_id' => (int) $subsidiaries_id,
-            // 'sucursales'      => $sucursales,
-            // 'turnos'          => is_array($turnos) ? $turnos : []
+            'status'   => 200,
+            'message'  => 'Turno abierto correctamente',
+            'turno'    => $this->turnoData($turno),
+            'vendedor' => $turno['employee_name']
+        ];
+    }
+
+    function closeShift() {
+        $shift_id = $_POST['shift_id'] ?? 0;
+        $shift    = $this->getCashShiftById($shift_id);
+
+        if (!$shift) {
+            return ['status' => 404, 'message' => 'Turno no encontrado'];
+        }
+        if ($shift['status'] !== 'open') {
+            return ['status' => 409, 'message' => 'Este turno ya fue cerrado'];
+        }
+
+        $metrics   = $this->getShiftMetrics([$shift_id]);
+        $breakdown = $this->getShiftPaymentBreakdown([$shift_id]);
+
+        $this->closeCashShift([
+            date('Y-m-d H:i:s'),
+            (float)$metrics['total_sales'],
+            (float)$breakdown['cash'],
+            (float)$breakdown['card'],
+            (float)$breakdown['transfer'],
+            (int)$metrics['total_orders'],
+            $shift_id
+        ]);
+
+        return [
+            'status'  => 200,
+            'message' => 'Turno cerrado correctamente',
+            'resumen' => [
+                'ventas'   => (float)$metrics['total_sales'],
+                'ordenes'  => (int)$metrics['total_orders'],
+                'cash'     => (float)$breakdown['cash'],
+                'card'     => (float)$breakdown['card'],
+                'transfer' => (float)$breakdown['transfer'],
+                'fondo'    => (float)$shift['opening_amount']
+            ]
         ];
     }
 
@@ -229,6 +311,205 @@ class ctrl extends mdl {
         return [
             'status'  => $status,
             'message' => $message
+        ];
+    }
+
+    // =========================================================================
+    // Clientes (HU-02)
+    // =========================================================================
+
+    function searchClientsPos() {
+        $term = trim($_POST['term'] ?? '');
+        if (strlen($term) < 2) return ['status' => 200, 'clients' => []];
+
+        $clients = $this->searchClients([$_SESSION['SUB'], $term]);
+        return ['status' => 200, 'clients' => is_array($clients) ? $clients : []];
+    }
+
+    function createClientPos() {
+        $name  = trim($_POST['name'] ?? '');
+        $phone = preg_replace('/\D/', '', $_POST['phone'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+
+        if ($name === '') {
+            return ['status' => 400, 'message' => 'El nombre del cliente es obligatorio'];
+        }
+
+        $this->createClient([
+            'values' => 'name, phone, email, active, date_create, subsidiaries_id',
+            'data'   => [$name, $phone !== '' ? $phone : null, $email, 1, date('Y-m-d H:i:s'), $_SESSION['SUB']]
+        ]);
+
+        $client = $this->getLastClient([$_SESSION['SUB']]);
+
+        return [
+            'status'  => $client ? 200 : 500,
+            'message' => $client ? 'Cliente registrado' : 'No se pudo registrar el cliente',
+            'client'  => $client
+        ];
+    }
+
+    // =========================================================================
+    // Cobro (HU-03) — crea order tipo mostrador + items + pagos + descuentos
+    // =========================================================================
+
+    function payVenta() {
+        $payload = json_decode($_POST['payload'] ?? '', true);
+
+        if (empty($payload['items']) || !is_array($payload['items'])) {
+            return ['status' => 400, 'message' => 'El ticket no tiene productos'];
+        }
+        if (empty($payload['payments']) || !is_array($payload['payments'])) {
+            return ['status' => 400, 'message' => 'No se capturaron formas de pago'];
+        }
+
+        $sub_id = $_SESSION['SUB'];
+        $turno  = $this->getOpenShiftBySubsidiary([$sub_id]);
+        if (!$turno) {
+            return ['status' => 409, 'message' => 'No hay un turno abierto. Abre un turno antes de cobrar.'];
+        }
+
+        // Precios reales desde BD — el cliente solo manda id, qty y descuento.
+        $ids      = array_values(array_unique(array_map(fn($it) => (int)$it['id'], $payload['items'])));
+        $rows     = $this->getProductsByIds($ids);
+        $catalogo = [];
+        foreach ($rows as $r) $catalogo[(int)$r['id']] = $r;
+
+        $subtotal  = 0;
+        $descItems = 0;
+        $items     = [];
+        foreach ($payload['items'] as $it) {
+            $pid = (int)$it['id'];
+            $qty = max(1, (int)$it['qty']);
+            if (!isset($catalogo[$pid])) {
+                return ['status' => 400, 'message' => 'Producto inválido en el ticket (#' . $pid . ')'];
+            }
+            $price   = (float)$catalogo[$pid]['price'];
+            $discPct = min(100, max(0, (float)($it['discount'] ?? 0)));
+            $bruto   = $price * $qty;
+
+            $subtotal  += $bruto;
+            $descItems += $bruto * ($discPct / 100);
+
+            $items[] = [
+                'id'        => $pid,
+                'name'      => $catalogo[$pid]['name'],
+                'qty'       => $qty,
+                'price'     => $price,
+                'discount'  => $discPct,
+                'reason_id' => !empty($it['reason_id']) ? (int)$it['reason_id'] : null
+            ];
+        }
+
+        // Descuento de cuenta (porcentaje o monto sobre la base tras descuentos por item)
+        $base       = $subtotal - $descItems;
+        $descCuenta = 0;
+        $accDisc    = $payload['discount'] ?? null;
+        if ($accDisc && (float)$accDisc['value'] > 0) {
+            $descCuenta = $accDisc['type'] === 'porcentaje'
+                ? $base * min(100, (float)$accDisc['value']) / 100
+                : min((float)$accDisc['value'], $base);
+        }
+
+        $descuento = round($descItems + $descCuenta, 2);
+        $total     = round($subtotal - $descuento, 2);
+
+        $pagado = 0;
+        foreach ($payload['payments'] as $p) $pagado += (float)$p['amount'];
+        if (round($pagado, 2) < $total) {
+            return ['status' => 400, 'message' => 'El pago capturado no cubre el total de la venta'];
+        }
+
+        // ── Orden (order_type mostrador + is_pos por compatibilidad) ──────────
+        $now  = date('Y-m-d H:i:s');
+        $note = trim($payload['note'] ?? '');
+
+        $this->createVenta([
+            'values' => 'date_creation, note, status, is_pos, total_pay, discount, info_discount, date_order, time_order, client_id, subsidiaries_id, cash_shift_id, order_type',
+            'data'   => [
+                $now,
+                $note,
+                3, // Pagado
+                1,
+                $total,
+                $descuento,
+                $accDisc ? json_encode($accDisc) : '',
+                date('Y-m-d'),
+                date('H:i:s'),
+                !empty($payload['client_id']) ? (int)$payload['client_id'] : null,
+                $sub_id,
+                $turno['id'],
+                'mostrador'
+            ]
+        ]);
+
+        $max      = $this->getMaxOrderId();
+        $order_id = $max ? (int)$max['id'] : 0;
+        if (!$order_id) {
+            return ['status' => 500, 'message' => 'No se pudo registrar la venta'];
+        }
+
+        // ── Items + descuentos por item + stock ───────────────────────────────
+        foreach ($items as $it) {
+            $this->createOrderItem([
+                'values' => 'date_creation, quantity, price, status, order_details, product_id, pedidos_id',
+                'data'   => [$now, $it['qty'], $it['price'], 1, $it['name'], $it['id'], $order_id]
+            ]);
+
+            if ($it['discount'] > 0) {
+                $pkg_id = $this->getMaxOrderPackageId();
+                $monto  = $it['price'] * $it['qty'] * ($it['discount'] / 100);
+                $this->createOrderDiscount([
+                    'values' => 'scope, notes, amount, percentage, applied_at, order_id, order_package_id, pos_discount_reason_id, active',
+                    'data'   => ['item', '', round($monto, 2), $it['discount'], $now, $order_id, $pkg_id, $it['reason_id'], 1]
+                ]);
+            }
+
+            $this->decrementStock([$it['qty'], $it['id'], $sub_id]);
+        }
+
+        // ── Descuento de cuenta ────────────────────────────────────────────────
+        if ($descCuenta > 0 && $accDisc) {
+            $this->createOrderDiscount([
+                'values' => 'scope, notes, amount, percentage, applied_at, order_id, pos_discount_reason_id, active',
+                'data'   => [
+                    'order',
+                    trim($accDisc['notes'] ?? ''),
+                    round($descCuenta, 2),
+                    $accDisc['type'] === 'porcentaje' ? (float)$accDisc['value'] : 0,
+                    $now,
+                    $order_id,
+                    !empty($accDisc['reason_id']) ? (int)$accDisc['reason_id'] : null,
+                    1
+                ]
+            ]);
+        }
+
+        // ── Pagos ──────────────────────────────────────────────────────────────
+        foreach ($payload['payments'] as $p) {
+            $this->createOrderPayment([
+                'values' => 'amount, tendered_amount, change_amount, paid_at, order_id, pos_payment_type_id, user_id, active',
+                'data'   => [
+                    (float)$p['amount'],
+                    (float)($p['tendered'] ?? $p['amount']),
+                    (float)($p['change'] ?? 0),
+                    $now,
+                    $order_id,
+                    (int)$p['type_id'],
+                    $_SESSION['ID'],
+                    1
+                ]
+            ]);
+        }
+
+        return [
+            'status'   => 200,
+            'message'  => 'Venta registrada correctamente',
+            'order_id' => $order_id,
+            'folio'    => $this->getMaxOrderFolio(),
+            'total'    => $total,
+            'cambio'   => round($pagado - $total, 2),
+            'turno'    => $this->turnoData($this->getCashShiftById($turno['id']))
         ];
     }
 }
