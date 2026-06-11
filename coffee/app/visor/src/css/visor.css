@@ -127,6 +127,31 @@ html, body { height: 100%; }
     border-color: var(--vsr-border-soft);
 }
 
+/* Boton "Nuevo archivo" (icono, junto al toggle del sidebar) */
+.sidebar-new-btn {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--vsr-accent-tint);
+    border: 1px solid var(--vsr-accent-soft);
+    border-radius: 6px;
+    color: var(--vsr-accent-soft);
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease, border-color .12s ease, opacity .12s ease;
+}
+.sidebar-new-btn:hover {
+    background: var(--vsr-accent);
+    border-color: var(--vsr-accent);
+    color: #fff;
+}
+.sidebar-new-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: var(--vsr-border-soft);
+    color: var(--vsr-text-mute2);
+}
+
 /* === Estado colapsado: oculta texto y badges, solo iconos === */
 .visor-sidebar.is-collapsed .sidebar-search-wrap {
     padding: 6px 0;
@@ -134,7 +159,8 @@ html, body { height: 100%; }
     gap: 0;
     border-bottom: none;
 }
-.visor-sidebar.is-collapsed .sidebar-search-wrap .cs-input-group { display: none; }
+.visor-sidebar.is-collapsed .sidebar-search-wrap .cs-input-group,
+.visor-sidebar.is-collapsed .sidebar-search-wrap .sidebar-new-btn { display: none; }
 .visor-sidebar.is-collapsed .sidebar-list { padding: 0; }
 .visor-sidebar.is-collapsed .sidebar-item { padding: 6px 0; }
 
@@ -516,6 +542,27 @@ html, body { height: 100%; }
     transform: rotate(-30deg);
 }
 .sidebar-item .sidebar-pin-btn.is-pinned:hover { color: #f87171; transform: rotate(0deg); }
+
+/* ── Eliminar archivo ── */
+.sidebar-item .sidebar-del-btn {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    background: transparent;
+    border: 0;
+    color: var(--vsr-text-mute2);
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+    padding: 0;
+}
+.sidebar-item:hover .sidebar-del-btn { opacity: 1; }
+.sidebar-item .sidebar-del-btn:hover {
+    background: rgba(248,113,113,.15);
+    color: #f87171;
+}
+.visor-sidebar.is-collapsed .sidebar-item .sidebar-del-btn { display: none; }
 
 /* ── Iconos por formato (color hint) ──────────────────────────
    Permite distinguir formatos de Drive (PDF, Docs, Sheets, etc.)
@@ -1755,6 +1802,48 @@ body.xlsx-view .doc-meta { display: none; }
     white-space: nowrap;
     flex: 1;
     min-width: 0;
+}
+
+/* ── Modal: nuevo archivo ─────────────────────────────────── */
+
+.new-file-dialog { width: 560px; }
+.new-file-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px;
+    overflow: auto;
+}
+.new-file-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vsr-text-muted);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+.new-file-input { width: 100%; height: 32px; }
+.new-file-hint { font-size: 11px; color: var(--vsr-text-muted); }
+.new-file-hint strong { color: var(--vsr-text-soft); }
+.new-file-textarea {
+    width: 100%;
+    min-height: 160px;
+    max-height: 340px;
+    resize: vertical;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border-input);
+    color: var(--vsr-text-soft);
+    font-size: 12.5px;
+    line-height: 1.5;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    outline: none;
+}
+.new-file-textarea:focus,
+.new-file-input:focus {
+    border-color: var(--vsr-accent);
+    box-shadow: 0 0 0 2px var(--vsr-accent-tint);
 }
 
 /* ── Theme toggle ─────────────────────────────────────────── */

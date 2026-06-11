@@ -15,7 +15,9 @@ class Catalogo extends Templates {
             class: "w-full",
             card: {
                 filterBar: { class: "w-full", id: `filterBar${this.PROJECT_NAME}` },
-                container: { class: "w-full h-full", id: `container${this.PROJECT_NAME}` }
+                // Sin h-full: el contenedor crece en vertical con la tabla; el scroll
+                // vertical lo maneja #main__content del shell (mismo criterio que Productos).
+                container: { class: "w-full", id: `container${this.PROJECT_NAME}` }
             }
         });
 

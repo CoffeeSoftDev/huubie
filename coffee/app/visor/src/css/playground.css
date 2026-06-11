@@ -235,6 +235,70 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-context-item .ci-name { font-size: 12.5px; font-weight: 600; color: var(--vsr-text-soft); }
 .pg-context-item .ci-meta { font-size: 11px; color: var(--vsr-text-mute2); margin-left: auto; }
 
+/* ── Galería de plantillas guardadas (compacta, sin preview ni degradado) ── */
+.pg-tpl-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 8px;
+}
+.pg-tpl-empty { grid-column: 1 / -1; margin: 4px 0 0; }
+
+/* Card profesional: panel limpio, color solo en el chip del icono y un
+   filete superior tenue del tono. Sin banda de color ni degradados. */
+.pg-tpl-card {
+    position: relative;
+    display: flex; flex-direction: column; gap: 7px;
+    text-align: left; padding: 10px 11px 9px;
+    background: var(--vsr-bg-base); border: 1px solid var(--vsr-border-soft);
+    border-radius: 10px; cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+.pg-tpl-card::before {
+    content: ''; position: absolute; left: 11px; right: 11px; top: 0; height: 2px;
+    background: hsl(var(--tpl-hue, 265) 65% 58%); opacity: .55;
+    border-radius: 0 0 2px 2px;
+}
+.pg-tpl-card:hover {
+    border-color: hsl(var(--tpl-hue, 265) 55% 55% / .6);
+    background: var(--vsr-bg-card);
+    box-shadow: 0 4px 14px rgba(0,0,0,.28);
+}
+.pg-tpl-card:focus-visible { outline: 2px solid var(--vsr-accent); outline-offset: 2px; }
+
+.pg-tpl-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pg-tpl-ic {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 7px;
+    background: hsl(var(--tpl-hue, 265) 50% 45% / .16);
+    border: 1px solid hsl(var(--tpl-hue, 265) 55% 55% / .30);
+    color: hsl(var(--tpl-hue, 265) 70% 72%);
+}
+.pg-tpl-ic i { width: 14px; height: 14px; }
+.pg-tpl-size {
+    font-size: 9px; font-weight: 600; color: var(--vsr-text-mute2);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.pg-tpl-name {
+    font-size: 12px; font-weight: 700; color: var(--vsr-text); line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pg-tpl-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.pg-tpl-chip {
+    font-size: 8.5px; font-weight: 600; padding: 1px 6px; border-radius: 5px;
+    background: var(--vsr-bg-card); border: 1px solid var(--vsr-border-soft);
+    color: var(--vsr-text-muted);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pg-tpl-chip.is-agent { color: var(--vsr-accent-soft); border-color: var(--vsr-accent-soft); }
+.pg-tpl-foot {
+    display: flex; align-items: center; gap: 4px;
+    margin-top: 1px; padding-top: 7px;
+    border-top: 1px solid var(--vsr-border-soft);
+    font-size: 9px; color: var(--vsr-text-mute2);
+}
+.pg-tpl-foot i { width: 10px; height: 10px; }
+
 /* ── Tarjeta-miniatura de template renderizado (dentro de la burbuja del chat) ── */
 .pg-chat-tpl {
     display: flex; gap: 10px; align-items: stretch;

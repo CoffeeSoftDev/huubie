@@ -170,7 +170,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     $allowedExts = [
         'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
         'html','htm','css','scss','js','ts','php','py','rb','go','rs',
-        'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio'
+        'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
     ];
     $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
     if (!in_array($ext, $allowedExts, true)) {
@@ -229,6 +229,75 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         'bytes'   => $bytes,
         'mtime'   => date('Y-m-d H:i:s', filemtime($target))
     ]);
+    exit;
+}
+
+// Endpoint para ELIMINAR un archivo local (POST delete).
+// Mismo sandbox que 'save': solo borra dentro de los roots conocidos (o el customPath
+// activo). No toca Drive (eso requeriria otro endpoint).
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $fullPath   = trim($_POST['fullPath']   ?? '');
+    $customPath = trim($_POST['customPath'] ?? '');
+
+    if ($fullPath === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'fullPath requerido']);
+        exit;
+    }
+
+    $allowedExts = [
+        'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
+        'html','htm','css','scss','js','ts','php','py','rb','go','rs',
+        'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
+    ];
+    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowedExts, true)) {
+        echo json_encode(['success' => false, 'message' => "Extension no eliminable: .$ext"]);
+        exit;
+    }
+
+    $userHome    = coffee_user_home();
+    $CLAUDE_HOME = str_replace('\\', '/', $userHome) . '/.claude';
+    $allowedRoots = [
+        $CLAUDE_HOME . '/agents',
+        $CLAUDE_HOME . '/commands',
+        $CLAUDE_HOME . '/steering',
+        str_replace('\\', '/', __DIR__ . '/../documents'),
+    ];
+    if ($customPath !== '') $allowedRoots[] = str_replace('\\', '/', $customPath);
+
+    $target     = str_replace('\\', '/', $fullPath);
+    $targetReal = realpath($target);
+    if ($targetReal === false || !is_file($targetReal)) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'El archivo no existe']);
+        exit;
+    }
+    $targetReal = str_replace('\\', '/', $targetReal);
+
+    $inside = false;
+    foreach ($allowedRoots as $root) {
+        $rootReal = realpath($root);
+        if ($rootReal === false) continue;
+        $rootReal = rtrim(str_replace('\\', '/', $rootReal), '/');
+        if (strpos($targetReal, $rootReal . '/') === 0) { $inside = true; break; }
+    }
+    if (!$inside) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Ruta fuera del sandbox del visor']);
+        exit;
+    }
+
+    if (!@unlink($targetReal)) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo eliminar: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    echo json_encode(['success' => true, 'message' => 'Archivo eliminado']);
     exit;
 }
 
@@ -850,8 +919,8 @@ if ($mode === 'drive') {
     $sectionExts = ($folderKey === 'custom')
         ? ['md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
            'html','htm','css','scss','js','ts','php','py','rb','go','rs',
-           'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio']
-        : ['md','drawio'];
+           'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw']
+        : ['md','drawio','excalidraw'];
 
     $agents    = readSection($rootDir, 'agentes', $relPrefix, $sectionExts);
     $grimoires = $subDir ? readSection($subDir, 'grimorios', $relPrefix . '/grimorios', $sectionExts) : [];

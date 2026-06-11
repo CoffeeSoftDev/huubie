@@ -114,6 +114,24 @@ const PG_THEMES = {
 };
 const PG_DEFAULT_THEME = 'huubie-ui';
 
+// Directiva de FUNCIONALIDAD: el agente tiende a devolver maquetas estáticas
+// (solo markup), por eso los templates "no hacen nada" en el sandbox. Esta nota
+// le exige incluir el JavaScript vanilla que cablea toda la interacción dentro
+// del MISMO bloque ```html. El sandbox (srcdoc, sin atributo sandbox) ejecuta los
+// <script> embebidos, así que basta con que vengan en la respuesta.
+const PG_INTERACTIVITY_NOTE =
+    `\n\n## Funcionalidad obligatoria (no es una maqueta)\n`
+    + `El componente debe FUNCIONAR, no solo verse. Incluye SIEMPRE, dentro del mismo bloque \`\`\`html, `
+    + `un \`<script>\` con JavaScript vanilla (sin jQuery, React ni dependencias externas) que conecte TODA `
+    + `la interacción que el diseño implique: tabs, abrir/cerrar modales y dropdowns, acordeones, toggles/switches, `
+    + `steppers de cantidad, búsqueda/filtrado de listas, validación básica de formularios, copiar al portapapeles, `
+    + `cálculos en vivo (totales, contadores), etc. Reglas:\n`
+    + `- Usa \`addEventListener\` y \`querySelector\`/\`data-*\`; evita IDs globales que choquen.\n`
+    + `- El \`<script>\` va al final del componente y se autoejecuta (envuélvelo en un IIFE o \`DOMContentLoaded\`).\n`
+    + `- Si insertas iconos Lucide dinámicamente, llama a \`window.lucide && lucide.createIcons()\` tras inyectarlos.\n`
+    + `- NO agregues un toggle de tema claro/oscuro.\n`
+    + `- Si no hay datos reales, usa datos de muestra para que la interacción sea demostrable haciendo clic.`;
+
 const pg = {
     agents:    {},   // file -> {file, raw, fullPath, frontmatter}
     grimoires: {},   // file -> {file, raw, fullPath}
@@ -726,11 +744,18 @@ async function pgSend(text, images, docs) {
             : `\n\n## Render en Playground (lienzo libre)\n`
               + `Genera el componente solicitado con tu propio criterio de diseño. ${themeCfg.note || ''}\n`
               + `Tienes Tailwind disponible en el lienzo. Devuelve UN solo bloque \`\`\`html con el componente listo para renderizar (sin explicaciones largas).`;
+        systemOverride += PG_INTERACTIVITY_NOTE;
     } else if (cfgAgent.render === 'code' && themeCfg.grimoire) {
         // El tema también modela el módulo: su UI/frontend debe usar el sistema
         // de diseño elegido. En modo libre (sin grimorio) no se impone estilo.
         systemOverride += `\n\n## Estilo del sistema (Playground)\n`
             + `La UI/frontend del módulo que generes debe construirse con el sistema de diseño **${themeCfg.label}** (grimorio incluido en el contexto): usa sus clases y tokens, no inventes otra paleta. ${themeCfg.note}`;
+    }
+
+    // Modo lienzo sobre un agente que no es de UI (p.ej. markdown): igual debe
+    // entregar un componente HTML funcional, no una maqueta inerte.
+    if (pg.canvasMode && cfgAgent.render !== 'html') {
+        systemOverride += PG_INTERACTIVITY_NOTE;
     }
 
     const payload = {
@@ -1341,28 +1366,41 @@ async function pgOpenTemplates() {
 function pgCloseTemplates() {
     $('#pgTemplatesModal').addClass('hidden').attr('aria-hidden', 'true');
 }
+// Tono determinista (0–359) derivado del nombre: cada plantilla tiene su color.
+function pgTplHue(name) {
+    let h = 0;
+    const s = String(name || '');
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+    return h;
+}
+
 function pgRenderTemplatesList() {
     const items = pg._savedTemplates || [];
     const $list = $('#pgTemplatesList').empty();
     $('#pgTemplatesSummary').text(items.length ? `${items.length} plantilla(s)` : 'Sin plantillas');
     if (!items.length) {
-        $list.append('<p class="pg-hint">Aún no has guardado plantillas. Usa el botón <i data-lucide="bookmark-plus" class="w-3 h-3" style="display:inline"></i> del sandbox.</p>');
+        $list.append('<p class="pg-hint pg-tpl-empty">Aún no has guardado plantillas. Usa el botón <i data-lucide="bookmark-plus" class="w-3 h-3" style="display:inline"></i> del sandbox.</p>');
         if (window.lucide) lucide.createIcons();
         return;
     }
     items.forEach(t => {
-        const meta = [t.themeLabel, t.agentLabel, t.savedAt].filter(Boolean).join(' · ');
-        const $row = $(`
-            <div class="pg-context-item" style="cursor:pointer;align-items:flex-start;flex-direction:column;gap:4px;">
-                <div style="display:flex;width:100%;align-items:center;gap:8px;">
-                    <i data-lucide="layout-template" class="w-4 h-4" style="color:var(--vsr-accent-soft);"></i>
-                    <span class="ci-name">${pgEscape(t.name)}</span>
-                    <span class="ci-meta">${pgEscape(t.size || '')}</span>
-                </div>
-                <span class="pg-hint" style="margin:0 0 0 24px;">${pgEscape(meta)}</span>
-            </div>`);
-        $row.on('click', () => pgLoadSavedTemplate(t));
-        $list.append($row);
+        const hue       = pgTplHue(t.name);
+        const dateShort = (t.savedAt || '').slice(0, 10);
+        const $card = $(`
+            <button type="button" class="pg-tpl-card" style="--tpl-hue:${hue};" title="Cargar «${pgEscape(t.name)}» en el sandbox">
+                <span class="pg-tpl-head">
+                    <span class="pg-tpl-ic"><i data-lucide="layout-template"></i></span>
+                    ${t.size ? `<span class="pg-tpl-size">${pgEscape(t.size)}</span>` : ''}
+                </span>
+                <span class="pg-tpl-name">${pgEscape(t.name)}</span>
+                <span class="pg-tpl-meta">
+                    ${t.themeLabel ? `<span class="pg-tpl-chip">${pgEscape(t.themeLabel)}</span>` : ''}
+                    ${t.agentLabel ? `<span class="pg-tpl-chip is-agent">${pgEscape(t.agentLabel)}</span>` : ''}
+                </span>
+                ${dateShort ? `<span class="pg-tpl-foot"><i data-lucide="clock"></i>${pgEscape(dateShort)}</span>` : ''}
+            </button>`);
+        $card.on('click', () => pgLoadSavedTemplate(t));
+        $list.append($card);
     });
     if (window.lucide) lucide.createIcons();
 }

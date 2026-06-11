@@ -1,3 +1,31 @@
+[ 2026-06-11 08:01:23 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.inventory_transfer
+                (folio, note, total_products, total_units, total_cost, date_request,
+                 status_id, origin_warehouse_id, destination_warehouse_id,
+                 origin_subsidiaries_id, destination_subsidiaries_id,
+                 requested_user_id, companies_id)
+            VALUES (?,?,?,?,?,NOW(),?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`inventory_transfer`, CONSTRAINT `inventory_transfer_ibfk_2` FOREIGN KEY (`origin_warehouse_id`) REFERENCES `warehouse` (`id`) ON UPDATE CASCADE)
+
+
+[ 2026-06-11 08:00:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_reginas.inventory_transfer
+                (folio, note, total_products, total_units, total_cost, date_request,
+                 status_id, origin_warehouse_id, destination_warehouse_id,
+                 origin_subsidiaries_id, destination_subsidiaries_id,
+                 requested_user_id, companies_id)
+            VALUES (?,?,?,?,?,NOW(),?,?,?,?,?,?,?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_reginas`.`inventory_transfer`, CONSTRAINT `inventory_transfer_ibfk_2` FOREIGN KEY (`origin_warehouse_id`) REFERENCES `warehouse` (`id`) ON UPDATE CASCADE)
+
+
 [ 2026-06-03 18:03:08 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

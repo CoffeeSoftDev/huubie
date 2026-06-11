@@ -21,3 +21,21 @@ body.dark-mode #containeralmacenMain {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.30) !important;
     padding: 14px !important;
 }
+
+/* ─────────────────────────────────────────────────────────────
+ *  "Modo documento" para esta vista (catálogo / productos).
+ *
+ *  El shell (general.css) deja #root como `flex:1; min-height:0`: un patrón
+ *  pensado para vistas "modo app" cuyo contenido tiene su propio scroll
+ *  interno. Esta vista NO lo tiene —la tabla crece libremente—, así que ese
+ *  min-height:0 comprime #root al alto del viewport y la tabla se desborda
+ *  hacia abajo SIN generar scroll (se "sale" del contenedor).
+ *
+ *  Lo soltamos: #root toma el alto de su contenido y, cuando supera el
+ *  viewport, el scroll vertical lo asume #main__content (overflow-y:auto).
+ *  Sólo afecta a esta página porque almacen-sidebar.css lo carga únicamente
+ *  index.php del módulo.
+ * ───────────────────────────────────────────────────────────── */
+main > #main__content > #root {
+    flex: 0 0 auto;   /* alto = contenido, en vez de "llenar y comprimir" */
+}

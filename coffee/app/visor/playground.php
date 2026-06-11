@@ -287,7 +287,7 @@
             </header>
             <div class="pg-modal-body">
                 <p class="pg-hint">Carga una plantilla en el sandbox y, si quieres, restaura su conversación para seguir iterándola en un chat independiente.</p>
-                <div id="pgTemplatesList" class="pg-context-list"></div>
+                <div id="pgTemplatesList" class="pg-tpl-gallery"></div>
             </div>
             <footer class="pg-modal-foot">
                 <span id="pgTemplatesSummary" class="pg-hint">—</span>

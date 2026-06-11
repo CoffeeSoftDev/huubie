@@ -53,7 +53,9 @@ class Main extends Templates {
             class: "w-full",
             card: {
                 filterBar: { class: "w-full", id: `filterBar${this.PROJECT_NAME}` },
-                container: { class: "w-full h-full", id: `container${this.PROJECT_NAME}` }
+                // Sin h-full: el card crece en vertical con su contenido (los tabs y la
+                // tabla). El scroll vertical lo da #main__content del shell, no este card.
+                container: { class: "w-full", id: `container${this.PROJECT_NAME}` }
             }
         });
 
@@ -139,19 +141,14 @@ class Productos extends Templates {
         this.primaryLayout({
             parent: 'container-productos',
             id: this.PROJECT_NAME,
-            class: 'w-full p-3',
+            class: 'w-full',
             card: {
                 filterBar: { class: 'w-full mb-3', id: 'filterBar' + this.PROJECT_NAME },
-                container: { class: 'w-full h-full', id: 'container' + this.PROJECT_NAME }
+                container: { class: 'w-full', id: 'container' + this.PROJECT_NAME }
             }
         });
 
-        $(`#filterBar${this.PROJECT_NAME}`).prepend(`
-            <div class="px-2 pb-2">
-                <h2 class="text-2xl font-semibold">📦 Productos</h2>
-                <p class="text-gray-400">Gestión de productos del almacén</p>
-            </div>
-        `);
+    
     }
 
     filterBar() {
@@ -205,7 +202,7 @@ class Productos extends Templates {
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
             data: { opc: 'lsMateriales' },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: true, pag: 10 },
             attr: {
                 id: 'tbMateriales',
                 theme: 'light',
