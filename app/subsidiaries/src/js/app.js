@@ -89,11 +89,11 @@ class App extends Templates {
             const card = `
                 <div class="branch-menu-card bg-[#1F2A37] cursor-pointer rounded-xl p-4 text-left transition-all duration-200 select-none
                     ${isSelected
-                        ? 'border-2 border-[#1F2A37]  hover:!border-[#7959FB]'
+                        ? 'border-2 border-[#1F2A37]  hover:!border-[#50199F]'
                         : ' border hover:!border-[#7C3AED]'
                     }" data-id="${branch.id}">
                     <div class="flex items-start justify-between mb-3">
-                        <div class="bg-blue-600 rounded-lg p-2.5 flex-shrink-0">
+                        <div class="bg-[#F64444] rounded-lg p-2.5 flex-shrink-0">
                             <i data-lucide="store" class="w-5 h-5 text-white"></i>
                         </div>
                         ${isSelected
