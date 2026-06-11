@@ -1,0 +1,795 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body { font-family: 'Inter', system-ui, sans-serif; }
+
+  .kpi-card { position: relative; overflow: hidden; transition: all .25s ease; }
+  .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 16px 32px -10px rgba(15,23,42,.14); }
+  .kpi-rose::before    { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+  .kpi-amber::before   { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .kpi-emerald::before { background: linear-gradient(90deg, #10b981, #34d399); }
+  .kpi-red::before     { background: linear-gradient(90deg, #dc2626, #ef4444); }
+
+  .chart-card { background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%); }
+  .insight-card { background: linear-gradient(135deg, #fff1f2 0%, #ffffff 70%); }
+
+  .data-row { transition: all .15s ease; border-left: 3px solid transparent; }
+  .data-row:hover { background: #f8fafc; border-left-color: #f43f5e; }
+
+  .period-btn { transition: all .2s ease; }
+  .period-btn.active { background: linear-gradient(135deg, #f43f5e, #e11d48); color: white; box-shadow: 0 4px 12px -2px rgba(244,63,94,.4); }
+
+  .tab-btn { transition: color .2s, border-color .2s; }
+  .tab-btn.active { color: #e11d48; border-bottom-color: #e11d48; }
+
+  .heat-cell { transition: transform .15s; cursor: pointer; }
+  .heat-cell:hover { transform: scale(1.1); z-index: 2; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+
+  .donut-segment { transition: all .3s ease; cursor: pointer; transform-origin: 100px 100px; }
+  .donut-segment.dimmed { opacity: .25; }
+  .donut-segment.active { transform: scale(1.05); }
+
+  .pulse-dot { position: relative; }
+  .pulse-dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; opacity: .4; }
+  @keyframes pulse { 0% { transform: scale(1); opacity: .4; } 100% { transform: scale(2.5); opacity: 0; } }
+
+  .fade-in { animation: fadeIn .5s ease both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in-1 { animation-delay: .05s; }
+  .fade-in-2 { animation-delay: .1s; }
+  .fade-in-3 { animation-delay: .15s; }
+  .fade-in-4 { animation-delay: .2s; }
+
+  .donut-ring { transition: stroke-dasharray .6s cubic-bezier(.4,0,.2,1); }
+  @keyframes drawLine { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+  .animate-line { stroke-dasharray: 1000; animation: drawLine 1.5s ease-out both; }
+
+  .legend-item { transition: all .2s; cursor: pointer; }
+  .legend-item:hover { background: #f8fafc; transform: translateX(2px); }
+  .legend-item.dimmed { opacity: .4; }
+
+  .chart-tooltip {
+    position: absolute; background: #0f172a; color: white; padding: 8px 12px; border-radius: 8px;
+    font-size: 11px; pointer-events: none; opacity: 0; transition: opacity .15s;
+    font-family: 'JetBrains Mono', monospace; box-shadow: 0 8px 20px rgba(0,0,0,.2);
+    z-index: 50; transform: translate(-50%, -100%); margin-top: -8px;
+  }
+  .chart-tooltip.show { opacity: 1; }
+  .chart-tooltip::after { content: ''; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 8px; height: 8px; background: #0f172a; }
+
+  /* FILTER PILLS */
+  .filter-pill { transition: all .2s ease; }
+  .filter-pill.active { background: #0f172a; color: white; border-color: #0f172a; }
+  .filter-pill:not(.active):hover { border-color: #cbd5e1; transform: translateY(-1px); }
+</style>
+
+<div class="min-h-screen p-4 md:p-6" style="background:linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);color:#0f172a">
+
+  <!-- TOP BAR -->
+  <div class="flex items-center justify-between mb-5 text-sm fade-in">
+    <div class="flex items-center gap-1.5 text-slate-500">
+      <div class="flex items-center gap-1.5 hover:text-slate-700 cursor-pointer transition">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <span>Inventarios</span>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="opacity-50"><path d="m9 18 6-6-6-6"/></svg>
+      <span>Mermas</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="opacity-50"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-slate-900 font-semibold flex items-center gap-1.5">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Histórico
+      </span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="bg-white/80 backdrop-blur border border-slate-200/80 rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-sm">
+        <div class="w-2 h-2 rounded-full bg-rose-500 pulse-dot text-rose-500"></div>
+        <div class="leading-tight">
+          <div class="text-[9px] font-bold text-slate-500 tracking-widest">HORA ACTUAL</div>
+          <div class="text-[12px] font-bold text-slate-900" style="font-family:'JetBrains Mono',monospace" id="clock">06:54:09</div>
+        </div>
+      </div>
+      <button class="bg-white/80 backdrop-blur border border-slate-200/80 rounded-xl p-2.5 relative hover:bg-white hover:shadow-md transition-all">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span class="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-rose-500 to-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">3</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <div class="bg-white/90 backdrop-blur border border-slate-200/80 rounded-2xl p-6 mb-5 shadow-sm fade-in fade-in-1">
+    <div class="flex items-start justify-between mb-4 flex-wrap gap-3">
+      <div class="flex items-center gap-2.5 flex-wrap">
+        <span class="bg-gradient-to-r from-rose-500 to-rose-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-md tracking-wider shadow-sm">HISTÓRICO · CATEGORÍAS</span>
+        <div class="flex items-center gap-1.5 text-sm text-slate-500">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>Sucursal Centro</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- FILTRO DE CATEGORÍA (arriba del rango) -->
+        <div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1" id="catFilter">
+          <button data-cat="all" class="filter-pill active px-3 py-1.5 text-xs font-semibold rounded-lg transition">Todas</button>
+          <button data-cat="FRANCES" class="filter-pill px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 transition flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>FRANCES
+          </button>
+          <button data-cat="BIZCOCHO" class="filter-pill px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 transition flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>BIZCOCHO
+          </button>
+          <button data-cat="PASTELERIA" class="filter-pill px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 transition flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>PASTELERÍA
+          </button>
+        </div>
+        <!-- RANGO DE PERÍODO (debajo del filtro) -->
+        <div class="flex bg-slate-100 rounded-xl p-1" id="periodToggle">
+          <button data-period="semana" class="period-btn px-3 py-1.5 text-xs font-medium text-slate-600 rounded-lg">Semana</button>
+          <button data-period="mes" class="period-btn active px-3 py-1.5 text-xs font-medium text-slate-600 rounded-lg">Mes</button>
+          <button data-period="trimestre" class="period-btn px-3 py-1.5 text-xs font-medium text-slate-600 rounded-lg">Trimestre</button>
+        </div>
+        <button class="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-3 py-2 text-xs font-medium transition-all shadow-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar
+        </button>
+      </div>
+    </div>
+    <div class="flex items-end justify-between flex-wrap gap-3">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Histórico de Mermas</h1>
+        <p class="text-sm text-slate-500 mt-1 max-w-2xl">Evolución diaria de la merma por categoría <span class="text-slate-700 font-semibold" id="catDesc">(FRANCES, BIZCOCHO, PASTELERÍA)</span> para identificar tendencias y comparar períodos.</p>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-slate-500">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Actualizado: hoy, <span id="clock2">06:54</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs - 4 COLUMNS -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+    <div class="kpi-card kpi-rose bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm fade-in fade-in-1">
+      <div class="flex items-start justify-between mb-4">
+        <div class="text-[10px] font-bold text-slate-500 tracking-widest">MERMA ACUMULADA (MES)</div>
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 flex items-center justify-center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2 mb-3">
+        <div class="text-[32px] font-bold text-slate-900 leading-none tracking-tight" id="kpi-acumulada" style="font-family:'JetBrains Mono',monospace">0</div>
+        <span class="text-xs text-slate-400 font-medium">uds</span>
+      </div>
+      <div class="flex items-center gap-2 text-[11px]">
+        <span class="inline-flex items-center gap-1 font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 15 6-6 6 6"/></svg>
+          +8.1%
+        </span>
+        <span class="text-slate-500">vs mes anterior</span>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-amber bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm fade-in fade-in-2">
+      <div class="flex items-start justify-between mb-4">
+        <div class="text-[10px] font-bold text-slate-500 tracking-widest">% MERMA PROMEDIO</div>
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2 mb-3">
+        <div class="text-[32px] font-bold text-slate-900 leading-none tracking-tight" id="kpi-promedio" style="font-family:'JetBrains Mono',monospace">0<span class="text-slate-400 text-xl">%</span></div>
+      </div>
+      <div class="flex items-center gap-2 text-[11px]">
+        <span class="inline-flex items-center gap-1 font-semibold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 15 6-6 6 6"/></svg>
+          +0.4 pts
+        </span>
+        <span class="text-slate-500">objetivo 4.5%</span>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-emerald bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm fade-in fade-in-3">
+      <div class="flex items-start justify-between mb-4">
+        <div class="text-[10px] font-bold text-slate-500 tracking-widest">MEJOR DÍA</div>
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2 mb-3">
+        <div class="text-[32px] font-bold text-slate-900 leading-none tracking-tight" id="kpi-mejor" style="font-family:'JetBrains Mono',monospace">0<span class="text-slate-400 text-xl">%</span></div>
+      </div>
+      <div class="text-[11px] text-slate-500" id="kpi-mejor-sub">Mejor día del período</div>
+    </div>
+
+    <div class="kpi-card kpi-red bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm fade-in fade-in-4">
+      <div class="flex items-start justify-between mb-4">
+        <div class="text-[10px] font-bold text-slate-500 tracking-widest">VALOR PERDIDO (MES)</div>
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2 mb-3">
+        <div class="text-[32px] font-bold text-slate-900 leading-none tracking-tight" id="kpi-valor" style="font-family:'JetBrains Mono',monospace">$0</div>
+      </div>
+      <div class="text-[11px] text-slate-500 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+        MXN · <span id="kpi-dias">31</span> días
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS - 1 ROW -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+    <div class="chart-card border border-slate-200/80 rounded-2xl p-6 shadow-sm fade-in fade-in-2 relative">
+      <div class="flex items-start justify-between mb-5 flex-wrap gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900 tracking-tight">Tendencia de % de merma</h2>
+          <p class="text-xs text-slate-500 mt-1" id="lineSub">% diario de merma vs margen objetivo (5%)</p>
+        </div>
+        <div class="flex items-center gap-3 text-[11px]">
+          <div class="flex items-center gap-1.5 text-slate-600 font-medium">
+            <span class="w-3 h-0.5 bg-rose-500 rounded"></span>% Merma
+          </div>
+          <div class="flex items-center gap-1.5 text-slate-600 font-medium">
+            <span class="w-3 h-0 border-t-2 border-dashed border-emerald-500"></span>Objetivo
+          </div>
+        </div>
+      </div>
+      <div class="relative">
+        <div id="lineChart"></div>
+        <div id="lineTooltip" class="chart-tooltip"></div>
+      </div>
+    </div>
+
+    <div class="chart-card border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col fade-in fade-in-3">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900 tracking-tight">Mermas por categoría</h2>
+          <p class="text-xs text-slate-500 mt-1">Unidades de merma acumuladas · 31 días</p>
+        </div>
+        <div class="text-[10px] text-slate-400 font-mono">Click para aislar</div>
+      </div>
+      <div id="donutChart" class="flex items-center justify-center my-2"></div>
+      <div class="space-y-1.5 pt-4 mt-2 border-t border-slate-100" id="donutLegend"></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="bg-white/90 backdrop-blur border border-slate-200/80 rounded-2xl p-6 shadow-sm fade-in fade-in-3">
+    <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+      <div class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl">
+        <button class="tab-btn active text-rose-600 border-b-2 border-rose-500 pb-2 -mb-px text-sm font-semibold flex items-center gap-2 px-3" data-tab="comportamiento">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          Comportamiento por producto
+        </button>
+        <button class="tab-btn text-slate-500 hover:text-slate-700 pb-2 -mb-px text-sm font-medium flex items-center gap-2 px-3 transition" data-tab="registro">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Registro histórico diario
+        </button>
+      </div>
+      <div class="text-[11px] text-slate-500 font-medium">Mermas diarias · últimos 7 días</div>
+    </div>
+
+    <div id="tab-comportamiento">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div class="text-[11px] text-slate-500 flex items-center gap-3">
+          <span class="font-semibold text-slate-700">Heatmap diario</span>
+          <span class="text-slate-300">·</span>
+          <span>Click en celda para ver detalle</span>
+        </div>
+        <div class="relative">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" class="absolute left-3 top-1/2 -translate-y-1/2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="searchInput" type="text" placeholder="Buscar producto..." class="pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl w-56 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-400 transition bg-white">
+        </div>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-slate-100">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="bg-slate-50/80 text-slate-500 text-[10px] font-bold tracking-wider">
+              <th class="text-left py-3 px-4">PRODUCTO</th>
+              <th class="text-center py-3 px-3">VIE 30</th>
+              <th class="text-center py-3 px-3">SÁB 31</th>
+              <th class="text-center py-3 px-3">DOM 01</th>
+              <th class="text-center py-3 px-3">LUN 02</th>
+              <th class="text-center py-3 px-3">MAR 03</th>
+              <th class="text-center py-3 px-3">MIÉ 04</th>
+              <th class="text-center py-3 px-3">JUE 05</th>
+              <th class="text-center py-3 px-3">TOTAL 7D</th>
+              <th class="text-center py-3 px-3">TENDENCIA</th>
+            </tr>
+          </thead>
+          <tbody id="productTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-registro" class="hidden">
+      <div class="text-[11px] text-slate-500 mb-3 font-medium">Registro histórico diario consolidado</div>
+      <div class="space-y-2" id="registroList"></div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5 fade-in fade-in-4">
+    <div class="insight-card border border-rose-200/60 rounded-2xl p-5 shadow-sm flex items-start gap-3 md:col-span-2">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-rose-200">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4"><path d="M12 2L2 22h20L12 2z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="17.5" r="0.5" fill="white"/></svg>
+      </div>
+      <div class="flex-1">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-[10px] font-bold text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full tracking-wider">ALERTA</span>
+          <div class="text-sm font-bold text-slate-900">Incremento en merma de <span class="text-rose-600">Bolillo</span> los fines de semana</div>
+        </div>
+        <div class="text-xs text-slate-600">La merma de Bolillo incrementa <span class="font-bold text-rose-600">27%</span> los días sábado respecto al promedio. Revisar producción los viernes para ajustar demanda.</div>
+        <button class="mt-3 text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 group">
+          Ver análisis detallado
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="group-hover:translate-x-0.5 transition-transform"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 shadow-sm text-white relative overflow-hidden">
+      <div class="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/5"></div>
+      <div class="absolute -right-2 -bottom-8 w-20 h-20 rounded-full bg-white/5"></div>
+      <div class="relative">
+        <div class="flex items-center gap-2 mb-3">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span class="text-[10px] font-bold text-amber-300 tracking-widest">RECOMENDACIÓN IA</span>
+        </div>
+        <div class="text-sm font-semibold mb-1.5">Reducir 8% la producción</div>
+        <div class="text-xs text-slate-300 mb-3">de Bolillo los viernes para alinearla con la demanda real del sábado.</div>
+        <div class="flex items-center gap-2 text-[11px]">
+          <span class="bg-white/10 backdrop-blur px-2 py-1 rounded-md">Ahorro est. <span class="font-bold text-emerald-300">$2,340</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE CELDA -->
+  <div id="cellModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm" style="display:none">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden" id="cellModalContent">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <div class="text-[10px] font-bold text-slate-500 tracking-widest" id="cellModalDay">DÍA</div>
+          <div class="text-base font-bold text-slate-900" id="cellModalProduct">PRODUCTO</div>
+        </div>
+        <button id="closeCellModal" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="p-5">
+        <div class="flex items-baseline gap-2 mb-4">
+          <div class="text-3xl font-bold text-slate-900" style="font-family:'JetBrains Mono',monospace" id="cellModalValue">0</div>
+          <span class="text-sm text-slate-500">unidades</span>
+        </div>
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between p-2.5 bg-slate-50 rounded-lg"><span class="text-slate-500">Categoría</span><span class="font-semibold text-slate-900" id="cellModalCat">-</span></div>
+          <div class="flex justify-between p-2.5 bg-slate-50 rounded-lg"><span class="text-slate-500">% del día</span><span class="font-semibold text-slate-900" id="cellModalPct">-</span></div>
+          <div class="flex justify-between p-2.5 bg-slate-50 rounded-lg"><span class="text-slate-500">vs promedio</span><span class="font-semibold" id="cellModalVs">-</span></div>
+        </div>
+        <button class="w-full mt-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-xl transition">Ver detalle completo</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  // CLOCK
+  function updateClock() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hh}:${mm}:${ss}`;
+    document.getElementById('clock2').textContent = `${hh}:${mm}`;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // DATA
+  const productData = [
+    { cat: 'FRANCES', color: 'rose', accent: '#e11d48', products: [
+      { name: 'Bolillo', values: [42, 48, 35, 44, 52, 38, 53] },
+      { name: 'Telera', values: [32, 36, 28, 33, 38, 28, 38] },
+      { name: 'Baguette', values: [22, 24, 18, 22, 26, 20, 24] }
+    ]},
+    { cat: 'BIZCOCHO', color: 'amber', accent: '#d97706', products: [
+      { name: 'Concha', values: [22, 25, 18, 23, 28, 21, 26] },
+      { name: 'Cuernito', values: [16, 18, 14, 17, 21, 16, 20] },
+      { name: 'Dona', values: [10, 12, 9, 11, 14, 10, 13] },
+      { name: 'Mantecada', values: [7, 8, 6, 8, 10, 7, 9] }
+    ]},
+    { cat: 'PASTELERIA', color: 'emerald', accent: '#059669', products: [
+      { name: 'Pastel 3 leches', values: [11, 13, 9, 12, 15, 11, 15] },
+      { name: 'Pastel chocolate', values: [10, 12, 8, 10, 14, 10, 12] },
+      { name: 'Pay limón', values: [9, 11, 8, 10, 13, 9, 11] }
+    ]}
+  ];
+
+  const colorMap = {
+    rose:    { dot: '#dc2626', text: '#9f1239', accent: '#e11d48', bg: ['#fffafb', '#fff1f2', '#fecdd3', '#fb7185'] },
+    amber:   { dot: '#d97706', text: '#92400e', accent: '#d97706', bg: ['#fffbeb', '#fef3c7', '#fcd34d', '#f59e0b'] },
+    emerald: { dot: '#059669', text: '#065f46', accent: '#059669', bg: ['#f0fdf4', '#d1fae5', '#6ee7b7', '#10b981'] }
+  };
+
+  let currentCategory = 'all';
+  let currentPeriod = 'mes';
+
+  const allData = { semana: [3.2, 3.5, 4.0, 4.8, 5.2, 4.5, 6.8], mes: [3.2, 3.5, 4.0, 4.8, 5.2, 4.5, 6.8, 3.5, 3.8, 4.5, 4.2, 5.5, 5.8, 5.2, 4.5, 4.8, 5.0, 5.5, 5.8, 5.2, 4.5, 4.2, 4.8, 5.0, 5.5, 6.0, 5.5, 4.5, 4.2, 4.0, 4.5] };
+  const trimestre = Array.from({length: 92}, () => +(3 + Math.random() * 3.5).toFixed(1));
+  trimestre[15] = 6.8; trimestre[42] = 6.5; trimestre[70] = 6.2;
+  allData.trimestre = trimestre;
+
+  let lineData = [...allData.mes];
+
+  function getFilteredData() {
+    if (currentCategory === 'all') return productData;
+    return productData.filter(g => g.cat === currentCategory);
+  }
+
+  // ANIMATE NUMBER
+  function animateNumber(el, target, prefix = '', suffix = '', duration = 800) {
+    const start = 0;
+    const startTime = performance.now();
+    const isInt = !String(target).includes('.');
+    function update(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = start + (target - start) * eased;
+      el.textContent = prefix + (isInt ? Math.floor(current).toLocaleString() : current.toFixed(1)) + suffix;
+      if (progress < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+  }
+
+  // CATEGORY FILTER
+  function updateKPIs() {
+    const filtered = getFilteredData();
+    const allProducts = filtered.flatMap(g => g.products);
+    const total = allProducts.reduce((s, p) => s + p.values.reduce((a, b) => a + b, 0), 0);
+    const avg = total / 31;
+    const min = Math.min(...lineData);
+    const valor = Math.round(total * 7.49);
+
+    animateNumber(document.getElementById('kpi-acumulada'), total, '', '', 700);
+    animateNumber(document.getElementById('kpi-promedio'), avg, '', '%', 700);
+    animateNumber(document.getElementById('kpi-mejor'), min, '', '%', 700);
+    animateNumber(document.getElementById('kpi-valor'), valor, '$', '', 800);
+
+    const mejorSub = currentCategory === 'all' ? 'Mejor día del período · Todas las categorías' : `Mejor día del período · ${currentCategory}`;
+    document.getElementById('kpi-mejor-sub').textContent = mejorSub;
+  }
+
+  // CAT FILTER PILLS
+  document.querySelectorAll('#catFilter .filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const cat = pill.dataset.cat;
+      currentCategory = cat;
+      document.querySelectorAll('#catFilter .filter-pill').forEach(p => {
+        p.classList.remove('active');
+        p.className = p.dataset.cat === 'all'
+          ? 'filter-pill px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 transition'
+          : 'filter-pill px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 transition flex items-center gap-1.5';
+      });
+      pill.classList.add('active');
+
+      const catDesc = document.getElementById('catDesc');
+      if (cat === 'all') catDesc.textContent = '(FRANCES, BIZCOCHO, PASTELERÍA)';
+      else catDesc.textContent = `(${cat})`;
+
+      updateKPIs();
+      renderTable();
+      renderDonut();
+    });
+  });
+
+  // PERIOD TOGGLE
+  document.getElementById('periodToggle').addEventListener('click', e => {
+    if (e.target.tagName !== 'BUTTON') return;
+    document.querySelectorAll('#periodToggle button').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    currentPeriod = e.target.dataset.period;
+    lineData = [...allData[currentPeriod]];
+    renderLineChart();
+    updateKPIs();
+  });
+
+  // LINE CHART
+  function smoothPath(pts) {
+    let p = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const midX = (pts[i].x + pts[i+1].x) / 2;
+      const midY = (pts[i].y + pts[i+1].y) / 2;
+      p += ` Q ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)} ${midX.toFixed(1)} ${midY.toFixed(1)}`;
+    }
+    p += ` T ${pts[pts.length-1].x.toFixed(1)} ${pts[pts.length-1].y.toFixed(1)}`;
+    return p;
+  }
+
+  function renderLineChart() {
+    const w = 720, h = 280;
+    const padL = 36, padR = 50, padT = 16, padB = 30;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    const yMax = 8;
+    const xScale = i => padL + (i / (lineData.length - 1)) * innerW;
+    const yScale = v => padT + (1 - v / yMax) * innerH;
+
+    const points = lineData.map((v, i) => ({ x: xScale(i), y: yScale(v) }));
+    const linePath = smoothPath(points);
+    const areaPath = `${linePath} L ${xScale(lineData.length-1).toFixed(1)} ${yScale(0).toFixed(1)} L ${xScale(0).toFixed(1)} ${yScale(0).toFixed(1)} Z`;
+
+    let svg = `<svg viewBox="0 0 ${w} ${h}" class="w-full h-auto" preserveAspectRatio="none" style="font-family:Inter,sans-serif">`;
+    svg += `<defs>
+      <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.32"/>
+        <stop offset="100%" stop-color="#f43f5e" stop-opacity="0"/>
+      </linearGradient>
+    </defs>`;
+
+    for (let i = 0; i <= 8; i++) {
+      const y = yScale(i);
+      svg += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#f1f5f9" stroke-width="1"/>`;
+      svg += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="#94a3b8" font-family="JetBrains Mono">${i}%</text>`;
+    }
+
+    const labelStep = Math.max(1, Math.ceil(lineData.length / 10));
+    for (let d = 1; d <= lineData.length; d += labelStep) {
+      const x = xScale(d - 1);
+      svg += `<text x="${x}" y="${h - 8}" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="JetBrains Mono">D${String(d).padStart(2, '0')}</text>`;
+    }
+
+    svg += `<path d="${areaPath}" fill="url(#areaGrad)"/>`;
+
+    const objetivoY = yScale(5);
+    svg += `<line x1="${padL}" y1="${objetivoY}" x2="${w - padR}" y2="${objetivoY}" stroke="#10b981" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    svg += `<rect x="${w - padR - 78}" y="${objetivoY - 11}" width="78" height="14" rx="3" fill="#ecfdf5" opacity="0.9"/>`;
+    svg += `<text x="${w - padR - 4}" y="${objetivoY - 1}" text-anchor="end" font-size="9" fill="#059669" font-weight="700" font-family="Inter">5% OBJETIVO</text>`;
+
+    svg += `<path d="${linePath}" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="animate-line"/>`;
+
+    const stepX = innerW / (lineData.length - 1);
+    lineData.forEach((v, i) => {
+      const x = xScale(i);
+      const y = yScale(v);
+      svg += `<rect class="hover-zone" data-idx="${i}" x="${x - stepX/2}" y="${padT}" width="${stepX}" height="${innerH}" fill="transparent" style="cursor:pointer"/>`;
+    });
+
+    const maxIdx = lineData.indexOf(Math.max(...lineData));
+    const px = xScale(maxIdx), py = yScale(lineData[maxIdx]);
+    svg += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5" fill="#f43f5e" opacity="0.2"/>`;
+    svg += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3.5" fill="#fff" stroke="#f43f5e" stroke-width="2.2"/>`;
+    svg += `<g transform="translate(${px + 12}, ${py - 36})">
+      <rect x="0" y="0" width="62" height="30" rx="6" fill="#0f172a"/>
+      <path d="M-6 18 L0 24 L6 18 Z" fill="#0f172a"/>
+      <text x="31" y="13" text-anchor="middle" font-size="9" fill="#94a3b8" font-weight="600" font-family="Inter">D${String(maxIdx+1).padStart(2,'0')}</text>
+      <text x="31" y="24" text-anchor="middle" font-size="11" fill="white" font-weight="700" font-family="JetBrains Mono">${lineData[maxIdx]}%</text>
+    </g>`;
+
+    svg += `</svg>`;
+    document.getElementById('lineChart').innerHTML = svg;
+
+    const tooltip = document.getElementById('lineTooltip');
+    document.querySelectorAll('.hover-zone').forEach(zone => {
+      zone.addEventListener('mouseenter', e => {
+        const idx = parseInt(e.target.dataset.idx);
+        const v = lineData[idx];
+        tooltip.innerHTML = `<div style="font-size:9px;color:#94a3b8;margin-bottom:2px">D${String(idx+1).padStart(2,'0')}</div><div style="font-weight:700">${v}% merma</div>`;
+        tooltip.classList.add('show');
+      });
+      zone.addEventListener('mousemove', e => {
+        const rect = e.target.getBoundingClientRect();
+        const parentRect = e.target.closest('.relative').getBoundingClientRect();
+        tooltip.style.left = (rect.left - parentRect.left + rect.width/2) + 'px';
+        tooltip.style.top = (rect.top - parentRect.top - 10) + 'px';
+      });
+      zone.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+    });
+  }
+
+  // DONUT
+  const donutData = [
+    { name: 'FRANCES',    value: 3092, color: '#f43f5e', dot: '#dc2626', light: '#fff1f2' },
+    { name: 'BIZCOCHO',   value: 1855, color: '#f59e0b', dot: '#d97706', light: '#fffbeb' },
+    { name: 'PASTELERIA', value: 1237, color: '#10b981', dot: '#059669', light: '#ecfdf5' }
+  ];
+
+  function renderDonut() {
+    const cx = 100, cy = 100, r = 64, sw = 24;
+    const total = donutData.reduce((s, d) => s + d.value, 0);
+    let svg = `<svg viewBox="0 0 200 200" class="w-44 h-44" style="filter:drop-shadow(0 4px 12px rgba(15,23,42,.08))">`;
+    svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#f1f5f9" stroke-width="${sw}"/>`;
+    let offset = 0;
+    donutData.forEach((d, idx) => {
+      const dash = (d.value / total) * 251.2;
+      const gap = 251.2 - dash;
+      svg += `<circle class="donut-segment donut-ring" data-idx="${idx}" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.color}" stroke-width="${sw}" pathLength="251.2" stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      offset += dash;
+    });
+    svg += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="11" fill="#94a3b8" font-weight="600" font-family="Inter" letter-spacing="0.5">TOTAL</text>`;
+    svg += `<text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="22" font-weight="800" fill="#0f172a" font-family="JetBrains Mono">${total.toLocaleString()}</text>`;
+    svg += `</svg>`;
+    document.getElementById('donutChart').innerHTML = svg;
+
+    document.getElementById('donutLegend').innerHTML = donutData.map((d, idx) => `
+      <div class="legend-item flex items-center justify-between p-2 -mx-2 rounded-lg" data-idx="${idx}">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2.5 h-2.5 rounded-full" style="background:${d.color};box-shadow:0 0 0 3px ${d.light}"></span>
+          <div>
+            <div class="text-[10px] font-bold text-slate-700 tracking-wider">${d.name}</div>
+            <div class="text-[10px] text-slate-400">${(d.value / total * 100).toFixed(1)}%</div>
+          </div>
+        </div>
+        <span class="font-bold text-slate-900 text-sm" style="font-family:'JetBrains Mono',monospace">${d.value.toLocaleString()}<span class="text-slate-400 font-normal text-[10px] ml-1">uds</span></span>
+      </div>
+    `).join('');
+
+    const segments = document.querySelectorAll('.donut-segment');
+    const legendItems = document.querySelectorAll('.legend-item');
+    function highlight(activeIdx) {
+      segments.forEach((s, i) => {
+        s.classList.toggle('dimmed', activeIdx !== null && i !== activeIdx);
+        s.classList.toggle('active', activeIdx === i);
+      });
+      legendItems.forEach((l, i) => {
+        l.classList.toggle('dimmed', activeIdx !== null && i !== activeIdx);
+      });
+    }
+    segments.forEach((seg, i) => {
+      seg.addEventListener('mouseenter', () => highlight(i));
+      seg.addEventListener('mouseleave', () => highlight(null));
+      seg.addEventListener('click', () => {
+        const cat = donutData[i].name;
+        document.querySelector(`#catFilter .filter-pill[data-cat="${cat}"]`)?.click();
+      });
+    });
+    legendItems.forEach((li, i) => {
+      li.addEventListener('mouseenter', () => highlight(i));
+      li.addEventListener('mouseleave', () => highlight(null));
+      li.addEventListener('click', () => {
+        const cat = donutData[i].name;
+        document.querySelector(`#catFilter .filter-pill[data-cat="${cat}"]`)?.click();
+      });
+    });
+  }
+
+  // SPARKLINE
+  function sparkline(values, color) {
+    const w = 64, h = 22, pad = 2;
+    const innerW = w - 2*pad, innerH = h - 2*pad;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    const xS = i => pad + (i / (values.length - 1)) * innerW;
+    const yS = v => pad + (1 - (v - min) / range) * innerH;
+    const path = values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xS(i).toFixed(1)} ${yS(v).toFixed(1)}`).join(' ');
+    const areaPath = `${path} L ${xS(values.length-1).toFixed(1)} ${(h-pad).toFixed(1)} L ${xS(0).toFixed(1)} ${(h-pad).toFixed(1)} Z`;
+    const id = 'sg_' + color.replace('#','');
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.25"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${areaPath}" fill="url(#${id})"/>
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  }
+
+  // TABLE
+  const DAYS = ['VIE 30', 'SÁB 31', 'DOM 01', 'LUN 02', 'MAR 03', 'MIÉ 04', 'JUE 05'];
+
+  function renderTable(filter = '') {
+    const f = filter.toLowerCase().trim();
+    let html = '';
+    let totalRows = 0;
+    const filtered = getFilteredData();
+    filtered.forEach(group => {
+      const c = colorMap[group.color];
+      const matching = group.products.filter(p => !f || p.name.toLowerCase().includes(f));
+      if (matching.length === 0) return;
+      html += `<tr><td colspan="10" class="pt-4 pb-2 px-4">
+        <div class="flex items-center gap-2">
+          <span class="w-1 h-3.5 rounded-sm" style="background:${c.accent}"></span>
+          <span class="text-[10px] font-bold tracking-widest" style="color:${c.text}">${group.cat}</span>
+          <span class="text-[10px] text-slate-400">· ${matching.length} producto${matching.length > 1 ? 's' : ''}</span>
+        </div>
+      </td></tr>`;
+      matching.forEach(p => {
+        const max = Math.max(...p.values);
+        const total = p.values.reduce((s, v) => s + v, 0);
+        html += `<tr class="data-row border-t border-slate-100">`;
+        html += `<td class="py-2.5 px-4"><div class="flex items-center gap-2.5"><span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${c.dot}"></span><span class="text-slate-700 whitespace-nowrap font-medium">${p.name}</span></div></td>`;
+        p.values.forEach((v, di) => {
+          const ratio = v / max;
+          let bg = c.bg[0], txt = 'text-slate-500';
+          if (ratio > 0.85) { bg = c.bg[3]; txt = 'text-white'; }
+          else if (ratio > 0.6) { bg = c.bg[2]; txt = 'text-white'; }
+          else if (ratio > 0.4) { bg = c.bg[1]; txt = c.text; }
+          const isMax = v === max;
+          html += `<td class="text-center py-1.5 px-2"><span class="heat-cell inline-block px-2.5 py-1 rounded-md ${isMax ? 'font-bold' : 'font-semibold'} text-xs min-w-[40px] ${txt}" style="background:${bg}" data-product="${p.name}" data-cat="${group.cat}" data-day="${DAYS[di]}" data-value="${v}">${v}</span></td>`;
+        });
+        html += `<td class="text-center py-2.5 px-3"><span class="inline-flex items-center gap-1 font-bold text-slate-900 text-sm bg-slate-100 px-2.5 py-1 rounded-md" style="font-family:'JetBrains Mono',monospace">${total}</span></td>`;
+        html += `<td class="text-center py-2.5 px-3">${sparkline(p.values, c.accent)}</td>`;
+        html += `</tr>`;
+        totalRows++;
+      });
+    });
+    if (totalRows === 0) {
+      html = `<tr><td colspan="10" class="text-center py-12 text-slate-400 text-xs">No se encontraron productos que coincidan con "<span class="text-slate-700 font-medium">${filter}</span>"</td></tr>`;
+    }
+    document.getElementById('productTable').innerHTML = html;
+
+    document.querySelectorAll('.heat-cell').forEach(cell => {
+      cell.addEventListener('click', e => {
+        const d = e.currentTarget.dataset;
+        const max = parseInt(e.currentTarget.dataset.value);
+        const dayTotal = productData.flatMap(g => g.products).reduce((s, p) => s + p.values[DAYS.indexOf(d.day)], 0);
+        const avg = dayTotal / productData.flatMap(g => g.products).length;
+        const pct = ((max / dayTotal) * 100).toFixed(1);
+        const diff = (((max - avg) / avg) * 100).toFixed(1);
+        const isUp = diff > 0;
+
+        document.getElementById('cellModalDay').textContent = d.day;
+        document.getElementById('cellModalProduct').textContent = d.product;
+        document.getElementById('cellModalValue').textContent = max;
+        document.getElementById('cellModalCat').textContent = d.cat;
+        document.getElementById('cellModalPct').textContent = pct + '%';
+        const vsEl = document.getElementById('cellModalVs');
+        vsEl.innerHTML = `<span class="${isUp ? 'text-rose-600' : 'text-emerald-600'}">${isUp ? '↑' : '↓'} ${Math.abs(diff)}% ${isUp ? 'sobre' : 'bajo'} promedio</span>`;
+        document.getElementById('cellModal').style.display = 'flex';
+      });
+    });
+  }
+
+  document.getElementById('closeCellModal').addEventListener('click', () => {
+    document.getElementById('cellModal').style.display = 'none';
+  });
+  document.getElementById('cellModal').addEventListener('click', e => {
+    if (e.target.id === 'cellModal') document.getElementById('cellModal').style.display = 'none';
+  });
+
+  document.getElementById('searchInput').addEventListener('input', e => renderTable(e.target.value));
+
+  // TABS
+  const tabInactive = 'tab-btn text-slate-500 hover:text-slate-700 pb-2 -mb-px text-sm font-medium flex items-center gap-2 px-3 transition';
+  const tabActive = 'tab-btn active text-rose-600 border-b-2 border-rose-500 pb-2 -mb-px text-sm font-semibold flex items-center gap-2 px-3 transition';
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.className = tabInactive);
+      btn.className = tabActive;
+      document.getElementById('tab-comportamiento').classList.toggle('hidden', tab !== 'comportamiento');
+      document.getElementById('tab-registro').classList.toggle('hidden', tab !== 'registro');
+      if (tab === 'registro') renderRegistro();
+    });
+  });
+
+  function renderRegistro() {
+    const html = DAYS.map((d, i) => {
+      const total = productData.flatMap(g => g.products).reduce((s, p) => s + p.values[i], 0);
+      const isHigh = total > 180;
+      return `<div class="flex items-center justify-between p-3.5 border ${isHigh ? 'border-rose-200 bg-rose-50/30' : 'border-slate-100 bg-white'} rounded-xl hover:shadow-sm transition cursor-pointer">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl ${isHigh ? 'bg-gradient-to-br from-rose-500 to-rose-600' : 'bg-gradient-to-br from-emerald-500 to-emerald-600'} flex items-center justify-center shadow-sm">
+            <span class="text-sm font-bold text-white" style="font-family:'JetBrains Mono',monospace">${total}</span>
+          </div>
+          <div>
+            <div class="text-sm font-semibold text-slate-900">${d}</div>
+            <div class="text-[11px] text-slate-500">${isHigh ? 'Día de alta merma · Revisar producción' : 'Merma controlada dentro del objetivo'}</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">3 categorías</div>
+          <div class="text-xs ${isHigh ? 'text-rose-600' : 'text-emerald-600'} font-semibold">${(total / 6184 * 100).toFixed(1)}% del mes</div>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('registroList').innerHTML = html;
+  }
+
+  // INIT
+  renderLineChart();
+  renderDonut();
+  renderTable();
+  setTimeout(updateKPIs, 100);
+})();
+</script>

@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-visor.php';
 let apiIA = 'ctrl/ctrl-coffeeia.php';
-let visor, visorView, app, coffeeIA;
+let visor, visorView, app, coffeeIA, drawioBoard;
 
 const VISOR_STORAGE_KEY = 'visor:settings:v1';
 const VISOR_PINNED_KEY  = 'visor:pinned:v1';
@@ -18,9 +18,10 @@ const EDITABLE_EXTS = [
 ];
 
 $(async () => {
-    visorView = new VisorView('root');
-    visor     = new Visor(api, 'root');
-    app       = new App(api, 'root');
+    visorView   = new VisorView('root');
+    visor       = new Visor(api, 'root');
+    app         = new App(api, 'root');
+    drawioBoard = new DrawioBoard(app, api);
     await app.init();
     coffeeIA = new CoffeeIA(apiIA, app);
 });
@@ -279,6 +280,7 @@ class App {
         visorView.renderFooter(this.dataInit);
         visorView.renderSidebar(this.dataInit, this.currentFile, '');
         visorView.renderFolderPicker(this.dataInit.header, this.settings);
+        this.updateNewFileButton();
         this.loadFile(initialFile);
         if (window.lucide) lucide.createIcons();
     }
@@ -315,6 +317,7 @@ class App {
         this.bindSidebarToggle();
         this.bindIaDrawerResize();
         this.bindUserMenu();
+        this.bindNewFileModal();
     }
 
     applySidebarCollapsed(collapsed, withTransition) {
@@ -407,6 +410,9 @@ class App {
         $('#btnRefresh').off('click').on('click', () => this.refresh());
         $('#btnCopyPath').off('click').on('click', () => this.copyPath());
         $('#btnOpenEditor').off('click').on('click', () => this.openInEditor());
+        $('#btnNewFile').off('click').on('click', () => this.openNewFileModal());
+        $('#btnNewDiagram').off('click').on('click', () => { if (drawioBoard) drawioBoard.open(null); });
+        $('#btnCloseDiagram').off('click').on('click', () => this.exitDiagram());
         $('#btnEdit').off('click').on('click', () => this.enterEditMode());
         $('#btnSave').off('click').on('click', () => this.saveFile());
         $('#btnCancel').off('click').on('click', () => this.exitEditMode(false));
@@ -932,12 +938,16 @@ class App {
         this.currentFile = null;
         this.pinnedFiles = this.loadPinned();
         if (coffeeIA) coffeeIA._renderPinnedChips();
-        const target = this.allFiles[0]?.file;
+        const target = (this._pendingOpen && this.allFiles.find(f => f.file === this._pendingOpen))
+            ? this._pendingOpen
+            : this.allFiles[0]?.file;
+        this._pendingOpen = null;
 
         visorView.renderHeader(this.dataInit.header, this.allFiles.length);
         visorView.renderFooter(this.dataInit);
         visorView.renderSidebar(this.dataInit, this.currentFile, '');
         visorView.renderFolderPicker(this.dataInit.header, this.settings);
+        this.updateNewFileButton();
         this.bindSidebarClicks();
         if (target) this.loadFile(target);
         else        visorView.renderEmptyMain();
@@ -973,6 +983,7 @@ class App {
             visorView.renderHeader(this.dataInit.header, this.allFiles.length);
             visorView.renderFooter(this.dataInit);
             visorView.renderSidebar(this.dataInit, this.currentFile, '');
+            this.updateNewFileButton();
             this.bindSidebarClicks();
             if (target) this.loadFile(target);
             visorView.toast('Biblioteca actualizada (' + this.allFiles.length + ' archivos)', 'success');
@@ -1011,11 +1022,183 @@ class App {
         visorView.toast('Abriendo en VS Code...', 'success');
     }
 
+    /* ── Crear archivo nuevo (.md, .drawio, .json, etc.) ── */
+
+    // Carpeta absoluta donde se creara el archivo: SIEMPRE la que esta abierta
+    // (la ruta real que el backend esta listando). Asi "Nuevo" cae donde estas.
+    newFileTargetDir() {
+        const h = this.dataInit && this.dataInit.header ? this.dataInit.header : null;
+        const current = h && h.currentPath ? h.currentPath : '';
+        if (current && !/^drive:/i.test(current)) return current;
+        // Fallback (Drive abierto): ultimo custom local conocido.
+        return this.settings.customPath || '';
+    }
+
+    // Solo origenes locales con ruta valida admiten creacion (Drive no usa el endpoint save).
+    canCreateFiles() {
+        const h = this.dataInit && this.dataInit.header ? this.dataInit.header : null;
+        if (!h) return false;
+        if (h.source === 'Drive') return false;
+        return !!h.currentPath && h.valid !== false;
+    }
+
+    updateNewFileButton() {
+        const can = this.canCreateFiles();
+        $('#btnNewFile').prop('disabled', !can)
+            .attr('title', can
+                ? 'Crear un archivo nuevo en esta carpeta'
+                : 'Crear archivos no disponible en este origen (selecciona una carpeta local o Custom)');
+    }
+
+    _samePath(a, b) {
+        const norm = s => String(s || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+        return norm(a) === norm(b);
+    }
+
+    // prefill: { dir?, name?, content? } — lo usa el boton "Guardar" del chat de CoffeeIA.
+    openNewFileModal(prefill) {
+        prefill = prefill || {};
+        // Sin contenido precargado, exigimos un origen local valido.
+        if (!prefill.content && !this.canCreateFiles()) {
+            visorView.toast('Selecciona una carpeta local (o Custom) para crear archivos', 'warn');
+            return;
+        }
+        let dir = prefill.dir || this.newFileTargetDir();
+        if (/^drive:/i.test(dir)) dir = this.settings.customPath || '';
+
+        // La carpeta destino es fija: la que esta abierta. Se muestra de solo
+        // lectura para que el archivo SIEMPRE caiga donde estas parado.
+        $('#newFilePathInput').val(dir).prop('readonly', true).attr('title', dir);
+        $('#newFileNameInput').val(prefill.name || '');
+        $('#newFileContent').val(prefill.content || '');
+        $('#newFileModal').removeClass('hidden').attr('aria-hidden', 'false');
+        setTimeout(() => $('#newFileNameInput').trigger('focus'), 30);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    closeNewFileModal() {
+        $('#newFileModal').addClass('hidden').attr('aria-hidden', 'true');
+    }
+
+    bindNewFileModal() {
+        const $modal = $('#newFileModal');
+        if (!$modal.length || $modal.data('bound')) return;
+        $modal.data('bound', true);
+
+        const close = () => this.closeNewFileModal();
+        $('#newFileClose, #newFileCancel').on('click', close);
+        $modal.find('[data-newfile-close]').on('click', close);
+        $('#newFileCreateBtn').on('click', () => this.createFile());
+
+        $('#newFileNameInput').on('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); this.createFile(); }
+            if (e.key === 'Escape') close();
+        });
+        $(document).on('keydown.newFileModal', (e) => {
+            if (e.key === 'Escape' && !$modal.hasClass('hidden')) close();
+        });
+    }
+
+    async createFile() {
+        const dir     = ($('#newFilePathInput').val() || '').trim().replace(/[\\/]+$/, '');
+        let   name    = ($('#newFileNameInput').val() || '').trim();
+        const content = $('#newFileContent').val();
+
+        if (!dir)  { visorView.toast('Indica la carpeta destino', 'warn'); return; }
+        if (!name) { visorView.toast('Indica el nombre del archivo', 'warn'); return; }
+        if (/[\\/]/.test(name)) { visorView.toast('El nombre no puede contener / o \\', 'warn'); return; }
+
+        // Default a .md cuando no se especifica extension.
+        if (!/\.[a-z0-9]+$/i.test(name)) name += '.md';
+        const ext = name.split('.').pop().toLowerCase();
+        if (!EDITABLE_EXTS.includes(ext) && ext !== 'drawio' && ext !== 'excalidraw') {
+            visorView.toast('Extension no permitida: .' + ext, 'warn');
+            return;
+        }
+
+        const fullPath = dir + '/' + name;
+        const $btn = $('#newFileCreateBtn');
+        $btn.prop('disabled', true);
+
+        try {
+            const form = new FormData();
+            form.append('action',     'save');
+            form.append('fullPath',   fullPath);
+            form.append('customPath', dir);   // autoriza el dir destino en el sandbox del backend
+            form.append('content',    content || '');
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) {
+                visorView.toast(data.message || 'No se pudo crear el archivo', 'error');
+                $btn.prop('disabled', false);
+                return;
+            }
+
+            this.closeNewFileModal();
+            visorView.toast('Archivo creado: ' + name, 'success');
+
+            // Si cae en la carpeta abierta, recargar y abrirlo automaticamente.
+            const openDir = (this.dataInit && this.dataInit.header ? this.dataInit.header.currentPath : '') || '';
+            if (this._samePath(dir, openDir)) {
+                this._pendingOpen = name;
+                await this.reloadLibrary();
+            }
+        } catch (e) {
+            visorView.toast('Error de red al crear el archivo', 'error');
+        }
+        $btn.prop('disabled', false);
+    }
+
+    async deleteFile(fileName) {
+        const file = visor.getFile(this.allFiles, fileName);
+        if (!file) return;
+        if (file.lazyDrive || !file.fullPath) {
+            visorView.toast('Este archivo no se puede eliminar desde el visor', 'warn');
+            return;
+        }
+        if (!confirm(`¿Eliminar "${file.file}"?\nEsta acción no se puede deshacer.`)) return;
+
+        try {
+            const form = new FormData();
+            form.append('action',     'delete');
+            form.append('fullPath',   file.fullPath);
+            form.append('customPath', this.settings.customPath || '');
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) {
+                visorView.toast(data.message || 'No se pudo eliminar', 'error');
+                return;
+            }
+
+            visorView.toast('Eliminado: ' + file.file, 'success');
+            // Soltar del contexto CoffeeIA y de la seleccion si correspondia.
+            if (this.pinnedFiles.has(file.file)) { this.pinnedFiles.delete(file.file); this.savePinned(); }
+            if (this.currentFile === file.file)  this.currentFile = null;
+            await this.reloadLibrary();
+        } catch (e) {
+            visorView.toast('Error de red al eliminar', 'error');
+        }
+    }
+
+    // Cierra el lienzo y muestra el .drawio activo como fuente (XML), sin reabrir.
+    exitDiagram() {
+        if (drawioBoard) drawioBoard.close();
+        const file = visor.getFile(this.allFiles, this.currentFile);
+        if (file) visorView.renderContent(file);
+        if (window.lucide) lucide.createIcons();
+    }
+
     bindSidebarClicks() {
         $('#sidebarList .sidebar-pin-btn').off('click').on('click', (e) => {
             e.stopPropagation();
             const fileName = $(e.currentTarget).data('pin-file');
             this.togglePin(fileName);
+        });
+
+        $('#sidebarList .sidebar-del-btn').off('click').on('click', (e) => {
+            e.stopPropagation();
+            const fileName = $(e.currentTarget).data('del-file');
+            this.deleteFile(fileName);
         });
 
         $('#sidebarList .sidebar-item').off('click').on('click', (e) => {
@@ -1090,7 +1273,16 @@ class App {
 
         visorView.renderBreadcrumb(file, this.dataInit.header);
         visorView.renderFrontmatter(file);
-        visorView.renderContent(file);
+
+        // Los diagramas (.drawio) se abren en el lienzo draw.io, no como markdown.
+        const ext = (file.file || '').split('.').pop().toLowerCase();
+        if (ext === 'drawio') {
+            if (drawioBoard) drawioBoard.open(file);
+        } else {
+            if (drawioBoard && drawioBoard.active) drawioBoard.close();
+            visorView.renderContent(file);
+        }
+
         visorView.renderFooterSelection(file);
         this.updateEditButton();
 
@@ -1356,6 +1548,14 @@ class VisorView {
         </button>`;
     }
 
+    // Boton de borrado: solo para archivos locales reales (Drive y modo SAMPLE no aplican).
+    delBtnHtml(file) {
+        if (!file || file.lazyDrive || !file.fullPath) return '';
+        return `<button type="button" class="sidebar-del-btn" data-del-file="${file.file}" title="Eliminar archivo">
+            <i data-lucide="trash-2" class="w-3 h-3"></i>
+        </button>`;
+    }
+
     applyTheme(theme) {
         const t = theme === 'light' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', t);
@@ -1458,6 +1658,7 @@ class VisorView {
                     <span class="file-name">${item.file}</span>
                     ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
                     <span class="file-size">${item.size}</span>
+                    ${this.delBtnHtml(item)}
                     ${this.pinBtnHtml(item.file)}
                 </div>
             `;
@@ -1567,6 +1768,7 @@ class VisorView {
                         <span class="file-name">${item.file}</span>
                         ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
                         <span class="file-size">${item.size}</span>
+                        ${this.delBtnHtml(item)}
                         ${this.pinBtnHtml(item.file)}
                     </div>
                 `;
@@ -2720,6 +2922,7 @@ class CoffeeIA {
                         <div class="ia-msg-meta-footer">
                             ${iaMetaItems(meta)}
                             <span class="meta-actions">
+                                <button class="meta-iconbtn ia-savefile-btn" title="Guardar respuesta como archivo"><i data-lucide="file-down" class="w-3 h-3"></i></button>
                                 <button class="meta-iconbtn ia-copy-btn" title="Copiar respuesta"><i data-lucide="copy" class="w-3 h-3"></i></button>
                             </span>
                         </div>`;
@@ -2733,6 +2936,12 @@ class CoffeeIA {
                     const t = copyText != null ? copyText : displayedText;
                     if (navigator.clipboard) navigator.clipboard.writeText(t);
                     if (typeof visorView !== 'undefined' && visorView) visorView.toast('Respuesta copiada', 'success');
+                });
+                $msg.find('.ia-savefile-btn').on('click', () => {
+                    const t = copyText != null ? copyText : displayedText;
+                    if (self._app && self._app.openNewFileModal) {
+                        self._app.openNewFileModal({ name: self._suggestFileName(t), content: t });
+                    }
                 });
                 self._postProcessMessage($msg);
                 if (window.lucide) lucide.createIcons();
@@ -3597,5 +3806,24 @@ class CoffeeIA {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    // Sugiere un nombre de archivo a partir del primer encabezado markdown de la
+    // respuesta; si no hay, usa una marca de tiempo. Siempre devuelve un .md.
+    _suggestFileName(text) {
+        let title = '';
+        const m = (text || '').match(/^#{1,6}\s+(.+)$/m);
+        if (m) title = m[1].trim();
+        let slug = title.toLowerCase()
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 50);
+        if (!slug) {
+            const d = new Date();
+            const p = n => String(n).padStart(2, '0');
+            slug = `respuesta-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+        }
+        return slug + '.md';
     }
 }

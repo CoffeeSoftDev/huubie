@@ -4,7 +4,7 @@ let categorias, unidades, areas, proveedores, almacenes;
 
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
-let  cataloge, category, area, unit, warehouse, inflow, shrinkage;
+let  cataloge, category, area, unit, warehouse, inflow, shrinkage, supplier;
 
 $(async () => {
     const data     = await useFetch({ url: api, data: { opc: "init" } });
@@ -25,6 +25,7 @@ $(async () => {
     warehouse = new Warehouse(api_catalogo, "root");
     inflow = new InflowOrigin(api_catalogo, "root");
     shrinkage = new ShrinkageReason(api_catalogo, "root");
+    supplier = new Supplier(api_catalogo, "root");
 
     cataloge.render();
 
@@ -52,7 +53,9 @@ class Main extends Templates {
             class: "w-full",
             card: {
                 filterBar: { class: "w-full", id: `filterBar${this.PROJECT_NAME}` },
-                container: { class: "w-full h-full", id: `container${this.PROJECT_NAME}` }
+                // Sin h-full: el card crece en vertical con su contenido (los tabs y la
+                // tabla). El scroll vertical lo da #main__content del shell, no este card.
+                container: { class: "w-full", id: `container${this.PROJECT_NAME}` }
             }
         });
 
@@ -100,6 +103,12 @@ class Main extends Templates {
                     onClick: () => warehouse.lsWarehouse()
                 },
                 {
+                    id: "suppliers",
+                    tab: "Proveedores",
+                    lucideIcon: "truck",
+                    onClick: () => supplier.lsSupplier()
+                },
+                {
                     id: "inflows",
                     tab: "Origen entradas",
                     lucideIcon: "log-in",
@@ -132,19 +141,14 @@ class Productos extends Templates {
         this.primaryLayout({
             parent: 'container-productos',
             id: this.PROJECT_NAME,
-            class: 'w-full p-3',
+            class: 'w-full',
             card: {
                 filterBar: { class: 'w-full mb-3', id: 'filterBar' + this.PROJECT_NAME },
-                container: { class: 'w-full h-full', id: 'container' + this.PROJECT_NAME }
+                container: { class: 'w-full', id: 'container' + this.PROJECT_NAME }
             }
         });
 
-        $(`#filterBar${this.PROJECT_NAME}`).prepend(`
-            <div class="px-2 pb-2">
-                <h2 class="text-2xl font-semibold">📦 Productos</h2>
-                <p class="text-gray-400">Gestión de productos del almacén</p>
-            </div>
-        `);
+    
     }
 
     filterBar() {
@@ -198,7 +202,7 @@ class Productos extends Templates {
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
             data: { opc: 'lsMateriales' },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: true, pag: 10 },
             attr: {
                 id: 'tbMateriales',
                 theme: 'light',

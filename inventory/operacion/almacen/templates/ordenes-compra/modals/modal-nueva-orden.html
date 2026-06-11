@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva orden de compra</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = { theme: { extend: {
+                colors: { blue: {50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'} },
+                fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+            }}};
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body{font-family:'Inter',system-ui,sans-serif;background:#e5e7eb}
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
+        .lbl{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:.25rem}
+        .inp{width:100%;padding:.375rem .625rem;font-size:.75rem;color:#1f2937;background:#fff;border:1px solid #d1d5db;border-radius:.375rem;outline:none}
+        .inp:focus{border-color:#C05A40;box-shadow:0 0 0 2px rgba(192,90,64,.15)}
+        .sel{width:100%;padding:.375rem .625rem;font-size:.75rem;color:#1f2937;background:#fff;border:1px solid #d1d5db;border-radius:.375rem;outline:none;appearance:none;cursor:pointer}
+        .sel:focus{border-color:#C05A40}
+        ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+    </style>
+</head>
+
+<!-- Modal: overlay + card grande (clonado de entrada-form: modal centrado, header gris, footer acciones) -->
+<body class="min-h-screen flex items-start justify-center p-4">
+
+<div class="w-full max-w-5xl bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col max-h-[95vh] overflow-hidden">
+
+    <!-- Header -->
+    <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center">
+                <i data-lucide="clipboard-list" class="w-4 h-4 text-blue-700"></i>
+            </span>
+            <div>
+                <h2 class="text-sm font-bold text-gray-800">Nueva orden de compra</h2>
+                <p class="text-[11px] text-gray-500">Arma la lista de materiales a solicitar</p>
+            </div>
+        </div>
+        <button onclick="window.close()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+
+    <div class="overflow-y-auto px-5 py-4 flex-1">
+
+        <!-- ===== Datos de cabecera ===== -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div>
+                <label class="lbl">Fecha de solicitud</label>
+                <input type="date" class="inp" value="2026-06-09">
+            </div>
+            <div>
+                <label class="lbl">Fecha esperada <span class="text-gray-400 normal-case">(opcional)</span></label>
+                <input type="date" class="inp">
+            </div>
+            <div>
+                <label class="lbl">Sucursal</label>
+                <select class="sel">
+                    <option>Sucursal Centro</option>
+                    <option>Sucursal Norte</option>
+                </select>
+            </div>
+            <div>
+                <label class="lbl">Almacen destino <span class="text-gray-400 normal-case">(opcional)</span></label>
+                <select class="sel">
+                    <option value="">-- Sin definir --</option>
+                    <option>Almacen General</option>
+                    <option>Almacen Frio</option>
+                    <option>Almacen Norte</option>
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <label class="lbl">Proveedor <span class="text-gray-400 normal-case">(opcional)</span></label>
+                <div class="flex gap-2">
+                    <select class="sel">
+                        <option value="">-- Sin proveedor --</option>
+                        <option>Cafe del Valle S.A.</option>
+                        <option>Distribuidora Norte</option>
+                    </select>
+                    <button class="px-2.5 py-1.5 text-[11px] font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Crear proveedor
+                    </button>
+                </div>
+            </div>
+            <div class="md:col-span-2">
+                <label class="lbl">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
+                <input type="text" class="inp" placeholder="Comentario para quien revise la solicitud...">
+            </div>
+        </div>
+
+        <!-- ===== Buscador de productos ===== -->
+        <div class="mb-3">
+            <label class="lbl">Buscar materiales</label>
+            <div class="relative">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" class="inp" style="padding-left:2rem" placeholder="Buscar productos por nombre o SKU...">
+                <!-- Resultados (mock estatico) -->
+                <div class="mt-1 border border-gray-200 rounded-md divide-y divide-gray-100 bg-white shadow-sm">
+                    <div class="flex items-center justify-between px-3 py-2 hover:bg-blue-50 cursor-pointer">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded bg-amber-500/15 flex items-center justify-center"><i data-lucide="coffee" class="w-3.5 h-3.5 text-amber-500"></i></span>
+                            <div><p class="text-xs font-medium text-gray-700">Cafe Americano 250g</p><p class="text-[10px] text-gray-400">CAF-001 &middot; Stock: 12</p></div>
+                        </div>
+                        <span class="text-[11px] font-semibold text-blue-700 flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar</span>
+                    </div>
+                    <div class="flex items-center justify-between px-3 py-2 hover:bg-blue-50 cursor-pointer">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded bg-green-500/15 flex items-center justify-center"><i data-lucide="leaf" class="w-3.5 h-3.5 text-green-500"></i></span>
+                            <div><p class="text-xs font-medium text-gray-700">Te Verde 100g</p><p class="text-[10px] text-gray-400">TE-002 &middot; Stock: 3</p></div>
+                        </div>
+                        <span class="text-[11px] font-semibold text-blue-700 flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Tabla de renglones agregados ===== -->
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2">Producto</th>
+                        <th class="text-center font-semibold px-3 py-2 w-24">Cantidad</th>
+                        <th class="text-center font-semibold px-3 py-2 w-28">Costo unit.</th>
+                        <th class="text-center font-semibold px-3 py-2 w-20">Tax</th>
+                        <th class="text-right font-semibold px-3 py-2 w-28">Subtotal</th>
+                        <th class="text-center font-semibold px-3 py-2 w-12"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr>
+                        <td class="px-3 py-2">
+                            <p class="font-medium text-gray-700">Cafe Americano 250g</p>
+                            <p class="text-[10px] text-gray-400">CAF-001</p>
+                        </td>
+                        <td class="px-3 py-2"><input type="number" value="10" class="no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-500 outline-none"></td>
+                        <td class="px-3 py-2">
+                            <div class="relative"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                            <input type="number" value="85.00" class="no-spin w-full pl-5 pr-2 py-1 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-500 outline-none"></div>
+                        </td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500">16%</span></td>
+                        <td class="px-3 py-2 text-right font-semibold text-gray-800">$986.00</td>
+                        <td class="px-3 py-2 text-center"><button class="text-gray-300 hover:text-rose-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                    </tr>
+                    <tr>
+                        <td class="px-3 py-2">
+                            <p class="font-medium text-gray-700">Te Verde 100g</p>
+                            <p class="text-[10px] text-gray-400">TE-002</p>
+                        </td>
+                        <td class="px-3 py-2"><input type="number" value="8" class="no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-500 outline-none"></td>
+                        <td class="px-3 py-2">
+                            <div class="relative"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                            <input type="number" value="55.50" class="no-spin w-full pl-5 pr-2 py-1 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-500 outline-none"></div>
+                        </td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500">16%</span></td>
+                        <td class="px-3 py-2 text-right font-semibold text-gray-800">$515.04</td>
+                        <td class="px-3 py-2 text-center"><button class="text-gray-300 hover:text-rose-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <!-- Footer de la tabla: totales -->
+            <div class="bg-gray-50 border-t border-gray-200 px-3 py-2.5 flex items-center justify-end gap-8">
+                <div class="text-xs"><span class="text-gray-500">Unidades: </span><span class="font-bold text-gray-800">18</span></div>
+                <div class="text-xs"><span class="text-gray-500">Costo total: </span><span class="font-bold text-green-600 text-sm">$1,501.04</span></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Footer acciones -->
+    <div class="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+        <button onclick="window.close()" class="px-3.5 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
+        <div class="flex gap-2">
+            <button class="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center gap-1.5">
+                <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar borrador
+            </button>
+            <button class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i> Guardar y enviar a revision
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>

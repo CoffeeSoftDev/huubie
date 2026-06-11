@@ -62,12 +62,12 @@ class MenuHub extends Templates {
                 icon:        'trash-2',
                 enlace:      '/app/inventarios/pos-mermas.php',
             },
-            // {
-            //     titulo: 'Traspasos',
-            //     descripcion: 'Envia y recibe mercancia entre sucursales.',
-            //     icon: 'truck',
-            //     enlace: '/app/inventarios/pos-traspasos.php',
-            // },
+            {
+                titulo: 'Traspasos',
+                descripcion: 'Envia y recibe mercancia entre sucursales.',
+                icon: 'truck',
+                enlace: '/app/inventarios/pos-traspasos.php',
+            },
             {
                 titulo:      'Stock',
                 descripcion: 'Consulta existencias actuales por sucursal y categoria.',

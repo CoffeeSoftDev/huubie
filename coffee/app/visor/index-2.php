@@ -3,7 +3,29 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Visor de Agentes — CoffeeSoft</title>
+    <title>Visor de Agentes -2 (Excalidraw) — CoffeeSoft</title>
+    <style>
+        /* ── Lienzo Excalidraw (copia -2) ── */
+        .excalidraw-stage { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--vsr-bg-base, #0E1521); }
+        .excalidraw-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 14px; border-bottom: 1px solid var(--vsr-border, #243043);
+            background: var(--vsr-bg-card, #141d2b); flex-shrink: 0;
+        }
+        .excalidraw-bar-title { font-size: 13px; font-weight: 600; color: var(--vsr-text, #E5E7EB); }
+        .excalidraw-mount { flex: 1 1 auto; min-height: 0; position: relative; }
+        .excalidraw-mount .excalidraw { height: 100%; }
+        .excalidraw-loading {
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px;
+            color: var(--vsr-text-muted, #9CA3AF); font-size: 13px; padding: 40px; text-align: center;
+        }
+        .excalidraw-spinner {
+            width: 16px; height: 16px; border-radius: 50%;
+            border: 2px solid currentColor; border-top-color: transparent;
+            display: inline-block; animation: excSpin .8s linear infinite;
+        }
+        @keyframes excSpin { to { transform: rotate(360deg); } }
+    </style>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
@@ -171,6 +193,14 @@
                         <i data-lucide="pen-tool" class="w-3.5 h-3.5"></i>
                         Diagrama
                     </button>
+                    <button id="btnNewSketch" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Nuevo boceto (Excalidraw)">
+                        <i data-lucide="pencil-ruler" class="w-3.5 h-3.5"></i>
+                        Boceto
+                    </button>
+                    <button id="btnCloseSketch" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Cerrar boceto">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        Cerrar boceto
+                    </button>
                     <button id="btnCloseDiagram" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Cerrar lienzo">
                         <i data-lucide="x" class="w-3.5 h-3.5"></i>
                         Cerrar lienzo
@@ -257,6 +287,9 @@
 
                 <!-- Lienzo de diagramas (draw.io embebido). Oculto salvo modo diagrama. -->
                 <div id="drawioStage" class="drawio-stage hidden"></div>
+
+                <!-- Lienzo de bocetos (Excalidraw). Oculto salvo modo boceto. -->
+                <div id="excalidrawStage" class="excalidraw-stage hidden"></div>
             </div>
 
             </div><!-- /.visor-main-col -->
@@ -474,5 +507,8 @@
     <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>
+    <!-- Integración Excalidraw (solo en esta copia -2; el visor original queda intacto) -->
+    <script src="src/js/excalidraw-board.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/visor-2.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordenes de Compra - Huubie Inventarios</title>
+
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema "Arcilla Invernal": remapea blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            }
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <!-- Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; }
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
+        /* Fila activa de la tabla (clonado de entradas) */
+        tbody tr.row-active { background:#FBF3EF !important; box-shadow: inset 3px 0 0 #C05A40; }
+        tbody tr { cursor:pointer; }
+        ::-webkit-scrollbar{width:8px;height:8px}
+        ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden text-gray-800">
+
+<!-- ============================================================
+     LAYOUT: panel principal (flex-1) + panel detalle (aside 420)
+     Clonado de entradas.js -> App.layout()
+============================================================ -->
+<div class="h-screen p-3">
+<div id="ordenes-compra" class="h-full w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200">
+
+    <!-- ===================== PANEL PRINCIPAL ===================== -->
+    <div id="mainPanel" class="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full">
+
+        <!-- viewHeader -->
+        <div id="viewHeader" class="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+            <div>
+                <h1 class="text-lg font-bold text-gray-800">Ordenes de Compra</h1>
+                <p class="text-xs text-gray-500">Solicitudes de materiales, aprobacion y recepcion</p>
+            </div>
+        </div>
+
+        <!-- filterBar -->
+        <div id="filterBar" class="px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+            <div class="flex flex-wrap items-end gap-3">
+                <div class="min-w-[220px]">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Rango</label>
+                    <div class="relative">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                        <input type="text" readonly value="2026-06-01  a  2026-06-09"
+                               class="w-full pl-8 pr-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 cursor-pointer">
+                    </div>
+                </div>
+                <div class="min-w-[150px]">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Sucursal</label>
+                    <select class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 cursor-pointer appearance-none">
+                        <option>-- Todas --</option>
+                        <option>Sucursal Centro</option>
+                        <option>Sucursal Norte</option>
+                    </select>
+                </div>
+                <div class="min-w-[150px]">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Estado</label>
+                    <select class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 cursor-pointer appearance-none">
+                        <option>Todos</option>
+                        <option>Borrador</option>
+                        <option selected>Solicitada</option>
+                        <option>Aprobada</option>
+                        <option>Parcial</option>
+                        <option>Recibida</option>
+                        <option>Rechazada</option>
+                        <option>Cancelada</option>
+                    </select>
+                </div>
+                <div class="min-w-[170px]">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Proveedor</label>
+                    <select class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 cursor-pointer appearance-none">
+                        <option>-- Todos --</option>
+                        <option>Cafe del Valle S.A.</option>
+                        <option>Distribuidora Norte</option>
+                    </select>
+                </div>
+                <div class="ml-auto">
+                    <!-- Boton primario terracota (clase blue-600 = #C05A40 por el tema) -->
+                    <button onclick="openModal('modal-nueva-orden.html')"
+                            class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva orden
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- kpisRow -->
+        <div id="kpisRow" class="px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right">Solicitadas</p>
+                    <p class="text-2xl font-bold text-right text-amber-500">5</p>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right">Aprobadas</p>
+                    <p class="text-2xl font-bold text-right text-blue-600">3</p>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right">En recepcion</p>
+                    <p class="text-2xl font-bold text-right text-orange-500">2</p>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right">Recibidas</p>
+                    <p class="text-2xl font-bold text-right text-green-600">8</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- tableWrap -->
+        <div id="tableWrap" class="p-3 flex-1 min-h-0 overflow-auto bg-white">
+            <table class="w-full text-[13px] border-collapse">
+                <thead class="sticky top-0 z-10">
+                    <tr class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Folio</th>
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Fecha</th>
+                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Estado</th>
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Proveedor</th>
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Almacen</th>
+                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Materiales</th>
+                        <th class="text-right font-semibold px-3 py-2 border-b border-gray-200">Total</th>
+                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Ver</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-700">
+                    <!-- Solicitada (la del panel detalle) -->
+                    <tr class="row-active border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0001</td>
+                        <td class="px-3 py-2">2026-06-09</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Solicitada</span></td>
+                        <td class="px-3 py-2"><span class="italic text-gray-400">N/A</span></td>
+                        <td class="px-3 py-2">Almacen General</td>
+                        <td class="px-3 py-2 text-center">4</td>
+                        <td class="px-3 py-2 text-right font-medium">$2,480.00</td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Borrador -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0002</td>
+                        <td class="px-3 py-2">2026-06-08</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-gray-500/15 text-gray-500 border border-gray-400/30">Borrador</span></td>
+                        <td class="px-3 py-2"><span class="italic text-gray-400">N/A</span></td>
+                        <td class="px-3 py-2">Almacen Frio</td>
+                        <td class="px-3 py-2 text-center">2</td>
+                        <td class="px-3 py-2 text-right font-medium">$640.00</td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Aprobada -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0003</td>
+                        <td class="px-3 py-2">2026-06-07</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-blue-500/15 text-blue-700 border border-blue-500/30">Aprobada</span></td>
+                        <td class="px-3 py-2">Cafe del Valle S.A.</td>
+                        <td class="px-3 py-2">Almacen General</td>
+                        <td class="px-3 py-2 text-center">6</td>
+                        <td class="px-3 py-2 text-right font-medium">$5,120.00</td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Parcial -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0004</td>
+                        <td class="px-3 py-2">2026-06-05</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-orange-500/15 text-orange-600 border border-orange-500/30">Parcial</span></td>
+                        <td class="px-3 py-2">Distribuidora Norte</td>
+                        <td class="px-3 py-2">Almacen Norte</td>
+                        <td class="px-3 py-2 text-center">5</td>
+                        <td class="px-3 py-2 text-right font-medium">$3,890.00</td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Recibida -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0005</td>
+                        <td class="px-3 py-2">2026-06-03</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-green-500/15 text-green-600 border border-green-500/30">Recibida</span></td>
+                        <td class="px-3 py-2">Cafe del Valle S.A.</td>
+                        <td class="px-3 py-2">Almacen General</td>
+                        <td class="px-3 py-2 text-center">3</td>
+                        <td class="px-3 py-2 text-right font-medium">$1,275.00</td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Rechazada -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0006</td>
+                        <td class="px-3 py-2">2026-06-02</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-red-500/15 text-red-600 border border-red-500/30">Rechazada</span></td>
+                        <td class="px-3 py-2"><span class="italic text-gray-400">N/A</span></td>
+                        <td class="px-3 py-2">Almacen General</td>
+                        <td class="px-3 py-2 text-center">4</td>
+                        <td class="px-3 py-2 text-right font-medium">$2,050.00</td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Cancelada -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0007</td>
+                        <td class="px-3 py-2">2026-06-01</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-red-500/10 text-red-400 border border-red-400/20">Cancelada</span></td>
+                        <td class="px-3 py-2">Distribuidora Norte</td>
+                        <td class="px-3 py-2">Almacen Frio</td>
+                        <td class="px-3 py-2 text-center">2</td>
+                        <td class="px-3 py-2 text-right font-medium">$720.00</td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ===================== PANEL DETALLE (aside 420) ===================== -->
+    <!-- ============================================================
+         BARRA DE ACCIONES POR ESTADO (documentacion para backend):
+           Borrador:   [Editar] [Enviar a revision] [Cancelar]
+           Solicitada: [Aprobar] [Rechazar] [Imprimir]      <-- mostrada abajo
+           Aprobada:   [Recibir] [Imprimir] [Cancelar]
+           Parcial:    [Recibir (continuar)] [Imprimir]
+           Recibida:   [Imprimir]
+           Rechazada:  [Imprimir]  (solo lectura)
+           Cancelada:  [Imprimir]  (solo lectura)
+    ============================================================ -->
+    <aside id="detailPanel" class="w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col overflow-hidden">
+
+            <!-- Header: folio + badge estado + cerrar -->
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">Detalle de orden</p>
+                    <p class="text-base font-bold text-gray-800">OC-0001</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Solicitada</span>
+                    <button class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bloque de datos -->
+            <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
+                <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Proveedor</span><span class="text-gray-400 italic text-right">— sin asignar</span></div>
+                <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Sucursal</span><span class="text-gray-700 text-right">Sucursal Centro</span></div>
+                <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Almacen destino</span><span class="text-gray-700 text-right">Almacen General</span></div>
+                <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Solicitado por</span><span class="text-gray-700 text-right">Rosa Velazquez</span></div>
+                <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha solicitud</span><span class="text-gray-700 text-right">2026-06-09</span></div>
+                <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha esperada</span><span class="text-gray-700 text-right">2026-06-14</span></div>
+            </div>
+
+            <!-- Lista de materiales -->
+            <div class="flex-1 overflow-y-auto px-4 py-3">
+                <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">Materiales (4)</p>
+
+                <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium text-gray-700 truncate">Cafe Americano 250g</p>
+                        <p class="text-[10px] text-gray-400">CAF-001</p>
+                    </div>
+                    <div class="text-right flex-shrink-0 flex items-center gap-3">
+                        <div class="text-center text-xs"><span class="font-semibold text-gray-800">10</span></div>
+                        <div class="text-xs text-gray-500">$85.00</div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium text-gray-700 truncate">Te Verde 100g</p>
+                        <p class="text-[10px] text-gray-400">TE-002</p>
+                    </div>
+                    <div class="text-right flex-shrink-0 flex items-center gap-3">
+                        <div class="text-center text-xs"><span class="font-semibold text-gray-800">8</span></div>
+                        <div class="text-xs text-gray-500">$55.50</div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium text-gray-700 truncate">Azucar Morena 1kg</p>
+                        <p class="text-[10px] text-gray-400">AZU-003</p>
+                    </div>
+                    <div class="text-right flex-shrink-0 flex items-center gap-3">
+                        <div class="text-center text-xs"><span class="font-semibold text-gray-800">15</span></div>
+                        <div class="text-xs text-gray-500">$32.00</div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium text-gray-700 truncate">Leche Entera 1L</p>
+                        <p class="text-[10px] text-gray-400">LEC-004</p>
+                    </div>
+                    <div class="text-right flex-shrink-0 flex items-center gap-3">
+                        <div class="text-center text-xs"><span class="font-semibold text-gray-800">24</span></div>
+                        <div class="text-xs text-gray-500">$28.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer: unidades + total general -->
+            <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                    <span>Unidades</span>
+                    <span class="font-semibold text-gray-700">57</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-semibold text-gray-700">Total general</span>
+                    <span class="text-lg font-bold text-green-600">$2,480.00</span>
+                </div>
+            </div>
+
+            <!-- Barra de acciones (estado = Solicitada) -->
+            <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
+                <button class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-green-600 hover:bg-green-500 flex items-center justify-center gap-1.5">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i>Aprobar
+                </button>
+                <button class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-rose-600 hover:bg-rose-500 flex items-center justify-center gap-1.5">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>Rechazar
+                </button>
+                <button class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-sky-600 hover:bg-sky-500 flex items-center justify-center gap-1.5">
+                    <i data-lucide="printer" class="w-3.5 h-3.5"></i>Imprimir
+                </button>
+            </div>
+        </div>
+    </aside>
+
+</div>
+</div>
+
+<script>
+    function selectRow(row){
+        document.querySelectorAll('#ordenes-compra tbody tr').forEach(r=>r.classList.remove('row-active'));
+        row.classList.add('row-active');
+    }
+    function openModal(file){ window.open(file, '_blank', 'width=1100,height=820'); }
+    lucide.createIcons();
+</script>
+</body>
+</html>

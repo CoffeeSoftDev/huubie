@@ -359,6 +359,65 @@ class mdl extends CRUD {
         return $result[0]['total'] ?? 0;
     }
 
+    // Proveedores -> supplier
+
+    function listSupplier($array) {
+        $query = "
+            SELECT
+                id,
+                name as valor,
+                contact_name,
+                phone,
+                email,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM {$this->bd}supplier
+            WHERE active = ?
+            AND companies_id = ".$_SESSION['company_id']."
+            ORDER BY id DESC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function getSupplierById($array) {
+        $query = "
+            SELECT *
+            FROM {$this->bd}supplier
+            WHERE id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0] ?? null;
+    }
+
+    function createSupplier($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}supplier",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    function updateSupplier($array) {
+        return $this->_Update([
+            'table'  => "{$this->bd}supplier",
+            'values' => $array['values'],
+            'where'  => $array['where'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    function existsSupplierByName($array) {
+        $query = "
+            SELECT COUNT(*) as total
+            FROM {$this->bd}supplier
+            WHERE LOWER(name) = LOWER(?)
+            AND active = 1
+            AND companies_id = ".$_SESSION['company_id']."
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['total'] ?? 0;
+    }
+
     // Areas activas para selects de formularios
     function listAreasSelect() {
         $query = "

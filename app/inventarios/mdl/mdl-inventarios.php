@@ -399,6 +399,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}product_attribute  pa ON pa.product_id = p.id AND pa.active = 1
             LEFT JOIN {$this->bd}order_category     oc ON oc.id = p.category_id
             WHERE p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?
+              AND (oc.id IS NULL OR oc.active = 1)
             ORDER BY p.name ASC
         ";
         $r = $this->_Read($query, $array);
@@ -853,7 +854,7 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
-    function getTraspasoDetail($array) {
+    function qGetTraspasoDetail($array) {
         $query = "
             SELECT
                 d.id,
@@ -877,7 +878,7 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function getTraspasoHistory($array) {
+    function qGetTraspasoHistory($array) {
         $query = "
             SELECT
                 h.id,

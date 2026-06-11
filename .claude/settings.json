@@ -92,7 +92,16 @@
       "Bash(sed -n '1,60p' operacion/almacen/layout/head.php)",
       "Bash(grep -rn \"\\\\.css\\\\|<style\" operacion/almacen/layout/head.php)",
       "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l ctrl/ctrl-visor.php)",
-      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l playground.php)"
+      "Bash(\"c:/wamp64/bin/php/php7.4.33/php.exe\" -l playground.php)",
+      "Bash(timeout 90 claude -p \"Responde unicamente la palabra: pong\" --output-format stream-json --include-partial-messages --max-turns 1 --disallowedTools \"Bash Edit Write Read\")",
+      "Bash(timeout 90 claude -p \"Responde unicamente la palabra: pong\" --output-format stream-json --include-partial-messages --verbose --max-turns 1 --disallowedTools \"Bash Edit Write Read\")",
+      "PowerShell($p='c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\src\\\\js\\\\visor.js'; $c=Get-Content -Raw -Encoding UTF8 $p; $old=\".normalize\\('NFD'\\).replace\\(/[\"+[char]0x0300+\"-\"+[char]0x036f+\"]/g, ''\\)\"; $new=\".normalize\\('NFD'\\).replace\\(/[̀-ͯ]/g, ''\\)\"; if\\($c.Contains\\($old\\)\\){ $c=$c.Replace\\($old,$new\\); [IO.File]::WriteAllText\\($p,$c,\\(New-Object System.Text.UTF8Encoding\\($false\\)\\)\\); 'reemplazado' } else { 'no-match' })",
+      "PowerShell($p='c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\src\\\\js\\\\visor.js'; $c=Get-Content -Raw -Encoding UTF8 $p; $old=\".normalize\\('NFD'\\).replace\\(/[\"+[char]0x0300+\"-\"+[char]0x036f+\"]/g, ''\\)\"; $new='.normalize\\(' + [char]39 + 'NFD' + [char]39 + '\\).replace\\(/[̀-ͯ]/g, ' + [char]39 + [char]39 + '\\)'; if\\($c.Contains\\($old\\)\\){ $c=$c.Replace\\($old,$new\\); [IO.File]::WriteAllText\\($p,$c,\\(New-Object System.Text.UTF8Encoding\\($false\\)\\)\\); 'reemplazado' } else { 'no-match' })",
+      "PowerShell($p='c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\src\\\\js\\\\visor.js'; $c=Get-Content -Raw -Encoding UTF8 $p; $old=\".normalize\\('NFD'\\).replace\\(/[\"+[char]0x0300+\"-\"+[char]0x036f+\"]/g, ''\\)\"; $new='.normalize\\(''NFD''\\).replace\\(/[̀-ͯ]/g, ''''\\)'; if\\($c.Contains\\($old\\)\\){ $c=$c.Replace\\($old,$new\\); [IO.File]::WriteAllText\\($p,$c,\\(New-Object System.Text.UTF8Encoding\\($false\\)\\)\\); 'ok' } else { 'no-match' })",
+      "PowerShell($p='c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\src\\\\js\\\\visor.js'; $line=\\(Get-Content -Encoding UTF8 $p\\)[3767]; $line; '---'; \\($line.ToCharArray\\(\\) | Where-Object { [int][char]$_ -gt 127 } | ForEach-Object { 'U+{0:X4}' -f [int][char]$_ }\\) -join ' ')",
+      "Bash(./php.exe -l /c/wamp64/www/huubie/coffee/app/visor/index.php)",
+      "PowerShell(Copy-Item 'c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\index.php' 'c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\index-2.php' -Force)",
+      "PowerShell('copiado')"
     ],
     "additionalDirectories": [
       "\\tmp"

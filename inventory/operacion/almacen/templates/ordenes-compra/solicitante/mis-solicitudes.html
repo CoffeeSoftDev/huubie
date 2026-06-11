@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis solicitudes - Huubie Inventarios</title>
+
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema "Arcilla Invernal": remapea blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            }
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <!-- Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; }
+        /* Fila activa de la tabla (clonado de entradas / ordenes-compra) */
+        tbody tr.row-active { background:#FBF3EF !important; box-shadow: inset 3px 0 0 #C05A40; }
+        tbody tr { cursor:pointer; }
+        ::-webkit-scrollbar{width:8px;height:8px}
+        ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden text-gray-800">
+
+<!-- ============================================================
+     LAYOUT ESCRITORIO: panel principal (flex-1) + panel detalle (aside 420)
+     Clonado de ordenes-compra.html / entradas.js -> App.layout()
+     ROL SOLICITANTE: la tabla NO muestra costos, total $ ni proveedor.
+============================================================ -->
+<div class="h-screen p-3">
+<div id="mis-solicitudes" class="h-full w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200">
+
+    <!-- ===================== PANEL PRINCIPAL ===================== -->
+    <div id="mainPanel" class="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full">
+
+        <!-- viewHeader -->
+        <div id="viewHeader" class="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+            <div>
+                <h1 class="text-lg font-bold text-gray-800">Mis solicitudes</h1>
+                <p class="text-xs text-gray-500">Pide materiales y da seguimiento a tus solicitudes</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- Chip de sucursal del usuario (no editable) -->
+                <span class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Sucursal Centro
+                </span>
+                <!-- Boton primario terracota (blue-600 = #C05A40 por el tema) -->
+                <a href="nueva-solicitud.html"
+                   class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva solicitud
+                </a>
+            </div>
+        </div>
+
+        <!-- filterBar: chips de estado + buscador por folio -->
+        <div id="filterBar" class="px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Segmented control de estado (SIN proveedor, propio del rol solicitante) -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-600 text-white">Todas</button>
+                    <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 hover:border-blue-400 transition-colors">Solicitada</button>
+                    <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 hover:border-blue-400 transition-colors">Aprobada</button>
+                    <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 hover:border-blue-400 transition-colors">En recepcion</button>
+                    <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 hover:border-blue-400 transition-colors">Recibida</button>
+                    <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 hover:border-blue-400 transition-colors">Rechazada</button>
+                </div>
+                <!-- Buscador por folio -->
+                <div class="relative ml-auto min-w-[220px]">
+                    <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" placeholder="Buscar por folio..."
+                           class="w-full pl-9 pr-3 py-2 text-xs text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                </div>
+            </div>
+        </div>
+
+        <!-- kpisRow (opcionales, sin costos) -->
+        <div id="kpisRow" class="px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right">Solicitadas</p>
+                    <p class="text-2xl font-bold text-right text-amber-500">2</p>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right">Aprobadas</p>
+                    <p class="text-2xl font-bold text-right text-blue-600">1</p>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right">En recepcion</p>
+                    <p class="text-2xl font-bold text-right text-orange-500">2</p>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right">Recibidas</p>
+                    <p class="text-2xl font-bold text-right text-green-600">2</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- tableWrap -->
+        <div id="tableWrap" class="p-3 flex-1 min-h-0 overflow-auto bg-white">
+            <table class="w-full text-[13px] border-collapse">
+                <thead class="sticky top-0 z-10">
+                    <tr class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Folio</th>
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Fecha</th>
+                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Estado</th>
+                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Materiales</th>
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Almacen / Sucursal</th>
+                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Ver</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-700">
+                    <!-- En recepcion (la del panel detalle por defecto) -->
+                    <tr class="row-active border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0005</td>
+                        <td class="px-3 py-2">2026-06-07</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-orange-500/15 text-orange-600 border border-orange-500/30">En recepcion</span></td>
+                        <td class="px-3 py-2 text-center">6</td>
+                        <td class="px-3 py-2">Almacen General <span class="text-gray-400">&middot; Centro</span></td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Solicitada -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0007</td>
+                        <td class="px-3 py-2">2026-06-09</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Solicitada</span></td>
+                        <td class="px-3 py-2 text-center">5</td>
+                        <td class="px-3 py-2">Almacen General <span class="text-gray-400">&middot; Centro</span></td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Aprobada -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0006</td>
+                        <td class="px-3 py-2">2026-06-08</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-blue-500/15 text-blue-700 border border-blue-500/30">Aprobada</span></td>
+                        <td class="px-3 py-2 text-center">3</td>
+                        <td class="px-3 py-2">Almacen Frio <span class="text-gray-400">&middot; Centro</span></td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- En recepcion -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0004</td>
+                        <td class="px-3 py-2">2026-06-05</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-orange-500/15 text-orange-600 border border-orange-500/30">En recepcion</span></td>
+                        <td class="px-3 py-2 text-center">4</td>
+                        <td class="px-3 py-2">Almacen General <span class="text-gray-400">&middot; Centro</span></td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Recibida -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0003</td>
+                        <td class="px-3 py-2">2026-06-03</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-green-500/15 text-green-600 border border-green-500/30">Recibida</span></td>
+                        <td class="px-3 py-2 text-center">3</td>
+                        <td class="px-3 py-2">Almacen General <span class="text-gray-400">&middot; Centro</span></td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Recibida -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0002</td>
+                        <td class="px-3 py-2">2026-06-01</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-green-500/15 text-green-600 border border-green-500/30">Recibida</span></td>
+                        <td class="px-3 py-2 text-center">7</td>
+                        <td class="px-3 py-2">Almacen Frio <span class="text-gray-400">&middot; Centro</span></td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <!-- Rechazada -->
+                    <tr class="border-b border-gray-100 hover:bg-gray-50" onclick="selectRow(this)">
+                        <td class="px-3 py-2 font-semibold text-gray-800">OC-0001</td>
+                        <td class="px-3 py-2">2026-05-29</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-red-500/15 text-red-600 border border-red-500/30">Rechazada</span></td>
+                        <td class="px-3 py-2 text-center">2</td>
+                        <td class="px-3 py-2">Almacen General <span class="text-gray-400">&middot; Centro</span></td>
+                        <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ===================== PANEL DETALLE (aside 420): SEGUIMIENTO ===================== -->
+    <!-- ============================================================
+         El detalle de la solicitud vive EN EL ASIDE (igual que ordenes-compra.html):
+           folio + badge + cerrar -> timeline VERTICAL del ciclo -> datos
+           -> lista de materiales (sin costos) -> bloque rojo si Rechazada.
+         JS al pie alterna el contenido del aside segun la fila (mock estatico).
+    ============================================================ -->
+    <aside id="detailPanel" class="w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col overflow-hidden">
+
+            <!-- Header: folio + badge estado + cerrar -->
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">Seguimiento de solicitud</p>
+                    <p id="dFolio" class="text-base font-bold text-gray-800">OC-0005</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="dBadge" class="px-2 py-0.5 rounded text-xs font-bold bg-orange-500/15 text-orange-600 border border-orange-500/30">En recepcion</span>
+                    <button onclick="clearSelection()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cuerpo scrollable: timeline + datos + materiales -->
+            <div class="flex-1 overflow-y-auto">
+
+                <!-- ===== Bloque rojo de rechazo (solo estado Rechazada) ===== -->
+                <div id="dRejected" class="hidden px-4 pt-3">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <div class="flex items-start gap-2.5">
+                            <div class="w-7 h-7 rounded-full bg-red-500 flex items-center justify-center text-white flex-shrink-0">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-bold text-red-700">Motivo de rechazo</p>
+                                <p id="dRejectReason" class="text-[11px] text-red-600/90 mt-0.5 leading-relaxed">El presupuesto del mes ya fue ejercido. Reenvia la solicitud en el siguiente periodo o reduce las cantidades.</p>
+                                <p id="dRejectBy" class="text-[10px] text-red-500/70 mt-1.5">Rechazada por Luis Gomez &middot; 29 may 2026</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== Timeline VERTICAL del ciclo ===== -->
+                <div class="px-4 py-3 border-b border-gray-200">
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-3">Ciclo de la solicitud</p>
+                    <ol id="dTimeline" class="relative ml-3">
+                        <!-- Paso 1: Solicitada -->
+                        <li class="relative pl-7 pb-5" data-step="1">
+                            <span class="line absolute left-[7px] top-4 bottom-0 w-0.5 bg-green-500"></span>
+                            <span class="dot absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-green-500 ring-4 ring-white flex items-center justify-center"></span>
+                            <p class="text-xs font-semibold text-gray-800">Solicitada</p>
+                            <p class="step-date text-[10px] text-gray-400">07 jun 2026 &middot; 10:24</p>
+                        </li>
+                        <!-- Paso 2: Aprobada -->
+                        <li class="relative pl-7 pb-5" data-step="2">
+                            <span class="line absolute left-[7px] top-4 bottom-0 w-0.5 bg-green-500"></span>
+                            <span class="dot absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-green-500 ring-4 ring-white flex items-center justify-center"></span>
+                            <p class="text-xs font-semibold text-gray-800">Aprobada</p>
+                            <p class="step-date text-[10px] text-gray-400">07 jun 2026 &middot; 15:40</p>
+                        </li>
+                        <!-- Paso 3: En recepcion (ACTUAL) -->
+                        <li class="relative pl-7 pb-5" data-step="3">
+                            <span class="line absolute left-[7px] top-4 bottom-0 w-0.5 bg-gray-200"></span>
+                            <span class="dot absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-orange-500 ring-4 ring-orange-100 flex items-center justify-center"></span>
+                            <p class="text-xs font-bold text-orange-600">En recepcion</p>
+                            <p class="step-date text-[10px] text-gray-400">en curso</p>
+                        </li>
+                        <!-- Paso 4: Recibida (pendiente) -->
+                        <li class="relative pl-7" data-step="4">
+                            <span class="dot absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-white border-2 border-gray-300"></span>
+                            <p class="text-xs font-semibold text-gray-400">Recibida</p>
+                            <p class="step-date text-[10px] text-gray-400">Pendiente</p>
+                        </li>
+                    </ol>
+                </div>
+
+                <!-- ===== Datos de la solicitud ===== -->
+                <div class="px-4 py-3 border-b border-gray-200 space-y-1.5">
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Solicitado por</span><span class="text-gray-700 text-right">Rosa Velazquez</span></div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha</span><span class="text-gray-700 text-right">07 jun 2026</span></div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Sucursal</span><span class="text-gray-700 text-right">Sucursal Centro</span></div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Almacen destino</span><span class="text-gray-700 text-right">Almacen General</span></div>
+                </div>
+
+                <!-- ===== Lista de materiales (SIN costos) ===== -->
+                <div class="px-4 py-3">
+                    <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">Materiales (6)</p>
+
+                    <!-- Completo 10/10 -->
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-gray-700 truncate">Cafe Americano 250g</p>
+                            <p class="text-[10px] text-gray-400">CAF-001</p>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <p class="text-xs font-semibold text-gray-800">10</p>
+                            <p class="text-[10px] font-semibold text-green-600">recibido 10 de 10</p>
+                        </div>
+                    </div>
+                    <!-- Parcial 5/8 -->
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-gray-700 truncate">Te Verde 100g</p>
+                            <p class="text-[10px] text-gray-400">TE-002</p>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <p class="text-xs font-semibold text-gray-800">8</p>
+                            <p class="text-[10px] font-semibold text-orange-600">recibido 5 de 8</p>
+                        </div>
+                    </div>
+                    <!-- Completo 15/15 -->
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-gray-700 truncate">Azucar Morena 1kg</p>
+                            <p class="text-[10px] text-gray-400">AZU-003</p>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <p class="text-xs font-semibold text-gray-800">15</p>
+                            <p class="text-[10px] font-semibold text-green-600">recibido 15 de 15</p>
+                        </div>
+                    </div>
+                    <!-- Pendiente 0/24 -->
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-gray-700 truncate">Leche Entera 1L</p>
+                            <p class="text-[10px] text-gray-400">LEC-004</p>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <p class="text-xs font-semibold text-gray-800">24</p>
+                            <p class="text-[10px] font-semibold text-gray-400">recibido 0 de 24</p>
+                        </div>
+                    </div>
+                    <!-- Parcial 6/12 -->
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-gray-700 truncate">Servilletas paquete 500</p>
+                            <p class="text-[10px] text-gray-400">SRV-010</p>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <p class="text-xs font-semibold text-gray-800">12</p>
+                            <p class="text-[10px] font-semibold text-orange-600">recibido 6 de 12</p>
+                        </div>
+                    </div>
+                    <!-- Pendiente 0/20 -->
+                    <div class="flex items-center justify-between py-2 gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-gray-700 truncate">Vasos 12oz</p>
+                            <p class="text-[10px] text-gray-400">VAS-012</p>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <p class="text-xs font-semibold text-gray-800">20</p>
+                            <p class="text-[10px] font-semibold text-gray-400">recibido 0 de 20</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer: conteos (SIN total $) + ver pagina completa -->
+            <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
+                    <span>6 materiales <span class="mx-1">&middot;</span> 89 unidades pedidas</span>
+                    <span class="font-semibold text-orange-600">36 recibidas</span>
+                </div>
+                <a href="detalle-solicitud.html"
+                   class="w-full px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Ver seguimiento completo
+                </a>
+            </div>
+        </div>
+    </aside>
+
+</div>
+</div>
+
+<script>
+    // Mock de seguimiento por folio para alternar el contenido del aside.
+    // (En la integracion real esto lo entrega el backend via getSolicitud.)
+    const SOLICITUDES = {
+        'OC-0007': { estado:'Solicitada',   step:1 },
+        'OC-0006': { estado:'Aprobada',     step:2 },
+        'OC-0005': { estado:'En recepcion', step:3 },
+        'OC-0004': { estado:'En recepcion', step:3 },
+        'OC-0003': { estado:'Recibida',     step:4 },
+        'OC-0002': { estado:'Recibida',     step:4 },
+        'OC-0001': { estado:'Rechazada',    step:2, rejected:true }
+    };
+
+    const BADGE = {
+        'Solicitada':   'bg-yellow-500/15 text-yellow-600 border border-yellow-500/30',
+        'Aprobada':     'bg-blue-500/15 text-blue-700 border border-blue-500/30',
+        'En recepcion': 'bg-orange-500/15 text-orange-600 border border-orange-500/30',
+        'Recibida':     'bg-green-500/15 text-green-600 border border-green-500/30',
+        'Rechazada':    'bg-red-500/15 text-red-600 border border-red-500/30'
+    };
+
+    function paintTimeline(curStep, rejected) {
+        document.querySelectorAll('#dTimeline li').forEach(li => {
+            const n   = parseInt(li.getAttribute('data-step'), 10);
+            const dot = li.querySelector('.dot');
+            const line = li.querySelector('.line');
+            const title = li.querySelector('p:first-of-type');
+            const isLast = li.getAttribute('data-step') === '4';
+
+            // Reset
+            dot.className = 'dot absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full ring-4 ring-white flex items-center justify-center';
+            if (line) line.className = 'line absolute left-[7px] top-4 bottom-0 w-0.5';
+
+            if (n < curStep) {                       // completado
+                dot.classList.add('bg-green-500');
+                if (line) line.classList.add('bg-green-500');
+                title.className = isLast ? 'text-xs font-semibold text-gray-800' : 'text-xs font-semibold text-gray-800';
+            } else if (n === curStep) {              // actual
+                const cur = rejected && n === curStep ? 'bg-red-500 ring-red-100' : 'bg-orange-500 ring-orange-100';
+                dot.className = 'dot absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full ring-4 flex items-center justify-center ' + cur;
+                if (line) line.classList.add('bg-gray-200');
+                title.className = rejected ? 'text-xs font-bold text-red-600' : 'text-xs font-bold text-orange-600';
+            } else {                                 // pendiente
+                dot.classList.remove('ring-white');
+                dot.className = 'dot absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-white border-2 border-gray-300';
+                if (line) line.classList.add('bg-gray-200');
+                title.className = 'text-xs font-semibold text-gray-400';
+            }
+        });
+    }
+
+    function selectRow(row){
+        document.querySelectorAll('#mis-solicitudes tbody tr').forEach(r=>r.classList.remove('row-active'));
+        row.classList.add('row-active');
+
+        const folio = row.children[0].textContent.trim();
+        const info  = SOLICITUDES[folio] || { estado:'Solicitada', step:1 };
+
+        document.getElementById('dFolio').textContent = folio;
+        const badge = document.getElementById('dBadge');
+        badge.textContent = info.estado;
+        badge.className = 'px-2 py-0.5 rounded text-xs font-bold ' + (BADGE[info.estado] || BADGE['Solicitada']);
+
+        document.getElementById('dRejected').classList.toggle('hidden', !info.rejected);
+        paintTimeline(info.step, info.rejected);
+        lucide.createIcons();
+    }
+
+    function clearSelection(){
+        document.querySelectorAll('#mis-solicitudes tbody tr').forEach(r=>r.classList.remove('row-active'));
+    }
+
+    lucide.createIcons();
+</script>
+</body>
+</html>
