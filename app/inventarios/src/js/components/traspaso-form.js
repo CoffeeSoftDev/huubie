@@ -41,7 +41,10 @@ class TraspasoForm {
                 origenAlm:    'Almacen origen',
                 destinoLbl:   'Sucursal destino',
                 destinoAlm:   'Almacen destino',
+                destinoPh:    'Selecciona sucursal...',
+                destinoAlmPh: 'Selecciona almacen...',
                 categoria:    'Categoria',
+                sinCategoria: 'Sin categoria',
                 buscar:       'Buscar productos',
                 placeholder:  'Nombre o SKU...',
                 searchHint:   'Sin resultados',
@@ -52,6 +55,8 @@ class TraspasoForm {
                 limpiar:      'Limpiar',
                 cancelar:     'Cancelar',
                 registrar:    'Crear y enviar traspaso',
+                confirmTitle: 'Crear y enviar traspaso?',
+                confirmOk:    'Si, enviar',
                 nota:         'Nota (opcional)',
                 agregar:      'Agregar',
                 transformar:  'Transformar en',
@@ -61,9 +66,14 @@ class TraspasoForm {
                 revertir:     'Revertir',
                 transformOk:  'Se transforma en',
                 badgeTr:      'TRANSFORMADO',
-                errSucIgual:  'Origen y destino no pueden ser la misma sucursal',
-                errSinDest:   'Selecciona una sucursal destino',
-                errSinProd:   'Agrega al menos un producto'
+                errSucIgual:       'Origen y destino son iguales',
+                errSucIgualDesc:   'La sucursal de origen y la de destino no pueden ser la misma. Selecciona una sucursal destino diferente para enviar el traspaso.',
+                errSinDest:        'Falta la sucursal destino',
+                errSinDestDesc:    'Elige a que sucursal quieres enviar el traspaso antes de continuar.',
+                errSinAlmDest:     'Falta el almacen destino',
+                errSinAlmDestDesc: 'Indica en que almacen de la sucursal destino se recibiran los productos del traspaso.',
+                errSinProd:        'Aun no agregas productos',
+                errSinProdDesc:    'Usa el buscador para agregar al menos un producto antes de enviar el traspaso.'
             },
             onSave:  () => {},
             onClose: () => {}
@@ -79,7 +89,7 @@ class TraspasoForm {
         this.searchTerm    = '';
         this.activeIdx     = 0;             // resultado resaltado para navegacion por teclado
         this.catalogItems  = [];            // resultados visibles actuales del catalogo
-        this.expandedCats  = new Set();     // categorias que el usuario abrio (por defecto TODAS colapsadas)
+        this.collapsedCats = new Set();     // categorias que el usuario cerro (por defecto TODAS expandidas)
 
         this.ensureStyles();
         this.mount();
@@ -115,7 +125,6 @@ class TraspasoForm {
         const alms = (o.data.almacenes  || []);
         const cats = (o.data.categorias || []);
         const firstAlm = alms[0] && alms[0].id;
-        const firstCat = cats[0] && cats[0].id;
         return `
             <div class="px-5 pt-3 pb-3 border-b border-gray-800/70 bg-[#0f1825]/40">
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
@@ -129,15 +138,15 @@ class TraspasoForm {
                     </div>
                     <div>
                         <label class="${cls.label} flex items-center gap-1.5"><i data-lucide="arrow-down-to-line" class="w-3 h-3 text-pink-300/80"></i>${this.esc(o.labels.destinoLbl)}</label>
-                        ${this.selectWrap(`<select id="${o.id}_destinoSuc" class="${cls.select}">${sucs.map(it => this.optionTag(it, '')).join('')}</select>`)}
+                        ${this.selectWrap(`<select id="${o.id}_destinoSuc" class="${cls.select}"><option value="" selected>${this.esc(o.labels.destinoPh)}</option>${sucs.map(it => this.optionTag(it, '')).join('')}</select>`)}
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.destinoAlm)}</label>
-                        ${this.selectWrap(`<select id="${o.id}_destinoAlm" class="${cls.select}">${alms.map(it => this.optionTag(it, firstAlm)).join('')}</select>`)}
+                        ${this.selectWrap(`<select id="${o.id}_destinoAlm" class="${cls.select}"><option value="" selected>${this.esc(o.labels.destinoAlmPh)}</option>${alms.map(it => this.optionTag(it, '')).join('')}</select>`)}
                     </div>
                     <div>
                         <label class="${cls.label} flex items-center gap-1.5"><i data-lucide="tag" class="w-3 h-3 text-gray-400"></i>${this.esc(o.labels.categoria)}</label>
-                        ${this.selectWrap(`<select id="${o.id}_categoria" class="${cls.select}">${cats.map(it => this.optionTag(it, firstCat)).join('')}</select>`)}
+                        ${this.selectWrap(`<select id="${o.id}_categoria" class="${cls.select}"><option value="" selected>${this.esc(o.labels.sinCategoria)}</option>${cats.map(it => this.optionTag(it, '')).join('')}</select>`)}
                     </div>
                 </div>
             </div>`;
@@ -211,7 +220,6 @@ class TraspasoForm {
         const cls = this.cls;
         return `
             <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-700/60 bg-[#141d2b] flex-shrink-0">
-                <p id="${o.id}_error" class="hidden text-[11px] font-semibold text-red-400 flex-shrink-0"></p>
                 <div class="flex items-center gap-1.5 flex-1 min-w-0">
                     <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-500 flex-shrink-0"></i>
                     <input id="${o.id}_inpNota" type="text" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
@@ -432,6 +440,10 @@ class TraspasoForm {
             .tf-cat-item.tf-active { background: linear-gradient(90deg, rgba(147,51,234,0.20), rgba(147,51,234,0.02)); box-shadow: inset 0 0 0 1px rgba(168,85,247,0.5); }
             @keyframes tfFlash { 0% { background-color: rgba(16,185,129,0.30); } 100% { background-color: transparent; } }
             tr.tf-flash { animation: tfFlash 0.6s ease-out; }
+            @keyframes tfAlertBg { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes tfAlertPop { from { opacity: 0; transform: translateY(6px) scale(0.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+            .tf-alert-bg { animation: tfAlertBg 0.18s ease-out; }
+            .tf-alert-card { animation: tfAlertPop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
             .tf-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid rgba(75,85,99,0.6); background: rgba(31,41,55,0.6); font-size: 8px; line-height: 1; color: #9CA3AF; font-family: monospace; }`;
         const style = document.createElement('style');
         style.id = 'traspasoFormStyles';
@@ -462,6 +474,7 @@ class TraspasoForm {
                     </div>
                 </div>
                 ${this.renderFooter()}
+                <div id="${o.id}_alert" class="hidden absolute inset-0 z-[90] flex items-center justify-center"></div>
             </div>
         `);
 
@@ -483,12 +496,25 @@ class TraspasoForm {
         $(`#${o.id}_cntProductos`).text(totalItems);
     }
 
+    // Nombre de la categoria elegida en el filtro del config-row, o '' para "Sin
+    // categoria" (no filtra: el catalogo muestra todos los productos). El <select>
+    // entrega el id de la categoria pero los productos solo traen el nombre, asi que
+    // se traduce id -> nombre via o.data.categorias para poder comparar en renderCatalogo.
+    selectedCategoriaNombre() {
+        const id = $(`#${this.opts.id}_categoria`).val();
+        if (!id) return '';
+        const cat = (this.opts.data.categorias || []).find(c => String(c.id != null ? c.id : c.valor) === String(id));
+        return cat ? String(cat.valor != null ? cat.valor : '').trim() : '';
+    }
+
     renderCatalogo() {
-        const o      = this.opts;
-        const $cat   = $(`#${o.id}_catalogoLista`);
-        const term   = (this.searchTerm || '').toLowerCase();
+        const o       = this.opts;
+        const $cat    = $(`#${o.id}_catalogoLista`);
+        const term    = (this.searchTerm || '').toLowerCase();
+        const catName = this.selectedCategoriaNombre();
         const items  = (o.json || [])
             .filter(p => !this.lote.some(x => String(x.id) === String(p.id)))
+            .filter(p => !catName || String(p.categoria || '').trim() === catName)
             .filter(p => !term || (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
 
         // Agrupa por categoria, ordenando alfabeticamente los grupos.
@@ -507,7 +533,7 @@ class TraspasoForm {
         // navegacion por teclado (activeIdx) siga alineada con lo pintado en el DOM.
         const ordered = [];
         catNames.forEach(c => {
-            if (searching || this.expandedCats.has(c)) groups[c].forEach(p => ordered.push(p));
+            if (searching || !this.collapsedCats.has(c)) groups[c].forEach(p => ordered.push(p));
         });
         this.catalogItems = ordered;
         if (this.activeIdx >= ordered.length) this.activeIdx = Math.max(0, ordered.length - 1);
@@ -523,7 +549,7 @@ class TraspasoForm {
         } else {
             let gi = 0; // indice global continuo a traves de las categorias visibles
             const html = catNames.map(c => {
-                const collapsed = !searching && !this.expandedCats.has(c);
+                const collapsed = !searching && this.collapsedCats.has(c);
                 const rows = collapsed ? '' : groups[c].map(p => this.renderSearchResult(p, gi++)).join('');
                 return this.renderCatHeader(c, groups[c].length, collapsed) + rows;
             }).join('');
@@ -544,8 +570,8 @@ class TraspasoForm {
     }
 
     toggleCat(cat) {
-        if (this.expandedCats.has(cat)) this.expandedCats.delete(cat);
-        else                            this.expandedCats.add(cat);
+        if (this.collapsedCats.has(cat)) this.collapsedCats.delete(cat);
+        else                             this.collapsedCats.add(cat);
         this.renderCatalogo();
     }
 
@@ -798,19 +824,44 @@ class TraspasoForm {
         this.renderLote();
     }
 
+    // Edicion en vivo de la cantidad: actualiza el modelo de forma tolerante (admite el
+    // campo vacio mientras se teclea) y recalcula subtotal/totales SIN reescribir el
+    // input, para no interrumpir la escritura. El saneo (vacio -> 1, tope al stock) se
+    // aplica al salir del campo en commitField.
     updateField($el) {
         const idx   = Number($el.data('idx'));
         const field = $el.data('field');
-        if (isNaN(idx) || !this.lote[idx] || !field) return;
-        if (field === 'cantidad') {
-            const item = this.lote[idx];
-            let val = parseInt($el.val(), 10);
-            if (isNaN(val) || val < 1) val = 1;
-            if (!this.allowZero && item.stock && val > item.stock) val = item.stock;
-            item.cantidad = val;
-            this.refreshRow(idx);
-            this.updateTotals();
-        }
+        if (isNaN(idx) || !this.lote[idx] || field !== 'cantidad') return;
+        const item = this.lote[idx];
+        let val = parseInt(String($el.val()).trim(), 10);
+        if (isNaN(val) || val < 0) val = 0; // vacio/invalido: 0 temporal, no fuerces 1 aun
+        item.cantidad = val;
+        this.updateSubtotal(idx);
+        this.updateTotals();
+    }
+
+    // Saneo al salir del campo (blur o Enter): cantidad minima 1 y, salvo modo "Sin
+    // stock", tope al stock disponible. Reescribe el input ya normalizado.
+    commitField($el) {
+        const idx   = Number($el.data('idx'));
+        const field = $el.data('field');
+        if (isNaN(idx) || !this.lote[idx] || field !== 'cantidad') return;
+        const item = this.lote[idx];
+        let val = parseInt($el.val(), 10);
+        if (isNaN(val) || val < 1) val = 1;
+        if (!this.allowZero && item.stock && val > item.stock) val = item.stock;
+        item.cantidad = val;
+        this.refreshRow(idx);
+        this.updateTotals();
+    }
+
+    // Repinta solo el subtotal de una fila, sin tocar el input de cantidad.
+    updateSubtotal(i) {
+        const p = this.lote[i];
+        if (!p) return;
+        const sub = Number(p.cantidad || 0) * Number(p.costo || 0);
+        $(`#${this.opts.id}_listaProductos tr[data-idx="${i}"] [data-subtotal]`)
+            .text('$' + sub.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     }
 
     refreshRow(i) {
@@ -891,12 +942,73 @@ class TraspasoForm {
         this.wrap.addClass('hidden');
         this.lote = [];
         this.renderLote();
-        $(`#${this.opts.id}_error`).addClass('hidden').text('');
+        this.hideError();
         this.opts.onClose();
     }
 
-    showError(msg) {
-        $(`#${this.opts.id}_error`).removeClass('hidden').text(msg);
+    // Alert centrado tipo modal (backdrop + tarjeta) con titulo y descripcion.
+    // Se cierra con el boton, el backdrop o Escape.
+    showError(title, detail) {
+        const o      = this.opts;
+        const $alert = $(`#${o.id}_alert`);
+        if (!$alert.length) return;
+        $alert.html(`
+            <div class="absolute inset-0 bg-black/60 tf-alert-bg" data-alert-close></div>
+            <div class="tf-alert-card relative z-10 w-[340px] max-w-[88%] bg-[#1a2030] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
+                <div class="flex flex-col items-center text-center px-6 pt-6 pb-5">
+                    <div class="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center mb-3.5">
+                        <i data-lucide="alert-triangle" class="w-7 h-7 text-red-400"></i>
+                    </div>
+                    <p class="text-[14px] font-bold text-white leading-snug">${this.esc(title)}</p>
+                    ${detail ? `<p class="text-[12px] text-gray-400 leading-relaxed mt-1.5">${this.esc(detail)}</p>` : ''}
+                </div>
+                <div class="px-5 pb-5">
+                    <button type="button" data-alert-close class="w-full py-2.5 rounded-xl text-[12px] font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 transition-all">Entendido</button>
+                </div>
+            </div>
+        `).removeClass('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    hideError() {
+        $(`#${this.opts.id}_alert`).addClass('hidden').empty();
+    }
+
+    // Confirmacion tipo modal (mismo look que showError, contenedor _alert reutilizado)
+    // con dos acciones: Cancelar cierra sin tocar el lote; el boton primario ejecuta
+    // cfg.onOk. Se cierra con backdrop o Escape (via el handler global = cancelar).
+    showConfirm(cfg) {
+        const o      = this.opts;
+        const c      = cfg || {};
+        const $alert = $(`#${o.id}_alert`);
+        if (!$alert.length) return;
+        const icon    = c.icon    || 'help-circle';
+        const okLabel = c.okLabel || 'Confirmar';
+        const okIco   = c.okIcon ? `<i data-lucide="${this.esc(c.okIcon)}" class="w-3.5 h-3.5"></i>` : '';
+        $alert.html(`
+            <div class="absolute inset-0 bg-black/60 tf-alert-bg" data-confirm-cancel></div>
+            <div class="tf-alert-card relative z-10 w-[360px] max-w-[88%] bg-[#1a2030] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
+                <div class="flex flex-col items-center text-center px-6 pt-6 pb-5">
+                    <div class="w-14 h-14 rounded-full bg-purple-500/15 flex items-center justify-center mb-3.5">
+                        <i data-lucide="${this.esc(icon)}" class="w-7 h-7 text-purple-300"></i>
+                    </div>
+                    <p class="text-[14px] font-bold text-white leading-snug">${this.esc(c.title)}</p>
+                    ${c.detailHtml ? `<p class="text-[12px] text-gray-400 leading-relaxed mt-1.5">${c.detailHtml}</p>` : ''}
+                </div>
+                <div class="px-5 pb-5 flex gap-2">
+                    <button type="button" data-confirm-cancel class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-gray-300 bg-[#0f1825] border border-gray-700/60 hover:bg-gray-700/30 hover:text-white transition-all">${this.esc(o.labels.cancelar)}</button>
+                    <button type="button" data-confirm-ok class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 transition-all flex items-center justify-center gap-1.5">
+                        ${okIco}${this.esc(okLabel)}
+                    </button>
+                </div>
+            </div>
+        `).removeClass('hidden');
+        if (window.lucide) lucide.createIcons();
+        $alert.find('[data-confirm-cancel]').on('click', () => this.hideError());
+        $alert.find('[data-confirm-ok]').on('click', () => {
+            this.hideError();
+            if (typeof c.onOk === 'function') c.onOk();
+        });
     }
 
     doRegistrar() {
@@ -908,11 +1020,12 @@ class TraspasoForm {
         const catId      = $(`#${o.id}_categoria`).val();
         const nota       = ($(`#${o.id}_inpNota`).val() || '').trim();
 
-        $(`#${o.id}_error`).addClass('hidden').text('');
+        this.hideError();
 
-        if (!destinoId)             { this.showError(o.labels.errSinDest);  return; }
-        if (origenId === destinoId) { this.showError(o.labels.errSucIgual); return; }
-        if (!this.lote.length)      { this.showError(o.labels.errSinProd);  return; }
+        if (!destinoId)             { this.showError(o.labels.errSinDest,    o.labels.errSinDestDesc);    return; }
+        if (origenId === destinoId) { this.showError(o.labels.errSucIgual,   o.labels.errSucIgualDesc);   return; }
+        if (!destinoAlm)            { this.showError(o.labels.errSinAlmDest, o.labels.errSinAlmDestDesc); return; }
+        if (!this.lote.length)      { this.showError(o.labels.errSinProd,    o.labels.errSinProdDesc);    return; }
 
         const sucs = o.data.sucursales || [];
         const alms = o.data.almacenes  || [];
@@ -950,8 +1063,26 @@ class TraspasoForm {
             nota:      nota
         };
 
-        this.opts.onSave(payload);
-        this.closeModal();
+        // Confirmacion antes de crear/enviar: resume ruta y totales. Solo al aceptar se
+        // dispara onSave y se cierra el modal; al cancelar el lote queda intacto.
+        const totalUds = productos.reduce((s, p) => s + Number(p.cant || 0), 0);
+        const arrow    = '<span class="text-purple-300 px-1">&rarr;</span>';
+        const detailHtml =
+            `<span class="font-semibold text-gray-200">${this.esc(sucOrigen.valor)}</span>${arrow}` +
+            `<span class="font-semibold text-gray-200">${this.esc(sucDestino.valor)}</span><br>` +
+            `${productos.length} producto${productos.length !== 1 ? 's' : ''} &middot; ${totalUds} uds`;
+
+        this.showConfirm({
+            title:      o.labels.confirmTitle,
+            detailHtml: detailHtml,
+            okLabel:    o.labels.confirmOk,
+            icon:       'arrow-left-right',
+            okIcon:     'send',
+            onOk: () => {
+                this.opts.onSave(payload);
+                this.closeModal();
+            }
+        });
     }
 
     // -- Eventos --
@@ -961,6 +1092,7 @@ class TraspasoForm {
         const id   = this.opts.id;
 
         wrap.on('click', '[data-modal-close]',      () => this.closeModal());
+        wrap.on('click', '[data-alert-close]',      () => this.hideError());
         wrap.on('input', `#${id}_buscarProducto`,   (e) => this.doSearch(e.target.value));
         wrap.on('keydown', `#${id}_buscarProducto`, (e) => this.onSearchKeydown(e));
         wrap.on('keydown', 'input[data-field="cantidad"]', (e) => this.onQtyKeydown(e));
@@ -969,11 +1101,16 @@ class TraspasoForm {
         wrap.on('click', '[data-add-id]',           (e) => this.addProducto($(e.currentTarget).attr('data-add-id')));
         wrap.on('click', '[data-remove]',           (e) => this.removeProducto(Number($(e.currentTarget).attr('data-remove'))));
         wrap.on('input', 'input[data-field]',       (e) => this.updateField($(e.currentTarget)));
+        wrap.on('focusout', 'input[data-field="cantidad"]', (e) => this.commitField($(e.currentTarget)));
         wrap.on('click', `#${id}_btnLimpiarLote`,   () => this.clearLote());
         wrap.on('click', `#${id}_btnRegistrar`,     () => this.doRegistrar());
 
         // Origen/destino cambian: recalcula stocks del lote y refresca catalogo.
         wrap.on('change', `#${id}_origenSuc, #${id}_destinoSuc`, () => this.onChangeSucursal());
+
+        // Filtro de categoria: re-pinta el catalogo de busqueda mostrando solo la
+        // categoria elegida ("Sin categoria" muestra todas). Resetea la navegacion.
+        wrap.on('change', `#${id}_categoria`, () => { this.activeIdx = 0; this.renderCatalogo(); });
 
         // Transformacion (delegado por data-role).
         wrap.on('click',  '[data-role="transform"]',        (e) => this.toggleTransformPanel(Number($(e.currentTarget).attr('data-idx'))));
@@ -983,7 +1120,10 @@ class TraspasoForm {
         wrap.on('change', '[data-transform-select]',        (e) => this.updatePiezasDefault(Number($(e.currentTarget).attr('data-transform-select'))));
 
         $(document).off('keydown.traspasoForm').on('keydown.traspasoForm', (e) => {
-            if (e.key === 'Escape' && !this.wrap.hasClass('hidden')) this.closeModal();
+            if (e.key !== 'Escape' || this.wrap.hasClass('hidden')) return;
+            const $alert = $(`#${this.opts.id}_alert`);
+            if ($alert.length && !$alert.hasClass('hidden')) { this.hideError(); return; } // primero cierra el alert
+            this.closeModal();
         });
     }
 
@@ -996,19 +1136,22 @@ class TraspasoForm {
         return filt.length ? filt : alms;
     }
 
-    fillSelect(selId, list) {
+    fillSelect(selId, list, placeholder) {
         const $sel = $(`#${selId}`);
         if (!$sel.length) return;
         const prev = $sel.val();
-        $sel.html((list || []).map(it => this.optionTag(it)).join(''));
+        const ph   = placeholder ? `<option value="">${this.esc(placeholder)}</option>` : '';
+        $sel.html(ph + (list || []).map(it => this.optionTag(it)).join(''));
         if (prev && (list || []).some(it => String(it.id != null ? it.id : it.valor) === String(prev))) $sel.val(prev);
+        else if (placeholder) $sel.val(''); // sin seleccion previa valida: deja el placeholder
     }
 
     // Repuebla los selects de almacen origen/destino segun la sucursal seleccionada.
+    // El destino conserva su placeholder para obligar a elegir almacen explicitamente.
     refreshAlmacenes() {
         const id = this.opts.id;
         this.fillSelect(`${id}_origenAlm`,  this.warehousesFor(this.currentOrigen()));
-        this.fillSelect(`${id}_destinoAlm`, this.warehousesFor($(`#${id}_destinoSuc`).val()));
+        this.fillSelect(`${id}_destinoAlm`, this.warehousesFor($(`#${id}_destinoSuc`).val()), this.opts.labels.destinoAlmPh);
     }
 
     onChangeSucursal() {

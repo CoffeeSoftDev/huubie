@@ -75,11 +75,12 @@ class DrawioBoard {
         this._showStage(false);
     }
 
-    // Muestra/oculta el lienzo y atenua la toolbar de documento que no aplica.
+    // Muestra el lienzo en split: documento a la izquierda, draw.io a la derecha.
     _showStage(show) {
+        $('body').toggleClass('diagram-mode', show);
         $('#' + this.stageId).toggleClass('hidden', !show);
-        $('.doc-layout').toggleClass('hidden', show);
-        // Controles de documento irrelevantes en modo lienzo.
+        // El documento queda visible a la izquierda como referencia (no se oculta).
+        // Solo atenuamos los controles de edicion, que no aplican sobre el lienzo.
         $('.cs-tabs-inline, #btnEdit, #btnCopyPath, #docStyleSelect, .doc-zoom, .doc-toolbar-sep')
             .toggleClass('hidden', show);
         $('#btnCloseDiagram').toggleClass('hidden', !show);

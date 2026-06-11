@@ -722,7 +722,9 @@ class ctrl extends mdl {
 
         $row = [];
         foreach ($rows as $r) {
-            $isTerminal = (int) $r['status_terminal'];
+            // La columna de operaciones solo ofrece Previsualizar: abre el panel de
+            // detalle a la derecha, donde viven las acciones contextuales del traspaso
+            // (Enviar / Confirmar Recepcion / Rechazar segun el estado).
             $a = [
                 [
                     'class'   => 'btn btn-sm btn-secondary me-1',
@@ -730,19 +732,12 @@ class ctrl extends mdl {
                     'onclick' => "app.selectTraspaso('{$r['folio']}', {$r['id']})"
                 ]
             ];
-            if (!$isTerminal) {
-                $a[] = [
-                    'class'   => 'btn btn-sm btn-success me-1',
-                    'html'    => '<i class="icon-ok"></i>',
-                    'onclick' => "traspasos.confirmTraspaso({$r['id']})"
-                ];
-            }
 
             $row[] = [
                 'id'         => $r['id'],
                 'Folio'      => $r['folio'],
-                'Origen'     => $r['origin_subsidiary_name']      ?: '-',
-                'Destino'    => $r['destination_subsidiary_name'] ?: '-',
+                'Origen'     => $this->_sucChipCell($r['origin_subsidiaries_id'],      $r['origin_subsidiary_name'],      $r['origin_warehouse_name'],      true),
+                'Destino'    => $this->_sucChipCell($r['destination_subsidiaries_id'], $r['destination_subsidiary_name'], $r['destination_warehouse_name'], false),
                 'Productos'  => (int) $r['total_products'],
                 'Unidades'   => (float) $r['total_units'],
                 'Costo'      => evaluar((float) $r['total_cost']),
@@ -893,22 +888,50 @@ class ctrl extends mdl {
         $detail = $this->qGetTraspasoDetail([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Traspaso no encontrado'];
 
-        $destWh = (int) $header['destination_warehouse_id'];
+        $originWh = (int) $header['origin_warehouse_id'];
+        $destWh   = (int) $header['destination_warehouse_id'];
+
+        // Flujo simplificado: al confirmar la recepcion se mueve TODO el stock de una vez
+        // (salida del origen + entrada al destino), omitiendo el paso intermedio "En
+        // Transito". Si el traspaso ya venia de ese estado (flujo anterior), el origen ya
+        // se desconto en sendTraspaso; en ese caso aqui NO se vuelve a descontar.
+        $alreadySent = ($header['status_code'] ?? '') === 'IN_TRANSIT';
 
         foreach ($detail as $d) {
             $productId = (int) $d['product_id'];
             $qty       = (float) $d['quantity'];
 
+            // -- Salida del almacen origen (se descuenta aqui salvo que ya saliera antes).
+            $originStock = $this->getStockRow([$productId, $originWh]);
+            $originPrev  = $originStock ? (float) $originStock['quantity'] : 0;
+            $originPost  = $alreadySent ? $originPrev : max(0, $originPrev - $qty);
+
+            // -- Entrada al almacen destino.
             $destStock = $this->getStockRow([$productId, $destWh]);
             $destPrev  = $destStock ? (float) $destStock['quantity'] : 0;
             $destPost  = $destPrev + $qty;
 
-            $this->_CUD(
-                "UPDATE {$this->bd}detail_inventory_transfer
-                 SET destination_stock_prev = ?, destination_stock_post = ?
-                 WHERE id = ?",
-                [$destPrev, $destPost, (int) $d['id']]
-            );
+            // Traza el movimiento real (recalculado al confirmar). Si el origen ya se
+            // desconto antes, conserva su prev/post original sin pisarlo.
+            if ($alreadySent) {
+                $this->_CUD(
+                    "UPDATE {$this->bd}detail_inventory_transfer
+                     SET destination_stock_prev = ?, destination_stock_post = ?
+                     WHERE id = ?",
+                    [$destPrev, $destPost, (int) $d['id']]
+                );
+            } else {
+                $this->_CUD(
+                    "UPDATE {$this->bd}detail_inventory_transfer
+                     SET origin_stock_prev = ?, origin_stock_post = ?,
+                         destination_stock_prev = ?, destination_stock_post = ?
+                     WHERE id = ?",
+                    [$originPrev, $originPost, $destPrev, $destPost, (int) $d['id']]
+                );
+                if ($originStock) {
+                    $this->updateStockQuantity([$originPost, (int) $originStock['id']]);
+                }
+            }
 
             if ($destStock) {
                 $this->updateStockQuantity([$destPost, (int) $destStock['id']]);
@@ -1275,6 +1298,34 @@ class ctrl extends mdl {
         ];
         $c = $map[$status] ?? ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#9CA3AF'];
         return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>" . strtoupper($status) . "</span>";
+    }
+
+    // Celda Origen/Destino estilo chip: icono "store" coloreado por sucursal
+    // (color estable segun el id), el nombre de la sucursal y, debajo, el almacen.
+    // En el origen agrega una flecha a la derecha que apunta al destino.
+    private function _sucChipCell($subId, $subName, $whName, $withArrow) {
+        $palette = [
+            ['icon' => 'text-blue-400',   'bg' => 'rgba(59,130,246,0.15)',  'border' => 'rgba(59,130,246,0.35)'],
+            ['icon' => 'text-green-400',  'bg' => 'rgba(63,193,137,0.15)',  'border' => 'rgba(63,193,137,0.35)'],
+            ['icon' => 'text-purple-400', 'bg' => 'rgba(168,85,247,0.15)',  'border' => 'rgba(168,85,247,0.35)'],
+            ['icon' => 'text-pink-400',   'bg' => 'rgba(244,114,182,0.15)', 'border' => 'rgba(244,114,182,0.35)'],
+            ['icon' => 'text-orange-400', 'bg' => 'rgba(251,146,60,0.15)',  'border' => 'rgba(251,146,60,0.35)'],
+            ['icon' => 'text-cyan-400',   'bg' => 'rgba(34,211,238,0.15)',  'border' => 'rgba(34,211,238,0.35)']
+        ];
+        $name  = $subName ?: '-';
+        $idx   = $subId ? ((int) $subId % count($palette)) : 0;
+        $p     = $palette[$idx];
+        $wh    = $whName
+            ? "<div class='text-[10px] text-gray-400 truncate'>{$whName}</div>"
+            : "";
+        $arrow = $withArrow
+            ? "<i data-lucide='arrow-right' class='w-4 h-4 text-gray-500 flex-shrink-0 ml-auto'></i>"
+            : "";
+        return "<div class='flex items-center gap-2 w-full text-left'>"
+             . "<div class='w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0' style='background:{$p['bg']};border:1px solid {$p['border']};'>"
+             . "<i data-lucide='store' class='w-4 h-4 {$p['icon']}'></i></div>"
+             . "<div class='min-w-0'><div class='font-semibold text-white truncate leading-tight'>{$name}</div>{$wh}</div>"
+             . "{$arrow}</div>";
     }
 
     private function _pillBadge($label, $colorHex) {
