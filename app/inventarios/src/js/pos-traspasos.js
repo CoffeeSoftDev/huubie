@@ -3,8 +3,6 @@ let app, traspasos, traspasosView;
 
 let turno, subsidiaries_id;
 
-window.updateSession = () => { };
-
 // Config estatica de la vista (titulo, subtitulo, back). No son datos de negocio.
 const VIEW_HEADER_TRASPASOS = {
     title:    'Visor de Traspasos',
@@ -136,10 +134,16 @@ class App extends Templates {
 
         let filters = [
             {
+                opc: 'input-calendar',
+                id: `calendar${this.PROJECT_NAME}`,
+                lbl: 'Rango de fecha:',
+                class: 'col-12 col-md-3 col-lg-2'
+            },
+            {
                 opc:      'select',
                 id:       'fEstado',
                 lbl:      'Estado:',
-                class:    'col-12 col-md-2 col-lg-3',
+                class:    'col-12 col-md-2 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     estados
@@ -148,7 +152,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fOrigen',
                 lbl:      'Origen:',
-                class:    'col-12 col-md-2 col-lg-3',
+                class:    'col-12 col-md-2 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     sucursales
@@ -157,18 +161,17 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fDestino',
                 lbl:      'Destino:',
-                class:    'col-12 col-md-2 col-lg-3',
+                class:    'col-12 col-md-2 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     sucursales
             },
-           
+         
             {
                 opc:       'button',
                 id:        'btnNuevoTraspaso',
                 text:      'Nuevo Traspaso',
-                
-                class:     'col-12 col-md-3 col-lg-3',
+                class:     'col-12 col-md-2 col-lg-3',
                 onClick:   () => traspasosView.openTraspasoForm()
             }
         ];
@@ -178,6 +181,25 @@ class App extends Templates {
             coffeesoft:true,
             theme:'dark',
             data:   filters
+        });
+
+        // Selector de rango de fechas (daterangepicker). Devuelve { fi, ff } via
+        // getDataRangePicker en getFilters(). Default: mes actual, coherente con los KPIs.
+        dataPicker({
+            parent: `calendar${this.PROJECT_NAME}`,
+            rangepicker: {
+                startDate:     moment().startOf('month'),
+                endDate:       moment().endOf('month'),
+                showDropdowns: true,
+                ranges: {
+                    'Hoy':           [moment(), moment()],
+                    'Ayer':          [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Semana actual': [moment().startOf('week'), moment().endOf('week')],
+                    'Mes actual':    [moment().startOf('month'), moment().endOf('month')],
+                    'Mes anterior':  [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                }
+            },
+            onSelect: () => this.onChangeFilters()
         });
     }
 
@@ -200,11 +222,14 @@ class App extends Templates {
     }
 
     getFilters() {
+        const range = getDataRangePicker(`calendar${this.PROJECT_NAME}`) || {};
         return {
             subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
             estado:          $('#fEstado').val()         || '',
             origen:          $('#fOrigen').val()         || '',
             destino:         $('#fDestino').val()        || '',
+            fechaIni:        range.fi                    || '',
+            fechaFin:        range.ff                    || '',
             q:               $('#qBuscar').val()         || ''
         };
     }
@@ -281,6 +306,8 @@ class Traspasos extends Templates {
             status_id:                   f.estado,
             origin_subsidiaries_id:      f.origen,
             destination_subsidiaries_id: f.destino,
+            fi:                          f.fechaIni,
+            ff:                          f.fechaFin,
             q:                           f.q
         }), api).catch(() => null);
 
@@ -348,12 +375,14 @@ class Traspasos extends Templates {
             autoriza:   h.authorized_user_name || '',
             nota:       h.note || '',
             origen: {
-                id:     h.origin_subsidiaries_id != null ? String(h.origin_subsidiaries_id) : '',
-                nombre: h.origin_subsidiary_name || '-'
+                id:      h.origin_subsidiaries_id != null ? String(h.origin_subsidiaries_id) : '',
+                nombre:  h.origin_subsidiary_name || '-',
+                almacen: h.origin_warehouse_name || ''
             },
             destino: {
-                id:     h.destination_subsidiaries_id != null ? String(h.destination_subsidiaries_id) : '',
-                nombre: h.destination_subsidiary_name || '-'
+                id:      h.destination_subsidiaries_id != null ? String(h.destination_subsidiaries_id) : '',
+                nombre:  h.destination_subsidiary_name || '-',
+                almacen: h.destination_warehouse_name || ''
             },
             productos: (detail || []).map(d => ({
                 nombre:           d.product_name || '',
@@ -413,6 +442,18 @@ class Traspasos extends Templates {
             this.lsKpis();
         } else {
             if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo crear el traspaso' });
+        }
+    }
+
+    async sendTraspaso(id) {
+        const r = await fn_ajax({ opc: 'sendTraspaso', id: id }, api).catch(() => null);
+        if (r && r.status === 200) {
+            if (typeof alert === 'function') alert({ icon: 'success', text: 'Traspaso enviado (en transito)' });
+            this.lsTraspasos();
+            this.lsKpis();
+            traspasosView.renderDetail(null);
+        } else {
+            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo enviar el traspaso' });
         }
     }
 
@@ -497,7 +538,8 @@ class TraspasosView extends Templates {
                 $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
             },
             onConfirm: (t) => traspasos.confirmTraspaso(t && t.id),
-            onReject:  (t) => traspasos.rejectTraspaso(t && t.id)
+            onReject:  (t) => traspasos.rejectTraspaso(t && t.id),
+            onSend:    (t) => traspasos.sendTraspaso(t && t.id)
         });
     }
 
@@ -763,6 +805,8 @@ class TraspasosView extends Templates {
                 totProd:    'Total productos',
                 costoTot:   'Costo total',
                 productos:  'Productos en traspaso',
+                detalleProductos: 'Detalle de productos',
+                producto:   'Producto',
                 historial:  'Historial',
                 nota:       'Nota',
                 cant:       'Cant',
@@ -771,6 +815,7 @@ class TraspasosView extends Templates {
                 stockO:     'Stock origen',
                 stockD:     'Stock destino',
                 rechazar:   'Rechazar',
+                enviar:     'Enviar Traspaso',
                 confirmar:  'Confirmar Recepcion'
             },
             estadoPalettes: {
@@ -796,7 +841,8 @@ class TraspasosView extends Templates {
             },
             onClose:   () => { },
             onConfirm: () => { },
-            onReject:  () => { }
+            onReject:  () => { },
+            onSend:    () => { }
         };
 
         const o    = options || {};
@@ -810,8 +856,7 @@ class TraspasosView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        const fmtMoney      = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const fmtMoneyShort = (n) => '$' + Number(n).toLocaleString('en-US');
+        const fmtMoney = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -867,56 +912,99 @@ class TraspasosView extends Templates {
         const estadoC  = opts.estadoPalettes[t.estado] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
         const estadoBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${estadoC.bg};color:${estadoC.fg};">${esc(t.estado)}</span>`;
 
-        // Chip compacto de sucursal (origen/destino) en una sola linea.
-        const sucChip = (suc, label, alignRight) => {
-            const p    = opts.sucPalettes[suc.id] || { color: 'text-gray-400', borderHex: 'rgba(156,163,175,0.35)', bgHex: 'rgba(156,163,175,0.15)' };
-            const icon = `<div class="w-8 h-8 rounded-lg border flex items-center justify-center flex-shrink-0" style="background:${p.bgHex};border-color:${p.borderHex};"><i data-lucide="store" class="w-4 h-4 ${p.color}"></i></div>`;
-            const text = `<div class="min-w-0 ${alignRight ? 'text-right' : ''}"><p class="text-[8px] text-[#9CA3AF] uppercase leading-none">${esc(label)}</p><p class="text-[11px] font-bold truncate leading-tight">${esc(suc.nombre)}</p></div>`;
-            return `<div class="flex-1 min-w-0 flex items-center gap-2 ${alignRight ? 'justify-end' : ''}">${alignRight ? text + icon : icon + text}</div>`;
+        // Nodo de sucursal (origen/destino) en columna: icono grande coloreado,
+        // etiqueta y nombre. Color estable por id de sucursal (consistente con la
+        // tabla); si hay paleta por slug en sucPalettes (datos de muestra) la respeta.
+        const routePalette = [
+            { icon: 'text-blue-400',   bgHex: 'rgba(59,130,246,0.15)',  borderHex: 'rgba(59,130,246,0.35)' },
+            { icon: 'text-green-400',  bgHex: 'rgba(63,193,137,0.15)',  borderHex: 'rgba(63,193,137,0.35)' },
+            { icon: 'text-purple-400', bgHex: 'rgba(168,85,247,0.15)',  borderHex: 'rgba(168,85,247,0.35)' },
+            { icon: 'text-pink-400',   bgHex: 'rgba(244,114,182,0.15)', borderHex: 'rgba(244,114,182,0.35)' },
+            { icon: 'text-orange-400', bgHex: 'rgba(251,146,60,0.15)',  borderHex: 'rgba(251,146,60,0.35)' },
+            { icon: 'text-cyan-400',   bgHex: 'rgba(34,211,238,0.15)',  borderHex: 'rgba(34,211,238,0.35)' }
+        ];
+        const sucNode = (suc, label) => {
+            const sp    = opts.sucPalettes[suc.id];
+            const idNum = parseInt(suc.id, 10);
+            const pal   = !isNaN(idNum) ? routePalette[idNum % routePalette.length] : routePalette[0];
+            const p     = sp ? { icon: sp.color, bgHex: sp.bgHex, borderHex: sp.borderHex } : pal;
+            return `
+                <div class="flex flex-col items-center text-center gap-1.5 flex-1 min-w-0">
+                    <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${p.bgHex};">
+                        <i data-lucide="store" class="w-4 h-4 ${p.icon}"></i>
+                    </div>
+                    <div class="min-w-0 w-full">
+                        <p class="text-[8px] text-[#9CA3AF] uppercase tracking-wider leading-none">${esc(label)}</p>
+                        <p class="text-[11px] font-bold text-white truncate leading-tight mt-0.5">${esc(suc.nombre)}</p>
+                        ${suc.almacen ? `<p class="text-[9px] text-[#9CA3AF] truncate leading-tight">${esc(suc.almacen)}</p>` : ''}
+                    </div>
+                </div>`;
         };
 
-        // Detalle de productos en tabla compacta (estilo visor de entradas) con fila Total.
-        // Bajo cada nombre se muestra el movimiento de stock origen/destino en miniatura.
+        // Detalle de productos estilo "ticket": card con header (titulo + contador),
+        // icono de color por producto, costo unitario bajo el nombre y columnas
+        // Cant/Costo/Subtotal alineadas. Cierra con una fila Total destacada.
+        const prodPalette = [
+            { bg: 'rgba(167,139,250,0.15)', fg: 'text-purple-400' },
+            { bg: 'rgba(244,114,182,0.15)', fg: 'text-pink-400'   },
+            { bg: 'rgba(251,146,60,0.15)',  fg: 'text-orange-400' },
+            { bg: 'rgba(59,130,246,0.15)',  fg: 'text-blue-400'   },
+            { bg: 'rgba(63,193,137,0.15)',  fg: 'text-green-400'  },
+            { bg: 'rgba(34,211,238,0.15)',  fg: 'text-cyan-400'   }
+        ];
+
         const productosTable = () => {
-            const rows = (t.productos || []).map(p => {
-                const subtotal      = Number(p.cant) * Number(p.costo);
-                const stockOrigPost = Number(p.stockOrigenPrev || 0) - Number(p.cant || 0);
-                const stockDestPost = Number(p.stockDestinoPrev || 0) + Number(p.cant || 0);
+            const rows = (t.productos || []).map((p, idx) => {
+                const subtotal = Number(p.cant) * Number(p.costo);
+                const pal      = prodPalette[idx % prodPalette.length];
                 return `
-                    <tr class="hover:bg-[#1F2937]/40 transition-colors border-b border-[#1F2937]">
-                        <td class="py-1 px-1.5">
-                            <p class="text-[10px] font-semibold text-white leading-tight truncate">${esc(p.nombre)}</p>
-                            <p class="text-[8px] text-[#9CA3AF] leading-tight">O ${p.stockOrigenPrev || 0}&rarr;<strong class="text-orange-400">${stockOrigPost}</strong> &middot; D ${p.stockDestinoPrev || 0}&rarr;<strong class="text-green-400">${stockDestPost}</strong></p>
+                    <tr class="border-b border-[#374151]/60 last:border-0 hover:bg-[#111827]/40 transition-colors">
+                        <td class="py-2 px-2">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${pal.bg};">
+                                    <i data-lucide="${esc(p.icon || 'package')}" class="w-4 h-4 ${pal.fg}"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-[11px] font-bold text-white leading-tight truncate">${esc(p.nombre)}</p>
+                                    <p class="text-[10px] text-[#9CA3AF] leading-tight">${fmtMoney(p.costo)} c/u</p>
+                                </div>
+                            </div>
                         </td>
-                        <td class="py-1 px-1.5 text-center font-bold text-blue-400 whitespace-nowrap">${p.cant}</td>
-                        <td class="py-1 px-1.5 text-right text-white whitespace-nowrap">${fmtMoney(p.costo)}</td>
-                        <td class="py-1 px-1.5 text-right text-white font-bold whitespace-nowrap">${fmtMoneyShort(subtotal)}</td>
+                        <td class="py-2 px-2 text-center font-bold text-blue-400 whitespace-nowrap">${p.cant}</td>
+                        <td class="py-2 px-2 text-right text-[#9CA3AF] whitespace-nowrap">${fmtMoney(p.costo)}</td>
+                        <td class="py-2 px-2 text-right text-white font-bold whitespace-nowrap">${fmtMoney(subtotal)}</td>
                     </tr>`;
             }).join('');
 
             const foot = items ? `
                 <tfoot>
-                    <tr>
-                        <td class="py-1.5 px-1.5 text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</td>
-                        <td class="py-1.5 px-1.5 text-center font-bold text-blue-400 whitespace-nowrap">${uds}</td>
-                        <td class="py-1.5 px-1.5 text-right text-[#6B7280]">&mdash;</td>
-                        <td class="py-1.5 px-1.5 text-right font-bold text-white whitespace-nowrap">${fmtMoney(costoTot)}</td>
+                    <tr class="border-t border-[#374151]">
+                        <td class="py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</td>
+                        <td class="py-2.5 px-2 text-center font-bold text-blue-400 whitespace-nowrap">${uds}</td>
+                        <td class="py-2.5 px-2"></td>
+                        <td class="py-2.5 px-2 text-right text-sm font-bold text-blue-400 whitespace-nowrap">${fmtMoney(costoTot)}</td>
                     </tr>
                 </tfoot>` : '';
 
             return `
-                <table class="w-full text-[10px] border-collapse bg-[#1F2937] rounded-lg overflow-hidden">
-                    <thead>
-                        <tr class="text-[9px] text-[#9CA3AF] uppercase tracking-wider">
-                            <th class="py-1.5 px-1.5 text-left font-bold">${esc(opts.labels.productos)}</th>
-                            <th class="py-1.5 px-1.5 text-center font-bold">${esc(opts.labels.cant)}</th>
-                            <th class="py-1.5 px-1.5 text-right font-bold">${esc(opts.labels.costo)}</th>
-                            <th class="py-1.5 px-1.5 text-right font-bold">${esc(opts.labels.subtot)}</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows || `<tr><td colspan="4" class="py-2 text-center text-[11px] text-gray-500 italic">Sin productos</td></tr>`}</tbody>
-                    ${foot}
-                </table>`;
+                <div class="bg-[#1F2937] rounded-lg overflow-hidden">
+                    <div class="flex items-center justify-between px-3 py-2.5 border-b border-[#374151]">
+                        <p class="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">${esc(opts.labels.detalleProductos)}</p>
+                        <p class="text-[10px] text-[#9CA3AF]">${items} productos &middot; ${uds} uds</p>
+                    </div>
+                    <table class="w-full text-[11px] border-collapse">
+                        <thead>
+                            <tr class="text-[9px] text-[#9CA3AF] uppercase tracking-wider border-b border-[#374151]">
+                                <th class="py-2 px-2 text-left font-bold">${esc(opts.labels.producto)}</th>
+                                <th class="py-2 px-2 text-center font-bold">${esc(opts.labels.cant)}</th>
+                                <th class="py-2 px-2 text-right font-bold">${esc(opts.labels.costo)}</th>
+                                <th class="py-2 px-2 text-right font-bold">${esc(opts.labels.subtot)}</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows || `<tr><td colspan="4" class="py-2 text-center text-[11px] text-gray-500 italic">Sin productos</td></tr>`}</tbody>
+                        ${foot}
+                    </table>
+                </div>`;
         };
 
         const timelineHtml = (t.timeline || []).map((tl, idx, arr) => {
@@ -931,10 +1019,16 @@ class TraspasosView extends Templates {
             `;
         }).join('') || '<p class="text-[10px] text-gray-500 italic">Sin historial</p>';
 
-        // Recepcion solo de lo que ya viaja: confirmar antes de "enviar" descuadraria el stock.
-        const showConfirm = t.estado === 'En Transito';
-        // Rechazo permitido en cualquier estado no terminal (Solicitado/Autorizado/En Transito).
-        const showReject  = t.estado === 'Solicitado' || t.estado === 'Autorizado' || t.estado === 'En Transito';
+        // Accion primaria: "Confirmar Recepcion". El flujo omite el paso intermedio "En
+        // Transito": al confirmar, el destino descuenta el origen y suma el destino de una
+        // sola vez. Habilitada mientras el traspaso no sea terminal; "En Transito" se
+        // mantiene por compatibilidad con traspasos creados en el flujo anterior.
+        const canConfirm = t.estado === 'Solicitado' || t.estado === 'Autorizado' || t.estado === 'En Transito';
+        const primaryOn  = canConfirm;
+        const primaryLbl = opts.labels.confirmar;
+        const primaryIco = 'check-circle-2';
+        // Rechazo permitido en cualquier estado no terminal.
+        const showReject = canConfirm;
 
         aside.html(`
             <div class="px-3 py-3 flex-shrink-0 flex items-center justify-between">
@@ -954,12 +1048,16 @@ class TraspasosView extends Templates {
 
             <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
 
-                <!-- Ruta (compacta, una linea) -->
+                <!-- Ruta del traspaso -->
                 <div class="bg-[#1F2937] rounded-lg p-2.5">
-                    <div class="flex items-center gap-2">
-                        ${sucChip(t.origen, opts.labels.origen, false)}
-                        <i data-lucide="arrow-right" class="w-4 h-4 text-[#c4b5fd] flex-shrink-0"></i>
-                        ${sucChip(t.destino, opts.labels.destino, true)}
+                    <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-2">${esc(opts.labels.ruta)}</p>
+                    <div class="flex items-start gap-2">
+                        ${sucNode(t.origen, opts.labels.origen)}
+                        <div class="flex flex-col items-center gap-0.5 flex-shrink-0 pt-2">
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-[#c4b5fd]"></i>
+                            <span class="text-[8px] text-[#9CA3AF]">${esc(opts.labels.enRuta)}</span>
+                        </div>
+                        ${sucNode(t.destino, opts.labels.destino)}
                     </div>
                 </div>
 
@@ -973,8 +1071,8 @@ class TraspasosView extends Templates {
                     <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.costoTot)}</span><span class="font-bold text-[#76A9FA]">${fmtMoney(costoTot)}</span></div>
                 </div>
 
-                <!-- Productos (tabla compacta) -->
-                <div class="overflow-x-auto">${productosTable()}</div>
+                <!-- Productos (detalle estilo ticket) -->
+                ${productosTable()}
 
                 <!-- Timeline -->
                 <div>
@@ -998,10 +1096,10 @@ class TraspasosView extends Templates {
                         ${showReject ? '' : 'disabled'}>
                     <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>${esc(opts.labels.rechazar)}
                 </button>
-                <button type="button" id="${opts.id}_confirm"
-                        class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-green-600 ${showConfirm ? 'hover:bg-green-500 hover:shadow-lg hover:shadow-green-500/20 transition-all' : 'opacity-40 cursor-not-allowed'}"
-                        ${showConfirm ? '' : 'disabled'}>
-                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.confirmar)}
+                <button type="button" id="${opts.id}_primary"
+                        class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-green-600 ${primaryOn ? 'hover:bg-green-500 hover:shadow-lg hover:shadow-green-500/20 transition-all' : 'opacity-40 cursor-not-allowed'}"
+                        ${primaryOn ? '' : 'disabled'}>
+                    <i data-lucide="${primaryIco}" class="w-3.5 h-3.5"></i>${esc(primaryLbl)}
                 </button>
             </div>
         `);
@@ -1011,6 +1109,6 @@ class TraspasosView extends Templates {
 
         $(`#${opts.id}_close`).on('click',   () => opts.onClose(t));
         $(`#${opts.id}_reject`).on('click',  () => opts.onReject(t));
-        $(`#${opts.id}_confirm`).on('click', () => opts.onConfirm(t));
+        $(`#${opts.id}_primary`).on('click', () => { if (canConfirm) opts.onConfirm(t); });
     }
 }
