@@ -70,4 +70,28 @@
     --warning3: rgb(231, 64, 65, 0.3);
     --warning2: rgb(231, 64, 65, 0.4);
     --warning1: rgb(231, 64, 65, 0.1);
-}  
+}
+
+/* ------------------------------------------------------------------ *
+ * input-calendar (filterBar) en tema dark.
+ * El addon Bootstrap `.input-group-text` del icono de calendario queda
+ * claro pese a data-bs-theme="dark"; lo igualamos al tono del input
+ * para que el "Rango de fecha" se vea dark. Scoped a dark para no
+ * afectar paginas en tema claro.
+ * ------------------------------------------------------------------ */
+[data-bs-theme="dark"] .calendariopicker .form-control,
+[data-bs-theme="dark"] .calendariopicker .select_input {
+    background-color: #1F2A37 !important;
+    border-color: #374151 !important;
+    color: #F9FAFB !important;
+}
+
+[data-bs-theme="dark"] .calendariopicker .input-group-text {
+    background-color: #1F2A37 !important;
+    border-color: #374151 !important;
+    color: #9CA3AF !important;
+}
+
+[data-bs-theme="dark"] .calendariopicker .form-control::placeholder {
+    color: #6B7280 !important;
+}

@@ -21,8 +21,6 @@ $(async () => {
 
 class App extends Templates {
 
-    // -- Bootstrap --
-
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'POSTraspasos';
@@ -137,7 +135,7 @@ class App extends Templates {
                 opc: 'input-calendar',
                 id: `calendar${this.PROJECT_NAME}`,
                 lbl: 'Rango de fecha:',
-                class: 'col-12 col-md-3 col-lg-2'
+                class: 'col-12 col-md-3 col-lg-3'
             },
             {
                 opc:      'select',
@@ -478,6 +476,26 @@ class Traspasos extends Templates {
             traspasosView.renderDetail(null);
         }
     }
+
+    // Cancelar una solicitud aun no aceptada por el destino. Reutiliza el endpoint de
+    // rechazo (marca el traspaso como terminal) con una nota que distingue la cancelacion
+    // del solicitante de un rechazo del destino.
+    async cancelTraspaso(id) {
+        const r = await fn_ajax({
+            opc:  'rejectTraspaso',
+            id:   id,
+            note: 'Traspaso cancelado por el solicitante'
+        }, api).catch(() => null);
+
+        if (r && r.status === 200) {
+            if (typeof alert === 'function') alert({ icon: 'success', text: 'Solicitud cancelada' });
+            this.lsTraspasos();
+            this.lsKpis();
+            traspasosView.renderDetail(null);
+        } else {
+            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo cancelar la solicitud' });
+        }
+    }
 }
 
 
@@ -539,6 +557,7 @@ class TraspasosView extends Templates {
             },
             onConfirm: (t) => traspasos.confirmTraspaso(t && t.id),
             onReject:  (t) => traspasos.rejectTraspaso(t && t.id),
+            onCancel:  (t) => traspasos.cancelTraspaso(t && t.id),
             onSend:    (t) => traspasos.sendTraspaso(t && t.id)
         });
     }
@@ -815,6 +834,7 @@ class TraspasosView extends Templates {
                 stockO:     'Stock origen',
                 stockD:     'Stock destino',
                 rechazar:   'Rechazar',
+                cancelar:   'Cancelar Solicitud',
                 enviar:     'Enviar Traspaso',
                 confirmar:  'Confirmar Recepcion'
             },
@@ -842,6 +862,7 @@ class TraspasosView extends Templates {
             onClose:   () => { },
             onConfirm: () => { },
             onReject:  () => { },
+            onCancel:  () => { },
             onSend:    () => { }
         };
 
@@ -1019,16 +1040,17 @@ class TraspasosView extends Templates {
             `;
         }).join('') || '<p class="text-[10px] text-gray-500 italic">Sin historial</p>';
 
-        // Accion primaria: "Confirmar Recepcion". El flujo omite el paso intermedio "En
-        // Transito": al confirmar, el destino descuenta el origen y suma el destino de una
-        // sola vez. Habilitada mientras el traspaso no sea terminal; "En Transito" se
-        // mantiene por compatibilidad con traspasos creados en el flujo anterior.
-        const canConfirm = t.estado === 'Solicitado' || t.estado === 'Autorizado' || t.estado === 'En Transito';
-        const primaryOn  = canConfirm;
-        const primaryLbl = opts.labels.confirmar;
-        const primaryIco = 'check-circle-2';
-        // Rechazo permitido en cualquier estado no terminal.
-        const showReject = canConfirm;
+        // Acciones segun estado:
+        // - Solicitado (REQUESTED): la sucursal destino aun NO acepta el traspaso, asi que
+        //   el origen solo puede cancelar su propia solicitud (un unico boton "Cancelar").
+        // - Autorizado / En Transito: ya fue aceptado; el destino puede Confirmar Recepcion
+        //   (descuenta origen y suma destino de una vez) o Rechazar.
+        // - Recibido / Rechazado: terminal, sin acciones.
+        const isRequested = t.estado === 'Solicitado';
+        const canConfirm  = t.estado === 'Autorizado' || t.estado === 'En Transito';
+        const showReject  = canConfirm;
+        const primaryLbl  = opts.labels.confirmar;
+        const primaryIco  = 'check-circle-2';
 
         aside.html(`
             <div class="px-3 py-3 flex-shrink-0 flex items-center justify-between">
@@ -1091,24 +1113,35 @@ class TraspasosView extends Templates {
             </div>
 
             <div class="px-3 py-3 flex gap-2 flex-shrink-0">
+                ${isRequested ? `
+                <button type="button" id="${opts.id}_cancel"
+                        class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/20 transition-all">
+                    <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}
+                </button>
+                ` : `
                 <button type="button" id="${opts.id}_reject"
                         class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-red-600 ${showReject ? 'hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/20 transition-all' : 'opacity-40 cursor-not-allowed'}"
                         ${showReject ? '' : 'disabled'}>
                     <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>${esc(opts.labels.rechazar)}
                 </button>
                 <button type="button" id="${opts.id}_primary"
-                        class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-green-600 ${primaryOn ? 'hover:bg-green-500 hover:shadow-lg hover:shadow-green-500/20 transition-all' : 'opacity-40 cursor-not-allowed'}"
-                        ${primaryOn ? '' : 'disabled'}>
+                        class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-green-600 ${canConfirm ? 'hover:bg-green-500 hover:shadow-lg hover:shadow-green-500/20 transition-all' : 'opacity-40 cursor-not-allowed'}"
+                        ${canConfirm ? '' : 'disabled'}>
                     <i data-lucide="${primaryIco}" class="w-3.5 h-3.5"></i>${esc(primaryLbl)}
                 </button>
+                `}
             </div>
         `);
 
         $(`#${opts.parent}`).html(aside);
         if (window.lucide) lucide.createIcons();
 
-        $(`#${opts.id}_close`).on('click',   () => opts.onClose(t));
-        $(`#${opts.id}_reject`).on('click',  () => opts.onReject(t));
-        $(`#${opts.id}_primary`).on('click', () => { if (canConfirm) opts.onConfirm(t); });
+        $(`#${opts.id}_close`).on('click', () => opts.onClose(t));
+        if (isRequested) {
+            $(`#${opts.id}_cancel`).on('click', () => opts.onCancel(t));
+        } else {
+            $(`#${opts.id}_reject`).on('click',  () => opts.onReject(t));
+            $(`#${opts.id}_primary`).on('click', () => { if (canConfirm) opts.onConfirm(t); });
+        }
     }
 }

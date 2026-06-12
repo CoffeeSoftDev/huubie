@@ -1048,7 +1048,7 @@ class Components extends Complements {
                     if (x.onchange) calInput.attr('onchange', x.onchange);
 
                     let calIcon = $('<div>', {
-                        class: 'pointer-events-none absolute inset-y-px right-px flex items-center pl-2 pr-3 text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 rounded-r-lg',
+                        class: self.cfThemedClass('pointer-events-none absolute inset-y-px right-px flex items-center pl-2 pr-3 text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 rounded-r-lg', opts.theme),
                         html: '<i class="icon-calendar-2 text-base"></i>',
                     });
 

@@ -101,7 +101,11 @@
       "PowerShell($p='c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\src\\\\js\\\\visor.js'; $line=\\(Get-Content -Encoding UTF8 $p\\)[3767]; $line; '---'; \\($line.ToCharArray\\(\\) | Where-Object { [int][char]$_ -gt 127 } | ForEach-Object { 'U+{0:X4}' -f [int][char]$_ }\\) -join ' ')",
       "Bash(./php.exe -l /c/wamp64/www/huubie/coffee/app/visor/index.php)",
       "PowerShell(Copy-Item 'c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\index.php' 'c:\\\\wamp64\\\\www\\\\huubie\\\\coffee\\\\app\\\\visor\\\\index-2.php' -Force)",
-      "PowerShell('copiado')"
+      "PowerShell('copiado')",
+      "Bash(sed -i '667,964d' \"c:/wamp64/www/huubie/app/inventarios/ctrl/ctrl-inventarios.php\")",
+      "Bash(sed -n '660,675p' \"c:/wamp64/www/huubie/app/inventarios/ctrl/ctrl-inventarios.php\")",
+      "Bash(sed -i '694,950d' \"c:/wamp64/www/huubie/app/inventarios/mdl/mdl-inventarios.php\")",
+      "Bash(sed -n '685,700p' \"c:/wamp64/www/huubie/app/inventarios/mdl/mdl-inventarios.php\")"
     ],
     "additionalDirectories": [
       "\\tmp"
