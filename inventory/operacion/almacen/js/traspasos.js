@@ -1,15 +1,13 @@
-let api = 'ctrl/ctrl-pos-traspasos.php';
+let api = 'ctrl/ctrl-traspasos.php';
 let app, traspasos, traspasosView;
 
-let turno, subsidiaries_id;
+let branchId;
 
-// Config estatica de la vista (titulo, subtitulo, back). No son datos de negocio.
 const VIEW_HEADER_TRASPASOS = {
     title:    'Visor de Traspasos',
     subtitle: 'Gestion de movimientos entre sucursales',
-    back:     { href: '/app/inventarios/index.php', title: 'Regresar al inicio' }
+    back:     { href: '/inventory/operacion/almacen/index.php', title: 'Regresar al inicio' }
 };
-
 
 $(async () => {
     traspasosView = new TraspasosView(api, 'root');
@@ -23,28 +21,26 @@ class App extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'POSTraspasos';
-        this.subId        = null;
+        this.PROJECT_NAME = 'Traspasos';
+        this.branchId     = null;
         this.selectedId   = null;
+        this.dataInit     = {};
     }
 
     async init() {
-        const r = await fn_ajax({ opc: 'init' }, api).catch(() => null);
+        const r  = await fn_ajax({ opc: 'init' }, api).catch(() => null);
         const ok = r && r.status === 200;
 
         this.dataInit = {
-            subsidiaries_id: ok ? (r.subsidiaries_id  || '') : '',
-            sucursales:      ok ? (r.sucursales       || []) : [],
-            estados:         ok ? (r.estados_traspaso || []) : [],
-            almacenes:       ok ? (r.almacenes        || []) : [],
-            isAdmin:         ok ? !!r.is_admin : false,
-            level:           ok ? (r.level || 0)  : 0
+            branch_id:   ok ? (r.branch_id   || '') : '',
+            sucursales:  ok ? (r.sucursales   || []) : [],
+            estados:     ok ? (r.estados_traspaso || []) : [],
+            almacenes:   ok ? (r.almacenes    || []) : [],
+            companiesId: ok ? (r.companies_id || 0)  : 0
         };
 
-        this.isAdmin    = this.dataInit.isAdmin;
-        this.level      = this.dataInit.level;
-        this.subId      = this.dataInit.subsidiaries_id;
-        subsidiaries_id = this.subId;
+        this.branchId = this.dataInit.branch_id;
+        branchId      = this.branchId;
 
         this.render();
     }
@@ -54,19 +50,15 @@ class App extends Templates {
         this.filterBar();
         traspasosView.renderHeader(VIEW_HEADER_TRASPASOS);
         traspasosView.renderDetail(null);
-        this.populateFilters();
         traspasos.lsTraspasos();
         traspasos.lsKpis();
     }
 
-    // -- Layout --
-
     layout() {
-
         const mainPanel = {
             type: 'div',
             id:   'mainPanel',
-            class:'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
+            class: 'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
             children: [
                 {
                     id:    'viewHeader',
@@ -85,15 +77,14 @@ class App extends Templates {
                     id:    'tableWrap',
                     text:  '#tableWrap',
                     class: 'p-3 flex-1 min-h-0 overflow-auto'
-                },
-               
+                }
             ]
         };
 
         const detailPanel = {
-            type: 'aside',
-            id:   'detailPanel',
-            class:'w-full md:w-[400px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden',
+            type:  'aside',
+            id:    'detailPanel',
+            class: 'w-full md:w-[400px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'detailContent',
@@ -115,22 +106,20 @@ class App extends Templates {
     }
 
     filterBar() {
-
-       
-        // el select se queda en la PRIMERA opcion real y lsTraspasos filtra por ese valor,
-        // ocultando traspasos de otros estados/sucursales (incluido uno recien creado).
         const withAll = (list, label) => {
             const arr = list || [];
-            return (arr[0] && (arr[0].id === '' || arr[0].id == null)) ? arr : [{ id: '', valor: label }].concat(arr);
+            return (arr[0] && (arr[0].id === '' || arr[0].id == null))
+                ? arr
+                : [{ id: '', valor: label }].concat(arr);
         };
         const estados    = withAll(this.dataInit.estados,    'Todos los estados');
         const sucursales = withAll(this.dataInit.sucursales, 'Todas las sucursales');
 
-        let filters = [
+        const filters = [
             {
-                opc: 'input-calendar',
-                id: `calendar${this.PROJECT_NAME}`,
-                lbl: 'Rango de fecha:',
+                opc:   'input-calendar',
+                id:    `calendar${this.PROJECT_NAME}`,
+                lbl:   'Rango de fecha:',
                 class: 'col-12 col-md-3 col-lg-3'
             },
             {
@@ -142,7 +131,6 @@ class App extends Templates {
                 value:    '',
                 data:     estados
             },
-           
             {
                 opc:      'select',
                 id:       'fDestino',
@@ -152,22 +140,20 @@ class App extends Templates {
                 value:    '',
                 data:     sucursales
             },
-         
             {
-                opc:       'button',
-                id:        'btnNuevoTraspaso',
-                text:      'Nuevo Traspaso',
-                class:     'col-12 col-md-2 col-lg-3',
-                // className:' !bg-purple-700 !hover:bg-purple-900',
-                onClick:   () => traspasosView.openTraspasoForm()
+                opc:     'button',
+                id:      'btnNuevoTraspaso',
+                text:    'Nuevo Traspaso',
+                class:   'col-12 col-md-2 col-lg-3',
+                onClick: () => traspasosView.openTraspasoForm()
             }
         ];
 
         this.createfilterBar({
-            parent: 'filterBar',
-            coffeesoft:true,
-            theme:'dark',
-            data:   filters
+            parent:     'filterBar',
+            coffeesoft: true,
+            theme:      'dark',
+            data:       filters
         });
 
         dataPicker({
@@ -188,43 +174,18 @@ class App extends Templates {
         });
     }
 
-    populateFilters() {
-        const sucursales = this.dataInit.sucursales || [];
-        if (sucursales.length) {
-            this.populateSelect('subsidiaries_id', sucursales);
-            $('#subsidiaries_id').val(this.subId);
-        }
-    }
-
-    populateSelect(id, data) {
-        const $sel = $(`#${id}`);
-        if (!$sel.length) return;
-        $sel.find('option:not(:first)').remove();
-        data.forEach(item => {
-            if (item.id === '' && $sel.find('option').first().val() === '') return;
-            $sel.append(`<option value="${item.id}">${item.valor}</option>`);
-        });
-    }
-
     getFilters() {
         const range = getDataRangePicker(`calendar${this.PROJECT_NAME}`) || {};
-        // scope: SIEMPRE la sucursal activa. La lista muestra traspasos donde esa sucursal es
-        // origen (salientes) O destino (entrantes), para que el destino vea sus entrantes y
-        // pueda aceptarlos. Para admins (1/5) this.subId sigue al selector del navbar (sidebar)
-        // via onBranchChange; para el resto es su sucursal de sesion.
-        // destino: filtro opcional para acotar la contraparte dentro de ese alcance.
         return {
-            subsidiaries_id: this.subId || '',
-            scope:           this.subId           || '',
-            estado:          $('#fEstado').val()  || '',
-            destino:         $('#fDestino').val() || '',
-            fechaIni:        range.fi             || '',
-            fechaFin:        range.ff             || '',
-            q:               $('#qBuscar').val()  || ''
+            branch_id:   this.branchId || '',
+            scope:       this.branchId  || '',
+            estado:      $('#fEstado').val()  || '',
+            destino:     $('#fDestino').val() || '',
+            fechaIni:    range.fi             || '',
+            fechaFin:    range.ff             || '',
+            q:           $('#qBuscar').val()  || ''
         };
     }
-
-    // -- Event handlers --
 
     async onChangeFilters() {
         traspasos.lsTraspasos();
@@ -235,16 +196,11 @@ class App extends Templates {
         }
     }
 
-    // Cambio de sucursal desde el navbar (evento 'branchChanged' de coffeeSoft). Solo los
-    // roles admin (1/5) muestran ese selector; al cambiarla, la sucursal activa pasa a ser
-    // el nuevo origen del filtro y se refresca la lista sin reconstruir el layout.
     onBranchChange(detail) {
         if (detail && detail.id != null) {
-            this.subId      = detail.id;
-            subsidiaries_id = this.subId;
+            this.branchId = detail.id;
+            branchId      = this.branchId;
         }
-        // El detalle abierto pertenece a la sucursal anterior: al cambiar de sucursal se
-        // limpia siempre el visor (deselecciona la fila y vacia el panel de la derecha).
         this.selectTraspaso(null);
         traspasos.lsTraspasos();
         traspasos.lsKpis();
@@ -256,10 +212,6 @@ class App extends Templates {
         }).length > 0;
     }
 
-    // -- Facade --
-
-    // folio: resalta la fila (la tabla la identifica por su texto).
-    // id:    pk numerica para el fetch del detalle (getTraspaso espera el id, no el folio).
     selectTraspaso(folio, id) {
         this.selectedId = folio;
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
@@ -282,10 +234,8 @@ class Traspasos extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'POSTraspasos';
+        this.PROJECT_NAME = 'Traspasos';
     }
-
-    // -- Data --
 
     lsTraspasos() {
         const f = app.getFilters();
@@ -296,19 +246,19 @@ class Traspasos extends Templates {
             coffeesoft:  true,
             conf:        { datatable: true, pag: 15 },
             data: {
-                opc:                         'lsTraspasos',
-                status_id:                   f.estado,
-                scope_subsidiaries_id:       f.scope,
-                destination_subsidiaries_id: f.destino,
-                fi:                          f.fechaIni,
-                ff:                          f.fechaFin,
-                q:                           f.q
+                opc:                  'lsTraspasos',
+                status_id:            f.estado,
+                scope_branch_id:      f.scope,
+                destination_branch_id: f.destino,
+                fi:                   f.fechaIni,
+                ff:                   f.fechaFin,
+                q:                    f.q
             },
             attr: {
                 id:           `tb${this.PROJECT_NAME}`,
                 theme:        'dark',
                 f_size:       12,
-                center:       [1,3,4, 5, 10],
+                center:       [1, 3, 4, 5, 10],
                 right:        [6],
                 emptyMessage: 'No se encontraron traspasos con los filtros aplicados',
                 emptyIcon:    'icon-arrow-left-right'
@@ -317,15 +267,18 @@ class Traspasos extends Templates {
     }
 
     async lsKpis() {
-        const r = await fn_ajax({ opc: 'showTraspasos', scope_subsidiaries_id: app.subId || '' }, api).catch(() => null);
+        const r = await fn_ajax({
+            opc:             'showTraspasos',
+            scope_branch_id: app.branchId || ''
+        }, api).catch(() => null);
         const c = (r && r.status === 200) ? r.counts : {};
 
         const kpis = [
-            { id: 'kpiTotal',      label: 'Total Mes',    value: parseInt(c.total       || 0, 10), tone: 'default' },
-            { id: 'kpiPendientes', label: 'Pendientes',   value: parseInt(c.pendientes  || 0, 10), tone: 'warning' },
-            { id: 'kpiTransito',   label: 'En Transito',  value: parseInt(c.en_transito || 0, 10), tone: 'warning' },
-            { id: 'kpiRecibidos',  label: 'Recibidos',    value: parseInt(c.recibidos   || 0, 10), tone: 'success' },
-            { id: 'kpiRechazados', label: 'Rechazados',   value: parseInt(c.rechazados  || 0, 10), tone: 'danger'  }
+            { id: 'kpiTotal',      label: 'Total Mes',   value: parseInt(c.total       || 0, 10), tone: 'default' },
+            { id: 'kpiPendientes', label: 'Pendientes',  value: parseInt(c.pendientes  || 0, 10), tone: 'warning' },
+            { id: 'kpiTransito',   label: 'En Transito', value: parseInt(c.en_transito || 0, 10), tone: 'warning' },
+            { id: 'kpiRecibidos',  label: 'Recibidos',   value: parseInt(c.recibidos   || 0, 10), tone: 'success' },
+            { id: 'kpiRechazados', label: 'Rechazados',  value: parseInt(c.rechazados  || 0, 10), tone: 'danger'  }
         ];
         traspasosView.renderInfoCards(kpis);
     }
@@ -333,16 +286,14 @@ class Traspasos extends Templates {
     async getTraspaso(id) {
         const r = await fn_ajax({ opc: 'getTraspaso', id: id }, api).catch(() => null);
         if (r && r.status === 200) {
-            traspasosView.renderDetail(this.mapTraspasoDetail(r.header || {}, r.detail || [], r.history || []));
+            traspasosView.renderDetail(
+                this.mapTraspasoDetail(r.header || {}, r.detail || [], r.history || [])
+            );
         } else {
             traspasosView.renderDetail(null);
         }
     }
 
-    // Normaliza la respuesta del backend (columnas DB) al shape que espera traspasoDetailPanel.
-    // Analogo a mapMermaDetail: el panel se diseno contra sample_traspasos.js (estado, origen,
-    // destino, productos, timeline); sin esta traduccion t.estado llega undefined y deja los
-    // botones Confirmar/Rechazar siempre deshabilitados.
     mapTraspasoDetail(h, detail, history) {
         const toIso = (s) => s ? String(s).replace(' ', 'T') : '';
 
@@ -352,22 +303,22 @@ class Traspasos extends Templates {
             estado:     h.status_name || '',
             fechaIso:   toIso(h.date_request),
             fechaEnvio: toIso(h.date_sent),
-            solicito:    h.requested_user_name  || '',
-            recibio:     h.received_by_name     || '',
-            recibioUser: h.received_user_name   || '',
-            nota:        h.note || '',
+            solicito:   h.requested_user_name || '',
+            recibio:    h.received_by_name    || '',
+            recibioUser: h.received_user_name || '',
+            nota:       h.note || '',
             origen: {
-                id:      h.origin_subsidiaries_id != null ? String(h.origin_subsidiaries_id) : '',
-                nombre:  h.origin_subsidiary_name || '-',
+                id:      h.origin_branch_id != null ? String(h.origin_branch_id) : '',
+                nombre:  h.origin_branch_name  || '-',
                 almacen: h.origin_warehouse_name || ''
             },
             destino: {
-                id:      h.destination_subsidiaries_id != null ? String(h.destination_subsidiaries_id) : '',
-                nombre:  h.destination_subsidiary_name || '-',
+                id:      h.destination_branch_id != null ? String(h.destination_branch_id) : '',
+                nombre:  h.destination_branch_name  || '-',
                 almacen: h.destination_warehouse_name || ''
             },
             productos: (detail || []).map(d => ({
-                nombre: d.product_name || '',
+                nombre: d.item_name || '',
                 sku:    d.sku || '',
                 cant:   Number(d.quantity || 0),
                 costo:  Number(d.cost || 0)
@@ -380,26 +331,20 @@ class Traspasos extends Templates {
         };
     }
 
-    // -- Actions --
-
     async nuevoTraspaso(payload) {
-        // El formulario (TraspasoForm) emite { origen, destino, categoria, productos[{productId,cant,costo}], nota }.
-        // El backend saveTraspaso espera columnas DB: origin/destination_(subsidiaries|warehouse)_id,
-        // note y productos[{product_id, quantity, cost}]. Sin esta traduccion los FK llegan en 0 y el
-        // traspaso se inserta vacio (o falla por constraint) y no se visualiza en la lista.
         const origen  = payload.origen  || {};
         const destino = payload.destino || {};
 
         const backendPayload = {
-            note:                        payload.nota || null,
-            origin_subsidiaries_id:      origen.id,
-            destination_subsidiaries_id: destino.id,
-            origin_warehouse_id:         (origen.almacen  || {}).id,
-            destination_warehouse_id:    (destino.almacen || {}).id,
+            note:                     payload.nota || null,
+            origin_branch_id:         origen.id,
+            destination_branch_id:    destino.id,
+            origin_warehouse_id:      (origen.almacen  || {}).id,
+            destination_warehouse_id: (destino.almacen || {}).id,
             productos: (payload.productos || []).map(p => ({
-                product_id: p.productId,
-                quantity:   p.cant,
-                cost:       p.costo
+                item_id:  p.productId,
+                quantity: p.cant,
+                cost:     p.costo
             }))
         };
 
@@ -417,23 +362,25 @@ class Traspasos extends Templates {
         }
     }
 
-    // Aceptar Envio = recibir en un paso: el destino acepta, se descuenta el origen y se
-    // aplica la entrada al destino (estado Recibido). Antes se captura, en texto libre,
-    // quien recibe; el backend guarda ademas al usuario de sesion como receptor.
     async confirmTraspaso(id) {
         const { value: receivedBy, isConfirmed } = await Swal.fire({
-            title:            'Aceptar envío',
-            input:            'text',
-            inputLabel:       '¿Quién recibe el traspaso?',
-            inputPlaceholder: 'Nombre de quien recibe',
-            showCancelButton: true,
+            title:             'Aceptar envio',
+            input:             'text',
+            inputLabel:        'Quien recibe el traspaso?',
+            inputPlaceholder:  'Nombre de quien recibe',
+            showCancelButton:  true,
             confirmButtonText: 'Aceptar y recibir',
             cancelButtonText:  'Cancelar',
-            inputValidator:   (v) => (!v || !v.trim()) ? 'Indica quién recibe el traspaso' : undefined
+            inputValidator:    (v) => (!v || !v.trim()) ? 'Indica quien recibe el traspaso' : undefined
         });
         if (!isConfirmed) return;
 
-        const r = await fn_ajax({ opc: 'confirmTraspaso', id: id, received_by: receivedBy.trim() }, api).catch(() => null);
+        const r = await fn_ajax({
+            opc:         'confirmTraspaso',
+            id:          id,
+            received_by: receivedBy.trim()
+        }, api).catch(() => null);
+
         if (r && r.status === 200) {
             if (typeof alert === 'function') alert({ icon: 'success', text: 'Traspaso recibido' });
             this.lsTraspasos();
@@ -454,9 +401,6 @@ class Traspasos extends Templates {
         }
     }
 
-    // Cancelar una solicitud aun no aceptada por el destino. Reutiliza el endpoint de
-    // rechazo (marca el traspaso como terminal) con una nota que distingue la cancelacion
-    // del solicitante de un rechazo del destino.
     async cancelTraspaso(id) {
         const r = await fn_ajax({
             opc:  'rejectTraspaso',
@@ -474,10 +418,6 @@ class Traspasos extends Templates {
         }
     }
 
-    // -- Impresion --
-
-    // Genera un comprobante imprimible (documento tamano carta, B/N) del traspaso.
-    // Acepta el objeto traspaso ya cargado (lo pasa el panel) o un id (fetch getTraspaso).
     async printTraspaso(arg) {
         let t = arg;
         if (!t || typeof t !== 'object') {
@@ -491,8 +431,6 @@ class Traspasos extends Templates {
         this.renderTraspasoDoc(t);
     }
 
-    // Construye el comprobante de traspaso como documento tamano carta en blanco y negro
-    // (ruta origen->destino, detalle de productos y totales) y lo abre en una ventana nueva.
     renderTraspasoDoc(t) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -546,150 +484,104 @@ class Traspasos extends Templates {
 
         const infoItem = (k, v) => `<div class="info-item"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`;
         const infoHtml = [
-            infoItem('Solicito', t.solicito || '-'),
-            infoItem('Autoriza', t.recibioUser || '-'),
+            infoItem('Solicito',       t.solicito    || '-'),
+            infoItem('Autoriza',       t.recibioUser || '-'),
             infoItem('Fecha solicitud', fmtFecha(t.fechaIso)),
-            infoItem('Fecha envio', fmtFecha(t.fechaEnvio)),
+            infoItem('Fecha envio',    fmtFecha(t.fechaEnvio)),
             `<div class="info-item"><span class="k">Productos</span><span class="v">${tipos} tipos &middot; ${uds} uds</span></div>`,
             infoItem('Costo total', fmtMoney(costo))
         ].join('');
 
         const fechaImpresion = fmtFecha(new Date().toISOString());
 
-        const html = `
-            <!doctype html>
-            <html lang="es">
-            <head>
-                <meta charset="utf-8">
-                <title>Traspaso ${esc(t.folio || '')}</title>
-                <style>
-                    * { margin:0; padding:0; box-sizing:border-box; }
-                    body { font-family:'Segoe UI', Arial, sans-serif; background:#c8c8c8; color:#000; padding:24px; }
-
-                    .toolbar { width:816px; max-width:100%; margin:0 auto 16px; display:flex; justify-content:flex-end; gap:8px; }
-                    .btn { cursor:pointer; border:1px solid #000; border-radius:4px; padding:8px 16px; font-size:13px; font-weight:600; color:#fff; background:#333; }
-                    .btn:hover { opacity:.85; }
-                    .btn.gray { background:#777; }
-
-                    .sheet { width:816px; max-width:100%; min-height:1056px; margin:0 auto; background:#fff; padding:40px 48px; box-shadow:0 2px 10px rgba(0,0,0,.25); }
-
-                    .doc-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:18px; }
-                    .doc-title { font-size:22px; font-weight:800; letter-spacing:.5px; color:#000; }
-                    .doc-sub { font-size:12px; color:#555; margin-top:3px; }
-                    .folio-box { text-align:right; }
-                    .folio { font-size:20px; font-weight:800; color:#000; }
-                    .status { display:inline-block; margin-top:6px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:2px 10px; border:1px solid #000; border-radius:3px; color:#000; }
-
-                    .route { display:flex; align-items:stretch; gap:12px; margin-bottom:18px; }
-                    .party { flex:1; border:1px solid #000; border-radius:4px; padding:10px 14px; }
-                    .party-label { font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#555; }
-                    .party-name { font-size:14px; font-weight:800; color:#000; margin-top:2px; }
-                    .party-wh { font-size:11px; color:#555; margin-top:1px; }
-                    .route-arrow { display:flex; align-items:center; font-size:20px; font-weight:800; color:#000; }
-
-                    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; margin-bottom:18px; }
-                    .info-item { display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px solid #ccc; padding-bottom:4px; font-size:12px; }
-                    .info-item .k { color:#555; }
-                    .info-item .v { font-weight:700; text-align:right; color:#000; }
-
-                    table { width:100%; border-collapse:collapse; margin-bottom:18px; }
-                    thead th { border-bottom:1.5px solid #000; font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#000; padding:4px 8px; text-align:left; }
-                    thead th.r { text-align:right; }
-                    thead th.c { text-align:center; }
-                    tbody td { padding:3px 8px; font-size:11px; line-height:1.25; border-bottom:1px solid #e2e2e2; vertical-align:top; color:#000; }
-                    tbody td.r { text-align:right; white-space:nowrap; }
-                    tbody td.c { text-align:center; white-space:nowrap; }
-                    .prod-name { font-weight:600; }
-                    .sku { color:#777; font-size:10px; }
-
-                    .totals { display:flex; justify-content:flex-end; }
-                    .totals-box { width:280px; border:1px solid #000; border-radius:4px; padding:10px 14px; }
-                    .totals-row { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; color:#000; }
-                    .totals-row.grand { border-top:1.5px solid #000; margin-top:4px; padding-top:8px; font-size:16px; font-weight:800; color:#000; }
-
-                    .nota { margin-top:18px; border-left:3px solid #000; background:#f7f7f7; padding:10px 14px; font-size:12px; color:#222; }
-                    .nota b { display:block; margin-bottom:3px; text-transform:uppercase; font-size:10px; letter-spacing:.5px; color:#555; }
-
-                    .signatures { margin-top:56px; display:flex; justify-content:center; }
-                    .sign { width:300px; text-align:center; }
-                    .sign-line { border-top:1px solid #000; margin-top:44px; padding-top:6px; }
-                    .sign-name { font-size:13px; font-weight:700; color:#000; min-height:16px; }
-                    .sign-label { font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#555; margin-top:2px; }
-
-                    .doc-footer { margin-top:28px; display:flex; justify-content:space-between; font-size:10px; color:#777; border-top:1px solid #ccc; padding-top:10px; }
-
-                    @page { size:letter; margin:1.4cm; }
-                    @media print {
-                        body { background:#fff; padding:0; }
-                        .toolbar { display:none; }
-                        .sheet { width:auto; min-height:auto; box-shadow:none; padding:0; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="toolbar">
-                    <button class="btn" onclick="window.print()">Imprimir</button>
-                    <button class="btn gray" onclick="window.close()">Cerrar</button>
-                </div>
-                <div class="sheet">
-                    <div class="doc-header">
-                        <div>
-                            <div class="doc-title">Comprobante de Traspaso</div>
-                            <div class="doc-sub">Movimiento de inventario entre sucursales</div>
-                        </div>
-                        <div class="folio-box">
-                            <div class="folio">${esc(t.folio || '-')}</div>
-                            ${t.estado ? `<span class="status">${esc(t.estado)}</span>` : ''}
-                        </div>
-                    </div>
-
-                    <div class="route">
-                        ${sucBlock('Origen', t.origen)}
-                        <div class="route-arrow">&rarr;</div>
-                        ${sucBlock('Destino', t.destino)}
-                    </div>
-
-                    <div class="info-grid">${infoHtml}</div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th class="c">Cant</th>
-                                <th class="r">Costo unit.</th>
-                                <th class="r">Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rowsHtml || `<tr><td colspan="4" class="c">Sin productos</td></tr>`}</tbody>
-                    </table>
-
-                    <div class="totals">
-                        <div class="totals-box">
-                            <div class="totals-row"><span>Tipos de producto</span><span>${tipos}</span></div>
-                            <div class="totals-row"><span>Unidades</span><span>${uds}</span></div>
-                            <div class="totals-row grand"><span>Costo total</span><span>${fmtMoney(costo)}</span></div>
-                        </div>
-                    </div>
-
-                    ${t.nota ? `<div class="nota"><b>Nota</b>${esc(t.nota)}</div>` : ''}
-
-                    <div class="signatures">
-                        <div class="sign">
-                            <div class="sign-line">
-                                <div class="sign-name">${esc(t.recibio || ' ')}</div>
-                                <div class="sign-label">Recibió</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="doc-footer">
-                        <span>Huubie &middot; Inventarios &middot; Comprobante de traspaso</span>
-                        <span>Generado: ${esc(fechaImpresion)}</span>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
+        const html = `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Traspaso ${esc(t.folio || '')}</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI', Arial, sans-serif; background:#c8c8c8; color:#000; padding:24px; }
+.toolbar { width:816px; max-width:100%; margin:0 auto 16px; display:flex; justify-content:flex-end; gap:8px; }
+.btn { cursor:pointer; border:1px solid #000; border-radius:4px; padding:8px 16px; font-size:13px; font-weight:600; color:#fff; background:#333; }
+.btn:hover { opacity:.85; }
+.btn.gray { background:#777; }
+.sheet { width:816px; max-width:100%; min-height:1056px; margin:0 auto; background:#fff; padding:40px 48px; box-shadow:0 2px 10px rgba(0,0,0,.25); }
+.doc-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:18px; }
+.doc-title { font-size:22px; font-weight:800; color:#000; }
+.folio { font-size:20px; font-weight:800; color:#000; }
+.status { display:inline-block; margin-top:6px; font-size:10px; font-weight:700; text-transform:uppercase; padding:2px 10px; border:1px solid #000; border-radius:3px; }
+.route { display:flex; align-items:stretch; gap:12px; margin-bottom:18px; }
+.party { flex:1; border:1px solid #000; border-radius:4px; padding:10px 14px; }
+.party-label { font-size:10px; text-transform:uppercase; color:#555; }
+.party-name { font-size:14px; font-weight:800; margin-top:2px; }
+.party-wh { font-size:11px; color:#555; margin-top:1px; }
+.route-arrow { display:flex; align-items:center; font-size:20px; font-weight:800; }
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; margin-bottom:18px; }
+.info-item { display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px solid #ccc; padding-bottom:4px; font-size:12px; }
+.info-item .k { color:#555; } .info-item .v { font-weight:700; text-align:right; }
+table { width:100%; border-collapse:collapse; margin-bottom:18px; }
+thead th { border-bottom:1.5px solid #000; font-size:10px; text-transform:uppercase; padding:4px 8px; text-align:left; }
+thead th.r { text-align:right; } thead th.c { text-align:center; }
+tbody td { padding:3px 8px; font-size:11px; border-bottom:1px solid #e2e2e2; }
+tbody td.r { text-align:right; } tbody td.c { text-align:center; }
+.prod-name { font-weight:600; } .sku { color:#777; font-size:10px; }
+.totals { display:flex; justify-content:flex-end; }
+.totals-box { width:280px; border:1px solid #000; border-radius:4px; padding:10px 14px; }
+.totals-row { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; }
+.totals-row.grand { border-top:1.5px solid #000; margin-top:4px; padding-top:8px; font-size:16px; font-weight:800; }
+.doc-footer { margin-top:28px; display:flex; justify-content:space-between; font-size:10px; color:#777; border-top:1px solid #ccc; padding-top:10px; }
+@media print { body { background:#fff; padding:0; } .toolbar { display:none; } .sheet { width:auto; min-height:auto; box-shadow:none; padding:0; } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+    <button class="btn" onclick="window.print()">Imprimir</button>
+    <button class="btn gray" onclick="window.close()">Cerrar</button>
+</div>
+<div class="sheet">
+    <div class="doc-header">
+        <div>
+            <div class="doc-title">Comprobante de Traspaso</div>
+            <div style="font-size:12px;color:#555;margin-top:3px;">Movimiento de inventario entre sucursales</div>
+        </div>
+        <div style="text-align:right;">
+            <div class="folio">${esc(t.folio || '-')}</div>
+            ${t.estado ? `<span class="status">${esc(t.estado)}</span>` : ''}
+        </div>
+    </div>
+    <div class="route">
+        ${sucBlock('Origen', t.origen)}
+        <div class="route-arrow">&rarr;</div>
+        ${sucBlock('Destino', t.destino)}
+    </div>
+    <div class="info-grid">${infoHtml}</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th class="c">Cant</th>
+                <th class="r">Costo unit.</th>
+                <th class="r">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>${rowsHtml || `<tr><td colspan="4" class="c">Sin productos</td></tr>`}</tbody>
+    </table>
+    <div class="totals">
+        <div class="totals-box">
+            <div class="totals-row"><span>Tipos de producto</span><span>${tipos}</span></div>
+            <div class="totals-row"><span>Unidades</span><span>${uds}</span></div>
+            <div class="totals-row grand"><span>Costo total</span><span>${fmtMoney(costo)}</span></div>
+        </div>
+    </div>
+    ${t.nota ? `<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;color:#555;">Nota</b>${esc(t.nota)}</div>` : ''}
+    <div class="doc-footer">
+        <span>Huubie &middot; Inventarios &middot; Comprobante de traspaso</span>
+        <span>Generado: ${esc(fechaImpresion)}</span>
+    </div>
+</div>
+</body>
+</html>`;
 
         const w = window.open('', '_blank', 'width=900,height=1000');
         if (!w) {
@@ -705,18 +597,12 @@ class Traspasos extends Templates {
 
 class TraspasosView extends Templates {
 
-    // -- Bootstrap --
-
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'POSTraspasos';
+        this.PROJECT_NAME    = 'Traspasos';
+        this.traspasoFormApi = null;
     }
 
-    // -- Modal launchers --
-
-    // Crea (una sola vez) la instancia del modal de traspaso con el mismo diseño que
-    // EntradaForm (buscador + navegacion por teclado + popover de cantidad + tabla
-    // del lote agrupada por categoria). Carga los catalogos una vez y la reusa.
     async ensureTraspasoForm() {
         if (this.traspasoFormApi) return this.traspasoFormApi;
 
@@ -730,32 +616,29 @@ class TraspasosView extends Templates {
             json:   ok ? (r.productos || []) : [],
             data: {
                 sucursales:      sucursales,
-                almacenes:       ok ? (r.almacenes    || []) : [],
-                categorias:      ok ? (r.categorias   || []) : [],
-                transformMap:    ok ? (r.transformMap || {}) : {},
-                origenIdInicial: app.subId || (sucursales[0] && sucursales[0].id) || ''
+                almacenes:       ok ? (r.almacenes  || []) : [],
+                categorias:      ok ? (r.categorias || []) : [],
+                transformMap:    {},
+                origenIdInicial: app.branchId || (sucursales[0] && sucursales[0].id) || ''
             },
             onSave:  (payload) => traspasos.nuevoTraspaso(payload),
-            onClose: () => console.log('[traspasoForm] cerrado')
+            onClose: () => {}
         });
         return this.traspasoFormApi;
     }
 
     async openTraspasoForm() {
         await this.ensureTraspasoForm();
-        // Sincroniza la sucursal origen con la seleccionada en el navbar en cada apertura.
-        this.traspasoFormApi.setData({ origenIdInicial: app.subId || '' });
+        this.traspasoFormApi.setData({ origenIdInicial: app.branchId || '' });
         this.traspasoFormApi.open();
     }
 
-    // -- Render helpers --
-
     renderDetail(traspaso) {
         this.traspasoDetailPanel({
-            parent:  'detailPanel',
-            json:    traspaso,
-            subId:   app.subId,
-            onClose: () => {
+            parent:    'detailPanel',
+            json:      traspaso,
+            subId:     app.branchId,
+            onClose:   () => {
                 app.selectedId = null;
                 this.renderDetail(null);
                 $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
@@ -771,7 +654,7 @@ class TraspasosView extends Templates {
         this.kpisRow({
             parent:  'kpisRow',
             json:    rows,
-            onClick: (kpi) => console.log('[kpisRow] click', kpi.id)
+            onClick: (kpi) => {}
         });
     }
 
@@ -781,8 +664,6 @@ class TraspasosView extends Templates {
             json:   data
         });
     }
-
-    // -- Components --
 
     kpisRow(options) {
         const defaults = {
@@ -796,13 +677,12 @@ class TraspasosView extends Templates {
                 success: 'text-[var(--cs-success,#3FC189)]',
                 warning: 'text-[var(--cs-warning,#FBBF24)]',
                 danger:  'text-[var(--cs-danger,#E02424)]',
-                info:    'text-[var(--cs-info,#1C64F2)]',
-                purple:  'text-[var(--cs-accent-purple,#7C3AED)]'
+                info:    'text-[var(--cs-info,#1C64F2)]'
             },
             cardClass:  'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
             labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
             valueClass: 'cs-kpi-value text-sm font-bold',
-            onClick:    () => { }
+            onClick:    () => {}
         };
 
         const o    = options || {};
@@ -822,8 +702,7 @@ class TraspasosView extends Templates {
                 <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
                     <p class="${opts.labelClass}">${esc(kpi.label)}</p>
                     <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
-                </div>
-            `;
+                </div>`;
         };
 
         const grid = $('<div>', { id: opts.id, class: opts.class });
@@ -839,8 +718,7 @@ class TraspasosView extends Templates {
 
         grid.find('[data-kpi-idx]').on('click', (e) => {
             const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
-            const kpi = opts.json[idx];
-            opts.onClick(kpi, idx);
+            opts.onClick(opts.json[idx], idx);
         });
     }
 
@@ -873,8 +751,7 @@ class TraspasosView extends Templates {
         const backHtml  = backCfg ? `
             <button type="button" id="${opts.id}_back" class="${opts.classes.backBtn}" title="${esc(backTitle)}">
                 <i data-lucide="chevron-left" class="w-4 h-4"></i>
-            </button>
-        ` : '';
+            </button>` : '';
 
         const wrap = $('<div>', { id: opts.id, class: opts.class });
         wrap.html(`
@@ -884,8 +761,7 @@ class TraspasosView extends Templates {
                     <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
                     ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
                 </div>
-            </div>
-        `);
+            </div>`);
 
         $(`#${opts.parent}`).html(wrap);
         if (window.lucide) lucide.createIcons();
@@ -906,45 +782,47 @@ class TraspasosView extends Templates {
             json:      null,
             subId:     null,
             labels: {
-                emptyTitle: 'Selecciona un traspaso',
-                emptyHint:  'Haz click en una fila para ver el detalle completo aqui.',
-                subtitle:   'Detalle del traspaso',
-                ruta:       'Ruta del traspaso',
-                origen:     'Origen',
-                destino:    'Destino',
-                enRuta:     'en ruta',
-                solicito:   'Solicito',
-                autoriza:   'Autoriza',
-                recibio:    'Recibió',
-                fSolicitud: 'Fecha solicitud',
-                fEnvio:     'Fecha envio',
-                totProd:    'Total productos',
-                costoTot:   'Costo total',
+                emptyTitle:       'Selecciona un traspaso',
+                emptyHint:        'Haz click en una fila para ver el detalle completo aqui.',
+                subtitle:         'Detalle del traspaso',
+                ruta:             'Ruta del traspaso',
+                origen:           'Origen',
+                destino:          'Destino',
+                enRuta:           'en ruta',
+                solicito:         'Solicito',
+                autoriza:         'Autoriza',
+                recibio:          'Recibio',
+                fSolicitud:       'Fecha solicitud',
+                fEnvio:           'Fecha envio',
+                totProd:          'Total productos',
+                costoTot:         'Costo total',
                 detalleProductos: 'Detalle de productos',
-                producto:   'Producto',
-                historial:  'Historial',
-                nota:       'Nota',
-                cant:       'Cant',
-                costo:      'Costo',
-                subtot:     'Subtotal',
-                rechazar:   'Rechazar',
-                cancelar:   'Cancelar Solicitud',
-                aceptar:    'Aceptar Envio'
+                producto:         'Producto',
+                historial:        'Historial',
+                nota:             'Nota',
+                cant:             'Cant',
+                costo:            'Costo',
+                subtot:           'Subtotal',
+                rechazar:         'Rechazar',
+                cancelar:         'Cancelar Solicitud',
+                aceptar:          'Aceptar Envio'
             },
             estadoPalettes: {
-                'Solicitado':   { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
-                'Pendiente':    { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
-                'Autorizado':   { bg: 'rgba(167,139,250,0.15)', fg: '#A78BFA' },
-                'En Transito':  { bg: 'rgba(251,146,60,0.15)',  fg: '#FB923C' },
-                'Recibido':     { bg: 'rgba(63,193,137,0.15)',  fg: '#3FC189' },
-                'Rechazado':    { bg: 'rgba(244,63,94,0.15)',   fg: '#F43F5E' }
+                'Solicitado':  { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
+                'Pendiente':   { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
+                'Autorizado':  { bg: 'rgba(167,139,250,0.15)', fg: '#A78BFA' },
+                'En Transito': { bg: 'rgba(251,146,60,0.15)',  fg: '#FB923C' },
+                'Recibido':    { bg: 'rgba(63,193,137,0.15)',  fg: '#3FC189' },
+                'Rechazado':   { bg: 'rgba(244,63,94,0.15)',   fg: '#F43F5E' }
             },
-            sucPalettes: {
-                'kafeto':  { bg: 'bg-green-500/15',            color: 'text-green-400',     borderHex: 'rgba(63,193,137,0.35)',  bgHex: 'rgba(63,193,137,0.15)'  },
-                'central': { bg: 'bg-[rgba(28,100,242,0.15)]', color: 'text-[#76A9FA]',     borderHex: 'rgba(28,100,242,0.35)',  bgHex: 'rgba(28,100,242,0.15)'  },
-                'norte':   { bg: 'bg-purple-500/15',           color: 'text-purple-400',    borderHex: 'rgba(168,85,247,0.35)',  bgHex: 'rgba(168,85,247,0.15)'  },
-                'sur':     { bg: 'bg-pink-500/15',             color: 'text-pink-400',      borderHex: 'rgba(244,114,182,0.35)', bgHex: 'rgba(244,114,182,0.15)' }
-            },
+            routePalette: [
+                { icon: 'text-blue-400',   bgHex: 'rgba(59,130,246,0.15)',  borderHex: 'rgba(59,130,246,0.35)' },
+                { icon: 'text-green-400',  bgHex: 'rgba(63,193,137,0.15)',  borderHex: 'rgba(63,193,137,0.35)' },
+                { icon: 'text-purple-400', bgHex: 'rgba(168,85,247,0.15)',  borderHex: 'rgba(168,85,247,0.35)' },
+                { icon: 'text-pink-400',   bgHex: 'rgba(244,114,182,0.15)', borderHex: 'rgba(244,114,182,0.35)' },
+                { icon: 'text-orange-400', bgHex: 'rgba(251,146,60,0.15)',  borderHex: 'rgba(251,146,60,0.35)' },
+                { icon: 'text-cyan-400',   bgHex: 'rgba(34,211,238,0.15)',  borderHex: 'rgba(34,211,238,0.35)' }
+            ],
             timelineDots: {
                 'Solicitado':  'bg-[#76A9FA]',
                 'Autorizado':  'bg-yellow-400',
@@ -952,18 +830,17 @@ class TraspasosView extends Templates {
                 'Recibido':    'bg-green-400',
                 'Rechazado':   'bg-red-400'
             },
-            onClose:   () => { },
-            onConfirm: () => { },
-            onReject:  () => { },
-            onCancel:  () => { },
-            onPrint:   () => { }
+            onClose:   () => {},
+            onConfirm: () => {},
+            onReject:  () => {},
+            onCancel:  () => {},
+            onPrint:   () => {}
         };
 
         const o    = options || {};
         const opts = Object.assign({}, defaults, o);
         opts.labels         = Object.assign({}, defaults.labels,         o.labels         || {});
         opts.estadoPalettes = Object.assign({}, defaults.estadoPalettes, o.estadoPalettes || {});
-        opts.sucPalettes    = Object.assign({}, defaults.sucPalettes,    o.sucPalettes    || {});
         opts.timelineDots   = Object.assign({}, defaults.timelineDots,   o.timelineDots   || {});
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
@@ -978,19 +855,15 @@ class TraspasosView extends Templates {
             if (!iso) return '-';
             const d = new Date(iso);
             if (isNaN(d.getTime())) return iso;
-            const dow = DOW[d.getDay()];
-            const day = String(d.getDate()).padStart(2, '0');
-            const mon = MON[d.getMonth()];
             let h     = d.getHours();
             const m   = String(d.getMinutes()).padStart(2, '0');
             const ampm = h >= 12 ? 'pm' : 'am';
             h = h % 12 || 12;
-            return `${dow} ${day} ${mon} ${String(h).padStart(2, '0')}:${m} ${ampm}`;
+            return `${DOW[d.getDay()]} ${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} ${String(h).padStart(2, '0')}:${m} ${ampm}`;
         };
 
         const aside = $('<aside>', { id: opts.id, class: opts.class });
 
-        // -- Estado vacio
         if (!opts.json) {
             aside.html(`
                 <div class="px-3 py-3 flex-shrink-0">
@@ -1003,14 +876,12 @@ class TraspasosView extends Templates {
                     </div>
                     <p class="text-[11px] text-[#9CA3AF]">${esc(opts.labels.emptyTitle)}</p>
                     <p class="text-[10px] text-[#9CA3AF] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
-                </div>
-            `);
+                </div>`);
             $(`#${opts.parent}`).html(aside);
             if (window.lucide) lucide.createIcons();
             return;
         }
 
-        // -- Render con traspaso
         const t        = opts.json;
         const items    = (t.productos || []).length;
         const uds      = (t.productos || []).reduce((s, p) => s + Number(p.cant || 0), 0);
@@ -1018,26 +889,14 @@ class TraspasosView extends Templates {
         const estadoC  = opts.estadoPalettes[t.estado] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
         const estadoBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${estadoC.bg};color:${estadoC.fg};">${esc(t.estado)}</span>`;
 
-        // Nodo de sucursal (origen/destino) en columna: icono grande coloreado,
-        // etiqueta y nombre. Color estable por id de sucursal (consistente con la
-        // tabla); si hay paleta por slug en sucPalettes (datos de muestra) la respeta.
-        const routePalette = [
-            { icon: 'text-blue-400',   bgHex: 'rgba(59,130,246,0.15)',  borderHex: 'rgba(59,130,246,0.35)' },
-            { icon: 'text-green-400',  bgHex: 'rgba(63,193,137,0.15)',  borderHex: 'rgba(63,193,137,0.35)' },
-            { icon: 'text-purple-400', bgHex: 'rgba(168,85,247,0.15)',  borderHex: 'rgba(168,85,247,0.35)' },
-            { icon: 'text-pink-400',   bgHex: 'rgba(244,114,182,0.15)', borderHex: 'rgba(244,114,182,0.35)' },
-            { icon: 'text-orange-400', bgHex: 'rgba(251,146,60,0.15)',  borderHex: 'rgba(251,146,60,0.35)' },
-            { icon: 'text-cyan-400',   bgHex: 'rgba(34,211,238,0.15)',  borderHex: 'rgba(34,211,238,0.35)' }
-        ];
+        const palette = opts.routePalette || defaults.routePalette;
         const sucNode = (suc, label) => {
-            const sp    = opts.sucPalettes[suc.id];
             const idNum = parseInt(suc.id, 10);
-            const pal   = !isNaN(idNum) ? routePalette[idNum % routePalette.length] : routePalette[0];
-            const p     = sp ? { icon: sp.color, bgHex: sp.bgHex, borderHex: sp.borderHex } : pal;
+            const pal   = !isNaN(idNum) ? palette[idNum % palette.length] : palette[0];
             return `
                 <div class="flex flex-col items-center text-center gap-1.5 flex-1 min-w-0">
-                    <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${p.bgHex};">
-                        <i data-lucide="store" class="w-4 h-4 ${p.icon}"></i>
+                    <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${pal.bgHex};">
+                        <i data-lucide="store" class="w-4 h-4 ${pal.icon}"></i>
                     </div>
                     <div class="min-w-0 w-full">
                         <p class="text-[8px] text-[#9CA3AF] uppercase tracking-wider leading-none">${esc(label)}</p>
@@ -1047,23 +906,18 @@ class TraspasosView extends Templates {
                 </div>`;
         };
 
-        // Detalle de productos estilo "ticket": card con header (titulo + contador),
-        // nombre + costo unitario y columnas Cant/Costo/Subtotal alineadas. Cierra con
-        // una fila Total destacada.
         const productosTable = () => {
-            const rows = (t.productos || []).map((p) => {
+            const rows = (t.productos || []).map(p => {
                 const subtotal = Number(p.cant) * Number(p.costo);
                 return `
                     <tr class="border-b border-[#374151]/60 last:border-0 hover:bg-[#111827]/40 transition-colors">
                         <td class="py-2 px-2">
-                            <div class="min-w-0">
-                                <p class="text-[10px] font-bold text-white leading-tight truncate">${esc(p.nombre)}</p>
-                                <p class="text-[9px] text-[#9CA3AF] leading-tight">${fmtMoney(p.costo)} c/u</p>
-                            </div>
+                            <p class="text-[10px] font-bold text-white leading-tight truncate">${esc(p.nombre)}</p>
+                            <p class="text-[9px] text-[#9CA3AF] leading-tight">${fmtMoney(p.costo)} c/u</p>
                         </td>
                         <td class="py-2 px-1 text-center font-bold text-blue-400 whitespace-nowrap text-[10px]">${p.cant}</td>
-                        <td class="py-2 px-1 text-right text-[#9CA3AF] whitespace-nowrap truncate text-[10px]">${fmtMoney(p.costo)}</td>
-                        <td class="py-2 px-2 text-right text-white font-bold whitespace-nowrap truncate text-[10px]">${fmtMoney(subtotal)}</td>
+                        <td class="py-2 px-1 text-right text-[#9CA3AF] whitespace-nowrap text-[10px]">${fmtMoney(p.costo)}</td>
+                        <td class="py-2 px-2 text-right text-white font-bold whitespace-nowrap text-[10px]">${fmtMoney(subtotal)}</td>
                     </tr>`;
             }).join('');
 
@@ -1073,7 +927,7 @@ class TraspasosView extends Templates {
                         <td class="py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</td>
                         <td class="py-2.5 px-1 text-center font-bold text-blue-400 whitespace-nowrap">${uds}</td>
                         <td class="py-2.5 px-1"></td>
-                        <td class="py-2.5 px-2 text-right text-sm font-bold text-blue-400 whitespace-nowrap truncate">${fmtMoney(costoTot)}</td>
+                        <td class="py-2.5 px-2 text-right text-sm font-bold text-blue-400 whitespace-nowrap">${fmtMoney(costoTot)}</td>
                     </tr>
                 </tfoot>` : '';
 
@@ -1106,21 +960,9 @@ class TraspasosView extends Templates {
                     <div class="absolute -left-[17px] top-0 w-2.5 h-2.5 rounded-full ${dot} border-2 border-[var(--cs-bg-header,#141d2b)]"></div>
                     <p class="text-[10px] font-medium">${esc(tl.estado)} <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(tl.usuario || '')}</span></p>
                     <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(fmtFecha(tl.fechaIso))}</p>
-                </div>
-            `;
+                </div>`;
         }).join('') || '<p class="text-[10px] text-gray-500 italic">Sin historial</p>';
 
-        // Acciones segun estado Y rol de la sucursal activa (opts.subId) frente al traspaso.
-        // Flujo vigente (SIN "En Transito"): origen solicita -> destino acepta y en ese mismo
-        // paso se descuenta el almacen origen y se aplica la entrada en el destino (estado
-        // final Recibido). Por eso "Aceptar Envio" ejecuta onConfirm (confirmTraspaso), no un
-        // envio intermedio.
-        // - Solicitado:
-        //     * Si la activa es el ORIGEN: solo puede cancelar su propia solicitud.
-        //     * Si la activa es el DESTINO: Aceptar Envio (mueve stock origen->destino) o Rechazar.
-        // - Recibido / Rechazado: terminal, sin acciones.
-        // - Autorizado / En Transito: estados legado; si existiera uno, el destino igual puede aceptarlo.
-        // - Cualquier otra sucursal observadora: solo lectura (sin botones).
         const subId     = opts.subId != null ? String(opts.subId) : '';
         const origenId  = (t.origen  && t.origen.id  != null) ? String(t.origen.id)  : '';
         const destinoId = (t.destino && t.destino.id != null) ? String(t.destino.id) : '';
@@ -1128,7 +970,7 @@ class TraspasosView extends Templates {
         const isDestino = subId !== '' && subId === destinoId;
 
         const isRequested = t.estado === 'Solicitado' || t.estado === 'Pendiente';
-        const isLegacyMid = t.estado === 'Autorizado' || t.estado === 'En Transito'; // legado
+        const isLegacyMid = t.estado === 'Autorizado' || t.estado === 'En Transito';
         const canAccept   = isDestino && (isRequested || isLegacyMid);
 
         const btnCancel = `
@@ -1147,7 +989,6 @@ class TraspasosView extends Templates {
                 <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.aceptar)}
             </button>`;
 
-        // mode determina que handlers se enganchan; '' => panel de solo lectura.
         let actionsHtml = '';
         let mode        = '';
         if (isRequested && isOrigin) { actionsHtml = btnCancel;             mode = 'cancel'; }
@@ -1174,7 +1015,6 @@ class TraspasosView extends Templates {
 
             <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
 
-                <!-- Ruta del traspaso -->
                 <div class="bg-[#1F2937] rounded-lg p-2.5">
                     <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-2">${esc(opts.labels.ruta)}</p>
                     <div class="flex items-start gap-2">
@@ -1187,7 +1027,6 @@ class TraspasosView extends Templates {
                     </div>
                 </div>
 
-                <!-- Metadata -->
                 <div class="bg-[#1F2937] rounded-lg p-3 space-y-1.5">
                     <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.solicito)}</span><span class="font-medium">${esc(t.solicito || '-')}</span></div>
                     <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.autoriza)}</span><span class="font-medium">${esc(t.recibioUser || '-')}</span></div>
@@ -1198,10 +1037,8 @@ class TraspasosView extends Templates {
                     <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.costoTot)}</span><span class="font-bold text-[#76A9FA]">${fmtMoney(costoTot)}</span></div>
                 </div>
 
-                <!-- Productos (detalle estilo ticket) -->
                 ${productosTable()}
 
-                <!-- Timeline -->
                 <div>
                     <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-2">${esc(opts.labels.historial)}</p>
                     <div class="space-y-0 border-l-2 border-[#374151] ml-2 pl-3">
@@ -1209,7 +1046,6 @@ class TraspasosView extends Templates {
                     </div>
                 </div>
 
-                <!-- Nota -->
                 ${t.nota ? `
                 <div class="bg-[#1F2937] rounded-lg p-3">
                     <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-1">${esc(opts.labels.nota)}</p>
@@ -1228,7 +1064,6 @@ class TraspasosView extends Templates {
         if (mode === 'cancel') {
             $(`#${opts.id}_cancel`).on('click', () => opts.onCancel(t));
         } else if (mode === 'accept') {
-            // Aceptar = confirmar recepcion: descuenta origen + entrada destino en un paso.
             $(`#${opts.id}_reject`).on('click', () => opts.onReject(t));
             $(`#${opts.id}_accept`).on('click', () => opts.onConfirm(t));
         }

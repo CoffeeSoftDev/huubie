@@ -1,12 +1,3 @@
-// ──────────────────────────────────────────────────────────────────────
-//  TraspasoForm — Modal "Nuevo Traspaso" con el MISMO diseño que EntradaForm.
-//  Buscador con navegacion por teclado + popover de cantidad + tabla del lote
-//  agrupada por categoria + resumen inferior. Adapta lo propio del traspaso:
-//  origen/destino (sucursal + almacen), categoria, stock por sucursal y la
-//  transformacion de un producto en N piezas de otro SKU al llegar a destino.
-//  Gemelo de components/entrada-form.js (mismo lenguaje visual dark Huubie).
-// ──────────────────────────────────────────────────────────────────────
-
 class TraspasoForm {
 
     constructor(options) {
@@ -31,7 +22,6 @@ class TraspasoForm {
                 sucursales:      [],
                 almacenes:       [],
                 categorias:      [],
-                transformMap:    {},
                 origenIdInicial: ''
             },
             labels: {
@@ -43,8 +33,6 @@ class TraspasoForm {
                 destinoAlm:   'Almacen destino',
                 destinoPh:    'Selecciona sucursal...',
                 destinoAlmPh: 'Selecciona almacen...',
-                categoria:    'Categoria',
-                sinCategoria: 'Sin categoria',
                 buscar:       'Buscar productos',
                 placeholder:  'Nombre o SKU...',
                 searchHint:   'Sin resultados',
@@ -59,21 +47,14 @@ class TraspasoForm {
                 confirmOk:    'Si, enviar',
                 nota:         'Nota (opcional)',
                 agregar:      'Agregar',
-                transformar:  'Transformar en',
-                piezas:       'Piezas',
-                aplicar:      'Aplicar',
-                cancelarTr:   'Cancelar',
-                revertir:     'Revertir',
-                transformOk:  'Se transforma en',
-                badgeTr:      'TRANSFORMADO',
                 errSucIgual:       'Origen y destino son iguales',
-                errSucIgualDesc:   'La sucursal de origen y la de destino no pueden ser la misma. Selecciona una sucursal destino diferente para enviar el traspaso.',
+                errSucIgualDesc:   'La sucursal de origen y la de destino no pueden ser la misma.',
                 errSinDest:        'Falta la sucursal destino',
-                errSinDestDesc:    'Elige a que sucursal quieres enviar el traspaso antes de continuar.',
+                errSinDestDesc:    'Elige a que sucursal quieres enviar el traspaso.',
                 errSinAlmDest:     'Falta el almacen destino',
-                errSinAlmDestDesc: 'Indica en que almacen de la sucursal destino se recibiran los productos del traspaso.',
+                errSinAlmDestDesc: 'Indica en que almacen de la sucursal destino se recibiran los productos.',
                 errSinProd:        'Aun no agregas productos',
-                errSinProdDesc:    'Usa el buscador para agregar al menos un producto antes de enviar el traspaso.'
+                errSinProdDesc:    'Usa el buscador para agregar al menos un producto.'
             },
             onSave:  () => {},
             onClose: () => {}
@@ -84,20 +65,18 @@ class TraspasoForm {
         this.opts.data   = Object.assign({}, defaults.data,   o.data   || {});
         this.opts.labels = Object.assign({}, defaults.labels, o.labels || {});
 
-        this.lote          = [];            // { id, nombre, sku, categoria, costo, cantidad, stock, icon, bg, color, transform, transformOpen }
-        this.allowZero     = false;         // FIJO: las existencias deben existir. No se puede traspasar sin stock en origen ni exceder el stock disponible (sin toggle).
-        this.searchTerm    = '';
-        this.activeIdx     = 0;             // resultado resaltado para navegacion por teclado
-        this.catalogItems  = [];            // resultados visibles actuales del catalogo
-        this.collapsedCats = new Set();     // categorias que el usuario cerro (por defecto TODAS expandidas)
+        this.lote         = [];
+        this.allowZero    = false;
+        this.searchTerm   = '';
+        this.activeIdx    = 0;
+        this.catalogItems = [];
+        this.collapsedCats = new Set();
 
         this.ensureStyles();
         this.mount();
         this.bindEvents();
         this.renderLote();
     }
-
-    // -- Render estático --
 
     renderHeader() {
         const o = this.opts;
@@ -108,8 +87,8 @@ class TraspasoForm {
                         <i data-lucide="arrow-left-right" class="w-5 h-5 text-white"></i>
                     </div>
                     <div>
-                        <h3 id="${o.id}_title" class="text-sm font-bold text-white">${this.esc(o.labels.title)}</h3>
-                        <p id="${o.id}_subtitle" class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
+                        <h3 class="text-sm font-bold text-white">${this.esc(o.labels.title)}</h3>
+                        <p class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
                     </div>
                 </div>
                 <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close>
@@ -121,13 +100,12 @@ class TraspasoForm {
     renderConfigRow() {
         const o    = this.opts;
         const cls  = this.cls;
-        const sucs = (o.data.sucursales || []);
-        const alms = (o.data.almacenes  || []);
-        const cats = (o.data.categorias || []);
+        const sucs = o.data.sucursales || [];
+        const alms = o.data.almacenes  || [];
         const firstAlm = alms[0] && alms[0].id;
         return `
             <div class="px-5 pt-3 pb-3 border-b border-gray-800/70 bg-[#0f1825]/40">
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
                     <div>
                         <label class="${cls.label} flex items-center gap-1.5"><i data-lucide="arrow-up-from-line" class="w-3 h-3 text-purple-300/80"></i>${this.esc(o.labels.origenLbl)}</label>
                         ${this.selectWrap(`<select id="${o.id}_origenSuc" class="${cls.select}">${sucs.map(it => this.optionTag(it, o.data.origenIdInicial)).join('')}</select>`)}
@@ -143,10 +121,6 @@ class TraspasoForm {
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.destinoAlm)}</label>
                         ${this.selectWrap(`<select id="${o.id}_destinoAlm" class="${cls.select}"><option value="" selected>${this.esc(o.labels.destinoAlmPh)}</option>${alms.map(it => this.optionTag(it, '')).join('')}</select>`)}
-                    </div>
-                    <div>
-                        <label class="${cls.label} flex items-center gap-1.5"><i data-lucide="tag" class="w-3 h-3 text-gray-400"></i>${this.esc(o.labels.categoria)}</label>
-                        ${this.selectWrap(`<select id="${o.id}_categoria" class="${cls.select}"><option value="" selected>${this.esc(o.labels.sinCategoria)}</option>${cats.map(it => this.optionTag(it, '')).join('')}</select>`)}
                     </div>
                 </div>
             </div>`;
@@ -246,27 +220,14 @@ class TraspasoForm {
         const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const stock       = Number(p.stock || 0);
         const stockColor  = stock === 0 ? 'text-red-400' : stock < 5 ? 'text-orange-400' : 'text-green-400';
-        const isTr        = !!p.transform;
-        const isOpen      = !!p.transformOpen;
-        const trList      = this.opts.data.transformMap[p.id] || [];
 
-        const trBtnCls = isTr
-            ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 cursor-not-allowed'
-            : isOpen
-                ? 'bg-blue-500/20 border-blue-500 text-blue-300'
-                : (!trList.length
-                    ? 'bg-[#0f1825] border-gray-800/60 text-gray-600 cursor-not-allowed'
-                    : 'bg-[#0f1825] border-gray-700/60 text-gray-400 hover:bg-blue-500/15 hover:text-blue-300 hover:border-blue-500/50');
-
-        let rowHtml = `
-            <tr class="border-b border-gray-800/40 last:border-b-0 hover:bg-purple-500/5 transition-colors ${isTr ? 'bg-cyan-500/[0.04]' : ''}" data-idx="${i}">
+        return `
+            <tr class="border-b border-gray-800/40 last:border-b-0 hover:bg-purple-500/5 transition-colors" data-idx="${i}">
                 <td class="px-3 py-2 align-middle">
                     <div class="flex items-center gap-2 min-w-0">
                         ${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}
                         <div class="min-w-0">
-                            <p class="text-[11px] font-semibold text-white truncate leading-tight">
-                                ${this.esc(p.nombre)}${isTr ? ` <span class="${cls.badge} bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">${this.esc(o.labels.badgeTr)}</span>` : ''}
-                            </p>
+                            <p class="text-[11px] font-semibold text-white truncate leading-tight">${this.esc(p.nombre)}</p>
                             <div class="flex items-center gap-1.5 mt-0.5">
                                 <span class="text-[9px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
                                 <span class="text-gray-700">.</span>
@@ -276,7 +237,7 @@ class TraspasoForm {
                     </div>
                 </td>
                 <td class="px-2 py-2 align-middle w-24">
-                    <input type="number" min="1" ${this.allowZero ? '' : `max="${stock}"`} value="${cant}" class="${cls.qtyInp} ${isTr ? 'opacity-40 cursor-not-allowed' : ''}" data-field="cantidad" data-idx="${i}" ${isTr ? 'disabled' : ''}>
+                    <input type="number" min="1" max="${stock}" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
                 </td>
                 <td class="px-2 py-2 align-middle w-28">
                     <div class="relative" title="Costo del producto (no editable)">
@@ -292,70 +253,17 @@ class TraspasoForm {
                 <td class="px-2 py-2 align-middle text-right w-24">
                     <span class="text-green-400 font-bold text-[12px]" data-subtotal>$${subtotalFmt}</span>
                 </td>
-                <td class="px-2 py-2 align-middle w-20">
-                    <div class="flex items-center justify-center gap-1">
-                        <button class="w-6 h-6 rounded-md border ${trBtnCls} transition flex items-center justify-center" data-role="transform" data-idx="${i}" title="${this.esc(o.labels.transformar)}">
-                            <i data-lucide="recycle" class="w-3 h-3"></i>
-                        </button>
+                <td class="px-2 py-2 align-middle w-12">
+                    <div class="flex items-center justify-center">
                         <button class="w-6 h-6 rounded-md bg-[#0f1825] border border-gray-700/60 text-gray-500 hover:text-red-400 hover:bg-red-500/15 hover:border-red-500/40 transition flex items-center justify-center" data-remove="${i}" title="Quitar">
                             <i data-lucide="x" class="w-3 h-3"></i>
                         </button>
                     </div>
                 </td>
             </tr>`;
-
-        if (isOpen && !isTr) {
-            const selectOpts = trList.map(t => `<option value="${this.esc(t.id)}">${this.esc(t.nombre)}</option>`).join('');
-            const defaultPiezas = trList.length ? trList[0].piezasDefault : 8;
-            rowHtml += `
-                <tr class="bg-blue-500/[0.05] border-b border-blue-500/30" data-tr-panel="${i}">
-                    <td colspan="5" class="px-4 py-2.5">
-                        <div class="flex items-center gap-3 flex-wrap">
-                            <div class="flex items-center gap-1.5 text-blue-300">
-                                <i data-lucide="recycle" class="w-3.5 h-3.5"></i>
-                                <span class="text-[10px] font-bold uppercase tracking-wider">${this.esc(o.labels.transformar)}</span>
-                            </div>
-                            ${this.selectWrap(`<select data-transform-select="${i}" class="${cls.select} !w-52">${selectOpts}</select>`)}
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-[9px] text-gray-400 uppercase tracking-wider">${this.esc(o.labels.piezas)}</span>
-                                <input type="number" value="${defaultPiezas}" min="1" data-transform-qty="${i}" class="${cls.input} !w-14 !text-center !px-1 !font-bold">
-                            </div>
-                            <div class="flex items-center gap-1.5 ml-auto">
-                                <button data-role="cancel-transform" data-idx="${i}" class="${cls.btnOut} !py-1 !text-[10px]">${this.esc(o.labels.cancelarTr)}</button>
-                                <button data-role="apply-transform" data-idx="${i}" class="${cls.btnOk} !py-1 !text-[10px]">
-                                    <i data-lucide="check" class="w-3 h-3"></i>${this.esc(o.labels.aplicar)}
-                                </button>
-                            </div>
-                        </div>
-                    </td>
-                </tr>`;
-        }
-
-        if (isTr) {
-            rowHtml += `
-                <tr class="bg-cyan-500/[0.05] border-b border-cyan-500/30" data-tr-applied="${i}">
-                    <td colspan="5" class="px-4 py-2">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <div class="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/35 flex items-center justify-center flex-shrink-0">
-                                <i data-lucide="recycle" class="w-3 h-3 text-cyan-300"></i>
-                            </div>
-                            <span class="text-[10px] text-cyan-200">
-                                ${this.esc(o.labels.transformOk)} <span class="font-bold text-white">${p.transform.piezas} piezas</span> de <span class="font-bold text-white">${this.esc(p.transform.producto)}</span>
-                            </span>
-                            <button data-role="revert-transform" data-idx="${i}" class="ml-auto text-[10px] px-2 py-1 bg-cyan-500/15 text-cyan-200 border border-cyan-500/35 rounded-md hover:bg-cyan-500/25 transition flex items-center gap-1">
-                                <i data-lucide="undo" class="w-3 h-3"></i>${this.esc(o.labels.revertir)}
-                            </button>
-                        </div>
-                    </td>
-                </tr>`;
-        }
-
-        return rowHtml;
     }
 
     renderProductsTable() {
-        // Agrupa el lote por categoria conservando el indice original en this.lote
-        // (lo usan removeProducto / updateField / refreshRow / transform via data-idx).
         const groups = {};
         this.lote.forEach((p, i) => {
             const cat = (p.categoria && String(p.categoria).trim()) || 'Sin categoria';
@@ -376,14 +284,13 @@ class TraspasoForm {
                         <th class="text-center px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Cant.</th>
                         <th class="text-left px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo</th>
                         <th class="text-right px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Subtotal</th>
-                        <th class="text-center px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-20">Acciones</th>
+                        <th class="w-12"></th>
                     </tr>
                 </thead>
                 <tbody>${body}</tbody>
             </table>`;
     }
 
-    // Fila separadora de categoria dentro de la tabla del lote.
     renderLoteCatRow(cat, count) {
         return `
             <tr class="tf-lote-cat">
@@ -418,6 +325,15 @@ class TraspasoForm {
             </div>`;
     }
 
+    renderCatHeader(cat, count, collapsed) {
+        return `
+            <div class="tf-cat-head flex items-center gap-1.5 px-2 py-1 bg-[#0f172a]/60 border-b border-gray-800/60 cursor-pointer select-none hover:bg-[#0f172a] transition-colors" data-cat-toggle="${this.esc(cat)}">
+                <i data-lucide="chevron-down" class="w-2.5 h-2.5 text-purple-300/70 transition-transform ${collapsed ? '-rotate-90' : ''}"></i>
+                <span class="text-[8px] font-bold uppercase tracking-wider text-purple-300/80 truncate flex-1">${this.esc(cat)}</span>
+                <span class="text-[8px] text-gray-600 flex-shrink-0 ml-2">${count}</span>
+            </div>`;
+    }
+
     ensureStyles() {
         if (document.getElementById('traspasoFormStyles')) return;
         const css = `
@@ -442,8 +358,6 @@ class TraspasoForm {
         style.textContent = css;
         document.head.appendChild(style);
     }
-
-    // -- Mount --
 
     mount() {
         const o = this.opts;
@@ -475,8 +389,6 @@ class TraspasoForm {
         $target.append(this.wrap);
     }
 
-    // -- Render dinamico --
-
     updateTotals() {
         const o = this.opts;
         const totalItems = this.lote.length;
@@ -488,41 +400,22 @@ class TraspasoForm {
         $(`#${o.id}_cntProductos`).text(totalItems);
     }
 
-    // Nombre de la categoria elegida en el filtro del config-row, o '' para "Sin
-    // categoria" (no filtra: el catalogo muestra todos los productos). El <select>
-    // entrega el id de la categoria pero los productos solo traen el nombre, asi que
-    // se traduce id -> nombre via o.data.categorias para poder comparar en renderCatalogo.
-    selectedCategoriaNombre() {
-        const id = $(`#${this.opts.id}_categoria`).val();
-        if (!id) return '';
-        const cat = (this.opts.data.categorias || []).find(c => String(c.id != null ? c.id : c.valor) === String(id));
-        return cat ? String(cat.valor != null ? cat.valor : '').trim() : '';
-    }
-
     renderCatalogo() {
-        const o       = this.opts;
-        const $cat    = $(`#${o.id}_catalogoLista`);
-        const term    = (this.searchTerm || '').toLowerCase();
-        const catName = this.selectedCategoriaNombre();
+        const o      = this.opts;
+        const $cat   = $(`#${o.id}_catalogoLista`);
+        const term   = (this.searchTerm || '').toLowerCase();
         const items  = (o.json || [])
             .filter(p => !this.lote.some(x => String(x.id) === String(p.id)))
-            .filter(p => !catName || String(p.categoria || '').trim() === catName)
             .filter(p => !term || (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
 
-        // Agrupa por categoria, ordenando alfabeticamente los grupos.
         const groups = {};
         items.forEach(p => {
             const cat = (p.categoria && String(p.categoria).trim()) || 'Sin categoria';
             (groups[cat] = groups[cat] || []).push(p);
         });
         const catNames = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es'));
-
-        // Con termino de busqueda se expanden todas las categorias para no ocultar
-        // coincidencias detras de una seccion plegada.
         const searching = !!term;
 
-        // Lista plana SOLO con items visibles (categorias expandidas) para que la
-        // navegacion por teclado (activeIdx) siga alineada con lo pintado en el DOM.
         const ordered = [];
         catNames.forEach(c => {
             if (searching || !this.collapsedCats.has(c)) groups[c].forEach(p => ordered.push(p));
@@ -539,7 +432,7 @@ class TraspasoForm {
                     <p class="text-[10px] text-gray-500">${term ? this.esc(o.labels.searchHint) : 'Sin productos disponibles'}</p>
                 </div>`);
         } else {
-            let gi = 0; // indice global continuo a traves de las categorias visibles
+            let gi = 0;
             const html = catNames.map(c => {
                 const collapsed = !searching && this.collapsedCats.has(c);
                 const rows = collapsed ? '' : groups[c].map(p => this.renderSearchResult(p, gi++)).join('');
@@ -551,30 +444,18 @@ class TraspasoForm {
         this.highlightActive();
     }
 
-    // Encabezado colapsable de seccion de categoria dentro del catalogo de busqueda.
-    renderCatHeader(cat, count, collapsed) {
-        return `
-            <div class="tf-cat-head flex items-center gap-1.5 px-2 py-1 bg-[#0f172a]/60 border-b border-gray-800/60 cursor-pointer select-none hover:bg-[#0f172a] transition-colors" data-cat-toggle="${this.esc(cat)}">
-                <i data-lucide="chevron-down" class="w-2.5 h-2.5 text-purple-300/70 transition-transform ${collapsed ? '-rotate-90' : ''}"></i>
-                <span class="text-[8px] font-bold uppercase tracking-wider text-purple-300/80 truncate flex-1">${this.esc(cat)}</span>
-                <span class="text-[8px] text-gray-600 flex-shrink-0 ml-2">${count}</span>
-            </div>`;
-    }
-
     toggleCat(cat) {
         if (this.collapsedCats.has(cat)) this.collapsedCats.delete(cat);
         else                             this.collapsedCats.add(cat);
         this.renderCatalogo();
     }
 
-    // Tope de cantidad: siempre el stock disponible en origen. No hay modo "sin stock"
-    // (las existencias deben existir), por lo que nunca se permite exceder el stock.
     maxQty(stock) {
         return Number(stock || 0);
     }
 
     renderLote() {
-        const o = this.opts;
+        const o      = this.opts;
         const $lista   = $(`#${o.id}_listaProductos`);
         const $limpiar = $(`#${o.id}_btnLimpiarLote`);
         if (!this.lote.length) {
@@ -589,8 +470,6 @@ class TraspasoForm {
         if (window.lucide) lucide.createIcons();
     }
 
-    // -- Acciones de lote --
-
     doSearch(q) {
         this.searchTerm = String(q == null ? '' : q).trim();
         this.activeIdx  = 0;
@@ -604,9 +483,6 @@ class TraspasoForm {
         this.promptCantidad(prod);
     }
 
-    // Popover de cantidad anclado al buscador (sin backdrop): enfoca el input
-    // preseleccionado, Enter agrega y devuelve el foco al buscador para encadenar.
-    // La cantidad se topa al stock de la sucursal origen.
     promptCantidad(prod) {
         if (!prod) return;
         const o       = this.opts;
@@ -683,8 +559,6 @@ class TraspasoForm {
         }), 0);
     }
 
-    // Suma al lote: si el producto ya existe acumula la cantidad (modo escaner, topada
-    // al stock origen), si no, lo agrega como nueva fila. Devuelve el indice afectado.
     addOrIncrement(prod, qty) {
         const stock = this.stockOrigen(prod, this.currentOrigen());
         if (!this.allowZero && stock <= 0) return -1;
@@ -693,7 +567,6 @@ class TraspasoForm {
         const existing = this.lote.find(x => String(x.id) === String(prod.id));
         let idx;
         if (existing) {
-            if (existing.transform) return this.lote.indexOf(existing); // transformado: no se acumula
             existing.cantidad = Math.min(max, Number(existing.cantidad || 0) + qty);
             existing.stock    = stock;
             idx = this.lote.indexOf(existing);
@@ -709,9 +582,7 @@ class TraspasoForm {
                 icon:      prod.icon  || 'package',
                 bg:        prod.bg    || 'bg-gray-700/40',
                 color:     prod.color || 'text-gray-300',
-                image:     prod.image || '',
-                transform:     null,
-                transformOpen: false
+                image:     prod.image || ''
             });
             idx = this.lote.length - 1;
         }
@@ -720,8 +591,6 @@ class TraspasoForm {
         return idx;
     }
 
-    // Enter en el buscador: prioriza SKU exacto (lector de codigo), luego el resultado
-    // resaltado, luego la primera coincidencia. Conserva el foco.
     handleSearchEnter() {
         const all = this.opts.json || [];
         const q   = (this.searchTerm || '').toLowerCase();
@@ -762,7 +631,7 @@ class TraspasoForm {
         const $row = $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"]`);
         if (!$row.length) return;
         $row.removeClass('tf-flash');
-        void $row[0].offsetWidth; // reinicia la animacion al re-escanear el mismo producto
+        void $row[0].offsetWidth;
         $row.addClass('tf-flash');
     }
 
@@ -780,7 +649,7 @@ class TraspasoForm {
         } else if (e.key === 'Escape') {
             const $inp = $(`#${this.opts.id}_buscarProducto`);
             if (($inp.val() || '').length) {
-                e.stopPropagation(); // primer Escape limpia; el segundo (vacio) cierra el modal
+                e.stopPropagation();
                 this.resetSearchState();
                 this.renderCatalogo();
             }
@@ -790,7 +659,7 @@ class TraspasoForm {
     onQtyKeydown(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            $(`#${this.opts.id}_buscarProducto`).trigger('focus'); // vuelve al buscador para encadenar
+            $(`#${this.opts.id}_buscarProducto`).trigger('focus');
         }
     }
 
@@ -799,24 +668,18 @@ class TraspasoForm {
         this.renderLote();
     }
 
-    // Edicion en vivo de la cantidad: actualiza el modelo de forma tolerante (admite el
-    // campo vacio mientras se teclea) y recalcula subtotal/totales SIN reescribir el
-    // input, para no interrumpir la escritura. El saneo (vacio -> 1, tope al stock) se
-    // aplica al salir del campo en commitField.
     updateField($el) {
         const idx   = Number($el.data('idx'));
         const field = $el.data('field');
         if (isNaN(idx) || !this.lote[idx] || field !== 'cantidad') return;
         const item = this.lote[idx];
         let val = parseInt(String($el.val()).trim(), 10);
-        if (isNaN(val) || val < 0) val = 0; // vacio/invalido: 0 temporal, no fuerces 1 aun
+        if (isNaN(val) || val < 0) val = 0;
         item.cantidad = val;
         this.updateSubtotal(idx);
         this.updateTotals();
     }
 
-    // Saneo al salir del campo (blur o Enter): cantidad minima 1 y, salvo modo "Sin
-    // stock", tope al stock disponible. Reescribe el input ya normalizado.
     commitField($el) {
         const idx   = Number($el.data('idx'));
         const field = $el.data('field');
@@ -830,7 +693,6 @@ class TraspasoForm {
         this.updateTotals();
     }
 
-    // Repinta solo el subtotal de una fila, sin tocar el input de cantidad.
     updateSubtotal(i) {
         const p = this.lote[i];
         if (!p) return;
@@ -860,59 +722,6 @@ class TraspasoForm {
         }
     }
 
-    // -- Transformacion --
-
-    toggleTransformPanel(i) {
-        const item = this.lote[i];
-        if (!item || item.transform) return;
-        const list = this.opts.data.transformMap[item.id] || [];
-        if (!list.length) return;
-        item.transformOpen = !item.transformOpen;
-        this.renderLote();
-    }
-
-    applyTransform(i) {
-        const item = this.lote[i];
-        if (!item) return;
-        const $sel = $(`[data-transform-select="${i}"]`);
-        const $qty = $(`[data-transform-qty="${i}"]`);
-        if (!$sel.length || !$qty.length) return;
-        const optId  = $sel.val();
-        const list   = this.opts.data.transformMap[item.id] || [];
-        const opt    = list.find(o2 => o2.id === optId);
-        const piezas = parseInt($qty.val(), 10) || 1;
-        item.transform     = { id: optId, producto: opt ? opt.nombre : $sel.find('option:selected').text(), piezas };
-        item.transformOpen = false;
-        this.renderLote();
-    }
-
-    cancelTransform(i) {
-        const item = this.lote[i];
-        if (!item) return;
-        item.transformOpen = false;
-        this.renderLote();
-    }
-
-    revertTransform(i) {
-        const item = this.lote[i];
-        if (!item) return;
-        item.transform = null;
-        this.renderLote();
-    }
-
-    updatePiezasDefault(i) {
-        const item = this.lote[i];
-        if (!item) return;
-        const $sel = $(`[data-transform-select="${i}"]`);
-        const $qty = $(`[data-transform-qty="${i}"]`);
-        if (!$sel.length || !$qty.length) return;
-        const list = this.opts.data.transformMap[item.id] || [];
-        const opt  = list.find(o2 => o2.id === $sel.val());
-        if (opt) $qty.val(opt.piezasDefault);
-    }
-
-    // -- Cierre / guardado --
-
     closeModal() {
         this.wrap.addClass('hidden');
         this.lote = [];
@@ -921,8 +730,6 @@ class TraspasoForm {
         this.opts.onClose();
     }
 
-    // Alert centrado tipo modal (backdrop + tarjeta) con titulo y descripcion.
-    // Se cierra con el boton, el backdrop o Escape.
     showError(title, detail) {
         const o      = this.opts;
         const $alert = $(`#${o.id}_alert`);
@@ -949,15 +756,11 @@ class TraspasoForm {
         $(`#${this.opts.id}_alert`).addClass('hidden').empty();
     }
 
-    // Confirmacion tipo modal (mismo look que showError, contenedor _alert reutilizado)
-    // con dos acciones: Cancelar cierra sin tocar el lote; el boton primario ejecuta
-    // cfg.onOk. Se cierra con backdrop o Escape (via el handler global = cancelar).
     showConfirm(cfg) {
         const o      = this.opts;
         const c      = cfg || {};
         const $alert = $(`#${o.id}_alert`);
         if (!$alert.length) return;
-        const icon    = c.icon    || 'help-circle';
         const okLabel = c.okLabel || 'Confirmar';
         const okIco   = c.okIcon ? `<i data-lucide="${this.esc(c.okIcon)}" class="w-3.5 h-3.5"></i>` : '';
         $alert.html(`
@@ -965,7 +768,7 @@ class TraspasoForm {
             <div class="tf-alert-card relative z-10 w-[360px] max-w-[88%] bg-[#1a2030] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
                 <div class="flex flex-col items-center text-center px-6 pt-6 pb-5">
                     <div class="w-14 h-14 rounded-full bg-purple-500/15 flex items-center justify-center mb-3.5">
-                        <i data-lucide="${this.esc(icon)}" class="w-7 h-7 text-purple-300"></i>
+                        <i data-lucide="arrow-left-right" class="w-7 h-7 text-purple-300"></i>
                     </div>
                     <p class="text-[14px] font-bold text-white leading-snug">${this.esc(c.title)}</p>
                     ${c.detailHtml ? `<p class="text-[12px] text-gray-400 leading-relaxed mt-1.5">${c.detailHtml}</p>` : ''}
@@ -992,7 +795,6 @@ class TraspasoForm {
         const origenAlm  = $(`#${o.id}_origenAlm`).val();
         const destinoId  = $(`#${o.id}_destinoSuc`).val();
         const destinoAlm = $(`#${o.id}_destinoAlm`).val();
-        const catId      = $(`#${o.id}_categoria`).val();
         const nota       = ($(`#${o.id}_inpNota`).val() || '').trim();
 
         this.hideError();
@@ -1004,14 +806,12 @@ class TraspasoForm {
 
         const sucs = o.data.sucursales || [];
         const alms = o.data.almacenes  || [];
-        const cats = o.data.categorias || [];
-        const find = (list, id) => list.find(x => x.id === id) || { id: id, valor: id };
+        const find = (list, id) => list.find(x => String(x.id) === String(id)) || { id: id, valor: id };
 
         const sucOrigen  = find(sucs, origenId);
         const sucDestino = find(sucs, destinoId);
         const almOrigen  = find(alms, origenAlm);
         const almDestino = find(alms, destinoAlm);
-        const categoria  = find(cats, catId);
 
         const productos = this.lote.map(i => {
             const p = (o.json || []).find(x => String(x.id) === String(i.id));
@@ -1024,22 +824,17 @@ class TraspasoForm {
                 color:            i.color,
                 cant:             Number(i.cantidad),
                 costo:            Number(i.costo),
-                stockOrigenPrev:  this.stockOrigen(p, origenId),
-                stockDestinoPrev: this.stockDestino(p, destinoId),
-                transform:        i.transform
+                stockOrigenPrev:  this.stockOrigen(p, origenId)
             };
         });
 
         const payload = {
             origen:    { id: sucOrigen.id,  nombre: sucOrigen.valor,  almacen: { id: almOrigen.id,  nombre: almOrigen.valor  } },
             destino:   { id: sucDestino.id, nombre: sucDestino.valor, almacen: { id: almDestino.id, nombre: almDestino.valor } },
-            categoria: { id: categoria.id,  nombre: categoria.valor },
             productos: productos,
             nota:      nota
         };
 
-        // Confirmacion antes de crear/enviar: resume ruta y totales. Solo al aceptar se
-        // dispara onSave y se cierra el modal; al cancelar el lote queda intacto.
         const totalUds = productos.reduce((s, p) => s + Number(p.cant || 0), 0);
         const arrow    = '<span class="text-purple-300 px-1">&rarr;</span>';
         const detailHtml =
@@ -1051,7 +846,6 @@ class TraspasoForm {
             title:      o.labels.confirmTitle,
             detailHtml: detailHtml,
             okLabel:    o.labels.confirmOk,
-            icon:       'arrow-left-right',
             okIcon:     'send',
             onOk: () => {
                 this.opts.onSave(payload);
@@ -1059,8 +853,6 @@ class TraspasoForm {
             }
         });
     }
-
-    // -- Eventos --
 
     bindEvents() {
         const wrap = this.wrap;
@@ -1079,34 +871,20 @@ class TraspasoForm {
         wrap.on('click', `#${id}_btnLimpiarLote`,   () => this.clearLote());
         wrap.on('click', `#${id}_btnRegistrar`,     () => this.doRegistrar());
 
-        // Origen/destino cambian: recalcula stocks del lote y refresca catalogo.
         wrap.on('change', `#${id}_origenSuc, #${id}_destinoSuc`, () => this.onChangeSucursal());
-
-        // Filtro de categoria: re-pinta el catalogo de busqueda mostrando solo la
-        // categoria elegida ("Sin categoria" muestra todas). Resetea la navegacion.
-        wrap.on('change', `#${id}_categoria`, () => { this.activeIdx = 0; this.renderCatalogo(); });
-
-        // Transformacion (delegado por data-role).
-        wrap.on('click',  '[data-role="transform"]',        (e) => this.toggleTransformPanel(Number($(e.currentTarget).attr('data-idx'))));
-        wrap.on('click',  '[data-role="apply-transform"]',  (e) => this.applyTransform(Number($(e.currentTarget).attr('data-idx'))));
-        wrap.on('click',  '[data-role="cancel-transform"]', (e) => this.cancelTransform(Number($(e.currentTarget).attr('data-idx'))));
-        wrap.on('click',  '[data-role="revert-transform"]', (e) => this.revertTransform(Number($(e.currentTarget).attr('data-idx'))));
-        wrap.on('change', '[data-transform-select]',        (e) => this.updatePiezasDefault(Number($(e.currentTarget).attr('data-transform-select'))));
 
         $(document).off('keydown.traspasoForm').on('keydown.traspasoForm', (e) => {
             if (e.key !== 'Escape' || this.wrap.hasClass('hidden')) return;
             const $alert = $(`#${this.opts.id}_alert`);
-            if ($alert.length && !$alert.hasClass('hidden')) { this.hideError(); return; } // primero cierra el alert
+            if ($alert.length && !$alert.hasClass('hidden')) { this.hideError(); return; }
             this.closeModal();
         });
     }
 
-    // Almacenes que pertenecen a una sucursal. Si los almacenes no traen subsidiaries_id
-    // (p.ej. datos de muestra) no filtra, para no dejar el select vacio.
-    warehousesFor(sucId) {
+    warehousesFor(branchId) {
         const alms = this.opts.data.almacenes || [];
-        if (!sucId) return alms;
-        const filt = alms.filter(a => !a.subsidiaries_id || String(a.subsidiaries_id) === String(sucId));
+        if (!branchId) return alms;
+        const filt = alms.filter(a => !a.branch_id || String(a.branch_id) === String(branchId));
         return filt.length ? filt : alms;
     }
 
@@ -1117,11 +895,9 @@ class TraspasoForm {
         const ph   = placeholder ? `<option value="">${this.esc(placeholder)}</option>` : '';
         $sel.html(ph + (list || []).map(it => this.optionTag(it)).join(''));
         if (prev && (list || []).some(it => String(it.id != null ? it.id : it.valor) === String(prev))) $sel.val(prev);
-        else if (placeholder) $sel.val(''); // sin seleccion previa valida: deja el placeholder
+        else if (placeholder) $sel.val('');
     }
 
-    // Repuebla los selects de almacen origen/destino segun la sucursal seleccionada.
-    // El destino conserva su placeholder para obligar a elegir almacen explicitamente.
     refreshAlmacenes() {
         const id = this.opts.id;
         this.fillSelect(`${id}_origenAlm`,  this.warehousesFor(this.currentOrigen()));
@@ -1131,7 +907,6 @@ class TraspasoForm {
     onChangeSucursal() {
         this.refreshAlmacenes();
         const origenId = this.currentOrigen();
-        // Recalcula el stock origen de cada renglon y topa la cantidad al nuevo stock.
         this.lote.forEach(item => {
             const p = (this.opts.json || []).find(x => String(x.id) === String(item.id));
             const stock = this.stockOrigen(p, origenId);
@@ -1140,8 +915,6 @@ class TraspasoForm {
         });
         this.renderLote();
     }
-
-    // -- API publica --
 
     open() {
         this.wrap.removeClass('hidden');
@@ -1158,9 +931,6 @@ class TraspasoForm {
         Object.assign(this.opts.data, newData || {});
         const id = this.opts.id;
         if (newData && 'origenIdInicial' in newData && newData.origenIdInicial != null) {
-            // Solo aplica el origen si existe como opcion del select; un id inexistente
-            // dejaria el <select> sin seleccion y stockOrigen() devolveria 0 para TODO,
-            // bloqueando la lista entera de productos.
             const want   = String(newData.origenIdInicial);
             const $sel   = $(`#${id}_origenSuc`);
             const exists = $sel.find('option').toArray().some(op => op.value === want);
@@ -1169,13 +939,9 @@ class TraspasoForm {
         }
     }
 
-    // -- Helpers --
-
     currentOrigen() {
         const val = $(`#${this.opts.id}_origenSuc`).val();
         if (val) return val;
-        // Sin seleccion: cae al origen inicial o a la primera sucursal real para no
-        // dejar el stock origen en 0 (lo que bloquearia toda la lista de productos).
         const sucs = this.opts.data.sucursales || [];
         return this.opts.data.origenIdInicial || (sucs[0] && sucs[0].id) || '';
     }
@@ -1185,11 +951,6 @@ class TraspasoForm {
         return (prod.stockPorSuc && prod.stockPorSuc[origenId]) || 0;
     }
 
-    stockDestino(prod, destinoId) {
-        if (!prod || !destinoId) return 0;
-        return (prod.stockPorSuc && prod.stockPorSuc[destinoId]) || 0;
-    }
-
     esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -1197,10 +958,10 @@ class TraspasoForm {
     }
 
     prodThumb(p, boxCls, iconCls) {
-        const box  = boxCls  || 'w-8 h-8';
-        const ico  = iconCls || 'w-4 h-4';
-        const src  = p.image ? `https://huubie.com.mx/${String(p.image).replace(/^\/+/, '')}` : '';
-        const img  = src
+        const box = boxCls  || 'w-8 h-8';
+        const ico = iconCls || 'w-4 h-4';
+        const src = p.image ? `https://huubie.com.mx/${String(p.image).replace(/^\/+/, '')}` : '';
+        const img = src
             ? `<img src="${this.esc(src)}" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'">`
             : '';
         return `
@@ -1212,10 +973,6 @@ class TraspasoForm {
 
     fmtMoney(n) {
         return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    fmtMoneyShort(n) {
-        return '$' + Number(n).toLocaleString('en-US');
     }
 
     optionTag(item, sel) {

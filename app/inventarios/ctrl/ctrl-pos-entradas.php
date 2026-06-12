@@ -1,2 +1,534 @@
 <?php
-require_once 'ctrl-inventarios.php';
+session_start();
+if (empty($_POST['opc'])) exit(0);
+
+require_once '../mdl/mdl-pos-entradas.php';
+
+class ctrl extends mdl {
+
+    public $companiesId;
+    public $subsidiariesId;
+    public $userId;
+
+    public function __construct() {
+        parent::__construct();
+        $this->companiesId    = (int) ($_SESSION['COM'] ?? $_SESSION['COMPANY_ID'] ?? $_POST['companies_id']    ?? 4);
+        $this->subsidiariesId = (int) ($_SESSION['SUB'] ?? $_POST['subsidiaries_id'] ?? 0);
+        $this->userId         = (int) ($_SESSION['USR'] ?? $_SESSION['ID']         ?? $_POST['user_id']         ?? 1);
+    }
+
+    function init() {
+        $productos = array_map(function ($p) {
+            return [
+                'id'        => (string) $p['id'],
+                'sku'       => $p['sku'] ?: '',
+                'nombre'    => $p['nombre'],
+                'categoria' => $p['categoria'] ?: 'Sin categoria',
+                'costo'     => (float) $p['costo'],
+                'precio'    => (float) ($p['precio'] ?? 0),
+                'stock'     => 0,
+                'image'     => $p['image'] ?? '',
+                'icon'      => 'package',
+                'bg'        => 'bg-gray-700/40',
+                'color'     => 'text-gray-300'
+            ];
+        }, $this->listProductsForInflow([$this->companiesId]));
+
+        return [
+            'status'           => 200,
+            'companies_id'     => $this->companiesId,
+            'subsidiaries_id'  => $this->subsidiariesId,
+            'user_id'          => $this->userId,
+            'sucursales'       => $this->lsSucursales([$this->companiesId]),
+            'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
+            'proveedores'      => $this->lsSuppliers([$this->companiesId]),
+            'origenes_entrada' => $this->lsInflowOrigins(),
+            'estados_entrada'  => [
+                ['id' => '',          'valor' => 'Todos los estados'],
+                ['id' => 'Activas',   'valor' => 'Activas (sin Cancelada)'],
+                ['id' => 'Aplicada',  'valor' => 'Aplicada'],
+                ['id' => 'Pendiente', 'valor' => 'Pendiente'],
+                ['id' => 'Cancelada', 'valor' => 'Cancelada']
+            ],
+            'productos'        => $productos
+        ];
+    }
+
+    function lsEntradas() {
+        $rows = $this->listEntradas([
+            'companies_id'    => $this->companiesId,
+            'subsidiaries_id' => $_POST['subsidiaries_id'],
+            'origin_id'       => $_POST['origin_id'],
+            'status'          => $_POST['status'],
+            'fi'              => $_POST['fi'],
+            'ff'              => $_POST['ff'],
+            'q'               => $_POST['q']
+        ]);
+
+        $row = [];
+        foreach ($rows as $r) {
+            // Unica accion en la fila: ver detalle. Cancelar/revertir vive en el
+            // panel de detalle que se abre al hacer click en el ojo.
+            $a = [
+                [
+                    'class'   => 'btn btn-sm btn-secondary me-1',
+                    'html'    => '<i class="icon-eye"></i>',
+                    'onclick' => "app.selectEntrada('{$r['folio']}', {$r['id']})"
+                ]
+            ];
+
+            $row[] = [
+                'id'           => $r['id'],
+                'Folio'        => $r['folio'],
+                'Origen'       => pillBadge($r['origin_name'], $r['origin_color']),
+                'Sucursal'     => $r['subsidiary_name'] ?: '-',
+                'Almacen'      => $r['warehouse_name']  ?: '-',
+                'Proveedor'    => $r['supplier_name']   ?: '<span class="italic text-gray-400">N/A</span>',
+                'Productos'    => (int) $r['total_products'],
+                'Costo'        => evaluar((float) $r['total_cost']),
+                'Fecha'        => $r['date_inflow'],
+                'Estado'       => statusBadge($r['status']),
+                'Registrado'   => $r['user_name'] ?: '-',
+                'a'            => $a
+            ];
+        }
+        return ['status' => 200, 'row' => $row];
+    }
+
+    function showEntradas() {
+        $kpis = $this->getEntradaKpis([
+            'companies_id'    => $this->companiesId,
+            'subsidiaries_id' => $_POST['subsidiaries_id'],
+            'origin_id'       => $_POST['origin_id'],
+            'status'          => $_POST['status'],
+            'fi'              => $_POST['fi'],
+            'ff'              => $_POST['ff'],
+            'q'               => $_POST['q']
+        ]);
+        return ['status' => 200, 'counts' => $kpis];
+    }
+
+    function getEntrada() {
+        $id      = (int) $_POST['id'];
+        $header  = $this->getEntradaById([$id]);
+        if (!$header) return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        $detail  = $this->listEntradaDetail([$id]);
+        return ['status' => 200, 'header' => $header, 'detail' => $detail];
+    }
+
+    function saveEntrada() {
+        $payload   = json_decode($_POST['payload'], true);
+        $productos = $payload['productos'] ?? [];
+
+        if (empty($productos)) {
+            return ['status' => 400, 'message' => 'No se enviaron renglones'];
+        }
+
+        // El estado lo decide el ORIGEN, no el cliente: una orden de produccion
+        // entra Pendiente (el panadero la confirma despues) y NO aplica stock
+        // hasta confirmarse. El resto de origenes entra Aplicada y aplica stock.
+        $origin       = $this->getInflowOrigin([(int) $payload['inflow_origin_id']]);
+        $isProduction = $origin && $origin['code'] === 'PRODUCTION';
+        $status       = $isProduction ? 'Pendiente' : 'Aplicada';
+
+        $folio = $this->getNextFolio('ENT-', $this->companiesId);
+
+        $totalProducts = count($productos);
+        $totalUnits    = 0;
+        $totalCost     = 0;
+        foreach ($productos as $p) {
+            $totalUnits += (float) $p['quantity'];
+            $totalCost  += (float) $p['quantity'] * (float) $p['cost'];
+        }
+
+        $ok = $this->createEntrada([
+            $folio,
+            $payload['note'] ?? null,
+            $totalProducts,
+            $totalUnits,
+            $totalCost,
+            // date_inflow lo fija el INSERT con CURDATE() (hora actual del servidor)
+            $status,
+            (int) $payload['inflow_origin_id'],
+            (int) $payload['warehouse_id'],
+            !empty($payload['supplier_id']) ? (int) $payload['supplier_id'] : null,
+            (int) ($payload['subsidiaries_id'] ?? $this->subsidiariesId),
+            $this->userId,
+            $this->companiesId
+        ]);
+
+        if (!$ok) return ['status' => 500, 'message' => 'No se pudo registrar la entrada'];
+
+        $inflowId = $this->getEntradaIdByFolio([$folio, $this->companiesId]);
+
+        foreach ($productos as $p) {
+            $productId = (int) $p['product_id'];
+            $warehouse = (int) $payload['warehouse_id'];
+            $qty       = (float) $p['quantity'];
+            $cost      = (float) $p['cost'];
+            $subtotal  = $qty * $cost;
+
+            $stockRow = $this->getStockRow([$productId, $warehouse]);
+            $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
+            // Pendiente (produccion): el stock aun no se aplica -> resulting = previous.
+            $post     = $isProduction ? $prev : $prev + $qty;
+
+            $this->createEntradaDetail([
+                $p['batch_code'] ?? null,
+                $qty,
+                $cost,
+                $subtotal,
+                $prev,
+                $post,
+                $p['expires_at'] ?? null,
+                $productId,
+                $inflowId,
+                !empty($p['unit_id']) ? (int) $p['unit_id'] : null
+            ]);
+
+            if (!$isProduction) {
+                if ($stockRow) {
+                    $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                } else {
+                    $this->createStockRow([$post, $warehouse, $productId, $this->companiesId]);
+                }
+            }
+        }
+
+        return [
+            'status'  => 200,
+            'message' => $isProduction ? 'Orden de produccion registrada (pendiente de confirmar)' : 'Entrada registrada',
+            'folio'   => $folio,
+            'id'      => $inflowId,
+            'pending' => $isProduction
+        ];
+    }
+
+    function confirmEntrada() {
+        $id     = (int) $_POST['id'];
+        $header = $this->getEntradaById([$id]);
+
+        if (!$header) {
+            return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+        if ($header['status'] !== 'Pendiente') {
+            return ['status' => 400, 'message' => 'La entrada no esta pendiente de confirmar'];
+        }
+
+        // Cantidades reales que entraron, editadas en el panel: { detail_id: qty }.
+        // Si un renglon no viene, se aplica la cantidad reportada (quantity).
+        $quantities = json_decode($_POST['quantities'] ?? '{}', true);
+        if (!is_array($quantities)) $quantities = [];
+
+        // Aplica el stock de la orden de produccion al almacen destino usando la
+        // cantidad real y recalcula los totales del header con esos valores.
+        $warehouse  = (int) $header['warehouse_id'];
+        $detail     = $this->listEntradaDetail([$id]);
+        $totalUnits = 0;
+        $totalCost  = 0;
+        $affected   = 0; // renglones que realmente entraron al almacen (cantidad real > 0)
+        foreach ($detail as $d) {
+            $detailId  = (int) $d['id'];
+            $productId = (int) $d['product_id'];
+            $cost      = (float) $d['cost'];
+            $realQty   = array_key_exists((string) $detailId, $quantities)
+                ? max(0, (float) $quantities[$detailId])
+                : (float) $d['quantity'];
+            $subtotal  = $realQty * $cost;
+
+            $stockRow = $this->getStockRow([$productId, $warehouse]);
+            $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
+            $post     = $prev + $realQty;
+
+            // Guarda la cantidad real (confirmed_quantity), el subtotal recalculado
+            // y el snapshot de stock al momento de aplicar.
+            $this->confirmEntradaDetail([$realQty, $subtotal, $prev, $post, $detailId]);
+
+            if ($stockRow) {
+                $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+            } else {
+                $this->createStockRow([$post, $warehouse, $productId, $this->companiesId]);
+            }
+
+            if ($realQty > 0) $affected++;
+            $totalUnits += $realQty;
+            $totalCost  += $subtotal;
+        }
+
+        $this->updateEntradaTotals([$totalUnits, $totalCost, $id]);
+        $r = $this->applyEntrada([$this->userId, $id]);
+
+        // Unidades sin decimales sobrantes (56 en vez de 56.00).
+        $udsTxt  = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
+        $prodTxt = $affected . ' ' . ($affected === 1 ? 'producto afectado' : 'productos afectados');
+
+        return [
+            'status'   => $r ? 200 : 500,
+            'message'  => $r ? "Produccion confirmada: {$prodTxt} ({$udsTxt} uds aplicadas al almacen)" : 'No se pudo confirmar la produccion',
+            'affected' => $affected,
+            'units'    => $totalUnits
+        ];
+    }
+
+    // Edita las cantidades reales de una entrada YA aplicada. Ajusta el stock por el
+    // DELTA entre la nueva cantidad y la que estaba aplicada, sin reaplicar todo.
+    function editEntrada() {
+        $id     = (int) $_POST['id'];
+        $header = $this->getEntradaById([$id]);
+
+        if (!$header) {
+            return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+        if ($header['status'] !== 'Aplicada') {
+            return ['status' => 400, 'message' => 'Solo se puede editar una entrada aplicada'];
+        }
+
+        // Nuevas cantidades reales por renglon: { detail_id: qty }. Si un renglon no
+        // viene, conserva la cantidad que ya tenia aplicada.
+        $quantities = json_decode($_POST['quantities'] ?? '{}', true);
+        if (!is_array($quantities)) $quantities = [];
+
+        $warehouse  = (int) $header['warehouse_id'];
+        $detail     = $this->listEntradaDetail([$id]);
+        $totalUnits = 0;
+        $totalCost  = 0;
+        $affected   = 0; // renglones cuyo stock cambio (delta != 0)
+        foreach ($detail as $d) {
+            $detailId  = (int) $d['id'];
+            $productId = (int) $d['product_id'];
+            $cost      = (float) $d['cost'];
+            // Cantidad ya aplicada: la confirmada si existe, si no la reportada.
+            $oldQty    = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
+            $newQty    = array_key_exists((string) $detailId, $quantities)
+                ? max(0, (float) $quantities[$detailId])
+                : $oldQty;
+            $delta     = $newQty - $oldQty;
+            $subtotal  = $newQty * $cost;
+
+            $stockRow = $this->getStockRow([$productId, $warehouse]);
+            $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
+            $post     = max(0, $prev + $delta);
+
+            // Guarda la nueva cantidad real, el subtotal y el snapshot de stock del renglon.
+            $this->confirmEntradaDetail([$newQty, $subtotal, $prev, $post, $detailId]);
+
+            if ($delta != 0) {
+                if ($stockRow) {
+                    $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                } else if ($newQty > 0) {
+                    $this->createStockRow([$post, $warehouse, $productId, $this->companiesId]);
+                }
+                $affected++;
+            }
+
+            $totalUnits += $newQty;
+            $totalCost  += $subtotal;
+        }
+
+        $this->updateEntradaTotals([$totalUnits, $totalCost, $id]);
+
+        $udsTxt  = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
+        $prodTxt = $affected . ' ' . ($affected === 1 ? 'producto ajustado' : 'productos ajustados');
+
+        return [
+            'status'   => 200,
+            'message'  => $affected > 0
+                ? "Entrada actualizada: {$prodTxt} ({$udsTxt} uds en el almacen)"
+                : 'No hubo cambios en las cantidades',
+            'affected' => $affected,
+            'units'    => $totalUnits
+        ];
+    }
+
+    // Edicion COMPLETA de los renglones de una entrada: permite agregar productos que
+    // faltaron, quitar renglones y cambiar cantidades. Aplica a dos estados:
+    //   - Aplicada: ajusta el stock del almacen por el DELTA de cada renglon (no reaplica
+    //     todo). Altas suman, bajas revierten, cambios ajustan por la diferencia.
+    //   - Pendiente (orden de produccion): edita el PLAN (cantidad planeada) sin tocar el
+    //     stock; este se aplica recien al Confirmar la produccion.
+    // El almacen/sucursal/origen NO cambian: se usa siempre el warehouse del header
+    // para evitar descuadres de stock entre almacenes.
+    function updateEntrada() {
+        $id     = (int) $_POST['id'];
+        $header = $this->getEntradaById([$id]);
+
+        if (!$header) {
+            return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+        if (!in_array($header['status'], ['Aplicada', 'Pendiente'], true)) {
+            return ['status' => 400, 'message' => 'Solo se puede editar una entrada aplicada o pendiente'];
+        }
+
+        $payload   = json_decode($_POST['payload'], true);
+        $productos = $payload['productos'] ?? [];
+        if (empty($productos)) {
+            return ['status' => 400, 'message' => 'La entrada debe quedar con al menos un producto'];
+        }
+
+        // Solo una entrada Aplicada toca el stock. La produccion Pendiente aun no lo
+        // aplico, asi que editarla solo cambia el plan (snapshots con prev = post).
+        $applyStock = ($header['status'] === 'Aplicada');
+        $warehouse  = (int) $header['warehouse_id'];
+
+        // Detalle vigente indexado por id de renglon, para distinguir altas/cambios/bajas.
+        $detail = $this->listEntradaDetail([$id]);
+        $byId   = [];
+        foreach ($detail as $d) {
+            $byId[(int) $d['id']] = $d;
+        }
+
+        $sentIds       = [];
+        $totalProducts = 0;
+        $totalUnits    = 0;
+        $totalCost     = 0;
+
+        foreach ($productos as $p) {
+            $detailId  = !empty($p['detail_id']) ? (int) $p['detail_id'] : 0;
+            $productId = (int) $p['product_id'];
+            $qty       = max(0, (float) $p['quantity']);
+            $cost      = (float) $p['cost'];
+            $subtotal  = $qty * $cost;
+
+            $stockRow = $this->getStockRow([$productId, $warehouse]);
+            $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
+
+            if ($detailId && isset($byId[$detailId])) {
+                $d = $byId[$detailId];
+                if ($applyStock) {
+                    // Aplicada: ajusta el stock por el delta vs. lo ya aplicado y guarda
+                    // la cantidad real (confirmed_quantity).
+                    $oldQty = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
+                    $delta  = $qty - $oldQty;
+                    $post   = max(0, $prev + $delta);
+                    $this->updateEntradaDetailFull([$qty, $cost, $subtotal, $prev, $post, $detailId]);
+                    if ($delta != 0) {
+                        if ($stockRow) {
+                            $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                        } else if ($qty > 0) {
+                            $this->createStockRow([$post, $warehouse, $productId, $this->companiesId]);
+                        }
+                    }
+                } else {
+                    // Pendiente: solo cambia la cantidad planeada (quantity); sin tocar stock.
+                    $this->updateEntradaDetailPlanned([$qty, $cost, $subtotal, $prev, $prev, $detailId]);
+                }
+                $sentIds[] = $detailId;
+            } else {
+                // Renglon nuevo (producto que falto capturar).
+                $post = $applyStock ? ($prev + $qty) : $prev;
+                $this->createEntradaDetail([
+                    null, $qty, $cost, $subtotal, $prev, $post, null, $productId, $id, null
+                ]);
+                if ($applyStock) {
+                    if ($stockRow) {
+                        $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                    } else {
+                        $this->createStockRow([$post, $warehouse, $productId, $this->companiesId]);
+                    }
+                }
+            }
+
+            $totalProducts++;
+            $totalUnits += $qty;
+            $totalCost  += $subtotal;
+        }
+
+        // Bajas: renglones que estaban y ya no vienen -> dar de baja. En Aplicada se
+        // revierte su stock; en Pendiente nunca se aplico, asi que solo se desactiva.
+        foreach ($detail as $d) {
+            $did = (int) $d['id'];
+            if (in_array($did, $sentIds)) continue;
+
+            if ($applyStock) {
+                $applied  = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
+                $stockRow = $this->getStockRow([(int) $d['product_id'], $warehouse]);
+                if ($stockRow) {
+                    $post = max(0, (float) $stockRow['quantity'] - $applied);
+                    $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                }
+            }
+            $this->disableEntradaDetail([$did]);
+        }
+
+        $note = array_key_exists('note', $payload) ? $payload['note'] : $header['note'];
+        $this->updateEntradaHeaderFull([$totalProducts, $totalUnits, $totalCost, $note, $id]);
+
+        $udsTxt = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
+        $sufijo = $applyStock ? "{$udsTxt} uds en el almacen" : "{$udsTxt} uds planeadas";
+        return [
+            'status'  => 200,
+            'message' => "Entrada actualizada: {$totalProducts} productos ({$sufijo})",
+            'id'      => $id
+        ];
+    }
+
+    function reverseEntrada() {
+        $id     = (int) $_POST['id'];
+        $header = $this->getEntradaById([$id]);
+
+        if (!$header) {
+            return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+        if ($header['status'] === 'Cancelada') {
+            return ['status' => 400, 'message' => 'La entrada ya esta cancelada'];
+        }
+
+        // Solo se revierte stock si la entrada estaba Aplicada. Una orden de
+        // produccion Pendiente nunca aplico stock, asi que solo cambia de estado.
+        if ($header['status'] === 'Aplicada') {
+            $warehouse = (int) $header['warehouse_id'];
+            $detail    = $this->listEntradaDetail([$id]);
+            foreach ($detail as $d) {
+                $productId = (int) $d['product_id'];
+                // Resta lo que REALMENTE se aplico al stock: la cantidad confirmada
+                // (produccion) si existe, si no la reportada. Restar siempre la
+                // reportada dejaba unidades fantasma cuando confirmed != quantity.
+                $qty       = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
+                $stockRow  = $this->getStockRow([$productId, $warehouse]);
+                if ($stockRow) {
+                    $post = max(0, (float) $stockRow['quantity'] - $qty);
+                    $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                }
+            }
+        }
+
+        $r = $this->cancelEntrada([$id]);
+        return [
+            'status'  => $r ? 200 : 500,
+            'message' => $r ? 'Entrada cancelada' : 'No se pudo cancelar'
+        ];
+    }
+}
+
+// Complements
+
+function pillBadge($label, $colorHex) {
+    $label = $label ?: '-';
+    $color = $colorHex ?: '#9CA3AF';
+    $hex   = ltrim($color, '#');
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    $bg = "rgba($r,$g,$b,0.18)";
+    return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$bg};color:{$color};'>{$label}</span>";
+}
+
+function statusBadge($status) {
+    $map = [
+        'Aplicada'  => ['bg' => 'rgba(63,193,137,0.18)', 'fg' => '#3FC189'],
+        'Aplicado'  => ['bg' => 'rgba(63,193,137,0.18)', 'fg' => '#3FC189'],
+        'Pendiente' => ['bg' => 'rgba(251,191,36,0.18)', 'fg' => '#FBBF24'],
+        'Cancelada' => ['bg' => 'rgba(224,36,36,0.18)',  'fg' => '#E02424'],
+        'Cancelado' => ['bg' => 'rgba(224,36,36,0.18)',  'fg' => '#E02424']
+    ];
+    $c = $map[$status] ?? ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#9CA3AF'];
+    return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>" . strtoupper($status) . "</span>";
+}
+
+$obj = new ctrl();
+$fn  = $_POST['opc'];
+if (!method_exists($obj, $fn)) {
+    echo json_encode(['status' => 405, 'message' => "opc '{$fn}' no implementado"]);
+    exit(0);
+}
+echo json_encode($obj->$fn());

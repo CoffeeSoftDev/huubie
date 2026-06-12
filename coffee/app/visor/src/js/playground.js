@@ -1386,6 +1386,12 @@ function pgRenderTemplatesList() {
     items.forEach(t => {
         const hue       = pgTplHue(t.name);
         const dateShort = (t.savedAt || '').slice(0, 10);
+        // Tema sin el paréntesis aclaratorio: "Libre (sin paleta)" → "Libre".
+        const themeShort = (t.themeLabel || '').replace(/\s*\(.*\)\s*$/, '').trim();
+        // Descripción: el prompt/título que originó la plantilla (si aporta algo
+        // distinto al nombre del archivo).
+        let desc = (t.title || t.userText || '').trim();
+        if (desc.toLowerCase() === (t.name || '').toLowerCase()) desc = '';
         const $card = $(`
             <button type="button" class="pg-tpl-card" style="--tpl-hue:${hue};" title="Cargar «${pgEscape(t.name)}» en el sandbox">
                 <span class="pg-tpl-head">
@@ -1393,11 +1399,14 @@ function pgRenderTemplatesList() {
                     ${t.size ? `<span class="pg-tpl-size">${pgEscape(t.size)}</span>` : ''}
                 </span>
                 <span class="pg-tpl-name">${pgEscape(t.name)}</span>
-                <span class="pg-tpl-meta">
-                    ${t.themeLabel ? `<span class="pg-tpl-chip">${pgEscape(t.themeLabel)}</span>` : ''}
-                    ${t.agentLabel ? `<span class="pg-tpl-chip is-agent">${pgEscape(t.agentLabel)}</span>` : ''}
+                ${desc ? `<span class="pg-tpl-desc">${pgEscape(desc)}</span>` : ''}
+                <span class="pg-tpl-foot">
+                    <span class="pg-tpl-chips">
+                        ${themeShort ? `<span class="pg-tpl-chip">${pgEscape(themeShort)}</span>` : ''}
+                        ${t.agentLabel ? `<span class="pg-tpl-chip is-agent">${pgEscape(t.agentLabel)}</span>` : ''}
+                    </span>
+                    ${dateShort ? `<span class="pg-tpl-date">${pgEscape(dateShort)}</span>` : ''}
                 </span>
-                ${dateShort ? `<span class="pg-tpl-foot"><i data-lucide="clock"></i>${pgEscape(dateShort)}</span>` : ''}
             </button>`);
         $card.on('click', () => pgLoadSavedTemplate(t));
         $list.append($card);

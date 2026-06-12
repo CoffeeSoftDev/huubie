@@ -1,0 +1,39 @@
+<?php
+session_start();
+
+if (empty($_SESSION["IDU"])) {
+    require_once('../../acceso/ctrl/ctrl-logout.php');
+    exit();
+}
+
+require_once('layout/head.php');
+require_once('layout/core-libraries.php');
+?>
+
+<!-- CoffeeSoft Framework -->
+<script src="../../src/js/coffeeSoft.js"></script>
+<script src="https://rawcdn.githack.com/SomxS/Grupo-Varoch/refs/heads/main/src/js/plugins.js"></script>
+<script src="https://www.plugins.erp-varoch.com/ERP/JS/complementos.js"></script>
+<link rel="stylesheet" href="../../src/css/dark-mode.css">
+
+<body>
+    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
+    <main>
+        <div id="menu-navbar"></div>
+
+        <div id="main__content">
+            <div class="" id="root"></div>
+        </div>
+    </main>
+
+    <!-- Importacion navbar y sidebar -->
+    <script src="../../acceso/src/js/navbar.js"></script>
+    <script src="../../acceso/src/js/sidebar.js"></script>
+
+    <!-- Componentes -->
+    <script src="../../src/js/components/traspaso-form.js"></script>
+
+    <!-- Modulo de Traspasos -->
+    <script src="js/traspasos.js?t=<?php echo time(); ?>"></script>
+</body>
+</html>
