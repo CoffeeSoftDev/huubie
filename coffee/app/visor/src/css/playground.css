@@ -259,9 +259,9 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     border-radius: 0 0 2px 2px;
 }
 .pg-tpl-card:hover {
-    border-color: hsl(var(--tpl-hue, 265) 55% 55% / .6);
+    border-color: var(--vsr-border);
     background: var(--vsr-bg-card);
-    box-shadow: 0 4px 14px rgba(0,0,0,.28);
+    box-shadow: 0 1px 4px rgba(0,0,0,.14);
 }
 .pg-tpl-card:focus-visible { outline: 2px solid var(--vsr-accent); outline-offset: 2px; }
 

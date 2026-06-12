@@ -1,0 +1,7 @@
+[ 2026-06-12 07:37:07 ]
+[ UNIX_USR ] :: CoffeSoft
+[ WINDOWS_USR ] :: CoffeSoft
+[ INFO ] ::  INSERT INTO _tabla_que_no_existe VALUES (1)
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha._tabla_que_no_existe' doesn't exist
+
+

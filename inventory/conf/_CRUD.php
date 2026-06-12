@@ -49,6 +49,9 @@ public function _CUD($query, $values) {
         $message  =  "[ INFO ] ::  $query";
         $message .=  "\n[ ERROR C.U.D. ] :: ". $e->getMessage()."\n";
         $this->writeToLog($message);
+        // Dentro de una transaccion el error DEBE propagarse para disparar el rollback;
+        // fuera de transaccion se mantiene el comportamiento historico (log + false).
+        if ($this->inTransaction) throw $e;
         // Retornar false en caso de error
         return false;
     }
@@ -57,7 +60,7 @@ public function _CUD($query, $values) {
     los parámetros que recibe son la consulta sql y los datos en forma de arreglo.
     Consulta y retorna datos de una tabla en la base de datos.
 */
-public function _Read($query, $values,$retorno = false) {
+public function _Read($query, $values = null,$retorno = false) {
     try {
         if($retorno == true) return $query;
 
@@ -90,6 +93,9 @@ public function _Read($query, $values,$retorno = false) {
         $message  =  "[ INFO ] ::  $query";
         $message .=  "\n[ ERROR READ] :: ". $e->getMessage()."\n";
         $this->writeToLog($message);
+        // Si un read falla dentro de una transaccion (p.ej. leer stock antes de moverlo),
+        // se propaga para abortar y revertir; fuera de transaccion, comportamiento historico.
+        if ($this->inTransaction) throw $e;
         // Retornar array vacío en caso de error para evitar warnings en foreach
         return [];
     }

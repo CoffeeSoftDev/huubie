@@ -43,6 +43,9 @@ public function _CUD($query, $values) {
         $message  =  "[ INFO ] ::  $query";
         $message .=  "\n[ ERROR C.U.D. ] :: ". $e->getMessage()."\n";
         $this->writeToLog($message);
+        // Dentro de una transaccion el error DEBE propagarse para disparar el rollback;
+        // fuera de transaccion se mantiene el comportamiento historico (log + null).
+        if ($this->inTransaction) throw $e;
     }
 }
 /* Función Read
@@ -75,7 +78,10 @@ public function _Read($query, $values = null,$retorno = false) {
     } catch (PDOException $e) {
         $message  =  "[ INFO ] ::  $query";
         $message .=  "\n[ ERROR READ] :: ". $e->getMessage()."\n";
-        $this->writeToLog($message); 
+        $this->writeToLog($message);
+        // Si un read falla dentro de una transaccion (p.ej. leer stock antes de moverlo),
+        // se propaga para abortar y revertir; fuera de transaccion, comportamiento historico.
+        if ($this->inTransaction) throw $e;
     }
 }
 // Select

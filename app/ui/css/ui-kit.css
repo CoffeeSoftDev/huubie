@@ -477,8 +477,8 @@
 /* ---------- 17. Scrollbar custom ---------- */
 .cs-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
 .cs-scroll::-webkit-scrollbar-track { background: transparent; }
-.cs-scroll::-webkit-scrollbar-thumb { background: var(--cs-accent-purple); border-radius: 3px; }
-.cs-scroll::-webkit-scrollbar-thumb:hover { background: #A78BFA; }
+.cs-scroll::-webkit-scrollbar-thumb { background: var(--cs-border); border-radius: 3px; }
+.cs-scroll::-webkit-scrollbar-thumb:hover { background: var(--cs-text-muted); }
 
 /* ---------- 18. Componente: Toggle / Switch ---------- */
 .cs-toggle {

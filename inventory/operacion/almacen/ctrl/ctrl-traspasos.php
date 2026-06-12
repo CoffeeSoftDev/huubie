@@ -2,36 +2,32 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
-require_once '../mdl/mdl-pos-traspasos.php';
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+
+require_once '../mdl/mdl-traspasos.php';
+require_once '../../../conf/coffeSoft.php';
 
 class ctrl extends mdl {
 
-    // Niveles de rol que pueden cambiar de sucursal desde el navbar (mismo criterio que
-    // BRANCH_ALLOW_LEVEL en app/src/js/navbar.js). Para estos el filtro Origen sigue la
-    // sucursal activa de la sidebar; el resto queda fijo a su sucursal de sesion.
-    const ADMIN_LEVELS = [1, 5];
-
     public $companiesId;
-    public $subsidiariesId;
+    public $branchId;
     public $userId;
-    public $level;
 
     public function __construct() {
         parent::__construct();
-        $this->companiesId    = (int) ($_SESSION['COM'] ?? $_SESSION['COMPANY_ID'] ?? $_POST['companies_id']    ?? 4);
-        $this->subsidiariesId = (int) ($_SESSION['SUB'] ?? $_POST['subsidiaries_id'] ?? 0);
-        $this->userId         = (int) ($_SESSION['USR'] ?? $_SESSION['ID']         ?? $_POST['user_id']         ?? 1);
-        $this->level          = (int) ($_SESSION['ROLID'] ?? 0);
+        $this->companiesId = (int) ($_SESSION['company_id']  ?? $_POST['companies_id'] ?? 0);
+        $this->branchId    = (int) ($_SESSION['branch_id']   ?? $_POST['branch_id']    ?? 0);
+        $this->userId      = (int) ($_SESSION['user_id']     ?? $_POST['user_id']      ?? 0);
     }
 
     function init() {
         return [
             'status'           => 200,
             'companies_id'     => $this->companiesId,
-            'subsidiaries_id'  => $this->subsidiariesId,
+            'branch_id'        => $this->branchId,
             'user_id'          => $this->userId,
-            'level'            => $this->level,
-            'is_admin'         => in_array($this->level, self::ADMIN_LEVELS, true),
             'sucursales'       => $this->lsSucursales([$this->companiesId]),
             'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'estados_traspaso' => $this->lsTransferStatuses()
@@ -41,57 +37,52 @@ class ctrl extends mdl {
     function getCatalogosTraspaso() {
         $cid = $this->companiesId;
 
-        $productos = $this->listProductsForTransfer([$cid]);
-        $stockRows = $this->listStockBySubsidiary([$cid]);
+        $items    = $this->listItemsForTransfer([$cid]);
+        $stockRows = $this->listStockByBranch([$cid]);
 
         $stockMap = [];
         foreach ($stockRows as $s) {
-            $pid = (int) $s['product_id'];
-            $sid = (string) $s['subsidiaries_id'];
-            if (!isset($stockMap[$pid])) $stockMap[$pid] = [];
-            $stockMap[$pid][$sid] = (float) $s['qty'];
+            $iid = (int) $s['item_id'];
+            $bid = (string) $s['branch_id'];
+            if (!isset($stockMap[$iid])) $stockMap[$iid] = [];
+            $stockMap[$iid][$bid] = (float) $s['qty'];
         }
 
-        foreach ($productos as &$p) {
-            $pid = (int) $p['id'];
-            $p['id']           = (string) $p['id'];
-            $p['categoria']    = $p['categoria'] ?: '-';
-            $p['sku']          = $p['sku'] ?: '';
-            $p['icon']         = 'package';
-            $p['bg']           = 'bg-gray-700/40';
-            $p['color']        = 'text-gray-300';
-            $p['stockPorSuc']  = isset($stockMap[$pid]) ? (object) $stockMap[$pid] : (object) [];
+        foreach ($items as &$p) {
+            $iid = (int) $p['id'];
+            $p['id']          = (string) $p['id'];
+            $p['categoria']   = $p['categoria'] ?: '-';
+            $p['sku']         = $p['sku'] ?: '';
+            $p['icon']        = 'package';
+            $p['bg']          = 'bg-gray-700/40';
+            $p['color']       = 'text-gray-300';
+            $p['stockPorSuc'] = isset($stockMap[$iid]) ? (object) $stockMap[$iid] : (object) [];
         }
         unset($p);
 
         return [
-            'status'       => 200,
-            'sucursales'   => $this->lsSucursales([$cid]),
-            'almacenes'    => $this->lsWarehouses(['companies_id' => $cid]),
-            'categorias'   => $this->lsCategories(),
-            'productos'    => $productos,
-            'transformMap' => (object) []
+            'status'    => 200,
+            'sucursales' => $this->lsSucursales([$cid]),
+            'almacenes'  => $this->lsWarehouses(['companies_id' => $cid]),
+            'categorias' => [],
+            'productos'  => $items
         ];
     }
 
     function lsTraspasos() {
         $rows = $this->listTraspasos([
-            'companies_id'                => $this->companiesId,
-            'status_id'                   => $_POST['status_id'] ?? '',
-            // Alcance por sucursal activa: la lista incluye traspasos donde es origen O destino.
-            'scope_subsidiaries_id'       => $_POST['scope_subsidiaries_id'] ?? '',
-            'destination_subsidiaries_id' => $_POST['destination_subsidiaries_id'] ?? '',
-            'fi'                          => $_POST['fi'] ?? '',
-            'ff'                          => $_POST['ff'] ?? '',
-            'q'                           => $_POST['q'] ?? ''
+            'companies_id'         => $this->companiesId,
+            'status_id'            => $_POST['status_id'] ?? '',
+            'scope_branch_id'      => $_POST['scope_branch_id'] ?? '',
+            'destination_branch_id' => $_POST['destination_branch_id'] ?? '',
+            'fi'                   => $_POST['fi'] ?? '',
+            'ff'                   => $_POST['ff'] ?? '',
+            'q'                    => $_POST['q'] ?? ''
         ]);
 
         $row = [];
 
         foreach ($rows as $r) {
-            // La columna de operaciones solo ofrece Previsualizar: abre el panel de
-            // detalle a la derecha, donde viven las acciones contextuales del traspaso
-            // (Enviar / Confirmar Recepcion / Rechazar segun el estado).
             $acciones = [
                 [
                     'class'   => 'btn btn-sm btn-secondary me-1',
@@ -100,16 +91,16 @@ class ctrl extends mdl {
                 ]
             ];
 
-            $origen = sucChipCell(
-                $r['origin_subsidiaries_id'],
-                $r['origin_subsidiary_name'],
+            $origen  = sucChipCell(
+                $r['origin_branch_id'],
+                $r['origin_branch_name'],
                 $r['origin_warehouse_name'],
                 true
             );
 
             $destino = sucChipCell(
-                $r['destination_subsidiaries_id'],
-                $r['destination_subsidiary_name'],
+                $r['destination_branch_id'],
+                $r['destination_branch_name'],
                 $r['destination_warehouse_name'],
                 false
             );
@@ -135,10 +126,8 @@ class ctrl extends mdl {
 
     function showTraspasos() {
         $kpis = $this->getTraspasoKpis([
-            'companies_id'          => $this->companiesId,
-            // KPIs alineados con la lista: cuentan los traspasos de la sucursal activa
-            // (como origen O destino), no los de toda la compania.
-            'scope_subsidiaries_id' => $_POST['scope_subsidiaries_id'] ?? ''
+            'companies_id'    => $this->companiesId,
+            'scope_branch_id' => $_POST['scope_branch_id'] ?? ''
         ]);
         return ['status' => 200, 'counts' => $kpis];
     }
@@ -176,9 +165,6 @@ class ctrl extends mdl {
             $totalCost  += (float) $p['quantity'] * (float) $p['cost'];
         }
 
-        // Atomico: encabezado + todos los renglones + historial van juntos. Si algo falla a
-        // media insercion, el rollback los deshace y no queda un traspaso "mentiroso" (totales
-        // del encabezado sin sus renglones). El folio tampoco se desperdicia (el INSERT se revierte).
         try {
             return $this->transaction(function () use ($productos, $payload, $statusReq, $totalProducts, $totalUnits, $totalCost) {
                 $folio = $this->getNextFolio('TRA-', $this->companiesId);
@@ -192,8 +178,8 @@ class ctrl extends mdl {
                     (int) $statusReq['id'],
                     (int) $payload['origin_warehouse_id'],
                     (int) $payload['destination_warehouse_id'],
-                    (int) $payload['origin_subsidiaries_id'],
-                    (int) $payload['destination_subsidiaries_id'],
+                    (int) $payload['origin_branch_id'],
+                    (int) $payload['destination_branch_id'],
                     $this->userId,
                     $this->companiesId
                 ]);
@@ -201,12 +187,12 @@ class ctrl extends mdl {
                 $traspasoId = $this->getTraspasoIdByFolio([$folio, $this->companiesId]);
 
                 foreach ($productos as $p) {
-                    $productId  = (int) $p['product_id'];
-                    $originWh   = (int) $payload['origin_warehouse_id'];
-                    $qty        = (float) $p['quantity'];
-                    $cost       = (float) $p['cost'];
+                    $itemId  = (int) $p['item_id'];
+                    $originWh = (int) $payload['origin_warehouse_id'];
+                    $qty     = (float) $p['quantity'];
+                    $cost    = (float) $p['cost'];
 
-                    $originStock = $this->getStockRow([$productId, $originWh]);
+                    $originStock = $this->getStockRow([$itemId, $originWh]);
                     $originPrev  = $originStock ? (float) $originStock['quantity'] : 0;
                     $originPost  = max(0, $originPrev - $qty);
 
@@ -218,7 +204,7 @@ class ctrl extends mdl {
                         $originPost,
                         null,
                         null,
-                        $productId,
+                        $itemId,
                         $traspasoId
                     ]);
                 }
@@ -237,53 +223,6 @@ class ctrl extends mdl {
         }
     }
 
-    function authorizeTraspaso() {
-        $id = (int) $_POST['id'];
-        $st = $this->getTransferStatusByCode(['AUTHORIZED']);
-        try {
-            return $this->transaction(function () use ($id, $st) {
-                $this->updateTraspasoStatus([(int) $st['id'], $id]);
-                $this->updateTraspasoAuthorized([$this->userId, $id]);
-                $this->createTraspasoHistory(['Traspaso autorizado', (int) $st['id'], $this->userId, $id]);
-                return ['status' => 200, 'message' => 'Traspaso autorizado'];
-            });
-        } catch (\Throwable $e) {
-            return ['status' => 500, 'message' => 'No se pudo autorizar el traspaso'];
-        }
-    }
-
-    // Reservado (sin UI): flujo legado "En Transito" que solo descuenta el origen. El
-    // flujo vigente acepta y recibe en un paso via confirmTraspaso.
-    function sendTraspaso() {
-        $id = (int) $_POST['id'];
-        $st = $this->getTransferStatusByCode(['IN_TRANSIT']);
-
-        $detail = $this->listTraspasoDetail([$id]);
-        $header = $this->getTraspasoById([$id]);
-
-        // Atomico: cambio de estado + fecha de envio + descuento de stock del origen de todos
-        // los renglones + historial, todo junto o nada.
-        try {
-            return $this->transaction(function () use ($id, $st, $detail, $header) {
-                $this->updateTraspasoStatus([(int) $st['id'], $id]);
-                $this->updateTraspasoSent([$id]);
-
-                foreach ($detail as $d) {
-                    $stockRow = $this->getStockRow([(int) $d['product_id'], (int) $header['origin_warehouse_id']]);
-                    if ($stockRow) {
-                        $post = max(0, (float) $stockRow['quantity'] - (float) $d['quantity']);
-                        $this->updateStockQuantity([$post, (int) $stockRow['id']]);
-                    }
-                }
-
-                $this->createTraspasoHistory(['Traspaso enviado', (int) $st['id'], $this->userId, $id]);
-                return ['status' => 200, 'message' => 'Traspaso enviado'];
-            });
-        } catch (\Throwable $e) {
-            return ['status' => 500, 'message' => 'No se pudo enviar el traspaso'];
-        }
-    }
-
     function confirmTraspaso() {
         $id         = (int) $_POST['id'];
         $receivedBy = trim($_POST['received_by'] ?? '');
@@ -296,34 +235,22 @@ class ctrl extends mdl {
         $originWh = (int) $header['origin_warehouse_id'];
         $destWh   = (int) $header['destination_warehouse_id'];
 
-        // Flujo simplificado: al confirmar la recepcion se mueve TODO el stock de una vez
-        // (salida del origen + entrada al destino), omitiendo el paso intermedio "En
-        // Transito". Si el traspaso ya venia de ese estado (flujo anterior), el origen ya
-        // se desconto en sendTraspaso; en ese caso aqui NO se vuelve a descontar.
         $alreadySent = ($header['status_code'] ?? '') === 'IN_TRANSIT';
 
-        // Atomico: el movimiento de stock (salida origen + entrada destino) de TODOS los
-        // renglones, el cambio de estado y el historial van en una sola transaccion. Si algo
-        // falla a medias, el rollback deja el inventario intacto y el traspaso como estaba
-        // (Solicitado), de modo que sea seguro reintentar y no se descuadre el stock.
         try {
             return $this->transaction(function () use ($id, $st, $header, $detail, $originWh, $destWh, $alreadySent, $receivedBy) {
                 foreach ($detail as $d) {
-                    $productId = (int) $d['product_id'];
-                    $qty       = (float) $d['quantity'];
+                    $itemId = (int) $d['item_id'];
+                    $qty    = (float) $d['quantity'];
 
-                    // -- Salida del almacen origen (se descuenta aqui salvo que ya saliera antes).
-                    $originStock = $this->getStockRow([$productId, $originWh]);
+                    $originStock = $this->getStockRow([$itemId, $originWh]);
                     $originPrev  = $originStock ? (float) $originStock['quantity'] : 0;
                     $originPost  = $alreadySent ? $originPrev : max(0, $originPrev - $qty);
 
-                    // -- Entrada al almacen destino.
-                    $destStock = $this->getStockRow([$productId, $destWh]);
+                    $destStock = $this->getStockRow([$itemId, $destWh]);
                     $destPrev  = $destStock ? (float) $destStock['quantity'] : 0;
                     $destPost  = $destPrev + $qty;
 
-                    // Traza el movimiento real (recalculado al confirmar). Si el origen ya se
-                    // desconto antes, conserva su prev/post original sin pisarlo.
                     if ($alreadySent) {
                         $this->updateTraspasoDetailDestinationStock([$destPrev, $destPost, (int) $d['id']]);
                     } else {
@@ -336,17 +263,11 @@ class ctrl extends mdl {
                     if ($destStock) {
                         $this->updateStockQuantity([$destPost, (int) $destStock['id']]);
                     } else {
-                        $this->createStockRow([$destPost, $destWh, $productId, $this->companiesId]);
+                        $this->createStockRow([$destPost, $destWh, $itemId, $this->companiesId]);
                     }
                 }
 
                 $this->updateTraspasoStatus([(int) $st['id'], $id]);
-                // El destino que acepta el traspaso tambien lo autoriza: registra al usuario de
-                // sesion como autorizador si aun no estaba autorizado (no pisa flujos legados).
-                if (empty($header['authorized_user_id'])) {
-                    $this->updateTraspasoAuthorized([$this->userId, $id]);
-                }
-                // received_user_id = usuario de sesion; received_by_name = texto de quien recibe.
                 $this->updateTraspasoReceived([$this->userId, $receivedBy !== '' ? $receivedBy : null, $id]);
                 $nota = $receivedBy !== '' ? "Traspaso recibido · Recibe: {$receivedBy}" : 'Traspaso recibido';
                 $this->createTraspasoHistory([$nota, (int) $st['id'], $this->userId, $id]);
@@ -363,8 +284,6 @@ class ctrl extends mdl {
         $note = empty($_POST['note']) ? 'Traspaso rechazado' : $_POST['note'];
         $st   = $this->getTransferStatusByCode(['REJECTED']);
 
-        // Atomico: el cambio de estado y su huella de auditoria (quien/por que) van juntos,
-        // para no quedar "Rechazado" sin rastro en el historial.
         try {
             return $this->transaction(function () use ($id, $note, $st) {
                 $this->updateTraspasoStatus([(int) $st['id'], $id]);
@@ -379,9 +298,6 @@ class ctrl extends mdl {
 
 // Complements
 
-// Fecha de solicitud compacta: dd/mes/yyyy hh:mm am. Abreviaturas de mes en
-// espanol locale-independientes (strftime/%b depende de setlocale es_ES, poco
-// fiable en Windows/WAMP).
 function formatRequestDate($date) {
     $mesesAbr = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
     $ts = strtotime($date);
@@ -389,10 +305,7 @@ function formatRequestDate($date) {
     return date('d', $ts) . '/' . $mesesAbr[(int) date('n', $ts)] . '/' . date('Y', $ts) . ' ' . date('h:i', $ts) . ' ' . date('a', $ts);
 }
 
-// Celda Origen/Destino estilo chip: icono "store" coloreado por sucursal
-// (color estable segun el id), el nombre de la sucursal y, debajo, el almacen.
-// En el origen agrega una flecha a la derecha que apunta al destino.
-function sucChipCell($subId, $subName, $whName, $withArrow) {
+function sucChipCell($branchId, $branchName, $whName, $withArrow) {
     $palette = [
         ['icon' => 'text-blue-400',   'bg' => 'rgba(59,130,246,0.15)',  'border' => 'rgba(59,130,246,0.35)'],
         ['icon' => 'text-green-400',  'bg' => 'rgba(63,193,137,0.15)',  'border' => 'rgba(63,193,137,0.35)'],
@@ -401,8 +314,8 @@ function sucChipCell($subId, $subName, $whName, $withArrow) {
         ['icon' => 'text-orange-400', 'bg' => 'rgba(251,146,60,0.15)',  'border' => 'rgba(251,146,60,0.35)'],
         ['icon' => 'text-cyan-400',   'bg' => 'rgba(34,211,238,0.15)',  'border' => 'rgba(34,211,238,0.35)']
     ];
-    $name  = $subName ?: '-';
-    $idx   = $subId ? ((int) $subId % count($palette)) : 0;
+    $name  = $branchName ?: '-';
+    $idx   = $branchId ? ((int) $branchId % count($palette)) : 0;
     $p     = $palette[$idx];
     $wh    = $whName
         ? "<div class='text-[10px] text-gray-400 truncate'>{$whName}</div>"

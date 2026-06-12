@@ -1,0 +1,221 @@
+<div class="min-h-screen bg-[#0B1120] text-slate-100 antialiased flex flex-col">
+  <!-- Topbar -->
+  <header class="h-14 bg-[#0F172A] border-b border-slate-800 flex items-center justify-between px-4 shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="text-xl font-bold tracking-tight text-white">hb<span class="text-sky-500">.</span></span>
+      <button class="p-2 rounded-md hover:bg-slate-800 text-slate-300 transition-colors" aria-label="Menú">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <div class="relative">
+        <button id="topbarSucursalBtn" class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/50 rounded-lg pl-3 pr-2 py-1.5 transition-colors">
+          <div class="flex flex-col items-start leading-none">
+            <span class="text-[9px] uppercase tracking-widest text-slate-500 font-semibold">Sucursal</span>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span class="text-xs font-medium text-slate-200">Reginas Central Gpe</span>
+            </div>
+          </div>
+          <svg class="w-3.5 h-3.5 text-slate-400 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="topbarSucursalDd" class="hidden absolute right-0 mt-2 w-56 bg-[#1e293b] border border-slate-700/60 rounded-xl shadow-2xl z-50 overflow-hidden">
+          <div class="p-1.5">
+            <div class="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Seleccionar sucursal</div>
+            <button class="sel-suc-top w-full text-left px-3 py-2 rounded-md text-xs hover:bg-slate-700/50 transition-colors text-slate-100 bg-slate-700/30">Reginas Central Gpe</button>
+            <button class="sel-suc-top w-full text-left px-3 py-2 rounded-md text-xs text-slate-300 hover:bg-slate-700/50 transition-colors">Reginas Norte</button>
+            <button class="sel-suc-top w-full text-left px-3 py-2 rounded-md text-xs text-slate-300 hover:bg-slate-700/50 transition-colors">Reginas Sur</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="p-2 rounded-md hover:bg-slate-800 text-slate-400 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      </button>
+      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-slate-800">DM</div>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="flex flex-1 min-h-0">
+    <!-- Main Content -->
+    <main class="flex-1 p-5 overflow-auto min-w-0">
+      <!-- Title row -->
+      <div class="flex items-center gap-3 mb-5">
+        <button class="w-9 h-9 rounded-full border border-slate-700 bg-[#151e2e] hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div>
+          <h1 class="text-base font-semibold text-slate-100 leading-tight">Visor de Traspasos</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Gestión de movimientos entre sucursales</p>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+        <div class="rounded-lg bg-[#151e2e] border border-slate-800 p-4">
+          <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Mes</div>
+          <div class="text-xl font-bold text-slate-100 font-[JetBrains_Mono]">1</div>
+        </div>
+        <div class="rounded-lg bg-[#151e2e] border border-slate-800 p-4">
+          <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Pendientes</div>
+          <div class="text-xl font-bold text-amber-400 font-[JetBrains_Mono]">0</div>
+        </div>
+        <div class="rounded-lg bg-[#151e2e] border border-slate-800 p-4">
+          <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">En Transito</div>
+          <div class="text-xl font-bold text-amber-400 font-[JetBrains_Mono]">0</div>
+        </div>
+        <div class="rounded-lg bg-[#151e2e] border border-slate-800 p-4">
+          <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Recibidos</div>
+          <div class="text-xl font-bold text-emerald-400 font-[JetBrains_Mono]">1</div>
+        </div>
+        <div class="rounded-lg bg-[#151e2e] border border-slate-800 p-4">
+          <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Rechazados</div>
+          <div class="text-xl font-bold text-red-400 font-[JetBrains_Mono]">0</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="flex flex-col lg:flex-row items-end gap-3 mb-0">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full lg:w-auto flex-1">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] text-slate-500 font-medium">Rango de fecha:</label>
+            <div class="relative">
+              <input id="inputFecha" type="text" readonly value="01/06/2026 - 30/06/2026" class="w-full bg-[#151e2e] border border-slate-700 rounded-lg pl-3 pr-9 py-2 text-xs text-slate-200 focus:outline-none cursor-pointer hover:border-slate-600 transition-colors">
+              <svg class="w-3.5 h-3.5 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] text-slate-500 font-medium">Estado:</label>
+            <div class="relative">
+              <button id="btnEstado" class="w-full bg-[#151e2e] border border-slate-700 rounded-lg pl-3 pr-9 py-2 text-xs text-left text-slate-200 focus:outline-none hover:border-slate-600 transition-colors flex items-center justify-between relative">
+                <span id="lblEstado">Todos los estados</span>
+                <svg class="w-3.5 h-3.5 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+              <div id="ddEstado" class="hidden absolute left-0 top-full mt-1 w-full bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl z-40 overflow-hidden">
+                <div class="p-1">
+                  <button data-val="Todos los estados" class="sel-estado w-full text-left px-3 py-2 rounded-md text-xs hover:bg-slate-700/50 transition-colors text-slate-100 bg-slate-700/30">Todos los estados</button>
+                  <button data-val="Pendiente" class="sel-estado w-full text-left px-3 py-2 rounded-md text-xs text-slate-300 hover:bg-slate-700/50 transition-colors">Pendiente</button>
+                  <button data-val="En tránsito" class="sel-estado w-full text-left px-3 py-2 rounded-md text-xs text-slate-300 hover:bg-slate-700/50 transition-colors">En tránsito</button>
+                  <button data-val="Recibido" class="sel-estado w-full text-left px-3 py-2 rounded-md text-xs text-slate-300 hover:bg-slate-700/50 transition-colors">Recibido</button>
+                  <button data-val="Rechazado" class="sel-estado w-full text-left px-3 py-2 rounded-md text-xs text-slate-300 hover:bg-slate-700/50 transition-colors">Rechazado</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] text-slate-500 font-medium">Destino:</label>
+            <div class="relative">
+              <button id="btnDestino" class="w-full bg-[#151e2e] border border-slate-700 rounded-lg pl-3 pr-9 py-2 text-xs text-left text-slate-200 focus:outline-none hover:border-slate-600 transition-colors flex items-center justify-between relative">
+                <span id="lblDestino">Todas las sucursales</span>
+                <svg class="w-3.5 h-3.5 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+              <div id="ddDestino" class="hidden absolute left-0 top-full mt-1 w-full bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl z-40 overflow-hidden">
+                <div class="p-1">
+                  <button data-val="Todas las sucursales" class="sel-destino w-full text-left px-3 py-2 rounded-md text-xs hover:bg-slate-700/50 transition-colors text-slate-100 bg-slate-700/30">Todas las sucursales</button>
+                  <button data-val="Reginas Norte" class="sel-destino w-full text-left px-3 py-2 rounded-md text-xs text-slate-300 hover:bg-slate-700/50 transition-colors">Reginas Norte</button>
+                  <button data-val="Reginas Sur" class="sel-destino w-full text-left px-3 py-2 rounded-md text-xs text-slate-300 hover:bg-slate-700/50 transition-colors">Reginas Sur</button>
+                  <button data-val="Reginas Central Gpe" class="sel-destino w-full text-left px-3 py-2 rounded-md text-xs text-slate-300 hover:bg-slate-700/50 transition-colors">Reginas Central Gpe</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button id="btnNuevo" class="shrink-0 h-[34px] px-5 rounded-lg text-xs font-semibold bg-[#0e4a6f] hover:bg-[#155c85] text-white transition-colors flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          Nuevo Traspaso
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div class="h-px bg-slate-800 my-4"></div>
+
+      <!-- Table placeholder (vacío como en la imagen) -->
+      <div id="tableWrap" class="rounded-lg border border-slate-800 bg-[#0c1220] min-h-[320px] p-6">
+        <span class="text-xs text-slate-700 font-[JetBrains_Mono] select-none">#tableWrap</span>
+      </div>
+    </main>
+
+    <!-- Right Panel (Visor) -->
+    <aside class="w-[400px] min-w-[320px] border-l border-slate-800 bg-[#0B1120] flex flex-col shrink-0">
+      <div class="h-14 border-b border-slate-800 flex items-center justify-between px-5 shrink-0">
+        <h2 class="text-sm font-semibold text-slate-100">Detalle del traspaso</h2>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-slate-800 text-slate-500 border-slate-700">—</span>
+      </div>
+      <div class="flex-1 overflow-auto p-5">
+        <div class="flex flex-col items-center justify-center h-full text-slate-500">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 text-slate-700"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="m9 9 2 2 4-4"/></svg>
+          <p class="text-sm font-medium text-slate-400 mb-1">Sin selección</p>
+          <p class="text-xs text-slate-600 text-center">Selecciona un traspaso de la lista<br>para ver sus detalles y acciones.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- Modal Nuevo Traspaso -->
+<div id="modalNuevo" class="hidden fixed inset-0 z-50">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" data-close></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div class="bg-[#151e2e] border border-slate-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+        <h3 class="text-sm font-semibold text-slate-100">Nuevo Traspaso</h3>
+        <button data-close class="p-1 rounded hover:bg-slate-800 text-slate-400 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-5 space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-slate-500">Origen</label>
+            <select class="w-full bg-[#0c1220] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-500">
+              <option>Reginas Central Gpe</option>
+              <option>Reginas Norte</option>
+              <option>Reginas Sur</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-slate-500">Destino</label>
+            <select class="w-full bg-[#0c1220] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-500">
+              <option>Reginas Norte</option>
+              <option>Reginas Sur</option>
+              <option>Reginas Central Gpe</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] text-slate-500">Productos</label>
+          <textarea rows="3" class="w-full bg-[#0c1220] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-500 resize-none" placeholder="Describe los productos a trasladar..."></textarea>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button data-close class="px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800 transition-colors">Cancelar</button>
+          <button class="px-3 py-2 rounded-lg text-xs font-medium bg-[#0e4a6f] hover:bg-[#155c85] text-white transition-colors">Guardar Traspaso</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function dd(btnId,ddId,lblId,selClass,cb){
+    const b=document.getElementById(btnId), d=document.getElementById(ddId), l=document.getElementById(lblId);
+    if(!b||!d) return;
+    b.addEventListener('click',e=>{ e.stopPropagation(); const h=d.classList.contains('hidden'); document.querySelectorAll('[id^="dd"]').forEach(x=>x.classList.add('hidden')); if(h) d.classList.remove('hidden'); });
+    d.querySelectorAll(selClass).forEach(o=>o.addEventListener('click',()=>{ d.classList.add('hidden'); if(l) l.textContent=o.dataset.val; cb(o.dataset.val); }));
+  }
+  dd('btnEstado','ddEstado','lblEstado','.sel-estado',()=>{});
+  dd('btnDestino','ddDestino','lblDestino','.sel-destino',()=>{});
+
+  document.addEventListener('click',()=>document.querySelectorAll('[id^="dd"]').forEach(x=>x.classList.add('hidden')));
+
+  const topBtn=document.getElementById('topbarSucursalBtn'), topDd=document.getElementById('topbarSucursalDd');
+  if(topBtn){ topBtn.addEventListener('click',e=>{ e.stopPropagation(); const h=topDd.classList.contains('hidden'); document.querySelectorAll('[id^="dd"]').forEach(x=>x.classList.add('hidden')); if(h) topDd.classList.remove('hidden'); }); }
+
+  const modal=document.getElementById('modalNuevo');
+  document.getElementById('btnNuevo').addEventListener('click',()=>modal.classList.remove('hidden'));
+  modal.querySelectorAll('[data-close]').forEach(x=>x.addEventListener('click',()=>modal.classList.add('hidden')));
+})();
+</script>

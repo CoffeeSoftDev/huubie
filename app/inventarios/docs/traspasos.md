@@ -140,3 +140,7 @@ El ciclo se completa end-to-end desde la interfaz **sin** los pasos de autorizac
 | Enviar (resta origen) | [../ctrl/ctrl-inventarios.php](../ctrl/ctrl-inventarios.php) | `sendTraspaso` *(reservado, sin UI — flujo futuro "En Tránsito")* |
 | Detalle + mapeo al panel | [../src/js/pos-traspasos.js](../src/js/pos-traspasos.js) | `getTraspaso`, `mapTraspasoDetail`, `traspasoDetailPanel` |
 | Consulta de datos | [../mdl/mdl-inventarios.php](../mdl/mdl-inventarios.php) | `qTraspasos`, `qGetTraspaso`, `getTraspasoKpis` |
+
+---
+
+> **Nota — Mejoras y roadmap:** el análisis de lo que le falta al módulo (integridad de datos, permisos/autorización en servidor, reportes y escalamiento), priorizado por riesgo y con el estado de cada punto, vive en [traspasos-mejoras.md](traspasos-mejoras.md). Ya está hecho el punto **1.1 (transacciones / atomicidad)**; el resto queda como pendiente.

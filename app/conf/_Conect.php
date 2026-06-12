@@ -2,6 +2,7 @@
 	class Conection {
 		protected $mysql;
         protected $connected = false;
+        protected $inTransaction = false;
 
 		public function connect() {
             if (!$this->connected) {
@@ -29,9 +30,62 @@
 		}
         // Cerrar conexiones
         public function disconnect() {
+            // Si hay una transaccion abierta NO se cierra la conexion: las transacciones
+            // viven en una sola conexion, y _CUD/_Read llaman disconnect() al final de cada
+            // llamada. Sin este guardia, la transaccion moriria entre escritura y escritura.
+            if ($this->inTransaction) return;
             if ($this->connected) {
                 $this->mysql = null; // Cierra la conexión
                 $this->connected = false; // Establecer la bandera de conexión a false
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        //  TRANSACCIONES (atomicidad: "todo o nada")
+        //  Aditivo y retrocompatible: mientras nadie llame beginTransaction(),
+        //  $inTransaction queda en false y connect/disconnect se comportan igual
+        //  que siempre para el resto del sistema.
+        // ─────────────────────────────────────────────────────────────────
+
+        // Abre una transaccion sobre una unica conexion que se mantiene viva hasta
+        // commit() o rollback(). Idempotente: si ya hay una activa, no la anida.
+        public function beginTransaction() {
+            if ($this->inTransaction) return;
+            $this->connect();
+            if (!$this->connected) return; // si fallo la conexion, no marcar transaccion
+            $this->mysql->beginTransaction();
+            $this->inTransaction = true;
+        }
+
+        // Confirma TODAS las escrituras de la transaccion de una sola vez.
+        public function commit() {
+            if (!$this->inTransaction) return;
+            $this->mysql->commit();
+            $this->inTransaction = false;
+            $this->disconnect(); // ya no hay transaccion: cierra de verdad
+        }
+
+        // Deshace TODAS las escrituras de la transaccion (deja la base como estaba).
+        public function rollback() {
+            if (!$this->inTransaction) return;
+            $this->mysql->rollBack();
+            $this->inTransaction = false;
+            $this->disconnect();
+        }
+
+        // Envoltorio de conveniencia: ejecuta $fn dentro de una transaccion y hace
+        // commit si todo sale bien, o rollback si $fn lanza cualquier excepcion. Asi
+        // las funciones de negocio NO repiten el begin/try/commit/catch/rollback.
+        //   return $this->transaction(function () { ...escrituras...; return [...]; });
+        public function transaction(callable $fn) {
+            $this->beginTransaction();
+            try {
+                $result = $fn();
+                $this->commit();
+                return $result;
+            } catch (\Throwable $e) {
+                $this->rollback();
+                throw $e; // se relanza para que el controlador decida la respuesta
             }
         }
 
