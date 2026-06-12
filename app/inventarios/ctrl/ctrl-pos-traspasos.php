@@ -6,15 +6,22 @@ require_once '../mdl/mdl-pos-traspasos.php';
 
 class ctrl extends mdl {
 
+    // Niveles de rol que pueden cambiar de sucursal desde el navbar (mismo criterio que
+    // BRANCH_ALLOW_LEVEL en app/src/js/navbar.js). Para estos el filtro Origen sigue la
+    // sucursal activa de la sidebar; el resto queda fijo a su sucursal de sesion.
+    const ADMIN_LEVELS = [1, 5];
+
     public $companiesId;
     public $subsidiariesId;
     public $userId;
+    public $level;
 
     public function __construct() {
         parent::__construct();
         $this->companiesId    = (int) ($_SESSION['COM'] ?? $_SESSION['COMPANY_ID'] ?? $_POST['companies_id']    ?? 4);
         $this->subsidiariesId = (int) ($_SESSION['SUB'] ?? $_POST['subsidiaries_id'] ?? 0);
         $this->userId         = (int) ($_SESSION['USR'] ?? $_SESSION['ID']         ?? $_POST['user_id']         ?? 1);
+        $this->level          = (int) ($_SESSION['ROLID'] ?? 0);
     }
 
     function init() {
@@ -23,6 +30,8 @@ class ctrl extends mdl {
             'companies_id'     => $this->companiesId,
             'subsidiaries_id'  => $this->subsidiariesId,
             'user_id'          => $this->userId,
+            'level'            => $this->level,
+            'is_admin'         => in_array($this->level, self::ADMIN_LEVELS, true),
             'sucursales'       => $this->lsSucursales([$this->companiesId]),
             'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'estados_traspaso' => $this->lsTransferStatuses()
@@ -68,12 +77,13 @@ class ctrl extends mdl {
     function lsTraspasos() {
         $rows = $this->listTraspasos([
             'companies_id'                => $this->companiesId,
-            'status_id'                   => $_POST['status_id'],
-            'origin_subsidiaries_id'      => $_POST['origin_subsidiaries_id'],
-            'destination_subsidiaries_id' => $_POST['destination_subsidiaries_id'],
-            'fi'                          => $_POST['fi'],
-            'ff'                          => $_POST['ff'],
-            'q'                           => $_POST['q']
+            'status_id'                   => $_POST['status_id'] ?? '',
+            // Alcance por sucursal activa: la lista incluye traspasos donde es origen O destino.
+            'scope_subsidiaries_id'       => $_POST['scope_subsidiaries_id'] ?? '',
+            'destination_subsidiaries_id' => $_POST['destination_subsidiaries_id'] ?? '',
+            'fi'                          => $_POST['fi'] ?? '',
+            'ff'                          => $_POST['ff'] ?? '',
+            'q'                           => $_POST['q'] ?? ''
         ]);
 
         $row = [];
@@ -124,7 +134,12 @@ class ctrl extends mdl {
     }
 
     function showTraspasos() {
-        $kpis = $this->getTraspasoKpis(['companies_id' => $this->companiesId]);
+        $kpis = $this->getTraspasoKpis([
+            'companies_id'          => $this->companiesId,
+            // KPIs alineados con la lista: cuentan los traspasos de la sucursal activa
+            // (como origen O destino), no los de toda la compania.
+            'scope_subsidiaries_id' => $_POST['scope_subsidiaries_id'] ?? ''
+        ]);
         return ['status' => 200, 'counts' => $kpis];
     }
 

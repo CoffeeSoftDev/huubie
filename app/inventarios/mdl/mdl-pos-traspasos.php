@@ -135,6 +135,13 @@ class mdl extends CRUD {
             $where .= ' AND t.status_id = ?';
             $data[] = $array['status_id'];
         }
+        // Alcance por sucursal activa: incluye traspasos donde es origen (salientes) O
+        // destino (entrantes), para que el destino vea y acepte sus entrantes.
+        if (!empty($array['scope_subsidiaries_id'])) {
+            $where .= ' AND (t.origin_subsidiaries_id = ? OR t.destination_subsidiaries_id = ?)';
+            $data[] = $array['scope_subsidiaries_id'];
+            $data[] = $array['scope_subsidiaries_id'];
+        }
         if (!empty($array['origin_subsidiaries_id'])) {
             $where .= ' AND t.origin_subsidiaries_id = ?';
             $data[] = $array['origin_subsidiaries_id'];
@@ -205,6 +212,13 @@ class mdl extends CRUD {
         $where = 't.active = 1 AND t.companies_id = ?';
         $data  = [$array['companies_id']];
 
+        // Mismo alcance que listTraspasos: cuenta los traspasos de la sucursal activa
+        // como origen O destino, para que los KPIs concuerden con la lista.
+        if (!empty($array['scope_subsidiaries_id'])) {
+            $where .= ' AND (t.origin_subsidiaries_id = ? OR t.destination_subsidiaries_id = ?)';
+            $data[] = $array['scope_subsidiaries_id'];
+            $data[] = $array['scope_subsidiaries_id'];
+        }
         if (!empty($array['fi']) && !empty($array['ff'])) {
             $where .= ' AND DATE(t.date_request) BETWEEN ? AND ?';
             $data[] = $array['fi'];

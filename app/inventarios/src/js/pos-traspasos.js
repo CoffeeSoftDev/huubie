@@ -36,9 +36,13 @@ class App extends Templates {
             subsidiaries_id: ok ? (r.subsidiaries_id  || '') : '',
             sucursales:      ok ? (r.sucursales       || []) : [],
             estados:         ok ? (r.estados_traspaso || []) : [],
-            almacenes:       ok ? (r.almacenes        || []) : []
+            almacenes:       ok ? (r.almacenes        || []) : [],
+            isAdmin:         ok ? !!r.is_admin : false,
+            level:           ok ? (r.level || 0)  : 0
         };
 
+        this.isAdmin    = this.dataInit.isAdmin;
+        this.level      = this.dataInit.level;
         this.subId      = this.dataInit.subsidiaries_id;
         subsidiaries_id = this.subId;
 
@@ -84,11 +88,7 @@ class App extends Templates {
                     text:  '#tableWrap',
                     class: 'p-3 flex-1 min-h-0 overflow-auto'
                 },
-                {
-                    id:    'viewFooter',
-                    text:  '#viewFooter',
-                    class: 'px-4 py-2 bg-[#141d2b] border-t border-[#374151] flex items-center justify-between flex-shrink-0'
-                }
+               
             ]
         };
 
@@ -115,8 +115,6 @@ class App extends Templates {
             }
         });
     }
-
-    // -- Filter bar --
 
     filterBar() {
 
@@ -146,15 +144,10 @@ class App extends Templates {
                 value:    '',
                 data:     estados
             },
-            {
-                opc:      'select',
-                id:       'fOrigen',
-                lbl:      'Origen:',
-                class:    'col-12 col-md-2 col-lg-2',
-                onchange: 'app.onChangeFilters()',
-                value:    '',
-                data:     sucursales
-            },
+            // El Origen no es un selector libre: se toma de la sucursal activa. Para roles
+            // admin (niveles 1/5) la marca el selector de sucursal del navbar (sidebar) via
+            // onBranchChange; para el resto queda fija a la sucursal de su sesion. Ver
+            // getFilters() / onBranchChange().
             {
                 opc:      'select',
                 id:       'fDestino',
@@ -221,14 +214,19 @@ class App extends Templates {
 
     getFilters() {
         const range = getDataRangePicker(`calendar${this.PROJECT_NAME}`) || {};
+        // scope: SIEMPRE la sucursal activa. La lista muestra traspasos donde esa sucursal es
+        // origen (salientes) O destino (entrantes), para que el destino vea sus entrantes y
+        // pueda aceptarlos. Para admins (1/5) this.subId sigue al selector del navbar (sidebar)
+        // via onBranchChange; para el resto es su sucursal de sesion.
+        // destino: filtro opcional para acotar la contraparte dentro de ese alcance.
         return {
-            subsidiaries_id: $('#subsidiaries_id').val() || this.subId || '',
-            estado:          $('#fEstado').val()         || '',
-            origen:          $('#fOrigen').val()         || '',
-            destino:         $('#fDestino').val()        || '',
-            fechaIni:        range.fi                    || '',
-            fechaFin:        range.ff                    || '',
-            q:               $('#qBuscar').val()         || ''
+            subsidiaries_id: this.subId || '',
+            scope:           this.subId           || '',
+            estado:          $('#fEstado').val()  || '',
+            destino:         $('#fDestino').val() || '',
+            fechaIni:        range.fi             || '',
+            fechaFin:        range.ff             || '',
+            q:               $('#qBuscar').val()  || ''
         };
     }
 
@@ -251,14 +249,25 @@ class App extends Templates {
         }
     }
 
+    // Cambio de sucursal desde el navbar (evento 'branchChanged' de coffeeSoft). Solo los
+    // roles admin (1/5) muestran ese selector; al cambiarla, la sucursal activa pasa a ser
+    // el nuevo origen del filtro y se refresca la lista sin reconstruir el layout.
+    onBranchChange(detail) {
+        if (detail && detail.id != null) {
+            this.subId      = detail.id;
+            subsidiaries_id = this.subId;
+        }
+        // El detalle abierto pertenece a la sucursal anterior: al cambiar de sucursal se
+        // limpia siempre el visor (deselecciona la fila y vacia el panel de la derecha).
+        this.selectTraspaso(null);
+        traspasos.lsTraspasos();
+        traspasos.lsKpis();
+    }
+
     isVisibleAfterFilters(folio) {
         return $(`#tb${this.PROJECT_NAME} tbody tr`).filter(function () {
             return $(this).text().includes(folio);
         }).length > 0;
-    }
-
-    updateFooterInfo(text) {
-        $('#viewFooter_info').text(text);
     }
 
     // -- Facade --
@@ -289,8 +298,6 @@ class App extends Templates {
 
 class Traspasos extends Templates {
 
-    // -- Bootstrap --
-
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'POSTraspasos';
@@ -298,43 +305,37 @@ class Traspasos extends Templates {
 
     // -- Data --
 
-    async lsTraspasos() {
+    lsTraspasos() {
         const f = app.getFilters();
-        const r = await fn_ajax(Object.assign({ opc: 'lsTraspasos' }, {
-            status_id:                   f.estado,
-            origin_subsidiaries_id:      f.origen,
-            destination_subsidiaries_id: f.destino,
-            fi:                          f.fechaIni,
-            ff:                          f.fechaFin,
-            q:                           f.q
-        }), api).catch(() => null);
 
-        const data = (r && r.status === 200) ? { row: r.row } : { row: [] };
-
-        this.createCoffeeTable3({
-            parent:       'tableWrap',
-            id:           `tb${this.PROJECT_NAME}`,
-            theme:        'dark',
-            title:        '',
-            subtitle:     '',
-            center:       [3, 5, 6, 10],
-            right:        [7],
-            extends:      true,
-            scrollable:   false,
-            f_size:       12,
-            emptyMessage: 'No se encontraron traspasos con los filtros aplicados',
-            emptyIcon:    'icon-arrow-left-right',
-            data:         data
+        this.createTable({
+            parent:      'tableWrap',
+            idFilterBar: 'filterBar',
+            coffeesoft:  true,
+            conf:        { datatable: true, pag: 15 },
+            data: {
+                opc:                         'lsTraspasos',
+                status_id:                   f.estado,
+                scope_subsidiaries_id:       f.scope,
+                destination_subsidiaries_id: f.destino,
+                fi:                          f.fechaIni,
+                ff:                          f.fechaFin,
+                q:                           f.q
+            },
+            attr: {
+                id:           `tb${this.PROJECT_NAME}`,
+                theme:        'dark',
+                f_size:       12,
+                center:       [1,3,4, 5, 10],
+                right:        [6],
+                emptyMessage: 'No se encontraron traspasos con los filtros aplicados',
+                emptyIcon:    'icon-arrow-left-right'
+            }
         });
-
-        if (window.lucide) lucide.createIcons();
-
-        const total = (data.row || []).length;
-        app.updateFooterInfo(`Mostrando ${total} traspaso${total !== 1 ? 's' : ''}`);
     }
 
     async lsKpis() {
-        const r = await fn_ajax({ opc: 'showTraspasos' }, api).catch(() => null);
+        const r = await fn_ajax({ opc: 'showTraspasos', scope_subsidiaries_id: app.subId || '' }, api).catch(() => null);
         const c = (r && r.status === 200) ? r.counts : {};
 
         const kpis = [
@@ -550,6 +551,7 @@ class TraspasosView extends Templates {
         this.traspasoDetailPanel({
             parent:  'detailPanel',
             json:    traspaso,
+            subId:   app.subId,
             onClose: () => {
                 app.selectedId = null;
                 this.renderDetail(null);
@@ -809,6 +811,7 @@ class TraspasosView extends Templates {
             id:        'traspasoDetailPanel',
             class:     'w-full h-full flex-shrink-0 bg-[var(--cs-bg-header,#141d2b)] flex flex-col overflow-hidden',
             json:      null,
+            subId:     null,
             labels: {
                 emptyTitle: 'Selecciona un traspaso',
                 emptyHint:  'Haz click en una fila para ver el detalle completo aqui.',
@@ -836,6 +839,7 @@ class TraspasosView extends Templates {
                 rechazar:   'Rechazar',
                 cancelar:   'Cancelar Solicitud',
                 enviar:     'Enviar Traspaso',
+                aceptar:    'Aceptar Envio',
                 confirmar:  'Confirmar Recepcion'
             },
             estadoPalettes: {
@@ -911,14 +915,6 @@ class TraspasosView extends Templates {
                     <p class="text-[11px] text-[#9CA3AF]">${esc(opts.labels.emptyTitle)}</p>
                     <p class="text-[10px] text-[#9CA3AF] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
                 </div>
-                <div class="px-3 py-3 flex gap-2 flex-shrink-0">
-                    <button type="button" class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-red-600 opacity-40 cursor-not-allowed" disabled>
-                        <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>${esc(opts.labels.rechazar)}
-                    </button>
-                    <button type="button" class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-green-600 opacity-40 cursor-not-allowed" disabled>
-                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.confirmar)}
-                    </button>
-                </div>
             `);
             $(`#${opts.parent}`).html(aside);
             if (window.lucide) lucide.createIcons();
@@ -963,37 +959,22 @@ class TraspasosView extends Templates {
         };
 
         // Detalle de productos estilo "ticket": card con header (titulo + contador),
-        // icono de color por producto, costo unitario bajo el nombre y columnas
-        // Cant/Costo/Subtotal alineadas. Cierra con una fila Total destacada.
-        const prodPalette = [
-            { bg: 'rgba(167,139,250,0.15)', fg: 'text-purple-400' },
-            { bg: 'rgba(244,114,182,0.15)', fg: 'text-pink-400'   },
-            { bg: 'rgba(251,146,60,0.15)',  fg: 'text-orange-400' },
-            { bg: 'rgba(59,130,246,0.15)',  fg: 'text-blue-400'   },
-            { bg: 'rgba(63,193,137,0.15)',  fg: 'text-green-400'  },
-            { bg: 'rgba(34,211,238,0.15)',  fg: 'text-cyan-400'   }
-        ];
-
+        // nombre + costo unitario y columnas Cant/Costo/Subtotal alineadas. Cierra con
+        // una fila Total destacada.
         const productosTable = () => {
-            const rows = (t.productos || []).map((p, idx) => {
+            const rows = (t.productos || []).map((p) => {
                 const subtotal = Number(p.cant) * Number(p.costo);
-                const pal      = prodPalette[idx % prodPalette.length];
                 return `
                     <tr class="border-b border-[#374151]/60 last:border-0 hover:bg-[#111827]/40 transition-colors">
                         <td class="py-2 px-2">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${pal.bg};">
-                                    <i data-lucide="${esc(p.icon || 'package')}" class="w-4 h-4 ${pal.fg}"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-[11px] font-bold text-white leading-tight truncate">${esc(p.nombre)}</p>
-                                    <p class="text-[10px] text-[#9CA3AF] leading-tight">${fmtMoney(p.costo)} c/u</p>
-                                </div>
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-bold text-white leading-tight truncate">${esc(p.nombre)}</p>
+                                <p class="text-[9px] text-[#9CA3AF] leading-tight">${fmtMoney(p.costo)} c/u</p>
                             </div>
                         </td>
-                        <td class="py-2 px-2 text-center font-bold text-blue-400 whitespace-nowrap">${p.cant}</td>
-                        <td class="py-2 px-2 text-right text-[#9CA3AF] whitespace-nowrap">${fmtMoney(p.costo)}</td>
-                        <td class="py-2 px-2 text-right text-white font-bold whitespace-nowrap">${fmtMoney(subtotal)}</td>
+                        <td class="py-2 px-1 text-center font-bold text-blue-400 whitespace-nowrap text-[10px]">${p.cant}</td>
+                        <td class="py-2 px-1 text-right text-[#9CA3AF] whitespace-nowrap truncate text-[10px]">${fmtMoney(p.costo)}</td>
+                        <td class="py-2 px-2 text-right text-white font-bold whitespace-nowrap truncate text-[10px]">${fmtMoney(subtotal)}</td>
                     </tr>`;
             }).join('');
 
@@ -1001,9 +982,9 @@ class TraspasosView extends Templates {
                 <tfoot>
                     <tr class="border-t border-[#374151]">
                         <td class="py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</td>
-                        <td class="py-2.5 px-2 text-center font-bold text-blue-400 whitespace-nowrap">${uds}</td>
-                        <td class="py-2.5 px-2"></td>
-                        <td class="py-2.5 px-2 text-right text-sm font-bold text-blue-400 whitespace-nowrap">${fmtMoney(costoTot)}</td>
+                        <td class="py-2.5 px-1 text-center font-bold text-blue-400 whitespace-nowrap">${uds}</td>
+                        <td class="py-2.5 px-1"></td>
+                        <td class="py-2.5 px-2 text-right text-sm font-bold text-blue-400 whitespace-nowrap truncate">${fmtMoney(costoTot)}</td>
                     </tr>
                 </tfoot>` : '';
 
@@ -1013,13 +994,13 @@ class TraspasosView extends Templates {
                         <p class="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">${esc(opts.labels.detalleProductos)}</p>
                         <p class="text-[10px] text-[#9CA3AF]">${items} productos &middot; ${uds} uds</p>
                     </div>
-                    <table class="w-full text-[11px] border-collapse">
+                    <table class="w-full text-[11px] border-collapse table-fixed">
                         <thead>
                             <tr class="text-[9px] text-[#9CA3AF] uppercase tracking-wider border-b border-[#374151]">
                                 <th class="py-2 px-2 text-left font-bold">${esc(opts.labels.producto)}</th>
-                                <th class="py-2 px-2 text-center font-bold">${esc(opts.labels.cant)}</th>
-                                <th class="py-2 px-2 text-right font-bold">${esc(opts.labels.costo)}</th>
-                                <th class="py-2 px-2 text-right font-bold">${esc(opts.labels.subtot)}</th>
+                                <th class="py-2 px-1 text-center font-bold w-10">${esc(opts.labels.cant)}</th>
+                                <th class="py-2 px-1 text-right font-bold w-16">${esc(opts.labels.costo)}</th>
+                                <th class="py-2 px-2 text-right font-bold w-20">${esc(opts.labels.subtot)}</th>
                             </tr>
                         </thead>
                         <tbody>${rows || `<tr><td colspan="4" class="py-2 text-center text-[11px] text-gray-500 italic">Sin productos</td></tr>`}</tbody>
@@ -1040,17 +1021,50 @@ class TraspasosView extends Templates {
             `;
         }).join('') || '<p class="text-[10px] text-gray-500 italic">Sin historial</p>';
 
-        // Acciones segun estado:
-        // - Solicitado (REQUESTED): la sucursal destino aun NO acepta el traspaso, asi que
-        //   el origen solo puede cancelar su propia solicitud (un unico boton "Cancelar").
-        // - Autorizado / En Transito: ya fue aceptado; el destino puede Confirmar Recepcion
-        //   (descuenta origen y suma destino de una vez) o Rechazar.
+        // Acciones segun estado Y rol de la sucursal activa (opts.subId) frente al traspaso:
+        // - Solicitado:
+        //     * Si la activa es el ORIGEN: solo puede cancelar su propia solicitud.
+        //     * Si la activa es el DESTINO: puede Aceptar Envio (mueve a En Transito) o Rechazar.
+        // - Autorizado / En Transito (ya aceptado):
+        //     * Si la activa es el DESTINO: Confirmar Recepcion (descuenta origen / suma destino) o Rechazar.
         // - Recibido / Rechazado: terminal, sin acciones.
-        const isRequested = t.estado === 'Solicitado';
-        const canConfirm  = t.estado === 'Autorizado' || t.estado === 'En Transito';
-        const showReject  = canConfirm;
-        const primaryLbl  = opts.labels.confirmar;
-        const primaryIco  = 'check-circle-2';
+        // - Cualquier otra sucursal observadora: solo lectura (sin botones).
+        const subId     = opts.subId != null ? String(opts.subId) : '';
+        const origenId  = (t.origen  && t.origen.id  != null) ? String(t.origen.id)  : '';
+        const destinoId = (t.destino && t.destino.id != null) ? String(t.destino.id) : '';
+        const isOrigin  = subId !== '' && subId === origenId;
+        const isDestino = subId !== '' && subId === destinoId;
+
+        const isRequested = t.estado === 'Solicitado' || t.estado === 'Pendiente';
+        const inTransit   = t.estado === 'Autorizado' || t.estado === 'En Transito';
+
+        const btnCancel = `
+            <button type="button" id="${opts.id}_cancel"
+                    class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/20 transition-all">
+                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}
+            </button>`;
+        const btnReject = `
+            <button type="button" id="${opts.id}_reject"
+                    class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/20 transition-all">
+                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>${esc(opts.labels.rechazar)}
+            </button>`;
+        const btnAccept = `
+            <button type="button" id="${opts.id}_accept"
+                    class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-500 hover:shadow-lg hover:shadow-green-500/20 transition-all">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i>${esc(opts.labels.aceptar)}
+            </button>`;
+        const btnConfirm = `
+            <button type="button" id="${opts.id}_primary"
+                    class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-500 hover:shadow-lg hover:shadow-green-500/20 transition-all">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.confirmar)}
+            </button>`;
+
+        // mode determina que handlers se enganchan; '' => panel de solo lectura.
+        let actionsHtml = '';
+        let mode        = '';
+        if (isRequested && isOrigin)       { actionsHtml = btnCancel;             mode = 'cancel';  }
+        else if (isRequested && isDestino) { actionsHtml = btnReject + btnAccept; mode = 'accept';  }
+        else if (inTransit  && isDestino)  { actionsHtml = btnReject + btnConfirm; mode = 'confirm'; }
 
         aside.html(`
             <div class="px-3 py-3 flex-shrink-0 flex items-center justify-between">
@@ -1112,36 +1126,21 @@ class TraspasosView extends Templates {
                 </div>` : ''}
             </div>
 
-            <div class="px-3 py-3 flex gap-2 flex-shrink-0">
-                ${isRequested ? `
-                <button type="button" id="${opts.id}_cancel"
-                        class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/20 transition-all">
-                    <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}
-                </button>
-                ` : `
-                <button type="button" id="${opts.id}_reject"
-                        class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-red-600 ${showReject ? 'hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/20 transition-all' : 'opacity-40 cursor-not-allowed'}"
-                        ${showReject ? '' : 'disabled'}>
-                    <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>${esc(opts.labels.rechazar)}
-                </button>
-                <button type="button" id="${opts.id}_primary"
-                        class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 bg-green-600 ${canConfirm ? 'hover:bg-green-500 hover:shadow-lg hover:shadow-green-500/20 transition-all' : 'opacity-40 cursor-not-allowed'}"
-                        ${canConfirm ? '' : 'disabled'}>
-                    <i data-lucide="${primaryIco}" class="w-3.5 h-3.5"></i>${esc(primaryLbl)}
-                </button>
-                `}
-            </div>
+            ${actionsHtml ? `<div class="px-3 py-3 flex gap-2 flex-shrink-0">${actionsHtml}</div>` : ''}
         `);
 
         $(`#${opts.parent}`).html(aside);
         if (window.lucide) lucide.createIcons();
 
         $(`#${opts.id}_close`).on('click', () => opts.onClose(t));
-        if (isRequested) {
+        if (mode === 'cancel') {
             $(`#${opts.id}_cancel`).on('click', () => opts.onCancel(t));
-        } else {
+        } else if (mode === 'accept') {
+            $(`#${opts.id}_reject`).on('click', () => opts.onReject(t));
+            $(`#${opts.id}_accept`).on('click', () => opts.onSend(t));
+        } else if (mode === 'confirm') {
             $(`#${opts.id}_reject`).on('click',  () => opts.onReject(t));
-            $(`#${opts.id}_primary`).on('click', () => { if (canConfirm) opts.onConfirm(t); });
+            $(`#${opts.id}_primary`).on('click', () => opts.onConfirm(t));
         }
     }
 }
