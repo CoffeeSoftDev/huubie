@@ -30,39 +30,52 @@ class mdl extends CRUD {
         return $this->_Read($query, null);
     }
 
-    // Productos — usa order_products + order_category (tablas reales del schema)
+    // Productos — order_products + categoría + stock por almacén de la sucursal + mínimos
     function lsProducts($array) {
-        $leftjoin = [
-            $this->bd . 'order_category' => 'order_products.category_id = order_category.id'
-        ];
-        return $this->_Select([
-            'table'    => $this->bd . 'order_products',
-            'values'   => 'order_products.id, order_products.name, order_products.price, order_products.description, order_products.image, order_category.classification AS category',
-            'leftjoin' => $leftjoin,
-            'where'    => 'order_products.active = 1 AND order_products.subsidiaries_id = ?',
-            'order'    => ['ASC' => 'order_category.id, order_products.name'],
-            'data'     => $array
-        ]);
+        $query = "
+            SELECT
+                p.id,
+                p.name,
+                p.price,
+                p.description,
+                p.image,
+                oc.classification          AS category,
+                COALESCE(st.quantity, 0)   AS stock,
+                COALESCE(pa.stock_min, 0)  AS stock_min
+            FROM {$this->bd}order_products p
+            LEFT JOIN {$this->bd}order_category oc ON p.category_id = oc.id
+            LEFT JOIN {$this->bd}product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT JOIN (
+                SELECT s.product_id, SUM(s.quantity) AS quantity
+                FROM {$this->bd}stock s
+                INNER JOIN {$this->bd}warehouse w ON s.warehouse_id = w.id AND w.active = 1 AND w.subsidiaries_id = ?
+                WHERE s.active = 1
+                GROUP BY s.product_id
+            ) st ON st.product_id = p.id
+            WHERE p.active = 1 AND p.subsidiaries_id = ?
+            ORDER BY oc.id, p.name
+        ";
+        return $this->_Read($query, [$array[0], $array[0]]);
     }
 
-    // Tipos de pago POS — pos_payment_type (columnas: code, name)
+    // Tipos de pago POS — pos_payment_type (is_cash calcula cambio, is_visible filtra UI)
     function lsPaymentTypes() {
         $query = "
-            SELECT id, code, name
+            SELECT id, code, name, is_cash
             FROM {$this->bd}pos_payment_type
-            WHERE active = 1
+            WHERE active = 1 AND is_visible = 1
             ORDER BY id
         ";
         return $this->_Read($query, null);
     }
 
-    // Motivos de descuento — pos_discount_reason (columnas: id, name)
+    // Motivos de descuento — pos_discount_reason con reglas de negocio
     function lsDiscountReasons() {
         $query = "
-            SELECT id, name AS valor
+            SELECT id, code, name, max_percentage, requires_authorization
             FROM {$this->bd}pos_discount_reason
             WHERE active = 1
-            ORDER BY name
+            ORDER BY id
         ";
         return $this->_Read($query, null);
     }
@@ -108,20 +121,72 @@ class mdl extends CRUD {
         return is_array($result) && !empty($result) ? $result[0] : null;
     }
 
-    // order.status es INT → join status_process para filtrar por label
+    // Métricas en vivo del turno (4 = Cancelado en status_process)
     function getShiftMetrics($array) {
         $query = "
             SELECT
                 COUNT(*)                    AS total_orders,
                 COALESCE(SUM(o.total_pay), 0) AS total_sales
             FROM {$this->bd}`order` o
-            INNER JOIN {$this->bd}status_process sp ON o.status = sp.id
             WHERE o.cash_shift_id = ?
-              AND sp.status != 'cancelada'
+              AND o.status != 4
               AND o.is_pos = 1
         ";
         $result = $this->_Read($query, $array);
         return is_array($result) && !empty($result) ? $result[0] : ['total_orders' => 0, 'total_sales' => 0];
+    }
+
+    function createCashShift($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}cash_shift",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    function getMaxCashShift() {
+        $query = "SELECT MAX(id) AS id FROM {$this->bd}cash_shift";
+        $result = $this->_Read($query, null);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function getCashShiftById($id) {
+        $query = "
+            SELECT cs.*, u.fullname AS employee_name
+            FROM {$this->bd}cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.id = ? AND cs.active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, [$id]);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function closeCashShift($array) {
+        $query = "
+            UPDATE {$this->bd}cash_shift
+            SET closed_at = ?, status = 'closed',
+                total_sales = ?, cash = ?, card = ?,
+                transfer = ?, total_orders = ?
+            WHERE id = ? AND status = 'open'
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Desglose de pagos POS del turno (EFE/TDC/TRF) para el corte
+    function getShiftPaymentBreakdown($array) {
+        $query = "
+            SELECT
+                COALESCE(SUM(CASE WHEN pt.is_cash = 1   THEN pop.amount ELSE 0 END), 0) AS cash,
+                COALESCE(SUM(CASE WHEN pt.code = 'TDC'  THEN pop.amount ELSE 0 END), 0) AS card,
+                COALESCE(SUM(CASE WHEN pt.code = 'TRF'  THEN pop.amount ELSE 0 END), 0) AS transfer
+            FROM {$this->bd}pos_order_payment pop
+            INNER JOIN {$this->bd}pos_payment_type pt ON pop.pos_payment_type_id = pt.id
+            INNER JOIN {$this->bd}`order` o ON pop.order_id = o.id
+            WHERE o.cash_shift_id = ? AND o.status != 4 AND pop.active = 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : ['cash' => 0, 'card' => 0, 'transfer' => 0];
     }
 
     function getMaxOrderFolio() {
@@ -316,6 +381,28 @@ class mdl extends CRUD {
         return is_array($result) && !empty($result) ? $result[0] : null;
     }
 
+    // Precios reales por id — el total se calcula en servidor, no se confía en el POST
+    function getProductsByIds($ids) {
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $query = "
+            SELECT id, name, price
+            FROM {$this->bd}order_products
+            WHERE active = 1 AND id IN ({$placeholders})
+        ";
+        return $this->_Read($query, $ids);
+    }
+
+    // Descuenta stock en el almacén default de la sucursal al cobrar
+    function decrementStock($array) {
+        $query = "
+            UPDATE {$this->bd}stock s
+            INNER JOIN {$this->bd}warehouse w ON s.warehouse_id = w.id AND w.is_default = 1 AND w.active = 1
+            SET s.quantity = s.quantity - ?, s.last_movement_at = NOW()
+            WHERE s.product_id = ? AND w.subsidiaries_id = ? AND s.active = 1
+        ";
+        return $this->_CUD($query, $array);
+    }
+
     // =========================================================================
     // Items del ticket — order_package con pedidos_id como FK a order
     // =========================================================================
@@ -335,6 +422,12 @@ class mdl extends CRUD {
             'where'  => 'id = ?',
             'data'   => $array['data']
         ]);
+    }
+
+    function getMaxOrderPackageId() {
+        $query = "SELECT MAX(id) AS id FROM {$this->bd}order_package";
+        $result = $this->_Read($query, null);
+        return is_array($result) && !empty($result) ? (int)$result[0]['id'] : 0;
     }
 
     // Eliminar todos los items de una orden por pedidos_id
@@ -397,6 +490,18 @@ class mdl extends CRUD {
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
+    }
+
+    function getLastClient($array) {
+        $query = "
+            SELECT id, name, phone, email
+            FROM {$this->bd}order_clients
+            WHERE subsidiaries_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
     }
 
     function getClientById($array) {

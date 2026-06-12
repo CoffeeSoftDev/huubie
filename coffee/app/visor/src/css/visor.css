@@ -698,6 +698,37 @@ body.xlsx-view .doc-meta { display: none; }
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
+/* ── Modo diagrama dividido: documento (izq) + lienzo draw.io (der) ──
+   Al pulsar "Diagrama" no ocultamos el documento; lo dejamos a la izquierda
+   como referencia y el lienzo aparece a la derecha. Cada panel scrollea solo. */
+body.diagram-mode .main-content {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 20px;
+    overflow: hidden;
+}
+body.diagram-mode .doc-layout {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+}
+body.diagram-mode #drawioStage {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+}
+/* Sin Frontmatter/TOC en split: todo el ancho de la mitad izquierda al documento. */
+body.diagram-mode .doc-meta { display: none; }
+
+/* Pantallas estrechas: apilar documento arriba y lienzo abajo. */
+@media (max-width: 1100px) {
+    body.diagram-mode .main-content { flex-direction: column; overflow-y: auto; }
+    body.diagram-mode .doc-layout   { height: auto; overflow-y: visible; }
+    body.diagram-mode #drawioStage  { height: 70vh; }
+}
+
 /* ── Frontmatter card (panel lateral derecho) ─────────────── */
 
 .frontmatter-card {

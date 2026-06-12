@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Histórico de Mermas — CoffeeSoft Inventarios</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-font-smoothing: antialiased; }
+  .num { font-variant-numeric: tabular-nums; }
+  .table-scroll::-webkit-scrollbar { height: 8px; }
+  .table-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+  .table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  .table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  .heat-cell { transition: filter .15s ease; }
+  .heat-cell:hover { filter: brightness(.93); }
+  .dropdown-enter { animation: dropIn .15s ease-out; transform-origin: top right; }
+  @keyframes dropIn { from { opacity: 0; transform: scale(.95) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .cat-opt.active { background: #fef2f2; }
+  .fade-in { animation: fadeIn .25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .drawer-enter { animation: drawerIn .28s cubic-bezier(.22,.61,.36,1); }
+  @keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  .backdrop-enter { animation: backdropIn .2s ease-out; }
+  @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body class="bg-[#F4F5F7] text-slate-800 min-h-screen">
+
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+    <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2 text-sm">
+        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <a href="#" class="text-slate-500 hover:text-slate-800 transition-colors">Inventarios</a>
+        <svg class="w-3 h-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <a href="#" class="text-slate-500 hover:text-slate-800 transition-colors">Mermas</a>
+        <svg class="w-3 h-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <span class="text-slate-800 font-medium">Histórico</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+          <svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div class="flex flex-col leading-tight">
+            <span class="text-[9px] uppercase tracking-wider text-slate-400">Hora actual</span>
+            <span class="text-xs font-bold text-slate-700 num" id="clock">11:27:06</span>
+          </div>
+        </div>
+        <button class="relative p-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-white">3</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-[1600px] mx-auto p-6 space-y-4">
+
+    <div class="bg-white border border-slate-200 rounded-xl p-6">
+      <div class="flex items-start justify-between gap-6 flex-wrap">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-2.5">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-600 text-[10px] font-bold uppercase tracking-wider rounded-md border border-red-100">
+              <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+              Histórico · Categorías
+            </span>
+            <span class="text-xs text-slate-500">Sucursal Centro</span>
+          </div>
+          <h1 class="text-2xl font-bold text-slate-900 mb-1.5">Histórico de Mermas</h1>
+          <p class="text-sm text-slate-500 max-w-2xl">Evolución diaria de la merma por categoría (FRANCES, BIZCOCHO, PASTELERIA) para identificar tendencias y comparar periodos.</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <div id="periodToggle" class="inline-flex p-0.5 bg-slate-100 rounded-lg">
+            <button class="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:text-slate-700 transition-colors">Semana</button>
+            <button class="px-3 py-1.5 text-xs font-medium bg-red-500 text-white rounded-md shadow-sm">Mes</button>
+            <button class="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:text-slate-700 transition-colors">Trimestre</button>
+          </div>
+
+          <div class="relative" id="categoryDropdown">
+            <button id="categoryBtn" class="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors">
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+              <span id="categoryLabel">Todas las categorías</span>
+              <svg id="categoryChevron" class="w-3 h-3 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div id="categoryMenu" class="hidden absolute right-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-20 overflow-hidden dropdown-enter">
+              <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/70 border-b border-slate-100">Filtrar por categoría</div>
+              <button data-cat="all" class="cat-opt w-full flex items-center justify-between px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors">
+                <div class="flex items-center gap-2.5"><span class="w-3 h-3 rounded-full bg-gradient-to-br from-red-500 via-amber-500 to-emerald-500"></span><span class="font-medium">Todas las categorías</span></div>
+                <svg class="w-3.5 h-3.5 text-red-500 check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </button>
+              <div class="border-t border-slate-100"></div>
+              <button data-cat="FRANCES" class="cat-opt w-full flex items-center justify-between px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors">
+                <div class="flex items-center gap-2.5"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="font-medium">FRANCES</span></div>
+                <svg class="w-3.5 h-3.5 text-red-500 check hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </button>
+              <button data-cat="BIZCOCHO" class="cat-opt w-full flex items-center justify-between px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors">
+                <div class="flex items-center gap-2.5"><span class="w-3 h-3 rounded-full bg-amber-500"></span><span class="font-medium">BIZCOCHO</span></div>
+                <svg class="w-3.5 h-3.5 text-red-500 check hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </button>
+              <button data-cat="PASTELERIA" class="cat-opt w-full flex items-center justify-between px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors">
+                <div class="flex items-center gap-2.5"><span class="w-3 h-3 rounded-full bg-emerald-500"></span><span class="font-medium">PASTELERIA</span></div>
+                <svg class="w-3.5 h-3.5 text-red-500 check hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <button class="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors">
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Exportar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-5">
+        <div class="flex items-start justify-between mb-3">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Merma Acumulada (Mes)</span>
+          <span class="p-1.5 bg-red-50 rounded-md"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></span>
+        </div>
+        <div class="text-3xl font-bold text-slate-900 num mb-2">6,184</div>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 text-red-600 font-semibold rounded"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>+8.1%</span>
+          <span class="text-slate-500">vs mes anterior</span>
+        </div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-xl p-5">
+        <div class="flex items-start justify-between mb-3">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">% Merma Promedio</span>
+          <span class="p-1.5 bg-orange-50 rounded-md"><svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span>
+        </div>
+        <div class="text-3xl font-bold text-slate-900 num mb-2">4.7<span class="text-xl text-slate-400">%</span></div>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 text-red-600 font-semibold rounded"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>+0.4 pts</span>
+          <span class="text-slate-500">objetivo 4.5%</span>
+        </div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-xl p-5">
+        <div class="flex items-start justify-between mb-3">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mejor Día</span>
+          <span class="p-1.5 bg-emerald-50 rounded-md"><svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg></span>
+        </div>
+        <div class="text-3xl font-bold text-slate-900 num mb-2">3.1<span class="text-xl text-slate-400">%</span></div>
+        <div class="text-xs text-slate-500">Mejor día del período · Todas las categorías</div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-xl p-5">
+        <div class="flex items-start justify-between mb-3">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Valor Perdido (Mes)</span>
+          <span class="p-1.5 bg-red-50 rounded-md"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
+        </div>
+        <div class="text-3xl font-bold text-slate-900 num mb-2">$46,318</div>
+        <div class="text-xs text-slate-500">MXN · 31 días</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-5">
+        <div class="flex items-start justify-between mb-4 flex-wrap gap-3">
+          <div>
+            <h2 id="lineTitle" class="text-sm font-bold text-slate-900">Tendencia de % de merma · 31 días</h2>
+            <p id="lineSubtitle" class="text-xs text-slate-500 mt-0.5">% diario de merma vs margen objetivo (6%) · Todas las categorías</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs">
+            <div class="flex items-center gap-1.5"><span id="lineLegendSwatch" class="w-3.5 h-0.5 bg-red-500 rounded"></span><span id="lineLegendLabel" class="text-slate-600">% Merma</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-3.5 border-t-2 border-dashed border-emerald-500"></span><span class="text-slate-600">Objetivo</span></div>
+          </div>
+        </div>
+        <div class="h-64"><canvas id="lineChart"></canvas></div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-xl p-5">
+        <div class="mb-2">
+          <h2 id="donutTitle" class="text-sm font-bold text-slate-900">Mermas por categoría</h2>
+          <p id="donutSubtitle" class="text-xs text-slate-500 mt-0.5">Unidades de merma acumuladas · 31 días</p>
+        </div>
+        <div class="h-44 flex items-center justify-center"><canvas id="donutChart"></canvas></div>
+        <div id="donutLegend" class="mt-4 space-y-1.5 pt-3 border-t border-slate-100"></div>
+      </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div class="border-b border-slate-200 px-5 flex items-center gap-6">
+        <button data-tab="comportamiento" class="relative py-3.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+          <span class="inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            Comportamiento por producto
+          </span>
+        </button>
+        <button data-tab="registro" class="relative py-3.5 text-sm font-medium text-red-600 transition-colors">
+          <span class="inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Registro histórico diario
+          </span>
+          <span class="tab-underline absolute -bottom-px left-0 right-0 h-0.5 bg-red-500"></span>
+        </button>
+      </div>
+
+      <div id="tab-comportamiento" class="hidden">
+        <div class="px-5 py-3 flex items-center justify-between flex-wrap gap-2">
+          <p id="tableSubtitle" class="text-xs text-slate-500">Mermas diarias por producto · últimos 7 días</p>
+          <div class="relative">
+            <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input id="searchInput" type="text" placeholder="Buscar producto..." class="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-xs w-64 focus:outline-none focus:border-red-500 focus:bg-white transition-colors">
+          </div>
+        </div>
+        <div class="table-scroll overflow-x-auto">
+          <table class="w-full text-xs min-w-[900px]">
+            <thead>
+              <tr class="border-y border-slate-200 bg-slate-50/50">
+                <th class="text-left py-2.5 px-5 font-semibold text-slate-500 uppercase tracking-wider text-[10px] w-56">Producto</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Vie 30</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Sáb 31</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Dom 01</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Lun 02</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Mar 03</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Mié 04</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Jue 05</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Total 7d</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px] w-32">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="productTable"></tbody>
+          </table>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-200 flex items-center justify-between text-xs flex-wrap gap-2">
+          <span class="text-slate-500"><span id="productCount">10</span> productos</span>
+          <div class="flex items-center gap-4 text-slate-500">
+            <div class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-100 rounded-sm border border-red-200"></span><span>menor merma</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-500 rounded-sm"></span><span>mayor merma</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-registro" class="fade-in">
+        <div class="px-5 py-3"><p id="registroSubtitle" class="text-xs text-slate-500">Producción y merma por categoría · últimos registros</p></div>
+        <div class="table-scroll overflow-x-auto">
+          <table class="w-full text-xs min-w-[900px]">
+            <thead>
+              <tr class="border-y border-slate-200 bg-slate-50/50">
+                <th class="text-left py-2.5 px-5 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Fecha</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Producido</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Merma uds</th>
+                <th class="text-center py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">% Merma</th>
+                <th class="text-left py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Motivo top</th>
+                <th class="text-right py-2.5 px-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Valor perdido</th>
+                <th class="text-center py-2.5 px-5 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Estado del día</th>
+              </tr>
+            </thead>
+            <tbody id="registroTable"></tbody>
+          </table>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-200 flex items-center justify-between text-xs flex-wrap gap-2">
+          <span id="registroFooter" class="text-slate-500">Mostrando 6 de 31 días · Todas las categorías</span>
+          <div class="flex items-center gap-1">
+            <button id="prevPage" class="p-1.5 border border-slate-200 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors" disabled>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <button id="nextPage" class="p-1.5 border border-slate-200 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========== DRAWER: VISOR DE PRODUCTO (SIN FOOTER DE BOTONES) ========== -->
+  <div id="productDrawer" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm backdrop-enter" id="drawerBackdrop"></div>
+    <aside class="absolute top-0 right-0 h-full w-full sm:w-[420px] bg-white shadow-2xl flex flex-col drawer-enter">
+      <div class="flex-shrink-0 border-b border-slate-200 px-5 py-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Producto</span>
+            <h3 id="drawerProductName" class="text-base font-bold text-slate-900 mt-0.5 truncate">Fogaza Tradicional</h3>
+            <p id="drawerProductMeta" class="text-[11px] text-slate-500 mt-0.5">Panadería · #0001</p>
+          </div>
+          <button id="drawerClose" class="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors flex-shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-4 space-y-3">
+        <div class="border border-slate-200 rounded-lg p-3.5">
+          <div class="flex items-start justify-between mb-2.5">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">% Merma actual vs margen</span>
+            <span id="drawerStatusBadge" class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full">DENTRO DE MARGEN</span>
+          </div>
+          <div class="relative h-2.5 bg-gradient-to-r from-emerald-400 via-amber-400 to-red-500 rounded-full mb-7">
+            <div id="drawerMarker" class="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-purple-500 rounded-full shadow transition-all" style="left: 25%"></div>
+            <div class="absolute top-3 left-0 text-[9px] text-slate-400 num">0%</div>
+            <div id="drawerMarginLabel" class="absolute top-3 -translate-x-1/2 text-[9px] text-purple-600 font-semibold num" style="left: 25%">Margen 4%</div>
+            <div class="absolute top-3 right-0 text-[9px] text-slate-400 num">8.0%</div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center pt-1">
+            <div>
+              <div class="text-[10px] text-slate-500 mb-0.5">Producción</div>
+              <div id="drawerProduccion" class="text-base font-bold text-slate-800 num">120</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-500 mb-0.5">Merma</div>
+              <div id="drawerMerma" class="text-base font-bold text-slate-800 num">4</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-500 mb-0.5">% Merma</div>
+              <div id="drawerPct" class="text-base font-bold text-emerald-600 num">3.33%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-lg p-3.5">
+          <div class="flex items-center justify-between mb-2.5">
+            <div>
+              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Movimiento · últimos 7 días</span>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-slate-100 text-slate-600">
+                  <span class="w-1.5 h-1.5 bg-red-500 rounded-sm"></span>Uds
+                </span>
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-violet-50 text-violet-600">
+                  <span class="w-1.5 h-1.5 bg-violet-500 rounded-sm"></span>Margen
+                </span>
+              </div>
+            </div>
+            <span class="text-[10px] text-slate-400 num" id="drawerMovementLabel">FRANCES</span>
+          </div>
+          <div class="h-40"><canvas id="drawerMovementChart"></canvas></div>
+          <div id="drawerMovements" class="mt-2.5 grid grid-cols-7 gap-1"></div>
+        </div>
+
+        <div class="border border-purple-200 bg-purple-50/50 rounded-lg p-3.5">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            <span class="text-[10px] font-bold text-purple-700 uppercase tracking-wider">Acción correctiva sugerida</span>
+          </div>
+          <p id="drawerAction" class="text-xs text-slate-700 leading-relaxed"></p>
+        </div>
+
+        <div class="border border-slate-200 rounded-lg overflow-hidden">
+          <button id="aiToggle" class="w-full px-3.5 py-3 flex items-center justify-between bg-gradient-to-r from-violet-50 to-white hover:from-violet-100 hover:to-violet-50/50 transition-colors">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-sm">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div class="text-left">
+                <div class="text-xs font-bold text-slate-800">Potenciar con IA</div>
+                <div class="text-[10px] text-slate-500">Recomendaciones inteligentes</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-violet-100 text-violet-700 rounded">Beta</span>
+              <svg id="aiChevron" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </button>
+          <div id="aiPanel" class="hidden border-t border-slate-200 p-3.5 space-y-2.5">
+            <div class="flex items-center gap-2 text-[10px] text-slate-500">
+              <span class="w-1.5 h-1.5 bg-violet-500 rounded-full animate-pulse"></span>
+              <span>3 sugerencias generadas por <strong class="text-violet-700">CoffeeIA</strong> para este producto</span>
+            </div>
+            <div class="space-y-2">
+              <div class="border border-slate-200 rounded-lg p-2.5 hover:border-violet-300 hover:bg-violet-50/30 transition-colors cursor-pointer group">
+                <div class="flex items-start gap-2.5">
+                  <div class="w-7 h-7 rounded-md bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100">
+                    <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-xs font-semibold text-slate-800">Pronóstico de demanda</span>
+                      <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-blue-50 text-blue-700">+12%</span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 mt-0.5 leading-relaxed">Sábado se proyecta <strong>+12%</strong> vs semana anterior. Reducir producción en <strong>8 uds</strong> para evitar merma por caducidad.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-2.5 hover:border-violet-300 hover:bg-violet-50/30 transition-colors cursor-pointer group">
+                <div class="flex items-start gap-2.5">
+                  <div class="w-7 h-7 rounded-md bg-emerald-50 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100">
+                    <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-xs font-semibold text-slate-800">Optimizar turno</span>
+                      <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-50 text-emerald-700">Ahorro</span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 mt-0.5 leading-relaxed">Mover horneado de 5:00 a 6:30 reduce merma por caducidad en <strong>~1.5 uds/día</strong> según histórico.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-2.5 hover:border-violet-300 hover:bg-violet-50/30 transition-colors cursor-pointer group">
+                <div class="flex items-start gap-2.5">
+                  <div class="w-7 h-7 rounded-md bg-amber-50 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-100">
+                    <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-xs font-semibold text-slate-800">Alerta de patrón</span>
+                      <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-50 text-amber-700">Detectado</span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 mt-0.5 leading-relaxed">Picos recurrentes los <strong>sábados</strong> correlacionan con baja rotación. Activar descuento automático a partir de las <strong>17:00</strong>.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button class="ai-generate w-full mt-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white text-[11px] font-semibold rounded-md transition-colors shadow-sm">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              Regenerar con IA
+            </button>
+          </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-lg p-3.5">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Margen aceptable del producto</span>
+          <div class="flex items-center gap-2 mt-2">
+            <div class="relative flex-1">
+              <input id="drawerMargin" type="number" step="0.1" value="3.5" class="w-full pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-sm num focus:outline-none focus:border-purple-500 focus:bg-white">
+              <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+            </div>
+            <button id="drawerSaveMargin" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-md transition-colors">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              Guardar
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1.5">En backend: tabla <code class="px-1 py-0.5 bg-slate-100 rounded text-[9px]">product_margin(product_id, margenPct)</code> con histórico de cambios.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const products = {
+      FRANCES: [
+        { name: 'Bolillo',  values: [42, 48, 35, 44, 52, 38, 53], margin: 4.0, produccion: 320, merma: 12 },
+        { name: 'Telera',   values: [32, 36, 26, 33, 38, 28, 38], margin: 4.5, produccion: 180, merma: 7 },
+        { name: 'Baguette', values: [22, 24, 18, 22, 26, 20, 24], margin: 3.5, produccion: 120, merma: 4 }
+      ],
+      BIZCOCHO: [
+        { name: 'Concha',   values: [22, 25, 18, 23, 28, 21, 26], margin: 3.5, produccion: 150, merma: 5 },
+        { name: 'Cuernito', values: [16, 18, 14, 17, 21, 16, 20], margin: 4.0, produccion: 110, merma: 4 },
+        { name: 'Dona',     values: [10, 12,  9, 11, 14, 10, 13], margin: 3.0, produccion:  80, merma: 3 }
+      ],
+      PASTELERIA: [
+        { name: 'Pastel 3 leches', values: [11, 13,  9, 12, 15, 11, 15], margin: 2.5, produccion: 60, merma: 2 },
+        { name: 'Pastel chocolate',values: [10, 12,  8, 10, 14, 10, 12], margin: 2.5, produccion: 55, merma: 2 },
+        { name: 'Pay limón',       values: [ 9, 11,  8, 10, 13,  9, 11], margin: 2.0, produccion: 45, merma: 1 },
+        { name: 'Tarta fresa',     values: [ 7,  8,  6,  7, 10,  7,  9], margin: 2.0, produccion: 40, merma: 1 }
+      ]
+    };
+
+    const catConfig = {
+      FRANCES:    { bg:'bg-red-50/70',     text:'text-red-700',     dot:'bg-red-500',     rgb:'229, 89, 52',  spark:'#E55934' },
+      BIZCOCHO:   { bg:'bg-amber-50/70',   text:'text-amber-700',   dot:'bg-amber-500',   rgb:'245, 158, 11', spark:'#F59E0B' },
+      PASTELERIA: { bg:'bg-emerald-50/70', text:'text-emerald-700', dot:'bg-emerald-500', rgb:'16, 185, 129', spark:'#10B981' }
+    };
+
+    const categoryData = {
+      all: { lineTitle:'Tendencia de % de merma · 31 días', lineSubtitle:'% diario de merma vs margen objetivo (6%) · Todas las categorías', donutTitle:'Mermas por categoría', donutSubtitle:'Unidades de merma acumuladas · 31 días', legendLabel:'% Merma', tableSubtitle:'Mermas diarias por producto · últimos 7 días', registroSubtitle:'Producción y merma por categoría · últimos registros', registroFooter:'Mostrando 6 de 31 días · Todas las categorías', trend:[4.0, 3.8, 4.0, 4.2, 5.0, 5.2, 5.0, 7.0, 6.0, 5.0, 3.5, 4.0, 3.0, 4.0, 5.0, 5.5, 6.0, 6.2, 6.0, 5.5, 4.5, 4.0, 4.2, 5.0, 6.2, 6.0, 5.5, 3.5, 4.0, 4.5, 4.8], donut:{labels:['FRANCES','BIZCOCHO','PASTELERIA'], data:[3092,1855,1237], colors:['#E55934','#F59E0B','#10B981']}, lineColor:'#E55934', lineRgb:'229, 89, 52' },
+      FRANCES: { lineTitle:'Tendencia de % de merma FRANCES · 31 días', lineSubtitle:'% diario de merma FRANCES vs margen objetivo (6%)', donutTitle:'Mermas · FRANCES', donutSubtitle:'Unidades de merma FRANCES · 31 días', legendLabel:'% Merma FRANCES', tableSubtitle:'Mermas diarias FRANCES · últimos 7 días', registroSubtitle:'Producción y merma FRANCES · últimos registros', registroFooter:'Mostrando 6 de 31 días · Categoría FRANCES', trend:[4.0, 3.8, 4.5, 4.2, 5.5, 5.8, 5.2, 7.5, 6.5, 5.2, 3.5, 4.2, 3.2, 4.5, 5.5, 5.8, 6.5, 6.8, 6.2, 5.8, 4.8, 4.2, 4.5, 5.2, 6.8, 6.5, 5.8, 3.8, 4.2, 4.8, 5.0], donut:{labels:['Bolillo','Telera','Baguette'], data:[1400,1030,662], colors:['#E55934','#F59E0B','#10B981']}, lineColor:'#E55934', lineRgb:'229, 89, 52' },
+      BIZCOCHO: { lineTitle:'Tendencia de % de merma BIZCOCHO · 31 días', lineSubtitle:'% diario de merma BIZCOCHO vs margen objetivo (6%)', donutTitle:'Mermas · BIZCOCHO', donutSubtitle:'Unidades de merma BIZCOCHO · 31 días', legendLabel:'% Merma BIZCOCHO', tableSubtitle:'Mermas diarias BIZCOCHO · últimos 7 días', registroSubtitle:'Producción y merma BIZCOCHO · últimos registros', registroFooter:'Mostrando 6 de 31 días · Categoría BIZCOCHO', trend:[3.5, 3.2, 3.8, 3.5, 4.5, 4.8, 4.2, 6.0, 5.5, 4.5, 3.0, 3.5, 2.8, 3.8, 4.5, 4.8, 5.5, 5.5, 5.2, 4.8, 4.0, 3.5, 3.8, 4.2, 5.5, 5.2, 4.8, 3.0, 3.5, 3.8, 4.0], donut:{labels:['Concha','Cuernito','Dona'], data:[820,580,455], colors:['#E55934','#F59E0B','#10B981']}, lineColor:'#F59E0B', lineRgb:'245, 158, 11' },
+      PASTELERIA: { lineTitle:'Tendencia de % de merma PASTELERIA · 31 días', lineSubtitle:'% diario de merma PASTELERIA vs margen objetivo (6%)', donutTitle:'Mermas · PASTELERIA', donutSubtitle:'Unidades de merma PASTELERIA · 31 días', legendLabel:'% Merma PASTELERIA', tableSubtitle:'Mermas diarias PASTELERIA · últimos 7 días', registroSubtitle:'Producción y merma PASTELERIA · últimos registros', registroFooter:'Mostrando 6 de 31 días · Categoría PASTELERIA', trend:[2.5, 2.2, 2.8, 2.5, 3.5, 3.8, 3.2, 4.5, 4.0, 3.0, 2.0, 2.5, 1.8, 2.5, 3.0, 3.2, 3.8, 4.0, 3.5, 3.0, 2.5, 2.2, 2.5, 2.8, 3.8, 3.5, 3.0, 2.2, 2.5, 2.8, 3.0], donut:{labels:['Pastel 3 leches','Pastel chocolate','Pay limón','Tarta fresa'], data:[350,310,290,287], colors:['#E55934','#F59E0B','#10B981','#3B82F6']}, lineColor:'#10B981', lineRgb:'16, 185, 129' }
+    };
+
+    const catLabels = { all: 'Todas las categorías', FRANCES: 'FRANCES', BIZCOCHO: 'BIZCOCHO', PASTELERIA: 'PASTELERIA' };
+
+    const registroBase = {
+      all: [
+        { fecha: 'Mié 04 Jun', producido: 5120, merma: 247, pct: 4.8, motivo: 'Caducidad', motivoColor: 'red', valor: 1850, status: 'ok' },
+        { fecha: 'Mar 03 Jun', producido: 5030, merma: 312, pct: 6.2, motivo: 'Dañado', motivoColor: 'amber', valor: 2337, status: 'warn' },
+        { fecha: 'Lun 02 Jun', producido: 4980, merma: 189, pct: 3.8, motivo: 'Caducidad', motivoColor: 'red', valor: 1416, status: 'ok' },
+        { fecha: 'Dom 01 Jun', producido: 3420, merma: 142, pct: 4.2, motivo: 'Error producción', motivoColor: 'blue', valor: 1064, status: 'ok' },
+        { fecha: 'Sáb 31 May', producido: 5210, merma: 358, pct: 6.9, motivo: 'Dañado', motivoColor: 'amber', valor: 2681, status: 'warn' },
+        { fecha: 'Vie 30 May', producido: 5080, merma: 203, pct: 4.0, motivo: 'Caducidad', motivoColor: 'red', valor: 1520, status: 'ok' }
+      ],
+      FRANCES: [
+        { fecha: 'Mié 04 Jun', producido: 3120, merma: 165, pct: 5.3, motivo: 'Caducidad', motivoColor: 'red', valor: 990, status: 'warn' },
+        { fecha: 'Mar 03 Jun', producido: 3050, merma: 198, pct: 6.5, motivo: 'Dañado', motivoColor: 'amber', valor: 1188, status: 'warn' },
+        { fecha: 'Lun 02 Jun', producido: 2980, merma: 112, pct: 3.8, motivo: 'Caducidad', motivoColor: 'red', valor: 672, status: 'ok' },
+        { fecha: 'Dom 01 Jun', producido: 2050, merma: 82, pct: 4.0, motivo: 'Error producción', motivoColor: 'blue', valor: 492, status: 'ok' },
+        { fecha: 'Sáb 31 May', producido: 3120, merma: 220, pct: 7.1, motivo: 'Dañado', motivoColor: 'amber', valor: 1320, status: 'warn' },
+        { fecha: 'Vie 30 May', producido: 3060, merma: 125, pct: 4.1, motivo: 'Caducidad', motivoColor: 'red', valor: 750, status: 'ok' }
+      ],
+      BIZCOCHO: [
+        { fecha: 'Mié 04 Jun', producido: 1320, merma: 58, pct: 4.4, motivo: 'Caducidad', motivoColor: 'red', valor: 580, status: 'ok' },
+        { fecha: 'Mar 03 Jun', producido: 1300, merma: 79, pct: 6.1, motivo: 'Dañado', motivoColor: 'amber', valor: 790, status: 'warn' },
+        { fecha: 'Lun 02 Jun', producido: 1280, merma: 48, pct: 3.8, motivo: 'Caducidad', motivoColor: 'red', valor: 480, status: 'ok' },
+        { fecha: 'Dom 01 Jun', producido: 880, merma: 36, pct: 4.1, motivo: 'Error producción', motivoColor: 'blue', valor: 360, status: 'ok' },
+        { fecha: 'Sáb 31 May', producido: 1340, merma: 92, pct: 6.9, motivo: 'Dañado', motivoColor: 'amber', valor: 920, status: 'warn' },
+        { fecha: 'Vie 30 May', producido: 1310, merma: 52, pct: 4.0, motivo: 'Caducidad', motivoColor: 'red', valor: 520, status: 'ok' }
+      ],
+      PASTELERIA: [
+        { fecha: 'Mié 04 Jun', producido: 680, merma: 24, pct: 3.5, motivo: 'Caducidad', motivoColor: 'red', valor: 280, status: 'ok' },
+        { fecha: 'Mar 03 Jun', producido: 680, merma: 35, pct: 5.1, motivo: 'Dañado', motivoColor: 'amber', valor: 359, status: 'warn' },
+        { fecha: 'Lun 02 Jun', producido: 720, merma: 29, pct: 4.0, motivo: 'Caducidad', motivoColor: 'red', valor: 264, status: 'ok' },
+        { fecha: 'Dom 01 Jun', producido: 490, merma: 24, pct: 4.9, motivo: 'Error producción', motivoColor: 'blue', valor: 212, status: 'ok' },
+        { fecha: 'Sáb 31 May', producido: 750, merma: 46, pct: 6.1, motivo: 'Dañado', motivoColor: 'amber', valor: 441, status: 'warn' },
+        { fecha: 'Vie 30 May', producido: 710, merma: 26, pct: 3.7, motivo: 'Caducidad', motivoColor: 'red', valor: 250, status: 'ok' }
+      ]
+    };
+
+    const motivoColors = { red: '#E55934', amber: '#F59E0B', blue: '#3B82F6' };
+    const dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+    let currentCategory = 'all';
+    let currentTab = 'registro';
+    let lineChart, donutChart, movementChart;
+    let registroPage = 0;
+    const registroPageSize = 6;
+    let currentProduct = null;
+
+    function getHeatColor(v, min, max, rgb) {
+      if (max === min) return `rgba(${rgb}, 0.3)`;
+      const i = (v - min) / (max - min);
+      return `rgba(${rgb}, ${(0.08 + i * 0.5).toFixed(2)})`;
+    }
+    function getTextStyle(v, min, max) {
+      if (max === min) return 'text-slate-600';
+      const i = (v - min) / (max - min);
+      return i > 0.55 ? 'text-slate-900 font-semibold' : 'text-slate-600';
+    }
+    function getPctColor(pct) {
+      if (pct <= 4.5) return 'text-emerald-600';
+      if (pct <= 6)   return 'text-amber-600';
+      return 'text-red-600';
+    }
+    function pctToLeft(pct, max=8) { return Math.min(100, Math.max(0, (pct/max)*100)); }
+    function getMoveStyle(prev, curr) {
+      if (curr > prev) return { bg:'bg-red-50',     text:'text-red-600',     label:'+' + (curr - prev) };
+      if (curr < prev) return { bg:'bg-emerald-50', text:'text-emerald-600', label:(curr - prev) };
+      return { bg:'bg-slate-50', text:'text-slate-500', label:'±0' };
+    }
+
+    function renderTable(filter = '') {
+      const tbody = document.getElementById('productTable');
+      const q = filter.toLowerCase().trim();
+      let visible = 0, html = '';
+      const cats = currentCategory === 'all' ? Object.keys(products) : [currentCategory];
+
+      cats.forEach(categoryKey => {
+        const items = products[categoryKey];
+        const cfg = catConfig[categoryKey];
+        const matches = items.filter(i => !q || i.name.toLowerCase().includes(q));
+        if (matches.length === 0 && q) return;
+
+        html += `<tr class="${cfg.bg} border-y border-slate-200">
+          <td colspan="10" class="px-5 py-2">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-1.5 ${cfg.dot} rounded-full"></span>
+              <span class="text-[10px] font-bold ${cfg.text} uppercase tracking-wider">${categoryKey}</span>
+            </div>
+          </td>
+        </tr>`;
+
+        matches.forEach(item => {
+          const min = Math.min(...item.values), max = Math.max(...item.values);
+          const total = item.values.reduce((a, b) => a + b, 0);
+          visible++;
+          const productKey = `${categoryKey}::${item.name}`;
+          let cells = `<td class="py-2.5 px-5"><div class="flex items-center gap-2"><span class="w-1.5 h-1.5 ${cfg.dot} rounded-full"></span><span class="text-slate-700">${item.name}</span></div></td>`;
+          item.values.forEach(v => {
+            cells += `<td class="py-2.5 px-3 text-center num heat-cell ${getTextStyle(v, min, max)}" style="background-color:${getHeatColor(v, min, max, cfg.rgb)}">${v}</td>`;
+          });
+          cells += `<td class="py-2.5 px-3 text-center num font-semibold text-slate-800">${total}</td>`;
+          cells += `<td class="py-2 px-3 text-center">
+            <button class="open-report inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors" data-product="${productKey}">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              Reporte
+            </button>
+          </td>`;
+          html += `<tr class="border-b border-slate-100 hover:bg-slate-50/40 transition-colors">${cells}</tr>`;
+        });
+      });
+
+      if (visible === 0) html = `<tr><td colspan="10" class="py-12 text-center text-slate-400"><p class="text-xs">No se encontraron productos con "${filter}"</p></td></tr>`;
+      tbody.innerHTML = html;
+      document.getElementById('productCount').textContent = visible;
+      document.querySelectorAll('.open-report').forEach(btn => btn.addEventListener('click', () => openDrawer(btn.dataset.product)));
+    }
+
+    function renderRegistro() {
+      const tbody = document.getElementById('registroTable');
+      const all = registroBase[currentCategory];
+      const start = registroPage * registroPageSize;
+      const page = all.slice(start, start + registroPageSize);
+      let html = '';
+
+      page.forEach(row => {
+        const statusBadge = row.status === 'ok'
+          ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full">En margen</span>`
+          : `<span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full">Cerca</span>`;
+        html += `<tr class="border-b border-slate-100 hover:bg-slate-50/40 transition-colors">
+          <td class="py-3 px-5"><div class="flex items-center gap-2 text-slate-700"><svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><span class="font-medium">${row.fecha}</span></div></td>
+          <td class="py-3 px-3 text-center num text-slate-700">${row.producido.toLocaleString()}</td>
+          <td class="py-3 px-3 text-center num font-semibold text-slate-800">${row.merma}</td>
+          <td class="py-3 px-3 text-center num font-semibold ${getPctColor(row.pct)}">${row.pct}%</td>
+          <td class="py-3 px-3"><div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background-color:${motivoColors[row.motivoColor]}"></span><span class="text-slate-700">${row.motivo}</span></div></td>
+          <td class="py-3 px-3 text-right num font-semibold text-slate-800">$${row.valor.toFixed(2)}</td>
+          <td class="py-3 px-5 text-center">${statusBadge}</td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+      document.getElementById('registroFooter').textContent = categoryData[currentCategory].registroFooter;
+      document.getElementById('prevPage').disabled = registroPage === 0;
+      document.getElementById('nextPage').disabled = start + registroPageSize >= all.length;
+    }
+
+    function initCharts() {
+      const initData = categoryData[currentCategory];
+      const lineCtx = document.getElementById('lineChart').getContext('2d');
+
+      lineChart = new Chart(lineCtx, {
+        type: 'line',
+        data: {
+          labels: Array.from({length:31}, (_,i) => `D${i+1}`),
+          datasets: [
+            { label:'% Merma', data:initData.trend, borderColor:initData.lineColor, backgroundColor:`rgba(${initData.lineRgb}, 0.14)`, borderWidth:2, fill:true, tension:0.45, pointRadius:0, pointHoverRadius:5, pointHoverBackgroundColor:initData.lineColor, pointHoverBorderColor:'#fff', pointHoverBorderWidth:2 },
+            { label:'Objetivo', data:Array(31).fill(6), borderColor:'#10B981', borderWidth:2, borderDash:[6,4], fill:false, pointRadius:0 }
+          ]
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false, animation:{duration:700, easing:'easeOutQuart'},
+          plugins: { legend:{display:false}, tooltip:{ backgroundColor:'#0F172A', titleColor:'#94A3B8', bodyColor:'#fff', padding:10, cornerRadius:6, displayColors:false, titleFont:{family:'Inter',size:10,weight:'600'}, bodyFont:{family:'Inter',size:11}, callbacks:{ label:c => `${c.dataset.label}: ${c.parsed.y}%` } } },
+          scales: {
+            x: { grid:{display:false}, ticks:{ font:{family:'Inter',size:10}, color:'#94a3b8', callback:(_v,i) => i%3===0?`D${i+1}`:'' }, border:{display:false} },
+            y: { min:0, max:8, grid:{color:'#F1F5F9', drawBorder:false}, ticks:{ font:{family:'Inter',size:10}, color:'#94a3b8', stepSize:1, callback:v=>v+'%' }, border:{display:false} }
+          },
+          interaction:{ mode:'index', intersect:false }
+        }
+      });
+
+      const donutCtx = document.getElementById('donutChart').getContext('2d');
+      donutChart = new Chart(donutCtx, {
+        type: 'doughnut',
+        data: { labels:initData.donut.labels, datasets:[{ data:initData.donut.data, backgroundColor:initData.donut.colors, borderWidth:5, borderColor:'#ffffff', hoverOffset:8 }] },
+        options: {
+          responsive:true, maintainAspectRatio:false, cutout:'68%', animation:{animateRotate:true, duration:700},
+          plugins: { legend:{display:false}, tooltip:{ backgroundColor:'#0F172A', titleColor:'#94A3B8', bodyColor:'#fff', padding:10, cornerRadius:6, displayColors:true, titleFont:{family:'Inter',size:10,weight:'600'}, bodyFont:{family:'Inter',size:11}, callbacks:{ label:c => ` ${c.label}: ${c.parsed.toLocaleString()} uds` } } }
+        }
+      });
+      updateDonutLegend();
+    }
+
+    function updateCharts() {
+      const data = categoryData[currentCategory];
+      lineChart.data.datasets[0].data = data.trend;
+      lineChart.data.datasets[0].borderColor = data.lineColor;
+      lineChart.data.datasets[0].backgroundColor = `rgba(${data.lineRgb}, 0.14)`;
+      lineChart.data.datasets[0].pointHoverBackgroundColor = data.lineColor;
+      lineChart.update();
+      donutChart.data.labels = data.donut.labels;
+      donutChart.data.datasets[0].data = data.donut.data;
+      donutChart.data.datasets[0].backgroundColor = data.donut.colors;
+      donutChart.update();
+      updateDonutLegend();
+    }
+
+    function updateDonutLegend() {
+      const data = categoryData[currentCategory].donut;
+      let html = '';
+      for (let i = 0; i < data.labels.length; i++) {
+        html += `<div class="flex items-center justify-between text-xs"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full" style="background-color:${data.colors[i]}"></span><span class="text-slate-600">${data.labels[i]}</span></div><span class="font-semibold text-slate-800 num">${data.data[i].toLocaleString()} uds</span></div>`;
+      }
+      document.getElementById('donutLegend').innerHTML = html;
+    }
+
+    function updateTexts() {
+      const data = categoryData[currentCategory];
+      document.getElementById('lineTitle').textContent = data.lineTitle;
+      document.getElementById('lineSubtitle').textContent = data.lineSubtitle;
+      document.getElementById('donutTitle').textContent = data.donutTitle;
+      document.getElementById('donutSubtitle').textContent = data.donutSubtitle;
+      document.getElementById('lineLegendLabel').textContent = data.legendLabel;
+      document.getElementById('lineLegendSwatch').style.backgroundColor = data.lineColor;
+      document.getElementById('tableSubtitle').textContent = data.tableSubtitle;
+      document.getElementById('registroSubtitle').textContent = data.registroSubtitle;
+    }
+
+    function buildAction(product, pct) {
+      if (pct > product.margin + 1.5) return `Causa principal: Dañado. Revisar temperatura y tiempo de horneado. Validar protocolo de manipulación con el equipo de turno.`;
+      if (pct > product.margin) return `Causa principal: Caducidad. Ajustar forecast de producción diario y revisar vida útil en exhibidor. Coordinar con ventas para rotación temprana.`;
+      return `El producto está dentro del margen aceptable (${product.margin}%). Mantener protocolo actual y documentar buenas prácticas.`;
+    }
+
+    function buildMovementChips(values) {
+      let html = '';
+      for (let i = 0; i < values.length; i++) {
+        const prev = i === 0 ? values[values.length - 1] : values[i - 1];
+        const curr = values[i];
+        const s = getMoveStyle(prev, curr);
+        html += `<div class="${s.bg} rounded-md px-1 py-1 flex flex-col items-center">
+          <span class="text-[8px] font-semibold text-slate-500 uppercase num">${dayLabels[i]}</span>
+          <span class="text-[10px] font-bold text-slate-700 num leading-tight">${curr}</span>
+          <span class="text-[8px] font-semibold ${s.text} num leading-tight">${s.label}</span>
+        </div>`;
+      }
+      return html;
+    }
+
+    function openDrawer(productKey) {
+      const [cat, name] = productKey.split('::');
+      const item = products[cat].find(p => p.name === name);
+      if (!item) return;
+      currentProduct = { ...item, category: cat };
+      const pct = +((item.merma / item.produccion) * 100).toFixed(2);
+      const isOk = pct <= item.margin;
+      const isWarn = pct <= item.margin + 1.5;
+
+      document.getElementById('drawerProductName').textContent = item.name;
+      document.getElementById('drawerProductMeta').textContent = `${cat === 'FRANCES' ? 'Panadería' : cat === 'BIZCOCHO' ? 'Bizcochería' : 'Pastelería'} · #${String(Math.floor(Math.random()*9000)+1000)}`;
+
+      const badge = document.getElementById('drawerStatusBadge');
+      if (isOk) { badge.textContent = 'DENTRO DE MARGEN'; badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full'; }
+      else if (isWarn) { badge.textContent = 'CERCA DEL MARGEN'; badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full'; }
+      else { badge.textContent = 'POR ENCIMA DEL MARGEN'; badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-full'; }
+
+      const marker = document.getElementById('drawerMarker');
+      marker.style.left = pctToLeft(pct) + '%';
+      marker.style.borderColor = isOk ? '#10B981' : isWarn ? '#F59E0B' : '#E55934';
+      const marginLabel = document.getElementById('drawerMarginLabel');
+      marginLabel.style.left = pctToLeft(item.margin) + '%';
+      marginLabel.textContent = `Margen ${item.margin}%`;
+
+      document.getElementById('drawerProduccion').textContent = item.produccion;
+      document.getElementById('drawerMerma').textContent = item.merma;
+      const pctEl = document.getElementById('drawerPct');
+      pctEl.textContent = pct + '%';
+      pctEl.className = 'text-base font-bold num ' + (isOk ? 'text-emerald-600' : isWarn ? 'text-amber-600' : 'text-red-600');
+
+      document.getElementById('drawerMovementLabel').textContent = cat;
+      document.getElementById('drawerMovements').innerHTML = buildMovementChips(item.values);
+      document.getElementById('drawerAction').textContent = buildAction(item, pct);
+      document.getElementById('drawerMargin').value = item.margin;
+      renderMovementChart(item.values, catConfig[cat].spark, item.margin);
+
+      document.getElementById('aiPanel').classList.add('hidden');
+      document.getElementById('aiChevron').style.transform = '';
+
+      document.getElementById('productDrawer').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDrawer() {
+      document.getElementById('productDrawer').classList.add('hidden');
+      document.body.style.overflow = '';
+      currentProduct = null;
+    }
+
+    function renderMovementChart(values, color, margin) {
+      const ctx = document.getElementById('drawerMovementChart').getContext('2d');
+      if (movementChart) movementChart.destroy();
+      const pointColors = values.map((v, i) => {
+        if (i === 0) return '#94A3B8';
+        const prev = values[i - 1];
+        if (v > prev) return '#E55934';
+        if (v < prev) return '#10B981';
+        return '#94A3B8';
+      });
+      const pointBorders = values.map((v, i) => {
+        if (i === 0) return '#cbd5e1';
+        const prev = values[i - 1];
+        if (v > prev) return '#B23A1B';
+        if (v < prev) return '#059669';
+        return '#cbd5e1';
+      });
+
+      movementChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dayLabels,
+          datasets: [
+            { label: 'Merma', data: values, borderColor: color, backgroundColor: 'rgba(229, 89, 52, 0.08)', borderWidth: 2, fill: true, tension: 0.4, pointBackgroundColor: pointColors, pointBorderColor: pointBorders, pointBorderWidth: 1.5, pointRadius: values.map((_, i) => i === values.length - 1 ? 5 : 3.5) },
+            { label: 'Margen', data: Array(7).fill(margin), borderColor: '#8B5CF6', borderWidth: 1.5, borderDash: [4, 3], fill: false, pointRadius: 0 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: { duration: 500 },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0F172A', titleColor: '#94A3B8', bodyColor: '#fff', padding: 8, cornerRadius: 6, displayColors: false, titleFont: { family: 'Inter', size: 10, weight: '600' }, bodyFont: { family: 'Inter', size: 11 },
+              callbacks: {
+                title: (items) => `${dayLabels[items[0].dataIndex]} · día ${items[0].dataIndex + 1}`,
+                label: (c) => {
+                  if (c.datasetIndex === 1) return `Margen: ${c.parsed.y} uds`;
+                  const i = c.dataIndex;
+                  const prev = i === 0 ? values[values.length - 1] : values[i - 1];
+                  const diff = c.parsed.y - prev;
+                  const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '·';
+                  return `${c.parsed.y} uds  ${arrow} ${diff > 0 ? '+' : ''}${diff}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 10, weight: '500' }, color: '#94a3b8' }, border: { display: false } },
+            y: { min: 0, grid: { color: '#F1F5F9', drawBorder: false }, ticks: { font: { family: 'Inter', size: 9 }, color: '#cbd5e1', stepSize: 10, callback: v => v }, border: { display: false } }
+          }
+        },
+        plugins: [{
+          id: 'marginLabel',
+          afterDatasetsDraw(chart) {
+            const { ctx, scales } = chart;
+            const x = scales.x.getPixelForValue(scales.x.max);
+            const y = scales.y.getPixelForValue(margin);
+            ctx.save();
+            ctx.fillStyle = '#7C3AED';
+            ctx.font = '500 9px Inter';
+            ctx.textAlign = 'right';
+            ctx.fillText(`Margen ${margin}`, x - 4, y - 4);
+            ctx.restore();
+          }
+        }]
+      });
+    }
+
+    function setCategory(cat) {
+      if (!categoryData[cat]) return;
+      currentCategory = cat;
+      registroPage = 0;
+      document.getElementById('categoryLabel').textContent = catLabels[cat];
+      document.querySelectorAll('.cat-opt').forEach(opt => {
+        const isActive = opt.dataset.cat === cat;
+        opt.classList.toggle('active', isActive);
+        opt.querySelector('.check').classList.toggle('hidden', !isActive);
+      });
+      updateTexts();
+      updateCharts();
+      renderTable(document.getElementById('searchInput').value);
+      renderRegistro();
+    }
+
+    function setTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('[data-tab]').forEach(t => {
+        const isActive = t.dataset.tab === tab;
+        t.classList.toggle('text-red-600', isActive);
+        t.classList.toggle('text-slate-500', !isActive);
+        if (!isActive) t.classList.add('hover:text-slate-700'); else t.classList.remove('hover:text-slate-700');
+        const u = t.querySelector('.tab-underline');
+        if (u) u.remove();
+        if (isActive) { const u2 = document.createElement('span'); u2.className = 'tab-underline absolute -bottom-px left-0 right-0 h-0.5 bg-red-500'; t.appendChild(u2); }
+      });
+      document.getElementById('tab-comportamiento').classList.toggle('hidden', tab !== 'comportamiento');
+      document.getElementById('tab-registro').classList.toggle('hidden', tab !== 'registro');
+    }
+
+    function initDropdown() {
+      const btn = document.getElementById('categoryBtn');
+      const menu = document.getElementById('categoryMenu');
+      const chevron = document.getElementById('categoryChevron');
+      btn.addEventListener('click', (e) => { e.stopPropagation(); const isOpen = !menu.classList.contains('hidden'); menu.classList.toggle('hidden', isOpen); chevron.style.transform = isOpen ? '' : 'rotate(180deg)'; });
+      document.querySelectorAll('.cat-opt').forEach(opt => opt.addEventListener('click', () => { setCategory(opt.dataset.cat); menu.classList.add('hidden'); chevron.style.transform = ''; }));
+      document.addEventListener('click', (e) => { if (!btn.contains(e.target) && !menu.contains(e.target)) { menu.classList.add('hidden'); chevron.style.transform = ''; } });
+    }
+    function initSearch() { document.getElementById('searchInput').addEventListener('input', e => renderTable(e.target.value)); }
+    function initTabs() { document.querySelectorAll('[data-tab]').forEach(tab => tab.addEventListener('click', () => setTab(tab.dataset.tab))); }
+    function initPagination() {
+      document.getElementById('prevPage').addEventListener('click', () => { if (registroPage > 0) { registroPage--; renderRegistro(); } });
+      document.getElementById('nextPage').addEventListener('click', () => { const all = registroBase[currentCategory]; if ((registroPage + 1) * registroPageSize < all.length) { registroPage++; renderRegistro(); } });
+    }
+    function initPeriodToggle() {
+      const pt = document.getElementById('periodToggle');
+      pt.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+        pt.querySelectorAll('button').forEach(b => { b.classList.remove('bg-red-500','text-white','shadow-sm'); b.classList.add('text-slate-500'); });
+        btn.classList.add('bg-red-500','text-white','shadow-sm');
+        btn.classList.remove('text-slate-500');
+      }));
+    }
+    function initDrawer() {
+      document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+      document.getElementById('drawerBackdrop').addEventListener('click', closeDrawer);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.getElementById('productDrawer').classList.contains('hidden')) closeDrawer(); });
+      document.getElementById('drawerSaveMargin').addEventListener('click', () => {
+        if (!currentProduct) return;
+        const v = parseFloat(document.getElementById('drawerMargin').value);
+        if (!isNaN(v) && v >= 0) {
+          const btn = document.getElementById('drawerSaveMargin');
+          const orig = btn.innerHTML;
+          btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> Guardado';
+          btn.classList.add('bg-emerald-600');
+          btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+          setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('bg-emerald-600'); btn.classList.add('bg-purple-600', 'hover:bg-purple-700'); }, 1400);
+        }
+      });
+      document.getElementById('aiToggle').addEventListener('click', () => {
+        const panel = document.getElementById('aiPanel');
+        const chevron = document.getElementById('aiChevron');
+        const isHidden = panel.classList.contains('hidden');
+        panel.classList.toggle('hidden');
+        chevron.style.transform = isHidden ? 'rotate(180deg)' : '';
+      });
+      document.querySelector('.ai-generate').addEventListener('click', (e) => {
+        const btn = e.currentTarget;
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analizando con IA...`;
+        setTimeout(() => {
+          btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> 3 sugerencias listas';
+          btn.classList.add('from-emerald-600', 'to-emerald-700');
+          btn.classList.remove('from-violet-600', 'to-fuchsia-600', 'hover:from-violet-700', 'hover:to-fuchsia-700');
+          setTimeout(() => {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+            btn.classList.remove('from-emerald-600', 'to-emerald-700');
+            btn.classList.add('from-violet-600', 'to-fuchsia-600', 'hover:from-violet-700', 'hover:to-fuchsia-700');
+          }, 1800);
+        }, 1600);
+      });
+    }
+    function updateClock() {
+      const n = new Date();
+      document.getElementById('clock').textContent = `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderTable();
+      renderRegistro();
+      initCharts();
+      initDropdown();
+      initSearch();
+      initTabs();
+      initPagination();
+      initPeriodToggle();
+      initDrawer();
+      updateClock();
+      setInterval(updateClock, 1000);
+    });
+  </script>
+</body>
+</html>
