@@ -240,6 +240,13 @@ class ctrl extends mdl {
     function authorizeTraspaso() {
         $id = (int) $_POST['id'];
         $st = $this->getTransferStatusByCode(['AUTHORIZED']);
+
+        // 1.3 Guarda de transicion: solo se autoriza una solicitud pendiente.
+        $header = $this->getTraspasoById([$id]);
+        if (!$header) return ['status' => 404, 'message' => 'Traspaso no encontrado'];
+        if (($header['status_code'] ?? '') !== 'REQUESTED') {
+            return ['status' => 409, 'message' => 'Solo se puede autorizar un traspaso solicitado (estado actual: ' . ($header['status_name'] ?? '') . ').'];
+        }
         try {
             return $this->transaction(function () use ($id, $st) {
                 $this->updateTraspasoStatus([(int) $st['id'], $id]);
@@ -260,6 +267,12 @@ class ctrl extends mdl {
 
         $detail = $this->listTraspasoDetail([$id]);
         $header = $this->getTraspasoById([$id]);
+
+        // 1.3 Guarda de transicion: solo se envia desde Solicitado/Autorizado (no terminal).
+        if (!$header) return ['status' => 404, 'message' => 'Traspaso no encontrado'];
+        if (!in_array($header['status_code'] ?? '', ['REQUESTED', 'AUTHORIZED'], true)) {
+            return ['status' => 409, 'message' => 'El traspaso no puede enviarse (estado actual: ' . ($header['status_name'] ?? '') . ').'];
+        }
 
         // Atomico: cambio de estado + fecha de envio + descuento de stock del origen de todos
         // los renglones + historial, todo junto o nada.
@@ -293,6 +306,14 @@ class ctrl extends mdl {
         $detail = $this->listTraspasoDetail([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Traspaso no encontrado'];
 
+        // 1.3 Guarda de transicion: solo se confirma desde un estado NO terminal (REQUESTED
+        // vigente, o AUTHORIZED/IN_TRANSIT legado). Si ya esta Recibido/Rechazado se rechaza,
+        // para no volver a mover stock (doble descuento/alta).
+        $estadoActual = $header['status_code'] ?? '';
+        if (!in_array($estadoActual, ['REQUESTED', 'AUTHORIZED', 'IN_TRANSIT'], true)) {
+            return ['status' => 409, 'message' => 'El traspaso ya fue procesado (' . ($header['status_name'] ?? $estadoActual) . ') y no puede confirmarse de nuevo.'];
+        }
+
         $originWh = (int) $header['origin_warehouse_id'];
         $destWh   = (int) $header['destination_warehouse_id'];
 
@@ -300,7 +321,37 @@ class ctrl extends mdl {
         // (salida del origen + entrada al destino), omitiendo el paso intermedio "En
         // Transito". Si el traspaso ya venia de ese estado (flujo anterior), el origen ya
         // se desconto en sendTraspaso; en ese caso aqui NO se vuelve a descontar.
-        $alreadySent = ($header['status_code'] ?? '') === 'IN_TRANSIT';
+        $alreadySent = $estadoActual === 'IN_TRANSIT';
+
+        // 1.2 Las existencias deben existir: antes de mover nada, valida que el almacen origen
+        // tenga stock suficiente de cada producto. Si el traspaso ya venia "En Transito", el
+        // origen ya salio en sendTraspaso y no se re-valida. Politica: BLOQUEAR (no se crea
+        // stock de la nada). Si falta algo, no se mueve nada y se devuelve el detalle.
+        if (!$alreadySent) {
+            $faltantes = [];
+            foreach ($detail as $d) {
+                $stockRow   = $this->getStockRow([(int) $d['product_id'], $originWh]);
+                $disponible = $stockRow ? (float) $stockRow['quantity'] : 0;
+                $requerido  = (float) $d['quantity'];
+                if ($disponible < $requerido) {
+                    $faltantes[] = [
+                        'producto'   => $d['product_name'] ?? ('#' . (int) $d['product_id']),
+                        'requerido'  => $requerido,
+                        'disponible' => $disponible
+                    ];
+                }
+            }
+            if (!empty($faltantes)) {
+                $partes = array_map(function ($f) {
+                    return "{$f['producto']} (pide {$f['requerido']}, hay {$f['disponible']})";
+                }, $faltantes);
+                return [
+                    'status'    => 409,
+                    'message'   => 'Stock insuficiente en el almacen origen para: ' . implode('; ', $partes),
+                    'faltantes' => $faltantes
+                ];
+            }
+        }
 
         // Atomico: el movimiento de stock (salida origen + entrada destino) de TODOS los
         // renglones, el cambio de estado y el historial van en una sola transaccion. Si algo
@@ -315,7 +366,13 @@ class ctrl extends mdl {
                     // -- Salida del almacen origen (se descuenta aqui salvo que ya saliera antes).
                     $originStock = $this->getStockRow([$productId, $originWh]);
                     $originPrev  = $originStock ? (float) $originStock['quantity'] : 0;
-                    $originPost  = $alreadySent ? $originPrev : max(0, $originPrev - $qty);
+                    // Re-chequeo dentro de la transaccion: si el stock cambio entre la validacion
+                    // previa y este punto y ya no alcanza, aborta y revierte TODO (no se fabrica
+                    // inventario con max(0,...)).
+                    if (!$alreadySent && $originPrev < $qty) {
+                        throw new \RuntimeException("Stock insuficiente en origen (producto #{$productId})");
+                    }
+                    $originPost  = $alreadySent ? $originPrev : ($originPrev - $qty);
 
                     // -- Entrada al almacen destino.
                     $destStock = $this->getStockRow([$productId, $destWh]);
@@ -362,6 +419,14 @@ class ctrl extends mdl {
         $id   = (int) $_POST['id'];
         $note = empty($_POST['note']) ? 'Traspaso rechazado' : $_POST['note'];
         $st   = $this->getTransferStatusByCode(['REJECTED']);
+
+        // 1.3 Guarda de transicion: no se puede rechazar un traspaso ya terminal. Si ya esta
+        // Recibido, rechazarlo cambiaria el estado SIN revertir el stock ya movido = descuadre.
+        $header = $this->getTraspasoById([$id]);
+        if (!$header) return ['status' => 404, 'message' => 'Traspaso no encontrado'];
+        if (in_array($header['status_code'] ?? '', ['RECEIVED', 'REJECTED'], true)) {
+            return ['status' => 409, 'message' => 'El traspaso ya esta en estado terminal (' . ($header['status_name'] ?? '') . ') y no puede rechazarse.'];
+        }
 
         // Atomico: el cambio de estado y su huella de auditoria (quien/por que) van juntos,
         // para no quedar "Rechazado" sin rastro en el historial.
