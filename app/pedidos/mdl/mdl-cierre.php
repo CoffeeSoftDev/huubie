@@ -78,17 +78,27 @@ class MCierre extends CRUD {
         return is_array($result) ? $result : [];
     }
 
+    // Saldos pendientes: suma abonos de pedidos (order_payments) + pagos POS (pos_order_payment)
     function listPendingBalance($array) {
         $query = "
             SELECT
                 o.id, o.id as folio, o.date_creation, o.total_pay,
-                COALESCE(SUM(pp.pay), 0) as total_paid,
-                (o.total_pay - COALESCE(SUM(pp.pay), 0)) as pending_balance
+                COALESCE(pp.paid, 0) + COALESCE(pos.paid, 0) as total_paid,
+                (o.total_pay - COALESCE(pp.paid, 0) - COALESCE(pos.paid, 0)) as pending_balance
             FROM {$this->bd}`order` o
-            LEFT JOIN {$this->bd}order_payments pp ON pp.order_id = o.id
+            LEFT JOIN (
+                SELECT order_id, SUM(pay) as paid
+                FROM {$this->bd}order_payments
+                GROUP BY order_id
+            ) pp ON pp.order_id = o.id
+            LEFT JOIN (
+                SELECT order_id, SUM(amount) as paid
+                FROM {$this->bd}pos_order_payment
+                WHERE active = 1
+                GROUP BY order_id
+            ) pos ON pos.order_id = o.id
             WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
               AND o.status != 4 AND o.is_legacy = 0
-            GROUP BY o.id
             HAVING pending_balance > 0.01
             ORDER BY pending_balance DESC
         ";
@@ -96,18 +106,36 @@ class MCierre extends CRUD {
         return is_array($result) ? $result : [];
     }
 
+    // Formas de pago del día: abonos de pedidos + ventas POS (EFE→1, TDC→2, TRF→3)
     function getConsolidatedPayments($array) {
         $query = "
-            SELECT
-                pp.method_pay_id,
-                SUM(pp.pay) as total_paid
-            FROM {$this->bd}order_payments pp
-            INNER JOIN {$this->bd}`order` o ON pp.order_id = o.id
-            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
-              AND o.status != 4 AND o.is_legacy = 0
-            GROUP BY pp.method_pay_id
+            SELECT method_pay_id, SUM(total_paid) as total_paid
+            FROM (
+                SELECT pp.method_pay_id AS method_pay_id, pp.pay AS total_paid
+                FROM {$this->bd}order_payments pp
+                INNER JOIN {$this->bd}`order` o ON pp.order_id = o.id
+                WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+                  AND o.status != 4 AND o.is_legacy = 0
+
+                UNION ALL
+
+                SELECT
+                    CASE
+                        WHEN pt.is_cash = 1  THEN 1
+                        WHEN pt.code = 'TDC' THEN 2
+                        WHEN pt.code = 'TRF' THEN 3
+                        ELSE 2
+                    END AS method_pay_id,
+                    pop.amount AS total_paid
+                FROM {$this->bd}pos_order_payment pop
+                INNER JOIN {$this->bd}pos_payment_type pt ON pop.pos_payment_type_id = pt.id
+                INNER JOIN {$this->bd}`order` o ON pop.order_id = o.id
+                WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+                  AND o.status != 4 AND o.is_legacy = 0 AND pop.active = 1
+            ) t
+            GROUP BY method_pay_id
         ";
-        $result = $this->_Read($query, $array);
+        $result = $this->_Read($query, [$array[0], $array[1], $array[0], $array[1]]);
         return is_array($result) ? $result : [];
     }
 

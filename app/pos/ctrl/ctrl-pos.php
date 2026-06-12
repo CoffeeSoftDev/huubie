@@ -3,12 +3,20 @@ session_start();
 if (empty($_POST['opc'])) exit(0);
 
 require_once '../mdl/mdl-pos.php';
+date_default_timezone_set('America/Mexico_City');
 
 class ctrl extends mdl {
 
     function init() {
-        $sub_id   = $_SESSION['SUB'];
-        $products = $this->lsProducts([$sub_id]);
+        $sub_id = $_SESSION['SUB'];
+
+        $company_id = $_SESSION['COMPANY_ID'] ?? null;
+        if (!$company_id) {
+            $suc        = $this->getSucursalByID([$sub_id]);
+            $company_id = $suc ? $suc['idCompany'] : 0;
+        }
+
+        $products = $this->lsProducts([$sub_id, $company_id]);
         $turno    = $this->getOpenShiftBySubsidiary([$sub_id]);
         $folio    = $this->getMaxOrderFolio();
 
@@ -19,6 +27,7 @@ class ctrl extends mdl {
             'sucursal'        => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
             'vendedor'        => $turno ? $turno['employee_name'] : '',
             'folio'           => $folio,
+            'rol'             => $_SESSION['ROLID'] ?? 0,
             'paymentTypes'    => $this->lsPaymentTypes() ?: [],
             'discountReasons' => $this->lsDiscountReasons() ?: []
         ];
@@ -93,30 +102,166 @@ class ctrl extends mdl {
             return ['status' => 409, 'message' => 'Este turno ya fue cerrado'];
         }
 
-        $metrics   = $this->getShiftMetrics([$shift_id]);
-        $breakdown = $this->getShiftPaymentBreakdown([$shift_id]);
+        $closed_at     = date('Y-m-d H:i:s');
+        $opened_at     = $shift['opened_at'];
+        $subsidiary_id = $shift['subsidiary_id'];
+
+        // Métricas combinadas pedidos + POS (mismo comportamiento que el módulo de pedidos)
+        $metrics = $this->getShiftSalesMetrics([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
+
+        $total_sales    = (float)$metrics['total_sales'];
+        $cash_sales     = (float)$metrics['cash_sales'];
+        $card_sales     = (float)$metrics['card_sales'];
+        $transfer_sales = (float)$metrics['transfer_sales'];
+        $total_orders   = (int)$metrics['total_orders'];
 
         $this->closeCashShift([
-            date('Y-m-d H:i:s'),
-            (float)$metrics['total_sales'],
-            (float)$breakdown['cash'],
-            (float)$breakdown['card'],
-            (float)$breakdown['transfer'],
-            (int)$metrics['total_orders'],
-            $shift_id
+            $closed_at, $total_sales, $cash_sales, $card_sales,
+            $transfer_sales, $total_orders, $shift_id
         ]);
+
+        // Desglose de pagos del turno
+        $payments = [
+            ['method_id' => 1, 'amount' => $cash_sales],
+            ['method_id' => 2, 'amount' => $card_sales],
+            ['method_id' => 3, 'amount' => $transfer_sales]
+        ];
+        foreach ($payments as $pay) {
+            $this->createShiftPayment([
+                'values' => 'cash_shift_id, payment_method_id, amount',
+                'data'   => [$shift_id, $pay['method_id'], $pay['amount']]
+            ]);
+        }
+
+        // Conteo por status
+        $statuses = [
+            ['status_id' => 1, 'amount' => (int)$metrics['quotation_count']],
+            ['status_id' => 2, 'amount' => (int)$metrics['pending_count']],
+            ['status_id' => 4, 'amount' => (int)$metrics['cancelled_count']]
+        ];
+        foreach ($statuses as $st) {
+            $this->createShiftStatusProcess([
+                'values' => 'cash_shift_id, status_process_id, amount',
+                'data'   => [$shift_id, $st['status_id'], $st['amount']]
+            ]);
+        }
+
+        // Ligar órdenes huérfanas de la ventana al turno
+        $this->updateOrdersCashShift([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
 
         return [
             'status'  => 200,
             'message' => 'Turno cerrado correctamente',
-            'resumen' => [
-                'ventas'   => (float)$metrics['total_sales'],
-                'ordenes'  => (int)$metrics['total_orders'],
-                'cash'     => (float)$breakdown['cash'],
-                'card'     => (float)$breakdown['card'],
-                'transfer' => (float)$breakdown['transfer'],
-                'fondo'    => (float)$shift['opening_amount']
-            ]
+            'shift'   => $this->getCashShiftById($shift_id),
+            'metrics' => $metrics
+        ];
+    }
+
+    function getShiftsByDate() {
+        if (($_SESSION['ROLID'] ?? 0) == 1) {
+            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        } else {
+            $subsidiaries_id = $_SESSION['SUB'];
+        }
+
+        $date   = $_POST['date'] ?? date('Y-m-d');
+        $shifts = $this->getShiftsBySubsidiaryDate([$date, $subsidiaries_id]);
+
+        return [
+            'status' => 200,
+            'shifts' => is_array($shifts) ? $shifts : []
+        ];
+    }
+
+    function getOpenShifts() {
+        if (($_SESSION['ROLID'] ?? 0) == 1) {
+            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        } else {
+            $subsidiaries_id = $_SESSION['SUB'];
+        }
+
+        $shifts = $this->getAllOpenShiftsBySubsidiary([$subsidiaries_id]);
+
+        return [
+            'status' => 200,
+            'shifts' => is_array($shifts) ? $shifts : []
+        ];
+    }
+
+    // Ticket de corte del turno (cerrado: valores guardados; abierto: en tiempo real)
+    function getShiftTicket() {
+        $shift_id = $_POST['shift_id'] ?? 0;
+        $shift    = $this->getCashShiftById($shift_id);
+
+        if (!$shift) {
+            return ['status' => 404, 'message' => 'Turno no encontrado'];
+        }
+
+        $subsidiary      = $this->getSucursalByID([$shift['subsidiary_id']]);
+        $subsidiary_name = $subsidiary ? $subsidiary['name'] : 'Sucursal';
+
+        if ($shift['status'] === 'closed') {
+            $statusCounts    = $this->getShiftStatusCounts([$shift_id]);
+            $quotation_count = 0; $pending_count = 0; $cancelled_count = 0;
+            foreach ($statusCounts as $sc) {
+                switch ($sc['status_process_id']) {
+                    case 1: $quotation_count = (int)$sc['amount']; break;
+                    case 2: $pending_count   = (int)$sc['amount']; break;
+                    case 4: $cancelled_count = (int)$sc['amount']; break;
+                }
+            }
+
+            return [
+                'status'          => 200,
+                'shift'           => $shift,
+                'subsidiary_name' => $subsidiary_name,
+                'logo'            => $_SESSION['LOGO'] ?? '',
+                'data' => [
+                    'total_sales'     => $shift['total_sales'],
+                    'cash_sales'      => $shift['cash'],
+                    'card_sales'      => $shift['card'],
+                    'transfer_sales'  => $shift['transfer'],
+                    'total_orders'    => $shift['total_orders'],
+                    'quotation_count' => $quotation_count,
+                    'pending_count'   => $pending_count,
+                    'cancelled_count' => $cancelled_count
+                ]
+            ];
+        }
+
+        $metrics = $this->getShiftSalesMetrics([
+            $shift_id,
+            $shift['opened_at'],
+            date('Y-m-d H:i:s'),
+            $shift['subsidiary_id']
+        ]);
+
+        return [
+            'status'          => 200,
+            'shift'           => $shift,
+            'subsidiary_name' => $subsidiary_name,
+            'logo'            => $_SESSION['LOGO'] ?? '',
+            'data'            => $metrics
+        ];
+    }
+
+    function getShiftOrders() {
+        $shift_id = $_POST['shift_id'] ?? 0;
+        $shift    = $this->getCashShiftById($shift_id);
+
+        if (!$shift) {
+            return ['status' => 404, 'message' => 'Turno no encontrado'];
+        }
+
+        $opened_at = $shift['opened_at'];
+        $closed_at = $shift['status'] === 'closed' ? $shift['closed_at'] : date('Y-m-d H:i:s');
+
+        $result = $this->getShiftDetailedOrders([$shift_id, $opened_at, $closed_at, $shift['subsidiary_id']]);
+
+        return [
+            'status'            => 200,
+            'orders'            => $result['shift_orders'],
+            'external_payments' => $result['external_payments']
         ];
     }
 
@@ -396,6 +541,7 @@ class ctrl extends mdl {
                 'name'      => $catalogo[$pid]['name'],
                 'qty'       => $qty,
                 'price'     => $price,
+                'cost'      => (float)($catalogo[$pid]['cost'] ?? 0),
                 'discount'  => $discPct,
                 'reason_id' => !empty($it['reason_id']) ? (int)$it['reason_id'] : null
             ];
@@ -449,7 +595,7 @@ class ctrl extends mdl {
             return ['status' => 500, 'message' => 'No se pudo registrar la venta'];
         }
 
-        // ── Items + descuentos por item + stock ───────────────────────────────
+        // ── Items + descuentos por item ───────────────────────────────────────
         foreach ($items as $it) {
             $this->createOrderItem([
                 'values' => 'date_creation, quantity, price, status, order_details, product_id, pedidos_id',
@@ -464,8 +610,60 @@ class ctrl extends mdl {
                     'data'   => ['item', '', round($monto, 2), $it['discount'], $now, $order_id, $pkg_id, $it['reason_id'], 1]
                 ]);
             }
+        }
 
-            $this->decrementStock([$it['qty'], $it['id'], $sub_id]);
+        // ── Salida de almacén por venta (kardex) ───────────────────────────────
+        // Una merma con shrinkage_reason_id = 6 (Salida por venta) documenta la
+        // baja de stock: header con folio VTA- + detalle con stock previo/resultante.
+        $warehouse = $this->getDefaultWarehouse([$sub_id]);
+        if ($warehouse) {
+            $company_id = $_SESSION['COMPANY_ID'] ?? null;
+            if (!$company_id) {
+                $suc        = $this->getSucursalByID([$sub_id]);
+                $company_id = $suc ? $suc['idCompany'] : 0;
+            }
+
+            $totalUnits = 0;
+            $totalLoss  = 0;
+            foreach ($items as $it) {
+                $totalUnits += $it['qty'];
+                $totalLoss  += $it['qty'] * $it['cost'];
+            }
+
+            $folio = $this->nextShrinkageFolio('VTA-', $company_id);
+            $this->createShrinkage([
+                $folio,
+                'Salida por venta V-' . $order_id,
+                null,
+                count($items),
+                $totalUnits,
+                round($totalLoss, 2),
+                'Aplicada',
+                6, // shrinkage_reason: Salida por venta
+                (int)$warehouse['id'],
+                $sub_id,
+                $_SESSION['ID'],
+                $company_id
+            ]);
+            $shrinkage_id = $this->getShrinkageIdByFolio([$folio, $company_id]);
+
+            foreach ($items as $it) {
+                $stockRow = $this->getStockRow([$it['id'], (int)$warehouse['id']]);
+                $prev     = $stockRow ? (float)$stockRow['quantity'] : 0;
+                $post     = max(0, $prev - $it['qty']);
+
+                $this->createShrinkageDetail([
+                    $it['qty'],
+                    $it['cost'],
+                    round($it['qty'] * $it['cost'], 2),
+                    $prev,
+                    $post,
+                    $it['id'],
+                    $shrinkage_id
+                ]);
+
+                if ($stockRow) $this->updateStockQuantity([$post, (int)$stockRow['id']]);
+            }
         }
 
         // ── Descuento de cuenta ────────────────────────────────────────────────

@@ -17,8 +17,12 @@ class App extends Templates {
         this.sucursal        = data.sucursal        || '';
         this.vendedor        = data.vendedor        || '';
         this.folioNum        = data.folio           || 1;
+        this.id_sub          = data.id_sub          || null;
+        this.rol             = data.rol             || 0;
         this.paymentTypes    = data.paymentTypes    || [];
         this.discountReasons = data.discountReasons || [];
+        this.reportMode      = 'summary';
+        this._selectedShiftId = null;
         this.categories      = ['Todos', ...new Set(this.products.map(p => p.category || 'Sin categoría'))];
         this.cart            = [];
         this.activeCategory  = 'Todos';
@@ -69,7 +73,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        name,
-                class:     'mt-14 h-[calc(100vh-3.5rem)] flex overflow-hidden',
+                class:     'h-[calc(100vh-3.5rem)] flex overflow-hidden',
                 container: [catalogPanel, salesPanel]
             }
         });
@@ -94,6 +98,7 @@ class App extends Templates {
         if (document.getElementById('huubieSwalTheme')) return;
         $('head').append(`
             <style id="huubieSwalTheme">
+                .swal2-container { z-index: 20000 !important; }
                 .swal2-popup.huubie-swal { background:#1F2A37 !important; border:1px solid #374151 !important; border-radius:16px !important; color:#fff !important; font-family:'Inter',system-ui,sans-serif !important; padding:1.5rem !important; }
                 .swal2-popup.huubie-swal .swal2-title { color:#fff !important; font-size:1rem !important; font-weight:700 !important; }
                 .swal2-popup.huubie-swal .swal2-html-container { color:#9CA3AF !important; font-size:0.813rem !important; }
@@ -109,6 +114,16 @@ class App extends Templates {
                 @keyframes slideIn { from{opacity:0;transform:translateX(10px);} to{opacity:1;transform:translateX(0);} }
             </style>
         `);
+
+        // El focus-trap de Bootstrap (modales bootbox) roba el foco de cualquier
+        // SweetAlert abierto encima: los inputs del Swal no reciben clicks ni teclado.
+        // Se intercepta focusin en fase de captura para que Bootstrap no lo vea
+        // cuando el foco va hacia un elemento dentro del SweetAlert.
+        document.addEventListener('focusin', (e) => {
+            if (e.target instanceof Element && e.target.closest('.swal2-container')) {
+                e.stopImmediatePropagation();
+            }
+        }, true);
     }
 
     _categoryIcon(category) {
@@ -175,115 +190,679 @@ class App extends Templates {
             </div>
         `);
 
-        $('#btnToggleTurno').on('click', () => this.turno ? this.closeShiftFlow() : this.openShiftModal(false));
-        $('#btnCierreDay').on('click',   () => this.toast('Cierre del día disponible prÃ³ximamente', 'info'));
+        $('#btnToggleTurno').on('click', () => this.turno ? this.printDailyClose() : this.openShiftModal(false));
+        $('#btnCierreDay').on('click',   () => this.printDailyClose());
     }
 
-    //  HU-08: Turno obligatorio â”€
+    //  HU-08: Turno obligatorio 
     checkTurno() {
-        if (!this.turno) this.openShiftModal(true);
+        // if (!this.turno) this.openShiftModal(true);
     }
 
-    async openShiftModal(blocking) {
-        const result = await Swal.fire({
-            ...this.swalBase(),
-            title: 'Abrir turno',
-            html: `
-                <div class="text-left space-y-3 mt-2">
-                    <p class="text-[11px] text-[#9CA3AF]">${blocking ? 'No hay un turno abierto en <b class="text-white">' + this.esc(this.sucursal) + '</b>. Para vender es necesario abrir uno.' : 'Captura el fondo inicial de caja.'}</p>
-                    <div>
-                        <label class="block text-[9px] uppercase tracking-wider text-[#6B7280] font-bold mb-1 text-left">Nombre del turno (opcional)</label>
-                        <input id="swalShiftName" class="swal2-input !m-0 !w-full !h-auto !py-2 !px-3 !text-xs" type="text" placeholder="Ej. Matutino">
-                    </div>
-                    <div>
-                        <label class="block text-[9px] uppercase tracking-wider text-[#6B7280] font-bold mb-1 text-left">Fondo de caja <span class="text-[#EA0234]">*</span></label>
-                        <input id="swalShiftAmount" class="swal2-input !m-0 !w-full !h-auto !py-2 !px-3 !text-xs" type="number" min="0" step="0.01" placeholder="0.00">
-                    </div>
+    // Modal de apertura con bootbox (mismo patrón que pedidos): al ser un modal
+    // Bootstrap, el focus-trap deja escribir en los inputs aunque esté encima
+    // del modal de Cierre del Día.
+    openShiftModal(blocking = false) {
+        const message = `
+            <div class="space-y-3">
+                <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>
+                    <span class="text-sm font-medium text-purple-300">${this.esc(this.sucursal || 'Sucursal')}</span>
                 </div>
-            `,
-            confirmButtonText: 'Abrir turno',
-            showCancelButton: !blocking,
-            cancelButtonText: 'Cancelar',
-            allowOutsideClick: !blocking,
-            allowEscapeKey: !blocking,
-            customClass: { popup: 'huubie-swal', confirmButton: 'swal-green' },
-            didOpen: () => document.getElementById('swalShiftAmount').focus(),
-            preConfirm: () => {
-                const amount = parseFloat(document.getElementById('swalShiftAmount').value);
-                if (isNaN(amount) || amount < 0) {
-                    Swal.showValidationMessage('Captura un fondo de caja válido (puede ser 0)');
+                ${blocking ? `<p class="text-xs text-gray-400">No hay un turno abierto. Para vender es necesario abrir uno.</p>` : ''}
+                <div>
+                    <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
+                    <input id="shiftName" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="Ej: Matutino, Vespertino">
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-300 block mb-1">Fondo de caja inicial</label>
+                    <input id="openingAmount" type="number" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="0.00" min="0" step="0.01">
+                </div>
+                <p id="shiftError" class="text-red-400 text-xs hidden">Captura un fondo de caja válido (puede ser 0)</p>
+            </div>
+        `;
+
+        const buttons = {};
+        if (!blocking) {
+            buttons.cancel = { label: 'Cancelar', className: 'btn-secondary' };
+        }
+        buttons.confirm = {
+            label: 'Abrir Turno',
+            className: 'btn-success',
+            callback: () => {
+                const raw    = $('#openingAmount').val();
+                const amount = parseFloat(raw);
+                if (raw === '' || isNaN(amount) || amount < 0) {
+                    $('#shiftError').removeClass('hidden');
+                    $('#openingAmount').addClass('!border-red-500').trigger('focus');
                     return false;
                 }
-                return { shift_name: document.getElementById('swalShiftName').value.trim(), opening_amount: amount };
+                this._submitOpenShift({
+                    shift_name:     ($('#shiftName').val() || '').trim(),
+                    opening_amount: amount
+                }, modal);
+                return false; // se cierra manualmente cuando el servidor confirma
             }
+        };
+
+        const modal = bootbox.dialog({
+            title: 'Abrir Turno de Caja',
+            message: message,
+            closeButton: !blocking,
+            onEscape: !blocking,
+            backdrop: blocking ? 'static' : true,
+            buttons: buttons
         });
 
-        if (!result.value) {
-            if (blocking) this.openShiftModal(true);
-            return;
-        }
+        modal.on('shown.bs.modal', () => $('#openingAmount').trigger('focus'));
+    }
 
-        const res = await useFetch({ url: this._link, data: { opc: 'openShift', ...result.value } });
+    async _submitOpenShift(payload, modal) {
+        const res = await useFetch({ url: this._link, data: { opc: 'openShift', ...payload } });
 
         if (res.status === 200 || res.status === 409) {
+            modal.modal('hide');
             this.turno    = res.turno;
             this.vendedor = res.vendedor || this.turno?.employee || this.vendedor;
             this.renderInfoHeader();
             this.renderSalesInfo();
+            this.updateBranchDot();
+            if ($('#calendarDailyClose').length) this.loadShifts();
             if (res.status === 200) this.toast('Turno abierto correctamente');
             else this.toast(res.message, 'info');
         } else {
             this.toast(res.message || 'Error al abrir el turno', 'error');
-            if (blocking) this.openShiftModal(true);
         }
     }
 
-    async closeShiftFlow() {
-        if (!this.turno) return;
+    // Re-sincroniza turno, stock, catálogo y folio desde el servidor
+    // (tras abrir/cerrar turno o día, o al cambiar de sucursal)
+    async refreshState() {
+        const d = await useFetch({ url: this._link, data: { opc: 'init' } });
+        this.products   = d.products || [];
+        this.turno      = d.turno    || null;
+        this.vendedor   = d.vendedor || '';
+        this.folioNum   = d.folio    || this.folioNum;
+        this.id_sub     = d.id_sub   || this.id_sub;
+        this.sucursal   = d.sucursal || this.sucursal;
+        this.categories = ['Todos', ...new Set(this.products.map(p => p.category || 'Sin categoría'))];
+        if (!this.categories.includes(this.activeCategory)) this.activeCategory = 'Todos';
+        this.searchQuery = '';
 
-        const confirm = await Swal.fire({
+        const cli = this.selectedClient;
+        this.renderInfoHeader();
+        this.renderSearchBar();
+        this.renderSalesInfo();
+        if (cli) this.setCliente(cli);
+        this.renderCart();
+        this.updateTotals();
+        this.renderProducts();
+        this.updateBranchDot();
+    }
+
+    // Cambio de sucursal desde la navbar (Templates escucha 'branchChanged' y llama aquí).
+    // La sesión ya cambió en el servidor (switchBranch), por lo que init/payVenta/openShift
+    // ya operan sobre la nueva sucursal; aquí solo se re-sincroniza la vista.
+    async onBranchChange(detail) {
+        const hadItems = this.cart.length > 0;
+
+        if (detail?.id)   this.id_sub   = detail.id;
+        if (detail?.name) this.sucursal = detail.name;
+
+        this.resetTicket();
+        await this.refreshState();
+
+        if (hadItems) this.toast('El ticket se vació por el cambio de sucursal', 'info');
+        if (!this.turno) this.toast(`${this.sucursal}: sin turno abierto`, 'warning');
+    }
+
+    // Punto de estado de la sucursal en la navbar: verde = turno abierto, gris = cerrada
+    updateBranchDot() {
+        const dot = $('#btnBranch .branch-status-dot').first();
+        if (!dot.length) return;
+        dot.removeClass('bg-green-500 ring-green-500/20 bg-gray-400 ring-gray-400/20')
+           .addClass('ring-2 ' + (this.turno ? 'bg-green-500 ring-green-500/20' : 'bg-gray-400 ring-gray-400/20'));
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    //  HU-08: Cierre del Día — mismo patrón que el módulo de pedidos
+    // ═════════════════════════════════════════════════════════════════════════
+
+    printDailyClose() {
+        this.reportMode      = 'summary';
+        this._selectedShiftId = null;
+
+        const modalContent = `
+            <div class="flex flex-col lg:flex-row gap-4" style="min-height: 480px;">
+                <!-- Sidebar -->
+                <div class="w-full lg:w-[280px] flex-shrink-0 space-y-4">
+                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>
+                        <span class="text-sm font-medium text-purple-300">${this.esc(this.sucursal || 'Sucursal')}</span>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar fecha</label>
+                        <input type="text" id="calendarDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm cursor-pointer" readonly placeholder="Seleccionar fecha" />
+                    </div>
+                    <div id="openShiftsAlert" class="hidden"></div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Modo de reporte</label>
+                        <div class="flex rounded-lg overflow-hidden border border-gray-600">
+                            <button id="btnModeSummary" class="flex-1 py-2 text-sm font-semibold bg-purple-600 text-white" onclick="app.toggleReportMode('summary')">Resumido</button>
+                            <button id="btnModeDetailed" class="flex-1 py-2 text-sm font-semibold bg-[#1a2332] text-gray-300 hover:bg-gray-700" onclick="app.toggleReportMode('detailed')">Detallado</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar turno</label>
+                        <select id="shiftSelector" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.viewShiftPreview()">
+                            <option value="">-- Seleccionar --</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2 mt-2">
+                        <button id="btnOpenShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2" onclick="app.openShiftFromModal()">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg> Abrir Turno
+                        </button>
+                        <button id="btnCloseShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.closeShiftFromModal()">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> Cerrar Turno
+                        </button>
+                        <button id="btnPrintTicket" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Imprimir Ticket
+                        </button>
+                    </div>
+                    <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
+                        <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Cerrar Dia
+                        </button>
+                    </div>
+                </div>
+                <!-- Ticket Preview -->
+                <div class="flex-1 relative">
+                    <div id="ticketPreview" class="absolute inset-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
+                        <p class="text-xs text-gray-500 mb-2">Vista previa de impresión</p>
+                        <div id="ticketContainer">
+                            <div class="text-center text-gray-400 py-16">
+                                <p class="mt-4">Selecciona un turno para ver el ticket</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const dialog = bootbox.dialog({
+            title: `
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <span class="text-lg font-bold text-white">Cierre del Día</span>
+                </div>`,
+            message: modalContent,
+            size: 'large',
+            closeButton: true
+        });
+
+        dialog.on('shown.bs.modal', () => {
+            dataPicker({
+                parent: 'calendarDailyClose',
+                type: 'simple',
+                rangeDefault: {
+                    singleDatePicker: true,
+                    showDropdowns: true,
+                    autoApply: true,
+                    startDate: moment(),
+                    locale: { format: 'YYYY-MM-DD' }
+                },
+                onSelect: () => this.onDailyCloseFilterChange()
+            });
+
+            this.loadShifts();
+        });
+    }
+
+    onDailyCloseFilterChange() {
+        this.loadShifts();
+    }
+
+    async loadShifts() {
+        const rangePicker = getDataRangePicker('calendarDailyClose');
+        const date        = rangePicker.fi;
+
+        // Limpiar badge de cierre y restaurar botón Cerrar Día (tras reapertura)
+        $('.closure-badge').remove();
+        const wrapper = $('.closure-wrapper');
+        if (wrapper.length) {
+            const label = wrapper.find('label');
+            label.removeClass('!mb-0').addClass('mb-1');
+            wrapper.replaceWith(label);
+        }
+        $('#calendarDailyClose').removeClass('!border-green-600/50');
+        if (!$('#btnCerrarDia').length) {
+            $('#btnReabrirDia').parent().html(`
+                <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Cerrar Dia
+                </button>
+            `);
+        }
+
+        const [response, openRes] = await Promise.all([
+            useFetch({ url: this._link, data: { opc: 'getShiftsByDate', date: date, subsidiaries_id: this.id_sub } }),
+            useFetch({ url: this._link, data: { opc: 'getOpenShifts', subsidiaries_id: this.id_sub } })
+        ]);
+
+        const shifts          = response.shifts || [];
+        const today           = moment().format('YYYY-MM-DD');
+        const allOpenShifts   = openRes.shifts || [];
+        const openShifts      = allOpenShifts.filter(s => !moment(s.opened_at).isSame(today, 'day'));
+        const hasAnyOpenShift = allOpenShifts.length > 0;
+
+        const select = $('#shiftSelector');
+        select.html('<option value="">-- Seleccionar turno --</option>');
+        shifts.forEach(s => {
+            const time  = moment(s.opened_at).format('YYYY-MM-DD hh:mm A');
+            const badge = s.status === 'open' ? ' [ABIERTO]' : ' [CERRADO]';
+            select.append(`<option value="${s.id}" data-status="${s.status}">${time}${badge}</option>`);
+        });
+        select.off('change').on('change', () => this.viewShiftPreview());
+
+        // Turnos abiertos de otros días (alerta clickeable)
+        const alertContainer = $('#openShiftsAlert');
+        if (openShifts.length > 0) {
+            const shiftItems = openShifts.map(s => {
+                const date2 = moment(s.opened_at).format('DD/MM/YYYY');
+                const time  = moment(s.opened_at).format('hh:mm A');
+                const name  = s.shift_name || time;
+                return `
+                    <div class="flex items-center justify-between py-1.5 px-2 bg-[#1a2332] rounded-md cursor-pointer hover:bg-[#243044] transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
+                            <span class="text-xs text-gray-300">${this.esc(name)}</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500">${date2}</span>
+                    </div>
+                `;
+            }).join('');
+
+            alertContainer.html(`
+                <div class="bg-orange-900/30 border border-orange-600/50 rounded-lg p-3">
+                    <div class="flex items-center gap-2 mb-2">
+                        <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        <span class="text-xs font-bold text-orange-400 uppercase">Turnos sin cerrar (${openShifts.length})</span>
+                    </div>
+                    <div class="space-y-1">${shiftItems}</div>
+                </div>
+            `).removeClass('hidden');
+        } else {
+            alertContainer.addClass('hidden').html('');
+        }
+
+        // Deshabilitar abrir turno si hay cualquier turno abierto
+        if (hasAnyOpenShift) {
+            $('#btnOpenShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').removeClass('hover:bg-green-700');
+        } else {
+            $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        }
+
+        if (shifts.length > 0) {
+            select.val(shifts[0].id);
+            this.viewShiftPreview();
+        } else {
+            $('#ticketContainer').html(`
+                <div class="text-center text-gray-400 py-16">
+                    <p class="mt-4">No hay turnos para esta fecha</p>
+                    <p class="text-sm mt-2">Abre un turno para comenzar</p>
+                </div>
+            `);
+            $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        }
+
+        // Cerrar Día solo si hay al menos un turno cerrado
+        const hasClosedShifts = shifts.some(s => s.status === 'closed');
+        if (hasClosedShifts) {
+            $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        } else {
+            $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        }
+
+        const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: this.id_sub } });
+        if (closureCheck.status === 200 && closureCheck.closure) {
+            cierre.loadClosedView(date, this.id_sub);
+        }
+    }
+
+    async selectOpenShift(shiftId, date) {
+        const picker     = $('#calendarDailyClose').data('daterangepicker');
+        const momentDate = moment(date);
+        picker.setStartDate(momentDate);
+        picker.setEndDate(momentDate);
+        await this.loadShifts();
+        $('#shiftSelector').val(shiftId).trigger('change');
+    }
+
+    openShiftFromModal() {
+        this.openShiftModal(false);
+    }
+
+    async viewShiftPreview() {
+        const shiftId = $('#shiftSelector').val();
+        if (!shiftId) {
+            $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            return;
+        }
+
+        this._selectedShiftId = shiftId;
+        const shiftStatus = $(`#shiftSelector option[value="${shiftId}"]`).data('status');
+
+        const ticketRes = await useFetch({ url: this._link, data: { opc: 'getShiftTicket', shift_id: shiftId } });
+
+        if (ticketRes.status !== 200) {
+            $('#ticketContainer').html(`<p class="text-center text-gray-400 py-10">${ticketRes.message || 'Error al obtener datos'}</p>`);
+            return;
+        }
+
+        let orders = [];
+        let externalPayments = [];
+        if (this.reportMode === 'detailed') {
+            const ordersRes  = await useFetch({ url: this._link, data: { opc: 'getShiftOrders', shift_id: shiftId } });
+            orders           = ordersRes.orders || [];
+            externalPayments = ordersRes.external_payments || [];
+        }
+
+        this.ticketShiftClose({
+            data:             ticketRes.data,
+            shift:            ticketRes.shift,
+            subsidiary_name:  ticketRes.subsidiary_name,
+            logo:             ticketRes.logo,
+            orders:           orders,
+            externalPayments: externalPayments
+        });
+
+        $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+
+        if (shiftStatus === 'open') {
+            $('#btnCloseShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        } else {
+            $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        }
+    }
+
+    ticketShiftClose(options) {
+        const d              = options.data || {};
+        const shift          = options.shift || {};
+        const subsidiaryName = options.subsidiary_name || '';
+        const logo           = options.logo || '';
+        const orders         = options.orders || [];
+        const isDetailed     = this.reportMode === 'detailed';
+        const fecha          = moment(shift.opened_at).format('DD/MM/YYYY');
+        const isClosed       = shift.status === 'closed';
+
+        const closedBadge = isClosed
+            ? `<div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO</div>
+               <div class="text-[10px] text-gray-500 mt-0.5">Por: ${this.esc(shift.employee_name || 'N/A')}</div>
+               <div class="text-[10px] text-gray-500">${shift.closed_at ? moment(shift.closed_at).format('DD/MM/YYYY HH:mm') : ''}</div>`
+            : `<div class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">EN CURSO</div>`;
+
+        const externalPayments = options.externalPayments || [];
+        let detailedSection = '';
+
+        if (isDetailed) {
+            if (orders.length > 0) {
+                const shiftTotal = orders.reduce((sum, o) => sum + parseFloat(o.total_pay || 0), 0);
+                const shiftPaid  = orders.reduce((sum, o) => sum + parseFloat(o.payment_real || 0), 0);
+
+                const orderRows = orders.map(o => {
+                    const folio = (o.order_type === 'mostrador' ? 'V-' : 'P-') + o.id;
+                    return `
+                        <div class="flex items-center">
+                            <div class="italic truncate flex-1">${folio}</div>
+                            <div class="text-right" style="width:72px">${formatPrice(o.total_pay)}</div>
+                            <div class="text-right text-green-700" style="width:72px">${formatPrice(o.payment_real)}</div>
+                        </div>
+                        <div class="text-[10px] text-gray-500 mb-1">${this.esc(o.client_name || 'Venta directa')}</div>
+                    `;
+                }).join('');
+
+                detailedSection += `
+                    <div class="font-semibold mt-2 mb-1">ÓRDENES DEL TURNO</div>
+                    <div class="flex text-[9px] text-gray-400 mb-0.5">
+                        <span class="flex-1">FOLIO</span>
+                        <span class="text-right" style="width:72px">TOTAL</span>
+                        <span class="text-right" style="width:72px">COBRADO</span>
+                    </div>
+                    ${orderRows}
+                    <div class="flex justify-between items-center font-semibold border-t border-dashed pt-1 mt-1">
+                        <div>TOTAL ÓRDENES</div>
+                        <div>${formatPrice(shiftTotal)}</div>
+                    </div>
+                    <div class="flex justify-between items-center text-green-700">
+                        <div>COBRADO EN TURNO</div>
+                        <div>${formatPrice(shiftPaid)}</div>
+                    </div>
+                    <hr class="border-dashed border-t my-1" />
+                `;
+            }
+
+            if (externalPayments.length > 0) {
+                const extTotal = externalPayments.reduce((sum, o) => sum + parseFloat(o.payment_real || 0), 0);
+
+                const extRows = externalPayments.map(o => `
+                    <div class="flex justify-between items-center">
+                        <div class="italic truncate" style="max-width:140px">P-${o.id}</div>
+                        <div class="text-green-700">${formatPrice(o.payment_real)}</div>
+                    </div>
+                    <div class="text-[10px] text-gray-500 mb-1">${this.esc(o.client_name || 'Sin cliente')}</div>
+                `).join('');
+
+                detailedSection += `
+                    <div class="font-semibold mt-2 mb-1">ABONOS DE PEDIDOS ANTERIORES</div>
+                    ${extRows}
+                    <div class="flex justify-between items-center font-semibold border-t border-dashed pt-1 mt-1 text-green-700">
+                        <div>TOTAL COBRADO</div>
+                        <div>${formatPrice(extTotal)}</div>
+                    </div>
+                    <hr class="border-dashed border-t my-1" />
+                `;
+            }
+        }
+
+        const totalPayments = parseFloat(d.cash_sales || 0) + parseFloat(d.card_sales || 0) + parseFloat(d.transfer_sales || 0);
+
+        const ticketHtml = `
+            <div id="layoutPrintCloseTicket" class="flex justify-center p-4">
+                <div id="ticketDailyClose" class="bg-white p-4 rounded-lg shadow-lg font-mono text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%;">
+                    <div class="flex flex-col items-center mb-3">
+                        ${logo ? `<div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
+                            <img src="/alpha${logo}" alt="" onerror="this.parentElement.outerHTML='<div style=\\'width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;\\'><span style=\\'color:white;font-size:24px;font-weight:bold;\\'>${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span></div>'" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                        </div>` : `<div style="width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;" class="mb-1">
+                            <span style="color:white;font-size:24px;font-weight:bold;">${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span>
+                        </div>`}
+                        <h1 class="text-sm font-bold uppercase">${this.esc(subsidiaryName)}</h1>
+                        <div class="text-xs font-semibold">PUNTO DE VENTA</div>
+                        <div class="text-xs text-gray-600">Cierre Operativo</div>
+                        ${closedBadge}
+                    </div>
+
+                    <div class="text-xs space-y-0.5 mb-2">
+                        <div class="flex justify-between"><span>Fecha:</span><span>${fecha}</span></div>
+                        <div class="flex justify-between"><span>Apertura:</span><span>${moment(shift.opened_at).format('hh:mm A')}</span></div>
+                        <div class="flex justify-between"><span>Inicio de caja:</span><span>${formatPrice(shift.opening_amount || 0)}</span></div>
+                        <div class="flex justify-between"><span>Sucursal:</span><span>${this.esc(subsidiaryName)}</span></div>
+                    </div>
+
+                    <hr class="border-dashed border-t my-1" />
+
+                    <div class="text-xs space-y-0.5">
+                        ${detailedSection}
+
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">EFECTIVO:</div>
+                            <div>${parseFloat(d.cash_sales || 0) ? formatPrice(d.cash_sales) : '-'}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">TARJETA:</div>
+                            <div>${parseFloat(d.card_sales || 0) ? formatPrice(d.card_sales) : '-'}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">TRANSFERENCIA:</div>
+                            <div>${parseFloat(d.transfer_sales || 0) ? formatPrice(d.transfer_sales) : '-'}</div>
+                        </div>
+
+                        <hr class="border-dashed border-t my-1" />
+
+                        <div class="flex justify-between items-center font-bold">
+                            <div>TOTAL CAJA:</div>
+                            <div class="text-sm">${totalPayments ? formatPrice(totalPayments) : '-'}</div>
+                        </div>
+
+                        <hr class="border-dashed border-t my-1" />
+
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">ÓRDENES DEL TURNO:</div>
+                            <div class="font-bold">${parseInt(d.total_orders) || '-'}</div>
+                        </div>
+                        <div class="mt-2"></div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">PAGADOS:</div>
+                            <div>${((d.total_orders || 0) - (d.quotation_count || 0) - (d.cancelled_count || 0) - (d.pending_count || 0)) || '-'}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">PENDIENTES:</div>
+                            <div>${d.pending_count || '-'}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">COTIZACIONES:</div>
+                            <div>${d.quotation_count || '-'}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="font-semibold">CANCELADOS:</div>
+                            <div>${d.cancelled_count || '-'}</div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4 text-[10px] font-bold text-gray-900 space-y-1">
+                        <p>GRACIAS POR SU PREFERENCIA</p>
+                        <p class="text-purple-800 text-xs">Huubie</p>
+                        <p class="text-gray-500 font-normal text-[9px]">Generado: ${moment().format('DD/MM/YYYY HH:mm:ss')}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('#ticketContainer').html(ticketHtml);
+    }
+
+    toggleReportMode(mode) {
+        this.reportMode = mode;
+
+        if (mode === 'detailed') {
+            $('#btnModeDetailed').addClass('bg-purple-600 text-white').removeClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700');
+            $('#btnModeSummary').addClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700').removeClass('bg-purple-600 text-white');
+        } else {
+            $('#btnModeSummary').addClass('bg-purple-600 text-white').removeClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700');
+            $('#btnModeDetailed').addClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700').removeClass('bg-purple-600 text-white');
+        }
+
+        if (this._selectedShiftId) this.viewShiftPreview();
+    }
+
+    async closeShiftFromModal() {
+        const shiftId = this._selectedShiftId || $('#shiftSelector').val();
+        if (!shiftId) return;
+
+        const ordersRes  = await useFetch({ url: this._link, data: { opc: 'getShiftOrders', shift_id: shiftId } });
+        const orderCount = (ordersRes.orders || []).length;
+
+        const result = await Swal.fire({
             ...this.swalBase(),
             icon: 'question',
-            title: '¿Cerrar el turno actual?',
-            html: `Se realizará el corte de caja con <b class="text-white">${this.turno.ordenes}</b> orden(es) y ventas por <b class="text-[#3FC189]">${this.fmt(this.turno.ventas)}</b>.`,
+            title: '¿Cerrar ticket de turno?',
+            html: `Se procederá a realizar el corte de caja. Se cerrarán <strong><u>${orderCount}</u></strong> tickets de venta con la información actual.`,
             showCancelButton: true,
-            confirmButtonText: 'Si, cerrar turno',
+            confirmButtonText: 'Sí, cerrar turno',
             cancelButtonText: 'Cancelar',
             customClass: { popup: 'huubie-swal', confirmButton: 'swal-purple' },
             focusCancel: true
         });
-        if (!confirm.isConfirmed) return;
+        if (!result.isConfirmed) return;
 
-        const res = await useFetch({ url: this._link, data: { opc: 'closeShift', shift_id: this.turno.id } });
+        const res = await useFetch({ url: this._link, data: { opc: 'closeShift', shift_id: shiftId } });
 
         if (res.status !== 200) {
             this.toast(res.message || 'No se pudo cerrar el turno', 'error');
             return;
         }
 
-        const r = res.resumen;
-        await Swal.fire({
-            ...this.swalBase(),
-            icon: 'success',
-            title: 'Turno cerrado',
-            html: `
-                <div class="text-left text-xs space-y-1 mt-2">
-                    <div class="flex justify-between gap-4"><span class="text-[#9CA3AF]">Fondo de caja</span><span class="text-white font-bold">${this.fmt(r.fondo)}</span></div>
-                    <div class="flex justify-between gap-4"><span class="text-[#9CA3AF]">Ventas</span><span class="text-[#3FC189] font-bold">${this.fmt(r.ventas)}</span></div>
-                    <div class="flex justify-between gap-4"><span class="text-[#9CA3AF]">Ordenes</span><span class="text-white font-bold">${r.ordenes}</span></div>
-                    <div class="flex justify-between gap-4 pt-2 mt-2 border-t border-[#374151]"><span class="text-[#9CA3AF]">Efectivo</span><span class="text-white font-bold">${this.fmt(r.cash)}</span></div>
-                    <div class="flex justify-between gap-4"><span class="text-[#9CA3AF]">Tarjeta</span><span class="text-white font-bold">${this.fmt(r.card)}</span></div>
-                    <div class="flex justify-between gap-4"><span class="text-[#9CA3AF]">Transferencia</span><span class="text-white font-bold">${this.fmt(r.transfer)}</span></div>
-                </div>
-            `,
-            confirmButtonText: 'Aceptar'
-        });
+        this.toast('Turno cerrado correctamente');
+        await this.loadShifts();
+        this.refreshState();
+    }
 
-        this.turno = null;
-        this.resetTicket();
-        this.renderInfoHeader();
-        this.renderSalesInfo();
-        this.openShiftModal(true);
+    printDailyCloseTicket() {
+        const ticketContent = document.getElementById('ticketDailyClose') || document.getElementById('ticketPasteleria');
+
+        if (!ticketContent) {
+            this.toast('No hay ticket para imprimir', 'warning');
+            return;
+        }
+
+        const printWindow = window.open('', '', 'height=600,width=400');
+        if (!printWindow) {
+            this.toast('Permite las ventanas emergentes para imprimir', 'warning');
+            return;
+        }
+        printWindow.document.write('<html><head><title>Cierre de Turno</title>');
+        printWindow.document.write(`
+            <style>
+                body { font-family: 'Courier New', monospace; padding: 10px; max-width: 320px; margin: 0 auto; }
+                .bg-white { background-color: white; }
+                .p-4 { padding: 1rem; }
+                .rounded-lg { border-radius: 0.5rem; }
+                .font-mono { font-family: 'Courier New', monospace; }
+                .text-gray-900 { color: #111827; }
+                .flex { display: flex; }
+                .flex-col { flex-direction: column; }
+                .items-center { align-items: center; }
+                .justify-between { justify-content: space-between; }
+                .mb-3 { margin-bottom: 0.75rem; }
+                .mb-2 { margin-bottom: 0.5rem; }
+                .mb-1 { margin-bottom: 0.25rem; }
+                .mt-4 { margin-top: 1rem; }
+                .mt-2 { margin-top: 0.5rem; }
+                .mt-1 { margin-top: 0.25rem; }
+                .text-sm { font-size: 0.875rem; }
+                .text-xs { font-size: 0.75rem; }
+                .text-\\[10px\\] { font-size: 10px; }
+                .text-\\[9px\\] { font-size: 9px; }
+                .font-bold { font-weight: bold; }
+                .font-semibold { font-weight: 600; }
+                .text-gray-600 { color: #4B5563; }
+                .text-gray-500 { color: #6B7280; }
+                .text-purple-800 { color: #6B21A8; }
+                .text-green-700 { color: #15803d; }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .uppercase { text-transform: uppercase; }
+                .italic { font-style: italic; }
+                .flex-1 { flex: 1; }
+                .truncate { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+                .space-y-1 > * + * { margin-top: 0.25rem; }
+                .space-y-0\\.5 > * + * { margin-top: 0.125rem; }
+                hr { border: 0; border-top: 1px dashed #D1D5DB; margin: 0.5rem 0; }
+                .border-dashed { border-style: dashed; }
+                .bg-green-100, .bg-blue-100 { padding: 2px 8px; border-radius: 9999px; display: inline-block; }
+                .bg-green-100 { background: #dcfce7; color: #166534; }
+                .bg-blue-100 { background: #dbeafe; color: #1e40af; }
+                @media print { body { padding: 0; } }
+            </style>
+        `);
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(ticketContent.outerHTML);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+
+        setTimeout(() => { printWindow.print(); }, 250);
     }
 
     //  HU-01: Busqueda + categorias 
@@ -325,7 +904,7 @@ class App extends Templates {
         });
     }
 
-    //  HU-01: Grid de productos â”€
+    //  HU-01: Grid de productos 
     renderProducts() {
         const q        = this.searchQuery.trim().toLowerCase();
         const filtered = this.products.filter(p => {
@@ -400,7 +979,7 @@ class App extends Templates {
         return                               { label: 'Disponible', fg: '#3FC189', bg: 'rgba(63,193,137,0.15)' };
     }
 
-    //  HU-02: Header del ticket + selector cliente â”€
+    //  HU-02: Header del ticket + selector cliente 
     renderSalesInfo() {
         const opened = this.turno ? new Date(String(this.turno.opened_at).replace(' ', 'T')) : new Date();
         const fecha  = opened.toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -579,7 +1158,7 @@ class App extends Templates {
         }
     }
 
-    //  HU-02: Carritoâ”€
+    //  HU-02: Carrito
     addToCart(id) {
         if (!this.turno) { this.openShiftModal(true); return; }
 
@@ -830,7 +1409,7 @@ class App extends Templates {
         $('#lblBtnNota').text('Nota');
     }
 
-    //  HU-04: Descuentos â”€
+    //  HU-04: Descuentos 
     async openDiscountModal(scope = 'order', itemId = null) {
         if (!this.cart.length) {
             this.toast('Agrega productos al ticket antes de aplicar un descuento', 'warning');
@@ -1213,32 +1792,488 @@ class App extends Templates {
         this.folioNum = res.folio;
         this.turno    = res.turno || this.turno;
 
-        const resumen = payments.map(p => {
-            const m = this.paymentTypes.find(t => t.id == p.type_id);
-            return `<div class="flex justify-between gap-4"><span class="text-[#9CA3AF]"><b>${m?.code || ''}</b>  ${this.esc(m?.name || '')}</span><span class="text-white font-bold">${this.fmt(p.amount)}</span></div>`;
-        }).join('');
-
-        Swal.fire({
-            ...this.swalBase(),
-            icon: 'success',
-            title: 'Venta registrada',
-            html: `
-                <div class="text-left text-xs space-y-1 mt-2">
-                    <div class="flex justify-between gap-4"><span class="text-[#9CA3AF]">Folio</span><span class="text-white font-bold">V-${res.order_id}</span></div>
-                    ${resumen}
-                    <div class="flex justify-between gap-4 pt-2 mt-2 border-t border-[#374151]"><span class="text-[#9CA3AF]">Total</span><span class="text-[#3FC189] font-bold">${this.fmt(res.total)}</span></div>
-                    ${res.cambio > 0 ? `<div class="flex justify-between gap-4"><span class="text-[#9CA3AF]">Cambio</span><span class="text-[#3FC189] font-bold">${this.fmt(res.cambio)}</span></div>` : ''}
-                </div>
-            `,
-            confirmButtonText: 'Cerrar'
-        });
+        // Snapshot de la venta para imprimir (antes de limpiar el ticket)
+        const { subtotal, descuento, iva } = this.getTotals();
+        const venta = {
+            order_id: res.order_id,
+            fecha:    new Date().toLocaleString('es-MX'),
+            items:    this.cart.map(it => {
+                const p = this.products.find(x => x.id == it.id);
+                return p ? { name: p.name, qty: it.qty, price: p.price, discount: it.discount || 0 } : null;
+            }).filter(Boolean),
+            subtotal,
+            descuento,
+            iva,
+            total:    res.total,
+            cambio:   res.cambio,
+            payments: payments.map(p => {
+                const m = this.paymentTypes.find(t => t.id == p.type_id);
+                return { code: m?.code || '', name: m?.name || '', amount: p.amount, tendered: p.tendered, change: p.change };
+            }),
+            cliente:  this.selectedClient?.name || 'Público en general',
+            note:     this.ticketNote || ''
+        };
 
         this.resetTicket();
         this.renderInfoHeader();
         this.renderSalesInfo();
         this.renderProducts();
+
+        const resumen = venta.payments.map(p =>
+            `<div class="flex justify-between gap-4"><span class="text-[#9CA3AF]"><b>${p.code}</b> — ${this.esc(p.name)}</span><span class="text-white font-bold">${this.fmt(p.amount)}</span></div>`
+        ).join('');
+
+        const result = await Swal.fire({
+            ...this.swalBase(),
+            icon: 'success',
+            title: 'Venta registrada',
+            html: `
+                <div class="text-left text-xs space-y-1 mt-2">
+                    <div class="flex justify-between gap-4"><span class="text-[#9CA3AF]">Folio</span><span class="text-white font-bold">V-${venta.order_id}</span></div>
+                    ${resumen}
+                    <div class="flex justify-between gap-4 pt-2 mt-2 border-t border-[#374151]"><span class="text-[#9CA3AF]">Total</span><span class="text-[#3FC189] font-bold">${this.fmt(venta.total)}</span></div>
+                    ${venta.cambio > 0 ? `<div class="flex justify-between gap-4"><span class="text-[#9CA3AF]">Cambio</span><span class="text-[#3FC189] font-bold">${this.fmt(venta.cambio)}</span></div>` : ''}
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: `
+                <span class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Imprimir ticket
+                </span>
+            `,
+            cancelButtonText: 'Cerrar',
+            customClass: { popup: 'huubie-swal', confirmButton: 'swal-green' }
+        });
+
+        if (result.isConfirmed) this.printSaleTicket(venta);
     }
 
-    //  HU-08: Cierre del día (pendiente  se hace desde pedidos) 
-    openCierreModal() { this.toast('Cierre del día disponible próximamente', 'info'); }
+    // Ticket final de la venta cobrada (folio real + formas de pago + cambio)
+    printSaleTicket(venta) {
+        const rows = venta.items.map(it => {
+            const neto = it.price * it.qty * (1 - it.discount / 100);
+            return `
+                <tr>
+                    <td>${this.esc(it.name)}${it.discount ? ` (-${it.discount}%)` : ''}</td>
+                    <td style="text-align:center">${it.qty}</td>
+                    <td style="text-align:right">${this.fmt(neto)}</td>
+                </tr>
+                <tr><td colspan="3" style="font-size:9px;color:#555;padding-left:8px">${it.qty} x ${this.fmt(it.price)}</td></tr>
+            `;
+        }).join('');
+
+        const pagos = venta.payments.map(p => `
+            <div class="tot"><span>${this.esc(p.code)} — ${this.esc(p.name)}:</span><span>${this.fmt(p.amount)}</span></div>
+            ${p.change > 0 ? `<div class="tot" style="font-size:10px;color:#555"><span>Recibido: ${this.fmt(p.tendered)}</span><span>Cambio: ${this.fmt(p.change)}</span></div>` : ''}
+        `).join('');
+
+        const w = window.open('', '_blank', 'width=420,height=720');
+        if (!w) { this.toast('Permite las ventanas emergentes para imprimir', 'warning'); return; }
+
+        w.document.write(`
+            <!doctype html><html><head><meta charset="utf-8"><title>Ticket V-${venta.order_id}</title>
+            <style>
+                body { font-family:'Courier New',monospace; font-size:11px; max-width:300px; margin:0 auto; padding:16px; color:#111; }
+                h2, h3, p { margin:2px 0; text-align:center; }
+                table { width:100%; border-collapse:collapse; margin:8px 0; }
+                td, th { padding:2px 0; font-size:11px; }
+                th { text-align:left; border-bottom:1px dashed #999; }
+                .tot { display:flex; justify-content:space-between; }
+                .line { border-top:1px dashed #999; margin:6px 0; }
+                .big { font-size:14px; font-weight:bold; }
+                .badge { display:inline-block; padding:1px 10px; border:1px solid #111; border-radius:10px; font-size:9px; font-weight:bold; }
+                @media print { body { padding:0; } }
+            </style></head><body>
+                <h2>${this.esc(this.sucursal || 'HUUBIE')}</h2>
+                <p>PUNTO DE VENTA — TICKET DE VENTA</p>
+                <p><span class="badge">PAGADO</span></p>
+                <div class="line"></div>
+                <div class="tot"><span>Folio:</span><span><b>V-${venta.order_id}</b></span></div>
+                <div class="tot"><span>Fecha:</span><span>${venta.fecha}</span></div>
+                <div class="tot"><span>Cajero:</span><span>${this.esc(this.vendedor || '—')}</span></div>
+                <div class="tot"><span>Cliente:</span><span>${this.esc(venta.cliente)}</span></div>
+                <div class="line"></div>
+                <table>
+                    <tr><th>Producto</th><th style="text-align:center">Qty</th><th style="text-align:right">Total</th></tr>
+                    ${rows}
+                </table>
+                <div class="line"></div>
+                <div class="tot"><span>Subtotal:</span><span>${this.fmt(venta.subtotal)}</span></div>
+                ${venta.descuento > 0 ? `<div class="tot"><span>Descuento:</span><span>-${this.fmt(venta.descuento)}</span></div>` : ''}
+                <div class="tot"><span>IVA incluido:</span><span>${this.fmt(venta.iva)}</span></div>
+                <div class="tot big"><span>TOTAL:</span><span>${this.fmt(venta.total)}</span></div>
+                <div class="line"></div>
+                <p style="text-align:left;font-weight:bold">FORMAS DE PAGO</p>
+                ${pagos}
+                ${venta.cambio > 0 ? `<div class="tot big"><span>CAMBIO:</span><span>${this.fmt(venta.cambio)}</span></div>` : ''}
+                ${venta.note ? `<div class="line"></div><p style="text-align:left"><b>NOTA:</b> ${this.esc(venta.note)}</p>` : ''}
+                <div class="line"></div>
+                <p>GRACIAS POR SU COMPRA</p>
+                <p>Conserve este ticket</p>
+                <p style="font-style:italic;font-weight:bold">Huubie</p>
+            </body></html>
+        `);
+        w.document.close();
+        setTimeout(() => { try { w.print(); } catch (_) {} }, 400);
+    }
+
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Cierre del Día — reutiliza el controlador compartido del módulo de pedidos
+//  (mismo daily_closure / checklist / reapertura para toda la sucursal)
+// ═════════════════════════════════════════════════════════════════════════════
+class Cierre {
+    constructor(apiUrl) {
+        this.api              = apiUrl;
+        this._closureData     = null;
+        this._closureResponse = null;
+    }
+
+    async initCierre() {
+        const rangePicker = getDataRangePicker('calendarDailyClose');
+        const date        = rangePicker.fi;
+
+        $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        $('#ticketContainer').html(`
+            <div class="text-center text-gray-400 py-16">
+                <div class="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p>Validando cierre...</p>
+            </div>
+        `);
+
+        const data = await useFetch({ url: this.api, data: { opc: 'showCierre', date: date, subsidiaries_id: app.id_sub } });
+
+        if (data.status !== 200) {
+            $('#ticketContainer').html(`<p class="text-center text-red-400 py-10">${data.message || 'Error al validar'}</p>`);
+            $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+            return;
+        }
+
+        this._closureData = data;
+        this.renderChecklist(data, date, app.id_sub);
+    }
+
+    renderChecklist(data, date, subsidiaries_id) {
+        const svgOk    = `<svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
+        const svgWarn  = `<svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>`;
+        const svgBlock = `<svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
+
+        let checksHtml = '';
+        data.checks.forEach((check, idx) => {
+            if (check.ok) {
+                checksHtml += `
+                    <div class="flex items-center gap-3 bg-[#1a2332] rounded-lg p-3 border border-green-600/30">
+                        <div class="w-7 h-7 rounded-full bg-green-600/20 flex items-center justify-center flex-shrink-0">${svgOk}</div>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold text-white">${check.label}</p>
+                            <p class="text-[11px] text-gray-500">${check.detail || ''}</p>
+                        </div>
+                    </div>`;
+            } else if (check.blocker) {
+                checksHtml += `
+                    <div class="flex items-center gap-3 bg-[#1a2332] rounded-lg p-3 border border-red-600/30">
+                        <div class="w-7 h-7 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">${svgBlock}</div>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold text-white">${check.label}</p>
+                            <p class="text-[11px] text-red-400/70">Bloquea el cierre</p>
+                        </div>
+                    </div>`;
+            } else {
+                let itemsHtml = '';
+                if (check.items && check.items.length > 0) {
+                    if (check.key === 'pending_balance') {
+                        itemsHtml = check.items.map(item => `
+                            <div class="flex items-center justify-between bg-[#151d2a] rounded-md px-3 py-2">
+                                <div>
+                                    <p class="text-xs font-semibold text-white">${item.folio || '-'}</p>
+                                    <p class="text-[10px] text-gray-500">${item.date ? moment(item.date).format('DD/MM/YYYY hh:mm A') : ''}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs font-bold text-white">${formatPrice(item.total)}</p>
+                                    <p class="text-[10px] text-red-400">Saldo: ${formatPrice(item.pending)}</p>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        itemsHtml = check.items.map(item => `
+                            <div class="flex items-center justify-between bg-[#151d2a] rounded-md px-3 py-2">
+                                <div>
+                                    <p class="text-xs font-semibold text-white">${item.folio || item.name || '-'}</p>
+                                    <p class="text-[10px] text-gray-500">${item.date ? moment(item.date).format('DD/MM/YYYY hh:mm A') : (item.opened_at ? moment(item.opened_at).format('DD/MM/YYYY hh:mm A') : '')}</p>
+                                </div>
+                                <span class="text-xs font-bold text-white">${item.total ? formatPrice(item.total) : (item.employee || '')}</span>
+                            </div>
+                        `).join('');
+                    }
+                }
+
+                checksHtml += `
+                    <div class="bg-[#1a2332] rounded-lg border border-yellow-600/30 overflow-hidden">
+                        <div class="flex items-center gap-3 p-3 cursor-pointer hover:bg-[#1e2a3a] transition-colors" onclick="cierre.toggleDetail('check-${idx}')">
+                            <div class="w-7 h-7 rounded-full bg-yellow-600/20 flex items-center justify-center flex-shrink-0">${svgWarn}</div>
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold text-white">${check.label}</p>
+                                <p class="text-[11px] text-yellow-400/70">No bloquea el cierre</p>
+                            </div>
+                            <svg id="arrow-check-${idx}" class="w-4 h-4 text-gray-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                        <div id="detail-check-${idx}" class="hidden border-t border-yellow-600/20 px-3 pb-3 pt-2 space-y-1.5">${itemsHtml}</div>
+                    </div>`;
+            }
+        });
+
+        const s = data.summary;
+        const html = `
+            <h2 class="text-base font-bold text-white mb-1">Checklist de Cierre</h2>
+            <p class="text-xs text-gray-500 mb-4">${data.subsidiary_name} — ${moment(date).format('DD/MM/YYYY')}</p>
+            <div class="grid grid-cols-3 gap-3 mb-3">
+                <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700/50">
+                    <p class="text-lg font-bold text-green-400">${formatPrice(s.total_sales)}</p>
+                    <p class="text-[10px] text-gray-500">Ventas</p>
+                </div>
+                <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700/50">
+                    <p class="text-lg font-bold text-white">${s.total_orders}</p>
+                    <p class="text-[10px] text-gray-500">Órdenes</p>
+                </div>
+                <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700/50">
+                    <p class="text-lg font-bold text-white">${s.total_shifts}</p>
+                    <p class="text-[10px] text-gray-500">Turnos</p>
+                </div>
+            </div>
+            <div class="space-y-2.5 mb-6">${checksHtml}</div>
+            <div class="flex gap-3">
+                <button class="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-gray-600 hover:bg-gray-700 text-white" onclick="cierre.cancelChecklist()">Cancelar</button>
+                <button class="flex-1 py-2.5 rounded-lg text-sm font-semibold ${data.can_close ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 opacity-50 cursor-not-allowed'} text-white" ${data.can_close ? '' : 'disabled'} onclick="cierre.confirmClose('${date}', '${subsidiaries_id}')">Confirmar Cierre</button>
+            </div>
+        `;
+
+        $('#ticketContainer').html(html);
+        $('#btnOpenShift, #btnCloseShift, #btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+    }
+
+    toggleDetail(id) {
+        const detail = $(`#detail-${id}`);
+        const arrow  = $(`#arrow-${id}`);
+        detail.toggleClass('hidden');
+        arrow.css('transform', detail.hasClass('hidden') ? '' : 'rotate(180deg)');
+    }
+
+    cancelChecklist() {
+        $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        app.loadShifts();
+    }
+
+    async confirmClose(date, subsidiariesId) {
+        const s = this._closureData.summary;
+        const result = await Swal.fire({
+            ...app.swalBase(),
+            icon: 'warning',
+            title: 'Confirmar Cierre Diario',
+            html: `
+                <div class="text-left text-sm">
+                    <p class="mb-2">Se consolidarán <strong>${s.total_shifts} turno(s)</strong> con <strong>${s.total_orders} orden(es)</strong>.</p>
+                    <p class="text-gray-400 text-xs">Total del día: <strong>${formatPrice(s.total_sales)}</strong></p>
+                    <p class="text-red-400 text-xs mt-2">Esta acción no se puede deshacer fácilmente.</p>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, cerrar día',
+            cancelButtonText: 'Cancelar',
+            focusCancel: true
+        });
+
+        if (!result.isConfirmed) return;
+
+        const res = await useFetch({ url: this.api, data: { opc: 'addCierre', date: date, subsidiaries_id: subsidiariesId } });
+
+        if (res.status === 200) {
+            app.toast('Cierre diario realizado correctamente');
+            await this.loadClosedView(date, subsidiariesId);
+            app.refreshState();
+        } else {
+            app.toast(res.message || 'Error al realizar el cierre', 'error');
+            this.cancelChecklist();
+        }
+    }
+
+    async loadClosedView(date, subsidiariesId) {
+        const res = await useFetch({ url: this.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiariesId } });
+
+        if (res.status !== 200 || !res.closure) return;
+
+        this._closureResponse = res;
+
+        const select = $('#shiftSelector');
+        select.html('');
+        select.append(`<option value="daily" style="color: #f97316; font-weight: bold;">CIERRE DIARIO</option>`);
+        if (res.shifts && res.shifts.length > 0) {
+            res.shifts.forEach(shift => {
+                const time  = moment(shift.opened_at).format('YYYY-MM-DD hh:mm A');
+                const badge = shift.status === 'open' ? ' [ABIERTO]' : ' [CERRADO]';
+                select.append(`<option value="${shift.id}" data-status="${shift.status}">${time}${badge}</option>`);
+            });
+        }
+        select.off('change').on('change', function() { cierre.onShiftSelectorChange($(this).val()); });
+
+        $('#openShiftsAlert').addClass('hidden').html('');
+
+        // Badge de cierre junto al label de fecha
+        const dateLabel = $('#calendarDailyClose').closest('div');
+        dateLabel.find('.closure-badge, .closure-wrapper').remove();
+        const label = dateLabel.find('label');
+        label.wrap(`<div class="closure-wrapper flex items-center justify-between mb-1"></div>`);
+        label.removeClass('mb-1').addClass('!mb-0');
+        label.after(`<span class="closure-badge bg-green-600 text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-full tracking-wide leading-none">Cerrado</span>`);
+        $('#calendarDailyClose').addClass('!border-green-600/50');
+        dateLabel.append(`<p class="closure-badge text-[10px] text-gray-500 mt-1">Por: <strong class="text-gray-300">${res.closure.closed_by || 'Admin'}</strong> — ${moment(res.closure.created_at).format('hh:mm A')}</p>`);
+
+        $('#btnOpenShift, #btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+
+        const btnArea = $('#btnCerrarDia').parent();
+        if (app.rol == 1) {
+            btnArea.html(`
+                <button id="btnReabrirDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-2" onclick="cierre.reopenClosure(${res.closure.id})">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Reabrir Día
+                </button>
+                <p class="text-[9px] text-gray-600 mt-1 text-center">Solo admin — requiere motivo</p>
+            `);
+        } else {
+            btnArea.html('');
+        }
+
+        this.renderDailyTicket(res);
+    }
+
+    renderDailyTicket(res) {
+        const c = res.closure;
+        const ticketAvg = c.total_orders > 0 ? (c.total_sales / c.total_orders) : 0;
+
+        let shiftsHtml = '';
+        if (res.shifts && res.shifts.length > 0) {
+            shiftsHtml = res.shifts.map(shift => `
+                <div class="bg-gray-50 rounded p-2 mb-1.5">
+                    <div class="flex justify-between font-semibold"><span>${shift.shift_name || moment(shift.opened_at).format('hh:mm A')}</span><span>${formatPrice(shift.total_sales || 0)}</span></div>
+                    <div class="text-[10px] text-gray-500">${moment(shift.opened_at).format('hh:mm A')}${shift.closed_at ? ' - ' + moment(shift.closed_at).format('hh:mm A') : ''} | ${shift.total_orders || 0} órdenes</div>
+                </div>
+            `).join('');
+        }
+
+        const html = `
+            <div class="flex justify-center p-4">
+                <div id="ticketPasteleria" class="bg-white p-5 rounded-lg shadow-lg text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%; font-family: 'Courier New', monospace; font-size: 12px;">
+                    <div class="flex flex-col items-center mb-3">
+                        <div style="width:60px;height:60px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;" class="mb-2">
+                            <span style="color:white;font-size:24px;font-weight:bold;">${(res.subsidiary_name || 'H').charAt(0).toUpperCase()}</span>
+                        </div>
+                        <h1 class="text-sm font-bold uppercase">${res.company_name || res.subsidiary_name || ''}</h1>
+                        <div class="text-xs font-semibold">PUNTO DE VENTA</div>
+                        <div class="text-xs text-gray-600 mt-0.5">Cierre Diario Consolidado</div>
+                        <div class="bg-green-100 text-green-800 px-3 py-0.5 rounded-full text-[10px] font-bold mt-1.5">CERRADO</div>
+                        <div class="text-[10px] text-gray-500 mt-0.5">Por: ${c.closed_by || 'Admin'}</div>
+                        <div class="text-[10px] text-gray-500">${moment(c.created_at).format('DD/MM/YYYY HH:mm')}</div>
+                    </div>
+                    <div class="text-xs space-y-0.5 mb-2">
+                        <div class="flex justify-between"><span>Fecha:</span><span class="font-semibold">${moment(c.closure_date).format('DD/MM/YYYY')}</span></div>
+                        <div class="flex justify-between"><span>Sucursal:</span><span>${res.subsidiary_name}</span></div>
+                    </div>
+                    <hr class="border-dashed border-t border-gray-400 my-2" />
+                    <div class="text-xs mb-2">
+                        <div class="font-bold text-center mb-1.5">RESUMEN DE TURNOS (${c.total_shifts})</div>
+                        ${shiftsHtml}
+                    </div>
+                    <hr class="border-dashed border-t border-gray-400 my-2" />
+                    <div class="text-xs space-y-0.5">
+                        <div class="flex justify-between"><span class="font-semibold">EFECTIVO:</span><span>${formatPrice(c.total_cash)}</span></div>
+                        <div class="flex justify-between"><span class="font-semibold">TARJETA:</span><span>${formatPrice(c.total_card)}</span></div>
+                        <div class="flex justify-between"><span class="font-semibold">TRANSFERENCIA:</span><span>${formatPrice(c.total_transfer)}</span></div>
+                    </div>
+                    <hr class="border-dashed border-t border-gray-400 my-2" />
+                    <div class="text-xs">
+                        <div class="flex justify-between"><span class="font-semibold">DESCUENTOS:</span><span class="text-red-600">-${formatPrice(c.total_discount)}</span></div>
+                    </div>
+                    <hr class="border-dashed border-t border-gray-400 my-2" />
+                    <div class="flex justify-between items-center text-sm font-bold">
+                        <span>TOTAL DEL DÍA:</span>
+                        <span class="text-base">${formatPrice(c.total_sales)}</span>
+                    </div>
+                    <hr class="border-dashed border-t border-gray-400 my-2" />
+                    <div class="text-xs space-y-0.5">
+                        <div class="flex justify-between"><span class="font-semibold">TOTAL ÓRDENES:</span><span class="font-bold">${c.total_orders}</span></div>
+                        <div class="flex justify-between"><span class="font-semibold">PAGADOS:</span><span>${(c.total_orders || 0) - (res.counts.quotations || 0) - (res.counts.cancelled || 0) - (res.counts.pending || 0)}</span></div>
+                        <div class="flex justify-between"><span class="font-semibold">PENDIENTES:</span><span>${res.counts.pending}</span></div>
+                        <div class="flex justify-between"><span class="font-semibold">COTIZACIONES:</span><span>${res.counts.quotations}</span></div>
+                        <div class="flex justify-between"><span class="font-semibold">CANCELADOS:</span><span>${res.counts.cancelled}</span></div>
+                        <div class="flex justify-between"><span class="font-semibold">TICKET PROMEDIO:</span><span>${formatPrice(ticketAvg)}</span></div>
+                    </div>
+                    <div class="text-center mt-4 text-[10px] font-bold text-gray-900 space-y-1">
+                        <p>GRACIAS POR SU PREFERENCIA</p>
+                        <p class="text-purple-800 text-xs">Huubie</p>
+                        <p class="text-gray-500 font-normal text-[9px]">Generado: ${moment().format('DD/MM/YYYY HH:mm:ss')}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('#ticketContainer').html(html);
+    }
+
+    onShiftSelectorChange(value) {
+        if (value === 'daily') {
+            this.renderDailyTicket(this._closureResponse);
+        } else {
+            app._selectedShiftId = value;
+            app.viewShiftPreview();
+        }
+    }
+
+    reopenClosure(closureId) {
+        const modal = bootbox.dialog({
+            title: 'Reabrir Cierre Diario',
+            message: `
+                <p class="text-sm text-gray-300 mb-3">Indica el motivo de la reapertura:</p>
+                <textarea id="reopenReason" class="w-full bg-[#151d2a] border border-gray-600 rounded-lg p-3 text-white text-sm focus:border-amber-500 focus:outline-none resize-none" rows="4" placeholder="Motivo de reapertura..."></textarea>
+                <p id="reopenError" class="text-red-400 text-xs mt-1 hidden">Debes indicar un motivo</p>
+            `,
+            closeButton: true,
+            buttons: {
+                cancel: {
+                    label: 'Cancelar',
+                    className: 'btn bg-gray-600 hover:bg-gray-700 text-white border-0'
+                },
+                confirm: {
+                    label: 'Reabrir',
+                    className: 'btn bg-amber-600 hover:bg-amber-700 text-white border-0',
+                    callback: () => {
+                        const reason = $('#reopenReason').val();
+                        if (!reason || reason.trim() === '') {
+                            $('#reopenError').removeClass('hidden');
+                            $('#reopenReason').addClass('!border-red-500');
+                            return false;
+                        }
+                        this._executeReopen(closureId, reason, modal);
+                        return false;
+                    }
+                }
+            }
+        });
+
+        modal.on('shown.bs.modal', () => $('#reopenReason').focus());
+    }
+
+    async _executeReopen(closureId, reason, modal) {
+        const res = await useFetch({ url: this.api, data: { opc: 'statusCierre', closure_id: closureId, reason: reason } });
+        modal.modal('hide');
+
+        if (res.status === 200) {
+            app.toast('Cierre reabierto correctamente');
+            app.loadShifts();
+        } else {
+            app.toast(res.message || 'Error al reabrir', 'error');
+        }
+    }
+}
+
+const cierre = new Cierre('/app/pedidos/ctrl/ctrl-cierre.php');

@@ -26,7 +26,7 @@
 
 
 {
-  "workbench.colorTheme": "Kiro Dark",
+  // "workbench.colorTheme": "Kiro Dark",
   // "editor.fontFamily": "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
   "editor.fontSize": 14,
   "editor.lineHeight": 1.6,

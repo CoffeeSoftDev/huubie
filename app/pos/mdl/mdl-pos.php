@@ -30,7 +30,10 @@ class mdl extends CRUD {
         return $this->_Read($query, null);
     }
 
-    // Productos — order_products + categoría + stock por almacén de la sucursal + mínimos
+    // Productos — catálogo por COMPAÑÍA (compartido entre sucursales) con stock
+    // por almacén de la sucursal activa + mínimos.
+    // $array[0] = subsidiaries_id (stock), $array[1] = companies_id (catálogo).
+    // Los productos legacy con companies_id NULL se resuelven vía su sucursal.
     function lsProducts($array) {
         $query = "
             SELECT
@@ -52,10 +55,16 @@ class mdl extends CRUD {
                 WHERE s.active = 1
                 GROUP BY s.product_id
             ) st ON st.product_id = p.id
-            WHERE p.active = 1 AND p.subsidiaries_id = ?
+            WHERE p.active = 1
+              AND (
+                  p.companies_id = ?
+                  OR (p.companies_id IS NULL AND p.subsidiaries_id IN (
+                      SELECT id FROM fayxzvov_alpha.subsidiaries WHERE companies_id = ?
+                  ))
+              )
             ORDER BY oc.id, p.name
         ";
-        return $this->_Read($query, [$array[0], $array[0]]);
+        return $this->_Read($query, [$array[0], $array[1], $array[1]]);
     }
 
     // Tipos de pago POS — pos_payment_type (is_cash calcula cambio, is_visible filtra UI)
@@ -173,20 +182,251 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    // Desglose de pagos POS del turno (EFE/TDC/TRF) para el corte
-    function getShiftPaymentBreakdown($array) {
+    function getShiftsBySubsidiaryDate($array) {
+        $query = "
+            SELECT cs.*, u.fullname AS employee_name
+            FROM {$this->bd}cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE DATE(cs.opened_at) = ? AND cs.subsidiary_id = ? AND cs.active = 1
+            ORDER BY cs.opened_at DESC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function getAllOpenShiftsBySubsidiary($array) {
+        $query = "
+            SELECT cs.*, u.fullname AS employee_name
+            FROM {$this->bd}cash_shift cs
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = cs.employee_id
+            WHERE cs.subsidiary_id = ? AND cs.status = 'open' AND cs.active = 1
+            ORDER BY cs.opened_at DESC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function getSucursalByID($array) {
         $query = "
             SELECT
-                COALESCE(SUM(CASE WHEN pt.is_cash = 1   THEN pop.amount ELSE 0 END), 0) AS cash,
-                COALESCE(SUM(CASE WHEN pt.code = 'TDC'  THEN pop.amount ELSE 0 END), 0) AS card,
-                COALESCE(SUM(CASE WHEN pt.code = 'TRF'  THEN pop.amount ELSE 0 END), 0) AS transfer
+                fayxzvov_alpha.subsidiaries.id AS idSucursal,
+                fayxzvov_admin.companies.id AS idCompany,
+                fayxzvov_admin.companies.social_name AS name,
+                fayxzvov_alpha.subsidiaries.`name` AS sucursal
+            FROM fayxzvov_alpha.subsidiaries
+            INNER JOIN fayxzvov_admin.companies ON fayxzvov_alpha.subsidiaries.companies_id = fayxzvov_admin.companies.id
+            WHERE subsidiaries.id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function getShiftStatusCounts($array) {
+        $query = "SELECT status_process_id, amount FROM {$this->bd}shift_status_process WHERE cash_shift_id = ?";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
+    function createShiftPayment($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}shift_payment",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    function createShiftStatusProcess($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}shift_status_process",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    // Liga al turno los pedidos huérfanos creados durante la ventana del turno
+    function updateOrdersCashShift($array) {
+        $query = "
+            UPDATE {$this->bd}`order`
+            SET cash_shift_id = ?
+            WHERE date_creation >= ? AND date_creation < ?
+            AND subsidiaries_id = ?
+            AND (cash_shift_id IS NULL OR cash_shift_id = 0)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Métricas completas del turno: pedidos (order_payments) + POS (pos_order_payment).
+    // El turno es compartido entre ambos módulos; el corte debe sumar las dos fuentes.
+    function getShiftSalesMetrics($array) {
+        $shift_id      = $array[0];
+        $startDate     = $array[1];
+        $endDate       = $array[2];
+        $subsidiary_id = $array[3];
+
+        $shiftCondition = "(cash_shift_id = ? OR (cash_shift_id IS NULL AND date_creation >= ? AND date_creation < ? AND subsidiaries_id = ?))";
+        $params = [$shift_id, $startDate, $endDate, $subsidiary_id];
+
+        // 1. Total de ventas y órdenes (pedidos + mostrador)
+        $queryOrders = "
+            SELECT COUNT(*) AS total_orders, COALESCE(SUM(total_pay), 0) AS total_sales
+            FROM {$this->bd}`order`
+            WHERE {$shiftCondition} AND status != 4
+        ";
+        $orders = $this->_Read($queryOrders, $params);
+        $ordersData = is_array($orders) && !empty($orders) ? $orders[0] : ['total_orders' => 0, 'total_sales' => 0];
+
+        // 2a. Abonos de pedidos recibidos durante el turno (method_pay 1/2/3)
+        $queryPayments = "
+            SELECT pp.method_pay_id, SUM(pp.pay) AS total_paid
+            FROM {$this->bd}order_payments pp
+            INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
+            WHERE pp.date_pay >= ? AND pp.date_pay <= ?
+            AND po.subsidiaries_id = ?
+            AND po.status != 4
+            GROUP BY pp.method_pay_id
+        ";
+        $payments = $this->_Read($queryPayments, [$startDate, $endDate, $subsidiary_id]);
+
+        $cash_sales = 0; $card_sales = 0; $transfer_sales = 0;
+        if (is_array($payments)) {
+            foreach ($payments as $p) {
+                switch ($p['method_pay_id']) {
+                    case 1: $cash_sales     = (float)$p['total_paid']; break;
+                    case 2: $card_sales     = (float)$p['total_paid']; break;
+                    case 3: $transfer_sales = (float)$p['total_paid']; break;
+                }
+            }
+        }
+
+        // 2b. Pagos POS del turno — mismo mapeo que el cierre del día:
+        //     efectivo (is_cash), transferencia (TRF), y el resto (TDC/ML/OTRO) a tarjeta
+        $queryPos = "
+            SELECT
+                COALESCE(SUM(CASE WHEN pt.is_cash = 1 THEN pop.amount ELSE 0 END), 0) AS cash,
+                COALESCE(SUM(CASE WHEN pt.is_cash = 0 AND pt.code != 'TRF' THEN pop.amount ELSE 0 END), 0) AS card,
+                COALESCE(SUM(CASE WHEN pt.is_cash = 0 AND pt.code = 'TRF' THEN pop.amount ELSE 0 END), 0) AS transfer
             FROM {$this->bd}pos_order_payment pop
             INNER JOIN {$this->bd}pos_payment_type pt ON pop.pos_payment_type_id = pt.id
             INNER JOIN {$this->bd}`order` o ON pop.order_id = o.id
-            WHERE o.cash_shift_id = ? AND o.status != 4 AND pop.active = 1
+            WHERE pop.paid_at >= ? AND pop.paid_at <= ?
+            AND o.subsidiaries_id = ?
+            AND o.status != 4
+            AND pop.active = 1
         ";
-        $result = $this->_Read($query, $array);
-        return is_array($result) && !empty($result) ? $result[0] : ['cash' => 0, 'card' => 0, 'transfer' => 0];
+        $posPay = $this->_Read($queryPos, [$startDate, $endDate, $subsidiary_id]);
+        if (is_array($posPay) && !empty($posPay)) {
+            $cash_sales     += (float)$posPay[0]['cash'];
+            $card_sales     += (float)$posPay[0]['card'];
+            $transfer_sales += (float)$posPay[0]['transfer'];
+        }
+
+        // 3. Conteo por status
+        $quotation_count = 0; $pending_count = 0; $cancelled_count = 0;
+        $queryByStatus = "
+            SELECT status, COUNT(*) AS count
+            FROM {$this->bd}`order`
+            WHERE {$shiftCondition}
+            GROUP BY status
+        ";
+        $statuses = $this->_Read($queryByStatus, $params);
+        if (is_array($statuses)) {
+            foreach ($statuses as $s) {
+                switch ($s['status']) {
+                    case 1: $quotation_count = $s['count']; break;
+                    case 2: $pending_count   = $s['count']; break;
+                    case 4: $cancelled_count = $s['count']; break;
+                }
+            }
+        }
+
+        return [
+            'total_orders'    => $ordersData['total_orders'],
+            'total_sales'     => $ordersData['total_sales'],
+            'cash_sales'      => $cash_sales,
+            'card_sales'      => $card_sales,
+            'transfer_sales'  => $transfer_sales,
+            'quotation_count' => $quotation_count,
+            'pending_count'   => $pending_count,
+            'cancelled_count' => $cancelled_count
+        ];
+    }
+
+    // Órdenes del turno (pedidos + mostrador) con lo cobrado en la ventana del turno
+    function getShiftDetailedOrders($array) {
+        $shift_id      = $array[0];
+        $startDate     = $array[1];
+        $endDate       = $array[2];
+        $subsidiary_id = $array[3];
+
+        $query1 = "
+            SELECT
+                o.id,
+                o.total_pay,
+                o.order_type,
+                COALESCE(ped.paid, 0) + COALESCE(pos.paid, 0) AS payment_real,
+                o.status,
+                o.date_creation,
+                c.name AS client_name
+            FROM {$this->bd}`order` o
+            LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            LEFT JOIN (
+                SELECT order_id, SUM(pay) AS paid
+                FROM {$this->bd}order_payments
+                WHERE date_pay >= ? AND date_pay <= ?
+                GROUP BY order_id
+            ) ped ON ped.order_id = o.id
+            LEFT JOIN (
+                SELECT order_id, SUM(amount) AS paid
+                FROM {$this->bd}pos_order_payment
+                WHERE paid_at >= ? AND paid_at <= ? AND active = 1
+                GROUP BY order_id
+            ) pos ON pos.order_id = o.id
+            WHERE
+                (o.cash_shift_id = ?
+                OR (o.cash_shift_id IS NULL
+                        AND o.date_creation >= ?
+                        AND o.date_creation < ?
+                        AND o.subsidiaries_id = ?
+                ))
+            AND o.status != 4
+            ORDER BY o.date_creation ASC
+        ";
+        $shiftOrders = $this->_Read($query1, [
+            $startDate, $endDate,
+            $startDate, $endDate,
+            $shift_id,
+            $startDate, $endDate, $subsidiary_id
+        ]);
+
+        // Abonos recibidos en este turno para pedidos de turnos anteriores
+        $query2 = "
+            SELECT
+                o.id,
+                o.total_pay,
+                o.order_type,
+                SUM(op.pay) AS payment_real,
+                o.status,
+                o.date_creation,
+                c.name AS client_name
+            FROM {$this->bd}order_payments op
+            JOIN {$this->bd}`order` o ON o.id = op.order_id
+            LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            WHERE op.date_pay >= ? AND op.date_pay <= ?
+            AND o.cash_shift_id IS NOT NULL
+            AND o.cash_shift_id != ?
+            AND o.subsidiaries_id = ?
+            AND o.status != 4
+            GROUP BY o.id, o.total_pay, o.order_type, o.status, o.date_creation, c.name
+            ORDER BY o.date_creation ASC
+        ";
+        $externalPayments = $this->_Read($query2, [
+            $startDate, $endDate,
+            $shift_id,
+            $subsidiary_id
+        ]);
+
+        return [
+            'shift_orders'      => is_array($shiftOrders) ? $shiftOrders : [],
+            'external_payments' => is_array($externalPayments) ? $externalPayments : []
+        ];
     }
 
     function getMaxOrderFolio() {
@@ -381,24 +621,96 @@ class mdl extends CRUD {
         return is_array($result) && !empty($result) ? $result[0] : null;
     }
 
-    // Precios reales por id — el total se calcula en servidor, no se confía en el POST
+    // Precios y costo unitario por id — el total se calcula en servidor, no se confía en el POST
     function getProductsByIds($ids) {
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $query = "
-            SELECT id, name, price
-            FROM {$this->bd}order_products
-            WHERE active = 1 AND id IN ({$placeholders})
+            SELECT p.id, p.name, p.price, COALESCE(pa.cost_unit, 0) AS cost
+            FROM {$this->bd}order_products p
+            LEFT JOIN {$this->bd}product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            WHERE p.active = 1 AND p.id IN ({$placeholders})
         ";
         return $this->_Read($query, $ids);
     }
 
-    // Descuenta stock en el almacén default de la sucursal al cobrar
-    function decrementStock($array) {
+    // =========================================================================
+    // Salida de almacén por venta — inventory_shrinkage (kardex)
+    // Misma convención que el módulo de mermas (app/inventarios)
+    // =========================================================================
+
+    function getDefaultWarehouse($array) {
         $query = "
-            UPDATE {$this->bd}stock s
-            INNER JOIN {$this->bd}warehouse w ON s.warehouse_id = w.id AND w.is_default = 1 AND w.active = 1
-            SET s.quantity = s.quantity - ?, s.last_movement_at = NOW()
-            WHERE s.product_id = ? AND w.subsidiaries_id = ? AND s.active = 1
+            SELECT id, name
+            FROM {$this->bd}warehouse
+            WHERE subsidiaries_id = ? AND active = 1
+            ORDER BY is_default DESC, id ASC
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function getStockRow($array) {
+        $query = "
+            SELECT id, quantity
+            FROM {$this->bd}stock
+            WHERE product_id = ? AND warehouse_id = ? AND active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function updateStockQuantity($array) {
+        $query = "
+            UPDATE {$this->bd}stock
+            SET quantity = ?, last_movement_at = NOW(), updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Folio consecutivo por prefijo y compañía (convención del módulo de inventarios)
+    function nextShrinkageFolio($prefix, $companies_id) {
+        $query = "
+            SELECT folio
+            FROM {$this->bd}inventory_shrinkage
+            WHERE companies_id = ? AND folio LIKE ?
+            ORDER BY id DESC
+            LIMIT 1
+        ";
+        $r    = $this->_Read($query, [$companies_id, $prefix . '%']);
+        $next = 1;
+        if (!empty($r)) {
+            $num  = (int)preg_replace('/[^0-9]/', '', substr($r[0]['folio'], strlen($prefix)));
+            $next = $num + 1;
+        }
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
+    }
+
+    function createShrinkage($array) {
+        $query = "
+            INSERT INTO {$this->bd}inventory_shrinkage
+                (folio, note, evidence_url, total_products, total_units, total_cost_loss,
+                 status, shrinkage_reason_id, warehouse_id,
+                 subsidiaries_id, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function getShrinkageIdByFolio($array) {
+        $query = "SELECT id FROM {$this->bd}inventory_shrinkage WHERE folio = ? AND companies_id = ? LIMIT 1";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? (int)$result[0]['id'] : 0;
+    }
+
+    function createShrinkageDetail($array) {
+        $query = "
+            INSERT INTO {$this->bd}detail_inventory_shrinkage
+                (quantity, cost, subtotal_loss, previous_stock, resulting_stock,
+                 product_id, inventory_shrinkage_id)
+            VALUES (?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
     }
