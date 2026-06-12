@@ -1,2 +1,3 @@
 # Configuracion local de Claude Code (contiene secretos como API keys)
 .claude/settings.local.json
+.claude/settings.json
