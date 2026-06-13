@@ -6,7 +6,7 @@ let branchId;
 const VIEW_HEADER_TRASPASOS = {
     title:    'Visor de Traspasos',
     subtitle: 'Gestion de movimientos entre sucursales',
-    back:     { href: '/inventory/operacion/almacen/index.php', title: 'Regresar al inicio' }
+    // back:     { href: '/inventory/operacion/almacen/index.php', title: 'Regresar al inicio' }
 };
 
 $(async () => {

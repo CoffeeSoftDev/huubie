@@ -4738,7 +4738,7 @@ class Components extends Complements {
             });
 
             opts.json.forEach(tab => {
-                const borderClass = opts.showBorder ? 'border p-3' : 'py-2 px-3';
+                const borderClass = opts.showBorder ? 'border p-3' : 'py-2';
                 const contentView = $("<div>", {
                     id: `container-${tab.id}`,
                     class: `hidden  ${borderClass} ${tab.class ?? ''} rounded-lg`,

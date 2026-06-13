@@ -6,7 +6,7 @@ let branchId;
 const VIEW_HEADER_MOVIMIENTOS = {
     title:    'Visor de Movimientos',
     subtitle: 'Kardex de inventario · entradas, mermas y traspasos',
-    back:     { href: '/inventory/operacion/almacen/index.php', title: 'Regresar al inicio' }
+    // back:     { href: '/inventory/operacion/almacen/index.php', title: 'Regresar al inicio' }
 };
 
 $(async () => {

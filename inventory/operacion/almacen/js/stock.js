@@ -82,7 +82,7 @@ class App extends Templates {
             title:     'Visor de Stock',
             titleHtml: titleHtml,
             subtitle:  'Control de existencias por sucursal, categoria y nivel',
-            back:      { href: 'index.php', title: 'Regresar al inicio' }
+            // back:      { href: 'index.php', title: 'Regresar al inicio' }
         });
     }
 

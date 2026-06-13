@@ -42,11 +42,9 @@ class Main extends Templates {
 
     render() {
         this.layout();
-
     }
 
     layout() {
-
         this.primaryLayout({
             parent: "root",
             id: this.PROJECT_NAME,
@@ -147,8 +145,6 @@ class Productos extends Templates {
                 container: { class: 'w-full', id: 'container' + this.PROJECT_NAME }
             }
         });
-
-    
     }
 
     filterBar() {
