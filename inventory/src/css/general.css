@@ -58,7 +58,11 @@ main > #main__content {
     padding: 20px;
     transition: all 0.5s ease;
     overflow-y: auto;
-    scrollbar-gutter: stable;
+    /* auto en vez de stable: reserva el gutter SOLO cuando hay scroll real.
+       Asi las paginas con layout flex interno (visores que scrollean por
+       dentro y nunca desbordan #main__content) no quedan con un hueco de ~15px
+       a la derecha, y las que si desbordan siguen mostrando su barra normal. */
+    scrollbar-gutter: auto;
     /* Continua la cadena flex hasta #root: asi los hijos con flex-1
        llenan el alto disponible sin necesitar calculo en JS. */
     display: flex;

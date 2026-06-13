@@ -27,6 +27,42 @@
             mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
         }
     </script>
+
+    <style>
+        /* ── Lienzo Excalidraw ── */
+        .excalidraw-stage { width: 100%; height: 100%; min-height: 480px; display: flex; flex-direction: column; background: var(--vsr-bg-base, #0E1521); border-radius: 10px; overflow: hidden; }
+        .excalidraw-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 14px; border-bottom: 1px solid var(--vsr-border, #243043);
+            background: var(--vsr-bg-card, #141d2b); flex-shrink: 0;
+        }
+        .excalidraw-bar-title { font-size: 13px; font-weight: 600; color: var(--vsr-text, #E5E7EB); }
+        .excalidraw-mount { flex: 1 1 auto; min-height: 0; position: relative; }
+        .excalidraw-mount .excalidraw { height: 100%; }
+        .excalidraw-loading {
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px;
+            color: var(--vsr-text-muted, #9CA3AF); font-size: 13px; padding: 40px; text-align: center;
+        }
+        .excalidraw-spinner {
+            width: 16px; height: 16px; border-radius: 50%;
+            border: 2px solid currentColor; border-top-color: transparent;
+            display: inline-block; animation: excSpin .8s linear infinite;
+        }
+        @keyframes excSpin { to { transform: rotate(360deg); } }
+
+        /* ── Modo boceto dividido: documento (izq) + lienzo Excalidraw (der) ──
+           Mismo split que draw.io (body.diagram-mode): el documento queda a la
+           izquierda como referencia y el lienzo aparece a la derecha. */
+        body.sketch-mode .main-content    { display: flex; flex-direction: row; align-items: stretch; gap: 20px; overflow: hidden; }
+        body.sketch-mode .doc-layout      { flex: 1 1 0; min-width: 0; height: 100%; overflow-y: auto; }
+        body.sketch-mode #excalidrawStage { flex: 1 1 0; min-width: 0; height: 100%; }
+        body.sketch-mode .doc-meta        { display: none; }
+        @media (max-width: 1100px) {
+            body.sketch-mode .main-content    { flex-direction: column; overflow-y: auto; }
+            body.sketch-mode .doc-layout      { height: auto; overflow-y: visible; }
+            body.sketch-mode #excalidrawStage { height: 70vh; }
+        }
+    </style>
 </head>
 
 <body class="visor-body" data-theme="dark">
@@ -113,9 +149,6 @@
                     </span>
                     <input id="sidebarSearch" type="text" placeholder="Filtrar archivos..." class="cs-input pl-9 w-full">
                 </div>
-                <button id="btnNewFile" class="sidebar-new-btn" title="Crear un archivo nuevo en esta carpeta">
-                    <i data-lucide="file-plus" class="w-4 h-4"></i>
-                </button>
                 <button id="btnToggleSidebar" class="sidebar-toggle-btn" title="Ocultar lista de archivos">
                     <i data-lucide="panel-left-close" class="w-4 h-4"></i>
                 </button>
@@ -171,9 +204,17 @@
                         <i data-lucide="pen-tool" class="w-3.5 h-3.5"></i>
                         Diagrama
                     </button>
+                    <button id="btnNewSketch" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Nuevo boceto (Excalidraw)">
+                        <i data-lucide="pencil-ruler" class="w-3.5 h-3.5"></i>
+                        Boceto
+                    </button>
                     <button id="btnCloseDiagram" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Cerrar lienzo">
                         <i data-lucide="x" class="w-3.5 h-3.5"></i>
                         Cerrar lienzo
+                    </button>
+                    <button id="btnCloseSketch" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Cerrar boceto">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        Cerrar boceto
                     </button>
                     <button id="btnEdit" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Editar en el visor" disabled>
                         <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
@@ -257,6 +298,9 @@
 
                 <!-- Lienzo de diagramas (draw.io embebido). Oculto salvo modo diagrama. -->
                 <div id="drawioStage" class="drawio-stage hidden"></div>
+
+                <!-- Lienzo de bocetos (Excalidraw). Oculto salvo modo boceto. -->
+                <div id="excalidrawStage" class="excalidraw-stage hidden"></div>
             </div>
 
             </div><!-- /.visor-main-col -->
@@ -474,5 +518,9 @@
     <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>
+
+    <!-- Integración Excalidraw (lienzo de bocetos): parchea App.loadFile y monta el board. -->
+    <script src="src/js/excalidraw-board.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/visor-2.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

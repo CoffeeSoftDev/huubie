@@ -1,3 +1,155 @@
+[ 2026-06-12 11:35:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COUNT(t.id) AS total,
+                COUNT(CASE WHEN ts.code = 'REQUESTED'  THEN 1 END) AS pendientes,
+                COUNT(CASE WHEN ts.code = 'IN_TRANSIT' THEN 1 END) AS en_transito,
+                COUNT(CASE WHEN ts.code = 'RECEIVED'   THEN 1 END) AS recibidos,
+                COUNT(CASE WHEN ts.code = 'REJECTED'   THEN 1 END) AS rechazados
+            FROM fayxzvov_inventory.inventory_transfer t
+            LEFT JOIN fayxzvov_inventory.transfer_status ts ON ts.id = t.status_id
+            WHERE t.active = 1 AND t.companies_id = ? AND (t.origin_branch_id = ? OR t.destination_branch_id = ?)
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.inventory_transfer' doesn't exist
+
+
+[ 2026-06-12 11:35:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                t.id,
+                t.folio,
+                t.note,
+                t.total_products,
+                t.total_units,
+                t.total_cost,
+                t.date_request,
+                t.date_authorized,
+                t.date_sent,
+                t.date_received,
+                t.status_id,
+                ts.code              AS status_code,
+                ts.name              AS status_name,
+                ts.color_hex         AS status_color,
+                ts.is_terminal       AS status_terminal,
+                t.origin_warehouse_id,
+                wo.name              AS origin_warehouse_name,
+                t.destination_warehouse_id,
+                wd.name              AS destination_warehouse_name,
+                t.origin_branch_id,
+                bo.name              AS origin_branch_name,
+                t.destination_branch_id,
+                bd.name              AS destination_branch_name,
+                t.requested_user_id,
+                TRIM(CONCAT(COALESCE(ur.name, ''), ' ', COALESCE(ur.last_name, '')))   AS requested_user_name,
+                t.received_user_id,
+                TRIM(CONCAT(COALESCE(urc.name, ''), ' ', COALESCE(urc.last_name, ''))) AS received_user_name,
+                t.received_by_name
+            FROM fayxzvov_inventory.inventory_transfer t
+            LEFT JOIN fayxzvov_inventory.transfer_status ts ON ts.id = t.status_id
+            LEFT JOIN fayxzvov_inventory.warehouse       wo ON wo.id = t.origin_warehouse_id
+            LEFT JOIN fayxzvov_inventory.warehouse       wd ON wd.id = t.destination_warehouse_id
+            LEFT JOIN fayxzvov_erp.branches     bo ON bo.id = t.origin_branch_id
+            LEFT JOIN fayxzvov_erp.branches     bd ON bd.id = t.destination_branch_id
+            LEFT JOIN fayxzvov_erp.users        ur ON ur.id = t.requested_user_id
+            LEFT JOIN fayxzvov_erp.users       urc ON urc.id = t.received_user_id
+            WHERE t.active = 1 AND t.companies_id = ? AND (t.origin_branch_id = ? OR t.destination_branch_id = ?) AND DATE(t.date_request) BETWEEN ? AND ?
+            ORDER BY t.date_request DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.inventory_transfer' doesn't exist
+
+
+[ 2026-06-12 11:35:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, order_index, is_terminal, color_hex
+            FROM fayxzvov_inventory.transfer_status
+            WHERE active = 1
+            ORDER BY order_index ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.transfer_status' doesn't exist
+
+
+[ 2026-06-12 11:17:32 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COUNT(t.id) AS total,
+                COUNT(CASE WHEN ts.code = 'REQUESTED'  THEN 1 END) AS pendientes,
+                COUNT(CASE WHEN ts.code = 'IN_TRANSIT' THEN 1 END) AS en_transito,
+                COUNT(CASE WHEN ts.code = 'RECEIVED'   THEN 1 END) AS recibidos,
+                COUNT(CASE WHEN ts.code = 'REJECTED'   THEN 1 END) AS rechazados
+            FROM fayxzvov_inventory.inventory_transfer t
+            LEFT JOIN fayxzvov_inventory.transfer_status ts ON ts.id = t.status_id
+            WHERE t.active = 1 AND t.companies_id = ? AND (t.origin_branch_id = ? OR t.destination_branch_id = ?)
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.inventory_transfer' doesn't exist
+
+
+[ 2026-06-12 11:17:32 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                t.id,
+                t.folio,
+                t.note,
+                t.total_products,
+                t.total_units,
+                t.total_cost,
+                t.date_request,
+                t.date_authorized,
+                t.date_sent,
+                t.date_received,
+                t.status_id,
+                ts.code              AS status_code,
+                ts.name              AS status_name,
+                ts.color_hex         AS status_color,
+                ts.is_terminal       AS status_terminal,
+                t.origin_warehouse_id,
+                wo.name              AS origin_warehouse_name,
+                t.destination_warehouse_id,
+                wd.name              AS destination_warehouse_name,
+                t.origin_branch_id,
+                bo.name              AS origin_branch_name,
+                t.destination_branch_id,
+                bd.name              AS destination_branch_name,
+                t.requested_user_id,
+                TRIM(CONCAT(COALESCE(ur.name, ''), ' ', COALESCE(ur.last_name, '')))   AS requested_user_name,
+                t.received_user_id,
+                TRIM(CONCAT(COALESCE(urc.name, ''), ' ', COALESCE(urc.last_name, ''))) AS received_user_name,
+                t.received_by_name
+            FROM fayxzvov_inventory.inventory_transfer t
+            LEFT JOIN fayxzvov_inventory.transfer_status ts ON ts.id = t.status_id
+            LEFT JOIN fayxzvov_inventory.warehouse       wo ON wo.id = t.origin_warehouse_id
+            LEFT JOIN fayxzvov_inventory.warehouse       wd ON wd.id = t.destination_warehouse_id
+            LEFT JOIN fayxzvov_erp.branches     bo ON bo.id = t.origin_branch_id
+            LEFT JOIN fayxzvov_erp.branches     bd ON bd.id = t.destination_branch_id
+            LEFT JOIN fayxzvov_erp.users        ur ON ur.id = t.requested_user_id
+            LEFT JOIN fayxzvov_erp.users       urc ON urc.id = t.received_user_id
+            WHERE t.active = 1 AND t.companies_id = ? AND (t.origin_branch_id = ? OR t.destination_branch_id = ?) AND DATE(t.date_request) BETWEEN ? AND ?
+            ORDER BY t.date_request DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.inventory_transfer' doesn't exist
+
+
+[ 2026-06-12 11:17:32 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, order_index, is_terminal, color_hex
+            FROM fayxzvov_inventory.transfer_status
+            WHERE active = 1
+            ORDER BY order_index ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.transfer_status' doesn't exist
+
+
 [ 2026-06-10 23:17:55 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$

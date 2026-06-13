@@ -64,7 +64,7 @@ class ctrl extends mdl {
             'status'    => 200,
             'sucursales' => $this->lsSucursales([$cid]),
             'almacenes'  => $this->lsWarehouses(['companies_id' => $cid]),
-            'categorias' => [],
+            'categorias' => $this->lsCategorias([$cid]),
             'productos'  => $items
         ];
     }
@@ -265,6 +265,34 @@ class ctrl extends mdl {
                     } else {
                         $this->createStockRow([$destPost, $destWh, $itemId, $this->companiesId]);
                     }
+
+                    // Kardex: 2 asientos por renglon (salida en origen, entrada en destino).
+                    // Solo auditoria; el stock ya quedo aplicado arriba.
+                    $folio    = $header['folio'] ?? '';
+                    $unitCost = isset($d['cost']) ? (float) $d['cost'] : 0;
+                    $origName = $header['origin_branch_name'] ?? '';
+                    $destName = $header['destination_branch_name'] ?? '';
+                    $detailId = (int) $d['id'];
+
+                    if (!$alreadySent) {
+                        $this->createInventoryMovement([
+                            'TRO-' . $detailId, 'SALIDA', $folio,
+                            "Traspaso {$folio} · salida hacia {$destName}",
+                            -$qty, $originPrev, $originPost,
+                            $unitCost, $unitCost * $qty,
+                            $itemId, $originWh, (int) $header['origin_branch_id'],
+                            $this->userId, $this->companiesId
+                        ]);
+                    }
+
+                    $this->createInventoryMovement([
+                        'TRD-' . $detailId, 'ENTRADA', $folio,
+                        "Traspaso {$folio} · entrada desde {$origName}",
+                        $qty, $destPrev, $destPost,
+                        $unitCost, $unitCost * $qty,
+                        $itemId, $destWh, (int) $header['destination_branch_id'],
+                        $this->userId, $this->companiesId
+                    ]);
                 }
 
                 $this->updateTraspasoStatus([(int) $st['id'], $id]);
@@ -318,7 +346,7 @@ function sucChipCell($branchId, $branchName, $whName, $withArrow) {
     $idx   = $branchId ? ((int) $branchId % count($palette)) : 0;
     $p     = $palette[$idx];
     $wh    = $whName
-        ? "<div class='text-[10px] text-gray-400 truncate'>{$whName}</div>"
+        ? "<div class='text-[10px] text-gray-500 truncate'>{$whName}</div>"
         : "";
     $arrow = $withArrow
         ? "<i data-lucide='arrow-right' class='w-4 h-4 text-gray-500 flex-shrink-0 ml-auto'></i>"
@@ -326,7 +354,7 @@ function sucChipCell($branchId, $branchName, $whName, $withArrow) {
     return "<div class='flex items-center gap-2 w-full text-left'>"
          . "<div class='w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0' style='background:{$p['bg']};border:1px solid {$p['border']};'>"
          . "<i data-lucide='store' class='w-4 h-4 {$p['icon']}'></i></div>"
-         . "<div class='min-w-0'><div class='font-semibold text-white truncate leading-tight'>{$name}</div>{$wh}</div>"
+         . "<div class='min-w-0'><div class='font-semibold text-gray-800 truncate leading-tight'>{$name}</div>{$wh}</div>"
          . "{$arrow}</div>";
 }
 

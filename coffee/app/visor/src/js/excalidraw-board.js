@@ -84,8 +84,19 @@ class ExcalidrawBoard {
         if (file && file.raw) {
             try {
                 const parsed = JSON.parse(file.raw);
+                let elements = Array.isArray(parsed.elements) ? parsed.elements : [];
+                // Escenas "skeleton" (generadas por la IA): sus elementos NO traen
+                // seed/versionNonce ni bindings. convertToExcalidrawElements los
+                // normaliza (geometría, anclaje de flechas, textos en contenedores).
+                const looksSkeleton = elements.length > 0 &&
+                    elements.some(el => el && el.seed == null && el.versionNonce == null);
+                if (looksSkeleton && window.ExcalidrawLib &&
+                    typeof window.ExcalidrawLib.convertToExcalidrawElements === 'function') {
+                    try { elements = window.ExcalidrawLib.convertToExcalidrawElements(elements); }
+                    catch (e) { /* skeleton invalido: cargamos los elementos tal cual */ }
+                }
                 initialData = {
-                    elements: Array.isArray(parsed.elements) ? parsed.elements : [],
+                    elements,
                     // collaborators debe ser un array/Map: forzamos vacío para evitar errores.
                     appState: Object.assign({}, parsed.appState || {}, { collaborators: [] }),
                     files:    parsed.files || undefined
@@ -130,10 +141,11 @@ class ExcalidrawBoard {
         this._showStage(false);
     }
 
-    // Muestra/oculta el lienzo y atenúa la toolbar de documento que no aplica.
+    // Muestra el lienzo en split (documento izq + Excalidraw der), igual que el
+    // modo diagrama de draw.io. El documento NO se oculta: queda como referencia.
     _showStage(show) {
+        $('body').toggleClass('sketch-mode', show);
         $('#' + this.stageId).toggleClass('hidden', !show);
-        $('.doc-layout').toggleClass('hidden', show);
         $('.cs-tabs-inline, #btnEdit, #btnCopyPath, #docStyleSelect, .doc-zoom, .doc-toolbar-sep, #btnNewDiagram, #btnNewSketch')
             .toggleClass('hidden', show);
         $('#btnCloseSketch').toggleClass('hidden', !show);

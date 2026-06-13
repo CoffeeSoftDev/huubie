@@ -59,15 +59,31 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        stockView.renderHeader({
-            title:    'Visor de Stock',
-            subtitle: 'Control de existencias por sucursal, categoria y nivel',
-            back:     { href: 'index.php', title: 'Regresar al inicio' }
-        });
         stockView.renderDetail(null);
         this.populateFilters();
+        this.renderHeader();
         stock.lsStock();
         stock.lsKpis();
+    }
+
+    renderHeader() {
+        const branchVal  = $('#branch_id').val() || '';
+        const branchName = $('#branch_id option:selected').text() || '';
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const titleHtml = (branchVal && branchName)
+            ? `Visor de Stock <span class="font-bold" style="color:#C05A40;">· ${esc(branchName)}</span>`
+            : 'Visor de Stock';
+
+        stockView.renderHeader({
+            title:     'Visor de Stock',
+            titleHtml: titleHtml,
+            subtitle:  'Control de existencias por sucursal, categoria y nivel',
+            back:      { href: 'index.php', title: 'Regresar al inicio' }
+        });
     }
 
     layout() {
@@ -232,6 +248,7 @@ class App extends Templates {
     }
 
     onChangeSucursal() {
+        this.renderHeader();
         stock.lsStock();
         stock.lsKpis();
         if (this.selectedId) stock.getProducto(this.selectedId);
@@ -482,7 +499,7 @@ class StockView extends Templates {
             parent: 'root',
             id:     'viewHeader',
             class:  'flex items-center justify-between w-full',
-            json:   { title: '', subtitle: '', toggles: [], back: null },
+            json:   { title: '', titleHtml: '', subtitle: '', toggles: [], back: null },
             classes: {
                 title:    'text-lg font-bold text-gray-800',
                 subtitle: 'text-xs text-gray-500',
@@ -542,7 +559,7 @@ class StockView extends Templates {
             <div class="flex items-center gap-3">
                 ${backHtml}
                 <div>
-                    <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
+                    <h1 class="${opts.classes.title}">${opts.json.titleHtml || esc(opts.json.title)}</h1>
                     ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
                 </div>
             </div>

@@ -62,7 +62,7 @@ class Navbar {
                         <div class="nav-avatar">${initials}</div>
                         <div class="hidden sm:flex flex-col items-start leading-tight">
                             <span class="nav-user-name">${this.settings.user}</span>
-                            <span class="nav-user-rol">${this.settings.rol || 'Sin rol'}</span>
+                            <span class="nav-user-rol">${this.settings.sucursal || 'Sin sucursal'}</span>
                         </div>
                         <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
                     </button>

@@ -48,10 +48,25 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        traspasosView.renderHeader(VIEW_HEADER_TRASPASOS);
+        this.renderHeader();
         traspasosView.renderDetail(null);
         traspasos.lsTraspasos();
         traspasos.lsKpis();
+    }
+
+    renderHeader() {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const branch     = (this.dataInit.sucursales || []).find(s => String(s.id) === String(this.branchId));
+        const branchName = branch ? (branch.valor || '') : '';
+
+        const titleHtml = branchName
+            ? `${VIEW_HEADER_TRASPASOS.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(branchName)}</span>`
+            : VIEW_HEADER_TRASPASOS.title;
+
+        traspasosView.renderHeader(Object.assign({}, VIEW_HEADER_TRASPASOS, { titleHtml }));
     }
 
     layout() {
@@ -63,20 +78,20 @@ class App extends Templates {
                 {
                     id:    'viewHeader',
                     text:  '#viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                    class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
                     text:  '#tableWrap',
-                    class: 'p-3 flex-1 min-h-0 overflow-auto'
+                    class: 'p-3 flex-1 min-h-0 overflow-auto bg-white'
                 }
             ]
         };
@@ -84,7 +99,7 @@ class App extends Templates {
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: 'w-full md:w-[400px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden',
+            class: 'w-full md:w-[400px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'detailContent',
@@ -99,7 +114,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden',
+                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
                 container: [mainPanel, detailPanel]
             }
         });
@@ -141,18 +156,19 @@ class App extends Templates {
                 data:     sucursales
             },
             {
-                opc:     'button',
-                id:      'btnNuevoTraspaso',
-                text:    'Nuevo Traspaso',
-                class:   'col-12 col-md-2 col-lg-3',
-                onClick: () => traspasosView.openTraspasoForm()
+                opc:       'button',
+                id:        'btnNuevoTraspaso',
+                text:      'Nuevo Traspaso',
+                color_btn: 'invernal',
+                class:     'col-12 col-md-2 col-lg-3',
+                onClick:   () => traspasosView.openTraspasoForm()
             }
         ];
 
         this.createfilterBar({
             parent:     'filterBar',
             coffeesoft: true,
-            theme:      'dark',
+            theme:      'light',
             data:       filters
         });
 
@@ -201,6 +217,7 @@ class App extends Templates {
             this.branchId = detail.id;
             branchId      = this.branchId;
         }
+        this.renderHeader();
         this.selectTraspaso(null);
         traspasos.lsTraspasos();
         traspasos.lsKpis();
@@ -256,7 +273,7 @@ class Traspasos extends Templates {
             },
             attr: {
                 id:           `tb${this.PROJECT_NAME}`,
-                theme:        'dark',
+                theme:        'light',
                 f_size:       12,
                 center:       [1, 3, 4, 5, 10],
                 right:        [6],
@@ -673,14 +690,14 @@ class TraspasosView extends Templates {
             json:   [],
             labels: { empty: 'Sin indicadores' },
             tones: {
-                default: 'text-white',
-                success: 'text-[var(--cs-success,#3FC189)]',
-                warning: 'text-[var(--cs-warning,#FBBF24)]',
-                danger:  'text-[var(--cs-danger,#E02424)]',
-                info:    'text-[var(--cs-info,#1C64F2)]'
+                default: 'text-gray-800',
+                success: 'text-green-600',
+                warning: 'text-amber-500',
+                danger:  'text-red-600',
+                info:    'text-blue-600'
             },
-            cardClass:  'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
-            labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
+            cardClass:  'cs-kpi-card bg-white rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:shadow-lg transition-shadow',
+            labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-gray-500',
             valueClass: 'cs-kpi-value text-sm font-bold',
             onClick:    () => {}
         };
@@ -708,7 +725,7 @@ class TraspasosView extends Templates {
         const grid = $('<div>', { id: opts.id, class: opts.class });
 
         if (!opts.json || opts.json.length === 0) {
-            grid.html(`<p class="col-span-full text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic text-center py-2">${esc(opts.labels.empty)}</p>`);
+            grid.html(`<p class="col-span-full text-[10px] text-gray-400 italic text-center py-2">${esc(opts.labels.empty)}</p>`);
             $(`#${opts.parent}`).html(grid);
             return;
         }
@@ -727,11 +744,11 @@ class TraspasosView extends Templates {
             parent: 'root',
             id:     'viewHeader',
             class:  'flex items-center justify-between w-full',
-            json:   { title: '', subtitle: '', back: null },
+            json:   { title: '', titleHtml: '', subtitle: '', back: null },
             classes: {
-                title:    'text-base font-bold text-white',
-                subtitle: 'text-[10px] text-[var(--cs-text-secondary,#D1D5DB)]',
-                backBtn:  'w-8 h-8 rounded-full bg-[var(--cs-bg-input,#1F2937)] hover:bg-[var(--cs-accent-purple,#7C3AED)]/15 border border-[var(--cs-border,#374151)] hover:border-[var(--cs-accent-purple,#7C3AED)] flex items-center justify-center text-[var(--cs-text-secondary,#D1D5DB)] hover:text-white transition-colors flex-shrink-0'
+                title:    'text-lg font-bold text-gray-800',
+                subtitle: 'text-xs text-gray-500',
+                backBtn:  'w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0'
             },
             onBack: null
         };
@@ -758,7 +775,7 @@ class TraspasosView extends Templates {
             <div class="flex items-center gap-3">
                 ${backHtml}
                 <div>
-                    <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
+                    <h1 class="${opts.classes.title}">${opts.json.titleHtml || esc(opts.json.title)}</h1>
                     ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
                 </div>
             </div>`);
@@ -778,7 +795,7 @@ class TraspasosView extends Templates {
         const defaults = {
             parent:    'root',
             id:        'traspasoDetailPanel',
-            class:     'w-full h-full flex-shrink-0 bg-[var(--cs-bg-header,#141d2b)] flex flex-col overflow-hidden',
+            class:     'w-full h-full flex-shrink-0 bg-white flex flex-col overflow-hidden',
             json:      null,
             subId:     null,
             labels: {
@@ -816,19 +833,19 @@ class TraspasosView extends Templates {
                 'Rechazado':   { bg: 'rgba(244,63,94,0.15)',   fg: '#F43F5E' }
             },
             routePalette: [
-                { icon: 'text-blue-400',   bgHex: 'rgba(59,130,246,0.15)',  borderHex: 'rgba(59,130,246,0.35)' },
-                { icon: 'text-green-400',  bgHex: 'rgba(63,193,137,0.15)',  borderHex: 'rgba(63,193,137,0.35)' },
-                { icon: 'text-purple-400', bgHex: 'rgba(168,85,247,0.15)',  borderHex: 'rgba(168,85,247,0.35)' },
-                { icon: 'text-pink-400',   bgHex: 'rgba(244,114,182,0.15)', borderHex: 'rgba(244,114,182,0.35)' },
-                { icon: 'text-orange-400', bgHex: 'rgba(251,146,60,0.15)',  borderHex: 'rgba(251,146,60,0.35)' },
-                { icon: 'text-cyan-400',   bgHex: 'rgba(34,211,238,0.15)',  borderHex: 'rgba(34,211,238,0.35)' }
+                { icon: 'text-blue-600',   bgHex: 'rgba(59,130,246,0.12)',  borderHex: 'rgba(59,130,246,0.35)' },
+                { icon: 'text-green-600',  bgHex: 'rgba(63,193,137,0.12)',  borderHex: 'rgba(63,193,137,0.35)' },
+                { icon: 'text-purple-600', bgHex: 'rgba(168,85,247,0.12)',  borderHex: 'rgba(168,85,247,0.35)' },
+                { icon: 'text-pink-600',   bgHex: 'rgba(244,114,182,0.12)', borderHex: 'rgba(244,114,182,0.35)' },
+                { icon: 'text-orange-600', bgHex: 'rgba(251,146,60,0.12)',  borderHex: 'rgba(251,146,60,0.35)' },
+                { icon: 'text-cyan-600',   bgHex: 'rgba(34,211,238,0.12)',  borderHex: 'rgba(34,211,238,0.35)' }
             ],
             timelineDots: {
-                'Solicitado':  'bg-[#76A9FA]',
+                'Solicitado':  'bg-blue-500',
                 'Autorizado':  'bg-yellow-400',
                 'En Transito': 'bg-orange-400',
-                'Recibido':    'bg-green-400',
-                'Rechazado':   'bg-red-400'
+                'Recibido':    'bg-green-500',
+                'Rechazado':   'bg-red-500'
             },
             onClose:   () => {},
             onConfirm: () => {},
@@ -866,16 +883,16 @@ class TraspasosView extends Templates {
 
         if (!opts.json) {
             aside.html(`
-                <div class="px-3 py-3 flex-shrink-0">
-                    <h3 class="text-sm font-bold text-white">Detalle Traspaso</h3>
-                    <p class="text-[10px] text-[#9CA3AF]">${esc(opts.labels.subtitle)}</p>
+                <div class="px-3 py-3 flex-shrink-0 bg-gray-50 border-b border-gray-200">
+                    <h3 class="text-sm font-bold text-gray-800">Detalle Traspaso</h3>
+                    <p class="text-[10px] text-gray-500">${esc(opts.labels.subtitle)}</p>
                 </div>
                 <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
-                    <div class="w-14 h-14 rounded-full bg-[#1F2937] flex items-center justify-center mb-3">
-                        <i data-lucide="arrow-left-right" class="w-6 h-6 text-[#9CA3AF]"></i>
+                    <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                        <i data-lucide="arrow-left-right" class="w-6 h-6 text-gray-400"></i>
                     </div>
-                    <p class="text-[11px] text-[#9CA3AF]">${esc(opts.labels.emptyTitle)}</p>
-                    <p class="text-[10px] text-[#9CA3AF] mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
+                    <p class="text-[11px] text-gray-500">${esc(opts.labels.emptyTitle)}</p>
+                    <p class="text-[10px] text-gray-400 mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
                 </div>`);
             $(`#${opts.parent}`).html(aside);
             if (window.lucide) lucide.createIcons();
@@ -899,9 +916,9 @@ class TraspasosView extends Templates {
                         <i data-lucide="store" class="w-4 h-4 ${pal.icon}"></i>
                     </div>
                     <div class="min-w-0 w-full">
-                        <p class="text-[8px] text-[#9CA3AF] uppercase tracking-wider leading-none">${esc(label)}</p>
-                        <p class="text-[11px] font-bold text-white truncate leading-tight mt-0.5">${esc(suc.nombre)}</p>
-                        ${suc.almacen ? `<p class="text-[9px] text-[#9CA3AF] truncate leading-tight">${esc(suc.almacen)}</p>` : ''}
+                        <p class="text-[8px] text-gray-500 uppercase tracking-wider leading-none">${esc(label)}</p>
+                        <p class="text-[11px] font-bold text-gray-800 truncate leading-tight mt-0.5">${esc(suc.nombre)}</p>
+                        ${suc.almacen ? `<p class="text-[9px] text-gray-400 truncate leading-tight">${esc(suc.almacen)}</p>` : ''}
                     </div>
                 </div>`;
         };
@@ -910,43 +927,42 @@ class TraspasosView extends Templates {
             const rows = (t.productos || []).map(p => {
                 const subtotal = Number(p.cant) * Number(p.costo);
                 return `
-                    <tr class="border-b border-[#374151]/60 last:border-0 hover:bg-[#111827]/40 transition-colors">
+                    <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                         <td class="py-2 px-2">
-                            <p class="text-[10px] font-bold text-white leading-tight truncate">${esc(p.nombre)}</p>
-                            <p class="text-[9px] text-[#9CA3AF] leading-tight">${fmtMoney(p.costo)} c/u</p>
+                            <p class="text-[10px] font-bold text-gray-800 leading-tight truncate">${esc(p.nombre)}</p>
                         </td>
-                        <td class="py-2 px-1 text-center font-bold text-blue-400 whitespace-nowrap text-[10px]">${p.cant}</td>
-                        <td class="py-2 px-1 text-right text-[#9CA3AF] whitespace-nowrap text-[10px]">${fmtMoney(p.costo)}</td>
-                        <td class="py-2 px-2 text-right text-white font-bold whitespace-nowrap text-[10px]">${fmtMoney(subtotal)}</td>
+                        <td class="py-2 px-1 text-center font-bold text-blue-600 whitespace-nowrap text-[10px]">${p.cant}</td>
+                        <td class="py-2 px-1 text-right text-gray-500 whitespace-nowrap text-[10px]">${fmtMoney(p.costo)}</td>
+                        <td class="py-2 px-2 text-right text-gray-800 font-bold whitespace-nowrap text-[10px]">${fmtMoney(subtotal)}</td>
                     </tr>`;
             }).join('');
 
             const foot = items ? `
                 <tfoot>
-                    <tr class="border-t border-[#374151]">
-                        <td class="py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</td>
-                        <td class="py-2.5 px-1 text-center font-bold text-blue-400 whitespace-nowrap">${uds}</td>
+                    <tr class="border-t border-gray-200">
+                        <td class="py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">Total</td>
+                        <td class="py-2.5 px-1 text-center font-bold text-blue-600 whitespace-nowrap">${uds}</td>
                         <td class="py-2.5 px-1"></td>
-                        <td class="py-2.5 px-2 text-right text-sm font-bold text-blue-400 whitespace-nowrap">${fmtMoney(costoTot)}</td>
+                        <td class="py-2.5 px-2 text-right text-sm font-bold text-green-600 whitespace-nowrap">${fmtMoney(costoTot)}</td>
                     </tr>
                 </tfoot>` : '';
 
             return `
-                <div class="bg-[#1F2937] rounded-lg overflow-hidden">
-                    <div class="flex items-center justify-between px-3 py-2.5 border-b border-[#374151]">
-                        <p class="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">${esc(opts.labels.detalleProductos)}</p>
-                        <p class="text-[10px] text-[#9CA3AF]">${items} productos &middot; ${uds} uds</p>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                    <div class="flex items-center justify-between px-3 py-2.5 border-b border-gray-200">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">${esc(opts.labels.detalleProductos)}</p>
+                        <p class="text-[10px] text-gray-400">${items} productos &middot; ${uds} uds</p>
                     </div>
                     <table class="w-full text-[11px] border-collapse table-fixed">
                         <thead>
-                            <tr class="text-[9px] text-[#9CA3AF] uppercase tracking-wider border-b border-[#374151]">
+                            <tr class="text-[9px] text-gray-500 uppercase tracking-wider border-b border-gray-200">
                                 <th class="py-2 px-2 text-left font-bold">${esc(opts.labels.producto)}</th>
                                 <th class="py-2 px-1 text-center font-bold w-10">${esc(opts.labels.cant)}</th>
                                 <th class="py-2 px-1 text-right font-bold w-16">${esc(opts.labels.costo)}</th>
                                 <th class="py-2 px-2 text-right font-bold w-20">${esc(opts.labels.subtot)}</th>
                             </tr>
                         </thead>
-                        <tbody>${rows || `<tr><td colspan="4" class="py-2 text-center text-[11px] text-gray-500 italic">Sin productos</td></tr>`}</tbody>
+                        <tbody>${rows || `<tr><td colspan="4" class="py-2 text-center text-[11px] text-gray-400 italic">Sin productos</td></tr>`}</tbody>
                         ${foot}
                     </table>
                 </div>`;
@@ -957,11 +973,11 @@ class TraspasosView extends Templates {
             const dot = opts.timelineDots[tl.estado] || 'bg-gray-400';
             return `
                 <div class="relative ${isLast ? '' : 'pb-3'}">
-                    <div class="absolute -left-[17px] top-0 w-2.5 h-2.5 rounded-full ${dot} border-2 border-[var(--cs-bg-header,#141d2b)]"></div>
-                    <p class="text-[10px] font-medium">${esc(tl.estado)} <span class="text-[var(--cs-text-muted,#9CA3AF)]">${esc(tl.usuario || '')}</span></p>
-                    <p class="text-[9px] text-[var(--cs-text-muted,#9CA3AF)]">${esc(fmtFecha(tl.fechaIso))}</p>
+                    <div class="absolute -left-[17px] top-0 w-2.5 h-2.5 rounded-full ${dot} border-2 border-white"></div>
+                    <p class="text-[10px] font-medium text-gray-700">${esc(tl.estado)} <span class="text-gray-400">${esc(tl.usuario || '')}</span></p>
+                    <p class="text-[9px] text-gray-400">${esc(fmtFecha(tl.fechaIso))}</p>
                 </div>`;
-        }).join('') || '<p class="text-[10px] text-gray-500 italic">Sin historial</p>';
+        }).join('') || '<p class="text-[10px] text-gray-400 italic">Sin historial</p>';
 
         const subId     = opts.subId != null ? String(opts.subId) : '';
         const origenId  = (t.origen  && t.origen.id  != null) ? String(t.origen.id)  : '';
@@ -995,17 +1011,17 @@ class TraspasosView extends Templates {
         else if (canAccept)          { actionsHtml = btnReject + btnAccept; mode = 'accept'; }
 
         aside.html(`
-            <div class="px-3 py-3 flex-shrink-0 flex items-center justify-between">
+            <div class="px-3 py-3 flex-shrink-0 flex items-center justify-between bg-gray-50 border-b border-gray-200">
                 <div>
-                    <h3 class="text-sm font-bold text-[#c4b5fd]">Traspaso ${esc(t.folio)}</h3>
-                    <p class="text-[10px] text-[#9CA3AF]">${esc(fmtFecha(t.fechaIso))}</p>
+                    <h3 class="text-sm font-bold text-gray-800">Traspaso ${esc(t.folio)}</h3>
+                    <p class="text-[10px] text-gray-500">${esc(fmtFecha(t.fechaIso))}</p>
                 </div>
                 <div class="flex items-center gap-2">
                     ${estadoBadge}
-                    <button id="${opts.id}_print" class="text-[#D1D5DB] hover:text-white transition-colors p-1" title="Imprimir traspaso">
+                    <button id="${opts.id}_print" class="text-gray-500 hover:text-gray-700 transition-colors p-1" title="Imprimir traspaso">
                         <i data-lucide="printer" class="w-4 h-4"></i>
                     </button>
-                    <button id="${opts.id}_close" class="text-[#D1D5DB] hover:text-white transition-colors p-1" title="Cerrar">
+                    <button id="${opts.id}_close" class="text-gray-500 hover:text-gray-700 transition-colors p-1" title="Cerrar">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
@@ -1015,41 +1031,41 @@ class TraspasosView extends Templates {
 
             <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
 
-                <div class="bg-[#1F2937] rounded-lg p-2.5">
-                    <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-2">${esc(opts.labels.ruta)}</p>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-2.5">
+                    <p class="text-[9px] text-gray-500 uppercase tracking-wider mb-2">${esc(opts.labels.ruta)}</p>
                     <div class="flex items-start gap-2">
                         ${sucNode(t.origen, opts.labels.origen)}
                         <div class="flex flex-col items-center gap-0.5 flex-shrink-0 pt-2">
-                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-[#c4b5fd]"></i>
-                            <span class="text-[8px] text-[#9CA3AF]">${esc(opts.labels.enRuta)}</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-blue-600"></i>
+                            <span class="text-[8px] text-gray-400">${esc(opts.labels.enRuta)}</span>
                         </div>
                         ${sucNode(t.destino, opts.labels.destino)}
                     </div>
                 </div>
 
-                <div class="bg-[#1F2937] rounded-lg p-3 space-y-1.5">
-                    <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.solicito)}</span><span class="font-medium">${esc(t.solicito || '-')}</span></div>
-                    <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.autoriza)}</span><span class="font-medium">${esc(t.recibioUser || '-')}</span></div>
-                    ${t.recibio ? `<div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.recibio)}</span><span class="font-medium">${esc(t.recibio)}</span></div>` : ''}
-                    <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.fSolicitud)}</span><span>${esc(fmtFecha(t.fechaIso))}</span></div>
-                    <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.fEnvio)}</span><span>${esc(fmtFecha(t.fechaEnvio))}</span></div>
-                    <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.totProd)}</span><span class="font-bold">${items} tipos / ${uds} uds</span></div>
-                    <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">${esc(opts.labels.costoTot)}</span><span class="font-bold text-[#76A9FA]">${fmtMoney(costoTot)}</span></div>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1.5">
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-500">${esc(opts.labels.solicito)}</span><span class="font-medium text-gray-700">${esc(t.solicito || '-')}</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-500">${esc(opts.labels.autoriza)}</span><span class="font-medium text-gray-700">${esc(t.recibioUser || '-')}</span></div>
+                    ${t.recibio ? `<div class="flex justify-between text-[11px]"><span class="text-gray-500">${esc(opts.labels.recibio)}</span><span class="font-medium text-gray-700">${esc(t.recibio)}</span></div>` : ''}
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-500">${esc(opts.labels.fSolicitud)}</span><span class="text-gray-700">${esc(fmtFecha(t.fechaIso))}</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-500">${esc(opts.labels.fEnvio)}</span><span class="text-gray-700">${esc(fmtFecha(t.fechaEnvio))}</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-500">${esc(opts.labels.totProd)}</span><span class="font-bold text-gray-800">${items} tipos / ${uds} uds</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-500">${esc(opts.labels.costoTot)}</span><span class="font-bold text-green-600">${fmtMoney(costoTot)}</span></div>
                 </div>
 
                 ${productosTable()}
 
                 <div>
-                    <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-2">${esc(opts.labels.historial)}</p>
-                    <div class="space-y-0 border-l-2 border-[#374151] ml-2 pl-3">
+                    <p class="text-[9px] text-gray-500 uppercase tracking-wider mb-2">${esc(opts.labels.historial)}</p>
+                    <div class="space-y-0 border-l-2 border-gray-200 ml-2 pl-3">
                         ${timelineHtml}
                     </div>
                 </div>
 
                 ${t.nota ? `
-                <div class="bg-[#1F2937] rounded-lg p-3">
-                    <p class="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-1">${esc(opts.labels.nota)}</p>
-                    <p class="text-[11px] text-gray-300">${esc(t.nota)}</p>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <p class="text-[9px] text-gray-500 uppercase tracking-wider mb-1">${esc(opts.labels.nota)}</p>
+                    <p class="text-[11px] text-gray-600">${esc(t.nota)}</p>
                 </div>` : ''}
             </div>
 

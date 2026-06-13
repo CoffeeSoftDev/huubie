@@ -81,6 +81,17 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
+    function lsCategorias($array) {
+        $query = "
+            SELECT id, name AS valor
+            FROM {$this->bd}item_category
+            WHERE companies_id = ? AND active = 1
+            ORDER BY name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     function listItemsForTransfer($array) {
         $query = "
             SELECT
@@ -406,6 +417,24 @@ class mdl extends CRUD {
             UPDATE {$this->bd}stock
             SET quantity = ?, last_movement_at = NOW(), updated_at = NOW()
             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  KARDEX (inventory_movement)
+    // ─────────────────────────────────────────────────────────────────
+
+    // Inserta un asiento en el libro de movimientos. Solo auditoria:
+    // el saldo real ya lo aplica updateStockQuantity/createStockRow.
+    function createInventoryMovement($array) {
+        $query = "
+            INSERT INTO {$this->bd}inventory_movement
+                (movement_uid, movement_type, folio, note, quantity,
+                 stock_prev, stock_post, cost_unit, cost_total,
+                 occurred_at, created_at, status,
+                 item_id, warehouse_id, branch_id, user_id, companies_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), NOW(), 'Aplicada', ?, ?, ?, ?, ?)
         ";
         return $this->_CUD($query, $array);
     }

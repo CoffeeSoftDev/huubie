@@ -6,7 +6,7 @@
     <title>Visor de Agentes -2 (Excalidraw) — CoffeeSoft</title>
     <style>
         /* ── Lienzo Excalidraw (copia -2) ── */
-        .excalidraw-stage { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--vsr-bg-base, #0E1521); }
+        .excalidraw-stage { width: 100%; height: 100%; min-height: 480px; display: flex; flex-direction: column; background: var(--vsr-bg-base, #0E1521); border-radius: 10px; overflow: hidden; }
         .excalidraw-bar {
             display: flex; align-items: center; justify-content: space-between;
             padding: 8px 14px; border-bottom: 1px solid var(--vsr-border, #243043);
@@ -25,6 +25,20 @@
             display: inline-block; animation: excSpin .8s linear infinite;
         }
         @keyframes excSpin { to { transform: rotate(360deg); } }
+
+        /* ── Modo boceto dividido: documento (izq) + lienzo Excalidraw (der) ──
+           Mismo split que draw.io (body.diagram-mode): el documento queda a la
+           izquierda como referencia y el lienzo aparece a la derecha, sin ocupar
+           toda la vista. Cada panel scrollea por su cuenta. */
+        body.sketch-mode .main-content    { display: flex; flex-direction: row; align-items: stretch; gap: 20px; overflow: hidden; }
+        body.sketch-mode .doc-layout      { flex: 1 1 0; min-width: 0; height: 100%; overflow-y: auto; }
+        body.sketch-mode #excalidrawStage { flex: 1 1 0; min-width: 0; height: 100%; }
+        body.sketch-mode .doc-meta        { display: none; }
+        @media (max-width: 1100px) {
+            body.sketch-mode .main-content    { flex-direction: column; overflow-y: auto; }
+            body.sketch-mode .doc-layout      { height: auto; overflow-y: visible; }
+            body.sketch-mode #excalidrawStage { height: 70vh; }
+        }
     </style>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -135,9 +149,6 @@
                     </span>
                     <input id="sidebarSearch" type="text" placeholder="Filtrar archivos..." class="cs-input pl-9 w-full">
                 </div>
-                <button id="btnNewFile" class="sidebar-new-btn" title="Crear un archivo nuevo en esta carpeta">
-                    <i data-lucide="file-plus" class="w-4 h-4"></i>
-                </button>
                 <button id="btnToggleSidebar" class="sidebar-toggle-btn" title="Ocultar lista de archivos">
                     <i data-lucide="panel-left-close" class="w-4 h-4"></i>
                 </button>

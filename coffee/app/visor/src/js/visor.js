@@ -410,7 +410,6 @@ class App {
         $('#btnRefresh').off('click').on('click', () => this.refresh());
         $('#btnCopyPath').off('click').on('click', () => this.copyPath());
         $('#btnOpenEditor').off('click').on('click', () => this.openInEditor());
-        $('#btnNewFile').off('click').on('click', () => this.openNewFileModal());
         $('#btnNewDiagram').off('click').on('click', () => { if (drawioBoard) drawioBoard.open(null); });
         $('#btnCloseDiagram').off('click').on('click', () => this.exitDiagram());
         $('#btnEdit').off('click').on('click', () => this.enterEditMode());
@@ -1201,23 +1200,74 @@ class App {
             this.deleteFile(fileName);
         });
 
+        // Carpetas del arbol: expandir/colapsar en linea (lazy), sin navegar.
+        $('#sidebarList .tree-folder-toggle').off('click').on('click', (e) => {
+            e.stopPropagation();
+            this.toggleFolderNode($(e.currentTarget));
+        });
+
         $('#sidebarList .sidebar-item').off('click').on('click', (e) => {
             const $el = $(e.currentTarget);
-            const folder = $el.data('folder');
-            if (folder) {
-                // Navegacion a subcarpeta (solo en modo custom)
-                this.settings.folder     = 'custom';
-                this.settings.customPath = String(folder);
-                this.saveSettings();
-                $('#folderCustomPath').val(this.settings.customPath);
-                $('#folderSelect').val('custom');
-                $('#folderCustomPath, #btnFolderApply, #btnFolderBrowse').removeClass('hidden');
-                this.reloadLibrary();
-                return;
-            }
+            if ($el.hasClass('tree-folder-toggle')) return; // las carpetas las maneja toggleFolderNode
             const fileName = $el.data('file');
             if (fileName) this.loadFile(fileName);
         });
+
+        // El boton "Nuevo archivo" vive en la cabecera de la seccion DOCS, que se
+        // re-renderiza en cada filtro/recarga: hay que reenlazarlo aqui.
+        $('#btnNewFile').off('click').on('click', () => this.openNewFileModal());
+        this.updateNewFileButton();
+    }
+
+    // Expande/colapsa un nodo de carpeta del arbol. Al expandir por primera vez,
+    // carga su contenido (subcarpetas + archivos) bajo demanda reusando el backend.
+    async toggleFolderNode($toggle) {
+        const path      = $toggle.data('folder-path');
+        const depth     = Number($toggle.attr('data-depth')) || 0;
+        const $children = $toggle.next('.tree-folder-children');
+
+        if (!$toggle.hasClass('collapsed')) {
+            // Ya abierto -> colapsar.
+            $toggle.addClass('collapsed');
+            $children.addClass('collapsed');
+            if (window.lucide) lucide.createIcons();
+            return;
+        }
+
+        // Abrir.
+        $toggle.removeClass('collapsed');
+        $children.removeClass('collapsed');
+
+        if ($toggle.data('loaded')) {
+            if (window.lucide) lucide.createIcons();
+            return;
+        }
+
+        $children.html('<div class="tree-loading">Cargando...</div>');
+        const data = await visor.fetchLibrary('custom', path);
+        if (!data) {
+            $children.html('<div class="tree-loading">No se pudo abrir la carpeta</div>');
+            return;
+        }
+
+        const childDepth = depth + 1;
+        const folders = data.folders || [];
+        const files   = data.agents  || [];
+
+        // Registrar los archivos cargados en allFiles para poder abrirlos/anclarlos.
+        files.forEach(item => {
+            if (!this.allFiles.some(x => x.fullPath === item.fullPath)) this.allFiles.push(item);
+        });
+
+        const foldersHtml = folders.map(f => visorView.treeFolderNodeHtml(f, childDepth)).join('');
+        const filesHtml   = files.map(item => visorView.treeFileRowHtml(item, this.currentFile, childDepth)).join('');
+        const inner = foldersHtml + filesHtml;
+        $children.html(inner || '<div class="tree-loading">Carpeta vacia</div>');
+        $toggle.data('loaded', true);
+
+        // Reenlazar clicks para los nodos recien inyectados.
+        this.bindSidebarClicks();
+        if (window.lucide) lucide.createIcons();
     }
 
     bindTabs() {
@@ -1648,31 +1698,30 @@ class VisorView {
         const mainLabel          = data.header.currentLabel || 'Archivos';
         const subLabel           = data.header.sectionLabel;
 
-        const buildSection = (title, items, icon) => {
-            if (!items.length) return '';
-            const rows = items.map(item => {
-                const fmt = visor.fileFormat(item);
-                return `
-                <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" title="${item.file}">
-                    <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
-                    <span class="file-name">${item.file}</span>
-                    ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
-                    <span class="file-size">${item.size}</span>
-                    ${this.delBtnHtml(item)}
-                    ${this.pinBtnHtml(item.file)}
-                </div>
-            `;
-            }).join('');
-            return `
-                <div class="section-header">
-                    <span class="flex items-center gap-1.5">
-                        <i data-lucide="${icon}" class="w-3 h-3 text-gray-500"></i>
-                        ${title}
-                    </span>
-                    <span class="badge-count">${items.length}</span>
-                </div>
-                <div>${rows}</div>
-            `;
+        // Crear archivos solo aplica a origenes locales validos (no Drive).
+        const canCreate = !!(data.header && data.header.source !== 'Drive'
+            && data.header.currentPath && data.header.valid !== false);
+        const newBtnHtml = `<button id="btnNewFile" class="section-new-btn" title="Crear un archivo nuevo en esta carpeta"><i data-lucide="file-plus" class="w-3.5 h-3.5"></i></button>`;
+
+        // Header de seccion sin icono decorativo: solo titulo, contador y el boton "+".
+        const sectionHeader = (title, count, withNew) => `
+            <div class="section-header">
+                <span class="flex items-center gap-1.5">${title}</span>
+                <span class="flex items-center gap-1.5">
+                    <span class="badge-count">${count}</span>
+                    ${withNew && canCreate ? newBtnHtml : ''}
+                </span>
+            </div>`;
+
+        // prependHtml: nodos de carpeta (arbol) que se inyectan antes de los archivos.
+        const buildSection = (title, items, withNew, prependHtml) => {
+            const rows = items.map(item => this.treeFileRowHtml(item, currentFile, 0)).join('');
+            const body = (prependHtml || '') + rows;
+            if (!body) {
+                // Carpeta sin nada: mostramos igual el header con el boton "Nuevo".
+                return (withNew && canCreate && !filter) ? sectionHeader(title, 0, true) : '';
+            }
+            return sectionHeader(title, items.length, withNew) + `<div>${body}</div>`;
         };
 
         const empty = (!agentsFiltered.length && !grimoiresFiltered.length && !(data.folders && data.folders.length)) ? `
@@ -1682,42 +1731,49 @@ class VisorView {
             </div>
         ` : '';
 
+        // Arbol tipo VS Code: las subcarpetas (un nivel) se muestran como nodos
+        // expandibles que cargan su contenido bajo demanda. Sin "carpeta superior".
         const foldersFiltered = (data.folders || []).filter(f => {
             const t = (filter || '').trim().toLowerCase();
             return !t || f.name.toLowerCase().includes(t);
         });
-        const parentPath = data.header.parentPath || null;
-        const showFolders = (foldersFiltered.length || parentPath);
-
-        const folderRows = (parentPath ? `
-            <div class="sidebar-item is-folder up-link" data-folder="${parentPath}">
-                <i data-lucide="corner-left-up" class="file-icon fmt-folder"></i>
-                <span class="file-name">.. (carpeta superior)</span>
-            </div>
-        ` : '') + foldersFiltered.map(f => `
-            <div class="sidebar-item is-folder" data-folder="${f.fullPath}">
-                <i data-lucide="folder" class="file-icon fmt-folder"></i>
-                <span class="file-name">${f.name}</span>
-            </div>
-        `).join('');
-
-        const foldersSection = showFolders ? `
-            <div class="section-header">
-                <span class="flex items-center gap-1.5">
-                    <i data-lucide="folder-open" class="w-3 h-3 text-gray-500"></i>
-                    Carpetas
-                </span>
-                <span class="badge-count">${foldersFiltered.length}</span>
-            </div>
-            <div>${folderRows}</div>
-        ` : '';
+        const foldersHtml = foldersFiltered.map(f => this.treeFolderNodeHtml(f, 0)).join('');
 
         $('#sidebarList').html(`
-            ${foldersSection}
-            ${buildSection(mainLabel, agentsFiltered, 'bot')}
-            ${subLabel ? buildSection(subLabel, grimoiresFiltered, 'book-open') : ''}
+            ${buildSection(mainLabel, agentsFiltered, true, foldersHtml)}
+            ${subLabel ? buildSection(subLabel, grimoiresFiltered, false) : ''}
             ${empty}
         `);
+    }
+
+    // Fila de archivo del arbol. depth controla la sangria (estilo VS Code).
+    treeFileRowHtml(item, currentFile, depth) {
+        const fmt = visor.fileFormat(item);
+        const pad = 22 + (depth || 0) * 16;
+        return `
+            <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" title="${item.file}" style="padding-left:${pad}px">
+                <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
+                <span class="file-name">${item.file}</span>
+                ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
+                <span class="file-size">${item.size}</span>
+                ${this.delBtnHtml(item)}
+                ${this.pinBtnHtml(item.file)}
+            </div>`;
+    }
+
+    // Nodo de carpeta expandible (lazy). El contenido se carga al expandir.
+    treeFolderNodeHtml(folder, depth) {
+        const pad = 8 + (depth || 0) * 16;
+        return `
+            <div class="tree-folder-node">
+                <div class="sidebar-item is-folder tree-folder-toggle collapsed" data-folder-path="${folder.fullPath}" data-depth="${depth || 0}" style="padding-left:${pad}px" title="${folder.name}">
+                    <i data-lucide="chevron-right" class="tree-chevron tree-chevron-sm"></i>
+                    <i data-lucide="folder" class="file-icon fmt-folder tree-folder-icon tree-folder-closed"></i>
+                    <i data-lucide="folder-open" class="file-icon fmt-folder tree-folder-icon tree-folder-open"></i>
+                    <span class="file-name">${folder.name}</span>
+                </div>
+                <div class="tree-folder-children collapsed"></div>
+            </div>`;
     }
 
     renderSidebarTree(documents, currentFile, filter) {
@@ -2717,7 +2773,7 @@ class CoffeeIA {
                         if (!firstToken) {
                             firstToken = true;
                             $typing.remove();
-                            stream = this._createAIStream();   // crea la burbuja al 1er token (detecta HTML y muestra card "Conjurando…")
+                            stream = this._createAIStream();   // crea la burbuja al 1er token (detecta HTML/diagrama y muestra card "Conjurando…")
                         }
                         received += obj.t || '';
                         stream.push(obj.t || '');
@@ -2831,24 +2887,41 @@ class CoffeeIA {
         // Deteccion dinamica de HTML: en cuanto el stream abre un bloque ```html
         // dejamos de teclear el codigo crudo y mostramos una card "Conjurando…".
         // Al terminar, complete() renderiza el componente. No depende del modo lienzo.
-        let conjuring = false, fullBuf = '', $conjSub = null;
-        const HTML_FENCE = /```[ \t]*html/i;
-        // HTML crudo sin fence: en modo lienzo la IA suele devolver el componente
+        let conjuring = false, conjureKind = null, fullBuf = '', $conjSub = null;
+        const HTML_FENCE       = /```[ \t]*html/i;
+        const DRAWIO_FENCE     = /```[ \t]*drawio/i;
+        const EXCALIDRAW_FENCE = /```[ \t]*excalidraw/i;
+        // Codigo crudo sin fence: en modo lienzo la IA suele devolver el componente
         // directo (sin ```). En cuanto aparece un tag estructural entramos a
         // "Conjurando…" para NO teclear el código en el chat (se ve en el tab Código).
-        const RAW_HTML = /<(!doctype html|html|head|body|section|main|header|nav|article|aside|footer|form|table|ul|ol|div|button|h[1-6])[\s>]/i;
-        const shouldConjure = (buf) => HTML_FENCE.test(buf) || (self.canvasMode && RAW_HTML.test(buf));
-        function enterConjuring() {
-            conjuring = true;
+        const RAW_HTML       = /<(!doctype html|html|head|body|section|main|header|nav|article|aside|footer|form|table|ul|ol|div|button|h[1-6])[\s>]/i;
+        const RAW_DRAWIO     = /<(mxGraphModel|mxfile)[\s>]/i;
+        const RAW_EXCALIDRAW = /"type"\s*:\s*"excalidraw/i;
+        // Tipo de conjuro segun lo que asoma en el stream (o null si es texto normal).
+        const conjureKindFor = (buf) => {
+            if (DRAWIO_FENCE.test(buf) || RAW_DRAWIO.test(buf)) return 'drawio';
+            if (EXCALIDRAW_FENCE.test(buf) || RAW_EXCALIDRAW.test(buf)) return 'excalidraw';
+            if (HTML_FENCE.test(buf) || (self.canvasMode && RAW_HTML.test(buf))) return 'html';
+            return null;
+        };
+        const CONJURE_UI = {
+            html:       { icon: 'wand-sparkles', title: 'Conjurando componente…', sub: 'Tejiendo el HTML' },
+            drawio:     { icon: 'workflow',      title: 'Construyendo diagrama…',  sub: 'Trazando el lienzo' },
+            excalidraw: { icon: 'pencil-ruler',  title: 'Bosquejando…',            sub: 'Trazando el boceto' }
+        };
+        function enterConjuring(kind) {
+            conjuring   = true;
+            conjureKind = kind;
+            const ui = CONJURE_UI[kind] || CONJURE_UI.html;
             if (raf) { cancelAnimationFrame(raf); raf = null; }
             pending = '';
             $text.hide().empty();
             const $card = $(`
                 <div class="ia-conjuring">
-                    <span class="ia-conjuring-orb"><i data-lucide="wand-sparkles"></i></span>
+                    <span class="ia-conjuring-orb"><i data-lucide="${ui.icon}"></i></span>
                     <div class="ia-conjuring-info">
-                        <span class="ia-conjuring-title">Conjurando componente…</span>
-                        <span class="ia-conjuring-sub">Tejiendo el HTML</span>
+                        <span class="ia-conjuring-title">${ui.title}</span>
+                        <span class="ia-conjuring-sub">${ui.sub}</span>
                     </div>
                 </div>`);
             $card.insertBefore($text);
@@ -2897,11 +2970,15 @@ class CoffeeIA {
             push(piece) {
                 if (!piece) return;
                 fullBuf += piece;
-                if (!conjuring && shouldConjure(fullBuf)) enterConjuring();
+                if (!conjuring) {
+                    const kind = conjureKindFor(fullBuf);
+                    if (kind) enterConjuring(kind);
+                }
                 if (conjuring) {
-                    // No pintamos el HTML crudo: solo avanzamos el progreso de la card.
+                    // No pintamos el código crudo: solo avanzamos el progreso de la card.
                     const lines = fullBuf.split('\n').length;
-                    if ($conjSub) $conjSub.text('Tejiendo el HTML · ' + lines + (lines === 1 ? ' línea' : ' líneas'));
+                    const sub   = (CONJURE_UI[conjureKind] || CONJURE_UI.html).sub;
+                    if ($conjSub) $conjSub.text(sub + ' · ' + lines + (lines === 1 ? ' línea' : ' líneas'));
                     return;
                 }
                 pending += piece; kick();
@@ -2916,6 +2993,8 @@ class CoffeeIA {
                 // en ```html para que se renderice como bloque de Vista previa (con su
                 // tab Código) y NO se pinte el markup suelto en la burbuja.
                 displayedText = self._normalizeCanvasHtml(displayedText);
+                displayedText = self._normalizeDrawioXml(displayedText);
+                displayedText = self._normalizeExcalidrawJson(displayedText);
                 let metaHtml = '';
                 if (meta) {
                     metaHtml = `
@@ -3326,7 +3405,16 @@ class CoffeeIA {
             const cls   = ($code.attr('class') || '').toLowerCase();
             const raw   = $code.text();
 
-            if (/\blanguage-mermaid\b/.test(cls)) {
+            const looksDrawio = /\blanguage-drawio\b/.test(cls) ||
+                (/\blanguage-(xml|markup)\b/.test(cls) && /<mxGraphModel|<mxfile/i.test(raw));
+            const looksExcalidraw = /\blanguage-excalidraw\b/.test(cls) ||
+                (/\blanguage-json\b/.test(cls) && /"type"\s*:\s*"excalidraw/i.test(raw));
+
+            if (looksDrawio) {
+                this._renderDrawio($pre, raw);
+            } else if (looksExcalidraw) {
+                this._renderExcalidraw($pre, raw);
+            } else if (/\blanguage-mermaid\b/.test(cls)) {
                 this._renderMermaid($pre, raw);
             } else if (/\blanguage-dot\b|\blanguage-graphviz\b|\blanguage-gv\b/.test(cls)) {
                 this._renderGraphviz($pre, raw);
@@ -3419,6 +3507,170 @@ class CoffeeIA {
         $wrap.find('.ia-render-expand').on('click', () => {
             const svg = $wrap.data('mermaid-svg') || $wrap.find('.ia-render-view').html();
             this._openMermaidModal(svg);
+        });
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Diagrama draw.io: el modelo emite XML mxGraphModel/mxfile. No lo renderizamos
+    // inline (no hay motor mxGraph standalone); ofrecemos abrirlo/editarlo en el
+    // lienzo draw.io embebido (DrawioBoard) o guardarlo como archivo .drawio.
+    _renderDrawio($pre, xml) {
+        const code  = String(xml || '').trim();
+        const valid = /<mxGraphModel|<mxfile/i.test(code);
+        const id    = 'dio-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+
+        const $wrap = $(`
+            <div class="ia-render-block ia-render-drawio" data-render-type="drawio">
+                <div class="ia-render-toolbar">
+                    <span><i data-lucide="pen-tool" class="w-3 h-3"></i>Diagrama draw.io</span>
+                    <span class="ia-render-tabs">
+                        <button class="ia-render-btn ia-render-open" title="Abrir y editar en el lienzo">
+                            <i data-lucide="external-link" class="w-3 h-3"></i>Abrir en lienzo
+                        </button>
+                        <button class="ia-render-btn ia-render-save" title="Guardar como archivo .drawio">
+                            <i data-lucide="save" class="w-3 h-3"></i>Guardar
+                        </button>
+                        <button class="ia-render-btn ia-render-toggle" data-target="${id}-code">
+                            <i data-lucide="code-2" class="w-3 h-3"></i>Codigo
+                        </button>
+                    </span>
+                </div>
+                <div class="ia-render-view" id="${id}-view"></div>
+                <pre id="${id}-code" class="ia-render-source" style="display:none;"></pre>
+            </div>
+        `);
+        $wrap.find('.ia-render-source').text(code);
+        $wrap.data('drawio-xml', code);
+
+        if (valid) {
+            $wrap.find('.ia-render-view').html(`
+                <div style="display:flex;align-items:center;gap:10px;padding:14px;">
+                    <div style="width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(99,102,241,0.14);color:#818cf8;flex-shrink:0;">
+                        <i data-lucide="workflow" class="w-5 h-5"></i>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+                        <strong style="font-size:12px;">Diagrama listo</strong>
+                        <span style="font-size:11px;color:var(--vsr-text-mute2);">Pulsa "Abrir en lienzo" para verlo y editarlo en draw.io, o "Guardar" como .drawio.</span>
+                    </div>
+                </div>`);
+        } else {
+            $wrap.find('.ia-render-view').html(
+                `<div class="ia-render-error"><strong>Diagrama draw.io invalido:</strong> falta &lt;mxGraphModel&gt;. Pulsa "Codigo" para revisar la fuente.</div>`
+            );
+            $wrap.find('.ia-render-open, .ia-render-save').prop('disabled', true).css('opacity', 0.5);
+        }
+
+        $pre.replaceWith($wrap);
+
+        $wrap.find('.ia-render-open').on('click', () => {
+            if (typeof drawioBoard === 'undefined' || !drawioBoard) {
+                if (typeof visorView !== 'undefined' && visorView) visorView.toast('El lienzo no esta disponible', 'error');
+                return;
+            }
+            drawioBoard.open({ file: 'ia-diagrama-' + Date.now() + '.drawio', raw: $wrap.data('drawio-xml') });
+        });
+
+        $wrap.find('.ia-render-save').on('click', () => {
+            if (!this._app || typeof this._app.openNewFileModal !== 'function') return;
+            this._app.openNewFileModal({ name: 'diagrama.drawio', content: $wrap.data('drawio-xml') });
+        });
+
+        $wrap.find('.ia-render-toggle').on('click', (e) => {
+            const $btn  = $(e.currentTarget);
+            const $src  = $('#' + $btn.data('target'));
+            const $view = $wrap.find('.ia-render-view');
+            const showCode = $src.is(':hidden');
+            $src.toggle(showCode);
+            $view.toggle(!showCode);
+            $btn.html(showCode
+                ? '<i data-lucide="eye" class="w-3 h-3"></i>Vista'
+                : '<i data-lucide="code-2" class="w-3 h-3"></i>Codigo');
+            if (window.lucide) lucide.createIcons();
+        });
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Boceto Excalidraw: el modelo emite una escena JSON (formato skeleton). No la
+    // renderizamos inline; ofrecemos abrirla/editarla en el lienzo Excalidraw
+    // (ExcalidrawBoard, solo disponible en index-2.php) o guardarla como .excalidraw.
+    _renderExcalidraw($pre, jsonText) {
+        const code = String(jsonText || '').trim();
+        let valid = false;
+        try {
+            const o = JSON.parse(code);
+            valid = o && (/excalidraw/i.test(o.type || '') || Array.isArray(o.elements));
+        } catch (e) { valid = false; }
+        const id = 'exc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+
+        const $wrap = $(`
+            <div class="ia-render-block ia-render-excalidraw" data-render-type="excalidraw">
+                <div class="ia-render-toolbar">
+                    <span><i data-lucide="pencil-ruler" class="w-3 h-3"></i>Boceto Excalidraw</span>
+                    <span class="ia-render-tabs">
+                        <button class="ia-render-btn ia-render-open" title="Abrir y editar en el lienzo Excalidraw">
+                            <i data-lucide="external-link" class="w-3 h-3"></i>Abrir en lienzo
+                        </button>
+                        <button class="ia-render-btn ia-render-save" title="Guardar como archivo .excalidraw">
+                            <i data-lucide="save" class="w-3 h-3"></i>Guardar
+                        </button>
+                        <button class="ia-render-btn ia-render-toggle" data-target="${id}-code">
+                            <i data-lucide="code-2" class="w-3 h-3"></i>Codigo
+                        </button>
+                    </span>
+                </div>
+                <div class="ia-render-view" id="${id}-view"></div>
+                <pre id="${id}-code" class="ia-render-source" style="display:none;"></pre>
+            </div>
+        `);
+        $wrap.find('.ia-render-source').text(code);
+        $wrap.data('excalidraw-json', code);
+
+        if (valid) {
+            $wrap.find('.ia-render-view').html(`
+                <div style="display:flex;align-items:center;gap:10px;padding:14px;">
+                    <div style="width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(99,102,241,0.14);color:#818cf8;flex-shrink:0;">
+                        <i data-lucide="pencil-ruler" class="w-5 h-5"></i>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+                        <strong style="font-size:12px;">Boceto listo</strong>
+                        <span style="font-size:11px;color:var(--vsr-text-mute2);">Pulsa "Abrir en lienzo" para verlo y editarlo en Excalidraw, o "Guardar" como .excalidraw.</span>
+                    </div>
+                </div>`);
+        } else {
+            $wrap.find('.ia-render-view').html(
+                `<div class="ia-render-error"><strong>Boceto Excalidraw invalido:</strong> JSON no parseable o sin "elements". Pulsa "Codigo" para revisar la fuente.</div>`
+            );
+            $wrap.find('.ia-render-open, .ia-render-save').prop('disabled', true).css('opacity', 0.5);
+        }
+
+        $pre.replaceWith($wrap);
+
+        $wrap.find('.ia-render-open').on('click', () => {
+            if (typeof excalidrawBoard === 'undefined' || !excalidrawBoard) {
+                if (typeof visorView !== 'undefined' && visorView) visorView.toast('El lienzo Excalidraw no esta disponible en este visor', 'error');
+                return;
+            }
+            excalidrawBoard.open({ file: 'ia-boceto-' + Date.now() + '.excalidraw', raw: $wrap.data('excalidraw-json') });
+        });
+
+        $wrap.find('.ia-render-save').on('click', () => {
+            if (!this._app || typeof this._app.openNewFileModal !== 'function') return;
+            this._app.openNewFileModal({ name: 'boceto.excalidraw', content: $wrap.data('excalidraw-json') });
+        });
+
+        $wrap.find('.ia-render-toggle').on('click', (e) => {
+            const $btn  = $(e.currentTarget);
+            const $src  = $('#' + $btn.data('target'));
+            const $view = $wrap.find('.ia-render-view');
+            const showCode = $src.is(':hidden');
+            $src.toggle(showCode);
+            $view.toggle(!showCode);
+            $btn.html(showCode
+                ? '<i data-lucide="eye" class="w-3 h-3"></i>Vista'
+                : '<i data-lucide="code-2" class="w-3 h-3"></i>Codigo');
+            if (window.lucide) lucide.createIcons();
         });
 
         if (window.lucide) lucide.createIcons();
@@ -3732,6 +3984,8 @@ class CoffeeIA {
             $blk.replaceWith($stub);
             if (type === 'mermaid') this._renderMermaid($stub, src);
             else if (type === 'html') this._renderHtmlPreview($stub, src);
+            else if (type === 'drawio') this._renderDrawio($stub, src);
+            else if (type === 'excalidraw') this._renderExcalidraw($stub, src);
             // Charts no dependen del tema del visor, los dejamos como estan
         });
     }
@@ -3788,6 +4042,28 @@ class CoffeeIA {
         if (/```[ \t]*html/i.test(text)) return text;
         const body = text.replace(/```[a-z0-9+-]*[ \t]*/gi, '').trim();
         if (this._looksLikeHtml(body)) return '```html\n' + body + '\n```';
+        return text;
+    }
+
+    // Si la respuesta trae XML de draw.io crudo SIN fence, lo envolvemos en
+    // ```drawio para que _postProcessMessage lo convierta en la tarjeta del lienzo.
+    _normalizeDrawioXml(text) {
+        if (!text || /```[ \t]*drawio/i.test(text)) return text;
+        const body = text.trim();
+        if (/^<(\?xml|mxfile|mxGraphModel)[\s>]/i.test(body) && /<\/(mxfile|mxGraphModel)>\s*$/i.test(body)) {
+            return '```drawio\n' + body + '\n```';
+        }
+        return text;
+    }
+
+    // Si la respuesta trae una escena Excalidraw cruda SIN fence, la envolvemos en
+    // ```excalidraw para que _postProcessMessage la convierta en la tarjeta del lienzo.
+    _normalizeExcalidrawJson(text) {
+        if (!text || /```[ \t]*(excalidraw|json)/i.test(text)) return text;
+        const body = text.trim();
+        if (/^\{[\s\S]*"type"\s*:\s*"excalidraw[\s\S]*\}$/i.test(body)) {
+            return '```excalidraw\n' + body + '\n```';
+        }
         return text;
     }
 

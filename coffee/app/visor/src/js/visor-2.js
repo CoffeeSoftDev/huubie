@@ -1,8 +1,8 @@
 /* ─────────────────────────────────────────────────────────────────────────
- * visor-2.js — capa de integración de Excalidraw para index-2.php
+ * visor-2.js — capa de integración de Excalidraw (index.php e index-2.php)
  *
  * Se carga DESPUÉS de visor.js (que define App, app, visor, visorView,
- * drawioBoard…) y de excalidraw-board.js. No modifica el visor original:
+ * drawioBoard…) y de excalidraw-board.js. No modifica el visor base:
  *   - parchea App.prototype.loadFile para enrutar archivos .excalidraw al
  *     ExcalidrawBoard en vez de renderizarlos como JSON;
  *   - instancia el board y enlaza los botones "Boceto" / "Cerrar boceto".

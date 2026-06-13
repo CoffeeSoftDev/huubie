@@ -3,13 +3,13 @@ class TraspasoForm {
     constructor(options) {
 
         this.cls = {
-            label:   'block text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1',
-            input:   'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all placeholder:text-gray-600',
-            select:  'w-full px-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all cursor-pointer appearance-none pr-8',
-            search:  'w-full pl-8 pr-2.5 py-1.5 text-[11px] text-white bg-[#0f1825] border border-gray-700/60 rounded-md outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-600/80 transition-all placeholder:text-gray-600',
-            qtyInp:  'no-spin w-full px-3 py-1.5 text-[11px] font-bold text-center text-white bg-[#0f1825] border border-gray-700/60 rounded outline-none focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15 transition-all',
-            btnOut:  'px-3 py-1.5 text-[11px] font-medium text-gray-300 bg-transparent border border-gray-700/60 rounded-md hover:bg-gray-700/30 hover:text-white hover:border-gray-600 transition-all',
-            btnOk:   'px-3 py-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-md hover:from-purple-500 hover:to-pink-500 hover:shadow-lg hover:shadow-purple-500/20 transition-all flex items-center gap-1.5',
+            label:   'block text-[9px] font-semibold uppercase tracking-wider text-gray-500 mb-1',
+            input:   'w-full px-2.5 py-1.5 text-[11px] text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
+            select:  'w-full px-2.5 py-1.5 text-[11px] text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8',
+            search:  'w-full pl-8 pr-2.5 py-1.5 text-[11px] text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
+            qtyInp:  'no-spin w-full px-3 py-1.5 text-[11px] font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
+            btnOut:  'px-3 py-1.5 text-[11px] font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all',
+            btnOk:   'px-3 py-1.5 text-[11px] font-bold text-white bg-blue-600 rounded-md hover:bg-blue-500 hover:shadow-lg transition-all flex items-center gap-1.5',
             badge:   'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold leading-none'
         };
 
@@ -33,6 +33,8 @@ class TraspasoForm {
                 destinoAlm:   'Almacen destino',
                 destinoPh:    'Selecciona sucursal...',
                 destinoAlmPh: 'Selecciona almacen...',
+                categoria:    'Categoria',
+                sinCategoria: 'Sin categoria',
                 buscar:       'Buscar productos',
                 placeholder:  'Nombre o SKU...',
                 searchHint:   'Sin resultados',
@@ -81,17 +83,17 @@ class TraspasoForm {
     renderHeader() {
         const o = this.opts;
         return `
-            <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-700/60 bg-[#141d2b] flex-shrink-0">
+            <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
                         <i data-lucide="arrow-left-right" class="w-5 h-5 text-white"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold text-white">${this.esc(o.labels.title)}</h3>
+                        <h3 class="text-sm font-bold text-gray-800">${this.esc(o.labels.title)}</h3>
                         <p class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
                     </div>
                 </div>
-                <button class="w-8 h-8 rounded-lg bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-500" data-modal-close>
+                <button class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400" data-modal-close>
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>`;
@@ -102,12 +104,13 @@ class TraspasoForm {
         const cls  = this.cls;
         const sucs = o.data.sucursales || [];
         const alms = o.data.almacenes  || [];
+        const cats = o.data.categorias || [];
         const firstAlm = alms[0] && alms[0].id;
         return `
-            <div class="px-5 pt-3 pb-3 border-b border-gray-800/70 bg-[#0f1825]/40">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+            <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
                     <div>
-                        <label class="${cls.label} flex items-center gap-1.5"><i data-lucide="arrow-up-from-line" class="w-3 h-3 text-purple-300/80"></i>${this.esc(o.labels.origenLbl)}</label>
+                        <label class="${cls.label} flex items-center gap-1.5"><i data-lucide="arrow-up-from-line" class="w-3 h-3 text-blue-600"></i>${this.esc(o.labels.origenLbl)}</label>
                         ${this.selectWrap(`<select id="${o.id}_origenSuc" class="${cls.select}">${sucs.map(it => this.optionTag(it, o.data.origenIdInicial)).join('')}</select>`)}
                     </div>
                     <div>
@@ -115,12 +118,16 @@ class TraspasoForm {
                         ${this.selectWrap(`<select id="${o.id}_origenAlm" class="${cls.select}">${alms.map(it => this.optionTag(it, firstAlm)).join('')}</select>`)}
                     </div>
                     <div>
-                        <label class="${cls.label} flex items-center gap-1.5"><i data-lucide="arrow-down-to-line" class="w-3 h-3 text-pink-300/80"></i>${this.esc(o.labels.destinoLbl)}</label>
+                        <label class="${cls.label} flex items-center gap-1.5"><i data-lucide="arrow-down-to-line" class="w-3 h-3 text-orange-500"></i>${this.esc(o.labels.destinoLbl)}</label>
                         ${this.selectWrap(`<select id="${o.id}_destinoSuc" class="${cls.select}"><option value="" selected>${this.esc(o.labels.destinoPh)}</option>${sucs.map(it => this.optionTag(it, '')).join('')}</select>`)}
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.destinoAlm)}</label>
                         ${this.selectWrap(`<select id="${o.id}_destinoAlm" class="${cls.select}"><option value="" selected>${this.esc(o.labels.destinoAlmPh)}</option>${alms.map(it => this.optionTag(it, '')).join('')}</select>`)}
+                    </div>
+                    <div>
+                        <label class="${cls.label} flex items-center gap-1.5"><i data-lucide="tag" class="w-3 h-3 text-gray-400"></i>${this.esc(o.labels.categoria)}</label>
+                        ${this.selectWrap(`<select id="${o.id}_categoria" class="${cls.select}"><option value="" selected>${this.esc(o.labels.sinCategoria)}</option>${cats.map(it => this.optionTag(it, '')).join('')}</select>`)}
                     </div>
                 </div>
             </div>`;
@@ -132,7 +139,7 @@ class TraspasoForm {
         return `
             <div class="flex-shrink-0">
                 <div class="flex items-center justify-between mb-1.5">
-                    <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400">${this.esc(o.labels.buscar)}</p>
+                    <p class="text-[9px] font-bold uppercase tracking-wider text-gray-500">${this.esc(o.labels.buscar)}</p>
                 </div>
                 <div class="relative">
                     <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center">
@@ -145,20 +152,20 @@ class TraspasoForm {
                     <span class="tf-kbd">Enter</span><span>agregar</span>
                 </p>
             </div>
-            <div id="${o.id}_catalogoLista" class="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1 -mr-1 cs-scroll tf-scroll bg-[#0f172a]/40 border border-gray-800/60 rounded-lg p-1.5"></div>`;
+            <div id="${o.id}_catalogoLista" class="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1 -mr-1 cs-scroll tf-scroll bg-gray-50 border border-gray-200 rounded-lg p-1.5"></div>`;
     }
 
     renderResumen() {
         const o = this.opts;
         return `
-            <div class="flex-shrink-0 border-t border-gray-800/70 px-4 py-2.5 bg-[#0f1825]/50 flex items-center justify-between gap-4">
+            <div class="flex-shrink-0 border-t border-gray-200 px-4 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
                 <div class="flex items-center gap-4 text-[10px]">
-                    <span class="text-gray-500"><strong class="text-white text-[13px]" id="${o.id}_qtyItems">0</strong> prod.</span>
-                    <span class="text-gray-500"><strong class="text-white text-[13px]" id="${o.id}_qtyUnits">0</strong> uds</span>
+                    <span class="text-gray-500"><strong class="text-gray-800 text-[13px]" id="${o.id}_qtyItems">0</strong> prod.</span>
+                    <span class="text-gray-500"><strong class="text-gray-800 text-[13px]" id="${o.id}_qtyUnits">0</strong> uds</span>
                 </div>
                 <div class="flex items-baseline gap-2.5">
                     <span class="text-[9px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.costoTotLbl)}</span>
-                    <span class="text-green-400 font-bold text-[16px] leading-none" id="${o.id}_qtyCost">$0.00</span>
+                    <span class="text-green-600 font-bold text-[16px] leading-none" id="${o.id}_qtyCost">$0.00</span>
                 </div>
             </div>`;
     }
@@ -167,15 +174,15 @@ class TraspasoForm {
         const o   = this.opts;
         const cls = this.cls;
         return `
-            <div class="px-4 py-2.5 border-b border-gray-800/70 flex items-center justify-between flex-shrink-0 bg-gradient-to-b from-[#0f1825]/60 to-transparent">
+            <div class="px-4 py-2.5 border-b border-gray-200 flex items-center justify-between flex-shrink-0 bg-gray-50">
                 <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
-                        <i data-lucide="boxes" class="w-3.5 h-3.5 text-purple-400"></i>
+                    <div class="w-6 h-6 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center">
+                        <i data-lucide="boxes" class="w-3.5 h-3.5 text-blue-600"></i>
                     </div>
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-300">${this.esc(o.labels.productosLbl)}</p>
-                    <span id="${o.id}_cntProductos" class="${cls.badge} bg-gradient-to-br from-purple-500/25 to-fuchsia-500/15 text-purple-300 border border-purple-500/40">0</span>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">${this.esc(o.labels.productosLbl)}</p>
+                    <span id="${o.id}_cntProductos" class="${cls.badge} bg-blue-50 text-blue-700 border border-blue-200">0</span>
                 </div>
-                <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-400 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-500/10">
+                <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-500 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-50">
                     <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
                 </button>
             </div>`;
@@ -185,9 +192,9 @@ class TraspasoForm {
         const o   = this.opts;
         const cls = this.cls;
         return `
-            <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-700/60 bg-[#141d2b] flex-shrink-0">
+            <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                 <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                    <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-500 flex-shrink-0"></i>
+                    <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
                     <input id="${o.id}_inpNota" type="text" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
                 </div>
                 <div class="flex gap-2 flex-shrink-0">
@@ -203,11 +210,11 @@ class TraspasoForm {
         const o = this.opts;
         return `
             <div class="flex flex-col items-center justify-center py-12 text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 flex items-center justify-center mb-3">
-                    <i data-lucide="arrow-left-right" class="w-8 h-8 text-purple-400/70"></i>
+                <div class="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mb-3">
+                    <i data-lucide="arrow-left-right" class="w-8 h-8 text-blue-400"></i>
                 </div>
-                <p class="text-xs font-semibold text-gray-200">${this.esc(o.labels.emptyTitle)}</p>
-                <p class="text-[10px] text-gray-500 mt-1">${this.esc(o.labels.emptyHint)}</p>
+                <p class="text-xs font-semibold text-gray-700">${this.esc(o.labels.emptyTitle)}</p>
+                <p class="text-[10px] text-gray-400 mt-1">${this.esc(o.labels.emptyHint)}</p>
             </div>`;
     }
 
@@ -219,18 +226,18 @@ class TraspasoForm {
         const costoFmt    = costoNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const stock       = Number(p.stock || 0);
-        const stockColor  = stock === 0 ? 'text-red-400' : stock < 5 ? 'text-orange-400' : 'text-green-400';
+        const stockColor  = stock === 0 ? 'text-red-500' : stock < 5 ? 'text-orange-500' : 'text-green-600';
 
         return `
-            <tr class="border-b border-gray-800/40 last:border-b-0 hover:bg-purple-500/5 transition-colors" data-idx="${i}">
+            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-50/40 transition-colors" data-idx="${i}">
                 <td class="px-3 py-2 align-middle">
                     <div class="flex items-center gap-2 min-w-0">
                         ${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}
                         <div class="min-w-0">
-                            <p class="text-[11px] font-semibold text-white truncate leading-tight">${this.esc(p.nombre)}</p>
+                            <p class="text-[11px] font-semibold text-gray-800 truncate leading-tight">${this.esc(p.nombre)}</p>
                             <div class="flex items-center gap-1.5 mt-0.5">
                                 <span class="text-[9px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
-                                <span class="text-gray-700">.</span>
+                                <span class="text-gray-300">.</span>
                                 <span class="text-[9px] text-gray-400">Stock origen <strong class="${stockColor}">${stock}</strong></span>
                             </div>
                         </div>
@@ -241,21 +248,21 @@ class TraspasoForm {
                 </td>
                 <td class="px-2 py-2 align-middle w-28">
                     <div class="relative" title="Costo del producto (no editable)">
-                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center">
+                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
                             <i data-lucide="dollar-sign" class="w-3 h-3"></i>
                         </span>
-                        <div class="w-full pl-6 pr-6 py-1.5 text-[11px] text-right text-gray-300 bg-[#0f1825]/50 border border-gray-800/50 rounded select-none cursor-not-allowed">${costoFmt}</div>
-                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none flex items-center">
+                        <div class="w-full pl-6 pr-6 py-1.5 text-[11px] text-right text-gray-600 bg-gray-50 border border-gray-200 rounded select-none cursor-not-allowed">${costoFmt}</div>
+                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
                             <i data-lucide="lock" class="w-2.5 h-2.5"></i>
                         </span>
                     </div>
                 </td>
                 <td class="px-2 py-2 align-middle text-right w-24">
-                    <span class="text-green-400 font-bold text-[12px]" data-subtotal>$${subtotalFmt}</span>
+                    <span class="text-green-600 font-bold text-[12px]" data-subtotal>$${subtotalFmt}</span>
                 </td>
                 <td class="px-2 py-2 align-middle w-12">
                     <div class="flex items-center justify-center">
-                        <button class="w-6 h-6 rounded-md bg-[#0f1825] border border-gray-700/60 text-gray-500 hover:text-red-400 hover:bg-red-500/15 hover:border-red-500/40 transition flex items-center justify-center" data-remove="${i}" title="Quitar">
+                        <button class="w-6 h-6 rounded-md bg-white border border-gray-300 text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-300 transition flex items-center justify-center" data-remove="${i}" title="Quitar">
                             <i data-lucide="x" class="w-3 h-3"></i>
                         </button>
                     </div>
@@ -278,7 +285,7 @@ class TraspasoForm {
 
         return `
             <table class="w-full border-collapse">
-                <thead class="sticky top-0 z-10 bg-[#0f1825] border-b border-gray-700/60">
+                <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                     <tr>
                         <th class="text-left px-3 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
                         <th class="text-center px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Cant.</th>
@@ -294,10 +301,10 @@ class TraspasoForm {
     renderLoteCatRow(cat, count) {
         return `
             <tr class="tf-lote-cat">
-                <td colspan="5" class="px-3 pt-2.5 pb-1 bg-[#0f172a]/50">
+                <td colspan="5" class="px-3 pt-2.5 pb-1 bg-gray-50">
                     <div class="flex items-center justify-between">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-purple-300/80 truncate">${this.esc(cat)}</span>
-                        <span class="text-[9px] text-gray-600 flex-shrink-0 ml-2">${count}</span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-blue-700 truncate">${this.esc(cat)}</span>
+                        <span class="text-[9px] text-gray-400 flex-shrink-0 ml-2">${count}</span>
                     </div>
                 </td>
             </tr>`;
@@ -305,21 +312,21 @@ class TraspasoForm {
 
     renderSearchResult(p, i) {
         const stock      = this.stockOrigen(p, this.currentOrigen());
-        const stockColor = stock === 0 ? 'text-red-400' : stock < 5 ? 'text-orange-400' : 'text-green-400';
-        const stockBg    = stock === 0 ? 'bg-red-500/10' : stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
+        const stockColor = stock === 0 ? 'text-red-500' : stock < 5 ? 'text-orange-500' : 'text-green-600';
+        const stockBg    = stock === 0 ? 'bg-red-50' : stock < 5 ? 'bg-orange-50' : 'bg-green-50';
         const disabled   = !this.allowZero && stock <= 0;
         return `
-            <div class="tf-cat-item rounded-md flex items-center gap-2.5 px-2.5 py-1.5 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent'} border-b border-gray-800/40 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
+            <div class="tf-cat-item rounded-md flex items-center gap-2.5 px-2.5 py-1.5 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-blue-50/60'} border-b border-gray-100 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
                 ${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}
                 <div class="flex-1 min-w-0">
-                    <p class="text-[10px] font-semibold text-white truncate">${this.esc(p.nombre)}</p>
+                    <p class="text-[10px] font-semibold text-gray-800 truncate">${this.esc(p.nombre)}</p>
                     <div class="flex items-center gap-1.5 mt-0.5">
                         <span class="text-[8px] px-1.5 py-0.5 rounded ${stockBg} ${stockColor} font-bold">Stock ${stock}</span>
                         <span class="text-[8px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
                         <span class="text-[8px] text-gray-500">. ${this.fmtMoney(p.costo)}</span>
                     </div>
                 </div>
-                <div class="w-6 h-6 rounded-lg bg-purple-600/15 border border-purple-500/30 flex items-center justify-center text-purple-400 flex-shrink-0 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-500 transition-all">
+                <div class="w-6 h-6 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
                     <i data-lucide="plus" class="w-3 h-3"></i>
                 </div>
             </div>`;
@@ -327,10 +334,10 @@ class TraspasoForm {
 
     renderCatHeader(cat, count, collapsed) {
         return `
-            <div class="tf-cat-head flex items-center gap-1.5 px-2 py-1 bg-[#0f172a]/60 border-b border-gray-800/60 cursor-pointer select-none hover:bg-[#0f172a] transition-colors" data-cat-toggle="${this.esc(cat)}">
-                <i data-lucide="chevron-down" class="w-2.5 h-2.5 text-purple-300/70 transition-transform ${collapsed ? '-rotate-90' : ''}"></i>
-                <span class="text-[8px] font-bold uppercase tracking-wider text-purple-300/80 truncate flex-1">${this.esc(cat)}</span>
-                <span class="text-[8px] text-gray-600 flex-shrink-0 ml-2">${count}</span>
+            <div class="tf-cat-head flex items-center gap-1.5 px-2 py-1 bg-gray-50 border-b border-gray-200 cursor-pointer select-none hover:bg-gray-100 transition-colors" data-cat-toggle="${this.esc(cat)}">
+                <i data-lucide="chevron-down" class="w-2.5 h-2.5 text-blue-600 transition-transform ${collapsed ? '-rotate-90' : ''}"></i>
+                <span class="text-[8px] font-bold uppercase tracking-wider text-blue-700 truncate flex-1">${this.esc(cat)}</span>
+                <span class="text-[8px] text-gray-400 flex-shrink-0 ml-2">${count}</span>
             </div>`;
     }
 
@@ -340,19 +347,19 @@ class TraspasoForm {
             input.no-spin::-webkit-inner-spin-button,
             input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none !important; appearance: none !important; margin: 0 !important; }
             input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }
-            .tf-scroll { scrollbar-width: thin; scrollbar-color: #374151 transparent; }
+            .tf-scroll { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
             .tf-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
             .tf-scroll::-webkit-scrollbar-track { background: transparent; }
-            .tf-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-            .tf-scroll::-webkit-scrollbar-thumb:hover { background: #4B5563; }
-            .tf-cat-item.tf-active { background: linear-gradient(90deg, rgba(147,51,234,0.20), rgba(147,51,234,0.02)); box-shadow: inset 0 0 0 1px rgba(168,85,247,0.5); }
+            .tf-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+            .tf-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+            .tf-cat-item.tf-active { background: rgba(192,90,64,0.10); box-shadow: inset 0 0 0 1px rgba(192,90,64,0.45); }
             @keyframes tfFlash { 0% { background-color: rgba(16,185,129,0.30); } 100% { background-color: transparent; } }
             tr.tf-flash { animation: tfFlash 0.6s ease-out; }
             @keyframes tfAlertBg { from { opacity: 0; } to { opacity: 1; } }
             @keyframes tfAlertPop { from { opacity: 0; transform: translateY(6px) scale(0.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
             .tf-alert-bg { animation: tfAlertBg 0.18s ease-out; }
             .tf-alert-card { animation: tfAlertPop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-            .tf-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid rgba(75,85,99,0.6); background: rgba(31,41,55,0.6); font-size: 8px; line-height: 1; color: #9CA3AF; font-family: monospace; }`;
+            .tf-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid #D1D5DB; background: #F3F4F6; font-size: 8px; line-height: 1; color: #6B7280; font-family: monospace; }`;
         const style = document.createElement('style');
         style.id = 'traspasoFormStyles';
         style.textContent = css;
@@ -363,13 +370,13 @@ class TraspasoForm {
         const o = this.opts;
         this.wrap = $('<div>', { id: o.id, class: o.class });
         this.wrap.html(`
-            <div class="absolute inset-0 bg-black/60" data-modal-close></div>
-            <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-[#111928] rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col">
+            <div class="absolute inset-0 bg-black/40" data-modal-close></div>
+            <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
                 ${this.renderHeader()}
                 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
                     ${this.renderConfigRow()}
                     <div class="flex flex-1 min-h-0">
-                        <div class="w-[360px] border-r border-gray-800/70 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
+                        <div class="w-[360px] border-r border-gray-200 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
                             ${this.renderSearchPanel()}
                         </div>
                         <div class="flex-1 flex flex-col min-w-0 min-h-0">
@@ -400,12 +407,25 @@ class TraspasoForm {
         $(`#${o.id}_cntProductos`).text(totalItems);
     }
 
+    // Nombre de la categoria elegida en el filtro del config-row, o '' para "Sin
+    // categoria" (no filtra: el catalogo muestra todos los productos). El <select>
+    // entrega el id de la categoria pero los productos solo traen el nombre, asi que
+    // se traduce id -> nombre via o.data.categorias para poder comparar en renderCatalogo.
+    selectedCategoriaNombre() {
+        const id = $(`#${this.opts.id}_categoria`).val();
+        if (!id) return '';
+        const cat = (this.opts.data.categorias || []).find(c => String(c.id != null ? c.id : c.valor) === String(id));
+        return cat ? String(cat.valor != null ? cat.valor : '').trim() : '';
+    }
+
     renderCatalogo() {
         const o      = this.opts;
         const $cat   = $(`#${o.id}_catalogoLista`);
         const term   = (this.searchTerm || '').toLowerCase();
+        const catName = this.selectedCategoriaNombre();
         const items  = (o.json || [])
             .filter(p => !this.lote.some(x => String(x.id) === String(p.id)))
+            .filter(p => !catName || String(p.categoria || '').trim() === catName)
             .filter(p => !term || (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
 
         const groups = {};
@@ -426,8 +446,8 @@ class TraspasoForm {
         if (!catNames.length) {
             $cat.html(`
                 <div class="flex flex-col items-center justify-center py-8 text-center px-2">
-                    <div class="w-10 h-10 rounded-lg bg-gray-800/40 border border-gray-700/50 flex items-center justify-center mb-2">
-                        <i data-lucide="search-x" class="w-5 h-5 text-gray-600"></i>
+                    <div class="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center mb-2">
+                        <i data-lucide="search-x" class="w-5 h-5 text-gray-400"></i>
                     </div>
                     <p class="text-[10px] text-gray-500">${term ? this.esc(o.labels.searchHint) : 'Sin productos disponibles'}</p>
                 </div>`);
@@ -494,31 +514,31 @@ class TraspasoForm {
         const stock      = this.stockOrigen(prod, this.currentOrigen());
         const max        = this.maxQty(stock);
         const maxAttr    = isFinite(max) ? `max="${max}"` : '';
-        const stockColor = stock === 0 ? 'text-red-400' : stock < 5 ? 'text-orange-400' : 'text-green-400';
+        const stockColor = stock === 0 ? 'text-red-500' : stock < 5 ? 'text-orange-500' : 'text-green-600';
         const html = `
-            <div id="${popId}" class="absolute top-full left-0 mt-2 z-[60] w-[260px] bg-[#0f172a] rounded-xl shadow-2xl shadow-black/60">
-                <div class="absolute -top-1.5 left-7 w-3 h-3 bg-[#141d2b] rotate-45"></div>
-                <div class="relative flex items-center gap-2.5 px-3 py-2.5 border-b border-gray-700/60 bg-[#141d2b] rounded-t-xl">
+            <div id="${popId}" class="absolute top-full left-0 mt-2 z-[60] w-[260px] bg-white border border-gray-200 rounded-xl shadow-2xl shadow-black/20">
+                <div class="absolute -top-1.5 left-7 w-3 h-3 bg-gray-50 border-l border-t border-gray-200 rotate-45"></div>
+                <div class="relative flex items-center gap-2.5 px-3 py-2.5 border-b border-gray-200 bg-gray-50 rounded-t-xl">
                     ${this.prodThumb(prod, 'w-8 h-8', 'w-3.5 h-3.5')}
                     <div class="min-w-0">
-                        <p class="text-[11px] font-semibold text-white truncate">${this.esc(prod.nombre)}</p>
+                        <p class="text-[11px] font-semibold text-gray-800 truncate">${this.esc(prod.nombre)}</p>
                         <div class="flex items-center gap-1.5">
                             <span class="text-[9px] text-gray-500 font-mono">${this.esc(prod.sku)}</span>
-                            <span class="text-gray-700">.</span>
+                            <span class="text-gray-300">.</span>
                             <span class="text-[9px] text-gray-400">Stock <strong class="${stockColor}">${stock}</strong></span>
                         </div>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 px-3 py-2.5">
-                    <button id="${popId}_minus" type="button" class="w-8 h-8 flex-shrink-0 rounded-lg bg-[#0f1825] border border-gray-700/60 flex items-center justify-center text-gray-300 hover:bg-purple-500/10 hover:text-white hover:border-purple-500/40 transition-all">
+                    <button id="${popId}_minus" type="button" class="w-8 h-8 flex-shrink-0 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all">
                         <i data-lucide="minus" class="w-3.5 h-3.5"></i>
                     </button>
                     <input id="${popId}_qty" type="number" min="1" ${maxAttr} value="1" inputmode="numeric"
-                        class="no-spin flex-1 min-w-0 bg-[#0f1825] border border-gray-700/60 rounded-lg px-2 py-1.5 text-center text-base font-bold text-white outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30 transition-all">
-                    <button id="${popId}_plus" type="button" class="w-8 h-8 flex-shrink-0 rounded-lg bg-[#0f1825] border border-gray-700/60 flex items-center justify-center text-gray-300 hover:bg-purple-500/10 hover:text-white hover:border-purple-500/40 transition-all">
+                        class="no-spin flex-1 min-w-0 bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-center text-base font-bold text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all">
+                    <button id="${popId}_plus" type="button" class="w-8 h-8 flex-shrink-0 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all">
                         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                     </button>
-                    <button id="${popId}_ok" type="button" class="h-8 px-3 flex-shrink-0 rounded-lg text-[11px] font-semibold text-white bg-purple-600 hover:bg-purple-500 flex items-center gap-1 transition-all">
+                    <button id="${popId}_ok" type="button" class="h-8 px-3 flex-shrink-0 rounded-lg text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-500 flex items-center gap-1 transition-all">
                         <i data-lucide="corner-down-left" class="w-3 h-3"></i>${this.esc(o.labels.agregar)}
                     </button>
                 </div>
@@ -580,8 +600,8 @@ class TraspasoForm {
                 cantidad:  Math.min(max, qty),
                 stock:     stock,
                 icon:      prod.icon  || 'package',
-                bg:        prod.bg    || 'bg-gray-700/40',
-                color:     prod.color || 'text-gray-300',
+                bg:        prod.bg    || 'bg-gray-100',
+                color:     prod.color || 'text-gray-500',
                 image:     prod.image || ''
             });
             idx = this.lote.length - 1;
@@ -735,17 +755,17 @@ class TraspasoForm {
         const $alert = $(`#${o.id}_alert`);
         if (!$alert.length) return;
         $alert.html(`
-            <div class="absolute inset-0 bg-black/60 tf-alert-bg" data-alert-close></div>
-            <div class="tf-alert-card relative z-10 w-[340px] max-w-[88%] bg-[#1a2030] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
+            <div class="absolute inset-0 bg-black/40 tf-alert-bg" data-alert-close></div>
+            <div class="tf-alert-card relative z-10 w-[340px] max-w-[88%] bg-white border border-gray-200 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
                 <div class="flex flex-col items-center text-center px-6 pt-6 pb-5">
-                    <div class="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center mb-3.5">
-                        <i data-lucide="alert-triangle" class="w-7 h-7 text-red-400"></i>
+                    <div class="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-3.5">
+                        <i data-lucide="alert-triangle" class="w-7 h-7 text-red-500"></i>
                     </div>
-                    <p class="text-[14px] font-bold text-white leading-snug">${this.esc(title)}</p>
-                    ${detail ? `<p class="text-[12px] text-gray-400 leading-relaxed mt-1.5">${this.esc(detail)}</p>` : ''}
+                    <p class="text-[14px] font-bold text-gray-800 leading-snug">${this.esc(title)}</p>
+                    ${detail ? `<p class="text-[12px] text-gray-500 leading-relaxed mt-1.5">${this.esc(detail)}</p>` : ''}
                 </div>
                 <div class="px-5 pb-5">
-                    <button type="button" data-alert-close class="w-full py-2.5 rounded-xl text-[12px] font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 transition-all">Entendido</button>
+                    <button type="button" data-alert-close class="w-full py-2.5 rounded-xl text-[12px] font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all">Entendido</button>
                 </div>
             </div>
         `).removeClass('hidden');
@@ -764,18 +784,18 @@ class TraspasoForm {
         const okLabel = c.okLabel || 'Confirmar';
         const okIco   = c.okIcon ? `<i data-lucide="${this.esc(c.okIcon)}" class="w-3.5 h-3.5"></i>` : '';
         $alert.html(`
-            <div class="absolute inset-0 bg-black/60 tf-alert-bg" data-confirm-cancel></div>
-            <div class="tf-alert-card relative z-10 w-[360px] max-w-[88%] bg-[#1a2030] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
+            <div class="absolute inset-0 bg-black/40 tf-alert-bg" data-confirm-cancel></div>
+            <div class="tf-alert-card relative z-10 w-[360px] max-w-[88%] bg-white border border-gray-200 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
                 <div class="flex flex-col items-center text-center px-6 pt-6 pb-5">
-                    <div class="w-14 h-14 rounded-full bg-purple-500/15 flex items-center justify-center mb-3.5">
-                        <i data-lucide="arrow-left-right" class="w-7 h-7 text-purple-300"></i>
+                    <div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-3.5">
+                        <i data-lucide="arrow-left-right" class="w-7 h-7 text-blue-600"></i>
                     </div>
-                    <p class="text-[14px] font-bold text-white leading-snug">${this.esc(c.title)}</p>
-                    ${c.detailHtml ? `<p class="text-[12px] text-gray-400 leading-relaxed mt-1.5">${c.detailHtml}</p>` : ''}
+                    <p class="text-[14px] font-bold text-gray-800 leading-snug">${this.esc(c.title)}</p>
+                    ${c.detailHtml ? `<p class="text-[12px] text-gray-500 leading-relaxed mt-1.5">${c.detailHtml}</p>` : ''}
                 </div>
                 <div class="px-5 pb-5 flex gap-2">
-                    <button type="button" data-confirm-cancel class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-gray-300 bg-[#0f1825] border border-gray-700/60 hover:bg-gray-700/30 hover:text-white transition-all">${this.esc(o.labels.cancelar)}</button>
-                    <button type="button" data-confirm-ok class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 transition-all flex items-center justify-center gap-1.5">
+                    <button type="button" data-confirm-cancel class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-gray-600 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-800 transition-all">${this.esc(o.labels.cancelar)}</button>
+                    <button type="button" data-confirm-ok class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all flex items-center justify-center gap-1.5">
                         ${okIco}${this.esc(okLabel)}
                     </button>
                 </div>
@@ -836,10 +856,10 @@ class TraspasoForm {
         };
 
         const totalUds = productos.reduce((s, p) => s + Number(p.cant || 0), 0);
-        const arrow    = '<span class="text-purple-300 px-1">&rarr;</span>';
+        const arrow    = '<span class="text-blue-600 px-1">&rarr;</span>';
         const detailHtml =
-            `<span class="font-semibold text-gray-200">${this.esc(sucOrigen.valor)}</span>${arrow}` +
-            `<span class="font-semibold text-gray-200">${this.esc(sucDestino.valor)}</span><br>` +
+            `<span class="font-semibold text-gray-700">${this.esc(sucOrigen.valor)}</span>${arrow}` +
+            `<span class="font-semibold text-gray-700">${this.esc(sucDestino.valor)}</span><br>` +
             `${productos.length} producto${productos.length !== 1 ? 's' : ''} &middot; ${totalUds} uds`;
 
         this.showConfirm({
@@ -872,6 +892,7 @@ class TraspasoForm {
         wrap.on('click', `#${id}_btnRegistrar`,     () => this.doRegistrar());
 
         wrap.on('change', `#${id}_origenSuc, #${id}_destinoSuc`, () => this.onChangeSucursal());
+        wrap.on('change', `#${id}_categoria`, () => { this.activeIdx = 0; this.renderCatalogo(); });
 
         $(document).off('keydown.traspasoForm').on('keydown.traspasoForm', (e) => {
             if (e.key !== 'Escape' || this.wrap.hasClass('hidden')) return;
@@ -965,8 +986,8 @@ class TraspasoForm {
             ? `<img src="${this.esc(src)}" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'">`
             : '';
         return `
-            <div class="relative ${box} rounded-lg ${this.esc(p.bg || 'bg-gray-700/40')} flex items-center justify-center flex-shrink-0 ring-1 ring-white/5 overflow-hidden">
-                <i data-lucide="${this.esc(p.icon || 'package')}" class="${ico} ${this.esc(p.color || 'text-gray-300')}"></i>
+            <div class="relative ${box} rounded-lg ${this.esc(p.bg || 'bg-gray-100')} flex items-center justify-center flex-shrink-0 ring-1 ring-gray-200 overflow-hidden">
+                <i data-lucide="${this.esc(p.icon || 'package')}" class="${ico} ${this.esc(p.color || 'text-gray-500')}"></i>
                 ${img}
             </div>`;
     }
@@ -984,7 +1005,7 @@ class TraspasoForm {
         return `
             <div class="relative">
                 ${selectHtml}
-                <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-purple-300/80 flex items-center">
+                <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 flex items-center">
                     <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
                 </span>
             </div>`;
