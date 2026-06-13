@@ -251,23 +251,23 @@ class ExcalidrawBoard {
         const files    = this._api.getFiles ? this._api.getFiles() : {};
         const json     = window.ExcalidrawLib.serializeAsJSON(elements, appState, files || {}, 'local');
 
-        let file = this.currentFile;
+        const file = this.currentFile;
 
-        // Boceto nuevo: pedir nombre y construir la ruta en la carpeta activa.
+        // Boceto NUEVO: guardar DENTRO DEL PROYECTO con el flujo estandar del visor
+        // (openNewFileModal -> createFile), que graba en la carpeta abierta, recarga
+        // el arbol de documentos y abre el archivo para visualizarlo/re-editarlo.
         if (!file || !file.fullPath) {
-            const dir = (this.app.dataInit && this.app.dataInit.header ? this.app.dataInit.header.currentPath : '' || '')
-                .replace(/\\/g, '/').replace(/\/+$/, '');
-            if (!dir) { visorView.toast('No hay carpeta activa donde guardar', 'error'); return; }
-
-            let name = (prompt('Nombre del boceto:', 'boceto') || '').trim();
-            if (!name) return;
-            if (!/\.excalidraw$/i.test(name)) name += '.excalidraw';
-
-            file = { file: name, fullPath: dir + '/' + name, raw: '', section: 'agentes' };
-            this.currentFile = file;
-            $('.excalidraw-bar-title').text(name);
+            if (typeof this.app.openNewFileModal !== 'function') {
+                visorView.toast('No se puede guardar en este origen', 'error');
+                return;
+            }
+            const base = (this.currentFile && this.currentFile.file) ? this.currentFile.file : 'boceto.excalidraw';
+            const name = /\.excalidraw$/i.test(base) ? base : 'boceto.excalidraw';
+            this.app.openNewFileModal({ name: name, content: json });
+            return;
         }
 
+        // Boceto EXISTENTE: sobrescribir su .excalidraw en disco.
         const $btn = $('#exSaveBtn').prop('disabled', true);
         const ok = await this._persist(file.fullPath, json);
         $btn.prop('disabled', false);
@@ -275,13 +275,6 @@ class ExcalidrawBoard {
 
         file.raw = json;
         visorView.toast('Boceto guardado: ' + file.file, 'success');
-
-        // Integrarlo a la biblioteca en memoria y refrescar el sidebar.
-        const exists = (this.app.allFiles || []).find(f => f.file === file.file);
-        if (!exists) {
-            this.app.allFiles = this.app.allFiles || [];
-            this.app.allFiles.push(file);
-        }
         this.app.currentFile = file.file;
         visorView.renderSidebar(this.app.dataInit, this.app.currentFile, $('#sidebarSearch').val() || '');
         this.app.bindSidebarClicks();

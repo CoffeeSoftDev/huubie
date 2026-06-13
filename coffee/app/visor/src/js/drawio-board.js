@@ -116,34 +116,29 @@ class DrawioBoard {
     }
 
     async _save(xml) {
-        let file = this.currentFile;
+        const file = this.currentFile;
 
-        // Diagrama nuevo: pedir nombre y construir la ruta en la carpeta activa.
+        // Diagrama NUEVO (sin ruta): lo guardamos DENTRO DEL PROYECTO usando el
+        // flujo estandar del visor. openNewFileModal -> createFile guarda en la
+        // carpeta abierta, recarga el arbol de documentos y abre el archivo
+        // (asi queda visible en el sidebar y se puede visualizar/re-editar).
         if (!file || !file.fullPath) {
-            const dir = (this.app.dataInit?.header?.currentPath || '')
-                .replace(/\\/g, '/').replace(/\/+$/, '');
-            if (!dir) { visorView.toast('No hay carpeta activa donde guardar', 'error'); return; }
-
-            let name = (prompt('Nombre del diagrama:', 'diagrama') || '').trim();
-            if (!name) return;
-            if (!/\.drawio$/i.test(name)) name += '.drawio';
-
-            file = { file: name, fullPath: dir + '/' + name, raw: '', section: 'agentes' };
-            this.currentFile = file;
+            if (typeof this.app.openNewFileModal !== 'function') {
+                visorView.toast('No se puede guardar en este origen', 'error');
+                return;
+            }
+            const base = (this.currentFile && this.currentFile.file) ? this.currentFile.file : 'diagrama.drawio';
+            const name = /\.drawio$/i.test(base) ? base : 'diagrama.drawio';
+            this.app.openNewFileModal({ name: name, content: xml });
+            return;
         }
 
+        // Diagrama EXISTENTE: sobrescribir su .drawio en disco.
         const ok = await this._persist(file.fullPath, xml);
         if (!ok) return;
 
         file.raw = xml;
         visorView.toast('Diagrama guardado: ' + file.file, 'success');
-
-        // Integrarlo a la biblioteca en memoria y refrescar el sidebar.
-        const exists = (this.app.allFiles || []).find(f => f.file === file.file);
-        if (!exists) {
-            this.app.allFiles = this.app.allFiles || [];
-            this.app.allFiles.push(file);
-        }
         this.app.currentFile = file.file;
         visorView.renderSidebar(this.app.dataInit, this.app.currentFile, $('#sidebarSearch').val() || '');
         this.app.bindSidebarClicks();

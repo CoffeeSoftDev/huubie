@@ -816,6 +816,35 @@ body.diagram-mode #drawioStage {
 /* Sin Frontmatter/TOC en split: todo el ancho de la mitad izquierda al documento. */
 body.diagram-mode .doc-meta { display: none; }
 
+/* ── Pestaña dedicada: SOLO el grafico a pantalla completa (?full=1) ──
+   Oculta todo el chrome del visor y deja el lienzo ocupando toda la ventana. */
+body.diagram-fulltab .visor-header,
+body.diagram-fulltab .app-rail,
+body.diagram-fulltab .visor-sidebar,
+body.diagram-fulltab .visor-footer,
+body.diagram-fulltab .main-breadcrumb,
+body.diagram-fulltab .doc-layout,
+body.diagram-fulltab #iaDrawer,
+body.diagram-fulltab .stage-resize-handle { display: none !important; }
+
+body.diagram-fulltab .visor-body-row,
+body.diagram-fulltab .visor-main,
+body.diagram-fulltab .visor-main-col { height: 100vh; min-height: 0; }
+body.diagram-fulltab .main-content {
+    padding: 0 !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+}
+body.diagram-fulltab #drawioStage,
+body.diagram-fulltab #excalidrawStage {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    border-radius: 0 !important;
+}
+
 /* Divisor arrastrable entre documento y lienzo (modo diagrama y boceto). */
 .stage-resize-handle {
     flex: 0 0 6px;

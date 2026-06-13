@@ -322,6 +322,33 @@ class App {
         const initial = this.allFiles[0]?.file || 'CoffeeIA.md';
         this.render(initial);
         this.bind();
+        this._maybeOpenDiagramFromUrl();
+    }
+
+    // Si la URL trae ?diagram=1 abrimos en ESTA pestaña el diagrama/boceto cuyo
+    // contenido dejo "Abrir en otra pestaña" en localStorage (handoff one-shot).
+    _maybeOpenDiagramFromUrl(retry) {
+        let params;
+        try { params = new URLSearchParams(window.location.search); } catch (e) { return; }
+        if (params.get('diagram') !== '1') return;
+
+        let payload = null;
+        try { payload = JSON.parse(localStorage.getItem('visor:openDiagram') || 'null'); } catch (e) {}
+        if (!payload || !payload.content) { try { localStorage.removeItem('visor:openDiagram'); } catch (e) {} return; }
+
+        const wantExc = payload.type === 'excalidraw';
+        const board = wantExc
+            ? (typeof excalidrawBoard !== 'undefined' ? excalidrawBoard : null)
+            : (typeof drawioBoard    !== 'undefined' ? drawioBoard    : null);
+        // El board de Excalidraw se instancia en visor-2.js (despues): reintentamos.
+        if (!board) { if (!retry) setTimeout(() => this._maybeOpenDiagramFromUrl(true), 350); return; }
+
+        try { localStorage.removeItem('visor:openDiagram'); } catch (e) {}
+        // ?full=1 => modo kiosk: solo el lienzo a pantalla completa (sin chrome).
+        if (params.get('full') === '1') document.body.classList.add('diagram-fulltab');
+        const ext  = wantExc ? 'excalidraw' : 'drawio';
+        const name = payload.name || ('diagrama.' + ext);
+        board.open({ file: name, raw: payload.content });
     }
 
     render(initialFile) {
@@ -2418,6 +2445,20 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
     }
 
+    // Abre el diagrama/boceto en OTRA pestaña: deja el contenido en localStorage y
+    // abre index.php?diagram=1, que lo recoge y lo muestra en el lienzo.
+    _openDiagramInTab(type, name, content) {
+        if (!content) return;
+        try {
+            localStorage.setItem('visor:openDiagram', JSON.stringify({ type, name, content }));
+        } catch (e) {
+            if (typeof visorView !== 'undefined' && visorView) visorView.toast('No se pudo preparar la pestaña', 'error');
+            return;
+        }
+        // full=1: la pestaña muestra SOLO el grafico a pantalla completa (sin chrome).
+        window.open('index.php?diagram=1&full=1', '_blank');
+    }
+
     // Selecciona un tipo de grafica. Re-seleccionar el tipo activo lo apaga (toggle).
     _setGraphMode(type) {
         if (COFFEEIA_GRAPH_TYPES.indexOf(type) === -1) return;
@@ -3682,6 +3723,9 @@ class CoffeeIA {
                     <span><i data-lucide="pen-tool" class="w-3 h-3"></i>Diagrama draw.io</span>
                     <span class="ia-render-tabs">
                         <button class="ia-render-btn is-icon ia-render-open" title="Abrir y editar en el lienzo">
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i>
+                        </button>
+                        <button class="ia-render-btn is-icon ia-render-newtab" title="Abrir en otra pestaña">
                             <i data-lucide="external-link" class="w-3 h-3"></i>
                         </button>
                         <button class="ia-render-btn is-icon ia-render-save" title="Guardar como archivo .drawio">
@@ -3727,6 +3771,10 @@ class CoffeeIA {
             drawioBoard.open({ file: 'ia-diagrama-' + Date.now() + '.drawio', raw: $wrap.data('drawio-xml') });
         });
 
+        $wrap.find('.ia-render-newtab').on('click', () => {
+            this._openDiagramInTab('drawio', 'diagrama.drawio', $wrap.data('drawio-xml'));
+        });
+
         $wrap.find('.ia-render-save').on('click', () => {
             if (!this._app || typeof this._app.openNewFileModal !== 'function') return;
             this._app.openNewFileModal({ name: 'diagrama.drawio', content: $wrap.data('drawio-xml') });
@@ -3767,6 +3815,9 @@ class CoffeeIA {
                     <span><i data-lucide="pencil-ruler" class="w-3 h-3"></i>Boceto Excalidraw</span>
                     <span class="ia-render-tabs">
                         <button class="ia-render-btn is-icon ia-render-open" title="Abrir y editar en el lienzo Excalidraw">
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i>
+                        </button>
+                        <button class="ia-render-btn is-icon ia-render-newtab" title="Abrir en otra pestaña">
                             <i data-lucide="external-link" class="w-3 h-3"></i>
                         </button>
                         <button class="ia-render-btn is-icon ia-render-save" title="Guardar como archivo .excalidraw">
@@ -3810,6 +3861,10 @@ class CoffeeIA {
                 return;
             }
             excalidrawBoard.open({ file: 'ia-boceto-' + Date.now() + '.excalidraw', raw: $wrap.data('excalidraw-json') });
+        });
+
+        $wrap.find('.ia-render-newtab').on('click', () => {
+            this._openDiagramInTab('excalidraw', 'boceto.excalidraw', $wrap.data('excalidraw-json'));
         });
 
         $wrap.find('.ia-render-save').on('click', () => {
