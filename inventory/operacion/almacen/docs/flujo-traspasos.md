@@ -31,7 +31,7 @@ Este documento explica, de punta a punta, que pasa cuando se crea un traspaso de
 | `transfer_status` | Catalogo de estados del flujo |
 | `inventory_transfer_history` | Bitacora: una fila por cada cambio de estado |
 | `stock` | Existencias por almacen (`uk_stock` unique en `item_id + warehouse_id`) — **saldo actual** |
-| `inventory_movement` | Kardex / libro de movimientos (bitacora de cada entrada y salida). El flujo de traspasos **ya la escribe al confirmar** (1 SALIDA en origen + 1 ENTRADA en destino, ver 3.1) |
+| `inventory_movement` | Kardex / libro de movimientos. **Es una VISTA** que deriva los movimientos de los documentos; el traspaso confirmado aparece aqui via la definicion de la vista (no por INSERT), ver 3.1 |
 | `warehouse` | Almacenes (cada uno pertenece a una `branch_id`) |
 | `item` / `item_attribute` / `item_category` | Catalogo de productos, SKU/costo, categoria |
 | `fayxzvov_erp.branches` | Sucursales (Kafeto, Matriz) — maestro corporativo |
@@ -171,7 +171,6 @@ Como Matriz es el destino y el traspaso esta REQUESTED, ve **Rechazar** y **Acep
        - **mueve el stock real**:
          - origen: `updateStockQuantity(origin_post, stock.id)` (si existia la fila).
          - destino: `updateStockQuantity(dest_post, stock.id)` si existia, o `createStockRow(dest_post, dest_wh, item_id, companies_id)` si no.
-       - **registra el kardex** (`createInventoryMovement`, ver 3.1): inserta 1 `SALIDA` en origen (solo si no era IN_TRANSIT) + 1 `ENTRADA` en destino, con los `stock_prev/post` ya calculados. Es solo auditoria, no re-aplica stock.
      - `updateTraspasoStatus(RECEIVED, id)` -> cabecera pasa a `status_id = 4`.
      - `updateTraspasoReceived(userId, received_by, id)` -> graba `date_received = NOW()`, `received_user_id`, `received_by_name`.
      - `createTraspasoHistory('Traspaso recibido [· Recibe: X]', RECEIVED, userId, id)`.
@@ -186,7 +185,7 @@ Como Matriz es el destino y el traspaso esta REQUESTED, ve **Rechazar** y **Acep
 | `detail_inventory_transfer` | UPDATE snapshots (origin + destination stock prev/post) |
 | `inventory_transfer` | UPDATE estado RECEIVED + datos de recepcion |
 | `inventory_transfer_history` | 1 INSERT ("Traspaso recibido") |
-| `inventory_movement` | 2 INSERT por renglon: 1 `SALIDA` en origen (cantidad negativa) + 1 `ENTRADA` en destino (cantidad positiva). Solo auditoria; ver 3.1 |
+| `inventory_movement` | Sin escritura directa (es una VISTA). El traspaso RECEIVED aparece derivado: 1 `TRANSFERENCIA` salida (origen) + 1 entrada (destino), ver 3.1 |
 
 #### Resultado en el ejemplo (Kafeto -> Matriz, TRA-0001)
 
@@ -261,42 +260,41 @@ El stock se mueve en **un solo paso** (REQUESTED -> RECEIVED). No hay paso inter
 
 ## 3. Oportunidades de mejora
 
-### 3.1 Registro del traspaso en el kardex (`inventory_movement`) — IMPLEMENTADO
+### 3.1 Registro del traspaso en el kardex (`inventory_movement`) — RESUELTO (via vista + visor)
 
-> **Estado:** resuelto. `confirmTraspaso` ahora escribe el kardex. Esta seccion documenta el problema original y la solucion aplicada.
+> **Estado:** resuelto. Los traspasos confirmados ya aparecen en el kardex, **sin tocar `confirmTraspaso`**. La solucion fue **redefinir la VISTA** `inventory_movement` y crear un **visor de Movimientos** en el modulo. Esta seccion documenta el hallazgo y la solucion real.
 
-Era el hallazgo mas importante del modulo, por encima de los temas de concurrencia: **al confirmar un traspaso el stock cambiaba, pero no se dejaba rastro en el libro de movimientos.**
+Era el hallazgo mas importante del modulo: **al confirmar un traspaso el stock cambiaba, pero no se veia como movimiento de inventario.**
 
 **Que descubrimos (verificado contra la BD viva):**
 
-- Existe una tabla `inventory_movement` que funciona como **kardex / libro mayor de inventario**: una fila por cada movimiento, con `movement_type`, `folio`, `quantity`, `stock_prev`, `stock_post`, `cost_unit/total`, `item_id`, `warehouse_id`, `branch_id`, `occurred_at`.
-- Esa tabla es la **fuente de verdad de movimientos** que consumen el dashboard (`mdl-dashboard.php`) y el detalle de un producto: el historial de movimientos y la grafica entrada/salida de los ultimos 13 dias (`mdl-stock.php`).
-- El modulo de **Entradas SI escribe ahi** (los asientos existentes son `movement_type = 'ENTRADA'`, folios `ENT-xxxx`).
-- El modulo de **Traspasos NO escribia ahi** (antes del fix): `confirmTraspaso` solo actualizaba `stock` (el saldo) y los snapshots de `detail_inventory_transfer`, pero nunca insertaba en `inventory_movement`.
+- `inventory_movement` **NO es una tabla, es una VISTA** (`UNION ALL` sobre las tablas de documentos). **No se puede `INSERT`** en ella (error `1471: not insertable-into`). El intento inicial de insertar 2 asientos desde `confirmTraspaso` fue revertido por esto.
+- Cada movimiento se **deriva** de su documento: la rama ENTRADA viene de `inventory_inflow`, la rama MERMA de `inventory_shrinkage`. La version del ERP solo tenia esas 2 ramas — **no contemplaba traspasos**.
+- En el POS (`fayxzvov_reginas`) la misma vista ya une 5 ramas, incluyendo **TRANSFERENCIA** (salida origen + entrada destino). Esa fue la referencia.
+- La vista la consumen el dashboard (`mdl-dashboard.php`) y el detalle de producto: historial + grafica entrada/salida (`mdl-stock.php`), que distingue entrada/salida por el **signo de `quantity`**.
 
-**Consecuencia (antes del fix):** el traspaso `TRA-0001` Kafeto -> Matriz movio el saldo correctamente, pero era **invisible** en el dashboard, en el historial de movimientos del producto y en la grafica entrada/salida. Para esos reportes, esas unidades "aparecieron" en Matriz sin explicacion.
+**Consecuencia (antes del fix):** `TRA-0001` Kafeto -> Matriz movio el saldo, pero era invisible en el dashboard y el historial de producto.
 
-> **Nota sobre el historico:** `TRA-0001` ya quedo en estado `RECEIVED` antes de aplicar el fix y no se reprocesa, asi que ese traspaso viejo seguira sin asiento en el kardex salvo que se haga un backfill manual. Los traspasos confirmados de aqui en adelante si generan asientos.
+**Distincion conceptual (`stock` vs `inventory_movement`):**
 
-**Distincion conceptual clave (`stock` vs `inventory_movement`):**
-
-| | `stock` | `inventory_movement` |
+| | `stock` (tabla) | `inventory_movement` (vista) |
 |---|---|---|
-| Que es | Saldo actual (como el saldo de una cuenta) | Bitacora de cada movimiento (como el estado de cuenta) |
-| Filas por item+almacen | Una (se sobrescribe) | Muchas (solo se agregan) |
+| Que es | Saldo actual (como el saldo de una cuenta) | Bitacora derivada de los documentos (como el estado de cuenta) |
+| Filas por item+almacen | Una (se sobrescribe) | Muchas (se derivan de inflow/shrinkage/transfer) |
 | Responde | Cuanto tengo HOY | Que paso, cuando y por que |
-| Invariante | `stock.quantity` debe igualar el `stock_post` del ultimo asiento del kardex |
+| Invariante | `stock.quantity` debe igualar el `stock_post` del ultimo movimiento |
 
-**Solucion implementada (sin duplicar stock):** `confirmTraspaso`, dentro de su transaccion ya existente, inserta **dos asientos** en `inventory_movement` por cada renglon, via el nuevo metodo `mdl::createInventoryMovement`:
+**Solucion aplicada (sin tocar `confirmTraspaso`, sin riesgo de doble conteo):**
 
-1. Una **SALIDA** en el almacen origen (Kafeto): `quantity` negativa, con `stock_prev`/`stock_post` del origen. `movement_uid = 'TRO-{detailId}'`. Solo se genera cuando el origen se descuenta en la confirmacion (es decir, `!alreadySent`).
-2. Una **ENTRADA** en el almacen destino (Matriz): `quantity` positiva, con `stock_prev`/`stock_post` del destino. `movement_uid = 'TRD-{detailId}'`. Siempre se genera.
+1. **Redefinir la vista** `fayxzvov_inventory.inventory_movement` agregando 2 ramas de traspaso (DDL en [er-diagrams/ddl-inventory-movement.sql](er-diagrams/ddl-inventory-movement.sql)):
+   - **TR-OUT** (salida origen): `movement_uid = CONCAT('TR-OUT-', d.id)`, `quantity` negativa, `stock_prev/post = origin_stock_prev/post`, `warehouse/branch` del origen.
+   - **TR-IN** (entrada destino): `movement_uid = CONCAT('TR-IN-', d.id)`, `quantity` positiva, `stock_prev/post = destination_stock_prev/post`, `warehouse/branch` del destino.
+   - Ambas con `movement_type = 'TRANSFERENCIA'` (consistente con el POS), `status = ts.name`. **Filtro por `origin_stock_post IS NOT NULL` / `destination_stock_post IS NOT NULL`** (no por `date_sent`/`date_received` como el POS): el flujo del ERP es de un paso, los snapshots se llenan al confirmar, asi que esto captura exactamente los traspasos cuyo stock se movio e ignora REQUESTED/REJECTED.
+2. **Crear el visor de Movimientos** (`movimientos.php` + `js/movimientos.js` + `ctrl/mdl-movimientos.php`), portado del visor del POS (`pos-movimientos`) adaptado al esquema del ERP (`item_id`/`branch_id`) y al tema light/terracota. Enlazado en el sidebar.
 
-> **Detalle de esquema:** `inventory_movement.movement_type` es `varchar(7)`, por lo que `'TRASPASO'` (8 chars) **no cabe**. Se usa `'SALIDA'` y `'ENTRADA'` por almacen — que ademas es semanticamente mas correcto: desde la perspectiva de cada almacen el traspaso es literalmente una salida o una entrada. La pertenencia al traspaso se identifica por el `folio` (`TRA-0001`) y por la `note` ("Traspaso TRA-0001 · salida hacia Matriz" / "· entrada desde Kafeto"). El `status` se graba como `'Aplicada'` (consistente con los asientos existentes). La direccion entrada/salida la determina el **signo de `quantity`**, que es justo lo que lee la grafica de `mdl-stock.php`.
+**Ventaja sobre el INSERT:** la vista deriva del estado actual, asi que **`TRA-0001` (historico) aparece automaticamente, sin backfill**, y no hay forma de duplicar asientos por doble submit. `rejectTraspaso` no aparece porque no llena los snapshots de stock, lo cual es correcto.
 
-Ambos asientos son **solo auditoria**: NO vuelven a aplicar el stock (de eso sigue encargandose el UPDATE/INSERT de `stock`), por lo que no hay riesgo de doble conteo. `rejectTraspaso` no genera asientos porque no toca stock, lo cual es correcto.
-
-> **Que NO conviene:** insertar el traspaso en `inventory_inflow` (la tabla de *documentos de entrada*) para que salga en el visor de "Entradas". Eso mezcla dos conceptos distintos —un traspaso no es una compra a proveedor— y arriesga doble conteo de stock. El traspaso debe verse en el **kardex** (movimientos), no en el listado de documentos de entrada. El catalogo `inflow_origin` ni siquiera contempla un origen "Traspaso" (sus 5 origenes son Compra, Produccion, Proveedor, Devolucion, Ajuste).
+> **Que NO conviene:** meter el traspaso en `inventory_inflow` (tabla de *documentos de entrada*) para que salga en el visor de "Entradas". Mezcla conceptos —un traspaso no es una compra— y arriesga doble conteo. El traspaso se ve en el **kardex/Movimientos**, no en el listado de Entradas.
 
 ### 3.2 Concurrencia y consistencia de stock (riesgo alto)
 
@@ -341,8 +339,8 @@ Ambos asientos son **solo auditoria**: NO vuelven a aplicar el stock (de eso sig
 
 | Prioridad | Tema | Accion sugerida |
 |---|---|---|
-| ~~Alta~~ **HECHO** | ~~Traspaso no registra en el kardex (`inventory_movement`)~~ | Implementado: 2 asientos (SALIDA origen + ENTRADA destino) en `confirmTraspaso` via `createInventoryMovement`. Solo auditoria, no re-aplica stock |
-| Alta | Doble confirmacion duplica stock **(y ahora tambien duplicaria asientos del kardex)** | Guard `WHERE status_id = REQUESTED` y abortar si 0 filas afectadas |
+| ~~Alta~~ **HECHO** | ~~Traspaso no aparece en el kardex (`inventory_movement`)~~ | Resuelto redefiniendo la VISTA (2 ramas TRANSFERENCIA) + visor de Movimientos. No toca `confirmTraspaso`; el historico aparece sin backfill |
+| Alta | Doble confirmacion duplica stock | Guard `WHERE status_id = REQUESTED` y abortar si 0 filas afectadas |
 | Alta | Movimiento de stock sin lock | `FOR UPDATE` o `UPDATE ... quantity = quantity ± ?` (delta atomico) |
 | Alta | Folio duplicable en concurrencia | Unique `(companies_id, folio)` + reintento |
 | Media | Validaciones de negocio en backend | Revalidar origen!=destino, pertenencia de almacen, tenant, qty>0 |
@@ -391,13 +389,14 @@ stock   (saldo actual)
   warehouse_id, item_id, companies_id
   UNIQUE uk_stock(item_id, warehouse_id)
 
-inventory_movement   (kardex / bitacora — el traspaso escribe aqui al confirmar: SALIDA origen + ENTRADA destino, ver 3.1)
-  movement_uid(varchar14), movement_type(varchar7), folio(varchar20),
-  note(varchar255), quantity(double),
-  stock_prev(double, NOT NULL), stock_post(double, NOT NULL),
-  cost_unit(double, NOT NULL), cost_total(double, NOT NULL),
-  occurred_at(date), created_at(datetime), status(varchar20),
-  item_id, warehouse_id, branch_id, user_id, companies_id
+inventory_movement   (VISTA, no tabla — kardex unificado; ver er-diagrams/ddl-inventory-movement.sql)
+  Columnas: movement_uid, movement_type, folio, note, quantity,
+            stock_prev, stock_post, cost_unit, cost_total,
+            occurred_at, created_at, status,
+            item_id, warehouse_id, branch_id, user_id, companies_id
+  Ramas (UNION ALL): ENTRADA (inventory_inflow) · MERMA (inventory_shrinkage)
+                     · TRANSFERENCIA TR-OUT/TR-IN (inventory_transfer)
+  NO admite INSERT (error 1471). Para sumar un tipo de movimiento se redefine la vista.
 ```
 
 > Nota de convencion: `detail_inventory_transfer` usa `item_id` (no `product_id`), consistente con el esquema `item` del ERP standalone. Montos en `DOUBLE` (convencion de la casa). El catalogo de estados respeta el patron catalogo + FK (no ENUM).
