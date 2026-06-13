@@ -84,6 +84,7 @@ class DrawioBoard {
         $('.cs-tabs-inline, #btnEdit, #btnCopyPath, #docStyleSelect, .doc-zoom, .doc-toolbar-sep')
             .toggleClass('hidden', show);
         $('#btnCloseDiagram').toggleClass('hidden', !show);
+        if (typeof visorMountStageResizer === 'function') visorMountStageResizer(show);
     }
 
     _post(msg) {

@@ -3,6 +3,11 @@ let app, entradas, entradasView;
 
 let branch_id;
 
+const VIEW_HEADER_ENTRADAS = {
+    title:    'Entradas de Inventario',
+    subtitle: 'Recepciones de produccion, compras y transferencias por sucursal'
+};
+
 $(async () => {
     entradasView = new EntradasView(apiEntradas, 'root');
     entradas     = new Entradas(apiEntradas, 'root');
@@ -51,14 +56,29 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        entradasView.renderHeader({
-            title:    'Entradas de Inventario',
-            subtitle: 'Recepciones de produccion, compras y transferencias por sucursal'
-        });
         entradasView.renderDetail(null);
         this.populateFilters();
+        this.updateHeaderTitle();
         entradas.lsEntradas();
         entradas.lsKpis();
+    }
+
+
+    updateHeaderTitle() {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const $branch    = $('#branch_id');
+        const branchVal  = $branch.length ? ($branch.val() || '') : '';
+        const branch     = (this.dataInit.sucursales || []).find(s => String(s.id) === String(branchVal));
+        const branchName = branch ? (branch.valor || '') : '';
+
+        const titleHtml = branchName
+            ? `${VIEW_HEADER_ENTRADAS.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(branchName)}</span>`
+            : VIEW_HEADER_ENTRADAS.title;
+
+        entradasView.renderHeader(Object.assign({}, VIEW_HEADER_ENTRADAS, { titleHtml }));
     }
 
     layout() {
@@ -116,7 +136,7 @@ class App extends Templates {
     filterBar() {
         let filters = [
             {
-                opc:         'input',
+                opc:         'input-calendar',
                 id:          'fRango',
                 lbl:         'Rango:',
                 class:       'col-12 col-md-4 col-lg-3',
@@ -246,6 +266,7 @@ class App extends Templates {
     }
 
     async onChangeFilters() {
+        this.updateHeaderTitle();
         entradas.lsEntradas();
         await entradas.lsKpis();
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
@@ -403,7 +424,7 @@ class Entradas extends Templates {
         if (!e || typeof e !== 'object') {
             const r = await useFetch({ url: apiEntradas, data: { opc: 'getEntrada', id: arg } });
             if (!(r && r.status === 200)) {
-                if (typeof alert === 'function') alert({ icon: 'error', text: 'No se pudo cargar la entrada para imprimir' });
+                this.alertBox({ type: 'error', title: 'No se pudo cargar la entrada para imprimir' });
                 return;
             }
             e = this.mapEntradaDetail(r.header || {}, r.detail || []);
@@ -457,7 +478,7 @@ class Entradas extends Templates {
         </div></body></html>`;
 
         const w = window.open('', '_blank', 'width=900,height=1000');
-        if (!w) { if (typeof alert === 'function') alert({ icon: 'warning', text: 'Permite las ventanas emergentes para poder ver el documento.' }); return; }
+        if (!w) { this.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el documento.' }); return; }
         w.document.write(html);
         w.document.close();
         w.focus();
@@ -507,12 +528,12 @@ class EntradasView extends Templates {
             methods: {
                 send: (r) => {
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Entrada actualizada' });
+                        this.alertBox({ type: 'success', title: r.message || 'Entrada actualizada', timer: 1600 });
                         app.selectEntrada(e.folio, e.id);
                         entradas.lsEntradas();
                         entradas.lsKpis();
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo actualizar la entrada' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo actualizar la entrada' });
                     }
                 }
             }
@@ -522,7 +543,7 @@ class EntradasView extends Templates {
     cancelEntrada(e) {
         if (!e || !e.id) return;
         if (e.estado === 'Cancelada') {
-            if (typeof alert === 'function') alert({ icon: 'info', text: 'La entrada ya esta cancelada' });
+            this.alertBox({ type: 'message', title: 'La entrada ya esta cancelada' });
             return;
         }
         this.swalQuestion({
@@ -537,12 +558,12 @@ class EntradasView extends Templates {
             methods: {
                 send: (r) => {
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Entrada cancelada' });
+                        this.alertBox({ type: 'success', title: r.message || 'Entrada cancelada', timer: 1600 });
                         app.selectEntrada(null);
                         entradas.lsEntradas();
                         entradas.lsKpis();
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo cancelar la entrada' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar la entrada' });
                     }
                 }
             }
@@ -552,7 +573,7 @@ class EntradasView extends Templates {
     confirmEntrada(e) {
         if (!e || !e.id) return;
         if (e.estado !== 'Pendiente') {
-            if (typeof alert === 'function') alert({ icon: 'info', text: 'La entrada no esta pendiente de confirmar' });
+            this.alertBox({ type: 'message', title: 'La entrada no esta pendiente de confirmar' });
             return;
         }
         const quantities = {};
@@ -574,12 +595,12 @@ class EntradasView extends Templates {
             methods: {
                 send: (r) => {
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Produccion confirmada' });
+                        this.alertBox({ type: 'success', title: r.message || 'Produccion confirmada', timer: 1600 });
                         app.selectEntrada(null);
                         entradas.lsEntradas();
                         entradas.lsKpis();
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo confirmar la produccion' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo confirmar la produccion' });
                     }
                 }
             }
@@ -623,10 +644,10 @@ class EntradasView extends Templates {
                         data: Object.assign({ opc: 'createSupplier' }, data)
                     });
                     if (r && r.status === 200 && r.id) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Proveedor creado' });
+                        this.alertBox({ type: 'success', title: r.message || 'Proveedor creado', timer: 1600 });
                         done({ id: r.id, valor: r.valor });
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo crear el proveedor' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el proveedor' });
                     }
                 },
                 onAdd: async (payload) => {
@@ -652,11 +673,15 @@ class EntradasView extends Templates {
                     });
 
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: r.pending ? 'info' : 'success', text: r.message || ('Entrada ' + r.folio + ' registrada') });
+                        this.alertBox({
+                            type:  r.pending ? 'message' : 'success',
+                            title: r.message || ('Entrada ' + r.folio + ' registrada'),
+                            timer: r.pending ? 0 : 1600
+                        });
                         entradas.lsEntradas();
                         entradas.lsKpis();
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la entrada' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la entrada' });
                     }
                 },
                 onLoadFormatos: async () => {
@@ -674,17 +699,17 @@ class EntradasView extends Templates {
                         }
                     });
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Formato guardado' });
+                        this.alertBox({ type: 'success', title: r.message || 'Formato guardado', timer: 1600 });
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo guardar el formato' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el formato' });
                     }
                 },
                 onDeleteFormato: async (id) => {
                     const r = await useFetch({ url: apiEntradas, data: { opc: 'deleteFormato', id: id } });
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Formato eliminado' });
+                        this.alertBox({ type: 'success', title: r.message || 'Formato eliminado', timer: 1600 });
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo eliminar el formato' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo eliminar el formato' });
                     }
                 },
                 onClose: () => {}
@@ -709,7 +734,7 @@ class EntradasView extends Templates {
                 purple:  'text-purple-600'
             },
             cardClass:  'bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow',
-            labelClass: 'text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right',
+            labelClass: 'text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-left',
             valueClass: 'text-2xl font-bold text-right',
             onClick:    () => {}
         };
@@ -747,7 +772,7 @@ class EntradasView extends Templates {
             parent:  'root',
             id:      'viewHeader',
             class:   'flex items-center justify-between w-full',
-            json:    { title: '', subtitle: '' },
+            json:    { title: '', titleHtml: '', subtitle: '' },
             classes: {
                 title:    'text-lg font-bold text-gray-800',
                 subtitle: 'text-xs text-gray-500'
@@ -764,7 +789,7 @@ class EntradasView extends Templates {
         const wrap = $('<div>', { id: opts.id, class: opts.class });
         wrap.html(`
             <div>
-                <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
+                <h1 class="${opts.classes.title}">${opts.json.titleHtml || esc(opts.json.title)}</h1>
                 ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
             </div>
         `);
@@ -841,21 +866,25 @@ class EntradasView extends Templates {
         const eP        = opts.estadoPalettes[e.estado] || { bg: 'rgba(156,163,175,0.15)', fg: '#9CA3AF' };
 
         const productosHtml = (e.productos || []).map(p => {
+            const cant = opts.editMode
+                ? Number(p.cantReal || 0)
+                : (p.confirmada ? Number(p.cantReal || 0) : Number(p.cant || 0));
+            const subtotal = cant * Number(p.costo || 0);
+
             const qty = opts.editMode
                 ? `<input type="number" class="entrada-real-qty w-16 text-center text-xs bg-white border border-gray-300 rounded px-1 py-0.5 text-gray-800" data-detail-id="${p.detailId}" value="${p.cantReal}" min="0" step="0.01">`
                 : `<span class="font-semibold ${isPending ? 'text-amber-500' : 'text-gray-800'}">${p.confirmada ? p.cantReal : p.cant}</span>`;
 
             return `
-                <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
-                    <div class="flex-1 min-w-0">
-                        <p class="text-xs font-medium text-gray-700 truncate">${esc(p.nombre)}</p>
+                <tr class="border-b border-gray-100 align-top">
+                    <td class="py-2 pr-2">
+                        <p class="text-xs font-medium text-gray-700">${esc(p.nombre)}</p>
                         ${p.sku ? `<p class="text-[10px] text-gray-400">${esc(p.sku)}</p>` : ''}
-                    </div>
-                    <div class="text-right flex-shrink-0 flex items-center gap-3">
-                        <div class="text-center text-xs">${qty}</div>
-                        <div class="text-xs text-gray-500">${fmtMoney(p.costo)}</div>
-                    </div>
-                </div>
+                    </td>
+                    <td class="py-2 px-1 text-right text-xs text-gray-500 whitespace-nowrap">${fmtMoney(p.costo)}</td>
+                    <td class="py-2 px-1 text-center text-xs">${qty}</td>
+                    <td class="py-2 pl-1 text-right text-xs font-semibold text-gray-700 whitespace-nowrap" id="${opts.id}_sub_${p.detailId}">${fmtMoney(subtotal)}</td>
+                </tr>
             `;
         }).join('');
 
@@ -898,7 +927,19 @@ class EntradasView extends Templates {
 
                 <div class="flex-1 overflow-y-auto px-4 py-3">
                     <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">Productos (${(e.productos || []).length})</p>
-                    ${productosHtml}
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-200">
+                                <th class="text-left font-semibold py-1.5">Producto</th>
+                                <th class="text-right font-semibold py-1.5 px-1">Precio</th>
+                                <th class="text-center font-semibold py-1.5 px-1">Cant</th>
+                                <th class="text-right font-semibold py-1.5 pl-1">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${productosHtml}
+                        </tbody>
+                    </table>
                 </div>
 
                 <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
@@ -962,10 +1003,13 @@ class EntradasView extends Templates {
             $parent.find('.entrada-real-qty').on('input', () => {
                 let uds = 0, costo = 0;
                 $parent.find('.entrada-real-qty').each(function () {
+                    const did = $(this).attr('data-detail-id');
                     const v = parseFloat($(this).val());
                     const q = isNaN(v) || v < 0 ? 0 : v;
+                    const sub = q * (costMap[did] || 0);
                     uds   += q;
-                    costo += q * (costMap[$(this).attr('data-detail-id')] || 0);
+                    costo += sub;
+                    $parent.find(`#${opts.id}_sub_${did}`).text(fmtMoney(sub));
                 });
                 $parent.find(`#${opts.id}_totUds`).text(fmtUds(uds));
                 $parent.find(`#${opts.id}_totCosto`).text(fmtMoney(costo));

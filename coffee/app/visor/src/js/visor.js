@@ -26,6 +26,55 @@ $(async () => {
     coffeeIA = new CoffeeIA(apiIA, app);
 });
 
+// Divisor arrastrable entre el documento (izq) y el lienzo (der) en modo split.
+// Compartido por DrawioBoard y ExcalidrawBoard. Persiste el ancho del documento.
+const VISOR_STAGE_SPLIT_KEY = 'visor:stage:docWidth';
+function visorMountStageResizer(show) {
+    const $mc  = $('.main-content');
+    const $doc = $mc.find('.doc-layout');
+    if (!$mc.length || !$doc.length) return;
+
+    if (!show) {
+        $mc.find('.stage-resize-handle').remove();
+        $doc.css('flex', '');                    // vuelve al 50/50 del CSS
+        $(document).off('mousemove.stageResize mouseup.stageResize');
+        return;
+    }
+    if ($mc.find('.stage-resize-handle').length) return;   // ya montado
+
+    const total = $mc[0].clientWidth || 0;
+    const MIN_DOC = 280, MIN_STAGE = 320;
+    let docW = parseInt(localStorage.getItem(VISOR_STAGE_SPLIT_KEY), 10);
+    if (!isFinite(docW)) docW = Math.round((total - 20) / 2);
+    docW = Math.min(Math.max(docW, MIN_DOC), Math.max(MIN_DOC, total - MIN_STAGE));
+    $doc.css('flex', '0 0 ' + docW + 'px');
+
+    const $handle = $('<div class="stage-resize-handle" title="Arrastra para redimensionar"></div>');
+    $doc.after($handle);
+
+    let dragging = false;
+    $handle.on('mousedown', (e) => {
+        e.preventDefault();
+        dragging = true;
+        document.body.classList.add('stage-resizing');
+    });
+    $(document).off('mousemove.stageResize mouseup.stageResize')
+        .on('mousemove.stageResize', (e) => {
+            if (!dragging) return;
+            const rect = $mc[0].getBoundingClientRect();
+            let w = e.clientX - rect.left;
+            w = Math.min(Math.max(w, MIN_DOC), rect.width - MIN_STAGE);
+            $doc.css('flex', '0 0 ' + w + 'px');
+        })
+        .on('mouseup.stageResize', () => {
+            if (!dragging) return;
+            dragging = false;
+            document.body.classList.remove('stage-resizing');
+            const basis = parseInt($doc.css('flex-basis'), 10);
+            if (isFinite(basis)) localStorage.setItem(VISOR_STAGE_SPLIT_KEY, String(basis));
+        });
+}
+
 
 class App {
 
@@ -410,7 +459,6 @@ class App {
         $('#btnRefresh').off('click').on('click', () => this.refresh());
         $('#btnCopyPath').off('click').on('click', () => this.copyPath());
         $('#btnOpenEditor').off('click').on('click', () => this.openInEditor());
-        $('#btnNewDiagram').off('click').on('click', () => { if (drawioBoard) drawioBoard.open(null); });
         $('#btnCloseDiagram').off('click').on('click', () => this.exitDiagram());
         $('#btnEdit').off('click').on('click', () => this.enterEditMode());
         $('#btnSave').off('click').on('click', () => this.saveFile());
@@ -1693,6 +1741,9 @@ class VisorView {
             return this.renderSidebarTree(data.documents, currentFile, filter);
         }
 
+        // Solo el arbol de documentos lleva el acento rojo "carpeta de archivos".
+        $('#sidebarList').removeClass('is-doc-tree');
+
         const agentsFiltered     = visor.filterFiles(data.agents, filter);
         const grimoiresFiltered  = visor.filterFiles(data.grimoires, filter);
         const mainLabel          = data.header.currentLabel || 'Archivos';
@@ -1869,7 +1920,7 @@ class VisorView {
             </div>
         ` : '';
 
-        $('#sidebarList').html(html + empty);
+        $('#sidebarList').html(html + empty).addClass('is-doc-tree');
 
         // Bind collapse toggle de proyecto (nivel 1)
         $('#sidebarList .tree-project-header').off('click').on('click', (e) => {
@@ -2164,7 +2215,12 @@ class VisorView {
 
 const COFFEEIA_EDITOR_KEY = 'visor:coffeeia:editorMode';
 const COFFEEIA_CANVAS_KEY = 'visor:coffeeia:canvasMode';
+const COFFEEIA_GRAPH_KEY  = 'visor:coffeeia:graphMode';
 const COFFEEIA_MODEL_KEY  = 'visor:coffeeia:model';
+
+// Tipos de grafica que el modo grafica puede instruir a la IA a generar.
+const COFFEEIA_GRAPH_TYPES = ['mermaid', 'drawio', 'excalidraw'];
+const COFFEEIA_GRAPH_LABELS = { mermaid: 'Mermaid', drawio: 'draw.io', excalidraw: 'Excalidraw' };
 
 // Extensiones de archivo que tratamos como TEXTO plano: se leen con readAsText y
 // se inyectan al contexto del chat (no como imagen). Cubre texto, codigo, marcado
@@ -2229,6 +2285,7 @@ class CoffeeIA {
         this._chipsRendered = false;
         this.editorMode    = this._loadEditorMode();
         this.canvasMode    = this._loadCanvasMode();
+        this.graphMode     = this._loadGraphMode();   // '' | 'mermaid' | 'drawio' | 'excalidraw'
         this.pendingEdits  = null;   // [{ find, with, status }]
         this.pendingImages = [];     // [{ dataUrl, base64, mime, name }]
         this.pendingDocs   = [];     // [{ name, content, size }] archivos de texto adjuntos al mensaje
@@ -2238,6 +2295,7 @@ class CoffeeIA {
         this._syncContext();
         this._applyEditorModeUI();
         this._applyCanvasModeUI();
+        this._applyGraphModeUI();
         this._applyModelUI();
     }
 
@@ -2274,11 +2332,10 @@ class CoffeeIA {
 
     _toggleEditorMode() {
         this.editorMode = !this.editorMode;
-        // Editor y lienzo son mutuamente excluyentes: activar uno apaga el otro.
-        if (this.editorMode && this.canvasMode) {
-            this.canvasMode = false;
-            this._saveCanvasMode();
-            this._applyCanvasModeUI();
+        // Editor, lienzo y grafica son mutuamente excluyentes: activar uno apaga los otros.
+        if (this.editorMode) {
+            if (this.canvasMode) { this.canvasMode = false; this._saveCanvasMode(); this._applyCanvasModeUI(); }
+            if (this.graphMode)  { this.graphMode  = '';    this._saveGraphMode();  this._applyGraphModeUI();  }
         }
         this._saveEditorMode();
         this._applyEditorModeUI();
@@ -2305,11 +2362,10 @@ class CoffeeIA {
 
     _toggleCanvasMode() {
         this.canvasMode = !this.canvasMode;
-        // Editor y lienzo son mutuamente excluyentes: activar uno apaga el otro.
-        if (this.canvasMode && this.editorMode) {
-            this.editorMode = false;
-            this._saveEditorMode();
-            this._applyEditorModeUI();
+        // Editor, lienzo y grafica son mutuamente excluyentes: activar uno apaga los otros.
+        if (this.canvasMode) {
+            if (this.editorMode) { this.editorMode = false; this._saveEditorMode(); this._applyEditorModeUI(); }
+            if (this.graphMode)  { this.graphMode  = '';    this._saveGraphMode();  this._applyGraphModeUI();  }
         }
         this._saveCanvasMode();
         this._applyCanvasModeUI();
@@ -2324,12 +2380,80 @@ class CoffeeIA {
         this._applyInputPlaceholder();
     }
 
+    /* ── Modo grafica: la IA genera diagramas (mermaid / draw.io / excalidraw) ── */
+
+    _loadGraphMode() {
+        try {
+            const v = localStorage.getItem(COFFEEIA_GRAPH_KEY) || '';
+            return COFFEEIA_GRAPH_TYPES.indexOf(v) !== -1 ? v : '';
+        } catch (e) { return ''; }
+    }
+
+    _saveGraphMode() {
+        try { localStorage.setItem(COFFEEIA_GRAPH_KEY, this.graphMode || ''); }
+        catch (e) {}
+    }
+
+    // Abre/cierra el menu de graficas posicionandolo FIXED sobre el boton (abre
+    // hacia arriba). Fixed evita que el overflow:hidden del drawer lo recorte.
+    _toggleGraphMenu(btnEl) {
+        const $menu = $('#iaGraphMenu');
+        if ($menu.is(':visible')) { $menu.hide(); return; }
+
+        // Medir con el menu visible pero invisible para no parpadear.
+        $menu.css({ display: 'block', visibility: 'hidden', top: '0px', left: '0px' });
+        const rect = btnEl.getBoundingClientRect();
+        const mw   = $menu.outerWidth();
+        const mh   = $menu.outerHeight();
+        const gap  = 8;
+
+        // Alineado al borde izquierdo del boton y abriendo hacia la DERECHA y hacia
+        // arriba; con clamps para que nunca se salga del viewport.
+        let left = rect.left;
+        let top  = rect.top - mh - gap;
+        left = Math.max(8, Math.min(left, window.innerWidth - mw - 8));
+        if (top < 8) top = rect.bottom + gap;   // si no cabe arriba, abre hacia abajo
+
+        $menu.css({ left: left + 'px', top: top + 'px', visibility: 'visible' });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Selecciona un tipo de grafica. Re-seleccionar el tipo activo lo apaga (toggle).
+    _setGraphMode(type) {
+        if (COFFEEIA_GRAPH_TYPES.indexOf(type) === -1) return;
+        this.graphMode = (this.graphMode === type) ? '' : type;
+        // Grafica es excluyente con editor y lienzo: al activarla, apaga los otros.
+        if (this.graphMode) {
+            if (this.editorMode) { this.editorMode = false; this._saveEditorMode(); this._applyEditorModeUI(); }
+            if (this.canvasMode) { this.canvasMode = false; this._saveCanvasMode(); this._applyCanvasModeUI(); }
+        }
+        this._saveGraphMode();
+        this._applyGraphModeUI();
+    }
+
+    _applyGraphModeUI() {
+        const mode = this.graphMode || '';
+        const $btn = $('#iaGraphBtn');
+        $btn.toggleClass('is-active', !!mode);
+        $btn.attr('title', mode
+            ? 'Modo grafica ACTIVO (' + (COFFEEIA_GRAPH_LABELS[mode] || mode) + ') — la IA generara diagramas de este tipo'
+            : 'Lienzos de graficas (Mermaid / draw.io / Excalidraw)');
+        // Marca el tipo activo dentro del menu.
+        $('#iaGraphMenu .graph-menu-item').each(function () {
+            $(this).toggleClass('is-active', $(this).data('graph') === mode);
+        });
+        this._applyInputPlaceholder();
+    }
+
     _applyInputPlaceholder() {
         const $ta = $('#iaInputTextarea');
         if (this.editorMode) {
             $ta.attr('placeholder', 'Pide un cambio al archivo abierto (ej: "renombra la seccion 1 a Vista panoramica")...');
         } else if (this.canvasMode) {
             $ta.attr('placeholder', 'Pide un componente UI (ej: "una card de producto con precio y boton")...');
+        } else if (this.graphMode) {
+            const label = COFFEEIA_GRAPH_LABELS[this.graphMode] || this.graphMode;
+            $ta.attr('placeholder', 'Describe el diagrama y la IA lo genera en ' + label + '...');
         } else {
             $ta.attr('placeholder', 'Pregunta algo sobre el documento...');
         }
@@ -2375,6 +2499,22 @@ class CoffeeIA {
 
         $('#iaCanvasToggle').on('click', () => this._toggleCanvasMode());
 
+        // Menu de graficas: elegir un tipo activa el "modo grafica" (como editor/lienzo).
+        $('#iaGraphBtn').on('click', (e) => {
+            e.stopPropagation();
+            this._toggleGraphMenu(e.currentTarget);
+        });
+        $(document).on('click.iaGraphMenu', (e) => {
+            if (!$(e.target).closest('#iaGraphMenu, #iaGraphBtn').length) $('#iaGraphMenu').hide();
+        });
+        // Reposicionar/cerrar si cambia el viewport mientras esta abierto.
+        $(window).on('resize.iaGraphMenu scroll.iaGraphMenu', () => $('#iaGraphMenu').hide());
+        $('#iaGraphMenu').on('click', '.graph-menu-item', (e) => {
+            const type = $(e.currentTarget).data('graph');
+            $('#iaGraphMenu').hide();
+            this._setGraphMode(type);
+        });
+
         $('#iaModelSelect').on('change', (e) => {
             this.model = $(e.currentTarget).val() || '';
             this._saveModel();
@@ -2392,6 +2532,8 @@ class CoffeeIA {
         $('#iaInputTextarea').on('input', function () {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+            // Solo mostramos scroll cuando el contenido real supera el maximo.
+            this.style.overflowY = this.scrollHeight > 200 ? 'auto' : 'hidden';
         });
 
         // Adjuntar archivos: boton, file input, paste y drag&drop.
@@ -2711,6 +2853,7 @@ class CoffeeIA {
             pinnedFiles:        (this._app.getPinnedFilesPayload ? this._app.getPinnedFilesPayload() : []),
             editorMode:         !!this.editorMode,
             canvasMode:         !!this.canvasMode,
+            graphMode:          this.graphMode || '',
             customPath:         (this._app.settings && this._app.settings.customPath) ? this._app.settings.customPath : '',
             model:              this.model || ''
         };
@@ -2729,6 +2872,7 @@ class CoffeeIA {
         let meta       = {};     // metadatos del evento 'done'
         let streamErr  = null;   // error reportado dentro del stream
         let firstToken = false;
+        let thinkChars = 0;      // razonamiento acumulado (modelos thinking) antes del 1er token
 
         // Controlador para abortar la consulta desde el botón Detener.
         const ac = new AbortController();
@@ -2769,7 +2913,14 @@ class CoffeeIA {
                     let obj = {};
                     try { obj = dataStr ? JSON.parse(dataStr) : {}; } catch (_) { continue; }
 
-                    if (ev === 'chunk') {
+                    if (ev === 'thinking') {
+                        // El modelo esta razonando: aun no hay respuesta. Mantenemos el
+                        // indicador pero mostramos progreso para que no parezca colgado.
+                        if (!firstToken) {
+                            thinkChars += (obj.t || '').length;
+                            this._setTypingPhase($typing, thinkChars);
+                        }
+                    } else if (ev === 'chunk') {
                         if (!firstToken) {
                             firstToken = true;
                             $typing.remove();
@@ -2902,10 +3053,15 @@ class CoffeeIA {
             if (DRAWIO_FENCE.test(buf) || RAW_DRAWIO.test(buf)) return 'drawio';
             if (EXCALIDRAW_FENCE.test(buf) || RAW_EXCALIDRAW.test(buf)) return 'excalidraw';
             if (HTML_FENCE.test(buf) || (self.canvasMode && RAW_HTML.test(buf))) return 'html';
+            // Modo grafica activo: en cuanto se abre CUALQUIER bloque de codigo
+            // (```excalidraw, ```json, ```mermaid, ```xml…) asumimos ese tipo y
+            // mostramos la animacion en vez de teclear el codigo crudo.
+            if (self.graphMode && /```/.test(buf)) return self.graphMode;
             return null;
         };
         const CONJURE_UI = {
             html:       { icon: 'wand-sparkles', title: 'Conjurando componente…', sub: 'Tejiendo el HTML' },
+            mermaid:    { icon: 'git-graph',     title: 'Construyendo diagrama…',  sub: 'Trazando el grafico' },
             drawio:     { icon: 'workflow',      title: 'Construyendo diagrama…',  sub: 'Trazando el lienzo' },
             excalidraw: { icon: 'pencil-ruler',  title: 'Bosquejando…',            sub: 'Trazando el boceto' }
         };
@@ -3439,11 +3595,11 @@ class CoffeeIA {
                 <div class="ia-render-toolbar">
                     <span><i data-lucide="git-graph" class="w-3 h-3"></i>Diagrama Mermaid</span>
                     <span class="ia-render-tabs">
-                        <button class="ia-render-btn ia-render-toggle" data-target="${id}-code">
-                            <i data-lucide="code-2" class="w-3 h-3"></i>Codigo
+                        <button class="ia-render-btn is-icon ia-render-toggle" data-target="${id}-code" title="Ver codigo">
+                            <i data-lucide="code-2" class="w-3 h-3"></i>
                         </button>
-                        <button class="ia-render-btn ia-render-expand" style="display:none;" title="Expandir a pantalla completa">
-                            <i data-lucide="maximize-2" class="w-3 h-3"></i>Expandir
+                        <button class="ia-render-btn is-icon ia-render-expand" style="display:none;" title="Expandir a pantalla completa">
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i>
                         </button>
                     </span>
                 </div>
@@ -3497,10 +3653,10 @@ class CoffeeIA {
             const showCode = $src.is(':hidden');
             $src.toggle(showCode);
             $view.toggle(!showCode);
-            $btn.find('span, i + *').remove();
             $btn.html(showCode
-                ? '<i data-lucide="eye" class="w-3 h-3"></i>Diagrama'
-                : '<i data-lucide="code-2" class="w-3 h-3"></i>Codigo');
+                ? '<i data-lucide="eye" class="w-3 h-3"></i>'
+                : '<i data-lucide="code-2" class="w-3 h-3"></i>');
+            $btn.attr('title', showCode ? 'Ver diagrama' : 'Ver codigo');
             if (window.lucide) lucide.createIcons();
         });
 
@@ -3525,14 +3681,14 @@ class CoffeeIA {
                 <div class="ia-render-toolbar">
                     <span><i data-lucide="pen-tool" class="w-3 h-3"></i>Diagrama draw.io</span>
                     <span class="ia-render-tabs">
-                        <button class="ia-render-btn ia-render-open" title="Abrir y editar en el lienzo">
-                            <i data-lucide="external-link" class="w-3 h-3"></i>Abrir en lienzo
+                        <button class="ia-render-btn is-icon ia-render-open" title="Abrir y editar en el lienzo">
+                            <i data-lucide="external-link" class="w-3 h-3"></i>
                         </button>
-                        <button class="ia-render-btn ia-render-save" title="Guardar como archivo .drawio">
-                            <i data-lucide="save" class="w-3 h-3"></i>Guardar
+                        <button class="ia-render-btn is-icon ia-render-save" title="Guardar como archivo .drawio">
+                            <i data-lucide="save" class="w-3 h-3"></i>
                         </button>
-                        <button class="ia-render-btn ia-render-toggle" data-target="${id}-code">
-                            <i data-lucide="code-2" class="w-3 h-3"></i>Codigo
+                        <button class="ia-render-btn is-icon ia-render-toggle" data-target="${id}-code" title="Ver codigo">
+                            <i data-lucide="code-2" class="w-3 h-3"></i>
                         </button>
                     </span>
                 </div>
@@ -3584,8 +3740,9 @@ class CoffeeIA {
             $src.toggle(showCode);
             $view.toggle(!showCode);
             $btn.html(showCode
-                ? '<i data-lucide="eye" class="w-3 h-3"></i>Vista'
-                : '<i data-lucide="code-2" class="w-3 h-3"></i>Codigo');
+                ? '<i data-lucide="eye" class="w-3 h-3"></i>'
+                : '<i data-lucide="code-2" class="w-3 h-3"></i>');
+            $btn.attr('title', showCode ? 'Ver diagrama' : 'Ver codigo');
             if (window.lucide) lucide.createIcons();
         });
 
@@ -3609,14 +3766,14 @@ class CoffeeIA {
                 <div class="ia-render-toolbar">
                     <span><i data-lucide="pencil-ruler" class="w-3 h-3"></i>Boceto Excalidraw</span>
                     <span class="ia-render-tabs">
-                        <button class="ia-render-btn ia-render-open" title="Abrir y editar en el lienzo Excalidraw">
-                            <i data-lucide="external-link" class="w-3 h-3"></i>Abrir en lienzo
+                        <button class="ia-render-btn is-icon ia-render-open" title="Abrir y editar en el lienzo Excalidraw">
+                            <i data-lucide="external-link" class="w-3 h-3"></i>
                         </button>
-                        <button class="ia-render-btn ia-render-save" title="Guardar como archivo .excalidraw">
-                            <i data-lucide="save" class="w-3 h-3"></i>Guardar
+                        <button class="ia-render-btn is-icon ia-render-save" title="Guardar como archivo .excalidraw">
+                            <i data-lucide="save" class="w-3 h-3"></i>
                         </button>
-                        <button class="ia-render-btn ia-render-toggle" data-target="${id}-code">
-                            <i data-lucide="code-2" class="w-3 h-3"></i>Codigo
+                        <button class="ia-render-btn is-icon ia-render-toggle" data-target="${id}-code" title="Ver codigo">
+                            <i data-lucide="code-2" class="w-3 h-3"></i>
                         </button>
                     </span>
                 </div>
@@ -3668,8 +3825,9 @@ class CoffeeIA {
             $src.toggle(showCode);
             $view.toggle(!showCode);
             $btn.html(showCode
-                ? '<i data-lucide="eye" class="w-3 h-3"></i>Vista'
-                : '<i data-lucide="code-2" class="w-3 h-3"></i>Codigo');
+                ? '<i data-lucide="eye" class="w-3 h-3"></i>'
+                : '<i data-lucide="code-2" class="w-3 h-3"></i>');
+            $btn.attr('title', showCode ? 'Ver boceto' : 'Ver codigo');
             if (window.lucide) lucide.createIcons();
         });
 
@@ -3687,11 +3845,11 @@ class CoffeeIA {
                 <div class="ia-render-toolbar">
                     <span><i data-lucide="database" class="w-3 h-3"></i>Diagrama Graphviz</span>
                     <span class="ia-render-tabs">
-                        <button class="ia-render-btn ia-render-toggle" data-target="${id}-code">
-                            <i data-lucide="code-2" class="w-3 h-3"></i>Codigo
+                        <button class="ia-render-btn is-icon ia-render-toggle" data-target="${id}-code" title="Ver codigo">
+                            <i data-lucide="code-2" class="w-3 h-3"></i>
                         </button>
-                        <button class="ia-render-btn ia-render-expand" style="display:none;" title="Expandir a pantalla completa">
-                            <i data-lucide="maximize-2" class="w-3 h-3"></i>Expandir
+                        <button class="ia-render-btn is-icon ia-render-expand" style="display:none;" title="Expandir a pantalla completa">
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i>
                         </button>
                     </span>
                 </div>
@@ -3725,8 +3883,9 @@ class CoffeeIA {
             $src.toggle(showCode);
             $view.toggle(!showCode);
             $btn.html(showCode
-                ? '<i data-lucide="eye" class="w-3 h-3"></i>Diagrama'
-                : '<i data-lucide="code-2" class="w-3 h-3"></i>Codigo');
+                ? '<i data-lucide="eye" class="w-3 h-3"></i>'
+                : '<i data-lucide="code-2" class="w-3 h-3"></i>');
+            $btn.attr('title', showCode ? 'Ver diagrama' : 'Ver codigo');
             if (window.lucide) lucide.createIcons();
         });
 
@@ -3995,6 +4154,7 @@ class CoffeeIA {
         const $t = $(`
             <div class="ia-msg ai ia-typing-msg">
                 <div id="${hostId}" class="ia-typing-loader"></div>
+                <span class="ia-typing-phase" style="display:none;"></span>
             </div>
         `);
         $('#iaBodyChat').append($t);
@@ -4011,6 +4171,26 @@ class CoffeeIA {
             $('#' + hostId).text('Analizando...');
         }
         return $t;
+    }
+
+    // Muestra que el modelo esta razonando (tokens de "thinking") con progreso vivo,
+    // para que el indicador no parezca colgado en modelos de razonamiento.
+    _setTypingPhase($typing, chars) {
+        if (!$typing) return;
+        const $phase = $typing.find('.ia-typing-phase');
+        if (!$phase.length) return;
+        const approxToks = Math.max(1, Math.round(chars / 4));   // ~4 chars/token
+        // Pintamos el icono una sola vez (lucide lo convierte a <svg>); luego solo
+        // actualizamos el contador para no recrear el SVG en cada token.
+        if (!$phase.data('inited')) {
+            // Al pasar a razonamiento ocultamos el loader "Analizando…": ahora el
+            // estado lo comunica la linea "Razonando…".
+            $typing.find('.ia-typing-loader').hide();
+            $phase.html('<i data-lucide="brain" class="ia-typing-brain"></i><span class="ia-typing-phase-text"></span>').show();
+            $phase.data('inited', true);
+            if (window.lucide) lucide.createIcons();
+        }
+        $phase.find('.ia-typing-phase-text').text('Razonando… ≈ ' + approxToks + ' tokens');
     }
 
     _scrollBottom() {

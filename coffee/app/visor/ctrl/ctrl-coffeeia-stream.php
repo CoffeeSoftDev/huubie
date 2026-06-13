@@ -58,8 +58,10 @@ try {
         throw new Exception('El proveedor no soporta streaming.');
     }
 
-    $result = $client->chatStream($allMessages, $model, [], function ($piece) use ($send) {
-        if ($piece !== '') $send('chunk', ['t' => $piece]);
+    $result = $client->chatStream($allMessages, $model, [], function ($piece, $kind = 'content') use ($send) {
+        if ($piece === '') return;
+        // 'thinking' = cadena de razonamiento (no es la respuesta); 'content' = respuesta.
+        $send($kind === 'thinking' ? 'thinking' : 'chunk', ['t' => $piece]);
     });
 
     $meta       = isset($result['meta']) && is_array($result['meta']) ? $result['meta'] : [];

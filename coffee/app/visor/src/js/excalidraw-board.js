@@ -90,15 +90,28 @@ class ExcalidrawBoard {
                 // normaliza (geometría, anclaje de flechas, textos en contenedores).
                 const looksSkeleton = elements.length > 0 &&
                     elements.some(el => el && el.seed == null && el.versionNonce == null);
-                if (looksSkeleton && window.ExcalidrawLib &&
-                    typeof window.ExcalidrawLib.convertToExcalidrawElements === 'function') {
-                    try { elements = window.ExcalidrawLib.convertToExcalidrawElements(elements); }
-                    catch (e) { /* skeleton invalido: cargamos los elementos tal cual */ }
+                if (looksSkeleton) {
+                    // 1) Resolvemos NOSOTROS los enlaces (flechas/lineas con start/end por
+                    //    id) calculando puntos de borde a borde. No dependemos del binding
+                    //    de Excalidraw (inestable entre versiones) -> el enlace siempre cae
+                    //    en el borde del nodo, nunca al centro ni desaparece.
+                    elements = this._resolveConnections(elements);
+                    // 2) convertToExcalidrawElements normaliza el resto (geometría, labels).
+                    if (window.ExcalidrawLib &&
+                        typeof window.ExcalidrawLib.convertToExcalidrawElements === 'function') {
+                        try { elements = window.ExcalidrawLib.convertToExcalidrawElements(elements); }
+                        catch (e) { /* skeleton invalido: cargamos los elementos tal cual */ }
+                    }
                 }
                 initialData = {
                     elements,
                     // collaborators debe ser un array/Map: forzamos vacío para evitar errores.
-                    appState: Object.assign({}, parsed.appState || {}, { collaborators: [] }),
+                    // Excalidraw siempre en tema claro con fondo blanco.
+                    appState: Object.assign(
+                        { viewBackgroundColor: '#ffffff' },
+                        parsed.appState || {},
+                        { collaborators: [], theme: 'light', viewBackgroundColor: '#ffffff' }
+                    ),
                     files:    parsed.files || undefined
                 };
             } catch (e) {
@@ -117,7 +130,8 @@ class ExcalidrawBoard {
             </div>
             <div id="excalidrawMount" class="excalidraw-mount"></div>`;
 
-        const theme = (this.app.settings.theme === 'light') ? 'light' : 'dark';
+        // Excalidraw siempre en tema claro (independiente del tema del visor).
+        const theme = 'light';
         const mount = document.getElementById('excalidrawMount');
         this._root  = window.ReactDOM.createRoot(mount);
         this._root.render(window.React.createElement(window.ExcalidrawLib.Excalidraw, {
@@ -129,6 +143,83 @@ class ExcalidrawBoard {
 
         $('#exSaveBtn').off('click').on('click', () => this._save());
         if (window.lucide) lucide.createIcons();
+    }
+
+    // Resuelve las conexiones de una escena skeleton SIN depender del binding de
+    // Excalidraw: toma cada arrow/line que referencia nodos por id (start/end) y
+    // calcula sus puntos de BORDE A BORDE entre las dos cajas. Devuelve el array
+    // con las conexiones PRIMERO (z-order: lineas debajo de los nodos) y luego el
+    // resto. Asi el enlace siempre toca el borde correcto, sin importar la version.
+    _resolveConnections(elements) {
+        if (!Array.isArray(elements)) return elements;
+
+        // Mapa id -> nodo con geometria (cajas/figuras, no conexiones).
+        const byId = {};
+        elements.forEach(el => {
+            if (el && el.id != null && el.type &&
+                el.type !== 'arrow' && el.type !== 'line' &&
+                el.width != null && el.height != null) {
+                byId[String(el.id)] = el;
+            }
+        });
+
+        const centerOf = (n) => ({ x: n.x + (n.width || 0) / 2, y: n.y + (n.height || 0) / 2 });
+
+        // Punto del borde del rect de 'n' en direccion al objetivo (tx,ty).
+        const edgeOf = (n, tx, ty) => {
+            const cx = n.x + (n.width || 0) / 2;
+            const cy = n.y + (n.height || 0) / 2;
+            const dx = tx - cx, dy = ty - cy;
+            if (dx === 0 && dy === 0) return { x: cx, y: cy };
+            const hw = (n.width || 0) / 2, hh = (n.height || 0) / 2;
+            const sx = dx !== 0 ? hw / Math.abs(dx) : Infinity;
+            const sy = dy !== 0 ? hh / Math.abs(dy) : Infinity;
+            const s = Math.min(sx, sy);
+            return { x: cx + dx * s, y: cy + dy * s };
+        };
+
+        const refId = (ref) => {
+            if (ref == null) return null;
+            if (typeof ref === 'string') return ref;
+            if (typeof ref === 'object' && ref.id != null) return String(ref.id);
+            return null;
+        };
+
+        const connections = [];
+        const nodes = [];
+
+        elements.forEach(el => {
+            if (!el) return;
+            const isConn = el.type === 'arrow' || el.type === 'line';
+            if (!isConn) { nodes.push(el); return; }
+
+            const a = byId[refId(el.start)];
+            const b = byId[refId(el.end)];
+
+            if (a && b) {
+                const aC = centerOf(a), bC = centerOf(b);
+                const p1 = edgeOf(a, bC.x, bC.y);   // borde de A hacia B
+                const p2 = edgeOf(b, aC.x, aC.y);   // borde de B hacia A
+                const w  = p2.x - p1.x, h = p2.y - p1.y;
+                const conn = Object.assign({}, el, {
+                    x: p1.x, y: p1.y,
+                    width: w, height: h,
+                    points: [[0, 0], [w, h]]
+                });
+                // Quitamos el binding por id: ya tenemos la geometria exacta y asi
+                // convertToExcalidrawElements no intenta re-rutear (ni falla).
+                delete conn.start;
+                delete conn.end;
+                connections.push(conn);
+            } else {
+                // Sin ids resolubles: la dejamos tal cual (quiza ya trae points).
+                connections.push(el);
+            }
+        });
+
+        // Conexiones primero -> quedan por debajo de los nodos (los extremos se
+        // ocultan tras las cajas y se ve como si tocaran el borde).
+        return connections.concat(nodes);
     }
 
     close() {
@@ -146,9 +237,10 @@ class ExcalidrawBoard {
     _showStage(show) {
         $('body').toggleClass('sketch-mode', show);
         $('#' + this.stageId).toggleClass('hidden', !show);
-        $('.cs-tabs-inline, #btnEdit, #btnCopyPath, #docStyleSelect, .doc-zoom, .doc-toolbar-sep, #btnNewDiagram, #btnNewSketch')
+        $('.cs-tabs-inline, #btnEdit, #btnCopyPath, #docStyleSelect, .doc-zoom, .doc-toolbar-sep')
             .toggleClass('hidden', show);
         $('#btnCloseSketch').toggleClass('hidden', !show);
+        if (typeof visorMountStageResizer === 'function') visorMountStageResizer(show);
     }
 
     async _save() {

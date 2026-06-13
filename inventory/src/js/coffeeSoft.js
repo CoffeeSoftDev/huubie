@@ -6180,6 +6180,113 @@ class Templates extends Components {
         $(`#${opts.parent}`).simple_json_tab({ data: opts.json });
     }
 
+    // -- Alert component --
+
+    alertBox(options) {
+        // Botón OK por defecto: terracota Arcilla Invernal (acento de la casa).
+        // Se puede sobrescribir por llamada pasando `okBg` en options.
+        const OK_TERRACOTA = 'bg-[#C05A40] hover:bg-[#A84A33]';
+
+        const presets = {
+            message: { icon: 'info',           iconBg: 'bg-blue-50',  iconColor: 'text-blue-600',  dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
+            success: { icon: 'check-circle',   iconBg: 'bg-green-50', iconColor: 'text-green-600', dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
+            error:   { icon: 'x-circle',       iconBg: 'bg-red-50',   iconColor: 'text-red-600',   dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
+            warning: { icon: 'alert-triangle', iconBg: 'bg-amber-50', iconColor: 'text-amber-500', dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
+            confirm: { icon: 'help-circle',    iconBg: 'bg-blue-50',  iconColor: 'text-blue-600',  dual: true,  okBg: OK_TERRACOTA, okLabel: 'Confirmar' },
+            cancel:  { icon: 'alert-triangle', iconBg: 'bg-red-50',   iconColor: 'text-red-500',   dual: true,  okBg: OK_TERRACOTA, okLabel: 'Sí, continuar' }
+        };
+
+        const type = String((options && options.type) || 'message').toLowerCase();
+        const base = presets[type] || presets.message;
+
+        const defaults = {
+            parent:      'body',
+            id:          'alertBox_' + Date.now(),
+            type:        'message',
+            icon:        base.icon,
+            iconBg:      base.iconBg,
+            iconColor:   base.iconColor,
+            title:       '',
+            detailHtml:  '',
+            dual:        base.dual,
+            cancelLabel: 'Cancelar',
+            okLabel:     base.okLabel,
+            okIcon:      '',
+            okBg:        base.okBg,
+            width:       base.dual ? 'w-[360px]' : 'w-[340px]',
+            timer:       0,
+            onOk:        null,
+            onCancel:    null,
+            onClose:     null
+        };
+
+        const opts   = Object.assign({}, defaults, options);
+        const onOk    = typeof opts.onOk    === 'function' ? opts.onOk    : opts.onClose;
+        const onCancel = typeof opts.onCancel === 'function' ? opts.onCancel : opts.onClose;
+
+        const $parent = $(opts.parent === 'body' ? 'body' : '#' + opts.parent);
+        const uid     = opts.id;
+
+        const detailHtml = opts.detailHtml
+            ? `<p class="text-[12px] text-gray-500 leading-relaxed mt-1.5">${opts.detailHtml}</p>`
+            : '';
+
+        const okIconHtml = opts.okIcon
+            ? `<i data-lucide="${opts.okIcon}" class="w-3.5 h-3.5"></i>`
+            : '';
+
+        // Modo toast: con auto-cierre (timer) y sin segundo boton, no se muestran
+        // botones porque la notificacion se cierra sola.
+        const isToast = opts.timer > 0 && !opts.dual;
+
+        const cancelBtn = opts.dual
+            ? `<button type="button" data-ab-cancel class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-gray-600 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-800 transition-all">${opts.cancelLabel}</button>`
+            : '';
+
+        const okBtn = `<button type="button" data-ab-ok class="${opts.dual ? 'flex-1' : 'w-full'} py-2.5 rounded-xl text-[12px] font-bold text-white ${opts.okBg} transition-all flex items-center justify-center gap-1.5">${okIconHtml}${opts.okLabel}</button>`;
+
+        const buttonsHtml = isToast
+            ? ''
+            : `<div class="px-5 pb-4 flex gap-2">${cancelBtn}${okBtn}</div>`;
+
+        const $overlay = $(`
+            <div id="${uid}" class="fixed inset-0 z-[999] flex items-center justify-center">
+                <div class="absolute inset-0 bg-black/40" data-ab-backdrop></div>
+                <div class="tf-alert-card relative z-10 ${opts.width} max-w-[88%] bg-white border border-gray-200 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
+                    <div class="flex flex-col items-center text-center px-5 pt-5 ${isToast ? 'pb-5' : 'pb-4'}">
+                        <div class="w-14 h-14 rounded-full ${opts.iconBg} flex items-center justify-center mb-3.5">
+                            <i data-lucide="${opts.icon}" class="w-7 h-7 ${opts.iconColor}"></i>
+                        </div>
+                        <p class="text-[14px] font-bold text-gray-800 leading-snug">${opts.title}</p>
+                        ${detailHtml}
+                    </div>
+                    ${buttonsHtml}
+                </div>
+            </div>
+        `);
+
+        $parent.append($overlay);
+        if (window.lucide) lucide.createIcons();
+
+        let dismissed = false;
+        const dismiss = (isOk) => {
+            if (dismissed) return;
+            dismissed = true;
+            $overlay.remove();
+            const cb = isOk ? onOk : onCancel;
+            if (typeof cb === 'function') cb();
+        };
+
+        $overlay.find('[data-ab-ok]').on('click', () => dismiss(true));
+        $overlay.find('[data-ab-cancel]').on('click', () => dismiss(false));
+        $overlay.find('[data-ab-backdrop]').on('click', () => dismiss(!opts.dual));
+
+        // Auto-cierre opcional (estilo toast) para notificaciones no bloqueantes.
+        if (opts.timer > 0 && !opts.dual) {
+            setTimeout(() => dismiss(true), opts.timer);
+        }
+    }
+
 }
 
 

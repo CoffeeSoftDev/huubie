@@ -750,26 +750,12 @@ class TraspasoForm {
         this.opts.onClose();
     }
 
+    alertBox(opts) {
+        return Templates.prototype.alertBox(opts || {});
+    }
+
     showError(title, detail) {
-        const o      = this.opts;
-        const $alert = $(`#${o.id}_alert`);
-        if (!$alert.length) return;
-        $alert.html(`
-            <div class="absolute inset-0 bg-black/40 tf-alert-bg" data-alert-close></div>
-            <div class="tf-alert-card relative z-10 w-[340px] max-w-[88%] bg-white border border-gray-200 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
-                <div class="flex flex-col items-center text-center px-6 pt-6 pb-5">
-                    <div class="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-3.5">
-                        <i data-lucide="alert-triangle" class="w-7 h-7 text-red-500"></i>
-                    </div>
-                    <p class="text-[14px] font-bold text-gray-800 leading-snug">${this.esc(title)}</p>
-                    ${detail ? `<p class="text-[12px] text-gray-500 leading-relaxed mt-1.5">${this.esc(detail)}</p>` : ''}
-                </div>
-                <div class="px-5 pb-5">
-                    <button type="button" data-alert-close class="w-full py-2.5 rounded-xl text-[12px] font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all">Entendido</button>
-                </div>
-            </div>
-        `).removeClass('hidden');
-        if (window.lucide) lucide.createIcons();
+        this.alertBox({ type: 'warning', title: title, detailHtml: detail });
     }
 
     hideError() {
@@ -777,35 +763,16 @@ class TraspasoForm {
     }
 
     showConfirm(cfg) {
-        const o      = this.opts;
-        const c      = cfg || {};
-        const $alert = $(`#${o.id}_alert`);
-        if (!$alert.length) return;
-        const okLabel = c.okLabel || 'Confirmar';
-        const okIco   = c.okIcon ? `<i data-lucide="${this.esc(c.okIcon)}" class="w-3.5 h-3.5"></i>` : '';
-        $alert.html(`
-            <div class="absolute inset-0 bg-black/40 tf-alert-bg" data-confirm-cancel></div>
-            <div class="tf-alert-card relative z-10 w-[360px] max-w-[88%] bg-white border border-gray-200 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
-                <div class="flex flex-col items-center text-center px-6 pt-6 pb-5">
-                    <div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-3.5">
-                        <i data-lucide="arrow-left-right" class="w-7 h-7 text-blue-600"></i>
-                    </div>
-                    <p class="text-[14px] font-bold text-gray-800 leading-snug">${this.esc(c.title)}</p>
-                    ${c.detailHtml ? `<p class="text-[12px] text-gray-500 leading-relaxed mt-1.5">${c.detailHtml}</p>` : ''}
-                </div>
-                <div class="px-5 pb-5 flex gap-2">
-                    <button type="button" data-confirm-cancel class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-gray-600 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-800 transition-all">${this.esc(o.labels.cancelar)}</button>
-                    <button type="button" data-confirm-ok class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all flex items-center justify-center gap-1.5">
-                        ${okIco}${this.esc(okLabel)}
-                    </button>
-                </div>
-            </div>
-        `).removeClass('hidden');
-        if (window.lucide) lucide.createIcons();
-        $alert.find('[data-confirm-cancel]').on('click', () => this.hideError());
-        $alert.find('[data-confirm-ok]').on('click', () => {
-            this.hideError();
-            if (typeof c.onOk === 'function') c.onOk();
+        const c = cfg || {};
+        this.alertBox({
+            type:        'confirm',
+            icon:        'arrow-left-right',
+            title:       c.title,
+            detailHtml:  c.detailHtml,
+            okLabel:     c.okLabel,
+            okIcon:      c.okIcon,
+            cancelLabel: this.opts.labels.cancelar,
+            onOk:        c.onOk
         });
     }
 

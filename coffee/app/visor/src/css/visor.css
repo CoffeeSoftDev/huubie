@@ -173,15 +173,36 @@ html, body { height: 100%; }
 .visor-sidebar.is-collapsed .sidebar-item .file-name,
 .visor-sidebar.is-collapsed .sidebar-item .file-size,
 .visor-sidebar.is-collapsed .sidebar-item .badge-backup,
-.visor-sidebar.is-collapsed .sidebar-item .sidebar-pin-btn { display: none; }
+.visor-sidebar.is-collapsed .sidebar-item .sidebar-pin-btn,
+.visor-sidebar.is-collapsed .sidebar-item .sidebar-del-btn { display: none; }
 
 .visor-sidebar.is-collapsed .sidebar-item {
-    padding: 9px 0;
+    /* !important para ganar al style="padding-left" EN LINEA que traen las filas
+       del arbol de carpetas (treeFileRowHtml) y a las reglas con id del doc-tree.
+       Sin esto el padding inline empuja el icono a la derecha y no centra. */
+    padding: 9px 0 !important;
+    margin: 0 !important;
     justify-content: center;
     gap: 0;
 }
 .visor-sidebar.is-collapsed .sidebar-item .file-icon {
     width: 18px; height: 18px;
+}
+
+/* Doc-tree colapsado: anular TODA la sangria/margenes para que los iconos
+   centren en el rail y no se salgan. !important para ganar a la regla con id del
+   arbol expandido (padding-left:30px) y a cualquier estilo en linea. */
+.visor-sidebar.is-collapsed #sidebarList.is-doc-tree .tree-project-body,
+.visor-sidebar.is-collapsed #sidebarList.is-doc-tree .tree-files-wrap {
+    padding-left: 0 !important;
+}
+.visor-sidebar.is-collapsed #sidebarList.is-doc-tree .sidebar-item {
+    margin: 0 !important;
+    padding: 9px 0 !important;
+    border-left: none !important;
+    border-radius: 0;
+    justify-content: center;
+    gap: 0;
 }
 
 /* Fila: [chat IA a toda la altura, izquierda] + [columna toolbar+documento].
@@ -298,16 +319,25 @@ html, body { height: 100%; }
 
 .cs-scroll::-webkit-scrollbar,
 .sidebar-list::-webkit-scrollbar,
+.doc-layout::-webkit-scrollbar,
 .main-content::-webkit-scrollbar { width: 8px; height: 8px; }
 .cs-scroll::-webkit-scrollbar-track,
 .sidebar-list::-webkit-scrollbar-track,
+.doc-layout::-webkit-scrollbar-track,
 .main-content::-webkit-scrollbar-track { background: transparent; }
 .cs-scroll::-webkit-scrollbar-thumb,
 .sidebar-list::-webkit-scrollbar-thumb,
+.doc-layout::-webkit-scrollbar-thumb,
 .main-content::-webkit-scrollbar-thumb { background: var(--vsr-scrollbar); border-radius: 4px; }
 .cs-scroll::-webkit-scrollbar-thumb:hover,
 .sidebar-list::-webkit-scrollbar-thumb:hover,
+.doc-layout::-webkit-scrollbar-thumb:hover,
 .main-content::-webkit-scrollbar-thumb:hover { background: var(--vsr-scrollbar-hov); }
+/* Firefox: scrollbar fino acorde al tema en los contenedores scrolleables. */
+.cs-scroll, .sidebar-list, .doc-layout, .main-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--vsr-scrollbar) transparent;
+}
 
 /* ── ui-kit overrides (re-tematizado por --vsr-*) ──────────── */
 
@@ -485,6 +515,52 @@ html, body { height: 100%; }
 }
 .user-menu-badge i { width: 10px; height: 10px; }
 .user-menu-check { color: var(--vsr-accent); margin-left: 2px; }
+
+/* ── Menu de Graficas (composer del chat) ──────────────────── */
+
+.doc-graph-wrap, .ia-graph-wrap { display: inline-flex; }
+.graph-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: max-content;
+    min-width: 0;
+    background: var(--vsr-bg-chrome);
+    border: 1px solid var(--vsr-border);
+    border-radius: 10px;
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.35);
+    padding: 5px;
+    z-index: 100;
+    display: flex; flex-direction: column;
+    gap: 2px;
+}
+.graph-menu-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 14px 7px 9px;
+    border-radius: 7px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--vsr-text-soft);
+    transition: background-color .12s ease;
+    text-align: left;
+    font-family: inherit;
+    white-space: nowrap;
+}
+.graph-menu-item:hover { background: var(--vsr-bg-hover); }
+.graph-menu-item.is-active { background: var(--vsr-accent-tint); }
+.graph-menu-item.is-active > i,
+.graph-menu-item.is-active .graph-menu-name { color: var(--vsr-accent-soft); }
+.graph-menu-item > i { flex-shrink: 0; color: var(--vsr-text-mute2); }
+.graph-menu-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.graph-menu-name { font-size: 12.5px; font-weight: 600; color: var(--vsr-text); }
+.graph-menu-desc { font-size: 10.5px; color: var(--vsr-text-mute2); }
+
+/* Variante que abre hacia arriba: el composer vive al fondo del chat. */
+.graph-menu.graph-menu-up { top: auto; bottom: calc(100% + 8px); }
+/* En el composer el menu se posiciona FIXED (top/left por JS) para escapar del
+   overflow:hidden del drawer, que recortaba el menu al abrir hacia arriba. */
+.ia-graph-wrap .graph-menu { position: fixed; z-index: 1000; left: auto; right: auto; bottom: auto; }
 
 /* ── Sections / items ──────────────────────────────────────── */
 
@@ -739,6 +815,20 @@ body.diagram-mode #drawioStage {
 }
 /* Sin Frontmatter/TOC en split: todo el ancho de la mitad izquierda al documento. */
 body.diagram-mode .doc-meta { display: none; }
+
+/* Divisor arrastrable entre documento y lienzo (modo diagrama y boceto). */
+.stage-resize-handle {
+    flex: 0 0 6px;
+    align-self: stretch;
+    cursor: ew-resize;
+    border-radius: 3px;
+    background: var(--vsr-border);
+    transition: background-color .12s ease;
+}
+.stage-resize-handle:hover,
+body.stage-resizing .stage-resize-handle { background: var(--vsr-accent); }
+body.stage-resizing,
+body.stage-resizing * { cursor: ew-resize !important; user-select: none !important; }
 
 /* Pantallas estrechas: apilar documento arriba y lienzo abajo. */
 @media (max-width: 1100px) {
@@ -2126,6 +2216,26 @@ body.diagram-mode .doc-meta { display: none; }
 .tree-project-body { display: block; padding: 4px 0 8px; }
 .tree-project-body.collapsed { display: none; }
 
+/* ── Arbol de DOCUMENTOS: filas redondeadas y contenidas (diseño imagen),
+   con los COLORES NORMALES del visor. Scope para no tocar Agentes/Grimorios. */
+#sidebarList.is-doc-tree .sidebar-item {
+    margin: 1px 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border-left: 2px solid transparent;
+}
+/* Activo: bloque solido redondeado (NO el degradado a todo el ancho). */
+#sidebarList.is-doc-tree .sidebar-item.active {
+    background: var(--vsr-accent-tint);
+    border-left-color: var(--vsr-accent);
+    color: var(--vsr-text);
+}
+/* Sin lineas guia: con filas redondeadas la barra vertical rompe el arbol. */
+#sidebarList.is-doc-tree .tree-files-wrap::before,
+#sidebarList.is-doc-tree .tree-type-header::before { display: none; }
+/* Archivos mas a la derecha: sangrados bajo su carpeta. */
+#sidebarList.is-doc-tree .tree-files-wrap { padding-left: 30px; }
+
 /* ── Arbol lazy de carpetas (modo carpeta local, estilo VS Code) ── */
 .tree-folder-node { display: block; }
 .tree-folder-toggle { user-select: none; }
@@ -2541,6 +2651,27 @@ body.ia-drawer-resizing * {
     75%  { content: '...'; }
     100% { content: ''; }
 }
+/* Progreso de razonamiento (modelos thinking) bajo el loader "Analizando". */
+.ia-typing-phase {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding-left: 12px;
+    margin-top: 4px;
+    font-size: 10.5px;
+    color: var(--vsr-text-mute2);
+    font-family: 'JetBrains Mono', monospace;
+}
+.ia-typing-brain {
+    width: 13px; height: 13px;
+    color: var(--vsr-accent-soft);
+    flex-shrink: 0;
+    animation: ia-brain-pulse 1.6s ease-in-out infinite;
+}
+@keyframes ia-brain-pulse {
+    0%, 100% { opacity: .55; transform: scale(1); }
+    50%      { opacity: 1;   transform: scale(1.12); }
+}
 
 /* ── Card "Conjurando…" (modo lienzo) ──────────────────────────
    Mientras la IA genera un componente HTML mostramos esta card en
@@ -2648,6 +2779,10 @@ body.ia-drawer-resizing * {
     color: var(--vsr-text-soft);
     font-family: 'Inter', sans-serif;
     font-size: 13px; line-height: 1.5; resize: none;
+    /* Oculto por defecto: evita el scrollbar nativo cuando un placeholder largo
+       desborda la altura minima. El auto-resize (JS) habilita scroll solo si el
+       contenido real supera max-height. */
+    overflow-y: hidden;
 }
 .ia-input-textarea::placeholder { color: var(--vsr-text-mute2); }
 .ia-send-btn {
@@ -2699,6 +2834,13 @@ body.ia-drawer-resizing * {
     background: var(--vsr-bg-hover);
 }
 .ia-attach-btn i { width: 12px; height: 12px; }
+/* Estado activo (modo grafica), mismo lenguaje que .ia-editor-toggle.is-active */
+.ia-attach-btn.is-active {
+    color: var(--vsr-accent-soft);
+    border-color: var(--vsr-accent);
+    background: var(--vsr-accent-tint);
+}
+.ia-attach-btn.is-active i { color: var(--vsr-accent); }
 
 .ia-image-strip {
     display: flex; flex-wrap: wrap; gap: 6px;
@@ -3015,6 +3157,9 @@ body.ia-drawer-resizing * {
     font-family: inherit;
 }
 .ia-render-btn:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
+/* Variante solo icono: cuadrada, sin texto (tooltip via title) */
+.ia-render-btn.is-icon { padding: 0; width: 24px; height: 24px; justify-content: center; gap: 0; }
+.ia-render-btn.is-icon > i { margin: 0; }
 
 .ia-render-tabs { display: inline-flex; gap: 4px; }
 .ia-render-tab.is-active {

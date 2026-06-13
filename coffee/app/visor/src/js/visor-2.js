@@ -60,8 +60,8 @@ $(() => {
     if (typeof app === 'undefined' || !app) return;
     excalidrawBoard = new ExcalidrawBoard(app, api);
 
-    $('#btnNewSketch').off('click').on('click', () => { if (excalidrawBoard) excalidrawBoard.open(null); });
-
+    // "Nuevo boceto" ahora vive en el menu de Graficas (App.generateGraph),
+    // que invoca excalidrawBoard.open(null). Aqui solo queda el cierre del lienzo.
     $('#btnCloseSketch').off('click').on('click', () => {
         if (!excalidrawBoard) return;
         excalidrawBoard.close();

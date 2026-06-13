@@ -160,10 +160,16 @@ class OllamaClient {
                     if ($line === '') continue;
                     $obj = json_decode($line, true);
                     if (!is_array($obj)) continue;
+                    // Modelos de razonamiento (MiniMax, DeepSeek, Qwen3, GLM, Kimi…)
+                    // emiten su cadena de pensamiento en message.thinking ANTES de
+                    // empezar el content. La reenviamos como 'thinking' para que la UI
+                    // muestre actividad y no parezca colgada.
+                    $think = $obj['message']['thinking'] ?? '';
+                    if ($think !== '' && $onChunk) $onChunk($think, 'thinking');
                     $piece = $obj['message']['content'] ?? '';
                     if ($piece !== '') {
                         $full .= $piece;
-                        if ($onChunk) $onChunk($piece);
+                        if ($onChunk) $onChunk($piece, 'content');
                     }
                     if (!empty($obj['done'])) {
                         $meta = $obj; // trae eval_count, total_duration, etc.

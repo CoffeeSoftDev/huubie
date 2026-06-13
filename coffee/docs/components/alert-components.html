@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview — alertBox</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Carga el framework con el componente unificado -->
+    <script src="../../../inventory/src/js/coffeeSoft.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #111827; color: #f3f4f6; }
+        .log-entry { border-left: 3px solid #3b82f6; padding: 4px 10px; margin: 4px 0; font-size: 12px; background: #1f2937; border-radius: 4px; }
+        .log-ok    { border-color: #22c55e; }
+        .log-cancel{ border-color: #f59e0b; }
+    </style>
+</head>
+<body class="p-8">
+
+    <h1 class="text-xl font-bold mb-1">alertBox <span class="text-gray-400 font-normal text-sm">type: message · warning · confirm · cancel</span></h1>
+    <p class="text-xs text-gray-400 mb-8">Componente global de <code>Templates</code> en coffeeSoft.js — un solo método, el comportamiento se elige con <code>type</code></p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+
+        <!-- Un botón -->
+        <div class="bg-[#1f2937] rounded-xl p-5 space-y-3">
+            <h2 class="text-sm font-bold text-gray-200">Tipos de un botón</h2>
+            <p class="text-xs text-gray-400">Aviso simple, sólo dispara <code>onOk</code>/<code>onClose</code>.</p>
+
+            <button id="btn-message" class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all">
+                type: message (info azul)
+            </button>
+            <button id="btn-warning" class="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-gray-900 text-xs font-bold transition-all">
+                type: warning (alerta ámbar)
+            </button>
+        </div>
+
+        <!-- Dos botones -->
+        <div class="bg-[#1f2937] rounded-xl p-5 space-y-3">
+            <h2 class="text-sm font-bold text-gray-200">Tipos de dos botones</h2>
+            <p class="text-xs text-gray-400">Confirmación, dispara <code>onOk</code> u <code>onCancel</code>.</p>
+
+            <button id="btn-confirm" class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all">
+                type: confirm (traspaso, OK azul)
+            </button>
+            <button id="btn-cancel" class="w-full py-2 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-bold transition-all">
+                type: cancel (destructivo, OK rojo)
+            </button>
+        </div>
+    </div>
+
+    <!-- Log de eventos -->
+    <div class="bg-[#1f2937] rounded-xl p-5">
+        <h2 class="text-sm font-bold text-gray-200 mb-3">Log de callbacks</h2>
+        <p class="text-xs text-gray-500 mb-3">Verifica que onOk y onCancel se disparan correctamente (botón o clic en el backdrop).</p>
+        <div id="event-log" class="space-y-1 max-h-48 overflow-auto">
+            <p class="text-xs text-gray-500 italic">Aún no hay eventos…</p>
+        </div>
+        <button id="btn-clear-log" class="mt-3 text-xs text-gray-500 hover:text-gray-300 underline">Limpiar log</button>
+    </div>
+
+    <script>
+        class TestHost extends Templates {
+            constructor() { super('', 'body'); }
+        }
+
+        const host = new TestHost();
+
+        function log(msg, type) {
+            const $log = $('#event-log');
+            const $p   = $log.find('p.italic');
+            if ($p.length) $p.remove();
+            $log.prepend(`<div class="log-entry ${type || ''}">${new Date().toLocaleTimeString()} — ${msg}</div>`);
+        }
+
+        $('#btn-message').on('click', () => {
+            host.alertBox({
+                type:    'message',
+                title:   'Sin permiso para este módulo',
+                detailHtml: 'Contacta al administrador si crees que es un error.',
+                onClose: () => log('message → onClose', 'log-cancel')
+            });
+        });
+
+        $('#btn-warning').on('click', () => {
+            host.alertBox({
+                type:    'warning',
+                title:   'Stock insuficiente',
+                detailHtml: 'El producto no tiene unidades disponibles en el almacén de origen.',
+                onClose: () => log('warning → onClose', 'log-cancel')
+            });
+        });
+
+        $('#btn-confirm').on('click', () => {
+            const arrow = '<span class="text-blue-600 px-1">&rarr;</span>';
+            host.alertBox({
+                type:       'confirm',
+                icon:       'arrow-left-right',
+                title:      'Crear y enviar traspaso?',
+                detailHtml: `<span class="font-semibold text-gray-700">Coffee Central</span>${arrow}<span class="font-semibold text-gray-700">Coffee franquicia</span><br>1 producto &middot; 2 uds`,
+                okLabel:    'Sí, enviar',
+                okIcon:     'send',
+                onOk:       () => log('confirm → onOk ✓', 'log-ok'),
+                onCancel:   () => log('confirm → onCancel', 'log-cancel')
+            });
+        });
+
+        $('#btn-cancel').on('click', () => {
+            host.alertBox({
+                type:       'cancel',
+                title:      'Eliminar registro',
+                detailHtml: 'Esta acción no se puede deshacer.',
+                okLabel:    'Eliminar',
+                okIcon:     'trash-2',
+                onOk:       () => log('cancel → onOk ✓', 'log-ok'),
+                onCancel:   () => log('cancel → onCancel', 'log-cancel')
+            });
+        });
+
+        $('#btn-clear-log').on('click', () => {
+            $('#event-log').html('<p class="text-xs text-gray-500 italic">Aún no hay eventos…</p>');
+        });
+    </script>
+</body>
+</html>

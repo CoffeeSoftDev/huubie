@@ -56,6 +56,7 @@ function coffeeia_build_context(array $body) {
     $customPath         = isset($body['customPath'])         ? trim($body['customPath'])         : '';
     $editorMode         = !empty($body['editorMode']);
     $canvasMode         = !empty($body['canvasMode']);
+    $graphMode          = isset($body['graphMode']) ? trim((string) $body['graphMode']) : '';
 
     // "Alma" de Coffee (identidad + capacidades).
     // El Playground puede inyectar el prompt de un agente concreto via
@@ -83,6 +84,14 @@ function coffeeia_build_context(array $body) {
         if (is_file($canvasPath)) {
             $canvasBlock = trim((string) @file_get_contents($canvasPath));
             if ($canvasBlock !== '') $systemPrompt .= "\n\n" . $canvasBlock . "\n";
+        }
+    }
+    // Modo grafica: la IA genera diagramas del tipo elegido (mermaid/drawio/excalidraw).
+    if (in_array($graphMode, ['mermaid', 'drawio', 'excalidraw'], true)) {
+        $graphPath = COFFEEIA_PROMPTS_DIR . '/grafica-' . $graphMode . '.md';
+        if (is_file($graphPath)) {
+            $graphBlock = trim((string) @file_get_contents($graphPath));
+            if ($graphBlock !== '') $systemPrompt .= "\n\n" . $graphBlock . "\n";
         }
     }
 

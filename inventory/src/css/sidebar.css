@@ -1,5 +1,10 @@
 #sidebar {
     width: 280px;
+    /* La animacion del push vive aqui (no en #main__content): al animar el ANCHO
+       del sidebar, #main__content (flex:1) lo sigue cuadro a cuadro por flex, sin
+       necesitar su propia transition. Asi los reflujos ajenos (SweetAlert tocando
+       el body, scrollbar interno) NO se animan -> sin "encogerse y volver". */
+    transition: width 0.5s ease;
 }
 
 #sidebar.sidebar-collapsed {

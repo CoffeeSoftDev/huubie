@@ -56,7 +56,10 @@ main {
 main > #main__content {
     flex: 1;
     padding: 20px;
-    transition: all 0.5s ease;
+    /* SIN transition aqui: el push del sidebar lo anima #sidebar (transition:width)
+       y este contenedor lo sigue por flex. Con `transition: all` cualquier reflujo
+       momentaneo (SweetAlert tocando el body, scrollbar) se animaba 0.5s -> el
+       "se contrae y regresa". Reflujos ahora instantaneos e imperceptibles. */
     overflow-y: auto;
     /* auto en vez de stable: reserva el gutter SOLO cuando hay scroll real.
        Asi las paginas con layout flex interno (visores que scrollean por

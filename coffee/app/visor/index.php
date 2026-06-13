@@ -200,14 +200,6 @@
                         <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                         Copiar ruta
                     </button>
-                    <button id="btnNewDiagram" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Nuevo diagrama (lienzo draw.io)">
-                        <i data-lucide="pen-tool" class="w-3.5 h-3.5"></i>
-                        Diagrama
-                    </button>
-                    <button id="btnNewSketch" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Nuevo boceto (Excalidraw)">
-                        <i data-lucide="pencil-ruler" class="w-3.5 h-3.5"></i>
-                        Boceto
-                    </button>
                     <button id="btnCloseDiagram" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Cerrar lienzo">
                         <i data-lucide="x" class="w-3.5 h-3.5"></i>
                         Cerrar lienzo
@@ -374,15 +366,43 @@
                         <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo lienzo">
                             <i data-lucide="layout-template" class="w-3 h-3"></i>
                         </button>
+                        <div class="ia-graph-wrap" style="position:relative;">
+                            <button id="iaGraphBtn" class="ia-attach-btn" title="Lienzos de gr&aacute;ficas (Mermaid / draw.io / Excalidraw)">
+                                <i data-lucide="feather" class="w-3 h-3"></i>
+                            </button>
+                            <div id="iaGraphMenu" class="graph-menu graph-menu-up" style="display:none;">
+                                <button type="button" class="graph-menu-item" data-graph="mermaid">
+                                    <i data-lucide="git-graph" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Mermaid</span>
+                                        <span class="graph-menu-desc">Diagrama desde texto</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="graph-menu-item" data-graph="drawio">
+                                    <i data-lucide="pen-tool" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">draw.io</span>
+                                        <span class="graph-menu-desc">Lienzo de diagramas</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="graph-menu-item" data-graph="excalidraw">
+                                    <i data-lucide="pencil-ruler" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Excalidraw</span>
+                                        <span class="graph-menu-desc">Boceto a mano alzada</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
                         <select id="iaModelSelect" class="ia-model-pill" title="Modelo activo">
                             <optgroup label="Ollama Cloud">
                                 <option value="glm-5.1:cloud">GLM 5.1 (código)</option>
                                 <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
                                 <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>
                                 <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
-                                <option value="gemini-3-flash-preview:cloud">Gemini 3 Flash (rápido, vision)</option>
                                 <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
                                 <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
+                                <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código)</option>
                             </optgroup>
                             <optgroup label="OpenRouter (free)">
                                 <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>

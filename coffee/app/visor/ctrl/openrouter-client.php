@@ -225,10 +225,15 @@ class OpenRouterClient {
                     if (!is_array($obj)) continue;
                     if (isset($obj['model'])) $modelSeen = $obj['model'];
                     if (isset($obj['usage']) && is_array($obj['usage'])) $usage = $obj['usage'];
-                    $piece = $obj['choices'][0]['delta']['content'] ?? '';
+                    $delta  = $obj['choices'][0]['delta'] ?? [];
+                    // Modelos de razonamiento exponen el pensamiento en delta.reasoning
+                    // (o reasoning_content). Lo reenviamos como 'thinking'.
+                    $reason = $delta['reasoning'] ?? ($delta['reasoning_content'] ?? '');
+                    if ($reason !== '' && $reason !== null && $onChunk) $onChunk($reason, 'thinking');
+                    $piece = $delta['content'] ?? '';
                     if ($piece !== '' && $piece !== null) {
                         $full .= $piece;
-                        if ($onChunk) $onChunk($piece);
+                        if ($onChunk) $onChunk($piece, 'content');
                     }
                 }
                 return strlen($data);

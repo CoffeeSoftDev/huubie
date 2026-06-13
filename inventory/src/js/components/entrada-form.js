@@ -97,6 +97,8 @@ class EntradaForm {
                 limpiar:      'Limpiar',
                 cancelar:     'Cancelar',
                 registrar:    'Registrar Entrada',
+                confirmAdd:   'Deseas crear una entrada?',
+                confirmAddOk: 'Si, crear',
                 stockAuto:    'El stock se actualizara automaticamente',
                 guardar:      'Guardar formato',
                 cargar:       'Cargar formato',
@@ -884,10 +886,10 @@ class EntradaForm {
 
     clearLote() {
         if (!this.lote.length) return;
-        if (confirm('Eliminar todos los productos del lote?')) {
+        this.confirmBox('Eliminar todos los productos del lote?', () => {
             this.lote = [];
             this.renderLote();
-        }
+        });
     }
 
     closeModal() {
@@ -898,15 +900,15 @@ class EntradaForm {
     }
 
     doRegistrar() {
-        if (!this.lote.length) { alert('Agrega al menos un producto al lote'); return; }
+        if (!this.lote.length) { this.notify('Agrega al menos un producto al lote'); return; }
         const o = this.opts;
         const warehouseId = $(`#${o.id}_selAlmacen`).val();
-        if (!warehouseId) { alert('Selecciona un almacen'); return; }
+        if (!warehouseId) { this.notify('Selecciona un almacen'); return; }
 
         const origenId   = $(`#${o.id}_selOrigen`).val();
         const supplierId = $(`#${o.id}_selProveedor`).val() || '';
         if (this.requiresSupplier(origenId) && !supplierId) {
-            alert(o.labels.provReq);
+            this.notify(o.labels.provReq);
             this.syncProveedorVisibility();
             $(`#${o.id}_selProveedor`).focus();
             return;
@@ -934,8 +936,46 @@ class EntradaForm {
             totalUds:   this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0),
             totalCosto: this.lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0)
         };
-        o.onAdd(payload);
-        this.closeModal();
+        this.confirmRegistrar(payload);
+    }
+
+    // Confirma antes de crear la entrada; el modal permanece abierto si el
+    // usuario cancela. Usa el alertBox propio de CoffeeSoft (via Templates) y
+    // cae a confirm nativo si la referencia no esta disponible.
+    confirmRegistrar(payload) {
+        const o = this.opts;
+        const proceed = () => { o.onAdd(payload); this.closeModal(); };
+
+        this.confirmBox(o.labels.confirmAdd, proceed, {
+            type:    'confirm',
+            okLabel: o.labels.confirmAddOk,
+            okIcon:  'check'
+        });
+    }
+
+    // Notificacion de validacion usando el alertBox propio de CoffeeSoft;
+    // cae a alert nativo si la referencia a Templates no esta disponible.
+    notify(title, type = 'warning') {
+        if (this.tpl && typeof this.tpl.alertBox === 'function') {
+            this.tpl.alertBox({ type, title });
+        } else {
+            alert(title);
+        }
+    }
+
+    // Confirmacion usando el alertBox propio; ejecuta onOk solo al aceptar.
+    // Cae a confirm nativo si no hay referencia a Templates.
+    confirmBox(title, onOk, opts = {}) {
+        if (this.tpl && typeof this.tpl.alertBox === 'function') {
+            this.tpl.alertBox(Object.assign({
+                type:        'cancel',
+                title:       title,
+                cancelLabel: this.opts.labels.cancelar,
+                onOk:        onOk
+            }, opts));
+        } else if (confirm(title)) {
+            onOk();
+        }
     }
 
     // -- Formatos --
@@ -974,7 +1014,7 @@ class EntradaForm {
     }
 
     saveFormato() {
-        if (!this.lote.length) { alert(this.opts.labels.emptyLote); return; }
+        if (!this.lote.length) { this.notify(this.opts.labels.emptyLote); return; }
 
         const o       = this.opts;
         const modalId = `${o.id}_saveFormatoModal`;
@@ -1098,14 +1138,15 @@ class EntradaForm {
         this.renderLote();
     }
 
-    async deleteFormato(id) {
-        if (!confirm(this.opts.labels.confirmDel)) return;
-        if (typeof this.opts.onDeleteFormato === 'function') {
-            await this.opts.onDeleteFormato(id);
-        } else {
-            this.persistLocalFormatos(this.loadLocalFormatos().filter(x => String(x.id) !== String(id)));
-        }
-        await this.refreshFormatos();
+    deleteFormato(id) {
+        this.confirmBox(this.opts.labels.confirmDel, async () => {
+            if (typeof this.opts.onDeleteFormato === 'function') {
+                await this.opts.onDeleteFormato(id);
+            } else {
+                this.persistLocalFormatos(this.loadLocalFormatos().filter(x => String(x.id) !== String(id)));
+            }
+            await this.refreshFormatos();
+        });
     }
 
     renderFormatosBadge() {
@@ -1299,5 +1340,8 @@ class EntradaForm {
 
 
 Templates.prototype.entradaForm = function (options) {
-    return new EntradaForm(options);
+    const form = new EntradaForm(options);
+    // Referencia al Templates para reutilizar componentes propios (alertBox).
+    form.tpl = this;
+    return form;
 };

@@ -59,9 +59,9 @@
                     <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
                     <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>
                     <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
-                    <option value="gemini-3-flash-preview:cloud">Gemini 3 Flash (rápido, vision)</option>
                     <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
                     <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
+                    <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código)</option>
                 </optgroup>
                 <optgroup label="OpenRouter (free)">
                     <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
