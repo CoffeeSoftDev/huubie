@@ -179,62 +179,77 @@ class ctrl extends mdl {
         // Atomico: encabezado + todos los renglones + historial van juntos. Si algo falla a
         // media insercion, el rollback los deshace y no queda un traspaso "mentiroso" (totales
         // del encabezado sin sus renglones). El folio tampoco se desperdicia (el INSERT se revierte).
-        try {
-            return $this->transaction(function () use ($productos, $payload, $statusReq, $totalProducts, $totalUnits, $totalCost) {
-                $folio = $this->getNextFolio('TRA-', $this->companiesId);
+        //
+        // 1.4 Folio sin carrera: el folio se genera DENTRO de la transaccion y se reintenta si
+        // colisiona (dos creaciones simultaneas). El reintento solo es efectivo con un indice
+        // UNIQUE en (companies_id, folio) — ver nota/SQL en docs/traspasos-mejoras.md; sin el
+        // indice no hay error que atrapar y el reintento simplemente no se dispara.
+        $maxIntentos = 3;
+        for ($intento = 1; $intento <= $maxIntentos; $intento++) {
+            try {
+                return $this->transaction(function () use ($productos, $payload, $statusReq, $totalProducts, $totalUnits, $totalCost) {
+                    $folio = $this->getNextFolio('TRA-', $this->companiesId);
 
-                $this->createTraspaso([
-                    $folio,
-                    $payload['note'] ?? null,
-                    $totalProducts,
-                    $totalUnits,
-                    $totalCost,
-                    (int) $statusReq['id'],
-                    (int) $payload['origin_warehouse_id'],
-                    (int) $payload['destination_warehouse_id'],
-                    (int) $payload['origin_subsidiaries_id'],
-                    (int) $payload['destination_subsidiaries_id'],
-                    $this->userId,
-                    $this->companiesId
-                ]);
+                    $this->createTraspaso([
+                        $folio,
+                        $payload['note'] ?? null,
+                        $totalProducts,
+                        $totalUnits,
+                        $totalCost,
+                        (int) $statusReq['id'],
+                        (int) $payload['origin_warehouse_id'],
+                        (int) $payload['destination_warehouse_id'],
+                        (int) $payload['origin_subsidiaries_id'],
+                        (int) $payload['destination_subsidiaries_id'],
+                        $this->userId,
+                        $this->companiesId
+                    ]);
 
-                $traspasoId = $this->getTraspasoIdByFolio([$folio, $this->companiesId]);
+                    $traspasoId = $this->getTraspasoIdByFolio([$folio, $this->companiesId]);
 
-                foreach ($productos as $p) {
-                    $productId  = (int) $p['product_id'];
-                    $originWh   = (int) $payload['origin_warehouse_id'];
-                    $qty        = (float) $p['quantity'];
-                    $cost       = (float) $p['cost'];
+                    foreach ($productos as $p) {
+                        $productId  = (int) $p['product_id'];
+                        $originWh   = (int) $payload['origin_warehouse_id'];
+                        $qty        = (float) $p['quantity'];
+                        $cost       = (float) $p['cost'];
 
-                    $originStock = $this->getStockRow([$productId, $originWh]);
-                    $originPrev  = $originStock ? (float) $originStock['quantity'] : 0;
-                    $originPost  = max(0, $originPrev - $qty);
+                        $originStock = $this->getStockRow([$productId, $originWh]);
+                        $originPrev  = $originStock ? (float) $originStock['quantity'] : 0;
+                        $originPost  = max(0, $originPrev - $qty);
 
-                    $this->createTraspasoDetail([
-                        $qty,
-                        $cost,
-                        $qty * $cost,
-                        $originPrev,
-                        $originPost,
-                        null,
-                        null,
-                        $productId,
+                        $this->createTraspasoDetail([
+                            $qty,
+                            $cost,
+                            $qty * $cost,
+                            $originPrev,
+                            $originPost,
+                            null,
+                            null,
+                            $productId,
+                            $traspasoId
+                        ]);
+                    }
+
+                    $this->createTraspasoHistory([
+                        'Traspaso solicitado',
+                        (int) $statusReq['id'],
+                        $this->userId,
                         $traspasoId
                     ]);
-                }
 
-                $this->createTraspasoHistory([
-                    'Traspaso solicitado',
-                    (int) $statusReq['id'],
-                    $this->userId,
-                    $traspasoId
-                ]);
-
-                return ['status' => 200, 'message' => 'Traspaso solicitado', 'folio' => $folio, 'id' => $traspasoId];
-            });
-        } catch (\Throwable $e) {
-            return ['status' => 500, 'message' => 'No se pudo registrar el traspaso'];
+                    return ['status' => 200, 'message' => 'Traspaso solicitado', 'folio' => $folio, 'id' => $traspasoId];
+                });
+            } catch (\PDOException $e) {
+                // 23000 = violacion de integridad (folio duplicado por carrera): regenera y
+                // reintenta. Cualquier otro error de BD no se reintenta.
+                if ($e->getCode() === '23000' && $intento < $maxIntentos) continue;
+                return ['status' => 500, 'message' => 'No se pudo registrar el traspaso'];
+            } catch (\Throwable $e) {
+                return ['status' => 500, 'message' => 'No se pudo registrar el traspaso'];
+            }
         }
+
+        return ['status' => 409, 'message' => 'No se pudo asignar folio (alta concurrencia), intenta de nuevo'];
     }
 
     function authorizeTraspaso() {

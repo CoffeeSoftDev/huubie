@@ -23,14 +23,32 @@ Implementado:
 - Capa de conexión con soporte de transacciones: `beginTransaction()/commit()/rollback()` + envoltorio `transaction(callable)` en [../../conf/_Conect.php](../../conf/_Conect.php). `disconnect()` es no-op mientras hay transacción activa; `_CUD`/`_Read` propagan el error solo dentro de transacción (para disparar rollback). 100% retrocompatible. Tablas verificadas InnoDB.
 - `saveTraspaso`, `confirmTraspaso`, `rejectTraspaso`, `authorizeTraspaso`, `sendTraspaso` envueltas con `transaction()` en [../ctrl/ctrl-pos-traspasos.php](../ctrl/ctrl-pos-traspasos.php).
 
-### 1.2 🔴 ⬜ Validar stock disponible al confirmar
-Al confirmar, el origen se calcula con `max(0, originPrev - qty)`. Si el origen **ya no tiene** esa cantidad (se vendió/mermó entre solicitar y confirmar), el origen se piso a 0 pero el **destino recibe la cantidad completa** → se **crea inventario de la nada**. Falta validar el stock disponible en el momento de confirmar y decidir: bloquear o permitir **recepción parcial**.
+### 1.2 🔴 ✅ Validar stock disponible al confirmar
+**Hecho (UI + backend).** Política elegida: **bloquear** (las existencias deben existir; no se crea stock de la nada).
+- **Frontend** [traspaso-form.js](../src/js/components/traspaso-form.js): se quitó el toggle "Sin stock"; un producto con stock 0 en origen no se puede agregar y la cantidad se topa al stock disponible (`allowZero` fijo en `false`).
+- **Backend** [confirmTraspaso](../ctrl/ctrl-pos-traspasos.php): pre-valida el stock de cada producto en el almacén origen antes de mover nada; si falta, devuelve `409` con el detalle del faltante. Dentro de la transacción se re-chequea y, si ya no alcanza, lanza y revierte (se eliminó el `max(0,…)` que fabricaba inventario).
 
-### 1.3 🔴 ⬜ Guardas de transición de estado en el backend
-[rejectTraspaso](../ctrl/ctrl-pos-traspasos.php) pone `REJECTED` **sin verificar el estado actual**. Un POST a mano puede "rechazar" un traspaso ya `Recibido` → cambia el estado pero **no revierte stock** = descuadre. El backend debe validar la máquina de estados (solo `Solicitado → Recibido/Rechazado`), no confiar en que la UI esconda el botón. Aplica también a confirmar (no re-confirmar terminales).
+### 1.3 🔴 ✅ Guardas de transición de estado en el backend
+**Hecho.** El backend valida la máquina de estados, sin confiar en que la UI esconda el botón:
+- `confirmTraspaso`: solo desde `REQUESTED`/`AUTHORIZED`/`IN_TRANSIT`; si ya es terminal devuelve `409` (evita doble movimiento de stock).
+- `rejectTraspaso`: bloquea si ya es `RECEIVED`/`REJECTED` (evita "rechazar" un recibido sin revertir stock).
+- `authorizeTraspaso` (solo `REQUESTED`) y `sendTraspaso` (solo `REQUESTED`/`AUTHORIZED`) también guardados.
 
-### 1.4 🔴 ⬜ Folio sin condición de carrera
-[getNextFolio](../mdl/mdl-pos-traspasos.php) hace SELECT + 1 sin lock. Dos traspasos simultáneos → mismo folio. Falta índice **único** en `folio` (por compañía) + reintento, o un contador atómico.
+### 1.4 🔴 🚧 Folio sin condición de carrera
+**Código listo, falta el índice.** [getNextFolio](../mdl/mdl-pos-traspasos.php) hace `SELECT + 1` sin lock → dos traspasos simultáneos pueden tomar el mismo folio.
+- **Hecho:** `saveTraspaso` genera el folio **dentro** de la transacción y **reintenta** (hasta 3 veces) ante violación de unicidad (`SQLSTATE 23000`).
+- **Pendiente (requiere MySQL arriba + sin folios duplicados previos):** crear el índice único. El reintento solo surte efecto con este índice.
+
+```sql
+-- 1) Verificar que no haya duplicados antes de crear el indice:
+SELECT companies_id, folio, COUNT(*) c
+FROM fayxzvov_reginas.inventory_transfer
+GROUP BY companies_id, folio HAVING c > 1;
+
+-- 2) Si la consulta anterior NO devuelve filas, crear el indice unico:
+ALTER TABLE fayxzvov_reginas.inventory_transfer
+  ADD UNIQUE KEY uq_transfer_folio (companies_id, folio);
+```
 
 ### 1.5 🟡 ⬜ Reversa / devolución
 Una vez `Recibido`, si fue error no hay forma de deshacer. Lo natural: generar un traspaso inverso o un endpoint de cancelación que **revierta el stock** con su propia traza.
@@ -84,9 +102,10 @@ No solo por sucursal: un usuario puede manejar solo ciertos almacenes dentro de 
 ## Orden recomendado
 
 1. ✅ **1.1 Transacciones** (hecho)
-2. **1.2 + 1.3** validar stock disponible + guardas de transición (mismo código, mayor retorno)
-3. **2.1** autorización en servidor
-4. **3** reporte de pendientes con aging + export
-5. Luego: paginación (escala), recepción parcial, costeo.
+2. ✅ **1.2 + 1.3** validar stock disponible + guardas de transición (hecho)
+3. 🚧 **1.4 Folio** — código de reintento hecho; falta crear el índice único cuando MySQL esté arriba (SQL en §1.4)
+4. **2.1** autorización en servidor ← siguiente sugerido
+5. **3** reporte de pendientes con aging + export
+6. Luego: paginación (escala), recepción parcial, costeo, **1.5 reversa**.
 
 > Los puntos 🔴 son los que de verdad "no se están contemplando" y son baratos de cerrar comparados con el daño que evitan.
