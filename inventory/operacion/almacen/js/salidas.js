@@ -217,8 +217,11 @@ class App extends Templates {
         const sucursales = this.dataInit.sucursales || [];
         if (sucursales.length) {
             this.populateSelect('branch_id', sucursales);
-            $('#branch_id').val(this.subId);
         }
+        // Por defecto arrancamos en "-- Todas --" para mostrar las salidas de
+        // todas las sucursales. this.subId conserva la sucursal real del usuario
+        // para precargarla en el formulario de nueva salida (openSalidaForm).
+        $('#branch_id').val('');
         this.populateSelect('fMotivo', this.dataInit.motivos || []);
     }
 
@@ -233,8 +236,11 @@ class App extends Templates {
     }
 
     getFilters() {
+        const $branch = $('#branch_id');
         return {
-            branch_id: $('#branch_id').val() || this.subId || '',
+            // Respetamos el select aunque valga '' (-- Todas --); solo caemos a la
+            // sucursal del usuario si el select aun no existe en el DOM.
+            branch_id: $branch.length ? ($branch.val() || '') : (this.subId || ''),
             fi:              this.rangeFi               || '',
             ff:              this.rangeFf               || '',
             motivo:          $('#fMotivo').val()        || '',

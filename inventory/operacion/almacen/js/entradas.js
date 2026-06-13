@@ -63,7 +63,6 @@ class App extends Templates {
         entradas.lsKpis();
     }
 
-
     updateHeaderTitle() {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'

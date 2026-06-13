@@ -237,13 +237,19 @@ class Navbar {
             allowOutsideClick: false,
             allowEscapeKey: false,
         }).then((result) => {
-            if (result.isConfirmed) window.location.href = "../../salir";
+            if (result.isConfirmed) {
+                const base = window.location.pathname.split('/inventory/')[0];
+                window.location.href = `${base}/inventory/salir`;
+            }
         });
     }
 }
 
 $(async () => {
-    const data = await useFetch({ url: "../../acceso/ctrl/ctrl-access.php", data: { opc: 'company' } });
+    // Base robusta: todo lo anterior a "/inventory/" en la URL actual.
+    // Evita depender de la profundidad del módulo (../../ solo sirve a 2 niveles).
+    const invBase = window.location.pathname.split('/inventory/')[0];
+    const data = await useFetch({ url: `${invBase}/inventory/acceso/ctrl/ctrl-access.php`, data: { opc: 'company' } });
 
     level = data.level;
 
