@@ -949,7 +949,7 @@ class EntradasView extends Templates {
                     </div>
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-semibold text-gray-700">Total general</span>
-                        <span class="text-lg font-bold text-green-600" id="${opts.id}_totCosto">${fmtMoney(totCosto)}</span>
+                        <span class="text-lg font-bold text-gray-800" id="${opts.id}_totCosto">${fmtMoney(totCosto)}</span>
                     </div>
                 </div>
 
