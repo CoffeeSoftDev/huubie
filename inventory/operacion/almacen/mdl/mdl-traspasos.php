@@ -422,24 +422,6 @@ class mdl extends CRUD {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    //  KARDEX (inventory_movement)
-    // ─────────────────────────────────────────────────────────────────
-
-    // Inserta un asiento en el libro de movimientos. Solo auditoria:
-    // el saldo real ya lo aplica updateStockQuantity/createStockRow.
-    function createInventoryMovement($array) {
-        $query = "
-            INSERT INTO {$this->bd}inventory_movement
-                (movement_uid, movement_type, folio, note, quantity,
-                 stock_prev, stock_post, cost_unit, cost_total,
-                 occurred_at, created_at, status,
-                 item_id, warehouse_id, branch_id, user_id, companies_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), NOW(), 'Aplicada', ?, ?, ?, ?, ?)
-        ";
-        return $this->_CUD($query, $array);
-    }
-
-    // ─────────────────────────────────────────────────────────────────
     //  FOLIOS
     // ─────────────────────────────────────────────────────────────────
 

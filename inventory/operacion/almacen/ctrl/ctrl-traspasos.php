@@ -265,34 +265,6 @@ class ctrl extends mdl {
                     } else {
                         $this->createStockRow([$destPost, $destWh, $itemId, $this->companiesId]);
                     }
-
-                    // Kardex: 2 asientos por renglon (salida en origen, entrada en destino).
-                    // Solo auditoria; el stock ya quedo aplicado arriba.
-                    $folio    = $header['folio'] ?? '';
-                    $unitCost = isset($d['cost']) ? (float) $d['cost'] : 0;
-                    $origName = $header['origin_branch_name'] ?? '';
-                    $destName = $header['destination_branch_name'] ?? '';
-                    $detailId = (int) $d['id'];
-
-                    if (!$alreadySent) {
-                        $this->createInventoryMovement([
-                            'TRO-' . $detailId, 'SALIDA', $folio,
-                            "Traspaso {$folio} · salida hacia {$destName}",
-                            -$qty, $originPrev, $originPost,
-                            $unitCost, $unitCost * $qty,
-                            $itemId, $originWh, (int) $header['origin_branch_id'],
-                            $this->userId, $this->companiesId
-                        ]);
-                    }
-
-                    $this->createInventoryMovement([
-                        'TRD-' . $detailId, 'ENTRADA', $folio,
-                        "Traspaso {$folio} · entrada desde {$origName}",
-                        $qty, $destPrev, $destPost,
-                        $unitCost, $unitCost * $qty,
-                        $itemId, $destWh, (int) $header['destination_branch_id'],
-                        $this->userId, $this->companiesId
-                    ]);
                 }
 
                 $this->updateTraspasoStatus([(int) $st['id'], $id]);
