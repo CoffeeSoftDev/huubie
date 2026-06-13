@@ -60,6 +60,7 @@ class Sidebar {
                 { icon: "history", url: "/inventory/operacion/almacen/movimientos.php", title: "Movimientos" },
                 { icon: "shopping-cart", url: "/inventory/operacion/almacen/ordenes.php", title: "Órdenes" },
                 { icon: "clipboard-list", url: "/inventory/operacion/almacen/solicitudes.php", title: "Solicitudes" },
+                { icon: "palette", url: "/inventory/operacion/almacen/ui-kit.php", title: "UI Kit" },
                 { icon: "house", url: "/inventory/operacion/almacen/", title: "Admin" },
                 { icon: "shield-user", url: "/inventory/admin/accesos/", title: "Accesos" },
             ],
