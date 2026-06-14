@@ -81,6 +81,8 @@ require_once('layout/core-libraries.php');
     <script src="../acceso/src/js/sidebar.js"></script>
 
     <!-- Módulo Administrador del Tenant -->
+    <script src="js/saas.js?t=<?php echo time(); ?>"></script>
+    <script src="js/access.js?t=<?php echo time(); ?>"></script>
     <script src="js/tenant.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

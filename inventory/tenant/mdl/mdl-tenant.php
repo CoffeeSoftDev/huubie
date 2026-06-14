@@ -2,15 +2,7 @@
 require_once '../../conf/_CRUD.php';
 require_once '../../conf/_Utileria.php';
 
-/**
- * Modelo del Administrador del Tenant (panel super-admin de la plataforma).
- *
- * Gestiona el esquema "tenant" alojado en fayxzvov_erp. A diferencia de
- * admin/accesos (que filtra por la empresa de la sesión), este panel es GLOBAL:
- * administra todas las empresas y el catálogo SaaS de la plataforma.
- *
- * Fase 1: Empresas (companies), Planes (plans), Suscripciones (subscriptions).
- */
+// Modelo del Administrador del Tenant: super-admin global sobre fayxzvov_erp.
 class mdl extends CRUD {
 
     public $util;
@@ -21,7 +13,7 @@ class mdl extends CRUD {
         $this->bd   = 'fayxzvov_erp.';
     }
 
-    /* ====================== Empresas (companies) ====================== */
+    /* ===== Empresas (companies) ===== */
 
     function qCompanies($array) {
         // [status]
@@ -87,7 +79,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ====================== Planes (plans) ====================== */
+    /* ===== Planes (plans) ===== */
 
     function qPlans($array) {
         // [is_active]
@@ -156,7 +148,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ====================== Suscripciones (subscriptions) ====================== */
+    /* ===== Suscripciones (subscriptions) ===== */
 
     function qSubscriptions($array) {
         // [status]
@@ -248,7 +240,7 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    /* ====================== Pagos (payment_history) ====================== */
+    /* ===== Pagos (payment_history) ===== */
 
     function qPayments($array) {
         // [status]
@@ -308,7 +300,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ====================== Cupones (coupons) ====================== */
+    /* ===== Cupones (coupons) ===== */
 
     function qCoupons($array) {
         // [is_active]
@@ -380,7 +372,7 @@ class mdl extends CRUD {
         return is_array($r) && count($r) > 0;
     }
 
-    /* ====================== Canjes de cupón (coupon_redemptions) ====================== */
+    /* ===== Canjes de cupón (coupon_redemptions) ===== */
 
     function qRedemptions($array) {
         // [] — historial global de canjes
@@ -399,7 +391,7 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    /* ====================== Módulos (modules) ====================== */
+    /* ===== Módulos (modules) ===== */
 
     function qModules($array) {
         // [is_active]
@@ -452,7 +444,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ====================== Submódulos (submodules) ====================== */
+    /* ===== Submódulos (submodules) ===== */
 
     function qSubmodules($array) {
         // [is_active]
@@ -508,7 +500,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ====================== Secciones (sections) ====================== */
+    /* ===== Secciones (sections) ===== */
 
     function qSections($array) {
         // [is_active]
@@ -570,7 +562,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ====================== Tipos de permiso (type_permissions) ====================== */
+    /* ===== Tipos de permiso (type_permissions) ===== */
 
     function qTypePermissions($array) {
         // [is_active]
@@ -620,7 +612,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ====================== Roles (roles) ====================== */
+    /* ===== Roles (roles) ===== */
 
     function qRoles($array) {
         // [is_active]
@@ -670,7 +662,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ====================== Permisos (permissions) ====================== */
+    /* ===== Permisos (permissions) ===== */
 
     function qPermissions($array) {
         // [is_active]

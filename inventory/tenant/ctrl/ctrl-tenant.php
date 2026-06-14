@@ -8,10 +8,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 
 require_once '../mdl/mdl-tenant.php';
 
-/**
- * Controlador del Administrador del Tenant (super-admin global).
- * Fase 1: Empresas, Planes, Suscripciones.
- */
+// Controlador del Administrador del Tenant: super-admin global.
 class ctrl extends mdl {
 
     /* Valores de enum válidos por entidad (whitelist). */
@@ -91,7 +88,7 @@ class ctrl extends mdl {
         ];
     }
 
-    /* ====================== Empresas (companies) ====================== */
+    /* ===== Empresas (companies) ===== */
 
     function lsCompanies() {
         $status = $this->companyStatusIn($_POST['status'] ?? 'active');
@@ -197,7 +194,7 @@ class ctrl extends mdl {
         ];
     }
 
-    /* ====================== Planes (plans) ====================== */
+    /* ===== Planes (plans) ===== */
 
     function lsPlans() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
@@ -321,7 +318,7 @@ class ctrl extends mdl {
         ];
     }
 
-    /* ====================== Suscripciones (subscriptions) ====================== */
+    /* ===== Suscripciones (subscriptions) ===== */
 
     function lsSubscriptions() {
         $status = $this->subStatusIn($_POST['status'] ?? 'active');
@@ -451,7 +448,7 @@ class ctrl extends mdl {
         ];
     }
 
-    /* ====================== Pagos (payment_history) ====================== */
+    /* ===== Pagos (payment_history) ===== */
 
     function lsPayments() {
         $status = $this->paymentStatusIn($_POST['status'] ?? 'paid');
@@ -590,7 +587,7 @@ class ctrl extends mdl {
         ];
     }
 
-    /* ====================== Cupones (coupons) ====================== */
+    /* ===== Cupones (coupons) ===== */
 
     function lsCoupons() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
@@ -719,7 +716,7 @@ class ctrl extends mdl {
         ];
     }
 
-    /* ====================== Canjes de cupón (coupon_redemptions) ====================== */
+    /* ===== Canjes de cupón (coupon_redemptions) ===== */
 
     function lsRedemptions() {
         $ls = $this->qRedemptions([]);
@@ -738,7 +735,7 @@ class ctrl extends mdl {
         return ['status' => 200, 'row' => $row, 'ls' => $ls];
     }
 
-    /* ====================== Módulos (modules) ====================== */
+    /* ===== Módulos (modules) ===== */
 
     function lsModules() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
@@ -801,7 +798,7 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Módulo activado' : 'Módulo desactivado') : 'No se pudo actualizar el estado'];
     }
 
-    /* ====================== Submódulos (submodules) ====================== */
+    /* ===== Submódulos (submodules) ===== */
 
     function lsSubmodules() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
@@ -872,7 +869,7 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Submódulo activado' : 'Submódulo desactivado') : 'No se pudo actualizar el estado'];
     }
 
-    /* ====================== Secciones (sections) ====================== */
+    /* ===== Secciones (sections) ===== */
 
     function lsSections() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
@@ -948,7 +945,7 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Sección activada' : 'Sección desactivada') : 'No se pudo actualizar el estado'];
     }
 
-    /* ====================== Tipos de permiso (type_permissions) ====================== */
+    /* ===== Tipos de permiso (type_permissions) ===== */
 
     function lsTypePermissions() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
@@ -995,7 +992,7 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Activado' : 'Desactivado') : 'No se pudo actualizar el estado'];
     }
 
-    /* ====================== Roles (roles) ====================== */
+    /* ===== Roles (roles) ===== */
 
     function lsRoles() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
@@ -1082,7 +1079,7 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Rol activado' : 'Rol desactivado') : 'No se pudo actualizar el estado'];
     }
 
-    /* ====================== Permisos (permissions) ====================== */
+    /* ===== Permisos (permissions) ===== */
 
     function lsPermissions() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
@@ -1141,7 +1138,7 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Permiso activado' : 'Permiso desactivado') : 'No se pudo actualizar el estado'];
     }
 
-    /* ====================== Helpers internos ====================== */
+    /* ===== Helpers internos ===== */
 
     // Acciones estándar editar + activar/desactivar para entidades del catálogo.
     private function toggleActions($jsObj, $editFn, $toggleFn, $id, $isActive) {
@@ -1190,7 +1187,7 @@ class ctrl extends mdl {
     }
 }
 
-/* ====================== Helpers de render (badges) ====================== */
+/* ===== Helpers de render (badges) ===== */
 
 function renderActive($status) {
     switch ((int) $status) {
