@@ -4,6 +4,12 @@ let statusFilter = [];
 let sucursalesData = [];
 let dataInit = {};
 
+const USER_COLOR_PALETTE = [
+    '#C05A40', '#4A7C8F', '#6B7FAB', '#7A9E5F',
+    '#A06B3C', '#6A5FA8', '#4D8FA8', '#9E5F6B',
+    '#5F9E7A', '#8C6A3C'
+];
+
 // Notificación: éxito se cierra solo (sin botón => respeta el timer de alert()),
 // error mantiene botón para que el mensaje pueda leerse.
 function notify(r) {
@@ -292,6 +298,7 @@ class Users extends Templates {
             json: this.jsonUser(false),
             success: (r) => this._afterSave(r)
         });
+        this.renderBranchesAndColor('formUserAdd', [], null);
     }
 
     async editUser(id) {
@@ -302,7 +309,8 @@ class Users extends Templates {
         }
 
         const data = request.data;
-        if (data.branch_id != null) data.branch_id = String(data.branch_id);
+        const branchIds = Array.isArray(data.branch_ids) ? data.branch_ids.map(Number) : [];
+        const color = data.color || null;
 
         this.createModalForm({
             id: 'formUserEdit',
@@ -314,6 +322,78 @@ class Users extends Templates {
             json: this.jsonUser(true),
             success: (r) => this._afterSave(r)
         });
+        this.renderBranchesAndColor('formUserEdit', branchIds, color);
+    }
+
+    renderBranchesAndColor(formId, selectedBranchIds, selectedColor) {
+        const $form = $('#' + formId);
+
+        const $branchWrap = $('<div>', { class: 'col-12 mb-3' });
+        $branchWrap.append($('<label>', { class: 'form-label fw-semibold', text: 'Sucursales asignadas' }));
+        const $checkGroup = $('<div>', { class: 'flex flex-wrap gap-2 mt-1' });
+
+        sucursalesData.forEach(branch => {
+            const checked = selectedBranchIds.includes(Number(branch.id));
+            const $lbl = $('<label>', {
+                class: 'flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full border text-sm font-medium transition ' +
+                       (checked ? 'bg-[#C05A40] text-white border-[#C05A40]' : 'bg-white text-gray-600 border-gray-300 hover:border-[#C05A40]')
+            });
+            const $chk = $('<input>', {
+                type: 'checkbox',
+                class: 'hidden branch-check',
+                value: branch.id,
+                checked: checked
+            });
+            $lbl.append($chk, $('<span>', { text: branch.valor }));
+
+            $lbl.on('click', function () {
+                const $input = $(this).find('input');
+                const nowChecked = !$input.prop('checked');
+                $input.prop('checked', nowChecked);
+                if (nowChecked) {
+                    $(this).addClass('bg-[#C05A40] text-white border-[#C05A40]').removeClass('bg-white text-gray-600 border-gray-300');
+                } else {
+                    $(this).removeClass('bg-[#C05A40] text-white border-[#C05A40]').addClass('bg-white text-gray-600 border-gray-300');
+                }
+                const ids = $form.find('.branch-check:checked').map(function () { return $(this).val(); }).get();
+                $form.find('[name="branch_ids"]').val(JSON.stringify(ids));
+            });
+
+            $checkGroup.append($lbl);
+        });
+
+        $branchWrap.append($checkGroup);
+
+        const initIds = selectedBranchIds.map(String);
+        $form.find('[name="branch_ids"]').val(JSON.stringify(initIds));
+
+        const $colorWrap = $('<div>', { class: 'col-12 mb-3' });
+        $colorWrap.append($('<label>', { class: 'form-label fw-semibold', text: 'Color del colaborador' }));
+        const $swatches = $('<div>', { class: 'flex flex-wrap gap-2 mt-1' });
+
+        USER_COLOR_PALETTE.forEach(hex => {
+            const isActive = hex === selectedColor;
+            const $swatch = $('<button>', {
+                type: 'button',
+                class: 'w-7 h-7 rounded-full border-2 transition ' + (isActive ? 'border-gray-800 scale-110' : 'border-transparent'),
+                css: { backgroundColor: hex }
+            });
+            $swatch.on('click', function () {
+                $swatches.find('button').removeClass('border-gray-800 scale-110').addClass('border-transparent');
+                $(this).removeClass('border-transparent').addClass('border-gray-800 scale-110');
+                $form.find('[name="color"]').val(hex);
+            });
+            $swatches.append($swatch);
+        });
+
+        if (selectedColor) {
+            $form.find('[name="color"]').val(selectedColor);
+        }
+
+        $colorWrap.append($swatches);
+
+        const $btnRow = $form.find('#btnSuccess').closest('.col-6').parent();
+        $btnRow.before($branchWrap, $colorWrap);
     }
 
     changePassword(id) {
@@ -379,12 +459,20 @@ class Users extends Templates {
                 required: true
             },
             {
-                opc: 'select',
-                id: 'branch_id',
-                lbl: 'Sucursal asignada',
-                class: 'col-12 mb-3',
-                required: true,
-                data: sucursalesData
+                opc: 'input',
+                id: 'branch_ids',
+                type: 'hidden',
+                lbl: '',
+                class: 'col-12',
+                required: false
+            },
+            {
+                opc: 'input',
+                id: 'color',
+                type: 'hidden',
+                lbl: '',
+                class: 'col-12',
+                required: false
             }
         ];
 

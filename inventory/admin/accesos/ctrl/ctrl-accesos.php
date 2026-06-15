@@ -183,16 +183,26 @@ class ctrl extends mdl {
                 ];
             }
 
-            $fullname = trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
+            $color    = $u['color'] ?: renderColorFromName($u['name'] . ' ' . $u['last_name']);
+            $initial  = mb_strtoupper(mb_substr(trim($u['name']), 0, 1));
+            $avatar   = '<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:' . $color . ';color:#fff;font-size:12px;font-weight:700;margin-right:6px;">' . $initial . '</span>';
+
+            $fullname = $avatar . trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
             if ((int) $u['is_owner'] === 1) {
                 $fullname .= ' <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#7a2e1d] text-[#f0a58f]">Dueño</span>';
             }
+
+            $branchNames = $u['branch_names']
+                ? implode('', array_map(function($n) {
+                    return '<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#f3e8e4] text-[#C05A40] mr-1 mb-0.5">' . trim($n) . '</span>';
+                  }, explode(',', $u['branch_names'])))
+                : '<span class="italic text-gray-400 text-sm">Sin asignar</span>';
 
             $row[] = [
                 'id'          => $u['id'],
                 'Colaborador' => $fullname,
                 'Correo'      => $u['email'] ?: '-',
-                'Sucursal'    => $u['branch_name'] ?: '<span class="italic text-gray-400">Sin asignar</span>',
+                'Sucursales'  => $branchNames,
                 'Estado'      => renderStatus($u['status'] === 'active' ? 1 : 0),
                 'a'           => $a
             ];
@@ -202,20 +212,26 @@ class ctrl extends mdl {
     }
 
     function getUser() {
-        $data = $this->qUser([(int) $_POST['id'], $this->companiesId]);
+        $id   = (int) $_POST['id'];
+        $data = $this->qUser([$id, $this->companiesId]);
+        if (!$data) {
+            return ['status' => 404, 'message' => 'Usuario no encontrado', 'data' => null];
+        }
+        $data['branch_ids'] = $this->qUserBranchIds([$id]);
         return [
-            'status'  => $data ? 200 : 404,
-            'message' => $data ? 'OK' : 'Usuario no encontrado',
+            'status'  => 200,
+            'message' => 'OK',
             'data'    => $data
         ];
     }
 
     function addUser() {
-        $name     = trim($_POST['name'] ?? '');
-        $lastName = trim($_POST['last_name'] ?? '');
-        $email    = trim($_POST['email'] ?? '');
-        $password = (string) ($_POST['password'] ?? '');
-        $branchId = (int) ($_POST['branch_id'] ?? 0);
+        $name       = trim($_POST['name']);
+        $lastName   = trim($_POST['last_name']);
+        $email      = trim($_POST['email']);
+        $password   = (string) $_POST['password'];
+        $branchIds  = $this->normalizeBranchIds($_POST['branch_ids'] ?? '');
+        $color      = $this->normalizeColor($_POST['color'] ?? '');
 
         if ($name === '' || $email === '') {
             return ['status' => 400, 'message' => 'Nombre y correo son obligatorios'];
@@ -223,8 +239,8 @@ class ctrl extends mdl {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return ['status' => 400, 'message' => 'El correo no es válido'];
         }
-        if ($branchId <= 0) {
-            return ['status' => 400, 'message' => 'Debes asignar una sucursal al usuario'];
+        if (empty($branchIds)) {
+            return ['status' => 400, 'message' => 'Debes asignar al menos una sucursal'];
         }
         if (strlen($password) < 4) {
             return ['status' => 400, 'message' => 'La contraseña debe tener al menos 4 caracteres'];
@@ -232,32 +248,45 @@ class ctrl extends mdl {
         if ($this->qEmailExists([$email, $this->companiesId])) {
             return ['status' => 409, 'message' => 'Ya existe un usuario con ese correo'];
         }
-        if (!$this->qBranch([$branchId, $this->companiesId])) {
-            return ['status' => 400, 'message' => 'La sucursal seleccionada no es válida'];
+
+        foreach ($branchIds as $bid) {
+            if (!$this->qBranch([$bid, $this->companiesId])) {
+                return ['status' => 400, 'message' => 'Una de las sucursales seleccionadas no es válida'];
+            }
         }
 
-        $ok = $this->qInsertUser([
-            $name,
-            $lastName ?: null,
-            $email,
-            password_hash($password, PASSWORD_BCRYPT),
-            md5($password),
-            $branchId,
-            $this->companiesId
-        ]);
+        return $this->transaction(function () use ($name, $lastName, $email, $password, $branchIds, $color) {
+            $this->qInsertUser([
+                $name,
+                $lastName ?: null,
+                $email,
+                password_hash($password, PASSWORD_BCRYPT),
+                md5($password),
+                $branchIds[0],
+                $this->companiesId,
+                $color
+            ]);
 
-        return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Usuario creado correctamente' : 'No se pudo crear el usuario'
-        ];
+            $newId = $this->qLastInsertId();
+            if (!$newId) {
+                throw new \Exception('No se pudo obtener el id del usuario creado');
+            }
+
+            foreach ($branchIds as $bid) {
+                $this->qInsertUserBranch([$newId, $bid]);
+            }
+
+            return ['status' => 200, 'message' => 'Usuario creado correctamente'];
+        });
     }
 
     function editUser() {
-        $id       = (int) $_POST['id'];
-        $name     = trim($_POST['name'] ?? '');
-        $lastName = trim($_POST['last_name'] ?? '');
-        $email    = trim($_POST['email'] ?? '');
-        $branchId = (int) ($_POST['branch_id'] ?? 0);
+        $id        = (int) $_POST['id'];
+        $name      = trim($_POST['name']);
+        $lastName  = trim($_POST['last_name']);
+        $email     = trim($_POST['email']);
+        $branchIds = $this->normalizeBranchIds($_POST['branch_ids'] ?? '');
+        $color     = $this->normalizeColor($_POST['color'] ?? '');
 
         if ($name === '' || $email === '') {
             return ['status' => 400, 'message' => 'Nombre y correo son obligatorios'];
@@ -265,8 +294,8 @@ class ctrl extends mdl {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return ['status' => 400, 'message' => 'El correo no es válido'];
         }
-        if ($branchId <= 0) {
-            return ['status' => 400, 'message' => 'Debes asignar una sucursal al usuario'];
+        if (empty($branchIds)) {
+            return ['status' => 400, 'message' => 'Debes asignar al menos una sucursal'];
         }
         $current = $this->qUser([$id, $this->companiesId]);
         if (!$current) {
@@ -275,23 +304,32 @@ class ctrl extends mdl {
         if ($this->qEmailExistsExcept([$email, $this->companiesId, $id])) {
             return ['status' => 409, 'message' => 'Ya existe otro usuario con ese correo'];
         }
-        if (!$this->qBranch([$branchId, $this->companiesId])) {
-            return ['status' => 400, 'message' => 'La sucursal seleccionada no es válida'];
+
+        foreach ($branchIds as $bid) {
+            if (!$this->qBranch([$bid, $this->companiesId])) {
+                return ['status' => 400, 'message' => 'Una de las sucursales seleccionadas no es válida'];
+            }
         }
 
-        $ok = $this->qUpdateUser([
-            $name,
-            $lastName ?: null,
-            $email,
-            $branchId,
-            $id,
-            $this->companiesId
-        ]);
+        return $this->transaction(function () use ($id, $name, $lastName, $email, $branchIds, $color) {
+            $this->qUpdateUser([
+                $name,
+                $lastName ?: null,
+                $email,
+                $branchIds[0],
+                $color,
+                $id,
+                $this->companiesId
+            ]);
 
-        return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Usuario actualizado correctamente' : 'No se pudo actualizar el usuario'
-        ];
+            $this->qDeleteUserBranches([$id]);
+
+            foreach ($branchIds as $bid) {
+                $this->qInsertUserBranch([$id, $bid]);
+            }
+
+            return ['status' => 200, 'message' => 'Usuario actualizado correctamente'];
+        });
     }
 
     function changePassword() {
@@ -338,9 +376,42 @@ class ctrl extends mdl {
             'message' => $ok ? ($active ? 'Usuario activado' : 'Usuario desactivado') : 'No se pudo actualizar el estado'
         ];
     }
+
+    private function normalizeBranchIds($raw) {
+        if (is_array($raw)) {
+            $ids = $raw;
+        } elseif (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            $ids = is_array($decoded) ? $decoded : explode(',', $raw);
+        } else {
+            return [];
+        }
+        $result = [];
+        foreach ($ids as $v) {
+            $int = (int) $v;
+            if ($int > 0) $result[] = $int;
+        }
+        return array_values(array_unique($result));
+    }
+
+    private function normalizeColor($raw) {
+        $v = trim((string) $raw);
+        return preg_match('/^#[0-9A-Fa-f]{6}$/', $v) ? $v : null;
+    }
 }
 
 /* ====================== Helpers ====================== */
+
+function renderColorFromName($name) {
+    $palette = ['#C05A40','#4A7C8F','#6B7FAB','#7A9E5F','#A06B3C','#6A5FA8','#4D8FA8','#9E5F6B','#5F9E7A','#8C6A3C'];
+    $hash    = 0;
+    $str     = mb_strtolower(trim($name));
+    for ($i = 0, $len = mb_strlen($str); $i < $len; $i++) {
+        $hash = (($hash << 5) - $hash) + mb_ord(mb_substr($str, $i, 1));
+        $hash = $hash & 0x7FFFFFFF;
+    }
+    return $palette[$hash % count($palette)];
+}
 
 function renderStatus($status) {
     switch ((int) $status) {
