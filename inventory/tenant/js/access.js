@@ -366,18 +366,17 @@ class Permissions extends Templates {
     }
 
     layout() {
-        this.releaseRootHeight();
         this.createLayout({
             parent: 'container-permisos',
             design: false,
             data: {
                 id: 'permEditor',
-                class: 'flex flex-col gap-2',
+                class: 'flex flex-col gap-2 flex-1 min-h-0',
                 container: [
                     { type: 'div', id: 'perm-header', class: 'w-full' },
                     {
                         type: 'div', id: 'perm-body',
-                        class: 'grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch',
+                        class: 'grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch flex-1 min-h-0',
                         children: [
                             { type: 'div', id: 'perm-roles',   class: 'lg:col-span-3' },
                             { type: 'div', id: 'perm-modules', class: 'lg:col-span-5' },
@@ -387,10 +386,6 @@ class Permissions extends Templates {
                 ]
             }
         });
-    }
-
-    releaseRootHeight() {
-        $('main > #main__content > #root').css('flex', '0 0 auto');
     }
 
     lsPermissions() {
