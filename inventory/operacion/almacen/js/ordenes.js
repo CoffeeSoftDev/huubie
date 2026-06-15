@@ -223,7 +223,12 @@ class App extends Templates {
         if (proveedores.length) {
             this.populateSelect('fProveedor', proveedores);
         }
-        $('#branch_id').val('');
+        if (sucursales.length <= 1) {
+            $('#branch_id').find('option[value=""]').remove();
+            $('#branch_id').val(this.subId).prop('disabled', true);
+        } else {
+            $('#branch_id').val(this.subId);
+        }
         $('#fProveedor').val('');
     }
 
@@ -1457,19 +1462,16 @@ class OrdenesView extends Templates {
         } else if (status === 'Solicitada') {
             actionsHtml = `
                 ${btnCls('#3FC189', 'Aprobar',      'check',   'approve')}
-                ${btnCls('#E02424', 'Rechazar',     'x',       'reject')}
-                ${btnCls('#0EA5E9', 'Imprimir',     'printer', 'print')}`;
+                ${btnCls('#E02424', 'Rechazar',     'x',       'reject')}`;
         } else if (status === 'Aprobada') {
             actionsHtml = `
                 ${btnCls('#C05A40', 'Recibir',      'package-check', 'recibir')}
-                ${btnCls('#0EA5E9', 'Imprimir',     'printer',       'print')}
                 ${btnCls('#F97316', 'Cancelar',     'ban',           'cancel')}`;
         } else if (status === 'Parcial') {
             actionsHtml = `
-                ${btnCls('#C05A40', 'Continuar',    'package-check', 'recibir')}
-                ${btnCls('#0EA5E9', 'Imprimir',     'printer',       'print')}`;
+                ${btnCls('#C05A40', 'Continuar',    'package-check', 'recibir')}`;
         } else {
-            actionsHtml = btnCls('#0EA5E9', 'Imprimir', 'printer', 'print');
+            actionsHtml = '';
         }
 
         // Bloque de motivo de rechazo
@@ -1491,6 +1493,9 @@ class OrdenesView extends Templates {
                     </div>
                     <div class="flex items-center gap-2">
                         ${e.status_badge || `<span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-500">${esc(status)}</span>`}
+                        <button id="${opts.id}_print" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors" title="Imprimir">
+                            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                        </button>
                         <button id="${opts.id}_close" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors">
                             <i data-lucide="x" class="w-3.5 h-3.5"></i>
                         </button>
@@ -1537,10 +1542,12 @@ class OrdenesView extends Templates {
                     </div>
                 </div>
 
+                ${actionsHtml ? `
                 <!-- Barra de acciones -->
                 <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
                     ${actionsHtml}
                 </div>
+                ` : ''}
             </div>
         `);
 

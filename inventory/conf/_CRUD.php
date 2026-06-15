@@ -30,12 +30,17 @@ public function _CUD($query, $values) {
             if ($isMultidimensional) {
                 foreach ($row as $colKey => $colValue) {
                     $num = ($key * count($row)) + $colKey + 1;
-                    $stm->bindParam($num, $values[$key][$colKey]);
+                    // bindValue (no bindParam) + tipo segun el valor: un null debe ir como
+                    // PARAM_NULL para guardarse como NULL real. Con bindParam/PARAM_STR un null
+                    // se enviaba como '' / 0 y rompia las FOREIGN KEY opcionales.
+                    $val = $values[$key][$colKey];
+                    $stm->bindValue($num, $val, is_null($val) ? PDO::PARAM_NULL : PDO::PARAM_STR);
                 }
             } else {
                 // Si es un array simple, vincular cada valor directamente
                 $num = $key + 1;
-                $stm->bindParam($num, $values[$key]);
+                $val = $values[$key];
+                $stm->bindValue($num, $val, is_null($val) ? PDO::PARAM_NULL : PDO::PARAM_STR);
             }
         }
 

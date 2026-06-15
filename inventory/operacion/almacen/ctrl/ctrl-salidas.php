@@ -44,7 +44,7 @@ class ctrl extends mdl {
             'companies_id'    => $this->companiesId,
             'branch_id'       => $this->branchId,
             'user_id'         => $this->userId,
-            'sucursales'      => $this->lsSucursales([$this->companiesId]),
+            'sucursales'      => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'       => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'motivos_salida'   => $this->lsShrinkageReasons(),
             'productos'       => $productos
@@ -78,7 +78,7 @@ class ctrl extends mdl {
             $row[] = [
                 'id'         => $salida['id'],
                 'Folio'      => $salida['folio'],
-                'Motivo'     => badge($salida['reason_name'], $salida['reason_color']),
+                'Motivo'     => badge($salida['reason_name'], $salida['reason_color'], 100, $salida['reason_bg'] ?? null, $salida['reason_icon'] ?? null),
                 'Sucursal'   => $salida['branch_name'] ?: '-',
                 'Almacen'    => $salida['warehouse_name']  ?: '-',
                 'Productos'  => (int) $salida['total_products'],
@@ -89,8 +89,8 @@ class ctrl extends mdl {
                 'Registrado' => $salida['user_name'] ?: '-',
                 'a' => [
                     [
-                        'class'   => 'btn btn-sm btn-secondary me-1',
-                        'html'    => '<i class="icon-eye"></i>',
+                        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                        'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                         'onclick' => "salidas.getSalida({$salida['id']})"
                     ]
                 ]
@@ -295,14 +295,16 @@ class ctrl extends mdl {
 }
 
 function statusBadge($status) {
-    $colors = [
-        'Aplicada'  => '#014737',
-        'Aplicado'  => '#014737',
-        'Pendiente' => '#633112',
-        'Cancelada' => '#572A34',
-        'Revertida' => '#572A34'
+    // [color de texto, color de fondo] - modelo pastel de 2 colores (igual que los motivos).
+    $map = [
+        'Aplicada'  => ['#16A34A', '#DCFCE7'],
+        'Aplicado'  => ['#16A34A', '#DCFCE7'],
+        'Pendiente' => ['#D97706', '#FEF3C7'],
+        'Cancelada' => ['#DC2626', '#FEE2E2'],
+        'Revertida' => ['#DC2626', '#FEE2E2']
     ];
-    return badge(strtoupper($status), $colors[$status] ?? '#2D3748');
+    $c = $map[$status] ?? ['#475569', '#F1F5F9'];
+    return badge(strtoupper($status), $c[0], 100, $c[1]);
 }
 
 $obj = new ctrl();

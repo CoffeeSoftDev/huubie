@@ -491,15 +491,44 @@ class App {
         $('#btnSave').off('click').on('click', () => this.saveFile());
         $('#btnCancel').off('click').on('click', () => this.exitEditMode(false));
 
-        // Ctrl+S dentro del textarea de edicion
+        // Ctrl+S / atajos de formato dentro del textarea de edicion
         $('#md-edit').off('keydown.save').on('keydown.save', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-                e.preventDefault();
-                this.saveFile();
-            } else if (e.key === 'Escape') {
+            if (e.ctrlKey || e.metaKey) {
+                const k = e.key.toLowerCase();
+                if (k === 's')      { e.preventDefault(); this.saveFile(); return; }
+                if (k === 'b')      { e.preventDefault(); this.applyMdSyntax('bold'); return; }
+                if (k === 'i')      { e.preventDefault(); this.applyMdSyntax('italic'); return; }
+                if (k === 'k')      { e.preventDefault(); this.applyMdSyntax('link'); return; }
+            }
+            if (e.key === 'Escape') {
                 e.preventDefault();
                 this.exitEditMode(false);
             }
+            // Tab inserta indentacion en vez de cambiar el foco
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const ta = e.currentTarget;
+                const s = ta.selectionStart, en = ta.selectionEnd;
+                ta.value = ta.value.slice(0, s) + '  ' + ta.value.slice(en);
+                ta.setSelectionRange(s + 2, s + 2);
+            }
+        });
+
+        // Toolbar de markdown.
+        // Usamos mousedown + preventDefault para que el boton NO robe el foco
+        // del textarea; asi se conserva la seleccion/posicion del cursor y no
+        // se inserta un salto de linea al perder el foco.
+        $('#mdToolbar').off('mousedown click').on('mousedown', '.md-tool', (e) => {
+            e.preventDefault();
+            this.applyMdSyntax($(e.currentTarget).data('md'));
+        });
+
+        // Selector de estilo de bloque (tamaño de texto / titulos / cita / código).
+        // Es un <select>: aplicamos al cambiar y devolvemos el foco al editor.
+        $('#mdToolbar').off('change.block').on('change.block', '[data-md-block]', (e) => {
+            const map = { p: 'paragraph', h1: 'h1', h2: 'h2', h3: 'h3', h4: 'h4', quote: 'quote', codeblock: 'codeblock' };
+            const kind = map[$(e.currentTarget).val()];
+            if (kind) this.applyMdSyntax(kind);
         });
     }
 
@@ -569,7 +598,13 @@ class App {
         if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
 
         this.isEditing = true;
-        const useWysiwyg = this._isMarkdown(file) && this._turndown();
+        // El modo de edicion depende de la pestaña activa:
+        //  - "Raw" activa  -> editar el markdown CRUDO en textarea.
+        //  - "Renderizado" -> editar WYSIWYG (tipo Word), solo si es markdown y Turndown cargo.
+        // Archivos que no son markdown (codigo) siempre van en raw.
+        const rawTabActive = $('.cs-tab[data-tab="raw"]').hasClass('active');
+        const canWysiwyg   = this._isMarkdown(file) && this._turndown();
+        const useWysiwyg   = canWysiwyg && !rawTabActive;
         this._editMode = useWysiwyg ? 'wysiwyg' : 'raw';
 
         if (useWysiwyg) {
@@ -582,12 +617,26 @@ class App {
                 .attr('contenteditable', 'true')
                 .addClass('wysiwyg-editing')
                 .focus();
+            // Los checkbox de task lists vienen `disabled` desde el render (marked).
+            // En edicion hay que habilitarlos y reflejar el toggle en el ATRIBUTO
+            // `checked`, porque Turndown lee el atributo (no la propiedad) al guardar.
+            $('#md-rendered').find('input[type="checkbox"]').prop('disabled', false);
+            $('#md-rendered')
+                .off('change.task')
+                .on('change.task', 'input[type="checkbox"]', function () {
+                    this.toggleAttribute('checked', this.checked);
+                });
+            // Toolbar de formato flotante encima del documento editable.
+            $('#mdToolbar').removeClass('hidden');
         } else {
-            // Archivos de codigo: edicion raw en textarea.
+            // Edicion RAW: el markdown/codigo crudo en un textarea (sin toolbar WYSIWYG).
+            $('.cs-tab[data-tab="raw"]').addClass('active');
+            $('.cs-tab[data-tab="rendered"]').removeClass('active');
             $('#md-edit').val(file.raw);
             $('#md-rendered').addClass('hidden');
             $('#md-raw').addClass('hidden');
             $('#md-edit').removeClass('hidden').focus();
+            $('#mdToolbar').addClass('hidden');
         }
 
         $('#btnEdit, #btnOpenEditor, #btnCopyPath').addClass('hidden');
@@ -603,6 +652,7 @@ class App {
         $('#md-edit').addClass('hidden').val('');
         $('#md-rendered').removeClass('hidden');
         $('#md-raw').addClass('hidden');
+        $('#mdToolbar').addClass('hidden');
 
         $('#btnSave, #btnCancel').addClass('hidden');
         $('#btnEdit, #btnOpenEditor, #btnCopyPath').removeClass('hidden');
@@ -618,6 +668,117 @@ class App {
         this._editMode = null;
         this.updateEditButton();
         if (window.lucide) lucide.createIcons();
+    }
+
+    // Aplica formato en el editor WYSIWYG (#md-rendered contenteditable) o,
+    // si se edita codigo, inserta sintaxis markdown en el textarea raw.
+    applyMdSyntax(kind) {
+        // Modo raw (codigo): insertar markdown literal en el textarea.
+        if (this._editMode === 'raw') {
+            const ta = document.getElementById('md-edit');
+            if (!ta) return;
+            const start = ta.selectionStart, end = ta.selectionEnd;
+            const val = ta.value, sel = val.slice(start, end);
+            const before = val.slice(0, start), after = val.slice(end);
+            let insert = '', selStart, selEnd;
+            const wrap = (pre, post, ph) => {
+                const text = sel || ph;
+                insert = pre + text + post;
+                selStart = start + pre.length; selEnd = selStart + text.length;
+            };
+            const linePrefix = (prefix, ph) => {
+                const text = sel || ph;
+                insert = text.split('\n').map(l => prefix + l).join('\n');
+                selStart = start; selEnd = start + insert.length;
+            };
+            switch (kind) {
+                case 'bold':      wrap('**', '**', 'texto'); break;
+                case 'italic':    wrap('*', '*', 'texto'); break;
+                case 'strike':    wrap('~~', '~~', 'texto'); break;
+                case 'code':      wrap('`', '`', 'codigo'); break;
+                case 'codeblock': wrap('```\n', '\n```', 'codigo'); break;
+                case 'link':      wrap('[', '](https://)', 'texto'); break;
+                case 'image':     wrap('![', '](https://)', 'alt'); break;
+                case 'header':
+                case 'h3':        linePrefix('### ', 'Encabezado'); break;
+                case 'h1':        linePrefix('# ', 'Encabezado'); break;
+                case 'h2':        linePrefix('## ', 'Encabezado'); break;
+                case 'h4':        linePrefix('#### ', 'Encabezado'); break;
+                case 'paragraph': linePrefix('', 'texto'); break;
+                case 'quote':     linePrefix('> ', 'Cita'); break;
+                case 'ul':        linePrefix('- ', 'Elemento'); break;
+                case 'ol':        linePrefix('1. ', 'Elemento'); break;
+                case 'task':      linePrefix('- [ ] ', 'Tarea'); break;
+                case 'clear':     insert = sel; selStart = start; selEnd = start + insert.length; break;
+                case 'hr':        insert = '\n---\n'; selStart = selEnd = start + insert.length; break;
+                case 'table':     insert = '\n| Col 1 | Col 2 |\n| --- | --- |\n| a | b |\n'; selStart = selEnd = start + insert.length; break;
+                default: return;
+            }
+            ta.value = before + insert + after;
+            ta.focus();
+            ta.setSelectionRange(selStart, selEnd);
+            return;
+        }
+
+        // Modo WYSIWYG: usar execCommand sobre el documento renderizado editable.
+        const el = document.getElementById('md-rendered');
+        if (el) el.focus();
+        const exec = (cmd, val = null) => document.execCommand(cmd, false, val);
+        switch (kind) {
+            case 'bold':      exec('bold'); break;
+            case 'italic':    exec('italic'); break;
+            case 'strike':    exec('strikeThrough'); break;
+            case 'paragraph': exec('formatBlock', 'P'); break;
+            case 'h1':        exec('formatBlock', 'H1'); break;
+            case 'h2':        exec('formatBlock', 'H2'); break;
+            case 'header':
+            case 'h3':        exec('formatBlock', 'H3'); break;
+            case 'h4':        exec('formatBlock', 'H4'); break;
+            case 'quote':     exec('formatBlock', 'BLOCKQUOTE'); break;
+            case 'codeblock': exec('formatBlock', 'PRE'); break;
+            case 'clear':     exec('removeFormat'); exec('formatBlock', 'P'); break;
+            case 'code': {
+                // Código en línea: envolver la selección en <code>.
+                const s = window.getSelection();
+                const txt = (s && s.toString()) || 'codigo';
+                exec('insertHTML', '<code>' + txt.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code>');
+                break;
+            }
+            case 'image': {
+                const url = prompt('URL de la imagen:', 'https://');
+                if (url) exec('insertImage', url);
+                break;
+            }
+            case 'ul':     exec('insertUnorderedList'); break;
+            case 'ol':     exec('insertOrderedList'); break;
+            case 'task': {
+                // execCommand no sabe de task lists: insertamos el HTML que produce
+                // `marked` (ul.contains-task-list > li.task-list-item > input[type=checkbox]).
+                // Turndown + plugin GFM lo convierte de vuelta a "- [ ]" / "- [x]" al guardar.
+                const sel  = window.getSelection();
+                const text = (sel && sel.toString()) || 'Tarea';
+                const html =
+                    '<ul class="contains-task-list">' +
+                        '<li class="task-list-item">' +
+                            '<input type="checkbox"> ' + text +
+                        '</li>' +
+                    '</ul><p></p>';
+                exec('insertHTML', html);
+                break;
+            }
+            case 'hr':     exec('insertHorizontalRule'); break;
+            case 'link': {
+                const url = prompt('URL del enlace:', 'https://');
+                if (url) exec('createLink', url);
+                break;
+            }
+            case 'table': {
+                const html = '<table><thead><tr><th>Col 1</th><th>Col 2</th></tr></thead><tbody><tr><td>a</td><td>b</td></tr></tbody></table><p></p>';
+                exec('insertHTML', html);
+                break;
+            }
+            default: return;
+        }
     }
 
     // Guarda contenido directo al disco/Drive sin pasar por modo edicion.
@@ -702,6 +863,13 @@ class App {
         const file = visor.getFile(this.allFiles, this.currentFile);
         if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
 
+        // Sin ruta absoluta no hay a donde escribir (archivo SAMPLE o cargado sin
+        // fullPath). Avisar en vez de fallar en silencio.
+        if (!file.lazyDrive && !file.fullPath) {
+            visorView.toast('No se puede guardar: el archivo no tiene ruta en disco', 'error');
+            return;
+        }
+
         const isGoogleDoc = file.lazyDrive && file.mimeType === 'application/vnd.google-apps.document';
 
         const $btn = $('#btnSave');
@@ -710,31 +878,43 @@ class App {
 
         let ok = false;
 
-        if (isGoogleDoc && this._editMode === 'wysiwyg') {
-            // ─── Google Doc + WYSIWYG ───
-            // Enviar HTML directo al endpoint drivewrite. El conversor HTML→Doc
-            // de Drive preserva headings, bold, listas, tablas, links, etc.
-            // (mucho mejor que mandar markdown, que perdia formato).
-            const html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>' +
-                         $('#md-rendered').html() +
-                         '</body></html>';
-            // Reconstruir markdown para mantener file.raw consistente con el resto del visor.
-            const td    = this._turndown();
-            const mdRaw = td ? td.turndown($('#md-rendered').html()) : '';
-            ok = await this._driveSaveHtml(file, html, mdRaw);
-        } else {
-            // ─── Flujo regular (markdown) ───
-            let content;
-            if (this._editMode === 'wysiwyg') {
-                const td = this._turndown();
-                const body = td.turndown($('#md-rendered').html()).replace(/\s+$/, '');
-                const origBody = visor.stripFrontmatter(file.raw);
-                const fmPrefix = file.raw.slice(0, file.raw.length - origBody.length);
-                content = (fmPrefix.trim() ? fmPrefix.replace(/\s*$/, '\n\n') : '') + body + '\n';
+        try {
+            if (isGoogleDoc && this._editMode === 'wysiwyg') {
+                // ─── Google Doc + WYSIWYG ───
+                // Enviar HTML directo al endpoint drivewrite. El conversor HTML→Doc
+                // de Drive preserva headings, bold, listas, tablas, links, etc.
+                // (mucho mejor que mandar markdown, que perdia formato).
+                const html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>' +
+                             $('#md-rendered').html() +
+                             '</body></html>';
+                // Reconstruir markdown para mantener file.raw consistente con el resto del visor.
+                const td    = this._turndown();
+                const mdRaw = td ? td.turndown($('#md-rendered').html()) : '';
+                ok = await this._driveSaveHtml(file, html, mdRaw);
             } else {
-                content = $('#md-edit').val();
+                // ─── Flujo regular (markdown) ───
+                let content;
+                if (this._editMode === 'wysiwyg') {
+                    const td = this._turndown();
+                    if (!td) {
+                        // Turndown no cargo (CDN caido/sin red): no podemos convertir
+                        // HTML→markdown sin perder el documento. Abortar con aviso claro.
+                        visorView.toast('No se pudo convertir el documento (Turndown no disponible). Revisa tu conexión.', 'error');
+                        return;
+                    }
+                    const body = td.turndown($('#md-rendered').html()).replace(/\s+$/, '');
+                    const origBody = visor.stripFrontmatter(file.raw);
+                    const fmPrefix = file.raw.slice(0, file.raw.length - origBody.length);
+                    content = (fmPrefix.trim() ? fmPrefix.replace(/\s*$/, '\n\n') : '') + body + '\n';
+                } else {
+                    content = $('#md-edit').val();
+                }
+                ok = await this.saveContentSilent(file, content);
             }
-            ok = await this.saveContentSilent(file, content);
+        } catch (e) {
+            console.error('[visor] saveFile fallo:', e);
+            visorView.toast('Error al guardar: ' + (e && e.message ? e.message : e), 'error');
+            ok = false;
         }
 
         if (ok) {
@@ -3282,11 +3462,14 @@ class CoffeeIA {
     }
 
     /**
-     * Busca needle en haystack con 3 niveles de tolerancia:
+     * Busca needle en haystack con niveles crecientes de tolerancia:
      *  1. Match exacto byte a byte.
      *  2. Por linea con trailing whitespace ignorado.
      *  3. Por linea con TODO el whitespace colapsado (espacios/tabs internos).
-     * Cuando matchea por nivel 2/3 reconstruye el texto REAL del archivo
+     *  4. Lo anterior + escapes markdown neutralizados ("\[ \]" == "[ ]").
+     *  5. Lo anterior + normalizacion Unicode NFC (acentos compuestos vs
+     *     descompuestos — pasa al copiar texto desde el documento renderizado).
+     * Cuando matchea por nivel 2+ reconstruye el texto REAL del archivo
      * para que el replace opere sobre el contenido exacto presente.
      * Retorna {matched, duplicated} o null si no hay match.
      */
@@ -3303,16 +3486,40 @@ class CoffeeIA {
         const hLines = haystack.split(/\r?\n/);
         const eol = /\r\n/.test(haystack) ? '\r\n' : '\n';
 
+        // Helpers de normalizacion (componibles).
+        const nfc       = l => (l.normalize ? l.normalize('NFC') : l);
+        const collapse  = l => l.replace(/\s+/g, ' ').trim();
+        const unescape  = l => this._stripMdEscapes(l);
+
         // Nivel 2: trailing whitespace por linea
         const lvl2 = this._matchByLineKey(haystack, hLines, eol, needle, l => l.replace(/\s+$/, ''));
         if (lvl2) return lvl2;
 
         // Nivel 3: colapsar whitespace interno + trim total (tolera diferencias en
         // cantidad de espacios — util para listas markdown con indentacion variable)
-        const lvl3 = this._matchByLineKey(haystack, hLines, eol, needle, l => l.replace(/\s+/g, ' ').trim());
+        const lvl3 = this._matchByLineKey(haystack, hLines, eol, needle, collapse);
         if (lvl3) return lvl3;
 
+        // Nivel 4: whitespace colapsado + escapes markdown neutralizados. El modelo
+        // (o Turndown) suele escapar puntuacion al copiar el texto al <find>:
+        // "\[ \]", "\*", "\_", "\`"… mientras el archivo en disco los tiene crudos
+        // (o viceversa).
+        const lvl4 = this._matchByLineKey(haystack, hLines, eol, needle, l => collapse(unescape(l)));
+        if (lvl4) return lvl4;
+
+        // Nivel 5: ademas normaliza Unicode (NFC). Al copiar desde el render los
+        // acentos pueden venir descompuestos ("í" = i + tilde combinante) y no
+        // matchear contra el archivo en NFC. Ultima red de seguridad.
+        const lvl5 = this._matchByLineKey(haystack, hLines, eol, needle, l => collapse(unescape(nfc(l))));
+        if (lvl5) return lvl5;
+
         return null;
+    }
+
+    // Quita los backslashes que escapan puntuacion markdown (\[ \] \* \_ \` \# …)
+    // dejando el caracter crudo. No toca un "\\" literal (doble backslash).
+    _stripMdEscapes(str) {
+        return str.replace(/\\([\\`*_{}\[\]()#+\-.!>~|])/g, '$1');
     }
 
     _matchByLineKey(haystack, hLines, eol, needle, keyFn) {

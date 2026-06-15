@@ -84,8 +84,58 @@ class ctrl extends mdl {
             'submodules'             => $this->qSubmodulesForSelect(),
             'sections'               => $this->qSectionsForSelect(),
             'roles'                  => $this->qRolesForSelect(),
-            'typePermissions'        => $this->qTypePermissionsForSelect()
+            'typePermissions'        => $this->qTypePermissionsForSelect(),
+            'branches'               => $this->qBranchesForSelect([$this->companyId()]),
+            // Rutas navegables reales detectadas en disco (carpetas con index.php),
+            // para que Módulos/Submódulos/Secciones elijan una ruta que sí existe.
+            'routes'                 => $this->scanRoutes()
         ];
+    }
+
+    // Empresa del super-admin en sesión (fallback a la empresa base mientras no haya login).
+    private function companyId() {
+        return (int) ($_SESSION['company_id'] ?? 1);
+    }
+
+    // Escanea inventory/ (hasta 2 niveles) y devuelve las carpetas que tienen index.php,
+    // es decir, las rutas realmente navegables. Formato {id: ruta, valor: etiqueta}.
+    private function scanRoutes() {
+        // El controlador vive en inventory/tenant/ctrl/ -> la raíz del módulo es ../../
+        $base = realpath(__DIR__ . '/../../');
+        if ($base === false) return [];
+
+        $skip   = ['conf', 'src', 'uploads', 'vendor', 'node_modules', '.git'];
+        $routes = [];
+
+        $top = @scandir($base);
+        if ($top === false) return [];
+
+        foreach ($top as $dir) {
+            if ($dir === '.' || $dir === '..' || in_array($dir, $skip, true)) continue;
+            $path = $base . DIRECTORY_SEPARATOR . $dir;
+            if (!is_dir($path)) continue;
+
+            // Nivel 1: carpeta con index.php.
+            if (is_file($path . DIRECTORY_SEPARATOR . 'index.php')) {
+                $routes[] = ['id' => $dir, 'valor' => $dir];
+            }
+
+            // Nivel 2: subcarpetas con index.php (ej. operacion/almacen, admin/usuarios).
+            $sub = @scandir($path);
+            if ($sub === false) continue;
+            foreach ($sub as $child) {
+                if ($child === '.' || $child === '..') continue;
+                $childPath = $path . DIRECTORY_SEPARATOR . $child;
+                if (is_dir($childPath) && is_file($childPath . DIRECTORY_SEPARATOR . 'index.php')) {
+                    $route = $dir . '/' . $child;
+                    $routes[] = ['id' => $route, 'valor' => $route];
+                }
+            }
+        }
+
+        // Orden alfabético por ruta para una lista predecible.
+        usort($routes, function ($a, $b) { return strcmp($a['id'], $b['id']); });
+        return $routes;
     }
 
     /* ===== Empresas (companies) ===== */
@@ -103,14 +153,14 @@ class ctrl extends mdl {
                 'onclick' => 'companies.editCompany(' . $c['id'] . ')'
             ];
             $a[] = [
-                'class'   => 'btn btn-sm btn-info',
+                'class'   => 'btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600',
                 'html'    => '<i class="icon-cog"></i>',
                 'onclick' => "companies.changeStatus(" . $c['id'] . ", '" . $c['status'] . "')"
             ];
 
             $row[] = [
                 'id'        => $c['id'],
-                'Empresa'   => htmlspecialchars($c['name'] ?? ''),
+                'Empresa'   => renderAvatar($c['name'] ?? ''),
                 'RFC'       => $c['rfc'] ?: '-',
                 'Base de datos' => $c['database_name'] ?: '-',
                 'Ubicación' => $c['ubication'] ?: '-',
@@ -333,7 +383,7 @@ class ctrl extends mdl {
                 'onclick' => 'subscriptions.editSubscription(' . $s['id'] . ')'
             ];
             $a[] = [
-                'class'   => 'btn btn-sm btn-info',
+                'class'   => 'btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600',
                 'html'    => '<i class="icon-cog"></i>',
                 'onclick' => "subscriptions.changeStatus(" . $s['id'] . ", '" . $s['status'] . "')"
             ];
@@ -463,7 +513,7 @@ class ctrl extends mdl {
                 'onclick' => 'payments.editPayment(' . $p['id'] . ')'
             ];
             $a[] = [
-                'class'   => 'btn btn-sm btn-info',
+                'class'   => 'btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600',
                 'html'    => '<i class="icon-cog"></i>',
                 'onclick' => "payments.changeStatus(" . $p['id'] . ", '" . $p['status'] . "')"
             ];
@@ -521,7 +571,7 @@ class ctrl extends mdl {
 
         $ok = $this->qInsertPayment([
             $companyId,
-            $this->intOrNull($_POST['subscription_id'] ?? ''),
+            $this->selectOrNull($_POST['subscription_id'] ?? ''),
             $amount,
             trim($_POST['currency'] ?? '') ?: 'MXN',
             $status,
@@ -554,7 +604,7 @@ class ctrl extends mdl {
 
         $ok = $this->qUpdatePayment([
             $companyId,
-            $this->intOrNull($_POST['subscription_id'] ?? ''),
+            $this->selectOrNull($_POST['subscription_id'] ?? ''),
             $amount,
             trim($_POST['currency'] ?? '') ?: 'MXN',
             $status,
@@ -769,6 +819,8 @@ class ctrl extends mdl {
         $ok = $this->qInsertModule([
             $name,
             trim($_POST['code'] ?? '') ?: null,
+            trim($_POST['icon'] ?? '') ?: null,
+            trim($_POST['description'] ?? '') ?: null,
             trim($_POST['route'] ?? '') ?: null,
             $this->intOrNull($_POST['orden'] ?? '') ?? 0
         ]);
@@ -784,6 +836,8 @@ class ctrl extends mdl {
         $ok = $this->qUpdateModule([
             $name,
             trim($_POST['code'] ?? '') ?: null,
+            trim($_POST['icon'] ?? '') ?: null,
+            trim($_POST['description'] ?? '') ?: null,
             trim($_POST['route'] ?? '') ?: null,
             $this->intOrNull($_POST['orden'] ?? '') ?? 0,
             $id
@@ -836,6 +890,8 @@ class ctrl extends mdl {
         $ok = $this->qInsertSubmodule([
             $name,
             trim($_POST['code'] ?? '') ?: null,
+            trim($_POST['icon'] ?? '') ?: null,
+            trim($_POST['description'] ?? '') ?: null,
             trim($_POST['route'] ?? '') ?: null,
             $this->intOrNull($_POST['orden'] ?? '') ?? 0,
             $moduleId
@@ -854,6 +910,8 @@ class ctrl extends mdl {
         $ok = $this->qUpdateSubmodule([
             $name,
             trim($_POST['code'] ?? '') ?: null,
+            trim($_POST['icon'] ?? '') ?: null,
+            trim($_POST['description'] ?? '') ?: null,
             trim($_POST['route'] ?? '') ?: null,
             $this->intOrNull($_POST['orden'] ?? '') ?? 0,
             $moduleId,
@@ -910,10 +968,11 @@ class ctrl extends mdl {
         $ok = $this->qInsertSection([
             $name,
             trim($_POST['code'] ?? '') ?: null,
+            trim($_POST['icon'] ?? '') ?: null,
             trim($_POST['route'] ?? '') ?: null,
             $this->intOrNull($_POST['orden'] ?? '') ?? 0,
             $moduleId,
-            $this->intOrNull($_POST['submodule_id'] ?? '')
+            $this->selectOrNull($_POST['submodule_id'] ?? '')
         ]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Sección creada correctamente' : 'No se pudo crear la sección'];
     }
@@ -929,10 +988,11 @@ class ctrl extends mdl {
         $ok = $this->qUpdateSection([
             $name,
             trim($_POST['code'] ?? '') ?: null,
+            trim($_POST['icon'] ?? '') ?: null,
             trim($_POST['route'] ?? '') ?: null,
             $this->intOrNull($_POST['orden'] ?? '') ?? 0,
             $moduleId,
-            $this->intOrNull($_POST['submodule_id'] ?? ''),
+            $this->selectOrNull($_POST['submodule_id'] ?? ''),
             $id
         ]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Sección actualizada correctamente' : 'No se pudo actualizar la sección'];
@@ -1024,8 +1084,8 @@ class ctrl extends mdl {
             }
 
             $system = (int) $r['is_system'] === 1
-                ? '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#0b3a5c] text-[#5bb3f0]">Sistema</span>'
-                : '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-gray-200 text-gray-600">Personalizado</span>';
+                ? '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-sky-50 text-sky-700 ">Sistema</span>'
+                : '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-600 ">Personalizado</span>';
 
             $row[] = [
                 'id'     => $r['id'],
@@ -1138,6 +1198,291 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Permiso activado' : 'Permiso desactivado') : 'No se pudo actualizar el estado'];
     }
 
+    /* ===== Matriz de acceso por rol (rol x seccion, modelo Acceso/No acceso) ===== */
+
+    function accessMatrix() {
+        $roleId = (int) ($_POST['role_id'] ?? 0);
+        $role = $this->qRole([$roleId]);
+        if (!$role) {
+            return ['status' => 404, 'message' => 'Rol no encontrado'];
+        }
+        $typeId = $this->qAccessTypeId();
+        if ($typeId <= 0) {
+            return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
+        }
+
+        $isSuperAdmin = ($role['code'] === 'superadmin');
+        $rows = $this->qAccessMatrix([$roleId, $typeId]);
+        foreach ($rows as &$r) {
+            $r['section_id']   = (int) $r['section_id'];
+            $r['module_id']    = $r['module_id'] !== null ? (int) $r['module_id'] : 0;
+            $r['submodule_id'] = $r['submodule_id'] !== null ? (int) $r['submodule_id'] : 0;
+            $r['has_access']   = $isSuperAdmin ? true : ((int) $r['has_access'] === 1);
+        }
+        return [
+            'status'    => 200,
+            'role_id'   => $roleId,
+            'is_system' => (int) ($role['is_system'] ?? 0),
+            'sections'  => $rows
+        ];
+    }
+
+    function accessRoles() {
+        $typeId = $this->qAccessTypeId();
+        if ($typeId <= 0) {
+            return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
+        }
+        $ls = $this->qRolesWithAccessCount([$typeId]);
+        $totalSections = 0;
+        foreach ($ls as $r) {
+            $totalSections = max($totalSections, (int) $r['total_sections']);
+        }
+        foreach ($ls as &$r) {
+            $r['id']             = (int) $r['id'];
+            $r['is_system']      = (int) $r['is_system'];
+            $r['total_sections'] = (int) $r['total_sections'];
+            $r['granted']        = ($r['code'] === 'superadmin') ? $totalSections : (int) $r['granted'];
+        }
+        return ['status' => 200, 'roles' => $ls];
+    }
+
+    function sectionPermissionTypes() {
+        $roleId    = (int) $_POST['role_id'];
+        $sectionId = (int) $_POST['section_id'];
+
+        $role = $this->qRole([$roleId]);
+        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
+
+        $section = $this->qSection([$sectionId]);
+        if (!$section) return ['status' => 404, 'message' => 'Sección no encontrada'];
+
+        $isSuperAdmin = ($role['code'] === 'superadmin');
+        $types = $this->qSectionPermissionTypes([$roleId, $sectionId]);
+
+        foreach ($types as &$t) {
+            $t['id']      = (int) $t['id'];
+            $t['granted'] = $isSuperAdmin ? true : ((int) $t['granted'] === 1);
+        }
+
+        return ['status' => 200, 'types' => $types];
+    }
+
+    function savePermissions() {
+        $roleId  = (int) $_POST['role_id'];
+        $rawJson = $_POST['changes'];
+
+        $role = $this->qRole([$roleId]);
+        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
+        if ((int) $role['is_system'] === 1) {
+            return ['status' => 400, 'message' => 'Los roles del sistema no se editan'];
+        }
+
+        $changes = json_decode($rawJson, true);
+        if (!is_array($changes)) {
+            return ['status' => 400, 'message' => 'Payload de cambios inválido'];
+        }
+
+        $accessChanges = isset($changes['access']) && is_array($changes['access']) ? $changes['access'] : [];
+        $typeChanges   = isset($changes['types'])  && is_array($changes['types'])  ? $changes['types']  : [];
+
+        $typeId = $this->qAccessTypeId();
+        if ($typeId <= 0 && count($accessChanges) > 0) {
+            return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
+        }
+
+        return $this->transaction(function () use ($roleId, $typeId, $accessChanges, $typeChanges) {
+            foreach ($accessChanges as $c) {
+                $secId = (int) $c['section_id'];
+                $grant = (int) $c['grant'] === 1;
+                $existing = $this->qFindPermission([$roleId, $secId, $typeId]);
+                if ($existing) {
+                    $this->qSetPermissionActive([$grant ? 1 : 0, (int) $existing['id']]);
+                } elseif ($grant) {
+                    $this->qInsertPermission([$roleId, $secId, $typeId]);
+                }
+            }
+
+            foreach ($typeChanges as $c) {
+                $secId  = (int) $c['section_id'];
+                $tId    = (int) $c['type_id'];
+                $grant  = (int) $c['grant'] === 1;
+                $existing = $this->qFindPermission([$roleId, $secId, $tId]);
+                if ($existing) {
+                    $this->qSetPermissionActive([$grant ? 1 : 0, (int) $existing['id']]);
+                } elseif ($grant) {
+                    $this->qInsertPermission([$roleId, $secId, $tId]);
+                }
+            }
+
+            return ['status' => 200, 'message' => 'Permisos guardados'];
+        });
+    }
+
+    // Concede o retira el acceso de un rol a TODAS las secciones, o a las de un módulo.
+    // Espejo en bloque de toggleAccess: reutiliza el modelo binario "Acceso".
+    function bulkAccess() {
+        $roleId   = (int) ($_POST['role_id'] ?? 0);
+        $grant    = (int) ($_POST['grant'] ?? 0) === 1;
+        $moduleId = (int) ($_POST['module_id'] ?? 0); // 0 = todas las secciones
+
+        $role = $this->qRole([$roleId]);
+        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
+        if ((int) $role['is_system'] === 1) {
+            return ['status' => 400, 'message' => 'El acceso de los roles del sistema no se edita'];
+        }
+
+        $typeId = $this->qAccessTypeId();
+        if ($typeId <= 0) return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
+
+        $sections = $moduleId > 0
+            ? $this->qSectionIdsByModule([$moduleId])
+            : $this->qAllSectionIds();
+
+        foreach ($sections as $s) {
+            $secId    = (int) $s['id'];
+            $existing = $this->qFindPermission([$roleId, $secId, $typeId]);
+            if ($existing) {
+                $this->qSetPermissionActive([$grant ? 1 : 0, (int) $existing['id']]);
+            } elseif ($grant) {
+                $this->qInsertPermission([$roleId, $secId, $typeId]);
+            }
+        }
+
+        return [
+            'status'  => 200,
+            'message' => $grant ? 'Accesos habilitados' : 'Accesos deshabilitados'
+        ];
+    }
+
+    // Activa o desactiva el acceso de un rol a UNA sección (insert o reactivación).
+    function toggleAccess() {
+        $roleId = (int) ($_POST['role_id'] ?? 0);
+        $secId  = (int) ($_POST['section_id'] ?? 0);
+        $grant  = (int) ($_POST['grant'] ?? 0) === 1;
+
+        if (!$this->qRole([$roleId]))    return ['status' => 404, 'message' => 'Rol no encontrado'];
+        if (!$this->qSection([$secId]))  return ['status' => 404, 'message' => 'Sección no encontrada'];
+
+        $role = $this->qRole([$roleId]);
+        if ((int) $role['is_system'] === 1) {
+            return ['status' => 400, 'message' => 'El acceso de los roles del sistema no se edita'];
+        }
+
+        $typeId = $this->qAccessTypeId();
+        if ($typeId <= 0) return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
+
+        $existing = $this->qFindPermission([$roleId, $secId, $typeId]);
+        if ($existing) {
+            $ok = $this->qSetPermissionActive([$grant ? 1 : 0, (int) $existing['id']]);
+        } elseif ($grant) {
+            $ok = $this->qInsertPermission([$roleId, $secId, $typeId]);
+        } else {
+            $ok = true; // No existe y se pide quitar: nada que hacer.
+        }
+
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? ($grant ? 'Acceso concedido' : 'Acceso retirado') : 'No se pudo actualizar el acceso'
+        ];
+    }
+
+    /* ===== Usuarios y asignación de rol por sucursal (users_braches) ===== */
+
+    function lsUsers() {
+        $ls = $this->qUsersWithRole([$this->companyId()]);
+
+        $row = [];
+        foreach ($ls as $u) {
+            $fullName = trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
+            $hasAssignment = !empty($u['assignment_id']);
+
+            $a = [];
+            if ($hasAssignment) {
+                $a[] = [
+                    'class'   => 'btn btn-sm btn-primary me-1',
+                    'html'    => '<i class="icon-pencil"></i>',
+                    'onclick' => "users.editAssignment({$u['assignment_id']}, " . (int) $u['role_id'] . ")"
+                ];
+                $a[] = [
+                    'class'   => 'btn btn-sm btn-danger',
+                    'html'    => '<i class="icon-trash"></i>',
+                    'onclick' => "users.removeAssignment({$u['assignment_id']})"
+                ];
+            } else {
+                $a[] = [
+                    'class'   => 'btn btn-sm btn-success',
+                    'html'    => '<i class="icon-plus"></i> Asignar',
+                    'onclick' => "users.assign({$u['id']})"
+                ];
+            }
+
+            $row[] = [
+                'id'        => $u['id'],
+                'Usuario'   => htmlspecialchars($fullName ?: '—'),
+                'Correo'    => htmlspecialchars($u['email'] ?? '—'),
+                'Sucursal'  => $u['branch_name'] ? htmlspecialchars($u['branch_name']) : '<span class="italic text-gray-400">Sin sucursal</span>',
+                'Rol'       => $u['role_name']
+                    ? '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#0b3a5c] text-[#5bb3f0]">' . htmlspecialchars($u['role_name']) . '</span>'
+                    : '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#5c4813] text-[#f5c451]">Sin rol</span>',
+                'a'         => $a
+            ];
+        }
+
+        return ['status' => 200, 'row' => $row, 'ls' => $ls];
+    }
+
+    // Crea una asignación usuario+sucursal+rol (un usuario puede tener una por sucursal).
+    function assignUserRole() {
+        $userId   = (int) ($_POST['user_id'] ?? 0);
+        $branchId = (int) ($_POST['branch_id'] ?? 0);
+        $roleId   = (int) ($_POST['role_id'] ?? 0);
+
+        if ($userId <= 0 || $branchId <= 0 || $roleId <= 0) {
+            return ['status' => 400, 'message' => 'Usuario, sucursal y rol son obligatorios'];
+        }
+        if (!$this->qUserExistsInCompany([$userId, $this->companyId()])) {
+            return ['status' => 400, 'message' => 'El usuario no pertenece a tu empresa'];
+        }
+        if (!$this->qRole([$roleId])) {
+            return ['status' => 400, 'message' => 'El rol seleccionado no es válido'];
+        }
+
+        // Si ya existe la fila usuario+sucursal, se actualiza el rol en vez de duplicar.
+        $existing = $this->qUserBranchAssignment([$userId, $branchId]);
+        if ($existing) {
+            $ok = $this->qSetUserBranchRole([$roleId, (int) $existing['id']]);
+        } else {
+            $ok = $this->qInsertUserBranchRole([$userId, $branchId, $roleId]);
+        }
+
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Rol asignado correctamente' : 'No se pudo asignar el rol'
+        ];
+    }
+
+    // Cambia solo el rol de una asignación existente.
+    function updateUserRole() {
+        $assignmentId = (int) ($_POST['assignment_id'] ?? 0);
+        $roleId       = (int) ($_POST['role_id'] ?? 0);
+
+        if ($assignmentId <= 0 || $roleId <= 0) {
+            return ['status' => 400, 'message' => 'Asignación y rol son obligatorios'];
+        }
+        if (!$this->qRole([$roleId])) {
+            return ['status' => 400, 'message' => 'El rol seleccionado no es válido'];
+        }
+        $ok = $this->qSetUserBranchRole([$roleId, $assignmentId]);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Rol actualizado correctamente' : 'No se pudo actualizar el rol'];
+    }
+
+    function removeUserRole() {
+        $assignmentId = (int) ($_POST['assignment_id'] ?? 0);
+        if ($assignmentId <= 0) return ['status' => 400, 'message' => 'Asignación no válida'];
+        $ok = $this->qDeleteUserBranchRole([$assignmentId]);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Asignación eliminada' : 'No se pudo eliminar la asignación'];
+    }
+
     /* ===== Helpers internos ===== */
 
     // Acciones estándar editar + activar/desactivar para entidades del catálogo.
@@ -1181,6 +1526,13 @@ class ctrl extends mdl {
         return $v === '' ? null : (int) $v;
     }
 
+    // Para selects OPCIONALES con placeholder "-- Selecciona --" (value="0"):
+    // tanto '' como '0' significan "sin valor" -> NULL (no rompe la FK).
+    private function selectOrNull($v) {
+        $v = trim((string) $v);
+        return ($v === '' || $v === '0') ? null : (int) $v;
+    }
+
     private function dateOrNull($v) {
         $v = trim((string) $v);
         return $v === '' ? null : $v;
@@ -1192,43 +1544,43 @@ class ctrl extends mdl {
 function renderActive($status) {
     switch ((int) $status) {
         case 1:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189]">Activo</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-emerald-50 text-emerald-700 ">Activo</span>';
         case 0:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#721c24] text-[#ba464d]">Inactivo</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-red-50 text-red-700 ">Inactivo</span>';
         default:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-gray-500 text-white">Desconocido</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-500 ">Desconocido</span>';
     }
 }
 
 function renderCompanyStatus($status) {
     switch ($status) {
         case 'active':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189]">Activa</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-emerald-50 text-emerald-700 ">Activa</span>';
         case 'pending':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#5c4813] text-[#f5c451]">Pendiente</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-amber-50 text-amber-700 ">Pendiente</span>';
         case 'suspendend':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#7a2e1d] text-[#f0a58f]">Suspendida</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-red-50 text-red-700 ">Suspendida</span>';
         case 'cancelled':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#721c24] text-[#ba464d]">Cancelada</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-red-50 text-red-700 ">Cancelada</span>';
         default:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-gray-500 text-white">—</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-500 ">—</span>';
     }
 }
 
 function renderSubStatus($status) {
     switch ($status) {
         case 'active':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189]">Activa</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-emerald-50 text-emerald-700 ">Activa</span>';
         case 'trial':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#0b3a5c] text-[#5bb3f0]">Prueba</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-sky-50 text-sky-700 ">Prueba</span>';
         case 'past_due':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#5c4813] text-[#f5c451]">Vencida</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-amber-50 text-amber-700 ">Vencida</span>';
         case 'cancelled':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#721c24] text-[#ba464d]">Cancelada</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-red-50 text-red-700 ">Cancelada</span>';
         case 'expired':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#3a3a3a] text-[#bdbdbd]">Expirada</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-600 ">Expirada</span>';
         default:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-gray-500 text-white">—</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-500 ">—</span>';
     }
 }
 
@@ -1244,16 +1596,37 @@ function renderBillingCycle($cycle) {
 function renderPaymentStatus($status) {
     switch ($status) {
         case 'paid':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189]">Pagado</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-emerald-50 text-emerald-700 ">Pagado</span>';
         case 'pending':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#5c4813] text-[#f5c451]">Pendiente</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-amber-50 text-amber-700 ">Pendiente</span>';
         case 'failed':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#721c24] text-[#ba464d]">Fallido</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-red-50 text-red-700 ">Fallido</span>';
         case 'refunded':
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#3a3a3a] text-[#bdbdbd]">Reembolsado</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-600 ">Reembolsado</span>';
         default:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-gray-500 text-white">—</span>';
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-500 ">—</span>';
     }
+}
+
+function renderAvatar($name) {
+    $name = trim((string) $name);
+    if ($name === '') {
+        $initials = '?';
+    } else {
+        $parts = preg_split('/\s+/', $name);
+        $initials = mb_strtoupper(mb_substr($parts[0], 0, 1));
+        if (count($parts) > 1) {
+            $initials .= mb_strtoupper(mb_substr($parts[count($parts) - 1], 0, 1));
+        } elseif (mb_strlen($parts[0]) > 1) {
+            $initials .= mb_strtoupper(mb_substr($parts[0], 1, 1));
+        }
+    }
+    $safeName = htmlspecialchars($name);
+    $safeInitials = htmlspecialchars($initials);
+    return '<div class="flex items-center gap-2">'
+        . '<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 text-xs font-semibold shrink-0">' . $safeInitials . '</span>'
+        . '<span>' . $safeName . '</span>'
+        . '</div>';
 }
 
 function renderDiscount($type, $value) {

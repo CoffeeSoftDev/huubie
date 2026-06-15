@@ -1,6 +1,10 @@
 <?php
 session_start();
 
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 // Validar sesión de usuario
 if (empty($_SESSION["IDU"])) {
     require_once('../../acceso/ctrl/ctrl-logout.php');

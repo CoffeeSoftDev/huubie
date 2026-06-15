@@ -1,6 +1,14 @@
 <?php
 session_start();
 
+// Evita que el navegador sirva una copia vieja del HTML (y por tanto del
+// general.css cacheado). Sin esto, un alert de Swal podia seguir contrayendo el
+// container porque se cargaba el CSS previo al fix. Combinado con el ?v=filemtime
+// del <link> en head.php, garantiza CSS siempre fresco en desarrollo.
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 // Validar sesión de usuario
 // if (empty($_SESSION["IDU"])) {
 //     require_once('../../acceso/ctrl/ctrl-logout.php');

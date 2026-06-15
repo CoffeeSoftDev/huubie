@@ -1,13 +1,46 @@
 class Sidebar {
-    init(options) {
+    async init(options) {
         this.injectStyles();
-        this.render(options);
+        // Menú 100% dinámico: las opciones salen de las secciones a las que el
+        // usuario tiene permiso (endpoint menu). Fail-closed: si no hay permisos
+        // o falla la carga, el rail queda vacío.
+        const menuItems = await this.fetchMenu();
+        this.render(Object.assign({ menuItems }, options));
         this.renderOverlay();
         this.initEvents();
         this.highlightCurrentRoute();
         this.loadDarkMode();
         this.handleResize();
         if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Base del host hasta /inventory/ (ej. "/huubie/inventory" o "/inventory").
+    inventoryBase() {
+        const p = window.location.pathname;
+        const i = p.indexOf('/inventory/');
+        return i >= 0 ? p.slice(0, i + '/inventory'.length) : '/inventory';
+    }
+
+    // Trae las secciones permitidas y las mapea a items del rail.
+    async fetchMenu() {
+        const base = this.inventoryBase();
+        try {
+            const res = await fetch(base + '/acceso/ctrl/ctrl-access.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'opc=menu'
+            });
+            const data = await res.json();
+            const items = (data && data.items) || [];
+            return items.map((it) => ({
+                icon: it.icon || 'square',
+                title: it.title || '',
+                // route viene relativa a inventory/ (ej. operacion/almacen/stock.php)
+                url: base + '/' + String(it.route || '').replace(/^\/+/, '')
+            }));
+        } catch (e) {
+            return []; // fail-closed
+        }
     }
 
     injectStyles() {
@@ -47,23 +80,11 @@ class Sidebar {
     }
 
     render(options) {
+        // Fail-closed: sin items (sin permisos o fallo de carga) => rail vacío.
         const defaults = {
             parent: "#menu-sidebar",
             logo: "../../src/img/logos/coffee_icon.png",
-            menuItems: [
-                { icon: "arrow-down-to-line", url: "/inventory/operacion/almacen/entradas.php", title: "Entradas" },
-                // { icon: "contact", url: "/inventory/operacion/almacen/reporte.php", title: "Reportes" },
-                // { icon: "gauge", url: "/inventory/finanzas/administrador/", title: "Dashboard" },
-                { icon: "arrow-up-from-line", url: "/inventory/operacion/almacen/salidas.php", title: "Salidas" },
-                { icon: "arrow-right-left", url: "/inventory/operacion/almacen/traspasos.php", title: "Traspasos" },
-                { icon: "boxes", url: "/inventory/operacion/almacen/stock.php", title: "Stock" },
-                { icon: "history", url: "/inventory/operacion/almacen/movimientos.php", title: "Movimientos" },
-                { icon: "shopping-cart", url: "/inventory/operacion/almacen/ordenes.php", title: "Órdenes" },
-                { icon: "clipboard-list", url: "/inventory/operacion/almacen/solicitudes.php", title: "Solicitudes" },
-                { icon: "house", url: "/inventory/operacion/almacen/", title: "Admin" },
-                { icon: "shield-user", url: "/inventory/admin/accesos/", title: "Accesos" },
-                { icon: "palette", url: "/inventory/operacion/almacen/ui-kit.php", title: "UI Kit" },
-            ],
+            menuItems: [],
         };
 
         this.settings = Object.assign({}, defaults, options);

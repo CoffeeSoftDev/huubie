@@ -81,12 +81,12 @@ class App extends Templates {
                     class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
-                    id:    'kpisRow',
-                    class: 'px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0'
-                },
-                {
                     id:    'filterBar',
                     class: 'px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                },
+                {
+                    id:    'kpisRow',
+                    class: 'px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
@@ -379,43 +379,68 @@ class Traspasos extends Templates {
         }
     }
 
-    async confirmTraspaso(id) {
-        const { value: receivedBy, isConfirmed } = await Swal.fire({
-            title:             'Aceptar envio',
-            input:             'text',
-            inputLabel:        'Quien recibe el traspaso?',
-            inputPlaceholder:  'Nombre de quien recibe',
-            showCancelButton:  true,
-            confirmButtonText: 'Aceptar y recibir',
-            cancelButtonText:  'Cancelar',
-            inputValidator:    (v) => (!v || !v.trim()) ? 'Indica quien recibe el traspaso' : undefined
+    confirmTraspaso(id) {
+        app.alertBox({
+            type:             'confirm',
+            icon:             'check-circle',
+            iconBg:           'bg-green-50',
+            iconColor:        'text-green-600',
+            title:            'Aceptar envio',
+            detailHtml:       'Confirma la recepcion del traspaso.',
+            input:            'text',
+            inputLabel:       'Quien recibe el traspaso?',
+            inputPlaceholder: 'Nombre de quien recibe',
+            inputRequired:    true,
+            inputError:       'Indica quien recibe el traspaso',
+            okLabel:          'Aceptar y recibir',
+            okBg:             'bg-green-600 hover:bg-green-500',
+            cancelLabel:      'Cancelar',
+            onOk: async (receivedBy) => {
+                const r = await fn_ajax({
+                    opc:         'confirmTraspaso',
+                    id:          id,
+                    received_by: receivedBy
+                }, api).catch(() => null);
+
+                if (r && r.status === 200) {
+                    app.alertBox({ type: 'success', title: 'Traspaso recibido', timer: 2200 });
+                    this.lsTraspasos();
+                    this.lsKpis();
+                    traspasosView.renderDetail(null);
+                } else {
+                    app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo confirmar' });
+                }
+            }
         });
-        if (!isConfirmed) return;
-
-        const r = await fn_ajax({
-            opc:         'confirmTraspaso',
-            id:          id,
-            received_by: receivedBy.trim()
-        }, api).catch(() => null);
-
-        if (r && r.status === 200) {
-            if (typeof alert === 'function') alert({ icon: 'success', text: 'Traspaso recibido' });
-            this.lsTraspasos();
-            this.lsKpis();
-            traspasosView.renderDetail(null);
-        } else {
-            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo confirmar' });
-        }
     }
 
-    async rejectTraspaso(id) {
-        const r = await fn_ajax({ opc: 'rejectTraspaso', id: id }, api).catch(() => null);
-        if (r && r.status === 200) {
-            if (typeof alert === 'function') alert({ icon: 'success', text: 'Traspaso rechazado' });
-            this.lsTraspasos();
-            this.lsKpis();
-            traspasosView.renderDetail(null);
-        }
+    rejectTraspaso(id) {
+        app.alertBox({
+            type:             'cancel',
+            title:            'Rechazar envio?',
+            detailHtml:       'El traspaso se marcara como rechazado. Accion irreversible.',
+            input:            'textarea',
+            inputLabel:       'Motivo del rechazo (opcional)',
+            inputPlaceholder: 'Indica por que se rechaza el traspaso',
+            okLabel:          'Sí, rechazar',
+            cancelLabel:      'No',
+            onOk: async (reason) => {
+                const r = await fn_ajax({
+                    opc:  'rejectTraspaso',
+                    id:   id,
+                    note: reason || ''
+                }, api).catch(() => null);
+
+                if (r && r.status === 200) {
+                    app.alertBox({ type: 'success', title: 'Traspaso rechazado', timer: 2200 });
+                    this.lsTraspasos();
+                    this.lsKpis();
+                    traspasosView.renderDetail(null);
+                } else {
+                    app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo rechazar el traspaso' });
+                }
+            }
+        });
     }
 
     async cancelTraspaso(id) {
@@ -671,6 +696,7 @@ class TraspasosView extends Templates {
         this.kpisRow({
             parent:  'kpisRow',
             json:    rows,
+            cols:5,
             onClick: (kpi) => {}
         });
     }
@@ -682,62 +708,7 @@ class TraspasosView extends Templates {
         });
     }
 
-    kpisRow(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'kpisRow',
-            class:  'grid grid-cols-2 md:grid-cols-5 gap-3',
-            json:   [],
-            labels: { empty: 'Sin indicadores' },
-            tones: {
-                default: 'text-gray-800',
-                success: 'text-green-600',
-                warning: 'text-amber-500',
-                danger:  'text-red-600',
-                info:    'text-blue-600'
-            },
-            cardClass:  'cs-kpi-card bg-white rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:shadow-lg transition-shadow',
-            labelClass: 'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-gray-500',
-            valueClass: 'cs-kpi-value text-sm font-bold',
-            onClick:    () => {}
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
-        opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
-
-        const kpiCard = (kpi, idx) => {
-            const cardId = kpi.id || `${opts.id}_${idx}`;
-            return `
-                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
-                    <p class="${opts.labelClass}">${esc(kpi.label)}</p>
-                    <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
-                </div>`;
-        };
-
-        const grid = $('<div>', { id: opts.id, class: opts.class });
-
-        if (!opts.json || opts.json.length === 0) {
-            grid.html(`<p class="col-span-full text-[10px] text-gray-400 italic text-center py-2">${esc(opts.labels.empty)}</p>`);
-            $(`#${opts.parent}`).html(grid);
-            return;
-        }
-
-        grid.html(opts.json.map((kpi, idx) => kpiCard(kpi, idx)).join(''));
-        $(`#${opts.parent}`).html(grid);
-
-        grid.find('[data-kpi-idx]').on('click', (e) => {
-            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
-            opts.onClick(opts.json[idx], idx);
-        });
-    }
+   
 
     viewHeader(options) {
         const defaults = {

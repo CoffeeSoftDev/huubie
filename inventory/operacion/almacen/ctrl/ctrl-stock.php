@@ -26,7 +26,7 @@ class ctrl extends mdl {
         return [
             'status'          => 200,
             'branch_id'       => $this->branchId,
-            'sucursales'      => $this->lsSucursales([$this->companiesId]),
+            'sucursales'      => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'categorias'      => $this->lsCategories([$this->companiesId])
         ];
     }
@@ -60,8 +60,8 @@ class ctrl extends mdl {
                 'Estado'    => $this->_levelBadge($qty, $min),
                 'a'         => [
                     [
-                        'class'   => 'btn btn-sm btn-secondary me-1',
-                        'html'    => '<i class="icon-eye"></i>',
+                        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                        'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                         'onclick' => "app.selectProduct({$r['product_id']})"
                     ]
                 ]

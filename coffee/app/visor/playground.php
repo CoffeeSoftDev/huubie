@@ -30,7 +30,12 @@
             </div>
         </div>
 
-        <div class="pg-header-right">
+        <!-- Botón Ajustes (solo móvil): colapsa/expande la barra de controles. -->
+        <button id="pgHeaderToggle" class="pg-header-toggle" title="Ajustes" aria-expanded="false">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+        </button>
+
+        <div class="pg-header-right" id="pgHeaderRight">
             <div class="pg-select-wrap" title="Agente activo">
                 <i data-lucide="bot" class="w-4 h-4"></i>
                 <select id="pgAgentSelect" class="pg-select"></select>
@@ -61,7 +66,7 @@
                     <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
                     <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
                     <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
-                    <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código)</option>
+                    <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código, vision)</option>
                 </optgroup>
                 <optgroup label="OpenRouter (free)">
                     <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
@@ -80,7 +85,17 @@
         </div>
     </header>
 
-    <div class="pg-workspace">
+    <!-- Conmutador Chat/Sandbox (solo movil): ambos paneles no caben apilados. -->
+    <div class="pg-mobile-switch" role="tablist" aria-label="Vista">
+        <button class="pg-mswitch active" data-mview="chat" role="tab">
+            <i data-lucide="message-square" class="w-4 h-4"></i> Chat
+        </button>
+        <button class="pg-mswitch" data-mview="sandbox" role="tab">
+            <i data-lucide="layout-template" class="w-4 h-4"></i> Sandbox
+        </button>
+    </div>
+
+    <div class="pg-workspace" data-mview="chat">
 
         <!-- Rail de navegacion entre modulos (Visor / Playground / Admin) -->
         <nav class="app-rail" aria-label="Modulos">
@@ -96,6 +111,10 @@
                 <a href="forge.php" class="app-rail-item" title="Forge — Fábrica de Módulos">
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
+                </a>
+                <a href="chat.php" class="app-rail-item" title="Chat con Agentes">
+                    <i data-lucide="message-circle"></i>
+                    <span class="app-rail-label">Chat</span>
                 </a>
                 <a href="documents-admin.php" class="app-rail-item" title="Admin de Documentos">
                     <i data-lucide="folder-cog"></i>
@@ -170,18 +189,32 @@
                         <button id="pgZoomIn" class="pg-iconbtn" title="Acercar"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
                     </div>
                     <span id="pgSandboxTheme" class="pg-theme-chip">Huubie Dark</span>
-                    <button id="pgTemplatesBtn" class="pg-iconbtn" title="Plantillas guardadas">
-                        <i data-lucide="library" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="pgSaveTplBtn" class="pg-iconbtn" title="Guardar como plantilla reutilizable">
-                        <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="pgSandboxDownload" class="pg-iconbtn" title="Descargar HTML">
-                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="pgSandboxOpen" class="pg-iconbtn" title="Abrir render en pestaña nueva">
-                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                    </button>
+
+                    <!-- Menú de acciones: en desktop los botones van sueltos; en
+                         móvil se colapsan tras el botón ⋯ para no saturar. -->
+                    <div class="pg-actions-menu">
+                        <button id="pgActionsToggle" class="pg-iconbtn pg-actions-toggle" title="Más acciones" aria-expanded="false">
+                            <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <div class="pg-actions-pop" id="pgActionsPop">
+                            <button id="pgTemplatesBtn" class="pg-iconbtn pg-actionbtn" title="Plantillas guardadas">
+                                <i data-lucide="library" class="w-3.5 h-3.5"></i>
+                                <span class="pg-actionbtn-label">Cargar plantilla</span>
+                            </button>
+                            <button id="pgSaveTplBtn" class="pg-iconbtn pg-actionbtn" title="Guardar como plantilla reutilizable">
+                                <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
+                                <span class="pg-actionbtn-label">Guardar plantilla</span>
+                            </button>
+                            <button id="pgSandboxDownload" class="pg-iconbtn pg-actionbtn" title="Descargar HTML">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                <span class="pg-actionbtn-label">Descargar HTML</span>
+                            </button>
+                            <button id="pgSandboxOpen" class="pg-iconbtn pg-actionbtn" title="Abrir render en pestaña nueva">
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                                <span class="pg-actionbtn-label">Abrir en pestaña</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </header>
 

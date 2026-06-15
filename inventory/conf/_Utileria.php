@@ -37,7 +37,23 @@ function sql($arreglo,$slice = 0){
 // Espejo EXACTO de badge() en app/conf/_Utileria.php y del simulador JS en
 // inventory/operacion/almacen/js/catalogo.js (badgeColors/badgePreview). El color es el
 // FONDO y el texto se adapta (mismo matiz, mas claro y vivo). Mantener los tres en sync.
-function badge($text, $color = '#9CA3AF', $degrade = 100) {
+function badge($text, $color = '#9CA3AF', $degrade = 100, $bgHex = null, $icon = null) {
+    $label = ($text === null || $text === '') ? '-' : $text;
+    $ico   = ($icon !== null && $icon !== '')
+        ? '<i data-lucide="' . htmlspecialchars($icon, ENT_QUOTES, 'UTF-8') . '" class="w-3 h-3"></i> '
+        : '';
+    $spanClass = $ico
+        ? 'inline-flex items-center gap-1 text-[10px] font-semibold px-3 py-1 rounded'
+        : 'text-[10px] font-semibold px-3 py-1 rounded';
+
+    // Modelo de 2 colores: $bgHex es el fondo explicito y $color el color del texto.
+    // Cuando se recibe $bgHex se ignora la derivacion automatica.
+    if ($bgHex !== null && $bgHex !== '') {
+        $fg = $color ?: '#475569';
+        return '<span class="' . $spanClass . '" style="background:' . $bgHex . ';color:' . $fg . ';">' . $ico . $label . '</span>';
+    }
+
+    // Modelo clasico (retrocompatible): $color es el FONDO y el texto se deriva del mismo matiz.
     $hex = ltrim($color ?: '#9CA3AF', '#');
     if (strlen($hex) === 3) {
         $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
@@ -84,6 +100,5 @@ function badge($text, $color = '#9CA3AF', $degrade = 100) {
     }
     $fg = sprintf('#%02X%02X%02X', (int) round($tr * 255), (int) round($tg * 255), (int) round($tb * 255));
 
-    $label = ($text === null || $text === '') ? '-' : $text;
-    return '<span class="text-[10px] font-semibold px-3 py-1 rounded" style="background:' . $bg . ';color:' . $fg . ';">' . $label . '</span>';
+    return '<span class="' . $spanClass . '" style="background:' . $bg . ';color:' . $fg . ';">' . $ico . $label . '</span>';
 }

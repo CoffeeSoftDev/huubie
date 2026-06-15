@@ -806,9 +806,16 @@ class InflowOrigin extends Templates {
             {
                 opc: "input",
                 id: "color_hex",
-                lbl: "Color (hex)",
+                lbl: "Color de texto",
                 type: "color",
-                class: "col-12 col-md-6 mb-3"
+                class: "col-12 col-md-3 mb-3"
+            },
+            {
+                opc: "input",
+                id: "bg_hex",
+                lbl: "Color de fondo",
+                type: "color",
+                class: "col-12 col-md-3 mb-3"
             },
             badgePreviewField()
         ];
@@ -962,9 +969,16 @@ class ShrinkageReason extends Templates {
             {
                 opc: "input",
                 id: "color_hex",
-                lbl: "Color (hex)",
+                lbl: "Color de texto",
                 type: "color",
-                class: "col-12 col-md-6 mb-3"
+                class: "col-12 col-md-3 mb-3"
+            },
+            {
+                opc: "input",
+                id: "bg_hex",
+                lbl: "Color de fondo",
+                type: "color",
+                class: "col-12 col-md-3 mb-3"
             },
             badgePreviewField()
         ];
@@ -1129,8 +1143,9 @@ class Supplier extends Templates {
 }
 
 // -- Selector de badge --
-// Espejo JS EXACTO de badge() en app/conf/_Utileria.php: el color es el FONDO y el
-// texto se adapta (mismo matiz, mas claro y vivo). Mantener ambos en sync.
+// Espejo JS de badge() en conf/_Utileria.php. Modelo de 2 colores: color_hex = texto,
+// bg_hex = fondo. Si no hay bg_hex se cae al modelo clasico (el color es el fondo y el
+// texto se deriva, via badgeColors). Mantener ambos en sync.
 
 function badgeColors(hex) {
     hex = String(hex || "#9CA3AF").replace("#", "");
@@ -1179,11 +1194,15 @@ function badgeColors(hex) {
     };
 }
 
-function badgePreview(text, hex, degrade = 100) {
-    const c = badgeColors(hex);
-    const alpha = Math.max(0, Math.min(100, parseFloat(degrade) || 0)) / 100;
+// Modelo de 2 colores: fg = color del texto, bg = color del fondo (espejo de badge() PHP).
+// Si no se recibe bg, se cae al modelo clasico (el color es el fondo y el texto se deriva).
+function badgePreview(text, fg, bg) {
     const label = (text == null || text === "") ? "-" : text;
-    return `<span class="text-[10px] font-semibold px-3 py-1 rounded" style="background:rgba(${c.r},${c.g},${c.b},${alpha});color:${c.fg};">${label}</span>`;
+    if (bg) {
+        return `<span class="text-[10px] font-semibold px-3 py-1 rounded" style="background:${bg};color:${fg || "#475569"};">${label}</span>`;
+    }
+    const c = badgeColors(fg);
+    return `<span class="text-[10px] font-semibold px-3 py-1 rounded" style="background:${c.bg};color:${c.fg};">${label}</span>`;
 }
 
 // Campo de vista previa del badge para inyectar en el json() de un form (theme light).
@@ -1206,6 +1225,7 @@ function wireBadgeSimulator(formId) {
     setTimeout(() => {
         const $form  = $("#" + formId);
         const $color = $form.find('[name="color_hex"], #color_hex').first();
+        const $bgInp = $form.find('[name="bg_hex"], #bg_hex').first();
         const $name  = $form.find('[name="name"], #name').first();
         const $badge = $form.find("#badgePreviewBadge");
         const $bg    = $form.find("#badgePreviewBg");
@@ -1213,15 +1233,16 @@ function wireBadgeSimulator(formId) {
         if (!$color.length || !$badge.length) return;
 
         const render = () => {
-            const hex  = $color.val() || "#9CA3AF";
+            const fg   = $color.val() || "#475569";
+            const bg   = $bgInp.length ? ($bgInp.val() || "#F1F5F9") : "";
             const name = ($name.val() || "Etiqueta").toString();
-            const c    = badgeColors(hex);
-            $badge.html(badgePreview(name, hex));
-            $bg.text(c.bg);
-            $fg.text(c.fg);
+            $badge.html(badgePreview(name, fg, bg));
+            $bg.text(bg || "-");
+            $fg.text(fg);
         };
 
         $color.off("input.sim change.sim").on("input.sim change.sim", render);
+        $bgInp.off("input.sim change.sim").on("input.sim change.sim", render);
         $name.off("input.sim").on("input.sim", render);
         render();
     }, 30);

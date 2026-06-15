@@ -234,10 +234,14 @@ class App extends Templates {
         if (sucursales.length) {
             this.populateSelect('branch_id', sucursales);
         }
-        // Por defecto arrancamos en "-- Todas --" para mostrar las entradas de
-        // todas las sucursales. this.subId conserva la sucursal real del usuario
-        // para precargarla en el formulario de nueva entrada (openEntradaForm).
-        $('#branch_id').val('');
+        // Arrancamos en la sucursal activa del usuario. Si solo tiene una, el
+        // select queda fijo (sin opcion "Todas" y deshabilitado).
+        if (sucursales.length <= 1) {
+            $('#branch_id').find('option[value=""]').remove();
+            $('#branch_id').val(this.subId).prop('disabled', true);
+        } else {
+            $('#branch_id').val(this.subId);
+        }
     }
 
     populateSelect(id, data) {
@@ -905,6 +909,10 @@ class EntradasView extends Templates {
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-0.5 rounded text-xs font-bold" style="background:${eP.bg};color:${eP.fg};">${esc(e.estado || '')}</span>
+                        ${!opts.editMode ? `
+                        <button id="${opts.id}_print" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors" title="Imprimir">
+                            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                        </button>` : ''}
                         <button id="${opts.id}_close" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors">
                             <i data-lucide="x" class="w-3.5 h-3.5"></i>
                         </button>
@@ -952,6 +960,7 @@ class EntradasView extends Templates {
                     </div>
                 </div>
 
+                ${(opts.editMode || !isCancelled) ? `
                 <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
                     ${opts.editMode ? `
                         <button id="${opts.id}_saveEdit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center gap-1.5">
@@ -960,14 +969,7 @@ class EntradasView extends Templates {
                         <button id="${opts.id}_cancelEdit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-gray-700 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center gap-1.5">
                             ${esc(opts.labels.cancelarEd)}
                         </button>
-                    ` : (isCancelled ? `
-                        <button id="${opts.id}_print" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-sky-600 hover:bg-sky-500 flex items-center justify-center gap-1.5">
-                            <i data-lucide="printer" class="w-3.5 h-3.5"></i>${esc(opts.labels.imprimir)}
-                        </button>
                     ` : `
-                        <button id="${opts.id}_print" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-sky-600 hover:bg-sky-500 flex items-center justify-center gap-1.5">
-                            <i data-lucide="printer" class="w-3.5 h-3.5"></i>${esc(opts.labels.imprimir)}
-                        </button>
                         ${isPending ? `
                             <button id="${opts.id}_confirm" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-green-600 hover:bg-green-500 flex items-center justify-center gap-1.5">
                                 <i data-lucide="check" class="w-3.5 h-3.5"></i>${esc(opts.labels.confirmar)}
@@ -980,8 +982,9 @@ class EntradasView extends Templates {
                         <button id="${opts.id}_reverse" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-rose-600 hover:bg-rose-500 flex items-center justify-center gap-1.5">
                             <i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.reversar)}
                         </button>
-                    `)}
+                    `}
                 </div>
+                ` : ''}
             </div>
         `);
 

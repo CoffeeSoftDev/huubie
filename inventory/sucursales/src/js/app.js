@@ -148,7 +148,9 @@ class App extends Templates {
                 const id = card.getAttribute('data-id');
                 useFetch({ url: api, data: { opc: 'switchBranch', id } }).then(res => {
                     if (res && res.status === 200) {
-                        window.location.href = '/inventory/operacion/almacen/';
+                        // Tras elegir sucursal: dashboard de módulos (cards). Desde ahí
+                        // el usuario navega módulo -> submódulo -> operación.
+                        window.location.href = '/inventory/modulos/';
                     } else {
                         Swal.fire({
                             ...swalTheme(),

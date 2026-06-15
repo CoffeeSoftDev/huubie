@@ -28,7 +28,7 @@ class ctrl extends mdl {
             'companies_id'     => $this->companiesId,
             'branch_id'        => $this->branchId,
             'user_id'          => $this->userId,
-            'sucursales'       => $this->lsSucursales([$this->companiesId]),
+            'sucursales'       => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'estados_traspaso' => $this->lsTransferStatuses()
         ];
@@ -62,7 +62,7 @@ class ctrl extends mdl {
 
         return [
             'status'    => 200,
-            'sucursales' => $this->lsSucursales([$cid]),
+            'sucursales' => $this->lsSucursales(['company_id' => $cid, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'  => $this->lsWarehouses(['companies_id' => $cid]),
             'categorias' => $this->lsCategorias([$cid]),
             'productos'  => $items
@@ -85,8 +85,8 @@ class ctrl extends mdl {
         foreach ($rows as $r) {
             $acciones = [
                 [
-                    'class'   => 'btn btn-sm btn-secondary me-1',
-                    'html'    => '<i class="icon-eye"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                     'onclick' => "app.selectTraspaso('{$r['folio']}', {$r['id']})"
                 ]
             ];
@@ -115,7 +115,7 @@ class ctrl extends mdl {
                 'Costo'     => evaluar((float) $r['total_cost']),
                 'Solicito'  => $r['requested_user_name'] ?: '-',
                 'Recibio'   => $r['received_user_name']  ?: '-',
-                'Estado'    => pillBadge($r['status_name'], $r['status_color']),
+                'Estado'    => badge($r['status_name'], $r['status_color'], 100, $r['status_bg'] ?? null),
                 'Solicitud' => formatRequestDate($r['date_request']),
                 'a'         => $acciones
             ];
@@ -328,17 +328,6 @@ function sucChipCell($branchId, $branchName, $whName, $withArrow) {
          . "<i data-lucide='store' class='w-4 h-4 {$p['icon']}'></i></div>"
          . "<div class='min-w-0'><div class='font-semibold text-gray-800 truncate leading-tight'>{$name}</div>{$wh}</div>"
          . "{$arrow}</div>";
-}
-
-function pillBadge($label, $colorHex) {
-    $label = $label ?: '-';
-    $color = $colorHex ?: '#9CA3AF';
-    $hex   = ltrim($color, '#');
-    $r = hexdec(substr($hex, 0, 2));
-    $g = hexdec(substr($hex, 2, 2));
-    $b = hexdec(substr($hex, 4, 2));
-    $bg = "rgba($r,$g,$b,0.18)";
-    return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$bg};color:{$color};'>{$label}</span>";
 }
 
 $obj = new ctrl();

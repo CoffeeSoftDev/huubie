@@ -195,6 +195,7 @@ class mdl extends CRUD {
                 name as valor,
                 icon,
                 color_hex,
+                bg_hex,
                 requires_supplier,
                 active
             FROM {$this->bd}inflow_origin
@@ -252,6 +253,7 @@ class mdl extends CRUD {
                 name as valor,
                 icon,
                 color_hex,
+                bg_hex,
                 active
             FROM {$this->bd}shrinkage_reason
             WHERE active = ?

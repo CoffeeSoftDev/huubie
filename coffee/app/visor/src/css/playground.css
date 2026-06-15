@@ -159,6 +159,14 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sandbox-actions { display: flex; align-items: center; gap: 8px; }
 .pg-theme-chip { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--vsr-bg-hover); color: var(--vsr-text-muted); }
 
+/* ── Menú de acciones del sandbox (cargar/guardar/descargar/abrir) ──
+   Desktop: el botón ⋯ está oculto y el "pop" se comporta como contenedor en
+   línea, con los botones sueltos (solo iconos). Móvil: se colapsa tras el ⋯. */
+.pg-actions-menu { position: relative; display: inline-flex; }
+.pg-actions-toggle { display: none; }                 /* ⋯ solo en móvil */
+.pg-actions-pop { display: inline-flex; align-items: center; gap: 8px; }
+.pg-actionbtn-label { display: none; }                /* en desktop, solo iconos */
+
 /* El fondo real lo pinta pgRenderSandbox() con el color del tema activo; este
    es solo el estado base para que no destelle blanco antes del primer render. */
 /* overflow:hidden a propósito: el ÚNICO scroll lo hace el documento dentro del
@@ -345,7 +353,234 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-chat-tpl-sub { font-size: 11px; color: var(--vsr-text-mute2); }
 .pg-chat-tpl-cta {
     display: inline-flex; align-items: center; gap: 5px;
-    margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--vsr-accent-soft);
+    font-size: 11px; font-weight: 600; color: var(--vsr-accent-soft);
+}
+.pg-chat-tpl-actions {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 4px;
+}
+/* Botón "Bifurcar aquí": chip discreto que abre un hilo nuevo heredando este
+   sandbox. pointer-events:auto porque la tarjeta contenedora captura el clic. */
+.pg-chat-tpl-fork {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; line-height: 1.6;
+    color: var(--vsr-text-mute2);
+    background: var(--vsr-bg-base);
+    border: 1px solid var(--vsr-border-soft);
+    cursor: pointer; pointer-events: auto;
+    transition: color .12s ease, border-color .12s ease, background .12s ease;
+}
+.pg-chat-tpl-fork:hover {
+    color: var(--vsr-accent-soft);
+    border-color: var(--vsr-accent-soft);
+    background: var(--vsr-bg-hover, var(--vsr-bg-base));
 }
 
+/* Botón "Fijar referencia": mismo chip que el fork. is-pinned = activo (acento). */
+.pg-chat-tpl-pin {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; line-height: 1.6;
+    color: var(--vsr-text-mute2);
+    background: var(--vsr-bg-base);
+    border: 1px solid var(--vsr-border-soft);
+    cursor: pointer; pointer-events: auto;
+    transition: color .12s ease, border-color .12s ease, background .12s ease;
+}
+.pg-chat-tpl-pin:hover {
+    color: var(--vsr-accent-soft);
+    border-color: var(--vsr-accent-soft);
+    background: var(--vsr-bg-hover, var(--vsr-bg-base));
+}
+.pg-chat-tpl-pin.is-pinned {
+    color: #fff;
+    background: var(--vsr-accent);
+    border-color: var(--vsr-accent);
+}
+.pg-chat-tpl-pin.is-pinned i { fill: currentColor; }
+
+/* Chip "Modificando: <título>" sobre el input cuando hay un template fijado. */
+.pg-pin-banner {
+    display: flex; align-items: center; gap: 7px;
+    margin: 0 0 8px; padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px; color: var(--vsr-accent-soft);
+    background: color-mix(in srgb, var(--vsr-accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vsr-accent) 35%, transparent);
+}
+.pg-pin-banner i { fill: currentColor; flex: 0 0 auto; }
+.pg-pin-banner-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-pin-banner-text strong { color: var(--vsr-text-soft); font-weight: 700; }
+.pg-pin-banner-x {
+    flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 6px;
+    color: var(--vsr-text-mute2); background: transparent; border: 0; cursor: pointer;
+    transition: color .12s ease, background .12s ease;
+}
+.pg-pin-banner-x:hover { color: var(--vsr-text-soft); background: var(--vsr-bg-hover, rgba(0,0,0,.06)); }
+
+/* Nota "sobre: <título>" dentro de la burbuja del usuario que pidió modificarlo. */
+.ia-msg-pinref {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 6px; padding: 2px 8px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 600;
+    color: var(--vsr-accent-soft);
+    background: color-mix(in srgb, var(--vsr-accent) 14%, transparent);
+}
+.ia-msg-pinref i { fill: currentColor; }
+
 .pg-modal-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--vsr-border); }
+
+/* ──────────────────────────────────────────────────────────────
+   Conmutador Chat/Sandbox — oculto en desktop, visible en móvil.
+   ────────────────────────────────────────────────────────────── */
+.pg-mobile-switch { display: none; }
+
+/* Botón Ajustes del header — oculto en desktop, visible en móvil. */
+.pg-header-toggle {
+    display: none;
+    width: 34px; height: 34px; border-radius: 8px;
+    place-items: center;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border-input);
+    color: var(--vsr-text-muted); cursor: pointer; transition: all .15s;
+}
+.pg-header-toggle.is-active { color: #fff; background: var(--vsr-accent); border-color: var(--vsr-accent); }
+
+/* ──────────────────────────────────────────────────────────────
+   RESPONSIVE — tablet/móvil (≤ 900px). El workspace de 2 paneles
+   se apila y se conmuta con la barra superior Chat/Sandbox.
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+    /* Header: una sola fila compacta (logo + título + botón Ajustes). Los
+       controles se mueven a un panel desplegable para no comer altura. */
+    .pg-header { flex-wrap: nowrap; gap: 10px; padding: 9px 12px; position: relative; }
+    .pg-header-left { flex: 1 1 auto; min-width: 0; }
+    .pg-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pg-subtitle { display: none; }                 /* ahorra altura */
+    .pg-header-toggle { display: grid; flex-shrink: 0; }
+
+    /* Barra de controles → panel flotante que baja desde el header al pulsar ⚙️. */
+    .pg-header-right {
+        display: none;
+        position: absolute; top: calc(100% + 1px); right: 8px; left: 8px; z-index: 60;
+        flex-direction: column; align-items: stretch; gap: 10px;
+        padding: 12px; width: auto;
+        background: var(--vsr-bg-chrome);
+        border: 1px solid var(--vsr-border);
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 16px 40px rgba(0,0,0,.4);
+    }
+    .pg-header-right.is-open { display: flex; }
+    /* Cada control a lo ancho del panel, fácil de tocar. */
+    .pg-header-right .pg-select-wrap,
+    .pg-header-right #pgKnowledgeBtn,
+    .pg-header-right .ia-model-pill { width: 100%; justify-content: flex-start; }
+    .pg-header-right .pg-select { max-width: none; flex: 1; }
+
+    /* Conmutador de vista visible. */
+    .pg-mobile-switch {
+        display: flex; gap: 6px; flex-shrink: 0;
+        padding: 8px 12px;
+        background: var(--vsr-bg-chrome);
+        border-bottom: 1px solid var(--vsr-border);
+    }
+    .pg-mswitch {
+        flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 9px 10px; border-radius: 9px;
+        font-size: 13px; font-weight: 600;
+        color: var(--vsr-text-mute2);
+        background: var(--vsr-bg-input);
+        border: 1px solid var(--vsr-border-input);
+        cursor: pointer; transition: all .15s;
+    }
+    .pg-mswitch.active {
+        color: #fff; background: var(--vsr-accent); border-color: var(--vsr-accent);
+    }
+
+    /* Workspace apilado: el rail va abajo como barra; el panel activo ocupa todo. */
+    .pg-workspace { flex-direction: column; position: relative; }
+
+    /* El splitter no aplica en una sola columna. */
+    .pg-splitter { display: none; }
+
+    /* Solo se muestra el panel que indique data-mview en el workspace. */
+    .pg-workspace[data-mview="chat"]    .pg-sandbox { display: none; }
+    .pg-workspace[data-mview="sandbox"] .pg-chat    { display: none; }
+    .pg-chat, .pg-sandbox {
+        flex: 1 1 auto; width: 100%; min-width: 0;
+    }
+
+    /* Rail → barra horizontal fija al fondo. */
+    .app-rail {
+        order: 99;                                  /* siempre al final del workspace */
+        width: 100%; flex-direction: row;
+        border-right: none; border-top: 1px solid var(--vsr-border);
+        padding: 6px 8px; gap: 4px;
+    }
+    .app-rail-nav { flex-direction: row; justify-content: space-around; }
+    .app-rail-item { flex: 1 1 0; min-height: 44px; padding: 6px 2px; }
+    .app-rail-item .app-rail-label { font-size: 8.5px; }
+    .app-rail-item.active::before { display: none; }   /* el marcador lateral no encaja en horizontal */
+
+    /* Cabecera del Sandbox: dejamos visible solo las tabs + zoom (− % +); las
+       demás acciones (cargar/guardar/descargar/abrir) se colapsan tras el ⋯. */
+    .pg-sandbox .pg-pane-head { gap: 8px; }
+    .pg-theme-chip { display: none; }   /* el tema ya se ve/elige en el panel de Ajustes */
+
+    .pg-actions-toggle { display: grid; }   /* mostrar el botón ⋯ */
+    /* El "pop" deja de ser fila en línea y pasa a menú flotante bajo el ⋯. */
+    .pg-actions-pop {
+        display: none;
+        position: absolute; top: calc(100% + 6px); right: 0; z-index: 60;
+        flex-direction: column; align-items: stretch; gap: 2px;
+        min-width: 190px; padding: 6px;
+        background: var(--vsr-bg-chrome);
+        border: 1px solid var(--vsr-border);
+        border-radius: 10px;
+        box-shadow: 0 16px 40px rgba(0,0,0,.4);
+    }
+    .pg-actions-pop.is-open { display: flex; }
+    /* Cada acción del menú: icono + etiqueta, alineadas a la izquierda. */
+    .pg-actions-pop .pg-actionbtn {
+        width: 100%; height: auto; justify-content: flex-start; gap: 9px;
+        padding: 9px 10px; border-radius: 7px; border: 1px solid transparent;
+        font-size: 13px; font-weight: 600; color: var(--vsr-text-soft);
+    }
+    .pg-actions-pop .pg-actionbtn:hover { background: var(--vsr-bg-hover); }
+    .pg-actions-pop .pg-actionbtn-label { display: inline; white-space: nowrap; }
+
+    /* Modales: casi pantalla completa para aprovechar el ancho. */
+    .pg-modal-dialog { width: 96vw !important; max-width: 96vw !important; max-height: 92vh; }
+    .pg-tpl-gallery { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* ── Móvil estrecho (≤ 560px): apretar aún más. ── */
+@media (max-width: 560px) {
+    .pg-title { font-size: 13px; }
+    .pg-logo { width: 32px; height: 32px; }
+    .pg-tpl-gallery { grid-template-columns: 1fr !important; }
+
+    /* Miniatura del template en el chat: apilar en columna para que el preview y
+       los botones (Ver / Fijar / Bifurcar) tengan ancho cómodo y no se aprieten. */
+    .pg-chat-tpl { flex-direction: column; gap: 8px; }
+    .pg-chat-tpl-thumb {
+        width: 100%; height: 150px;          /* preview a todo el ancho de la tarjeta */
+    }
+    .pg-chat-tpl-frame {
+        /* Escalamos al ancho disponible en vez de un factor fijo. */
+        width: 840px; height: 520px;
+        transform: scale(0.34); transform-origin: top left;
+    }
+    .pg-chat-tpl-info { justify-content: flex-start; }
+    /* Acciones: cada una como chip táctil, en una fila que envuelve si hace falta. */
+    .pg-chat-tpl-actions { gap: 8px; }
+    .pg-chat-tpl-cta,
+    .pg-chat-tpl-pin,
+    .pg-chat-tpl-fork {
+        padding: 6px 11px; font-size: 11.5px; border-radius: 999px;
+        border: 1px solid var(--vsr-border-soft);
+        background: var(--vsr-bg-base);
+    }
+    .pg-chat-tpl-cta { color: var(--vsr-accent-soft); border-color: transparent; background: var(--vsr-accent-tint); }
+}

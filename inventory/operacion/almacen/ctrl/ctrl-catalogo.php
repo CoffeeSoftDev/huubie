@@ -23,19 +23,19 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                    'html'    => '<i class="icon-pencil"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'category.editCategory(' . $item['id'] . ')'
                 ];
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-toggle-on"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
                     'onclick' => 'category.statusCategory(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
-                    'html'    => '<i class="icon-toggle-off"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'category.statusCategory(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             }
@@ -168,19 +168,19 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                    'html'    => '<i class="icon-pencil"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'area.editArea(' . $item['id'] . ')'
                 ];
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-toggle-on"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
                     'onclick' => 'area.statusArea(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
-                    'html'    => '<i class="icon-toggle-off"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'area.statusArea(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             }
@@ -299,19 +299,19 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                    'html'    => '<i class="icon-pencil"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'unit.editUnit(' . $item['id'] . ')'
                 ];
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-toggle-on"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
                     'onclick' => 'unit.statusUnit(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
-                    'html'    => '<i class="icon-toggle-off"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'unit.statusUnit(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             }
@@ -432,19 +432,19 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                    'html'    => '<i class="icon-pencil"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'inflow.editInflow(' . $item['id'] . ')'
                 ];
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-toggle-on"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
                     'onclick' => 'inflow.statusInflow(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
-                    'html'    => '<i class="icon-toggle-off"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'inflow.statusInflow(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             }
@@ -452,7 +452,7 @@ class ctrl extends mdl {
             $rows[] = [
                 'id'                => $item['id'],
                 'Código'            => $item['code'],
-                'Origen'            => badge($item['valor'], $item['color_hex']),
+                'Origen'            => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null),
                 'Requiere proveedor'=> ($item['requires_supplier'] == 1 ? 'Sí' : 'No'),
                 'Estado'            => renderStatus($item['active']),
                 'a'                 => $a
@@ -565,19 +565,19 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                    'html'    => '<i class="icon-pencil"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'shrinkage.editShrinkage(' . $item['id'] . ')'
                 ];
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-toggle-on"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
                     'onclick' => 'shrinkage.statusShrinkage(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
-                    'html'    => '<i class="icon-toggle-off"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'shrinkage.statusShrinkage(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             }
@@ -585,7 +585,7 @@ class ctrl extends mdl {
             $rows[] = [
                 'id'      => $item['id'],
                 'Código'  => $item['code'],
-                'Motivo'  => badge($item['valor'], $item['color_hex']),
+                'Motivo'  => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null),
                 'Estado'  => renderStatus($item['active']),
                 'a'       => $a
             ];
@@ -696,19 +696,19 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                    'html'    => '<i class="icon-pencil"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'warehouse.editWarehouse(' . $item['id'] . ')'
                 ];
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-toggle-on"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
                     'onclick' => 'warehouse.statusWarehouse(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
-                    'html'    => '<i class="icon-toggle-off"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'warehouse.statusWarehouse(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             }
@@ -837,19 +837,19 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                    'html'    => '<i class="icon-pencil"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'supplier.editSupplier(' . $item['id'] . ')'
                 ];
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-toggle-on"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
                     'onclick' => 'supplier.statusSupplier(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
-                    'html'    => '<i class="icon-toggle-off"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'supplier.statusSupplier(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
             }

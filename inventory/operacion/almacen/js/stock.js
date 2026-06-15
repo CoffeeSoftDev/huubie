@@ -215,6 +215,10 @@ class App extends Templates {
         if (sucursales.length) {
             this.populateSelect('branch_id', sucursales);
             $('#branch_id').val(this.subId);
+            if (sucursales.length <= 1) {
+                $('#branch_id').find('option[value=""]').remove();
+                $('#branch_id').val(this.subId).prop('disabled', true);
+            }
         }
     }
 
@@ -405,94 +409,7 @@ class StockView extends Templates {
         });
     }
 
-    kpisRow(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'kpisRow',
-            class:  'grid grid-cols-2 md:grid-cols-5 gap-3',
-            json:   [],
-            labels: {
-                empty: 'Sin indicadores'
-            },
-            tones: {
-                default: 'text-gray-800',
-                success: 'text-green-600',
-                warning: 'text-amber-500',
-                danger:  'text-red-600',
-                info:    'text-blue-600',
-                purple:  'text-purple-600'
-            },
-            iconBgTones: {
-                default: 'bg-slate-100',
-                success: 'bg-emerald-100',
-                warning: 'bg-amber-100',
-                danger:  'bg-rose-100',
-                info:    'bg-blue-100',
-                purple:  'bg-purple-100'
-            },
-            cardClass:  'bg-white rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:shadow-md transition-shadow',
-            labelClass: 'text-[10px] uppercase tracking-wider font-bold text-gray-500 whitespace-nowrap truncate',
-            valueClass: 'text-lg font-bold',
-            iconWrapClass: 'w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0',
-            iconClass:     'w-3.5 h-3.5',
-            onClick:    () => { }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.labels      = Object.assign({}, defaults.labels,      o.labels      || {});
-        opts.tones       = Object.assign({}, defaults.tones,       o.tones       || {});
-        opts.iconBgTones = Object.assign({}, defaults.iconBgTones, o.iconBgTones || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const toneClass   = (tone) => opts.tones[tone]       || opts.tones.default;
-        const iconBgClass = (tone) => opts.iconBgTones[tone] || opts.iconBgTones.default;
-
-        const kpiCard = (kpi, idx) => {
-            const cardId = kpi.id || `${opts.id}_${idx}`;
-            const iconHtml = kpi.icon ? `
-                <div class="${opts.iconWrapClass} ${iconBgClass(kpi.tone)}">
-                    <i data-lucide="${esc(kpi.icon)}" class="${opts.iconClass} ${toneClass(kpi.tone)}"></i>
-                </div>
-            ` : '';
-            return `
-                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
-                    <div class="flex items-start justify-between gap-2">
-                        <div class="flex-1 min-w-0">
-                            <p class="${opts.labelClass}">${esc(kpi.label)}</p>
-                            <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
-                        </div>
-                        ${iconHtml}
-                    </div>
-                </div>
-            `;
-        };
-
-        const grid = $('<div>', { id: opts.id, class: opts.class });
-
-        if (!opts.json || opts.json.length === 0) {
-            grid.html(`
-                <p class="col-span-full text-[10px] text-gray-500 italic text-center py-2">
-                    ${esc(opts.labels.empty)}
-                </p>
-            `);
-            $(`#${opts.parent}`).html(grid);
-            return;
-        }
-
-        grid.html(opts.json.map((kpi, idx) => kpiCard(kpi, idx)).join(''));
-        $(`#${opts.parent}`).html(grid);
-        if (window.lucide) lucide.createIcons();
-
-        grid.find('[data-kpi-idx]').on('click', (e) => {
-            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
-            const kpi = opts.json[idx];
-            opts.onClick(kpi, idx);
-        });
-    }
+  
 
     viewHeader(options) {
         const defaults = {

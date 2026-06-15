@@ -45,7 +45,7 @@ class SalidaForm {
                 resumenLbl:   'Resumen del folio',
                 productosLbl: 'Productos',
                 unidadesLbl:  'Unidades',
-                perdidaLbl:   'Perdida total',
+                perdidaLbl:   'Valor de salidas',
                 emptyTitle:   'Aun no se han agregado productos',
                 emptyHint:    'Usa el buscador para empezar',
                 limpiar:      'Limpiar',
@@ -315,7 +315,7 @@ class SalidaForm {
                         <th class="text-left px-3 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
                         <th class="text-center px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Cant.</th>
                         <th class="text-left px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo</th>
-                        <th class="text-right px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Perdida</th>
+                        <th class="text-right px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Subtotal</th>
                         <th class="w-10 px-2 py-2"></th>
                     </tr>
                 </thead>
@@ -794,13 +794,13 @@ class SalidaForm {
 
     doRegistrar() {
         if (!this.lote.length) {
-            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Agrega al menos un producto a la salida' });
+            app.alertBox({ type: 'warning', title: 'Agrega al menos un producto a la salida' });
             return;
         }
         const o = this.opts;
         const warehouseId = $(`#${o.id}_selAlmacen`).val();
         if (!warehouseId) {
-            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Selecciona un almacen' });
+            app.alertBox({ type: 'warning', title: 'Selecciona un almacen' });
             return;
         }
         const totUds   = this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
@@ -831,19 +831,14 @@ class SalidaForm {
         };
 
         // El registro es definitivo y descuenta stock del almacen: se pide confirmacion.
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title:              'Registrar esta salida?',
-                html:               `Se registraran <strong>${totUds}</strong> uds con una perdida de <strong>${this.fmtMoney(totCosto)}</strong>.<br>El stock se descontara del almacen y la accion es definitiva.`,
-                icon:               'warning',
-                showCancelButton:   true,
-                confirmButtonText:  'Si, registrar',
-                cancelButtonText:   'No',
-                confirmButtonColor: '#E11D48'
-            }).then((r) => { if (r.isConfirmed) submit(); });
-        } else {
-            submit();
-        }
+        app.alertBox({
+            type:        'cancel',
+            title:       'Registrar esta salida?',
+            detailHtml:  `Se registraran <strong>${totUds}</strong> uds por un valor de <strong>${this.fmtMoney(totCosto)}</strong>.<br>El stock se descontara del almacen y la accion es definitiva.`,
+            okLabel:     'Sí, registrar',
+            cancelLabel: 'No',
+            onOk:        submit
+        });
     }
 
     // -- Eventos --

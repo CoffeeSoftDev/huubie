@@ -130,6 +130,113 @@ class Access extends MAccess {
         return $sidebar;
     }
 
+    // Menú lateral dinámico: secciones a las que el usuario logueado tiene acceso
+    // en su sucursal activa. Fail-closed: si no hay sesión o no hay permisos, regresa vacío.
+    function menu() {
+        $userId   = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
+        $branchId = (int) ($_SESSION['branch_id'] ?? 0);
+
+        if ($userId <= 0 || $branchId <= 0) {
+            return ['status' => 200, 'items' => []];
+        }
+
+        $ls = $this->getAccessibleSections([$userId, $branchId]);
+
+        $items = [];
+        foreach ($ls as $s) {
+            $items[] = [
+                'code'  => $s['code'],
+                'title' => $s['name'],
+                'icon'  => $s['icon'] ?: 'square',     // ícono por defecto si falta
+                'route' => $s['route'] ?: ''           // ruta relativa a inventory/
+            ];
+        }
+
+        return ['status' => 200, 'items' => $items];
+    }
+
+    function branches() {
+        $userId   = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
+        $isOwner  = (int) ($_SESSION['is_owner'] ?? 0);
+
+        if ($isOwner === 1) {
+            $list = $this->getBranchesByCompany([$_SESSION['company_id']]);
+        } else {
+            $list = $this->getBranchesByUser([$userId]);
+        }
+
+        $branches = [];
+        foreach ($list as $branch) {
+            $parts    = preg_split('/\s+/', trim($branch['name']));
+            $initials = strtoupper(substr($parts[0], 0, 1));
+            if (count($parts) > 1) {
+                $initials .= strtoupper(substr(end($parts), 0, 1));
+            }
+
+            $branches[] = [
+                'id'        => (int) $branch['id'],
+                'name'      => $branch['name'],
+                'ubication' => $branch['ubication'] ?? '',
+                'active'    => (int) $branch['is_active'],
+                'initials'  => $initials,
+                'selected'  => ((int) $branch['id'] === (int) ($_SESSION['branch_id'] ?? 0)) ? 1 : 0,
+            ];
+        }
+
+        return [
+            'status'   => 200,
+            'company'  => $_SESSION['company'] ?? '',
+            'current'  => [
+                'id'   => (int) ($_SESSION['branch_id'] ?? 0),
+                'name' => $_SESSION['branch'] ?? '',
+            ],
+            'branches' => $branches,
+        ];
+    }
+
+    function switchBranch() {
+        $id = $_POST['id'];
+
+        $branch = $this->getBranchById([$id]);
+
+        if (!$branch) {
+            return [
+                'status'  => 404,
+                'message' => 'Sucursal no encontrada',
+            ];
+        }
+
+        if ((int) $branch['company_id'] !== (int) ($_SESSION['company_id'] ?? 0)) {
+            return [
+                'status'  => 403,
+                'message' => 'No tienes acceso a esta sucursal',
+            ];
+        }
+
+        $isOwner = (int) ($_SESSION['is_owner'] ?? 0);
+        if ($isOwner !== 1) {
+            $userId = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
+            if (!$this->userHasAccessToBranch([$userId, (int) $id])) {
+                return [
+                    'status'  => 403,
+                    'message' => 'Esta sucursal no está asignada a tu usuario',
+                ];
+            }
+        }
+
+        $_SESSION['branch_id'] = (int) $branch['id'];
+        $_SESSION['branch']    = $branch['name'];
+
+        return [
+            'status'  => 200,
+            'message' => 'Sucursal cambiada correctamente',
+            'branch'  => [
+                'id'   => (int) $branch['id'],
+                'name' => $branch['name'],
+            ],
+        ];
+    }
+
     // SESSION
     function checkSession() {
         define('SESSION_TIMEOUT', 1800);  // 30 minutos

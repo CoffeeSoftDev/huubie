@@ -446,8 +446,8 @@ class EntradaForm {
         const stockColor  = p.stock === 0 ? 'text-red-500' : p.stock < 5 ? 'text-orange-500' : 'text-green-600';
         return `
             <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-50/40 transition-colors" data-idx="${i}">
-                <td class="px-5 py-2 align-middle w-28">
-                    <span class="text-[11px] font-mono text-gray-500">${this.esc(p.sku)}</span>
+                <td class="px-3 py-2 align-middle w-28">
+                    <span class="block truncate text-[11px] font-mono text-gray-500" title="${this.esc(p.sku)}">${this.esc(p.sku)}</span>
                 </td>
                 <td class="px-3 py-2 align-middle">
                     <div class="flex items-center gap-2.5 min-w-0">
@@ -506,7 +506,7 @@ class EntradaForm {
             <table class="w-full border-collapse">
                 <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                     <tr>
-                        <th class="text-left px-5 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">SKU</th>
+                        <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">SKU</th>
                         <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
                         <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-32">Stock</th>
                         <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Cantidad</th>
@@ -574,7 +574,7 @@ class EntradaForm {
         this.wrap = $('<div>', { id: o.id, class: o.class });
         this.wrap.html(`
             <div class="absolute inset-0 bg-black/40" data-modal-close></div>
-            <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+            <div class="relative z-10 w-full max-w-[1080px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
                 ${this.renderHeader()}
                 ${this.renderConfigRow()}
                 ${this.renderSearchBar()}

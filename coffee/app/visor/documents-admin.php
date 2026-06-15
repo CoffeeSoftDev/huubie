@@ -55,6 +55,10 @@
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
                 </a>
+                <a href="chat.php" class="app-rail-item" title="Chat con Agentes">
+                    <i data-lucide="message-circle"></i>
+                    <span class="app-rail-label">Chat</span>
+                </a>
                 <a href="documents-admin.php" class="app-rail-item active" title="Admin de Documentos">
                     <i data-lucide="folder-cog"></i>
                     <span class="app-rail-label">Admin</span>

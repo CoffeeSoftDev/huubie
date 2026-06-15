@@ -129,7 +129,10 @@ function coffeeia_build_context(array $body) {
             // fallaba -> body vacio -> Ollama respondia "HTTP 400: EOF".)
             $fileContent = mb_strcut($fileContent, 0, COFFEEIA_MAX_FILE_BYTES, 'UTF-8') . "\n\n[... truncado a 64KB ...]";
         }
-        $ctxDocs[] = ['label' => 'archivo abierto en el visor', 'name' => $currentFile, 'content' => $fileContent];
+        $abiertoLabel = $editorMode
+            ? 'archivo abierto en el visor (TEXTO CRUDO — copia de aqui LITERAL para los <find>)'
+            : 'archivo abierto en el visor';
+        $ctxDocs[] = ['label' => $abiertoLabel, 'name' => $currentFile, 'content' => $fileContent];
     }
 
     $pinnedFiles = isset($body['pinnedFiles']) && is_array($body['pinnedFiles']) ? $body['pinnedFiles'] : [];

@@ -220,6 +220,20 @@ switch ($action) {
         }
         break;
 
+    case 'read':
+        $rawPath = $_REQUEST['path'] ?? '';
+        if (!$rawPath) jsonResponse(false, 'Ruta requerida');
+
+        $path = realpath($BASE_DIR . '/' . ltrim($rawPath, '/\\'));
+        if (!$path || !isInsideDocuments($path)) jsonResponse(false, 'Ruta no permitida');
+        if (!is_file($path))                      jsonResponse(false, 'Archivo no encontrado');
+        if (substr($path, -3) !== '.md')          jsonResponse(false, 'Solo archivos .md');
+
+        $content = file_get_contents($path);
+        if ($content === false) jsonResponse(false, 'Error al leer');
+        jsonResponse(true, 'OK', ['content' => $content]);
+        break;
+
     case 'save':
         $rawPath = $_POST['path'] ?? '';
         $content = $_POST['content'] ?? '';

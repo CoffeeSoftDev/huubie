@@ -166,6 +166,16 @@ class App extends Templates {
             data:       filters
         });
 
+        // Arrancamos en la sucursal activa del usuario. Si solo tiene una, el
+        // select queda fijo (sin opcion "Todas" y deshabilitado).
+        const sucs = this.dataInit.sucursales || [];
+        if (sucs.length <= 1) {
+            $('#fSucursal').find('option[value=""]').remove();
+            $('#fSucursal').val(this.branchId).prop('disabled', true);
+        } else {
+            $('#fSucursal').val(this.branchId);
+        }
+
         dataPicker({
             parent: `calendar${this.PROJECT_NAME}`,
             rangepicker: {

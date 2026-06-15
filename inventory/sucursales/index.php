@@ -62,15 +62,15 @@ if (empty($_SESSION["IDU"])) {
         .suc-pill        { background: var(--suc-pill-bg); border-color: var(--suc-border); color: var(--suc-pill-text); }
         .suc-border      { border-color: var(--suc-border); }
 
-        /* ── Botón flotante de tema ── */
+        /* ── Ícono flotante de tema (solo ícono, sin recuadro de botón) ── */
         .suc-theme-toggle {
             position: fixed; top: 18px; right: 18px; z-index: 50;
-            width: 40px; height: 40px; border-radius: 10px;
+            width: 40px; height: 40px;
             display: flex; align-items: center; justify-content: center;
-            color: var(--suc-muted); border: 1px solid var(--suc-border);
-            background: var(--suc-card); transition: all .15s ease; cursor: pointer;
+            color: var(--suc-muted); border: none; background: transparent;
+            transition: color .15s ease; cursor: pointer;
         }
-        .suc-theme-toggle:hover { color: var(--suc-text); filter: brightness(.97); }
+        .suc-theme-toggle:hover { color: var(--suc-text); }
     </style>
 </head>
 

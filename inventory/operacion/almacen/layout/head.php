@@ -23,7 +23,10 @@
     <link rel="stylesheet" href="../../src/plugin/select2/bootstrap/select2-bootstrap-5-theme.min.css">
 
     <!--PERSONALIZADO-->
-    <link rel="stylesheet" href="../../src/css/general.css">
+    <!-- general.css con cache-buster: trae el fix del alert Swal que contraia el
+         container (position:fixed sobre .swal2-container en body flex-row). Evita
+         que el navegador sirva una copia vieja cacheada. -->
+    <link rel="stylesheet" href="../../src/css/general.css?v=<?php echo filemtime(__DIR__ . '/../../../src/css/general.css'); ?>">
     <link rel="stylesheet" href="../../src/css/colors.css">
     <link rel="stylesheet" href="../../src/css/table.css">
     <link rel="stylesheet" href="../../src/css/buttons.css">

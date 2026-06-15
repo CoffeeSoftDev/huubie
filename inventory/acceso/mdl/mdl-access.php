@@ -109,4 +109,86 @@ class MAccess extends CRUD {
         $result = $this->_Read($query, $array);
         return !empty($result) ? $result[0] : null;
     }
+
+    function getBranchesByCompany($array) {
+        $query = "
+            SELECT
+                id,
+                name,
+                ubication,
+                is_active,
+                logo
+            FROM {$this->bd}branches
+            WHERE company_id = ?
+                AND is_active = 1
+            ORDER BY name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function getBranchesByUser($array) {
+        $query = "
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active,
+                b.logo
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ?
+                AND b.is_active = 1
+            ORDER BY b.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function getBranchById($array) {
+        $query = "
+            SELECT
+                id,
+                name,
+                company_id,
+                ubication,
+                is_active
+            FROM {$this->bd}branches
+            WHERE id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return !empty($r) ? $r[0] : null;
+    }
+
+    function userHasAccessToBranch($array) {
+        $query = "
+            SELECT 1
+            FROM {$this->bd}users_braches
+            WHERE user_id = ?
+                AND branch_id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return !empty($r);
+    }
+
+    // Secciones a las que el usuario tiene acceso en una sucursal concreta.
+    // Resuelve users_braches -> roles -> permissions -> sections. Base del menú dinámico.
+    function getAccessibleSections($array) {
+        // [user_id, branch_id]
+        $query = "
+            SELECT DISTINCT
+                s.id, s.name, s.code, s.icon, s.route, s.orden,
+                m.name AS module_name
+            FROM {$this->bd}users_braches ub
+            JOIN {$this->bd}permissions p ON p.role_id = ub.role_id AND p.is_active = 1
+            JOIN {$this->bd}sections s    ON s.id = p.section_id AND s.is_active = 1
+            LEFT JOIN {$this->bd}modules m ON m.id = s.module_id
+            WHERE ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, s.orden ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
 }

@@ -132,6 +132,10 @@
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
                 </a>
+                <a href="chat.php" class="app-rail-item" title="Chat con Agentes">
+                    <i data-lucide="message-circle"></i>
+                    <span class="app-rail-label">Chat</span>
+                </a>
                 <a href="documents-admin.php" class="app-rail-item" title="Admin de Documentos">
                     <i data-lucide="folder-cog"></i>
                     <span class="app-rail-label">Admin</span>
@@ -279,6 +283,38 @@
                     <div class="doc-main">
                         <div class="doc-main-meta">
                             <span id="lineCountChip">~ 0 lineas</span>
+                        </div>
+
+                        <!-- Toolbar de Markdown (estilo GitHub) — visible solo en modo edicion -->
+                        <div id="mdToolbar" class="md-toolbar hidden">
+                            <!-- Selector de estilo de bloque / tamaño de texto -->
+                            <select class="md-block-select" data-md-block title="Estilo de texto">
+                                <option value="p">Texto normal</option>
+                                <option value="h1">Título 1</option>
+                                <option value="h2">Título 2</option>
+                                <option value="h3">Título 3</option>
+                                <option value="h4">Título 4</option>
+                                <option value="quote">Cita</option>
+                                <option value="codeblock">Bloque de código</option>
+                            </select>
+                            <span class="md-toolbar-sep"></span>
+                            <button type="button" class="md-tool" data-md="bold"       title="Negrita (Ctrl+B)"><i data-lucide="bold" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="italic"     title="Cursiva (Ctrl+I)"><i data-lucide="italic" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="strike"     title="Tachado"><i data-lucide="strikethrough" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="code"       title="Código en línea"><i data-lucide="code" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="link"       title="Enlace (Ctrl+K)"><i data-lucide="link" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="image"      title="Imagen"><i data-lucide="image" class="w-4 h-4"></i></button>
+                            <span class="md-toolbar-sep"></span>
+                            <button type="button" class="md-tool" data-md="ul"   title="Lista"><i data-lucide="list" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="ol"   title="Lista numerada"><i data-lucide="list-ordered" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="task" title="Lista de tareas"><i data-lucide="list-checks" class="w-4 h-4"></i></button>
+                            <span class="md-toolbar-sep"></span>
+                            <button type="button" class="md-tool" data-md="quote"     title="Cita"><i data-lucide="text-quote" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="codeblock" title="Bloque de código"><i data-lucide="square-code" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="table"     title="Tabla"><i data-lucide="table" class="w-4 h-4"></i></button>
+                            <button type="button" class="md-tool" data-md="hr"        title="Línea divisoria"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                            <span class="md-toolbar-sep"></span>
+                            <button type="button" class="md-tool" data-md="clear" title="Quitar formato"><i data-lucide="remove-formatting" class="w-4 h-4"></i></button>
                         </div>
 
                         <article id="md-rendered" class="md-rendered"></article>

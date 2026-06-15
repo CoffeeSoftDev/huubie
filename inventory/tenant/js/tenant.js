@@ -1,12 +1,11 @@
-// Núcleo del Administrador del Tenant: estado global, App y arranque.
-// Las clases de cada dominio viven en saas.js y access.js (cargados antes).
-
 let api = 'ctrl/ctrl-tenant.php';
-let app, companies, plans, subscriptions, payments, coupons, redemptions;
-let modules, submodules, sections, typePermissions, roles, permissions;
+let app, facturacion, promociones, accesos;
+let companies, plans, subscriptions, payments, coupons, redemptions;
+let modules, submodules, sections, typePermissions, roles, permissions, users;
 let dataInit = {};
 
-// Éxito con timer; error con botón para poder leerse.
+// -- Helpers --
+
 function notify(r) {
     if (r && r.status == 200) {
         alert({ icon: 'success', text: r.message, timer: 1400 });
@@ -15,10 +14,32 @@ function notify(r) {
     }
 }
 
+function afterSave(response, reload) {
+    notify(response);
+    if (response && response.status == 200 && typeof reload === 'function') reload();
+}
+
+// Convierte un texto a slug: minúsculas, sin acentos, espacios -> guiones.
+// 'Inventarios Productos' -> 'inventarios-productos'
+function slugify(text) {
+    return (text || '')
+        .toString()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '') // quita acentos (diacríticos)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')   // todo lo no alfanumérico -> guion
+        .replace(/^-+|-+$/g, '');       // sin guiones al inicio/fin
+}
+
+// Mientras se escribe el Nombre, autogenera el Código (campo de solo lectura).
+// Se llama desde el onkeyup del input de nombre en los formularios.
+function autoCode(value) {
+    $('#code').val(slugify(value));
+}
+
 $(async () => {
     dataInit = await useFetch({ url: api, data: { opc: 'init' } });
 
-    app           = new App(api, 'root');
     companies     = new Companies(api, 'root');
     plans         = new Plans(api, 'root');
     subscriptions = new Subscriptions(api, 'root');
@@ -31,9 +52,17 @@ $(async () => {
     typePermissions = new TypePermissions(api, 'root');
     roles           = new Roles(api, 'root');
     permissions     = new Permissions(api, 'root');
+    users           = new Users(api, 'root');
 
+    facturacion = new FacturacionGroup(api, 'root');
+    promociones = new PromocionesGroup(api, 'root');
+    accesos     = new AccesosGroup(api, 'root');
+
+    app = new App(api, 'root');
     app.render();
 });
+
+// -- App --
 
 class App extends Templates {
     constructor(link, divModule) {
@@ -43,150 +72,260 @@ class App extends Templates {
 
     render() {
         this.layout();
-        companies.render();
-        plans.render();
-        subscriptions.render();
-        payments.render();
-        coupons.render();
-        redemptions.render();
-        modules.render();
-        submodules.render();
-        sections.render();
-        typePermissions.render();
-        roles.render();
-        permissions.render();
-        // Pestaña por defecto.
-        companies.lsCompanies();
+        this.headerBar({ parent: `header${this.PROJECT_NAME}` });
+        this.renderTabs();
+        this.renderActiveTab();
     }
 
     layout() {
-        this.primaryLayout({
+        this.createLayout({
             parent: 'root',
-            id: this.PROJECT_NAME,
-            class: 'w-full',
-            card: {
-                filterBar: { class: 'w-full', id: `filterBar${this.PROJECT_NAME}` },
-                container: { class: 'w-full h-full', id: `container${this.PROJECT_NAME}` }
+            design: false,
+            data: {
+                id: this.PROJECT_NAME,
+                class: 'flex flex-col mx-2',
+                container: [
+                    { type: 'div', id: `header${this.PROJECT_NAME}`, class: 'w-full' },
+                    { type: 'div', id: `container${this.PROJECT_NAME}`, class: 'w-full  rounded p-2' }
+                ]
             }
         });
-
-        this.headerBar({ parent: `filterBar${this.PROJECT_NAME}` });
-        this.layoutTabs();
     }
 
     headerBar(options) {
-        const totalCompanies = (dataInit.companies || []).length;
-        const totalPlans     = (dataInit.plans || []).length;
-
-        const container = $('<div>', {
-            class: 'flex justify-between items-center px-2 pt-3 pb-3'
-        });
-
-        container.html(`
-            <div>
-                <h2 class="text-2xl font-semibold">🏢 Administrador del Tenant</h2>
-                <p class="text-gray-400">
-                    Plataforma SaaS ·
-                    <span class="font-semibold text-gray-600">${totalCompanies}</span>
-                    empresa${totalCompanies !== 1 ? 's' : ''} activa${totalCompanies !== 1 ? 's' : ''} ·
-                    <span class="font-semibold text-gray-600">${totalPlans}</span>
-                    plan${totalPlans !== 1 ? 'es' : ''}
-                </p>
+        $(`#${options.parent}`).html(`
+            <div class="flex items-center gap-3 px-2 pt-2 pb-2">
+                <div class="flex items-center justify-center w-11 h-11 rounded-xl bg-blue-50 text-blue-600">
+                    <i data-lucide="building-2" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-semibold tracking-tight">Administrador CoffeeSoft</h2>
+                    <p class="text-sm text-gray-400 flex items-center gap-1.5">
+                        <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+                        Plataforma SaaS
+                    </p>
+                </div>
             </div>
-            <button class="bg-[#C05A40] hover:opacity-90 text-white font-semibold px-4 py-2 rounded transition flex items-center"
-                onclick="app.render()">
-                <i class="icon-arrows-cw mr-2"></i>Actualizar
-            </button>
         `);
-
-        $(`#${options.parent}`).html(container);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    layoutTabs() {
+    renderTabs() {
         this.tabLayout({
             parent: `container${this.PROJECT_NAME}`,
-            id: `tabs${this.PROJECT_NAME}`,
+            id: `groups${this.PROJECT_NAME}`,
             theme: 'light',
-            class: '',
             type: 'short',
+            json: [
+                {
+                    id: 'grp-facturacion',
+                    tab: 'Facturación',
+                    lucideIcon: 'credit-card',
+                    class:'p-3',
+                    active: true,
+                    onClick: () => facturacion.render()
+                },
+                {
+                    id: 'grp-accesos',
+                    tab: 'Accesos y permisos',
+                    lucideIcon: 'shield',
+                    class: 'p-3',
+                    onClick: () => accesos.render()
+                },
+                {
+                    id: 'grp-promociones',
+                    tab: 'Promociones',
+                    class: 'p-3',
+                    lucideIcon: 'ticket-percent',
+                    onClick: () => promociones.render()
+                },
+            ]
+        });
+    }
+
+    renderActiveTab() {
+        facturacion.render();
+    }
+}
+
+// -- FacturacionGroup --
+
+class FacturacionGroup extends Templates {
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'Facturacion';
+    }
+
+    render() {
+        if ($(`#tabsFacturacion`).length) {
+            return;
+        }
+        this.renderTabs();
+        this.renderActiveTab();
+    }
+
+    renderTabs() {
+        this.tabLayout({
+            parent: 'container-grp-facturacion',
+            id: 'tabsFacturacion',
+            theme: 'light',
+            type: 'button',
             json: [
                 {
                     id: 'empresas',
                     tab: 'Empresas',
                     lucideIcon: 'building-2',
-                    class: 'mb-1',
                     active: true,
-                    onClick: () => companies.lsCompanies()
+                    onClick: () => { companies.render(); companies.lsCompanies(); }
                 },
                 {
                     id: 'planes',
                     tab: 'Planes',
                     lucideIcon: 'layers',
-                    onClick: () => plans.lsPlans()
+                    onClick: () => { plans.render(); plans.lsPlans(); }
                 },
                 {
                     id: 'suscripciones',
                     tab: 'Suscripciones',
-                    lucideIcon: 'credit-card',
-                    onClick: () => subscriptions.lsSubscriptions()
+                    lucideIcon: 'receipt',
+                    onClick: () => { subscriptions.render(); subscriptions.lsSubscriptions(); }
                 },
                 {
                     id: 'pagos',
                     tab: 'Pagos',
                     lucideIcon: 'dollar-sign',
-                    onClick: () => payments.lsPayments()
-                },
+                    onClick: () => { payments.render(); payments.lsPayments(); }
+                }
+            ]
+        });
+    }
+
+    renderActiveTab() {
+        companies.render();
+        companies.lsCompanies();
+    }
+}
+
+// -- PromocionesGroup --
+
+class PromocionesGroup extends Templates {
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'Promociones';
+    }
+
+    render() {
+        if ($(`#tabsPromociones`).length) {
+            return;
+        }
+        this.renderTabs();
+        this.renderActiveTab();
+    }
+
+    renderTabs() {
+        this.tabLayout({
+            parent: 'container-grp-promociones',
+            id: 'tabsPromociones',
+            theme: 'light',
+            type: 'button',
+            json: [
                 {
                     id: 'cupones',
                     tab: 'Cupones',
-                    lucideIcon: 'ticket-percent',
-                    onClick: () => coupons.lsCoupons()
+                    lucideIcon: 'tag',
+                    active: true,
+                    onClick: () => { coupons.render(); coupons.lsCoupons(); }
                 },
                 {
                     id: 'canjes',
                     tab: 'Canjes',
                     lucideIcon: 'gift',
-                    onClick: () => redemptions.lsRedemptions()
+                    onClick: () => { redemptions.render(); redemptions.lsRedemptions(); }
+                }
+            ]
+        });
+    }
+
+    renderActiveTab() {
+        coupons.render();
+        coupons.lsCoupons();
+    }
+}
+
+// -- AccesosGroup --
+
+class AccesosGroup extends Templates {
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'Accesos';
+    }
+
+    render() {
+        if ($(`#tabsAccesos`).length) {
+            return;
+        }
+        this.renderTabs();
+        this.renderActiveTab();
+    }
+
+    renderTabs() {
+        this.tabLayout({
+            parent: 'container-grp-accesos',
+            id: 'tabsAccesos',
+            theme: 'light',
+            type: 'button',
+            json: [
+                {
+                    id: 'permisos',
+                    tab: 'Permisos',
+                    lucideIcon: 'shield-check',
+                    active: true,
+                    onClick: () => { permissions.render(); permissions.lsPermissions(); }
                 },
                 {
                     id: 'modulos',
                     tab: 'Módulos',
                     lucideIcon: 'layout-grid',
-                    onClick: () => modules.lsModules()
+               
+                    onClick: () => { modules.render(); modules.lsModules(); }
                 },
                 {
                     id: 'submodulos',
                     tab: 'Submódulos',
                     lucideIcon: 'folder-tree',
-                    onClick: () => submodules.lsSubmodules()
+                    onClick: () => { submodules.render(); submodules.lsSubmodules(); }
                 },
                 {
                     id: 'secciones',
                     tab: 'Secciones',
                     lucideIcon: 'layout-list',
-                    onClick: () => sections.lsSections()
+                    onClick: () => { sections.render(); sections.lsSections(); }
                 },
                 {
                     id: 'roles',
                     tab: 'Roles',
-                    lucideIcon: 'shield',
-                    onClick: () => roles.lsRoles()
+                    lucideIcon: 'users',
+                    onClick: () => { roles.render(); roles.lsRoles(); }
+                },
+                {
+                    id: 'usuarios',
+                    tab: 'Usuarios',
+                    lucideIcon: 'user-cog',
+                    onClick: () => { users.render(); users.lsUsers(); }
                 },
                 {
                     id: 'tipos-permiso',
                     tab: 'Tipos de permiso',
                     lucideIcon: 'key-round',
-                    onClick: () => typePermissions.lsTypePermissions()
+                    onClick: () => { typePermissions.render(); typePermissions.lsTypePermissions(); }
                 },
-                {
-                    id: 'permisos',
-                    tab: 'Permisos',
-                    lucideIcon: 'shield-check',
-                    onClick: () => permissions.lsPermissions()
-                }
+           
             ]
         });
+    }
 
-        $(`#content-tabs${this.PROJECT_NAME}`).removeClass('h-screen');
+    renderActiveTab() {
+        permissions.render();
+        permissions.lsPermissions();
     }
 }

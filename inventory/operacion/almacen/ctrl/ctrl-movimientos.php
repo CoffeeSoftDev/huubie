@@ -28,7 +28,7 @@ class ctrl extends mdl {
             'companies_id' => $this->companiesId,
             'branch_id'    => $this->branchId,
             'user_id'      => $this->userId,
-            'sucursales'   => $this->lsSucursales([$this->companiesId])
+            'sucursales'   => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)])
         ];
     }
 

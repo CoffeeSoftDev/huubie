@@ -27,7 +27,7 @@ const CF_CSS = {
     textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
     label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
     error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
-    btnPrimary: 'tw-btn w-full rounded-lg bg-[#003360]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#003360] active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnPrimary: 'tw-btn w-full rounded-lg bg-[#C05A40] px-4 py-2 text-sm font-semibold text-white hover:bg-[#A84A33] active:bg-[#8F3D2A] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnInvernal: 'tw-btn w-full rounded-lg bg-[#C05A40] px-4 py-2 text-sm font-semibold text-white hover:bg-[#A84A33] active:bg-[#8F3D2A] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnInfo: 'tw-btn w-full rounded-lg bg-[#0078D7]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#0078D7] active:bg-[#0078D7] focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnSuccess: 'tw-btn w-full rounded-lg bg-[#7aab20]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#7aab20] active:bg-[#7aab20] focus:outline-none focus:ring-2 focus:ring-[#7aab20] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
@@ -2365,7 +2365,7 @@ class Components extends Complements {
         let defaults = {
             id: 'idFilterBar',
             parent: 'filterBar',
-            coffeesoft: false,
+            coffeesoft: true,
 
             json: [
                 {
@@ -4599,9 +4599,9 @@ class Components extends Complements {
             },
             button: {
                 base: "bg-gray-100  p-1 rounded-lg inline-flex shadow-blue-500/50",
-                active: "bg-blue-600 text-white",
+                active: "bg-white text-[#C05A40]",
                 inactive: " text-gray-600 hover:bg-gray-50",
-                iconActive: "text-white"
+                iconActive: "text-[#C05A40]"
             }
         };
 
@@ -6187,6 +6187,34 @@ class Templates extends Components {
         // Se puede sobrescribir por llamada pasando `okBg` en options.
         const OK_TERRACOTA = 'bg-[#C05A40] hover:bg-[#A84A33]';
 
+        if (!document.getElementById('tf-alert-anim')) {
+            const style = document.createElement('style');
+            style.id = 'tf-alert-anim';
+            style.textContent = `
+                @keyframes tfAlertPop {
+                    0%   { transform: scale(.7);  opacity: 0; }
+                    45%  { transform: scale(1.05); }
+                    80%  { transform: scale(.97); }
+                    100% { transform: scale(1);   opacity: 1; }
+                }
+                @keyframes tfAlertHide {
+                    0%   { transform: scale(1);  opacity: 1; }
+                    100% { transform: scale(.6); opacity: 0; }
+                }
+                @keyframes tfAlertFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes tfAlertFadeOut { from { opacity: 1; } to { opacity: 0; } }
+                .tf-alert-card.tf-ab-in   { animation: tfAlertPop  .32s cubic-bezier(.34,1.56,.64,1) both; }
+                .tf-alert-card.tf-ab-out  { animation: tfAlertHide .2s  ease-in both; }
+                .tf-ab-backdrop.tf-ab-in  { animation: tfAlertFadeIn  .25s ease both; }
+                .tf-ab-backdrop.tf-ab-out { animation: tfAlertFadeOut .2s  ease both; }
+                @media (prefers-reduced-motion: reduce) {
+                    .tf-alert-card.tf-ab-in, .tf-alert-card.tf-ab-out,
+                    .tf-ab-backdrop.tf-ab-in, .tf-ab-backdrop.tf-ab-out { animation: none; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
         const presets = {
             message: { icon: 'info',           iconBg: 'bg-blue-50',  iconColor: 'text-blue-600',  dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
             success: { icon: 'check-circle',   iconBg: 'bg-green-50', iconColor: 'text-green-600', dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
@@ -6215,6 +6243,15 @@ class Templates extends Components {
             okBg:        base.okBg,
             width:       base.dual ? 'w-[360px]' : 'w-[340px]',
             timer:       0,
+            // Campo de entrada opcional. `input`: 'text' | 'textarea' | true (= 'text').
+            // El valor capturado se pasa como argumento a onOk(value).
+            input:          false,
+            inputLabel:     '',
+            inputPlaceholder: '',
+            inputValue:     '',
+            inputRequired:  false,
+            inputError:     'Este campo es obligatorio',
+            inputValidator: null,
             onOk:        null,
             onCancel:    null,
             onClose:     null
@@ -6235,9 +6272,28 @@ class Templates extends Components {
             ? `<i data-lucide="${opts.okIcon}" class="w-3.5 h-3.5"></i>`
             : '';
 
+        const escAttr = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const inputType = opts.input === true ? 'text' : opts.input;
+        const inputField = inputType === 'textarea'
+            ? `<textarea data-ab-input rows="3" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#C05A40]/40 focus:border-[#C05A40]">${escAttr(opts.inputValue)}</textarea>`
+            : inputType
+                ? `<input type="${escAttr(inputType)}" data-ab-input value="${escAttr(opts.inputValue)}" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C05A40]/40 focus:border-[#C05A40]">`
+                : '';
+
+        const inputHtml = inputField
+            ? `<div class="px-5 pt-1 pb-4 text-left">
+                    ${opts.inputLabel ? `<label class="block text-[11px] font-bold text-gray-600 mb-1.5">${opts.inputLabel}</label>` : ''}
+                    ${inputField}
+                    <p data-ab-input-error class="hidden text-[11px] font-medium text-red-500 mt-1.5"></p>
+               </div>`
+            : '';
+
         // Modo toast: con auto-cierre (timer) y sin segundo boton, no se muestran
-        // botones porque la notificacion se cierra sola.
-        const isToast = opts.timer > 0 && !opts.dual;
+        // botones porque la notificacion se cierra sola. Con input no aplica toast.
+        const isToast = opts.timer > 0 && !opts.dual && !inputField;
 
         const cancelBtn = opts.dual
             ? `<button type="button" data-ab-cancel class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-gray-600 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-800 transition-all">${opts.cancelLabel}</button>`
@@ -6251,8 +6307,8 @@ class Templates extends Components {
 
         const $overlay = $(`
             <div id="${uid}" class="fixed inset-0 z-[999] flex items-center justify-center">
-                <div class="absolute inset-0 bg-black/40" data-ab-backdrop></div>
-                <div class="tf-alert-card relative z-10 ${opts.width} max-w-[88%] bg-white border border-gray-200 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
+                <div class="absolute inset-0 bg-black/40 tf-ab-backdrop tf-ab-in" data-ab-backdrop></div>
+                <div class="tf-alert-card tf-ab-in relative z-10 ${opts.width} max-w-[88%] bg-white border border-gray-200 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
                     <div class="flex flex-col items-center text-center px-5 pt-5 ${isToast ? 'pb-5' : 'pb-4'}">
                         <div class="w-14 h-14 rounded-full ${opts.iconBg} flex items-center justify-center mb-3.5">
                             <i data-lucide="${opts.icon}" class="w-7 h-7 ${opts.iconColor}"></i>
@@ -6260,6 +6316,7 @@ class Templates extends Components {
                         <p class="text-[14px] font-bold text-gray-800 leading-snug">${opts.title}</p>
                         ${detailHtml}
                     </div>
+                    ${inputHtml}
                     ${buttonsHtml}
                 </div>
             </div>
@@ -6268,23 +6325,154 @@ class Templates extends Components {
         $parent.append($overlay);
         if (window.lucide) lucide.createIcons();
 
+        const $input    = $overlay.find('[data-ab-input]');
+        const $inputErr = $overlay.find('[data-ab-input-error]');
+        const getValue  = () => $input.length ? String($input.val()).trim() : undefined;
+        const showError = (msg) => {
+            $inputErr.text(msg).removeClass('hidden');
+            $input.addClass('border-red-400 focus:ring-red-400/40 focus:border-red-400').trigger('focus');
+        };
+
         let dismissed = false;
         const dismiss = (isOk) => {
             if (dismissed) return;
+
+            // Validacion del input solo al confirmar (OK).
+            if (isOk && inputField) {
+                const val = getValue();
+                if (opts.inputRequired && !val) return showError(opts.inputError);
+                if (typeof opts.inputValidator === 'function') {
+                    const msg = opts.inputValidator(val);
+                    if (msg) return showError(msg);
+                }
+            }
+
             dismissed = true;
-            $overlay.remove();
+            $overlay.find('.tf-alert-card').removeClass('tf-ab-in').addClass('tf-ab-out');
+            $overlay.find('[data-ab-backdrop]').removeClass('tf-ab-in').addClass('tf-ab-out');
+            setTimeout(() => $overlay.remove(), 200);
             const cb = isOk ? onOk : onCancel;
-            if (typeof cb === 'function') cb();
+            if (typeof cb === 'function') cb(inputField ? getValue() : undefined);
         };
 
         $overlay.find('[data-ab-ok]').on('click', () => dismiss(true));
         $overlay.find('[data-ab-cancel]').on('click', () => dismiss(false));
         $overlay.find('[data-ab-backdrop]').on('click', () => dismiss(!opts.dual));
 
+        if ($input.length) {
+            $input.on('input', () => $inputErr.addClass('hidden'));
+            if (inputType !== 'textarea') {
+                $input.on('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); dismiss(true); } });
+            }
+            setTimeout(() => $input.trigger('focus'), 60);
+        }
+
         // Auto-cierre opcional (estilo toast) para notificaciones no bloqueantes.
-        if (opts.timer > 0 && !opts.dual) {
+        if (opts.timer > 0 && !opts.dual && !inputField) {
             setTimeout(() => dismiss(true), opts.timer);
         }
+    }
+
+    kpisRow(options) {
+        const colsMap = {
+            1: 'grid grid-cols-1 gap-3',
+            2: 'grid grid-cols-2 md:grid-cols-2 gap-3',
+            3: 'grid grid-cols-2 md:grid-cols-3 gap-3',
+            4: 'grid grid-cols-2 md:grid-cols-4 gap-3',
+            5: 'grid grid-cols-2 md:grid-cols-5 gap-3',
+            6: 'grid grid-cols-2 md:grid-cols-6 gap-3'
+        };
+
+        const defaults = {
+            parent: 'root',
+            id: 'kpisRow',
+            cols: 4,
+            class: 'grid grid-cols-2 md:grid-cols-4 gap-3',
+            json: [],
+            labels: {
+                empty: 'Sin indicadores'
+            },
+            tones: {
+                default: 'text-gray-800',
+                success: 'text-green-600',
+                warning: 'text-amber-500',
+                danger: 'text-red-600',
+                info: 'text-blue-600',
+                purple: 'text-purple-600'
+            },
+            iconBgTones: {
+                default: 'bg-slate-100',
+                success: 'bg-emerald-100',
+                warning: 'bg-amber-100',
+                danger: 'bg-rose-100',
+                info: 'bg-blue-100',
+                purple: 'bg-purple-100'
+            },
+            cardClass: 'bg-white rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:shadow-md transition-shadow',
+            labelClass: 'text-[10px] uppercase tracking-wider font-bold text-gray-500 whitespace-nowrap truncate text-left',
+            valueClass: 'text-lg font-bold text-right',
+            iconWrapClass: 'w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0',
+            iconClass: 'w-3.5 h-3.5',
+            onClick: () => { }
+        };
+
+        const o = options || {};
+        const opts = Object.assign({}, defaults, o);
+        if (o.class == null && colsMap[opts.cols]) {
+            opts.class = colsMap[opts.cols];
+        }
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+        opts.tones = Object.assign({}, defaults.tones, o.tones || {});
+        opts.iconBgTones = Object.assign({}, defaults.iconBgTones, o.iconBgTones || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
+        const iconBgClass = (tone) => opts.iconBgTones[tone] || opts.iconBgTones.default;
+
+        const kpiCard = (kpi, idx) => {
+            const cardId = kpi.id || `${opts.id}_${idx}`;
+            const iconHtml = kpi.icon ? `
+                <div class="${opts.iconWrapClass} ${iconBgClass(kpi.tone)}">
+                    <i data-lucide="${esc(kpi.icon)}" class="${opts.iconClass} ${toneClass(kpi.tone)}"></i>
+                </div>
+            ` : '';
+            return `
+                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="${opts.labelClass}">${esc(kpi.label)}</p>
+                            <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
+                        </div>
+                        ${iconHtml}
+                    </div>
+                </div>
+            `;
+        };
+
+        const grid = $('<div>', { id: opts.id, class: opts.class });
+
+        if (!opts.json || opts.json.length === 0) {
+            grid.html(`
+                <p class="col-span-full text-[10px] text-gray-500 italic text-center py-2">
+                    ${esc(opts.labels.empty)}
+                </p>
+            `);
+            $(`#${opts.parent}`).html(grid);
+            return;
+        }
+
+        grid.html(opts.json.map((kpi, idx) => kpiCard(kpi, idx)).join(''));
+        $(`#${opts.parent}`).html(grid);
+        if (window.lucide) lucide.createIcons();
+
+        grid.find('[data-kpi-idx]').on('click', (e) => {
+            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
+            const kpi = opts.json[idx];
+            opts.onClick(kpi, idx);
+        });
     }
 
 }

@@ -50,7 +50,7 @@ class ctrl extends mdl {
             'companies_id'   => $this->companiesId,
             'branch_id'      => $this->branchId,
             'user_id'        => $this->userId,
-            'sucursales'     => $this->lsSucursales([$this->companiesId]),
+            'sucursales'     => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'      => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'proveedores'    => $this->lsSuppliers([$this->companiesId]),
             'productos'      => $productos,
@@ -90,8 +90,8 @@ class ctrl extends mdl {
         foreach ($rows as $r) {
             $a = [
                 [
-                    'class'   => 'btn btn-sm btn-secondary me-1',
-                    'html'    => '<i class="icon-eye"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                     'onclick' => "app.selectOrden('{$r['folio']}', {$r['id']})"
                 ]
             ];
@@ -657,17 +657,18 @@ class ctrl extends mdl {
     // -----------------------------------------------------------------------
 
     private function statusBadge($status) {
+        // [color de texto, color de fondo] - modelo pastel de 2 colores (igual que los motivos).
         $map = [
-            'Borrador'   => ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#9CA3AF'],
-            'Solicitada' => ['bg' => 'rgba(251,191,36,0.18)',  'fg' => '#FBBF24'],
-            'Aprobada'   => ['bg' => 'rgba(192,90,64,0.18)',   'fg' => '#C05A40'],
-            'Parcial'    => ['bg' => 'rgba(249,115,22,0.18)',  'fg' => '#F97316'],
-            'Recibida'   => ['bg' => 'rgba(63,193,137,0.18)',  'fg' => '#3FC189'],
-            'Rechazada'  => ['bg' => 'rgba(224,36,36,0.18)',   'fg' => '#E02424'],
-            'Cancelada'  => ['bg' => 'rgba(224,36,36,0.18)',   'fg' => '#E02424']
+            'Borrador'   => ['#475569', '#F1F5F9'],
+            'Solicitada' => ['#D97706', '#FEF3C7'],
+            'Aprobada'   => ['#C05A40', '#FBEAE5'],
+            'Parcial'    => ['#EA580C', '#FFEDD5'],
+            'Recibida'   => ['#16A34A', '#DCFCE7'],
+            'Rechazada'  => ['#DC2626', '#FEE2E2'],
+            'Cancelada'  => ['#DC2626', '#FEE2E2']
         ];
-        $c = $map[$status] ?? ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#9CA3AF'];
-        return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>" . strtoupper($status) . "</span>";
+        $c = $map[$status] ?? ['#475569', '#F1F5F9'];
+        return badge(strtoupper($status), $c[0], 100, $c[1]);
     }
 
 }

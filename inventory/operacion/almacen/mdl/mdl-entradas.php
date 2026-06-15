@@ -15,15 +15,28 @@ class mdl extends CRUD {
     }
 
     function lsSucursales($array) {
-        // La sucursal del usuario vive en `branches` (users.branch_id -> branches.id).
-        // Todo el modulo de inventario usa branch_id apuntando a branches.
-        $query = "
-            SELECT id, name AS valor, company_id AS companies_id
-            FROM {$this->bdErp}branches
-            WHERE company_id = ? AND is_active = 1
-            ORDER BY name ASC
-        ";
-        $r = $this->_Read($query, $array);
+        $companyId = $array['company_id'];
+        $userId    = $array['user_id'];
+        $isOwner   = (int) $array['is_owner'];
+
+        if ($isOwner === 1) {
+            $query = "
+                SELECT id, name AS valor, company_id AS companies_id
+                FROM {$this->bdErp}branches
+                WHERE company_id = ? AND is_active = 1
+                ORDER BY name ASC
+            ";
+            $r = $this->_Read($query, [$companyId]);
+        } else {
+            $query = "
+                SELECT b.id, b.name AS valor, b.company_id AS companies_id
+                FROM {$this->bdErp}branches b
+                INNER JOIN {$this->bdErp}users_braches ub ON ub.branch_id = b.id
+                WHERE b.company_id = ? AND b.is_active = 1 AND ub.user_id = ?
+                ORDER BY b.name ASC
+            ";
+            $r = $this->_Read($query, [$companyId, $userId]);
+        }
         return is_array($r) ? $r : [];
     }
 
@@ -183,6 +196,8 @@ class mdl extends CRUD {
                 io.name        AS origin_name,
                 io.code        AS origin_code,
                 io.color_hex   AS origin_color,
+                io.bg_hex      AS origin_bg,
+                io.icon        AS origin_icon,
                 i.warehouse_id,
                 w.name         AS warehouse_name,
                 i.branch_id,
@@ -264,6 +279,8 @@ class mdl extends CRUD {
                 io.name        AS origin_name,
                 io.code        AS origin_code,
                 io.color_hex   AS origin_color,
+                io.bg_hex      AS origin_bg,
+                io.icon        AS origin_icon,
                 w.name         AS warehouse_name,
                 s.name         AS branch_name,
                 sp.name        AS supplier_name,

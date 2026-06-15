@@ -416,6 +416,33 @@ if (($_GET['action'] ?? '') === 'listtemplates') {
     exit;
 }
 
+// Endpoint para leer el contenido de un archivo (usado por el modulo Chat)
+if (($_GET['action'] ?? '') === 'read') {
+    header('Content-Type: application/json; charset=utf-8');
+    $fp = isset($_GET['fullPath']) ? trim($_GET['fullPath']) : '';
+    if ($fp === '') {
+        echo json_encode(['success' => false, 'message' => 'fullPath requerido']);
+        exit;
+    }
+    $target = realpath(str_replace('\\', '/', $fp));
+    if ($target === false || !is_file($target)) {
+        echo json_encode(['success' => false, 'message' => 'Archivo no encontrado']);
+        exit;
+    }
+    $content = file_get_contents($target);
+    if ($content === false) {
+        echo json_encode(['success' => false, 'message' => 'No se pudo leer el archivo']);
+        exit;
+    }
+    echo json_encode([
+        'success'  => true,
+        'content'  => $content,
+        'mtime'    => date('Y-m-d H:i:s', filemtime($target)),
+        'size'     => filesize($target)
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // Endpoint para navegar el filesystem (modal "Examinar..." del custom picker)
 if (($_GET['action'] ?? '') === 'listdir') {
     header('Content-Type: application/json; charset=utf-8');

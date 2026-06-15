@@ -3,6 +3,11 @@ let app, salidas, salidasView;
 
 let branch_id;
 
+const VIEW_HEADER_SALIDAS = {
+    title:    'Salidas de Inventario',
+    subtitle: 'Control de salidas por sucursal, motivo y periodo'
+};
+
 window.updateSession = () => { };
 
 $(async () => {
@@ -49,14 +54,28 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        salidasView.renderHeader({
-            title:    'Salidas de Inventario',
-            subtitle: 'Control de perdidas por sucursal, motivo y periodo'
-        });
         salidasView.renderDetail(null);
         this.populateFilters();
+        this.updateHeaderTitle();
         salidas.lsSalidas();
         salidas.lsKpis();
+    }
+
+    updateHeaderTitle() {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const $branch    = $('#branch_id');
+        const branchVal  = $branch.length ? ($branch.val() || '') : '';
+        const branch     = (this.dataInit.sucursales || []).find(s => String(s.id) === String(branchVal));
+        const branchName = branch ? (branch.valor || '') : '';
+
+        const titleHtml = branchName
+            ? `${VIEW_HEADER_SALIDAS.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(branchName)}</span>`
+            : VIEW_HEADER_SALIDAS.title;
+
+        salidasView.renderHeader(Object.assign({}, VIEW_HEADER_SALIDAS, { titleHtml }));
     }
 
     layout() {
@@ -114,7 +133,7 @@ class App extends Templates {
     filterBar() {
         let filters = [
             {
-                opc:         'input',
+                opc:         'input-calendar',
                 id:          'fRango',
                 lbl:         'Rango:',
                 class:       'col-12 col-md-6 col-lg-3',
@@ -218,10 +237,14 @@ class App extends Templates {
         if (sucursales.length) {
             this.populateSelect('branch_id', sucursales);
         }
-        // Por defecto arrancamos en "-- Todas --" para mostrar las salidas de
-        // todas las sucursales. this.subId conserva la sucursal real del usuario
-        // para precargarla en el formulario de nueva salida (openSalidaForm).
-        $('#branch_id').val('');
+        // Arrancamos en la sucursal activa del usuario. Si solo tiene una, el
+        // select queda fijo (sin opcion "Todas" y deshabilitado).
+        if (sucursales.length <= 1) {
+            $('#branch_id').find('option[value=""]').remove();
+            $('#branch_id').val(this.subId).prop('disabled', true);
+        } else {
+            $('#branch_id').val(this.subId);
+        }
         this.populateSelect('fMotivo', this.dataInit.motivos || []);
     }
 
@@ -249,6 +272,7 @@ class App extends Templates {
     }
 
     async onChangeFilters() {
+        this.updateHeaderTitle();
         salidas.lsSalidas();
         await salidas.lsKpis();
     }
@@ -296,12 +320,11 @@ class Salidas extends Templates {
             data:         data
         });
 
-        if (window.lucide) lucide.createIcons();
-
         const total = (data.row || []).length;
         if (total > 0 && typeof simple_data_table === 'function') {
             simple_data_table(`#tb${this.PROJECT_NAME}`, 10);
         }
+        if (window.lucide) lucide.createIcons();
         app.updateFooterInfo(`Mostrando ${total} salida${total !== 1 ? 's' : ''}`);
     }
 
@@ -326,10 +349,10 @@ class Salidas extends Templates {
         });
 
         const kpis = [
-            { id: 'kpiPerdida',   label: 'Perdida total', value: fmt(c.total_costo),                   tone: 'danger'  },
+            { id: 'kpiPerdida',   label: 'Valor de salidas', value: fmt(c.total_costo),                tone: 'default' },
             { id: 'kpiRegistros', label: 'Registros',     value: parseInt(c.total_salidas   || 0, 10),  tone: 'default' },
             { id: 'kpiUnidades',  label: 'Unidades',      value: parseInt(c.total_unidades || 0, 10),  tone: 'warning' },
-            { id: 'kpiMotivo',    label: 'Motivo top',    value: c.motivo_top || '-',                   tone: 'purple'  }
+            { id: 'kpiCanceladas', label: 'Canceladas',   value: parseInt(c.total_canceladas || 0, 10),  tone: 'danger'  }
         ];
         salidasView.renderInfoCards(kpis);
     }
@@ -355,6 +378,7 @@ class Salidas extends Templates {
             status:         h.status || '',
             motivo:         h.reason_name  || '',
             motivo_color:   h.reason_color || '',
+            motivo_bg:      h.reason_bg    || '',
             motivo_icon:    h.reason_icon  || '',
             fecha:          created ? created.replace(' ', 'T') : '',
             sucursal:       h.branch_name || '',
@@ -418,11 +442,11 @@ class Salidas extends Templates {
                     });
 
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || ('Salida ' + r.folio + ' registrada') });
+                        app.alertBox({ type: 'success', title: r.message || ('Salida ' + r.folio + ' registrada'), timer: 2200 });
                         this.lsSalidas();
                         this.lsKpis();
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la salida' });
+                        app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la salida' });
                     }
                 },
                 onClose: () => {}
@@ -437,7 +461,7 @@ class Salidas extends Templates {
         if (!m || typeof m !== 'object') {
             const r = await useFetch({ url: apiSalidas, data: { opc: 'getSalida', id: arg } });
             if (!(r && r.status === 200)) {
-                if (typeof alert === 'function') alert({ icon: 'error', text: 'No se pudo cargar la salida para imprimir' });
+                app.alertBox({ type: 'error', title: 'No se pudo cargar la salida para imprimir' });
                 return;
             }
             m = this.mapSalidaDetail(r.header || {}, r.detail || []);
@@ -498,63 +522,55 @@ class Salidas extends Templates {
             <div class="doc-header"><div><div class="doc-title">Comprobante de Salida</div><div style="font-size:12px;color:#555;margin-top:3px">${esc(m.sucursal||'')}${m.almacen?' &middot; '+esc(m.almacen):''}</div></div><div><div class="folio">${esc(m.folio||'-')}</div>${m.status?`<span class="status">${esc(m.status)}</span>`:''}</div></div>
             <div class="info-grid"><div class="info-item"><span class="k">Motivo</span><span class="v">${esc(m.motivo||'-')}</span></div><div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(m.fecha))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(m.sucursal||'-')}</span></div><div class="info-item"><span class="k">Almacen</span><span class="v">${esc(m.almacen||'-')}</span></div><div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(reg)}</span></div><div class="info-item"><span class="k">Productos</span><span class="v">${items.length} tipos · ${totUds} uds</span></div></div>
             <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="r">Costo unit.</th><th class="r">Subtotal</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="4" class="c">Sin productos</td></tr>'}</tbody></table>
-            <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${items.length}</span></div><div class="totals-row"><span>Unidades</span><span>${totUds}</span></div><div class="totals-row grand"><span>Perdida total</span><span>-${fmtMoney(totCosto)}</span></div></div></div>
+            <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${items.length}</span></div><div class="totals-row"><span>Unidades</span><span>${totUds}</span></div><div class="totals-row grand"><span>Valor de salidas</span><span>-${fmtMoney(totCosto)}</span></div></div></div>
             ${m.nota?`<div class="nota"><b>Nota</b>${esc(m.nota)}</div>`:''}
             <div class="doc-footer"><span>Huubie &middot; Inventarios &middot; Comprobante de salida</span><span>Generado: ${esc(fechaImpresion)}</span></div>
         </div></body></html>`;
 
         const w = window.open('', '_blank', 'width=900,height=1000');
-        if (!w) { if (typeof alert === 'function') alert({ icon: 'warning', text: 'Permite las ventanas emergentes para poder ver el documento.' }); return; }
+        if (!w) { app.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el documento.' }); return; }
         w.document.write(html);
         w.document.close();
         w.focus();
     }
 
     cancelSalida(id) {
-        this.swalQuestion({
-            opts: {
-                title:             'Cancelar esta salida?',
-                text:              'El stock de los productos sera restaurado. Accion irreversible.',
-                icon:              'warning',
-                confirmButtonText: 'Si, cancelar',
-                cancelButtonText:  'No'
-            },
-            data: { opc: 'cancelSalida', id: id },
-            methods: {
-                send: (r) => {
-                    if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Salida cancelada' });
-                        salidasView.renderDetail(null);
-                        this.lsSalidas();
-                        this.lsKpis();
-                    } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo cancelar' });
-                    }
+        app.alertBox({
+            type:        'cancel',
+            title:       'Cancelar esta salida?',
+            detailHtml:  'El stock de los productos sera restaurado. Accion irreversible.',
+            okLabel:     'Sí, cancelar',
+            cancelLabel: 'No',
+            onOk: async () => {
+                const r = await useFetch({ url: apiSalidas, data: { opc: 'cancelSalida', id: id } });
+                if (r && r.status === 200) {
+                    app.alertBox({ type: 'success', title: r.message || 'Salida cancelada', timer: 2200 });
+                    salidasView.renderDetail(null);
+                    this.lsSalidas();
+                    this.lsKpis();
+                } else {
+                    app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar' });
                 }
             }
         });
     }
 
     deleteSalida(id) {
-        this.swalQuestion({
-            opts: {
-                title:             'Eliminar esta salida?',
-                text:              'El formato cancelado se quitara del visor. Accion irreversible.',
-                icon:              'warning',
-                confirmButtonText: 'Si, eliminar',
-                cancelButtonText:  'No'
-            },
-            data: { opc: 'deleteSalida', id: id },
-            methods: {
-                send: (r) => {
-                    if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Salida eliminada' });
-                        salidasView.renderDetail(null);
-                        this.lsSalidas();
-                        this.lsKpis();
-                    } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo eliminar' });
-                    }
+        app.alertBox({
+            type:        'cancel',
+            title:       'Eliminar esta salida?',
+            detailHtml:  'El formato cancelado se quitara del visor. Accion irreversible.',
+            okLabel:     'Sí, eliminar',
+            cancelLabel: 'No',
+            onOk: async () => {
+                const r = await useFetch({ url: apiSalidas, data: { opc: 'deleteSalida', id: id } });
+                if (r && r.status === 200) {
+                    app.alertBox({ type: 'success', title: r.message || 'Salida eliminada', timer: 2200 });
+                    salidasView.renderDetail(null);
+                    this.lsSalidas();
+                    this.lsKpis();
+                } else {
+                    app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo eliminar' });
                 }
             }
         });
@@ -567,31 +583,27 @@ class Salidas extends Templates {
             data: { opc: 'saveSalidaEvidence', id: id, evidence_b64: dataUrl }
         });
         if (r && r.status === 200) {
-            if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Evidencia actualizada' });
+            app.alertBox({ type: 'success', title: r.message || 'Evidencia actualizada', timer: 2200 });
             this.getSalida(id);
         } else {
-            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo guardar la evidencia' });
+            app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar la evidencia' });
         }
     }
 
     removeEvidence(id) {
-        this.swalQuestion({
-            opts: {
-                title:             'Quitar evidencia?',
-                text:              'Se eliminara la foto de evidencia de esta salida.',
-                icon:              'warning',
-                confirmButtonText: 'Si, quitar',
-                cancelButtonText:  'No'
-            },
-            data: { opc: 'saveSalidaEvidence', id: id, evidence_b64: '' },
-            methods: {
-                send: (r) => {
-                    if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Evidencia eliminada' });
-                        this.getSalida(id);
-                    } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo eliminar la evidencia' });
-                    }
+        app.alertBox({
+            type:        'cancel',
+            title:       'Quitar evidencia?',
+            detailHtml:  'Se eliminara la foto de evidencia de esta salida.',
+            okLabel:     'Sí, quitar',
+            cancelLabel: 'No',
+            onOk: async () => {
+                const r = await useFetch({ url: apiSalidas, data: { opc: 'saveSalidaEvidence', id: id, evidence_b64: '' } });
+                if (r && r.status === 200) {
+                    app.alertBox({ type: 'success', title: r.message || 'Evidencia eliminada', timer: 2200 });
+                    this.getSalida(id);
+                } else {
+                    app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo eliminar la evidencia' });
                 }
             }
         });
@@ -634,59 +646,14 @@ class SalidasView extends Templates {
         });
     }
 
-    kpisRow(options) {
-        const defaults = {
-            parent:     'root',
-            id:         'kpisRow',
-            class:      'grid grid-cols-2 md:grid-cols-4 gap-4',
-            json:       [],
-            tones: {
-                default: 'text-gray-800',
-                success: 'text-green-600',
-                warning: 'text-amber-500',
-                danger:  'text-red-600',
-                info:    'text-blue-600',
-                purple:  'text-purple-600'
-            },
-            cardClass:  'bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow',
-            labelClass: 'text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1',
-            valueClass: 'text-2xl font-bold',
-            onClick:    () => {}
-        };
-
-        const opts  = Object.assign({}, defaults, options || {});
-        opts.tones  = Object.assign({}, defaults.tones, (options || {}).tones || {});
-
-        const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
-        const grid      = $('<div>', { id: opts.id, class: opts.class });
-
-        if (!opts.json || opts.json.length === 0) {
-            grid.html(`<p class="col-span-full text-[10px] text-gray-500 italic text-center py-2">Sin indicadores</p>`);
-            $(`#${opts.parent}`).html(grid);
-            return;
-        }
-
-        grid.html(opts.json.map((kpi, idx) => `
-            <div id="${kpi.id || opts.id + '_' + idx}" data-kpi-idx="${idx}" class="${opts.cardClass}">
-                <p class="${opts.labelClass}">${esc(kpi.label)}</p>
-                <p class="${opts.valueClass} ${toneClass(kpi.tone)}">${esc(kpi.value)}</p>
-            </div>
-        `).join(''));
-
-        $(`#${opts.parent}`).html(grid);
-        grid.find('[data-kpi-idx]').on('click', (e) => {
-            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
-            opts.onClick(opts.json[idx], idx);
-        });
-    }
+  
 
     viewHeader(options) {
         const defaults = {
             parent:  'root',
             id:      'viewHeader',
             class:   'flex items-center justify-between w-full',
-            json:    { title: '', subtitle: '' },
+            json:    { title: '', titleHtml: '', subtitle: '' },
             classes: {
                 title:    'text-lg font-bold text-gray-800',
                 subtitle: 'text-xs text-gray-500'
@@ -703,7 +670,7 @@ class SalidasView extends Templates {
 
         wrap.html(`
             <div>
-                <h1 class="${opts.classes.title}">${esc(opts.json.title)}</h1>
+                <h1 class="${opts.classes.title}">${opts.json.titleHtml || esc(opts.json.title)}</h1>
                 ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
             </div>
         `);
@@ -721,13 +688,13 @@ class SalidasView extends Templates {
             labels: {
                 emptyTitle:  'Selecciona una salida',
                 emptyHint:   'Haz click en cualquier fila o en el icono ojo para ver el detalle aqui.',
-                subtitleLbl: 'Detalle de la perdida',
+                subtitleLbl: 'Detalle de la salida',
                 motivo:      'Motivo',
                 sucursal:    'Sucursal',
                 almacen:     'Almacen',
                 registrado:  'Registrado por',
                 productos:   'Productos',
-                perdidaTot:  'Perdida total',
+                perdidaTot:  'Valor de salidas',
                 detalleLbl:  'Detalle de Productos',
                 notaLbl:     'Nota',
                 evidenciaLbl:'Foto de evidencia',
@@ -744,17 +711,19 @@ class SalidasView extends Templates {
                 folioPrefix: 'Salida'
             },
             motivoPalettes: {
-                'Caducidad':        { bg: 'rgba(224,36,36,0.18)',  fg: '#F87171', icon: 'calendar-x'     },
-                'Daniado':          { bg: 'rgba(251,191,36,0.18)', fg: '#FBBF24', icon: 'alert-triangle' },
-                'Danado':           { bg: 'rgba(251,191,36,0.18)', fg: '#FBBF24', icon: 'alert-triangle' },
-                'Error produccion': { bg: 'rgba(28,100,242,0.18)', fg: '#60A5FA', icon: 'settings'       },
-                'Robo/Faltante':    { bg: 'rgba(124,58,237,0.18)', fg: '#A78BFA', icon: 'shield-alert'   },
-                'Robo / Faltante':  { bg: 'rgba(124,58,237,0.18)', fg: '#A78BFA', icon: 'shield-alert'   },
-                'Devolucion':       { bg: 'rgba(63,193,137,0.18)', fg: '#3FC189', icon: 'rotate-ccw'     }
+                'Merma':                  { bg: '#FEE2E2', fg: '#DC2626', icon: 'trending-down'  },
+                'Caducidad':              { bg: 'rgba(190,113,25,0.18)', fg: '#BE7119', icon: 'calendar-x'     },
+                'Consumo interno':        { bg: '#DBEAFE', fg: '#2563EB', icon: 'coffee'         },
+                'Robo / Faltante':        { bg: '#F3E8FF', fg: '#9333EA', icon: 'shield-alert'   },
+                'Producto dañado':        { bg: 'rgba(251,140,0,0.18)',  fg: '#FB8C00', icon: 'alert-triangle' },
+                'Devolución a proveedor': { bg: 'rgba(63,193,137,0.18)', fg: '#3FC189', icon: 'rotate-ccw'     },
+                'Solicitud':              { bg: 'rgba(14,165,233,0.18)', fg: '#0EA5E9', icon: 'clipboard-list' },
+                'Surtido a sucursal':     { bg: '#CCFBF1', fg: '#0D9488', icon: 'truck'         },
+                'Pedido complementario':  { bg: '#F1F5F9', fg: '#475569', icon: 'package-plus'  }
             },
             statusPalettes: {
-                'Aplicada':  { bg: 'rgba(63,193,137,0.15)', fg: '#3FC189' },
-                'Cancelada': { bg: 'rgba(224,36,36,0.15)',  fg: '#F87171' }
+                'Aplicada':  { bg: '#DCFCE7', fg: '#16A34A' },
+                'Cancelada': { bg: '#FEE2E2', fg: '#DC2626' }
             },
             onClose:          () => {},
             onImprimir:       () => {},
@@ -821,19 +790,16 @@ class SalidasView extends Templates {
             const s         = state || {};
             const empty     = !!s.empty;
             const cancelled = !!s.cancelled;
+            if (empty) return '';
             const base      = 'flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5';
-            const off       = 'opacity-40 cursor-not-allowed';
-            const roseHover = empty ? off : 'hover:bg-rose-500 transition-all';
+            const roseHover = 'hover:bg-rose-500 transition-all';
 
             const secondBtn = cancelled
                 ? `<button id="${opts.id}_delete" class="${base} bg-rose-600 ${roseHover}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.eliminar)}</button>`
-                : `<button id="${opts.id}_cancel" ${empty ? 'disabled' : ''} class="${base} bg-rose-600 ${roseHover}"><i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}</button>`;
+                : `<button id="${opts.id}_cancel" class="${base} bg-rose-600 ${roseHover}"><i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}</button>`;
 
             return `
                 <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
-                    <button id="${opts.id}_print" ${empty ? 'disabled' : ''} class="${base} bg-sky-600 ${empty ? off : 'hover:bg-sky-500 transition-all'}">
-                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>${esc(opts.labels.imprimir)}
-                    </button>
                     ${secondBtn}
                 </div>`;
         };
@@ -922,8 +888,9 @@ class SalidasView extends Templates {
             const totUds   = m.total_unidades != null ? m.total_unidades : totals.uds;
             const totCosto = m.total_costo    != null ? m.total_costo    : totals.costo;
 
-            const motivoC     = opts.motivoPalettes[m.motivo] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF', icon: 'alert-triangle' };
-            const motivoBg    = hexToRgba(m.motivo_color, 0.18) || motivoC.bg;
+            const motivoPal   = opts.motivoPalettes[m.motivo];
+            const motivoC     = motivoPal || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF', icon: 'alert-triangle' };
+            const motivoBg    = m.motivo_bg || (motivoPal ? motivoC.bg : (hexToRgba(m.motivo_color, 0.18) || motivoC.bg));
             const motivoFg    = m.motivo_color || motivoC.fg;
             const motivoIcon  = m.motivo_icon  || motivoC.icon || 'alert-triangle';
             const motivoBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:${motivoBg};color:${motivoFg};"><i data-lucide="${esc(motivoIcon)}" class="w-3 h-3"></i>${esc(m.motivo || '-')}</span>`;
@@ -951,9 +918,14 @@ class SalidasView extends Templates {
                             <i data-lucide="clock" class="w-3 h-3"></i>${esc(fmtFecha(m.fecha))}
                         </p>
                     </div>
-                    <button id="${opts.id}_close" class="text-gray-600 hover:text-gray-800 transition-colors p-1 flex-shrink-0" title="Cerrar">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
+                    <div class="flex items-center gap-1 flex-shrink-0">
+                        <button id="${opts.id}_print" class="text-gray-600 hover:text-gray-800 transition-colors p-1" title="Imprimir">
+                            <i data-lucide="printer" class="w-4 h-4"></i>
+                        </button>
+                        <button id="${opts.id}_close" class="text-gray-600 hover:text-gray-800 transition-colors p-1" title="Cerrar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div id="${opts.id}_scroll" class="flex-1 overflow-y-auto px-3 py-3 space-y-3">

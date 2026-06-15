@@ -19,13 +19,28 @@ class mdl extends CRUD {
     // ─────────────────────────────────────────────────────────────────
 
     function lsSucursales($array) {
-        $query = "
-            SELECT id, name AS valor, company_id AS companies_id
-            FROM {$this->bdErp}branches
-            WHERE company_id = ? AND is_active = 1
-            ORDER BY name ASC
-        ";
-        $r = $this->_Read($query, $array);
+        $companyId = $array['company_id'];
+        $userId    = $array['user_id'];
+        $isOwner   = (int) $array['is_owner'];
+
+        if ($isOwner === 1) {
+            $query = "
+                SELECT id, name AS valor, company_id AS companies_id
+                FROM {$this->bdErp}branches
+                WHERE company_id = ? AND is_active = 1
+                ORDER BY name ASC
+            ";
+            $r = $this->_Read($query, [$companyId]);
+        } else {
+            $query = "
+                SELECT b.id, b.name AS valor, b.company_id AS companies_id
+                FROM {$this->bdErp}branches b
+                INNER JOIN {$this->bdErp}users_braches ub ON ub.branch_id = b.id
+                WHERE b.company_id = ? AND b.is_active = 1 AND ub.user_id = ?
+                ORDER BY b.name ASC
+            ";
+            $r = $this->_Read($query, [$companyId, $userId]);
+        }
         return is_array($r) ? $r : [];
     }
 
@@ -174,6 +189,7 @@ class mdl extends CRUD {
                 ts.code              AS status_code,
                 ts.name              AS status_name,
                 ts.color_hex         AS status_color,
+                ts.bg_hex            AS status_bg,
                 ts.is_terminal       AS status_terminal,
                 t.origin_warehouse_id,
                 wo.name              AS origin_warehouse_name,
@@ -238,6 +254,7 @@ class mdl extends CRUD {
                 ts.code              AS status_code,
                 ts.name              AS status_name,
                 ts.color_hex         AS status_color,
+                ts.bg_hex            AS status_bg,
                 wo.name              AS origin_warehouse_name,
                 wd.name              AS destination_warehouse_name,
                 bo.name              AS origin_branch_name,

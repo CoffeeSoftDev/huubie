@@ -15,13 +15,28 @@ class mdl extends CRUD {
     }
 
     function lsSucursales($array) {
-        $query = "
-            SELECT id, name AS valor, company_id AS companies_id
-            FROM {$this->bdErp}branches
-            WHERE company_id = ? AND is_active = 1
-            ORDER BY name ASC
-        ";
-        $r = $this->_Read($query, $array);
+        $companyId = $array['company_id'];
+        $userId    = $array['user_id'];
+        $isOwner   = (int) $array['is_owner'];
+
+        if ($isOwner === 1) {
+            $query = "
+                SELECT id, name AS valor, company_id AS companies_id
+                FROM {$this->bdErp}branches
+                WHERE company_id = ? AND is_active = 1
+                ORDER BY name ASC
+            ";
+            $r = $this->_Read($query, [$companyId]);
+        } else {
+            $query = "
+                SELECT b.id, b.name AS valor, b.company_id AS companies_id
+                FROM {$this->bdErp}branches b
+                INNER JOIN {$this->bdErp}users_braches ub ON ub.branch_id = b.id
+                WHERE b.company_id = ? AND b.is_active = 1 AND ub.user_id = ?
+                ORDER BY b.name ASC
+            ";
+            $r = $this->_Read($query, [$companyId, $userId]);
+        }
         return is_array($r) ? $r : [];
     }
 
@@ -56,7 +71,7 @@ class mdl extends CRUD {
             SELECT id, code, name, name AS valor, icon, color_hex
             FROM {$this->bd}shrinkage_reason
             WHERE active = 1
-            ORDER BY id ASC
+            ORDER BY sort_order ASC, id ASC
         ";
         $r = $this->_Read($query, null);
         return is_array($r) ? $r : [];
@@ -134,6 +149,7 @@ class mdl extends CRUD {
                 m.shrinkage_reason_id,
                 sr.name             AS reason_name,
                 sr.color_hex        AS reason_color,
+                sr.bg_hex           AS reason_bg,
                 sr.icon             AS reason_icon,
                 m.warehouse_id,
                 w.name              AS warehouse_name,
@@ -154,25 +170,28 @@ class mdl extends CRUD {
     }
 
     function getSalidaKpis($array) {
-        $where = "m.active = 1 AND m.status <> 'Cancelada' AND m.companies_id = ?";
-        $data  = [$array['companies_id']];
+        $whereCommon = "m.active = 1 AND m.companies_id = ?";
+        $dataCommon  = [$array['companies_id']];
 
         if (!empty($array['branch_id'])) {
-            $where .= ' AND m.branch_id = ?';
-            $data[] = $array['branch_id'];
+            $whereCommon .= ' AND m.branch_id = ?';
+            $dataCommon[] = $array['branch_id'];
         }
         if (!empty($array['reason_id'])) {
-            $where .= ' AND m.shrinkage_reason_id = ?';
-            $data[] = $array['reason_id'];
+            $whereCommon .= ' AND m.shrinkage_reason_id = ?';
+            $dataCommon[] = $array['reason_id'];
         }
+        if (!empty($array['fi']) && !empty($array['ff'])) {
+            $whereCommon .= ' AND DATE(m.created_at) BETWEEN ? AND ?';
+            $dataCommon[] = $array['fi'];
+            $dataCommon[] = $array['ff'];
+        }
+
+        $where = $whereCommon . " AND m.status <> 'Cancelada'";
+        $data  = $dataCommon;
         if (!empty($array['status'])) {
             $where .= ' AND m.status = ?';
             $data[] = $array['status'];
-        }
-        if (!empty($array['fi']) && !empty($array['ff'])) {
-            $where .= ' AND DATE(m.created_at) BETWEEN ? AND ?';
-            $data[] = $array['fi'];
-            $data[] = $array['ff'];
         }
 
         $query = "
@@ -190,17 +209,14 @@ class mdl extends CRUD {
             'total_unidades' => 0
         ];
 
-        $queryTop = "
-            SELECT sr.name AS motivo_top, COUNT(m.id) AS cuenta
+        $queryCanc = "
+            SELECT COUNT(m.id) AS total_canceladas
             FROM {$this->bd}inventory_shrinkage m
-            LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
-            WHERE {$where}
-            GROUP BY sr.id
-            ORDER BY cuenta DESC
-            LIMIT 1
+            WHERE {$whereCommon} AND m.status = 'Cancelada'
         ";
-        $top               = $this->_Read($queryTop, $data);
-        $base['motivo_top'] = !empty($top) ? $top[0]['motivo_top'] : '-';
+        $canc                     = $this->_Read($queryCanc, $dataCommon);
+        $base['total_canceladas'] = !empty($canc) ? (int) $canc[0]['total_canceladas'] : 0;
+
         return $base;
     }
 
@@ -211,6 +227,7 @@ class mdl extends CRUD {
                 m.total_cost   AS total_cost_loss,
                 sr.name        AS reason_name,
                 sr.color_hex   AS reason_color,
+                sr.bg_hex      AS reason_bg,
                 sr.icon        AS reason_icon,
                 w.name         AS warehouse_name,
                 s.name         AS branch_name,

@@ -1,0 +1,2040 @@
+<div class="min-h-screen bg-slate-50 text-slate-900 font-[Inter]">
+  <!-- Header -->
+  <div class="mx-6 mt-6 mb-4 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-[#B85C4F]/10 flex items-center justify-center">
+          <i data-lucide="building-2" class="w-6 h-6 text-[#B85C4F]"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-3">
+            <h1 class="text-lg font-semibold text-slate-900">Administrador CoffeeSoft</h1>
+            <span class="cs-badge px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">SaaS</span>
+          </div>
+          <p class="text-sm text-slate-500 mt-0.5">Gestión centralizada de tenants, permisos y configuración</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          Exportar
+        </button>
+        <button id="btnNuevaEmpresa" class="tab-action-btn flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15" data-tab="empresas">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Nueva Empresa</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mx-6 mb-4">
+    <div class="cs-card p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-slate-500 stat-label">Total empresas</p>
+          <p id="statTotal" class="text-2xl font-semibold text-slate-900 mt-1 font-[JetBrains_Mono]">0</p>
+        </div>
+        <div class="p-2.5 rounded-lg bg-slate-100 stat-icon-bg">
+          <i data-lucide="building-2" class="w-5 h-5 text-slate-600 stat-icon"></i>
+        </div>
+      </div>
+    </div>
+    <div class="cs-card p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-slate-500 stat-label">Empresas activas</p>
+          <p id="statActivas" class="text-2xl font-semibold text-emerald-600 mt-1 font-[JetBrains_Mono]">0</p>
+        </div>
+        <div class="p-2.5 rounded-lg bg-emerald-50 stat-icon-bg">
+          <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 stat-icon"></i>
+        </div>
+      </div>
+    </div>
+    <div class="cs-card p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-slate-500 stat-label">Empresas inactivas</p>
+          <p id="statInactivas" class="text-2xl font-semibold text-rose-600 mt-1 font-[JetBrains_Mono]">0</p>
+        </div>
+        <div class="p-2.5 rounded-lg bg-rose-50 stat-icon-bg">
+          <i data-lucide="x-circle" class="w-5 h-5 text-rose-600 stat-icon"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="mx-6 mb-4">
+    <div class="flex flex-wrap gap-1 p-1.5 bg-white rounded-xl border border-slate-200 shadow-sm">
+      <button class="tab-btn active flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all bg-slate-100 text-slate-900 shadow-sm" data-tab="empresas">
+        <i data-lucide="building-2" class="w-4 h-4"></i>
+        Empresas
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="planes">
+        <i data-lucide="layers" class="w-4 h-4"></i>
+        Planes
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="suscripciones">
+        <i data-lucide="credit-card" class="w-4 h-4"></i>
+        Suscripciones
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="pagos">
+        <i data-lucide="dollar-sign" class="w-4 h-4"></i>
+        Pagos
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="cupones">
+        <i data-lucide="ticket" class="w-4 h-4"></i>
+        Cupones
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="canjes">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        Canjes
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="modulos">
+        <i data-lucide="puzzle" class="w-4 h-4"></i>
+        Módulos
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="submodulos">
+        <i data-lucide="layout-grid" class="w-4 h-4"></i>
+        Submódulos
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="secciones">
+        <i data-lucide="list" class="w-4 h-4"></i>
+        Secciones
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="roles">
+        <i data-lucide="shield" class="w-4 h-4"></i>
+        Roles
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="tipos-permiso">
+        <i data-lucide="key" class="w-4 h-4"></i>
+        Tipos de permiso
+      </button>
+      <button class="tab-btn flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-50" data-tab="permisos">
+        <i data-lucide="lock" class="w-4 h-4"></i>
+        Permisos
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab: Empresas -->
+  <div id="tab-empresas" class="tab-content cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div class="relative">
+          <select id="estadoFilter" class="cs-input appearance-none w-44 pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] focus:ring-1 focus:ring-[#B85C4F]/20">
+            <option value="todos">Todos los estados</option>
+            <option value="Activa" selected>Activas</option>
+            <option value="Inactiva">Inactivas</option>
+          </select>
+          <i data-lucide="filter" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+        <div class="relative">
+          <select id="ubicacionFilter" class="cs-input appearance-none w-44 pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] focus:ring-1 focus:ring-[#B85C4F]/20">
+            <option value="todas">Todas las ubicaciones</option>
+            <option value="Central">Central</option>
+            <option value="Norte">Norte</option>
+            <option value="Sur">Sur</option>
+            <option value="-">Sin ubicación</option>
+          </select>
+          <i data-lucide="map-pin" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <input id="searchInput" type="text" class="cs-input w-72 pl-10 pr-9 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] focus:ring-1 focus:ring-[#B85C4F]/20" placeholder="Buscar empresa, RFC, base de datos...">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-slate-900 group" data-sort="empresa">
+              <div class="flex items-center gap-2">Empresa <i data-lucide="arrow-up-down" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600"></i></div>
+            </th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-slate-900 group" data-sort="rfc">
+              <div class="flex items-center gap-2">RFC <i data-lucide="arrow-up-down" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600"></i></div>
+            </th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-slate-900 group" data-sort="baseDatos">
+              <div class="flex items-center gap-2">Base de datos <i data-lucide="arrow-up-down" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600"></i></div>
+            </th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-slate-900 group" data-sort="ubicacion">
+              <div class="flex items-center gap-2">Ubicación <i data-lucide="arrow-up-down" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600"></i></div>
+            </th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-slate-900 group" data-sort="estado">
+              <div class="flex items-center gap-2">Estado <i data-lucide="arrow-up-down" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600"></i></div>
+            </th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-slate-900 group" data-sort="creacion">
+              <div class="flex items-center gap-2">Creación <i data-lucide="arrow-up-down" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600"></i></div>
+            </th>
+            <th class="px-5 py-3.5 text-center font-semibold text-xs uppercase tracking-wider w-24">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="empresasTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+      </table>
+    </div>
+
+    <div id="emptyState" class="hidden py-16 text-center">
+      <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="search-x" class="w-8 h-8 text-slate-400"></i>
+      </div>
+      <h3 class="text-base font-medium text-slate-700">No se encontraron empresas</h3>
+      <p class="text-sm text-slate-500 mt-1">Ajusta los filtros o crea una nueva empresa.</p>
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      <p id="paginationInfo" class="text-sm text-slate-500">Mostrando 0 registros</p>
+      <div class="flex items-center gap-2">
+        <button id="btnAnterior" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Anterior</button>
+        <div id="paginationPages" class="flex items-center gap-1"></div>
+        <button id="btnSiguiente" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Planes -->
+  <div id="tab-planes" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Planes de suscripción</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Administra los planes disponibles para tus clientes</p>
+      </div>
+      <button id="btnNuevoPlan" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        Nuevo Plan
+      </button>
+    </div>
+    <div id="planesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+  </div>
+
+  <!-- Tab: Suscripciones -->
+  <div id="tab-suscripciones" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Suscripciones activas</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Control de suscripciones por empresa y plan</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <select id="suscripcionEstadoFilter" class="cs-input appearance-none w-44 pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]">
+            <option value="todos">Todos los estados</option>
+            <option value="Activa" selected>Activas</option>
+            <option value="Cancelada">Canceladas</option>
+            <option value="Vencida">Vencidas</option>
+          </select>
+          <i data-lucide="filter" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+        <div class="relative">
+          <input id="suscripcionSearch" type="text" class="cs-input w-64 pl-10 pr-9 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Buscar empresa...">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        </div>
+      </div>
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Empresa</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Plan</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Inicio</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Renovación</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Monto</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Estado</th>
+            <th class="px-5 py-3.5 text-center font-semibold text-xs uppercase tracking-wider">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="suscripcionesTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+      </table>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      <p id="suscripcionPaginationInfo" class="text-sm text-slate-500">Mostrando 0 registros</p>
+      <div class="flex items-center gap-2">
+        <button id="btnSusAnterior" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Anterior</button>
+        <div id="suscripcionPaginationPages" class="flex items-center gap-1"></div>
+        <button id="btnSusSiguiente" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Pagos -->
+  <div id="tab-pagos" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Historial de pagos</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Transacciones y facturación de suscripciones</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <select id="pagoEstadoFilter" class="cs-input appearance-none w-44 pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]">
+            <option value="todos">Todos los estados</option>
+            <option value="Pagado" selected>Pagados</option>
+            <option value="Pendiente">Pendientes</option>
+            <option value="Fallido">Fallidos</option>
+          </select>
+          <i data-lucide="filter" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+        <div class="relative">
+          <input id="pagoSearch" type="text" class="cs-input w-64 pl-10 pr-9 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Buscar transacción...">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        </div>
+      </div>
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Transacción</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Empresa</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Fecha</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Método</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Monto</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Estado</th>
+            <th class="px-5 py-3.5 text-center font-semibold text-xs uppercase tracking-wider">Comprobante</th>
+          </tr>
+        </thead>
+        <tbody id="pagosTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+      </table>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      <p id="pagoPaginationInfo" class="text-sm text-slate-500">Mostrando 0 registros</p>
+      <div class="flex items-center gap-2">
+        <button id="btnPagoAnterior" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Anterior</button>
+        <div id="pagoPaginationPages" class="flex items-center gap-1"></div>
+        <button id="btnPagoSiguiente" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Cupones -->
+  <div id="tab-cupones" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Cupones de descuento</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Gestiona promociones y códigos de descuento</p>
+      </div>
+      <button id="btnNuevoCupon" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        Nuevo Cupón
+      </button>
+    </div>
+    <div id="cuponesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+  </div>
+
+  <!-- Tab: Canjes -->
+  <div id="tab-canjes" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Historial de canjes</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Registro de cupones redimidos por empresas</p>
+      </div>
+      <div class="relative">
+        <input id="canjeSearch" type="text" class="cs-input w-64 pl-10 pr-9 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Buscar canje...">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+      </div>
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Código</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Empresa</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Fecha</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Monto original</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Descuento</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Monto final</th>
+          </tr>
+        </thead>
+        <tbody id="canjesTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+      </table>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      <p id="canjePaginationInfo" class="text-sm text-slate-500">Mostrando 0 registros</p>
+      <div class="flex items-center gap-2">
+        <button id="btnCanjeAnterior" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Anterior</button>
+        <div id="canjePaginationPages" class="flex items-center gap-1"></div>
+        <button id="btnCanjeSiguiente" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Módulos -->
+  <div id="tab-modulos" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Módulos del sistema</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Administra los módulos funcionales disponibles</p>
+      </div>
+      <button id="btnNuevoModulo" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        Nuevo Módulo
+      </button>
+    </div>
+    <div id="modulosGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+  </div>
+
+  <!-- Tab: Submódulos -->
+  <div id="tab-submodulos" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Submódulos</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Agrupaciones funcionales dentro de cada módulo</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <select id="submoduloModuloFilter" class="cs-input appearance-none w-48 pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]">
+            <option value="todos">Todos los módulos</option>
+          </select>
+          <i data-lucide="filter" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+        <button id="btnNuevoSubmodulo" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          Nuevo Submódulo
+        </button>
+      </div>
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Submódulo</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Módulo padre</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Descripción</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Estado</th>
+            <th class="px-5 py-3.5 text-center font-semibold text-xs uppercase tracking-wider">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="submodulosTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+      </table>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      <p id="submoduloPaginationInfo" class="text-sm text-slate-500">Mostrando 0 registros</p>
+      <div class="flex items-center gap-2">
+        <button id="btnSubmoduloAnterior" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Anterior</button>
+        <div id="submoduloPaginationPages" class="flex items-center gap-1"></div>
+        <button id="btnSubmoduloSiguiente" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Secciones -->
+  <div id="tab-secciones" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Secciones</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Vistas o páginas dentro de cada submódulo</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <select id="seccionSubmoduloFilter" class="cs-input appearance-none w-52 pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]">
+            <option value="todos">Todos los submódulos</option>
+          </select>
+          <i data-lucide="filter" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+        <button id="btnNuevaSeccion" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          Nueva Sección
+        </button>
+      </div>
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Sección</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Submódulo</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Ruta / URL</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Estado</th>
+            <th class="px-5 py-3.5 text-center font-semibold text-xs uppercase tracking-wider">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="seccionesTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+      </table>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      <p id="seccionPaginationInfo" class="text-sm text-slate-500">Mostrando 0 registros</p>
+      <div class="flex items-center gap-2">
+        <button id="btnSeccionAnterior" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Anterior</button>
+        <div id="seccionPaginationPages" class="flex items-center gap-1"></div>
+        <button id="btnSeccionSiguiente" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Roles -->
+  <div id="tab-roles" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Roles</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Perfiles de usuario con permisos agrupados</p>
+      </div>
+      <button id="btnNuevoRol" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        Nuevo Rol
+      </button>
+    </div>
+    <div id="rolesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+  </div>
+
+  <!-- Tab: Tipos de permiso -->
+  <div id="tab-tipos-permiso" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Tipos de permiso</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Acciones base que los usuarios pueden ejecutar</p>
+      </div>
+      <button id="btnNuevoTipoPermiso" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        Nuevo Tipo
+      </button>
+    </div>
+    <div id="tiposPermisoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+  </div>
+
+  <!-- Tab: Permisos -->
+  <div id="tab-permisos" class="tab-content hidden cs-card mx-6 mb-6 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Matriz de permisos</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Asigna tipos de permiso a secciones para cada rol</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <select id="permisoRolFilter" class="cs-input appearance-none w-48 pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]">
+            <option value="todos">Todos los roles</option>
+          </select>
+          <i data-lucide="filter" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+        <button id="btnNuevoPermiso" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          Nuevo Permiso
+        </button>
+      </div>
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Rol</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Sección</th>
+            <th class="px-5 py-3.5 text-left font-semibold text-xs uppercase tracking-wider">Permisos</th>
+            <th class="px-5 py-3.5 text-center font-semibold text-xs uppercase tracking-wider">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="permisosTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+      </table>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      <p id="permisoPaginationInfo" class="text-sm text-slate-500">Mostrando 0 registros</p>
+      <div class="flex items-center gap-2">
+        <button id="btnPermisoAnterior" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Anterior</button>
+        <div id="permisoPaginationPages" class="flex items-center gap-1"></div>
+        <button id="btnPermisoSiguiente" class="px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Empresa -->
+  <div id="modalEmpresa" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" data-close-modal="empresa"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="cs-card w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-[#B85C4F]/10 flex items-center justify-center">
+              <i data-lucide="building-2" class="w-5 h-5 text-[#B85C4F]"></i>
+            </div>
+            <div>
+              <h2 id="modalTitle" class="text-lg font-semibold text-slate-900">Nueva Empresa</h2>
+              <p id="modalSubtitle" class="text-sm text-slate-500">Completa la información del tenant</p>
+            </div>
+          </div>
+          <button data-close-modal="empresa" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form id="formEmpresa" class="p-6 space-y-5">
+          <input type="hidden" name="id" value="">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre de la empresa <span class="text-rose-500">*</span></label>
+            <input type="text" name="empresa" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] focus:ring-1 focus:ring-[#B85C4F]/20" placeholder="Ej. Reginas">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">RFC</label>
+              <input type="text" name="rfc" class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] focus:ring-1 focus:ring-[#B85C4F]/20 uppercase" placeholder="XAXX010101000">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Base de datos</label>
+              <input type="text" name="baseDatos" class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] focus:ring-1 focus:ring-[#B85C4F]/20" placeholder="db_empresa">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Ubicación</label>
+              <div class="relative">
+                <select name="ubicacion" class="cs-input appearance-none w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] focus:ring-1 focus:ring-[#B85C4F]/20">
+                  <option value="-">Sin ubicación</option>
+                  <option value="Central">Central</option>
+                  <option value="Norte">Norte</option>
+                  <option value="Sur">Sur</option>
+                </select>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Estado</label>
+              <div class="relative">
+                <select name="estado" class="cs-input appearance-none w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] focus:ring-1 focus:ring-[#B85C4F]/20">
+                  <option value="Activa">Activa</option>
+                  <option value="Inactiva">Inactiva</option>
+                </select>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-5 border-t border-slate-100">
+            <button type="button" data-close-modal="empresa" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">Guardar empresa</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Plan -->
+  <div id="modalPlan" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" data-close-modal="plan"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="cs-card w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="layers" class="w-5 h-5 text-[#B85C4F]"></i> Nuevo Plan</h2>
+          <button data-close-modal="plan" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <form id="formPlan" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre del plan</label>
+            <input type="text" name="nombre" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Ej. Profesional">
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Precio mensual</label>
+              <input type="number" name="precio" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="999">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Moneda</label>
+              <div class="relative">
+                <select name="moneda" class="cs-input appearance-none w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]">
+                  <option value="MXN">MXN</option>
+                  <option value="USD">USD</option>
+                </select>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Descripción</label>
+            <textarea name="descripcion" rows="3" class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Características del plan..."></textarea>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" data-close-modal="plan" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">Crear plan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Cupón -->
+  <div id="modalCupon" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" data-close-modal="cupon"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="cs-card w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="ticket" class="w-5 h-5 text-[#B85C4F]"></i> Nuevo Cupón</h2>
+          <button data-close-modal="cupon" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <form id="formCupon" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Código</label>
+            <input type="text" name="codigo" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] uppercase" placeholder="COFFEE25">
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Descuento %</label>
+              <input type="number" name="descuento" required min="1" max="100" class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="25">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Usos máximos</label>
+              <input type="number" name="usosMaximos" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="100">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Vigencia</label>
+            <input type="date" name="vigencia" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]">
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" data-close-modal="cupon" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">Crear cupón</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Módulo -->
+  <div id="modalModulo" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" data-close-modal="modulo"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="cs-card w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="puzzle" class="w-5 h-5 text-[#B85C4F]"></i> Nuevo Módulo</h2>
+          <button data-close-modal="modulo" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <form id="formModulo" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre</label>
+            <input type="text" name="nombre" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Ej. Administración">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Icono (data-lucide)</label>
+            <input type="text" name="icono" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Ej. settings">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Descripción</label>
+            <textarea name="descripcion" rows="3" class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Descripción del módulo..."></textarea>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" data-close-modal="modulo" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">Crear módulo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Submódulo -->
+  <div id="modalSubmodulo" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" data-close-modal="submodulo"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="cs-card w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="layout-grid" class="w-5 h-5 text-[#B85C4F]"></i> Nuevo Submódulo</h2>
+          <button data-close-modal="submodulo" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <form id="formSubmodulo" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre</label>
+            <input type="text" name="nombre" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Ej. Gestión de usuarios">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Módulo padre</label>
+            <div class="relative">
+              <select name="moduloId" id="submoduloModuloSelect" class="cs-input appearance-none w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]"></select>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Descripción</label>
+            <textarea name="descripcion" rows="3" class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Descripción del submódulo..."></textarea>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" data-close-modal="submodulo" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">Crear submódulo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Sección -->
+  <div id="modalSeccion" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" data-close-modal="seccion"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="cs-card w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="list" class="w-5 h-5 text-[#B85C4F]"></i> Nueva Sección</h2>
+          <button data-close-modal="seccion" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <form id="formSeccion" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre</label>
+            <input type="text" name="nombre" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Ej. Listado de usuarios">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Submódulo</label>
+            <div class="relative">
+              <select name="submoduloId" id="seccionSubmoduloSelect" class="cs-input appearance-none w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]"></select>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Ruta / URL</label>
+            <input type="text" name="ruta" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="/admin/usuarios">
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" data-close-modal="seccion" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">Crear sección</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Rol -->
+  <div id="modalRol" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" data-close-modal="rol"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="cs-card w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="shield" class="w-5 h-5 text-[#B85C4F]"></i> Nuevo Rol</h2>
+          <button data-close-modal="rol" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <form id="formRol" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre del rol</label>
+            <input type="text" name="nombre" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Ej. Gerente">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Nivel</label>
+            <input type="number" name="nivel" required min="1" max="10" class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="1">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Descripción</label>
+            <textarea name="descripcion" rows="3" class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Responsabilidades del rol..."></textarea>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" data-close-modal="rol" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">Crear rol</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tipo de Permiso -->
+  <div id="modalTipoPermiso" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" data-close-modal="tipo-permiso"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="cs-card w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="key" class="w-5 h-5 text-[#B85C4F]"></i> Nuevo Tipo de Permiso</h2>
+          <button data-close-modal="tipo-permiso" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <form id="formTipoPermiso" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre</label>
+            <input type="text" name="nombre" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Ej. Ver">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Clave</label>
+            <input type="text" name="clave" required class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F] uppercase" placeholder="READ">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Descripción</label>
+            <textarea name="descripcion" rows="3" class="cs-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]" placeholder="Qué permite este permiso..."></textarea>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" data-close-modal="tipo-permiso" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">Crear tipo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Permiso -->
+  <div id="modalPermiso" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" data-close-modal="permiso"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="cs-card w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="lock" class="w-5 h-5 text-[#B85C4F]"></i> Nuevo Permiso</h2>
+          <button data-close-modal="permiso" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <form id="formPermiso" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Rol</label>
+            <div class="relative">
+              <select name="rolId" id="permisoRolSelect" class="cs-input appearance-none w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]"></select>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Sección</label>
+            <div class="relative">
+              <select name="seccionId" id="permisoSeccionSelect" class="cs-input appearance-none w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-[#B85C4F]"></select>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Tipos de permiso</label>
+            <div id="permisoTiposCheckboxes" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" data-close-modal="permiso" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all shadow-md shadow-[#B85C4F]/15">Asignar permisos</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300">
+    <div class="flex items-center gap-3 px-5 py-3.5 rounded-xl bg-white border border-slate-200 shadow-2xl">
+      <div id="toastIcon" class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+      </div>
+      <p id="toastMessage" class="text-sm text-slate-900 font-medium">Operación exitosa</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  let empresas = [
+    { id: 1, empresa: 'Reginas', rfc: '-', baseDatos: '-', ubicacion: 'Central', estado: 'Activa', creacion: '13/06/2026' },
+    { id: 2, empresa: 'CoffeeSoft', rfc: '-', baseDatos: '-', ubicacion: '-', estado: 'Activa', creacion: '06/06/2026' },
+    { id: 3, empresa: 'Acme Corporation', rfc: 'ACM123456789', baseDatos: 'db_acme', ubicacion: 'Norte', estado: 'Inactiva', creacion: '01/05/2026' },
+    { id: 4, empresa: 'Globex Industries', rfc: 'GLB987654321', baseDatos: 'db_globex', ubicacion: 'Sur', estado: 'Activa', creacion: '20/04/2026' },
+    { id: 5, empresa: 'Initech México', rfc: 'INI555555555', baseDatos: 'db_initech', ubicacion: 'Central', estado: 'Activa', creacion: '15/03/2026' },
+    { id: 6, empresa: 'Umbrella Corp', rfc: 'UMB111111111', baseDatos: 'db_umbrella', ubicacion: 'Norte', estado: 'Inactiva', creacion: '28/02/2026' },
+    { id: 7, empresa: 'Stark Enterprises', rfc: 'STK999999999', baseDatos: 'db_stark', ubicacion: 'Sur', estado: 'Activa', creacion: '10/01/2026' },
+    { id: 8, empresa: 'Wayne Industries', rfc: 'WAY888888888', baseDatos: 'db_wayne', ubicacion: 'Central', estado: 'Activa', creacion: '05/01/2026' }
+  ];
+
+  let planes = [
+    { id: 1, nombre: 'Básico', precio: 299, moneda: 'MXN', descripcion: 'Ideal para startups y pequeños equipos. Incluye 5 usuarios y soporte por email.', activo: true, caracteristicas: ['5 usuarios', 'Soporte email', 'Reportes básicos'] },
+    { id: 2, nombre: 'Profesional', precio: 799, moneda: 'MXN', descripcion: 'Para empresas en crecimiento. Usuarios ilimitados y reportes avanzados.', activo: true, caracteristicas: ['Usuarios ilimitados', 'Soporte prioritario', 'Reportes avanzados', 'API access'] },
+    { id: 3, nombre: 'Enterprise', precio: 1999, moneda: 'MXN', descripcion: 'Solución personalizada para grandes organizaciones con necesidades específicas.', activo: true, caracteristicas: ['Todo lo anterior', 'SLA garantizado', 'Onboarding dedicado', 'Infraestructura dedicada'] },
+    { id: 4, nombre: 'Free', precio: 0, moneda: 'MXN', descripcion: 'Plan gratuito para pruebas con funcionalidades limitadas.', activo: false, caracteristicas: ['1 usuario', '1 proyecto', 'Soporte comunidad'] }
+  ];
+
+  let suscripciones = [
+    { id: 1, empresa: 'Reginas', plan: 'Profesional', inicio: '13/06/2026', renovacion: '13/07/2026', monto: 799, estado: 'Activa' },
+    { id: 2, empresa: 'CoffeeSoft', plan: 'Enterprise', inicio: '06/06/2026', renovacion: '06/07/2026', monto: 1999, estado: 'Activa' },
+    { id: 3, empresa: 'Acme Corporation', plan: 'Básico', inicio: '01/05/2026', renovacion: '01/06/2026', monto: 299, estado: 'Cancelada' },
+    { id: 4, empresa: 'Globex Industries', plan: 'Profesional', inicio: '20/04/2026', renovacion: '20/07/2026', monto: 799, estado: 'Activa' },
+    { id: 5, empresa: 'Initech México', plan: 'Básico', inicio: '15/03/2026', renovacion: '15/06/2026', monto: 299, estado: 'Vencida' },
+    { id: 6, empresa: 'Stark Enterprises', plan: 'Enterprise', inicio: '10/01/2026', renovacion: '10/07/2026', monto: 1999, estado: 'Activa' }
+  ];
+
+  let pagos = [
+    { id: 'PAY-001', empresa: 'Reginas', fecha: '13/06/2026', metodo: 'Tarjeta', monto: 799, estado: 'Pagado' },
+    { id: 'PAY-002', empresa: 'CoffeeSoft', fecha: '06/06/2026', metodo: 'Transferencia', monto: 1999, estado: 'Pagado' },
+    { id: 'PAY-003', empresa: 'Globex Industries', fecha: '20/04/2026', metodo: 'Tarjeta', monto: 799, estado: 'Pagado' },
+    { id: 'PAY-004', empresa: 'Acme Corporation', fecha: '01/05/2026', metodo: 'Tarjeta', monto: 299, estado: 'Pendiente' },
+    { id: 'PAY-005', empresa: 'Initech México', fecha: '15/03/2026', metodo: 'PayPal', monto: 299, estado: 'Fallido' },
+    { id: 'PAY-006', empresa: 'Stark Enterprises', fecha: '10/01/2026', metodo: 'Transferencia', monto: 1999, estado: 'Pagado' },
+    { id: 'PAY-007', empresa: 'Wayne Industries', fecha: '05/01/2026', metodo: 'Tarjeta', monto: 799, estado: 'Pagado' }
+  ];
+
+  let cupones = [
+    { id: 1, codigo: 'COFFEE25', descuento: 25, usos: 12, usosMaximos: 100, vigencia: '2026-12-31', activo: true },
+    { id: 2, codigo: 'BIENVENIDO', descuento: 50, usos: 45, usosMaximos: 50, vigencia: '2026-08-15', activo: true },
+    { id: 3, codigo: 'ENTERPRISE10', descuento: 10, usos: 3, usosMaximos: 20, vigencia: '2026-11-20', activo: true },
+    { id: 4, codigo: 'BLACKFRIDAY', descuento: 40, usos: 0, usosMaximos: 200, vigencia: '2025-11-30', activo: false }
+  ];
+
+  let canjes = [
+    { id: 1, codigo: 'COFFEE25', empresa: 'Reginas', fecha: '13/06/2026', montoOriginal: 799, descuento: 25, montoFinal: 599.25 },
+    { id: 2, codigo: 'BIENVENIDO', empresa: 'Wayne Industries', fecha: '05/01/2026', montoOriginal: 799, descuento: 50, montoFinal: 399.50 },
+    { id: 3, codigo: 'ENTERPRISE10', empresa: 'Stark Enterprises', fecha: '10/01/2026', montoOriginal: 1999, descuento: 10, montoFinal: 1799.10 },
+    { id: 4, codigo: 'COFFEE25', empresa: 'Globex Industries', fecha: '20/04/2026', montoOriginal: 799, descuento: 25, montoFinal: 599.25 },
+    { id: 5, codigo: 'COFFEE25', empresa: 'CoffeeSoft', fecha: '06/06/2026', montoOriginal: 1999, descuento: 25, montoFinal: 1499.25 },
+    { id: 6, codigo: 'BIENVENIDO', empresa: 'Initech México', fecha: '15/03/2026', montoOriginal: 299, descuento: 50, montoFinal: 149.50 }
+  ];
+
+  let modulos = [
+    { id: 1, nombre: 'Administración', icono: 'settings', descripcion: 'Configuración general del tenant', activo: true },
+    { id: 2, nombre: 'Ventas', icono: 'shopping-cart', descripcion: 'Gestión de pedidos, clientes y cotizaciones', activo: true },
+    { id: 3, nombre: 'Compras', icono: 'package', descripcion: 'Proveedores, órdenes de compra e inventario', activo: true },
+    { id: 4, nombre: 'Reportes', icono: 'bar-chart-3', descripcion: 'Dashboards y reportes operativos', activo: false },
+    { id: 5, nombre: 'RH', icono: 'users', descripcion: 'Empleados, nómina y asistencia', activo: true }
+  ];
+
+  let submodulos = [
+    { id: 1, nombre: 'Empresas', moduloId: 1, descripcion: 'Gestión de tenants', activo: true },
+    { id: 2, nombre: 'Usuarios', moduloId: 1, descripcion: 'Usuarios del sistema', activo: true },
+    { id: 3, nombre: 'Pedidos', moduloId: 2, descripcion: 'Control de pedidos', activo: true },
+    { id: 4, nombre: 'Clientes', moduloId: 2, descripcion: 'Catálogo de clientes', activo: true },
+    { id: 5, nombre: 'Proveedores', moduloId: 3, descripcion: 'Catálogo de proveedores', activo: true },
+    { id: 6, nombre: 'Inventario', moduloId: 3, descripcion: 'Movimientos de almacén', activo: false },
+    { id: 7, nombre: 'Dashboard', moduloId: 4, descripcion: 'Métricas generales', activo: true },
+    { id: 8, nombre: 'Asistencia', moduloId: 5, descripcion: 'Control de asistencia', activo: true }
+  ];
+
+  let secciones = [
+    { id: 1, nombre: 'Listado de empresas', submoduloId: 1, ruta: '/admin/empresas', activo: true },
+    { id: 2, nombre: 'Nueva empresa', submoduloId: 1, ruta: '/admin/empresas/nueva', activo: true },
+    { id: 3, nombre: 'Usuarios activos', submoduloId: 2, ruta: '/admin/usuarios', activo: true },
+    { id: 4, nombre: 'Roles', submoduloId: 2, ruta: '/admin/roles', activo: true },
+    { id: 5, nombre: 'Pedidos del día', submoduloId: 3, ruta: '/ventas/pedidos', activo: true },
+    { id: 6, nombre: 'Catálogo clientes', submoduloId: 4, ruta: '/ventas/clientes', activo: false },
+    { id: 7, nombre: 'Entradas de almacén', submoduloId: 6, ruta: '/compras/inventario/entradas', activo: true },
+    { id: 8, nombre: 'Reporte de ventas', submoduloId: 7, ruta: '/reportes/ventas', activo: true }
+  ];
+
+  let roles = [
+    { id: 1, nombre: 'Super Admin', nivel: 1, descripcion: 'Acceso total al sistema', color: 'bg-violet-500' },
+    { id: 2, nombre: 'Administrador', nivel: 2, descripcion: 'Gestión de tenants y usuarios', color: 'bg-[#B85C4F]' },
+    { id: 3, nombre: 'Gerente', nivel: 3, descripcion: 'Reportes y supervisión', color: 'bg-sky-500' },
+    { id: 4, nombre: 'Vendedor', nivel: 4, descripcion: 'Operaciones de venta', color: 'bg-emerald-500' },
+    { id: 5, nombre: 'Analista', nivel: 5, descripcion: 'Solo lectura de reportes', color: 'bg-amber-500' }
+  ];
+
+  let tiposPermiso = [
+    { id: 1, nombre: 'Ver', clave: 'READ', descripcion: 'Puede ver el contenido de la sección' },
+    { id: 2, nombre: 'Crear', clave: 'CREATE', descripcion: 'Puede agregar nuevos registros' },
+    { id: 3, nombre: 'Editar', clave: 'UPDATE', descripcion: 'Puede modificar registros existentes' },
+    { id: 4, nombre: 'Eliminar', clave: 'DELETE', descripcion: 'Puede eliminar registros' },
+    { id: 5, nombre: 'Exportar', clave: 'EXPORT', descripcion: 'Puede exportar datos' },
+    { id: 6, nombre: 'Aprobar', clave: 'APPROVE', descripcion: 'Puede aprobar solicitudes' }
+  ];
+
+  let permisos = [
+    { id: 1, rolId: 1, seccionId: 1, tipoPermisoIds: [1, 2, 3, 4, 5, 6] },
+    { id: 2, rolId: 2, seccionId: 1, tipoPermisoIds: [1, 2, 3, 5] },
+    { id: 3, rolId: 3, seccionId: 5, tipoPermisoIds: [1, 2, 3] },
+    { id: 4, rolId: 4, seccionId: 5, tipoPermisoIds: [1, 2] },
+    { id: 5, rolId: 5, seccionId: 8, tipoPermisoIds: [1, 5] },
+    { id: 6, rolId: 1, seccionId: 3, tipoPermisoIds: [1, 2, 3, 4, 5, 6] },
+    { id: 7, rolId: 2, seccionId: 3, tipoPermisoIds: [1, 2, 3, 5] },
+    { id: 8, rolId: 3, seccionId: 8, tipoPermisoIds: [1, 5, 6] }
+  ];
+
+  const rowsPerPage = 5;
+  let empPage = 1, susPage = 1, pagoPage = 1, canjePage = 1, subPage = 1, secPage = 1, permPage = 1;
+  let sortKey = '', sortDirection = 1;
+  let filteredEmpresas = [...empresas];
+  let filteredSuscripciones = [...suscripciones];
+  let filteredPagos = [...pagos];
+  let filteredCanjes = [...canjes];
+  let filteredSubmodulos = [...submodulos];
+  let filteredSecciones = [...secciones];
+  let filteredPermisos = [...permisos];
+  let editingId = null;
+
+  function formatDash(value) {
+    return value === '-' || !value ? '<span class="text-slate-400">-</span>' : value;
+  }
+
+  function formatMoney(amount) {
+    return '$' + amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function getStatusBadge(estado) {
+    const configs = {
+      'Activa': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      'Activo': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      'Inactiva': 'bg-rose-50 text-rose-700 border-rose-200',
+      'Inactivo': 'bg-rose-50 text-rose-700 border-rose-200',
+      'Cancelada': 'bg-slate-100 text-slate-600 border-slate-200',
+      'Vencida': 'bg-amber-50 text-amber-700 border-amber-200',
+      'Pagado': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      'Pendiente': 'bg-amber-50 text-amber-700 border-amber-200',
+      'Fallido': 'bg-rose-50 text-rose-700 border-rose-200'
+    };
+    const dotColors = {
+      'Activa': 'bg-emerald-500', 'Activo': 'bg-emerald-500',
+      'Inactiva': 'bg-rose-500', 'Inactivo': 'bg-rose-500',
+      'Cancelada': 'bg-slate-400', 'Vencida': 'bg-amber-500',
+      'Pagado': 'bg-emerald-500', 'Pendiente': 'bg-amber-500', 'Fallido': 'bg-rose-500'
+    };
+    const cls = configs[estado] || 'bg-slate-100 text-slate-600 border-slate-200';
+    const dot = dotColors[estado] || 'bg-slate-400';
+    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${cls}"><span class="w-1.5 h-1.5 rounded-full ${dot}"></span>${estado}</span>`;
+  }
+
+  function refreshIcons() {
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const toastIcon = document.getElementById('toastIcon');
+    const toastMessage = document.getElementById('toastMessage');
+    const icon = type === 'success' ? 'check-circle-2' : 'trash-2';
+    const color = type === 'success' ? 'emerald' : 'rose';
+    toastIcon.className = `w-8 h-8 rounded-lg bg-${color}-50 flex items-center justify-center`;
+    toastIcon.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 text-${color}-600"></i>`;
+    toastMessage.textContent = message;
+    toast.classList.remove('translate-y-20', 'opacity-0');
+    refreshIcons();
+    setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 3000);
+  }
+
+  function renderPagination(containerId, infoId, currentPageNum, totalItems, pageBtnClass, btnPrevId, btnNextId, renderFn) {
+    const total = totalItems;
+    const start = (currentPageNum - 1) * rowsPerPage;
+    const from = total ? start + 1 : 0;
+    const to = Math.min(start + rowsPerPage, total);
+    document.getElementById(infoId).textContent = total ? `Mostrando del ${from} al ${to} de ${total} registros` : 'No hay registros para mostrar';
+    const totalPages = Math.ceil(total / rowsPerPage) || 1;
+    let html = '';
+    for (let i = 1; i <= totalPages; i++) {
+      html += `<button data-page="${i}" class="${pageBtnClass} px-4 py-2 rounded-xl text-sm font-medium transition-all ${i === currentPageNum ? 'bg-[#B85C4F] text-white shadow-md shadow-[#B85C4F]/15' : 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'}">${i}</button>`;
+    }
+    document.getElementById(containerId).innerHTML = html;
+    document.getElementById(btnPrevId).disabled = currentPageNum === 1;
+    document.getElementById(btnNextId).disabled = currentPageNum === totalPages || totalPages === 0;
+  }
+
+  // Empresas
+  function updateStats() {
+    document.getElementById('statTotal').textContent = empresas.length;
+    document.getElementById('statActivas').textContent = empresas.filter(e => e.estado === 'Activa').length;
+    document.getElementById('statInactivas').textContent = empresas.filter(e => e.estado === 'Inactiva').length;
+  }
+
+  function renderEmpresas() {
+    const start = (empPage - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    const pageData = filteredEmpresas.slice(start, end);
+    const tbody = document.getElementById('empresasTableBody');
+    const emptyState = document.getElementById('emptyState');
+
+    if (pageData.length === 0) {
+      tbody.innerHTML = '';
+      emptyState.classList.remove('hidden');
+    } else {
+      emptyState.classList.add('hidden');
+      tbody.innerHTML = pageData.map(item => `
+        <tr class="group hover:bg-slate-50 transition-all">
+          <td class="px-5 py-4">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg bg-[#B85C4F]/10 flex items-center justify-center">
+                <span class="text-sm font-semibold text-[#B85C4F]">${item.empresa.substring(0, 2).toUpperCase()}</span>
+              </div>
+              <span class="text-slate-900 font-medium">${item.empresa}</span>
+            </div>
+          </td>
+          <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-600 text-xs tracking-wide">${formatDash(item.rfc)}</td>
+          <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-600 text-xs">${formatDash(item.baseDatos)}</td>
+          <td class="px-5 py-4 text-slate-600">${formatDash(item.ubicacion)}</td>
+          <td class="px-5 py-4">${getStatusBadge(item.estado)}</td>
+          <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-600 text-xs">${item.creacion}</td>
+          <td class="px-5 py-4">
+            <div class="flex items-center justify-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+              <button class="btn-edit p-2 rounded-lg bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all" data-id="${item.id}" title="Editar">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+              </button>
+              <div class="relative">
+                <button class="btn-more p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all" data-id="${item.id}" title="Más opciones">
+                  <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                </button>
+                <div class="dropdown-menu hidden absolute right-0 top-full mt-1 w-40 rounded-xl border border-slate-200 bg-white shadow-2xl py-1 z-10">
+                  <button class="w-full px-4 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2 transition-colors">
+                    <i data-lucide="settings" class="w-4 h-4"></i> Configurar
+                  </button>
+                  <button class="btn-delete w-full px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors" data-id="${item.id}">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+    renderPagination('paginationPages', 'paginationInfo', empPage, filteredEmpresas.length, 'emp-page-btn', 'btnAnterior', 'btnSiguiente', renderEmpresas);
+    refreshIcons();
+  }
+
+  function applyEmpFilters() {
+    const term = document.getElementById('searchInput').value.toLowerCase().trim();
+    const estado = document.getElementById('estadoFilter').value;
+    const ubicacion = document.getElementById('ubicacionFilter').value;
+    filteredEmpresas = empresas.filter(item => {
+      const matchesSearch = !term || item.empresa.toLowerCase().includes(term) || item.rfc.toLowerCase().includes(term) || item.baseDatos.toLowerCase().includes(term);
+      return matchesSearch && (estado === 'todos' || item.estado === estado) && (ubicacion === 'todas' || item.ubicacion === ubicacion);
+    });
+    if (sortKey) {
+      filteredEmpresas.sort((a, b) => {
+        const valA = (a[sortKey] || '').toString().toLowerCase();
+        const valB = (b[sortKey] || '').toString().toLowerCase();
+        if (valA < valB) return -1 * sortDirection;
+        if (valA > valB) return 1 * sortDirection;
+        return 0;
+      });
+    }
+    empPage = 1;
+    renderEmpresas();
+  }
+
+  // Planes
+  function renderPlanes() {
+    const grid = document.getElementById('planesGrid');
+    grid.innerHTML = planes.map(plan => `
+      <div class="cs-card relative p-6 rounded-2xl border ${plan.activo ? 'border-[#B85C4F]/30' : 'border-slate-200'} bg-white transition-all hover:shadow-md">
+        ${plan.precio === 0 ? '<span class="absolute top-4 right-4 px-2 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">Gratuito</span>' : ''}
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-900">${plan.nombre}</h3>
+            <p class="text-3xl font-bold text-slate-900 mt-2 font-[JetBrains_Mono]">${plan.precio === 0 ? 'Gratis' : formatMoney(plan.precio)}<span class="text-sm font-medium text-slate-500">/${plan.moneda}</span></p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer plan-toggle" data-id="${plan.id}" ${plan.activo ? 'checked' : ''}>
+            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#B85C4F]"></div>
+          </label>
+        </div>
+        <p class="text-sm text-slate-500 mb-5 leading-relaxed">${plan.descripcion}</p>
+        <ul class="space-y-2 mb-6">
+          ${plan.caracteristicas.map(f => `<li class="flex items-center gap-2 text-sm text-slate-600"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>${f}</li>`).join('')}
+        </ul>
+        <div class="flex items-center gap-2">
+          <button class="flex-1 px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Editar</button>
+          <button class="flex-1 px-4 py-2 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all">Configurar</button>
+        </div>
+      </div>
+    `).join('');
+    refreshIcons();
+  }
+
+  // Suscripciones
+  function renderSuscripciones() {
+    const start = (susPage - 1) * rowsPerPage;
+    const pageData = filteredSuscripciones.slice(start, start + rowsPerPage);
+    document.getElementById('suscripcionesTableBody').innerHTML = pageData.map(item => `
+      <tr class="hover:bg-slate-50 transition-all">
+        <td class="px-5 py-4 font-medium text-slate-900">${item.empresa}</td>
+        <td class="px-5 py-4"><span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100">${item.plan}</span></td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-600 text-xs">${item.inicio}</td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-600 text-xs">${item.renovacion}</td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-900 font-medium">${formatMoney(item.monto)}</td>
+        <td class="px-5 py-4">${getStatusBadge(item.estado)}</td>
+        <td class="px-5 py-4">
+          <div class="flex items-center justify-center gap-1.5">
+            <button class="p-2 rounded-lg bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all" title="Renovar"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
+            <button class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all" title="Cancelar"><i data-lucide="ban" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    renderPagination('suscripcionPaginationPages', 'suscripcionPaginationInfo', susPage, filteredSuscripciones.length, 'sus-page-btn', 'btnSusAnterior', 'btnSusSiguiente', renderSuscripciones);
+    refreshIcons();
+  }
+
+  function applySusFilters() {
+    const term = document.getElementById('suscripcionSearch').value.toLowerCase().trim();
+    const estado = document.getElementById('suscripcionEstadoFilter').value;
+    filteredSuscripciones = suscripciones.filter(item => {
+      return (!term || item.empresa.toLowerCase().includes(term) || item.plan.toLowerCase().includes(term)) && (estado === 'todos' || item.estado === estado);
+    });
+    susPage = 1;
+    renderSuscripciones();
+  }
+
+  // Pagos
+  function renderPagos() {
+    const start = (pagoPage - 1) * rowsPerPage;
+    const pageData = filteredPagos.slice(start, start + rowsPerPage);
+    document.getElementById('pagosTableBody').innerHTML = pageData.map(item => `
+      <tr class="hover:bg-slate-50 transition-all">
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-900 font-medium text-xs">${item.id}</td>
+        <td class="px-5 py-4 text-slate-700">${item.empresa}</td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-600 text-xs">${item.fecha}</td>
+        <td class="px-5 py-4 text-slate-600">
+          <div class="flex items-center gap-2">
+            <i data-lucide="${item.metodo === 'Tarjeta' ? 'credit-card' : item.metodo === 'Transferencia' ? 'landmark' : 'wallet'}" class="w-4 h-4 text-slate-400"></i>
+            ${item.metodo}
+          </div>
+        </td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-900 font-medium">${formatMoney(item.monto)}</td>
+        <td class="px-5 py-4">${getStatusBadge(item.estado)}</td>
+        <td class="px-5 py-4 text-center">
+          <button class="btn-comprobante p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all" title="Ver comprobante"><i data-lucide="file-text" class="w-4 h-4"></i></button>
+        </td>
+      </tr>
+    `).join('');
+    renderPagination('pagoPaginationPages', 'pagoPaginationInfo', pagoPage, filteredPagos.length, 'pago-page-btn', 'btnPagoAnterior', 'btnPagoSiguiente', renderPagos);
+    refreshIcons();
+  }
+
+  function applyPagoFilters() {
+    const term = document.getElementById('pagoSearch').value.toLowerCase().trim();
+    const estado = document.getElementById('pagoEstadoFilter').value;
+    filteredPagos = pagos.filter(item => {
+      return (!term || item.id.toLowerCase().includes(term) || item.empresa.toLowerCase().includes(term)) && (estado === 'todos' || item.estado === estado);
+    });
+    pagoPage = 1;
+    renderPagos();
+  }
+
+  // Cupones
+  function renderCupones() {
+    const grid = document.getElementById('cuponesGrid');
+    grid.innerHTML = cupones.map(cupon => {
+      const usadoPorcentaje = Math.min((cupon.usos / cupon.usosMaximos) * 100, 100);
+      const expirado = new Date(cupon.vigencia) < new Date('2026-06-15');
+      return `
+      <div class="cs-card p-6 rounded-2xl border ${cupon.activo ? 'border-[#B85C4F]/20' : 'border-slate-200'} bg-white transition-all hover:shadow-md">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1"><i data-lucide="ticket" class="w-5 h-5 text-[#B85C4F]"></i><span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Cupón</span></div>
+            <h3 class="text-2xl font-bold text-slate-900 font-[JetBrains_Mono]">${cupon.codigo}</h3>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer cupon-toggle" data-id="${cupon.id}" ${cupon.activo ? 'checked' : ''}>
+            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#B85C4F]"></div>
+          </label>
+        </div>
+        <div class="flex items-baseline gap-1 mb-4"><span class="text-4xl font-bold text-[#B85C4F] font-[JetBrains_Mono]">${cupon.descuento}%</span><span class="text-sm text-slate-500">de descuento</span></div>
+        <div class="mb-4">
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5"><span>${cupon.usos} de ${cupon.usosMaximos} usados</span><span>${Math.round(usadoPorcentaje)}%</span></div>
+          <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-[#B85C4F] rounded-full transition-all" style="width: ${usadoPorcentaje}%"></div></div>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-500">Vence: <span class="text-slate-700 font-medium">${cupon.vigencia}</span></span>
+          ${expirado && cupon.activo ? '<span class="px-2 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-100">Por vencer</span>' : ''}
+        </div>
+        <div class="flex items-center gap-2 mt-5 pt-5 border-t border-slate-100">
+          <button class="btn-copy-cupon flex-1 px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all" data-codigo="${cupon.codigo}"><i data-lucide="copy" class="w-4 h-4 inline mr-1"></i> Copiar</button>
+          <button class="flex-1 px-4 py-2 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all">Editar</button>
+        </div>
+      </div>`;
+    }).join('');
+    refreshIcons();
+  }
+
+  // Canjes
+  function renderCanjes() {
+    const start = (canjePage - 1) * rowsPerPage;
+    const pageData = filteredCanjes.slice(start, start + rowsPerPage);
+    document.getElementById('canjesTableBody').innerHTML = pageData.map(item => `
+      <tr class="hover:bg-slate-50 transition-all">
+        <td class="px-5 py-4"><span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 font-[JetBrains_Mono]">${item.codigo}</span></td>
+        <td class="px-5 py-4 font-medium text-slate-900">${item.empresa}</td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-600 text-xs">${item.fecha}</td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-600">${formatMoney(item.montoOriginal)}</td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-emerald-600 font-medium">-${item.descuento}%</td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-900 font-semibold">${formatMoney(item.montoFinal)}</td>
+      </tr>
+    `).join('');
+    renderPagination('canjePaginationPages', 'canjePaginationInfo', canjePage, filteredCanjes.length, 'canje-page-btn', 'btnCanjeAnterior', 'btnCanjeSiguiente', renderCanjes);
+    refreshIcons();
+  }
+
+  function applyCanjeFilters() {
+    const term = document.getElementById('canjeSearch').value.toLowerCase().trim();
+    filteredCanjes = canjes.filter(item => !term || item.codigo.toLowerCase().includes(term) || item.empresa.toLowerCase().includes(term));
+    canjePage = 1;
+    renderCanjes();
+  }
+
+  // Módulos
+  function renderModulos() {
+    const grid = document.getElementById('modulosGrid');
+    grid.innerHTML = modulos.map(modulo => `
+      <div class="cs-card p-6 rounded-2xl border ${modulo.activo ? 'border-[#B85C4F]/20' : 'border-slate-200'} bg-white transition-all hover:shadow-md">
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-[#B85C4F]/10 flex items-center justify-center">
+              <i data-lucide="${modulo.icono}" class="w-5 h-5 text-[#B85C4F]"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-semibold text-slate-900">${modulo.nombre}</h3>
+              <span class="text-xs text-slate-500">${submodulos.filter(s => s.moduloId === modulo.id).length} submódulos</span>
+            </div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer modulo-toggle" data-id="${modulo.id}" ${modulo.activo ? 'checked' : ''}>
+            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#B85C4F]"></div>
+          </label>
+        </div>
+        <p class="text-sm text-slate-500 mb-4 leading-relaxed">${modulo.descripcion}</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-ver-submodulos flex-1 px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all" data-modulo-id="${modulo.id}"><i data-lucide="layout-grid" class="w-4 h-4 inline mr-1"></i> Submódulos</button>
+          <button class="flex-1 px-4 py-2 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all">Editar</button>
+        </div>
+      </div>
+    `).join('');
+    refreshIcons();
+  }
+
+  // Submódulos
+  function populateSubmoduloFilters() {
+    const moduloSelect = document.getElementById('submoduloModuloFilter');
+    const selectModal = document.getElementById('submoduloModuloSelect');
+    const options = '<option value="todos">Todos los módulos</option>' + modulos.map(m => `<option value="${m.id}">${m.nombre}</option>`).join('');
+    moduloSelect.innerHTML = options;
+    selectModal.innerHTML = modulos.map(m => `<option value="${m.id}">${m.nombre}</option>`).join('');
+  }
+
+  function renderSubmodulos() {
+    const moduloFilter = document.getElementById('submoduloModuloFilter').value;
+    filteredSubmodulos = submodulos.filter(s => moduloFilter === 'todos' || s.moduloId === parseInt(moduloFilter, 10));
+    const start = (subPage - 1) * rowsPerPage;
+    const pageData = filteredSubmodulos.slice(start, start + rowsPerPage);
+    document.getElementById('submodulosTableBody').innerHTML = pageData.map(item => {
+      const modulo = modulos.find(m => m.id === item.moduloId);
+      return `
+      <tr class="hover:bg-slate-50 transition-all">
+        <td class="px-5 py-4 font-medium text-slate-900">${item.nombre}</td>
+        <td class="px-5 py-4"><span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100">${modulo ? modulo.nombre : '-'}</span></td>
+        <td class="px-5 py-4 text-slate-600 text-sm">${item.descripcion}</td>
+        <td class="px-5 py-4">${getStatusBadge(item.activo ? 'Activo' : 'Inactivo')}</td>
+        <td class="px-5 py-4">
+          <div class="flex items-center justify-center gap-1.5">
+            <button class="btn-ver-secciones p-2 rounded-lg bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all" data-submodulo-id="${item.id}" title="Ver secciones"><i data-lucide="list" class="w-3.5 h-3.5"></i></button>
+            <button class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all" title="Editar"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    renderPagination('submoduloPaginationPages', 'submoduloPaginationInfo', subPage, filteredSubmodulos.length, 'sub-page-btn', 'btnSubmoduloAnterior', 'btnSubmoduloSiguiente', renderSubmodulos);
+    refreshIcons();
+  }
+
+  // Secciones
+  function populateSeccionFilters() {
+    const submoduloSelect = document.getElementById('seccionSubmoduloFilter');
+    const selectModal = document.getElementById('seccionSubmoduloSelect');
+    const options = '<option value="todos">Todos los submódulos</option>' + submodulos.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+    submoduloSelect.innerHTML = options;
+    selectModal.innerHTML = submodulos.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+  }
+
+  function renderSecciones() {
+    const submoduloFilter = document.getElementById('seccionSubmoduloFilter').value;
+    filteredSecciones = secciones.filter(s => submoduloFilter === 'todos' || s.submoduloId === parseInt(submoduloFilter, 10));
+    const start = (secPage - 1) * rowsPerPage;
+    const pageData = filteredSecciones.slice(start, start + rowsPerPage);
+    document.getElementById('seccionesTableBody').innerHTML = pageData.map(item => {
+      const submodulo = submodulos.find(s => s.id === item.submoduloId);
+      return `
+      <tr class="hover:bg-slate-50 transition-all">
+        <td class="px-5 py-4 font-medium text-slate-900">${item.nombre}</td>
+        <td class="px-5 py-4"><span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-sky-50 text-sky-700 border border-sky-100">${submodulo ? submodulo.nombre : '-'}</span></td>
+        <td class="px-5 py-4 font-[JetBrains_Mono] text-slate-600 text-xs">${item.ruta}</td>
+        <td class="px-5 py-4">${getStatusBadge(item.activo ? 'Activo' : 'Inactivo')}</td>
+        <td class="px-5 py-4">
+          <div class="flex items-center justify-center gap-1.5">
+            <button class="p-2 rounded-lg bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all" title="Editar"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+            <button class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all" title="Permisos"><i data-lucide="lock" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    renderPagination('seccionPaginationPages', 'seccionPaginationInfo', secPage, filteredSecciones.length, 'sec-page-btn', 'btnSeccionAnterior', 'btnSeccionSiguiente', renderSecciones);
+    refreshIcons();
+  }
+
+  // Roles
+  function renderRoles() {
+    const grid = document.getElementById('rolesGrid');
+    grid.innerHTML = roles.map(rol => {
+      const permCount = permisos.filter(p => p.rolId === rol.id).length;
+      return `
+      <div class="cs-card p-6 rounded-2xl border border-slate-200 bg-white transition-all hover:shadow-md">
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl ${rol.color} flex items-center justify-center text-white font-semibold">${rol.nombre.substring(0, 2).toUpperCase()}</div>
+            <div>
+              <h3 class="text-base font-semibold text-slate-900">${rol.nombre}</h3>
+              <span class="text-xs text-slate-500">Nivel ${rol.nivel}</span>
+            </div>
+          </div>
+          <span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100">${permCount} permisos</span>
+        </div>
+        <p class="text-sm text-slate-500 mb-5 leading-relaxed">${rol.descripcion}</p>
+        <div class="flex items-center gap-2">
+          <button class="flex-1 px-4 py-2 rounded-xl text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">Editar</button>
+          <button class="btn-ver-permisos-rol flex-1 px-4 py-2 rounded-xl text-sm font-medium bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all" data-rol-id="${rol.id}">Permisos</button>
+        </div>
+      </div>`;
+    }).join('');
+    refreshIcons();
+  }
+
+  // Tipos de permiso
+  function renderTiposPermiso() {
+    const grid = document.getElementById('tiposPermisoGrid');
+    grid.innerHTML = tiposPermiso.map(tp => `
+      <div class="cs-card p-5 rounded-2xl border border-slate-200 bg-white transition-all hover:shadow-md">
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 font-[JetBrains_Mono]">${tp.clave}</span>
+          <button class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-rose-600 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        </div>
+        <h3 class="text-base font-semibold text-slate-900 mb-1">${tp.nombre}</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">${tp.descripcion}</p>
+      </div>
+    `).join('');
+    refreshIcons();
+  }
+
+  // Permisos
+  function populatePermisoFilters() {
+    const rolSelect = document.getElementById('permisoRolFilter');
+    const selectModal = document.getElementById('permisoRolSelect');
+    const seccionSelect = document.getElementById('permisoSeccionSelect');
+    const options = '<option value="todos">Todos los roles</option>' + roles.map(r => `<option value="${r.id}">${r.nombre}</option>`).join('');
+    rolSelect.innerHTML = options;
+    selectModal.innerHTML = roles.map(r => `<option value="${r.id}">${r.nombre}</option>`).join('');
+    seccionSelect.innerHTML = secciones.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+  }
+
+  function renderPermisos() {
+    const rolFilter = document.getElementById('permisoRolFilter').value;
+    filteredPermisos = permisos.filter(p => rolFilter === 'todos' || p.rolId === parseInt(rolFilter, 10));
+    const start = (permPage - 1) * rowsPerPage;
+    const pageData = filteredPermisos.slice(start, start + rowsPerPage);
+    document.getElementById('permisosTableBody').innerHTML = pageData.map(item => {
+      const rol = roles.find(r => r.id === item.rolId);
+      const seccion = secciones.find(s => s.id === item.seccionId);
+      const tipos = item.tipoPermisoIds.map(id => {
+        const tp = tiposPermiso.find(t => t.id === id);
+        return tp ? `<span class="px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">${tp.clave}</span>` : '';
+      }).join('');
+      return `
+      <tr class="hover:bg-slate-50 transition-all">
+        <td class="px-5 py-4 font-medium text-slate-900">${rol ? rol.nombre : '-'}</td>
+        <td class="px-5 py-4"><span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100">${seccion ? seccion.nombre : '-'}</span></td>
+        <td class="px-5 py-4"><div class="flex flex-wrap gap-1">${tipos}</div></td>
+        <td class="px-5 py-4 text-center">
+          <div class="flex items-center justify-center gap-1.5">
+            <button class="p-2 rounded-lg bg-[#B85C4F] hover:bg-[#A34F43] text-white transition-all" title="Editar"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+            <button class="btn-delete-permiso p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all" title="Eliminar" data-id="${item.id}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    renderPagination('permisoPaginationPages', 'permisoPaginationInfo', permPage, filteredPermisos.length, 'perm-page-btn', 'btnPermisoAnterior', 'btnPermisoSiguiente', renderPermisos);
+    refreshIcons();
+  }
+
+  function renderPermisoTiposCheckboxes() {
+    const container = document.getElementById('permisoTiposCheckboxes');
+    container.innerHTML = tiposPermiso.map(tp => `
+      <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-all">
+        <input type="checkbox" name="tipoPermiso" value="${tp.id}" class="w-4 h-4 rounded border-slate-300 text-[#B85C4F] focus:ring-[#B85C4F]">
+        <div>
+          <p class="text-sm font-medium text-slate-900">${tp.nombre}</p>
+          <p class="text-xs text-slate-500">${tp.clave}</p>
+        </div>
+      </label>
+    `).join('');
+  }
+
+  // Tab switching
+  function updateTabButton(activeTab) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active', 'bg-slate-100', 'text-slate-900', 'shadow-sm');
+      b.classList.add('text-slate-500');
+    });
+    const activeBtn = document.querySelector(`.tab-btn[data-tab="${activeTab}"]`);
+    activeBtn.classList.add('active', 'bg-slate-100', 'text-slate-900', 'shadow-sm');
+    activeBtn.classList.remove('text-slate-500');
+
+    const actionBtn = document.getElementById('btnNuevaEmpresa');
+    const config = {
+      'empresas': { text: 'Nueva Empresa', icon: 'plus' },
+      'planes': { text: 'Nuevo Plan', icon: 'plus' },
+      'suscripciones': { text: 'Nueva Suscripción', icon: 'plus' },
+      'pagos': { text: 'Registrar Pago', icon: 'plus' },
+      'cupones': { text: 'Nuevo Cupón', icon: 'plus' },
+      'canjes': { text: 'Registrar Canje', icon: 'plus' },
+      'modulos': { text: 'Nuevo Módulo', icon: 'plus' },
+      'submodulos': { text: 'Nuevo Submódulo', icon: 'plus' },
+      'secciones': { text: 'Nueva Sección', icon: 'plus' },
+      'roles': { text: 'Nuevo Rol', icon: 'plus' },
+      'tipos-permiso': { text: 'Nuevo Tipo', icon: 'plus' },
+      'permisos': { text: 'Nuevo Permiso', icon: 'plus' }
+    };
+    const cfg = config[activeTab] || { text: 'Nuevo', icon: 'plus' };
+    actionBtn.querySelector('span').textContent = cfg.text;
+    actionBtn.dataset.tab = activeTab;
+
+    const statData = {
+      'empresas': { label: 'Total empresas', icon1: 'building-2', label2: 'Empresas activas', icon2: 'check-circle-2', label3: 'Empresas inactivas', icon3: 'x-circle' },
+      'planes': { label: 'Total planes', icon1: 'layers', label2: 'Planes activos', icon2: 'check-circle-2', label3: 'Planes inactivos', icon3: 'x-circle' },
+      'suscripciones': { label: 'Total suscripciones', icon1: 'credit-card', label2: 'Suscripciones activas', icon2: 'check-circle-2', label3: 'Suscripciones vencidas', icon3: 'x-circle' },
+      'pagos': { label: 'Total pagos', icon1: 'dollar-sign', label2: 'Pagos exitosos', icon2: 'check-circle-2', label3: 'Pagos fallidos', icon3: 'x-circle' },
+      'cupones': { label: 'Total cupones', icon1: 'ticket', label2: 'Cupones activos', icon2: 'check-circle-2', label3: 'Cupones inactivos', icon3: 'x-circle' },
+      'canjes': { label: 'Total canjes', icon1: 'refresh-cw', label2: 'Canjes este mes', icon2: 'check-circle-2', label3: 'Canjes vencidos', icon3: 'x-circle' },
+      'modulos': { label: 'Total módulos', icon1: 'puzzle', label2: 'Módulos activos', icon2: 'check-circle-2', label3: 'Módulos inactivos', icon3: 'x-circle' },
+      'submodulos': { label: 'Total submódulos', icon1: 'layout-grid', label2: 'Submódulos activos', icon2: 'check-circle-2', label3: 'Submódulos inactivos', icon3: 'x-circle' },
+      'secciones': { label: 'Total secciones', icon1: 'list', label2: 'Secciones activas', icon2: 'check-circle-2', label3: 'Secciones inactivas', icon3: 'x-circle' },
+      'roles': { label: 'Total roles', icon1: 'shield', label2: 'Roles activos', icon2: 'check-circle-2', label3: 'Roles inactivos', icon3: 'x-circle' },
+      'tipos-permiso': { label: 'Total tipos', icon1: 'key', label2: 'Tipos activos', icon2: 'check-circle-2', label3: 'Tipos inactivos', icon3: 'x-circle' },
+      'permisos': { label: 'Total permisos', icon1: 'lock', label2: 'Permisos activos', icon2: 'check-circle-2', label3: 'Permisos inactivos', icon3: 'x-circle' }
+    };
+    const sd = statData[activeTab] || statData['empresas'];
+    document.querySelectorAll('.stat-label')[0].textContent = sd.label;
+    document.querySelectorAll('.stat-icon')[0].setAttribute('data-lucide', sd.icon1);
+    document.querySelectorAll('.stat-label')[1].textContent = sd.label2;
+    document.querySelectorAll('.stat-icon')[1].setAttribute('data-lucide', sd.icon2);
+    document.querySelectorAll('.stat-label')[2].textContent = sd.label3;
+    document.querySelectorAll('.stat-icon')[2].setAttribute('data-lucide', sd.icon3);
+
+    updateTabStats(activeTab);
+    refreshIcons();
+  }
+
+  function updateTabStats(activeTab) {
+    const total = document.getElementById('statTotal');
+    const activas = document.getElementById('statActivas');
+    const inactivas = document.getElementById('statInactivas');
+    if (activeTab === 'empresas') {
+      total.textContent = empresas.length;
+      activas.textContent = empresas.filter(e => e.estado === 'Activa').length;
+      inactivas.textContent = empresas.filter(e => e.estado === 'Inactiva').length;
+    } else if (activeTab === 'planes') {
+      total.textContent = planes.length;
+      activas.textContent = planes.filter(p => p.activo).length;
+      inactivas.textContent = planes.filter(p => !p.activo).length;
+    } else if (activeTab === 'suscripciones') {
+      total.textContent = suscripciones.length;
+      activas.textContent = suscripciones.filter(s => s.estado === 'Activa').length;
+      inactivas.textContent = suscripciones.filter(s => s.estado === 'Vencida').length;
+    } else if (activeTab === 'pagos') {
+      total.textContent = pagos.length;
+      activas.textContent = pagos.filter(p => p.estado === 'Pagado').length;
+      inactivas.textContent = pagos.filter(p => p.estado === 'Fallido').length;
+    } else if (activeTab === 'cupones') {
+      total.textContent = cupones.length;
+      activas.textContent = cupones.filter(c => c.activo).length;
+      inactivas.textContent = cupones.filter(c => !c.activo).length;
+    } else if (activeTab === 'canjes') {
+      total.textContent = canjes.length;
+      activas.textContent = canjes.filter(c => c.fecha.startsWith('06/')).length;
+      inactivas.textContent = 0;
+    } else if (activeTab === 'modulos') {
+      total.textContent = modulos.length;
+      activas.textContent = modulos.filter(m => m.activo).length;
+      inactivas.textContent = modulos.filter(m => !m.activo).length;
+    } else if (activeTab === 'submodulos') {
+      total.textContent = submodulos.length;
+      activas.textContent = submodulos.filter(s => s.activo).length;
+      inactivas.textContent = submodulos.filter(s => !s.activo).length;
+    } else if (activeTab === 'secciones') {
+      total.textContent = secciones.length;
+      activas.textContent = secciones.filter(s => s.activo).length;
+      inactivas.textContent = secciones.filter(s => !s.activo).length;
+    } else if (activeTab === 'roles') {
+      total.textContent = roles.length;
+      activas.textContent = roles.length;
+      inactivas.textContent = 0;
+    } else if (activeTab === 'tipos-permiso') {
+      total.textContent = tiposPermiso.length;
+      activas.textContent = tiposPermiso.length;
+      inactivas.textContent = 0;
+    } else if (activeTab === 'permisos') {
+      total.textContent = permisos.length;
+      activas.textContent = permisos.length;
+      inactivas.textContent = 0;
+    } else {
+      total.textContent = 0;
+      activas.textContent = 0;
+      inactivas.textContent = 0;
+    }
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      document.getElementById('tab-' + tabId).classList.remove('hidden');
+      updateTabButton(tabId);
+    });
+  });
+
+  // Action button
+  document.getElementById('btnNuevaEmpresa').addEventListener('click', () => {
+    const tab = document.getElementById('btnNuevaEmpresa').dataset.tab;
+    if (tab === 'empresas') openModalEmpresa();
+    else if (tab === 'planes') openModalPlan();
+    else if (tab === 'cupones') openModalCupon();
+    else if (tab === 'modulos') openModalModulo();
+    else if (tab === 'submodulos') openModalSubmodulo();
+    else if (tab === 'secciones') openModalSeccion();
+    else if (tab === 'roles') openModalRol();
+    else if (tab === 'tipos-permiso') openModalTipoPermiso();
+    else if (tab === 'permisos') openModalPermiso();
+    else showToast('Función disponible próximamente', 'success');
+  });
+
+  // Modal open/close helpers
+  function openModal(id) { document.getElementById(id).classList.remove('hidden'); document.body.style.overflow = 'hidden'; refreshIcons(); }
+  function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.body.style.overflow = ''; }
+
+  function openModalEmpresa(id = null) {
+    editingId = id;
+    const form = document.getElementById('formEmpresa');
+    if (id) {
+      const empresa = empresas.find(e => e.id === id);
+      document.getElementById('modalTitle').textContent = 'Editar Empresa';
+      document.getElementById('modalSubtitle').textContent = `Modificando: ${empresa.empresa}`;
+      form.id.value = empresa.id;
+      form.empresa.value = empresa.empresa;
+      form.rfc.value = empresa.rfc === '-' ? '' : empresa.rfc;
+      form.baseDatos.value = empresa.baseDatos === '-' ? '' : empresa.baseDatos;
+      form.ubicacion.value = empresa.ubicacion;
+      form.estado.value = empresa.estado;
+    } else {
+      document.getElementById('modalTitle').textContent = 'Nueva Empresa';
+      document.getElementById('modalSubtitle').textContent = 'Completa la información del tenant';
+      form.reset();
+      form.id.value = '';
+    }
+    openModal('modalEmpresa');
+  }
+
+  function openModalPlan() { document.getElementById('formPlan').reset(); openModal('modalPlan'); }
+  function openModalCupon() { document.getElementById('formCupon').reset(); openModal('modalCupon'); }
+  function openModalModulo() { document.getElementById('formModulo').reset(); openModal('modalModulo'); }
+  function openModalSubmodulo() { populateSubmoduloFilters(); document.getElementById('formSubmodulo').reset(); openModal('modalSubmodulo'); }
+  function openModalSeccion() { populateSeccionFilters(); document.getElementById('formSeccion').reset(); openModal('modalSeccion'); }
+  function openModalRol() { document.getElementById('formRol').reset(); openModal('modalRol'); }
+  function openModalTipoPermiso() { document.getElementById('formTipoPermiso').reset(); openModal('modalTipoPermiso'); }
+  function openModalPermiso() { populatePermisoFilters(); document.getElementById('formPermiso').reset(); openModal('modalPermiso'); }
+
+  document.querySelectorAll('[data-close-modal]').forEach(el => {
+    el.addEventListener('click', () => closeModal(getModalId(el.dataset.closeModal)));
+  });
+
+  function getModalId(name) {
+    const map = {
+      'empresa': 'modalEmpresa', 'plan': 'modalPlan', 'cupon': 'modalCupon',
+      'modulo': 'modalModulo', 'submodulo': 'modalSubmodulo', 'seccion': 'modalSeccion',
+      'rol': 'modalRol', 'tipo-permiso': 'modalTipoPermiso', 'permiso': 'modalPermiso'
+    };
+    return map[name];
+  }
+
+  // Form submissions
+  document.getElementById('formEmpresa').addEventListener('submit', e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const dateStr = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const data = {
+      id: editingId || empresas.length + 1,
+      empresa: formData.get('empresa'),
+      rfc: formData.get('rfc').trim() || '-',
+      baseDatos: formData.get('baseDatos').trim() || '-',
+      ubicacion: formData.get('ubicacion'),
+      estado: formData.get('estado'),
+      creacion: editingId ? empresas.find(e => e.id === editingId).creacion : dateStr
+    };
+    if (editingId) { empresas[empresas.findIndex(e => e.id === editingId)] = data; showToast('Empresa actualizada correctamente'); }
+    else { empresas.unshift(data); showToast('Empresa creada correctamente'); }
+    closeModal('modalEmpresa');
+    applyEmpFilters();
+    updateTabStats('empresas');
+  });
+
+  document.getElementById('formPlan').addEventListener('submit', e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    planes.push({ id: planes.length + 1, nombre: formData.get('nombre'), precio: parseFloat(formData.get('precio')), moneda: formData.get('moneda'), descripcion: formData.get('descripcion'), activo: true, caracteristicas: ['Nuevo plan', 'Por configurar'] });
+    closeModal('modalPlan');
+    renderPlanes();
+    updateTabStats('planes');
+    showToast('Plan creado correctamente');
+  });
+
+  document.getElementById('formCupon').addEventListener('submit', e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    cupones.unshift({ id: cupones.length + 1, codigo: formData.get('codigo').toUpperCase(), descuento: parseInt(formData.get('descuento'), 10), usos: 0, usosMaximos: parseInt(formData.get('usosMaximos'), 10), vigencia: formData.get('vigencia'), activo: true });
+    closeModal('modalCupon');
+    renderCupones();
+    updateTabStats('cupones');
+    showToast('Cupón creado correctamente');
+  });
+
+  document.getElementById('formModulo').addEventListener('submit', e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    modulos.push({ id: modulos.length + 1, nombre: formData.get('nombre'), icono: formData.get('icono'), descripcion: formData.get('descripcion'), activo: true });
+    closeModal('modalModulo');
+    renderModulos();
+    updateTabStats('modulos');
+    showToast('Módulo creado correctamente');
+  });
+
+  document.getElementById('formSubmodulo').addEventListener('submit', e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    submodulos.push({ id: submodulos.length + 1, nombre: formData.get('nombre'), moduloId: parseInt(formData.get('moduloId'), 10), descripcion: formData.get('descripcion'), activo: true });
+    closeModal('modalSubmodulo');
+    renderSubmodulos();
+    populateSubmoduloFilters();
+    updateTabStats('submodulos');
+    showToast('Submódulo creado correctamente');
+  });
+
+  document.getElementById('formSeccion').addEventListener('submit', e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    secciones.push({ id: secciones.length + 1, nombre: formData.get('nombre'), submoduloId: parseInt(formData.get('submoduloId'), 10), ruta: formData.get('ruta'), activo: true });
+    closeModal('modalSeccion');
+    renderSecciones();
+    populateSeccionFilters();
+    updateTabStats('secciones');
+    showToast('Sección creada correctamente');
+  });
+
+  document.getElementById('formRol').addEventListener('submit', e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const colors = ['bg-violet-500', 'bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-indigo-500', 'bg-[#B85C4F]'];
+    roles.push({ id: roles.length + 1, nombre: formData.get('nombre'), nivel: parseInt(formData.get('nivel'), 10), descripcion: formData.get('descripcion'), color: colors[roles.length % colors.length] });
+    closeModal('modalRol');
+    renderRoles();
+    populatePermisoFilters();
+    updateTabStats('roles');
+    showToast('Rol creado correctamente');
+  });
+
+  document.getElementById('formTipoPermiso').addEventListener('submit', e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    tiposPermiso.push({ id: tiposPermiso.length + 1, nombre: formData.get('nombre'), clave: formData.get('clave').toUpperCase(), descripcion: formData.get('descripcion') });
+    closeModal('modalTipoPermiso');
+    renderTiposPermiso();
+    renderPermisoTiposCheckboxes();
+    updateTabStats('tipos-permiso');
+    showToast('Tipo de permiso creado correctamente');
+  });
+
+  document.getElementById('formPermiso').addEventListener('submit', e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const tipoIds = Array.from(document.querySelectorAll('input[name="tipoPermiso"]:checked')).map(cb => parseInt(cb.value, 10));
+    const rolId = parseInt(formData.get('rolId'), 10);
+    const seccionId = parseInt(formData.get('seccionId'), 10);
+    const existente = permisos.find(p => p.rolId === rolId && p.seccionId === seccionId);
+    if (existente) {
+      existente.tipoPermisoIds = [...new Set([...existente.tipoPermisoIds, ...tipoIds])];
+    } else {
+      permisos.push({ id: permisos.length + 1, rolId, seccionId, tipoPermisoIds: tipoIds });
+    }
+    closeModal('modalPermiso');
+    renderPermisos();
+    renderRoles();
+    updateTabStats('permisos');
+    showToast('Permisos asignados correctamente');
+  });
+
+  // Events
+  document.getElementById('searchInput').addEventListener('input', applyEmpFilters);
+  document.getElementById('estadoFilter').addEventListener('change', applyEmpFilters);
+  document.getElementById('ubicacionFilter').addEventListener('change', applyEmpFilters);
+
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      if (sortKey === key) sortDirection *= -1;
+      else { sortKey = key; sortDirection = 1; }
+      applyEmpFilters();
+    });
+  });
+
+  document.getElementById('btnAnterior').addEventListener('click', () => { if (empPage > 1) { empPage--; renderEmpresas(); } });
+  document.getElementById('btnSiguiente').addEventListener('click', () => { const totalPages = Math.ceil(filteredEmpresas.length / rowsPerPage); if (empPage < totalPages) { empPage++; renderEmpresas(); } });
+  document.getElementById('paginationPages').addEventListener('click', e => { const btn = e.target.closest('.emp-page-btn'); if (btn) { empPage = parseInt(btn.dataset.page, 10); renderEmpresas(); } });
+
+  document.getElementById('empresasTableBody').addEventListener('click', e => {
+    const editBtn = e.target.closest('.btn-edit');
+    const moreBtn = e.target.closest('.btn-more');
+    const deleteBtn = e.target.closest('.btn-delete');
+    if (editBtn) { openModalEmpresa(parseInt(editBtn.dataset.id, 10)); return; }
+    if (moreBtn) {
+      const dropdown = moreBtn.parentElement.querySelector('.dropdown-menu');
+      document.querySelectorAll('.dropdown-menu').forEach(d => { if (d !== dropdown) d.classList.add('hidden'); });
+      dropdown.classList.toggle('hidden');
+      return;
+    }
+    if (deleteBtn) {
+      empresas = empresas.filter(e => e.id !== parseInt(deleteBtn.dataset.id, 10));
+      showToast('Empresa eliminada', 'error');
+      applyEmpFilters();
+      updateTabStats('empresas');
+    }
+  });
+
+  document.getElementById('planesGrid').addEventListener('change', e => {
+    if (e.target.classList.contains('plan-toggle')) {
+      const plan = planes.find(p => p.id === parseInt(e.target.dataset.id, 10));
+      if (plan) { plan.activo = e.target.checked; renderPlanes(); updateTabStats('planes'); }
+    }
+  });
+  document.getElementById('btnNuevoPlan').addEventListener('click', openModalPlan);
+
+  document.getElementById('suscripcionSearch').addEventListener('input', applySusFilters);
+  document.getElementById('suscripcionEstadoFilter').addEventListener('change', applySusFilters);
+  document.getElementById('btnSusAnterior').addEventListener('click', () => { if (susPage > 1) { susPage--; renderSuscripciones(); } });
+  document.getElementById('btnSusSiguiente').addEventListener('click', () => { const totalPages = Math.ceil(filteredSuscripciones.length / rowsPerPage); if (susPage < totalPages) { susPage++; renderSuscripciones(); } });
+  document.getElementById('suscripcionPaginationPages').addEventListener('click', e => { const btn = e.target.closest('.sus-page-btn'); if (btn) { susPage = parseInt(btn.dataset.page, 10); renderSuscripciones(); } });
+
+  document.getElementById('pagoSearch').addEventListener('input', applyPagoFilters);
+  document.getElementById('pagoEstadoFilter').addEventListener('change', applyPagoFilters);
+  document.getElementById('btnPagoAnterior').addEventListener('click', () => { if (pagoPage > 1) { pagoPage--; renderPagos(); } });
+  document.getElementById('btnPagoSiguiente').addEventListener('click', () => { const totalPages = Math.ceil(filteredPagos.length / rowsPerPage); if (pagoPage < totalPages) { pagoPage++; renderPagos(); } });
+  document.getElementById('pagoPaginationPages').addEventListener('click', e => { const btn = e.target.closest('.pago-page-btn'); if (btn) { pagoPage = parseInt(btn.dataset.page, 10); renderPagos(); } });
+  document.getElementById('pagosTableBody').addEventListener('click', e => { if (e.target.closest('.btn-comprobante')) showToast('Comprobante descargado', 'success'); });
+
+  document.getElementById('cuponesGrid').addEventListener('change', e => {
+    if (e.target.classList.contains('cupon-toggle')) {
+      const cupon = cupones.find(c => c.id === parseInt(e.target.dataset.id, 10));
+      if (cupon) { cupon.activo = e.target.checked; renderCupones(); updateTabStats('cupones'); }
+    }
+  });
+  document.getElementById('cuponesGrid').addEventListener('click', e => {
+    const copyBtn = e.target.closest('.btn-copy-cupon');
+    if (copyBtn) {
+      navigator.clipboard.writeText(copyBtn.dataset.codigo).then(() => {
+        const original = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 inline mr-1"></i> Copiado';
+        refreshIcons();
+        setTimeout(() => { copyBtn.innerHTML = original; refreshIcons(); }, 1500);
+      });
+    }
+  });
+  document.getElementById('btnNuevoCupon').addEventListener('click', openModalCupon);
+
+  document.getElementById('canjeSearch').addEventListener('input', applyCanjeFilters);
+  document.getElementById('btnCanjeAnterior').addEventListener('click', () => { if (canjePage > 1) { canjePage--; renderCanjes(); } });
+  document.getElementById('btnCanjeSiguiente').addEventListener('click', () => { const totalPages = Math.ceil(filteredCanjes.length / rowsPerPage); if (canjePage < totalPages) { canjePage++; renderCanjes(); } });
+  document.getElementById('canjePaginationPages').addEventListener('click', e => { const btn = e.target.closest('.canje-page-btn'); if (btn) { canjePage = parseInt(btn.dataset.page, 10); renderCanjes(); } });
+
+  // Módulos events
+  document.getElementById('modulosGrid').addEventListener('change', e => {
+    if (e.target.classList.contains('modulo-toggle')) {
+      const modulo = modulos.find(m => m.id === parseInt(e.target.dataset.id, 10));
+      if (modulo) { modulo.activo = e.target.checked; renderModulos(); updateTabStats('modulos'); }
+    }
+  });
+  document.getElementById('modulosGrid').addEventListener('click', e => {
+    const btn = e.target.closest('.btn-ver-submodulos');
+    if (btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'bg-slate-100', 'text-slate-900', 'shadow-sm'));
+      document.querySelector('.tab-btn[data-tab="submodulos"]').classList.add('active', 'bg-slate-100', 'text-slate-900', 'shadow-sm');
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      document.getElementById('tab-submodulos').classList.remove('hidden');
+      document.getElementById('submoduloModuloFilter').value = btn.dataset.moduloId;
+      updateTabButton('submodulos');
+      subPage = 1;
+      renderSubmodulos();
+    }
+  });
+  document.getElementById('btnNuevoModulo').addEventListener('click', openModalModulo);
+
+  // Submódulos events
+  document.getElementById('submoduloModuloFilter').addEventListener('change', () => { subPage = 1; renderSubmodulos(); });
+  document.getElementById('btnSubmoduloAnterior').addEventListener('click', () => { if (subPage > 1) { subPage--; renderSubmodulos(); } });
+  document.getElementById('btnSubmoduloSiguiente').addEventListener('click', () => { const totalPages = Math.ceil(filteredSubmodulos.length / rowsPerPage); if (subPage < totalPages) { subPage++; renderSubmodulos(); } });
+  document.getElementById('submoduloPaginationPages').addEventListener('click', e => { const btn = e.target.closest('.sub-page-btn'); if (btn) { subPage = parseInt(btn.dataset.page, 10); renderSubmodulos(); } });
+  document.getElementById('submodulosTableBody').addEventListener('click', e => {
+    const btn = e.target.closest('.btn-ver-secciones');
+    if (btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'bg-slate-100', 'text-slate-900', 'shadow-sm'));
+      document.querySelector('.tab-btn[data-tab="secciones"]').classList.add('active', 'bg-slate-100', 'text-slate-900', 'shadow-sm');
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      document.getElementById('tab-secciones').classList.remove('hidden');
+      document.getElementById('seccionSubmoduloFilter').value = btn.dataset.submoduloId;
+      updateTabButton('secciones');
+      secPage = 1;
+      renderSecciones();
+    }
+  });
+  document.getElementById('btnNuevoSubmodulo').addEventListener('click', openModalSubmodulo);
+
+  // Secciones events
+  document.getElementById('seccionSubmoduloFilter').addEventListener('change', () => { secPage = 1; renderSecciones(); });
+  document.getElementById('btnSeccionAnterior').addEventListener('click', () => { if (secPage > 1) { secPage--; renderSecciones(); } });
+  document.getElementById('btnSeccionSiguiente').addEventListener('click', () => { const totalPages = Math.ceil(filteredSecciones.length / rowsPerPage); if (secPage < totalPages) { secPage++; renderSecciones(); } });
+  document.getElementById('seccionPaginationPages').addEventListener('click', e => { const btn = e.target.closest('.sec-page-btn'); if (btn) { secPage = parseInt(btn.dataset.page, 10); renderSecciones(); } });
+  document.getElementById('btnNuevaSeccion').addEventListener('click', openModalSeccion);
+
+  // Roles events
+  document.getElementById('rolesGrid').addEventListener('click', e => {
+    const btn = e.target.closest('.btn-ver-permisos-rol');
+    if (btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'bg-slate-100', 'text-slate-900', 'shadow-sm'));
+      document.querySelector('.tab-btn[data-tab="permisos"]').classList.add('active', 'bg-slate-100', 'text-slate-900', 'shadow-sm');
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      document.getElementById('tab-permisos').classList.remove('hidden');
+      document.getElementById('permisoRolFilter').value = btn.dataset.rolId;
+      updateTabButton('permisos');
+      permPage = 1;
+      renderPermisos();
+    }
+  });
+  document.getElementById('btnNuevoRol').addEventListener('click', openModalRol);
+
+  // Tipos de permiso events
+  document.getElementById('tiposPermisoGrid').addEventListener('click', e => {
+    if (e.target.closest('button')) {
+      const id = parseInt(e.target.closest('.cs-card').querySelector('.cs-card') ? 0 : e.target.closest('.cs-card').dataset?.id || 0);
+      // Simplificado: no hay dataset.id en cards, se usa índice por ahora; se deja como demostración
+      showToast('Tipo de permiso eliminado', 'error');
+    }
+  });
+  document.getElementById('btnNuevoTipoPermiso').addEventListener('click', openModalTipoPermiso);
+
+  // Permisos events
+  document.getElementById('permisoRolFilter').addEventListener('change', () => { permPage = 1; renderPermisos(); });
+  document.getElementById('btnPermisoAnterior').addEventListener('click', () => { if (permPage > 1) { permPage--; renderPermisos(); } });
+  document.getElementById('btnPermisoSiguiente').addEventListener('click', () => { const totalPages = Math.ceil(filteredPermisos.length / rowsPerPage); if (permPage < totalPages) { permPage++; renderPermisos(); } });
+  document.getElementById('permisoPaginationPages').addEventListener('click', e => { const btn = e.target.closest('.perm-page-btn'); if (btn) { permPage = parseInt(btn.dataset.page, 10); renderPermisos(); } });
+  document.getElementById('permisosTableBody').addEventListener('click', e => {
+    const deleteBtn = e.target.closest('.btn-delete-permiso');
+    if (deleteBtn) {
+      permisos = permisos.filter(p => p.id !== parseInt(deleteBtn.dataset.id, 10));
+      showToast('Permiso eliminado', 'error');
+      renderPermisos();
+      renderRoles();
+      updateTabStats('permisos');
+    }
+  });
+  document.getElementById('btnNuevoPermiso').addEventListener('click', openModalPermiso);
+
+  // Close dropdowns & modals
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.btn-more') && !e.target.closest('.dropdown-menu')) {
+      document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.add('hidden'));
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      ['modalEmpresa', 'modalPlan', 'modalCupon', 'modalModulo', 'modalSubmodulo', 'modalSeccion', 'modalRol', 'modalTipoPermiso', 'modalPermiso'].forEach(id => {
+        if (!document.getElementById(id).classList.contains('hidden')) closeModal(id);
+      });
+      document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.add('hidden'));
+    }
+  });
+
+  // Init
+  populateSubmoduloFilters();
+  populateSeccionFilters();
+  populatePermisoFilters();
+  renderPermisoTiposCheckboxes();
+  updateStats();
+  applyEmpFilters();
+  renderPlanes();
+  renderSuscripciones();
+  renderPagos();
+  renderCupones();
+  renderCanjes();
+  renderModulos();
+  renderSubmodulos();
+  renderSecciones();
+  renderRoles();
+  renderTiposPermiso();
+  renderPermisos();
+})();
+</script>

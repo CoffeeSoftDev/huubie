@@ -21,8 +21,9 @@ function storage(data) {
         localStorage.clear();
         sessionStorage.clear();
 
-        // window.location.href = "sucursales/";
-        window.location.href = "operacion/almacen/";
+        // Tras login: selector de sucursales (apartado de Rosy). Al elegir sucursal,
+        // app.js de sucursales redirige a operacion/almacen/.
+        window.location.href = "sucursales/";
     } else {
         showLoginError('Usuario y/o clave incorrectos.');
     }

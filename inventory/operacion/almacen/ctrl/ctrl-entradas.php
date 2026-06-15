@@ -48,7 +48,7 @@ class ctrl extends mdl {
             'companies_id'     => $this->companiesId,
             'branch_id'        => $this->branchId,
             'user_id'          => $this->userId,
-            'sucursales'       => $this->lsSucursales([$this->companiesId]),
+            'sucursales'       => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'proveedores'      => $this->lsSuppliers([$this->companiesId]),
             'origenes_entrada' => $this->lsInflowOrigins(),
@@ -78,8 +78,8 @@ class ctrl extends mdl {
         foreach ($rows as $r) {
             $a = [
                 [
-                    'class'   => 'btn btn-sm btn-secondary me-1',
-                    'html'    => '<i class="icon-eye"></i>',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                     'onclick' => "app.selectEntrada('{$r['folio']}', {$r['id']})"
                 ]
             ];
@@ -88,7 +88,7 @@ class ctrl extends mdl {
                 'id'         => $r['id'],
                 'Folio'      => $r['folio'],
                 'Fecha'      => formatSpanishDate($r['date_inflow']),
-                'Origen'     => badge($r['origin_name'], $r['origin_color']),
+                'Origen'     => badge($r['origin_name'], $r['origin_color'], 100, $r['origin_bg'] ?? null),
                 'Sucursal'   => $r['branch_name'] ?: '-',
                 'Almacen'    => $r['warehouse_name']  ?: '-',
                 'Proveedor'  => $r['supplier_name']   ?: '<span class="italic text-gray-400">N/A</span>',
@@ -120,7 +120,7 @@ class ctrl extends mdl {
         $header = $this->qGetEntrada([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Entrada no encontrada'];
         // Badge del origen con la misma formula y color (color_hex) que el catalogo y la tabla.
-        $header['origin_badge'] = badge($header['origin_name'] ?? '', $header['origin_color'] ?? '#9CA3AF');
+        $header['origin_badge'] = badge($header['origin_name'] ?? '', $header['origin_color'] ?? '#9CA3AF', 100, $header['origin_bg'] ?? null);
         $detail = $this->qGetEntradaDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
@@ -536,13 +536,14 @@ class ctrl extends mdl {
     }
 
     private function statusBadge($status) {
+        // [color de texto, color de fondo] - modelo pastel de 2 colores (igual que los motivos).
         $map = [
-            'Aplicada'  => ['bg' => 'rgba(63,193,137,0.18)', 'fg' => '#3FC189'],
-            'Pendiente' => ['bg' => 'rgba(251,191,36,0.18)', 'fg' => '#FBBF24'],
-            'Cancelada' => ['bg' => 'rgba(224,36,36,0.18)',  'fg' => '#E02424']
+            'Aplicada'  => ['#16A34A', '#DCFCE7'],
+            'Pendiente' => ['#D97706', '#FEF3C7'],
+            'Cancelada' => ['#DC2626', '#FEE2E2']
         ];
-        $c = $map[$status] ?? ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#9CA3AF'];
-        return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>" . strtoupper($status) . "</span>";
+        $c = $map[$status] ?? ['#475569', '#F1F5F9'];
+        return badge(strtoupper($status), $c[0], 100, $c[1]);
     }
 
 }

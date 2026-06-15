@@ -109,7 +109,7 @@ const PG_THEMES = {
         label: 'Libre (sin paleta)', grimoire: null,
         cssUrls: [], cssFrom: null,
         data: '', bodyClass: '', bg: '#F8FAFC', fg: '#0F172A',
-        note: 'Sin sistema de diseño impuesto: elige tú la paleta y los estilos según tu criterio.'
+        note: 'Sin sistema de diseño impuesto. El lienzo es CLARO por defecto (fondo claro): NO generes un componente en tema oscuro salvo que el usuario lo pida explícitamente o la imagen de referencia sea oscura. Si el usuario adjunta una imagen, RESPETA sus colores, tipografía y estilo (claro u oscuro) y replícalos; no inventes una paleta oscura por tu cuenta.'
     }
 };
 const PG_DEFAULT_THEME = 'huubie-ui';
@@ -152,6 +152,7 @@ const pg = {
     templates: [],           // historial de templates renderizados (sesión): {id, html, isDoc, theme, themeLabel, title, ts}
     _savedTemplates: [],     // plantillas persistentes leídas de documents/template/ (cache del modal)
     _activeTplId: null,      // template actualmente cargado en el sandbox
+    pinnedTplId: null,       // template FIJADO como referencia: el próximo mensaje pedirá modificarlo
     _lastUserText: '',       // último prompt del usuario (titula los templates)
     splitW:    '',           // ancho del panel de chat (px) — splitter
     zoom:      100,          // zoom del preview (%) — escala el contenido del iframe
@@ -442,6 +443,68 @@ function pgBind() {
     $(document).on('keydown', e => {
         if (e.key === 'Escape') { pgCloseKnowledge(); pgCloseSaveTemplate(); pgCloseTemplates(); }
     });
+
+    // Conmutador Chat/Sandbox (solo visible en móvil vía CSS). Cambia qué panel
+    // se muestra alternando data-mview en el workspace; en desktop es inocuo.
+    $('.pg-mswitch').on('click', function () {
+        const view = $(this).data('mview');
+        $('.pg-mswitch').removeClass('active');
+        $(this).addClass('active');
+        $('.pg-workspace').attr('data-mview', view);
+    });
+
+    // Botón Ajustes (solo móvil): despliega/colapsa la barra de controles del
+    // header (agente, tema, modelo, conocimiento). En desktop el botón está
+    // oculto por CSS y la barra siempre se ve.
+    $('#pgHeaderToggle').on('click', function () {
+        const open = !$('#pgHeaderRight').hasClass('is-open');
+        $('#pgHeaderRight').toggleClass('is-open', open);
+        $(this).attr('aria-expanded', open ? 'true' : 'false').toggleClass('is-active', open);
+    });
+    // Al elegir un valor en cualquier control, recoger el panel (UX móvil).
+    $('#pgHeaderRight').on('change', 'select', () => {
+        if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) {
+            $('#pgHeaderRight').removeClass('is-open');
+            $('#pgHeaderToggle').attr('aria-expanded', 'false').removeClass('is-active');
+        }
+    });
+    // Tocar fuera del panel (ni en él ni en el botón) lo cierra.
+    $(document).on('click.pgHeader', e => {
+        if (!$('#pgHeaderRight').hasClass('is-open')) return;
+        if ($(e.target).closest('#pgHeaderRight, #pgHeaderToggle').length) return;
+        $('#pgHeaderRight').removeClass('is-open');
+        $('#pgHeaderToggle').attr('aria-expanded', 'false').removeClass('is-active');
+    });
+
+    // Menú ⋯ de acciones del sandbox (cargar/guardar/descargar/abrir). En móvil
+    // colapsa esas acciones; en desktop el botón ⋯ está oculto y van sueltas.
+    $('#pgActionsToggle').on('click', function (e) {
+        e.stopPropagation();
+        const open = !$('#pgActionsPop').hasClass('is-open');
+        $('#pgActionsPop').toggleClass('is-open', open);
+        $(this).attr('aria-expanded', open ? 'true' : 'false').toggleClass('is-active', open);
+    });
+    // Al elegir una acción o tocar fuera, cerrar el menú.
+    $('#pgActionsPop').on('click', '.pg-actionbtn', () => pgCloseActionsMenu());
+    $(document).on('click.pgActions', e => {
+        if (!$('#pgActionsPop').hasClass('is-open')) return;
+        if ($(e.target).closest('.pg-actions-menu').length) return;
+        pgCloseActionsMenu();
+    });
+}
+
+function pgCloseActionsMenu() {
+    $('#pgActionsPop').removeClass('is-open');
+    $('#pgActionsToggle').attr('aria-expanded', 'false').removeClass('is-active');
+}
+
+/* En móvil, al renderizarse un resultado conviene saltar automáticamente a la
+ * vista Sandbox para que el usuario vea el render sin tener que conmutar a mano.
+ * En desktop no hace nada (el conmutador está oculto y ambos paneles se ven). */
+function pgMobileShowSandbox() {
+    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+        $('.pg-mswitch[data-mview="sandbox"]').trigger('click');
+    }
 }
 
 /* ── Modo lienzo ── */
@@ -604,6 +667,8 @@ function pgClearChat() {
     pg.history = [];
     pg.templates = [];
     pg._activeTplId = null;
+    pg.pinnedTplId = null;
+    pgRenderPinBanner();   // quita el chip "Modificando…" si quedaba
     $('#pgChatBody').html(`
         <div class="pg-empty">
             <i data-lucide="sparkles"></i>
@@ -667,6 +732,17 @@ function pgAppendUser(text, previews, docsMeta) {
     if (window.lucide) lucide.createIcons();
     pgScroll();
 }
+/* Nota dentro de la burbuja del usuario: indica que ese mensaje pidió modificar
+ * un template fijado (el HTML viajó al modelo pero no se muestra crudo). */
+function pgAppendPinNote($msg, tpl) {
+    if (!$msg || !$msg.length || !tpl) return;
+    const title = tpl.title || 'Componente';
+    $msg.find('.ia-msg-text').append(
+        `<div class="ia-msg-pinref" title="Este mensaje pidió modificar un template fijado">`
+        + `<i data-lucide="pin" class="w-3 h-3"></i><span>sobre: ${pgEscape(title)}</span></div>`
+    );
+    if (window.lucide) lucide.createIcons();
+}
 function pgAppendTyping() {
     // Mismo indicador que el Visor: loader "quantum" + texto "Analizando…".
     const $t = $(`<div class="ia-msg ai ia-typing-msg" id="pgTyping"><div class="ia-typing-loader">${pgQuantumLoader('Analizando')}</div></div>`);
@@ -691,10 +767,31 @@ function pgQuantumLoader(text) {
          + txt + `</div>`;
 }
 
+// ¿El modelo dado tiene VISIÓN? Se deriva del texto del <option> en el selector
+// (los modelos con visión llevan "vision" en su etiqueta), así no hay que
+// mantener una lista aparte: basta con etiquetar el option en el HTML.
+function pgModelHasVision(model) {
+    const m = model || pg.model;
+    if (!m) return false;
+    const opt = document.querySelector(`#pgModelSelect option[value="${m.replace(/"/g, '\\"')}"]`);
+    return !!opt && /vision/i.test(opt.textContent || '');
+}
+
 async function pgSend(text, images, docs) {
     pgSetBusy(true);
     images = Array.isArray(images) ? images : [];
     docs   = Array.isArray(docs)   ? docs   : [];
+
+    // Aviso: si se adjuntó imagen pero el modelo activo no tiene visión, no la
+    // procesará (de ahí que el render no respete la imagen). Sugerir cambiarlo.
+    if (images.length && pg.model && !pgModelHasVision(pg.model)) {
+        pgToast('Este modelo no analiza imágenes. Elige uno con visión (los marcados con “vision”).', 'warn');
+    }
+
+    // Template fijado como referencia: su HTML se inyecta al content para que el
+    // agente sepa EXACTAMENTE qué markup modificar. La referencia es de un solo
+    // uso (se libera tras enviar), igual que los adjuntos pendientes.
+    const pinnedTpl = pg.pinnedTplId ? pg.templates.find(x => x.id === pg.pinnedTplId) : null;
 
     // Documentos de texto adjuntos: su contenido se embebe en el content (asi el
     // modelo lo recuerda via history); en la burbuja solo mostramos texto + chips.
@@ -706,12 +803,26 @@ async function pgSend(text, images, docs) {
         contentForModel = (text ? text + '\n\n' : '') +
             '=== DOCUMENTOS ADJUNTOS POR EL USUARIO ===\n' + blocks;
     }
+    if (pinnedTpl && pinnedTpl.html) {
+        contentForModel = (contentForModel ? contentForModel + '\n\n' : '') +
+            '=== TEMPLATE A MODIFICAR (referencia fijada por el usuario) ===\n' +
+            'Modifica EXCLUSIVAMENTE el siguiente componente según la instrucción de arriba. ' +
+            'Conserva su estructura, IDs y lógica salvo lo que se pida cambiar; NO lo reescribas desde cero ni cambies de tema. ' +
+            'Devuelve el componente completo y actualizado.\n' +
+            '```html\n' + pinnedTpl.html + '\n```';
+    }
 
     const userMsg = { role: 'user', content: contentForModel };
     if (images.length) { userMsg.images = images.map(i => i.base64); userMsg.imagesPreview = images.map(i => i.dataUrl); }
     if (docs.length) userMsg.docsMeta = docs.map(d => ({ name: d.name, size: d.size }));
     pg.history.push(userMsg);
+    // En la burbuja mostramos solo el texto del usuario + una nota de referencia
+    // si se fijó un template; el HTML inyectado no se vuelca al chat.
     pgAppendUser(text, userMsg.imagesPreview, userMsg.docsMeta);
+    if (pinnedTpl) pgAppendPinNote($('#pgChatBody .ia-msg.user').last(), pinnedTpl);
+
+    // La referencia es de un solo uso: liberar y limpiar el chip del input.
+    if (pg.pinnedTplId) { pg.pinnedTplId = null; pgRefreshPinUI(); }
 
     const $typing = pgAppendTyping();
     pgScroll();
@@ -750,6 +861,16 @@ async function pgSend(text, images, docs) {
         // de diseño elegido. En modo libre (sin grimorio) no se impone estilo.
         systemOverride += `\n\n## Estilo del sistema (Playground)\n`
             + `La UI/frontend del módulo que generes debe construirse con el sistema de diseño **${themeCfg.label}** (grimorio incluido en el contexto): usa sus clases y tokens, no inventes otra paleta. ${themeCfg.note}`;
+    }
+
+    // Si el usuario adjuntó imagen(es), exigir fidelidad visual: el render debe
+    // reproducir colores, tono (claro/oscuro), tipografía y composición de la
+    // imagen, no una interpretación libre del agente.
+    if (images.length && usesDesignSystem) {
+        systemOverride += `\n\n## Fidelidad a la imagen de referencia\n`
+            + `El usuario adjuntó imagen(es). Analízalas y REPRODUCE fielmente su estilo visual: `
+            + `paleta de colores exacta, tono (si la imagen es CLARA, el componente va claro; si es OSCURA, oscuro), `
+            + `tipografía, espaciados y composición. No cambies el tema de la imagen ni impongas un estilo propio.`;
     }
 
     // Modo lienzo sobre un agente que no es de UI (p.ej. markdown): igual debe
@@ -1089,6 +1210,12 @@ function pgPushTemplate(html, isDoc) {
         id, html, isDoc: !!isDoc,
         theme:      pg.theme,
         themeLabel: (PG_THEMES[pg.theme] || {}).label || pg.theme,
+        agentKey:   pg.agentKey,
+        // Corte del history en el momento de generar este template: incluye el
+        // mensaje user que lo pidió y el assistant que lo produjo (ambos ya están
+        // empujados a pg.history cuando se llama pgPushTemplate). Es el contexto
+        // exacto a heredar al "Bifurcar aquí".
+        histLen:    pg.history.length,
         title, ts: Date.now()
     };
     pg.templates.push(tpl);
@@ -1106,13 +1233,19 @@ function pgAppendTemplateCard($msg, tpl) {
             <div class="pg-chat-tpl-info">
                 <span class="pg-chat-tpl-title">${pgEscape(tpl.title)}</span>
                 <span class="pg-chat-tpl-sub">${pgEscape(tpl.themeLabel)}</span>
-                <span class="pg-chat-tpl-cta"><i data-lucide="eye" class="w-3 h-3"></i>Ver en el sandbox</span>
+                <span class="pg-chat-tpl-actions">
+                    <span class="pg-chat-tpl-cta"><i data-lucide="eye" class="w-3 h-3"></i>Ver en el sandbox</span>
+                    <button type="button" class="pg-chat-tpl-pin${tpl.id === pg.pinnedTplId ? ' is-pinned' : ''}" title="Fijar este template como referencia: el próximo mensaje pedirá modificarlo"><i data-lucide="pin" class="w-3 h-3"></i><span class="pg-pin-label">${tpl.id === pg.pinnedTplId ? 'Fijado' : 'Fijar referencia'}</span></button>
+                    <button type="button" class="pg-chat-tpl-fork" title="Abrir un hilo nuevo heredando este sandbox como contexto"><i data-lucide="git-branch" class="w-3 h-3"></i>Bifurcar aquí</button>
+                </span>
             </div>
         </div>`);
     $msg.append($card);
     const fr = $card.find('.pg-chat-tpl-frame')[0];
     if (fr) fr.srcdoc = pgWrapHtml(tpl.html, tpl.theme, tpl.isDoc);
     $card.on('click', () => pgRestoreTemplate(tpl.id));
+    $card.find('.pg-chat-tpl-pin').on('click', e => { e.stopPropagation(); pgTogglePinTemplate(tpl.id); });
+    $card.find('.pg-chat-tpl-fork').on('click', e => { e.stopPropagation(); pgForkFromTemplate(tpl.id); });
     if (window.lucide) lucide.createIcons();
     pgScroll();
 }
@@ -1134,6 +1267,122 @@ function pgRestoreTemplate(id) {
     $(`.pg-chat-tpl[data-tpl-id="${id}"]`).addClass('is-active');
     pgToast('Template cargado en el sandbox', 'success');
 }
+
+/* ── Bifurcar hilo desde un sandbox de la sesión ──
+ * Abre un chat NUEVO e independiente que hereda como contexto la conversación
+ * hasta el punto que generó este template (su `histLen`), más su tema y agente.
+ * A diferencia de "Ver en el sandbox" (que solo re-renderiza en el mismo hilo),
+ * aquí se corta el historial: lo que venga después es una rama propia. Reusa la
+ * rehidratación de pgLoadSavedTemplate pero sobre un tpl en memoria. */
+function pgForkFromTemplate(id) {
+    if (pg.isBusy) { pgToast('Espera a que termine la generación en curso', 'warn'); return; }
+    const t = pg.templates.find(x => x.id === id);
+    if (!t) return;
+
+    // Corte del contexto a heredar: los mensajes hasta (incluido) el que produjo
+    // este template. Si por algún motivo no se ancló histLen, hereda todo.
+    const cut = (typeof t.histLen === 'number' && t.histLen > 0)
+        ? pg.history.slice(0, t.histLen)
+        : pg.history.slice();
+
+    // Restaurar tema con el que se generó el sandbox.
+    if (t.theme && PG_THEMES[t.theme] && t.theme !== pg.theme) {
+        pg.theme = t.theme;
+        $('#pgThemeSelect').val(t.theme);
+        $('#pgSandboxTheme').text((PG_THEMES[t.theme] || {}).label || t.theme);
+        pgSaveSettings();
+    }
+    // Restaurar agente si difiere (mantiene historial: keepHistory=true).
+    if (t.agentKey && PG_AGENTS[t.agentKey] && t.agentKey !== pg.agentKey) {
+        $('#pgAgentSelect').val(t.agentKey);
+        pgApplyAgent(t.agentKey, true);
+    }
+
+    // Hilo nuevo: limpiamos y rehidratamos solo el corte heredado.
+    pgClearChat();
+    pg.history = cut.slice();
+    pg._lastUserText = t.title || '';
+    if (pg.history.length) {
+        $('#pgChatBody .pg-empty').remove();
+        pg.history.forEach(m => {
+            if (m.role === 'user') {
+                pgAppendUser(
+                    (m.content || '').replace(/\n\n=== DOCUMENTOS ADJUNTOS[\s\S]*$/, '').trim(),
+                    m.imagesPreview, m.docsMeta
+                );
+            } else if (m.role === 'assistant') {
+                pgAppendAI(m.content || '');
+            }
+        });
+    }
+
+    // Pinta el sandbox heredado y lo registra como template del nuevo hilo, con
+    // su tarjeta enganchada a la última burbuja IA.
+    pgRenderSandbox(t.html, !!t.isDoc);
+    const tpl = pgPushTemplate(t.html, !!t.isDoc);
+    if (tpl) {
+        tpl.title = t.title || tpl.title;
+        const $last = $('#pgChatBody .ia-msg.ai').last();
+        pgAppendTemplateCard($last.length ? $last : $('#pgChatBody'), tpl);
+    }
+    $('#pgInput').trigger('focus');
+    pgToast('Hilo bifurcado desde este sandbox — sigue iterando', 'success');
+}
+
+/* ── Fijar template como referencia ──
+ * Marca un template de la sesión como el objetivo a MODIFICAR. Mientras esté
+ * fijado, el próximo mensaje inyecta su HTML al agente con la instrucción de
+ * editarlo (en vez de crear uno nuevo desde cero). A diferencia de "Bifurcar"
+ * (que crea un hilo aparte), aquí seguimos en el MISMO hilo: es "trabaja sobre
+ * este". La referencia se libera al enviar o al desfijar. */
+function pgTogglePinTemplate(id) {
+    const t = pg.templates.find(x => x.id === id);
+    if (!t) return;
+    pg.pinnedTplId = (pg.pinnedTplId === id) ? null : id;
+    pgRefreshPinUI();
+    if (pg.pinnedTplId) {
+        // Si el template fijado no es el que se ve en el sandbox, lo cargamos para
+        // que el usuario vea exactamente lo que va a modificar.
+        if (pg._activeTplId !== id) pgRestoreTemplate(id);
+        pgToast('Template fijado — el próximo mensaje lo modificará', 'success');
+        $('#pgInput').trigger('focus');
+    } else {
+        pgToast('Referencia liberada', 'info');
+    }
+}
+
+/* Sincroniza la UI con pg.pinnedTplId: estado de los botones de las tarjetas y
+ * el chip indicador sobre el input. Idempotente: se puede llamar siempre. */
+function pgRefreshPinUI() {
+    $('.pg-chat-tpl-pin').each(function () {
+        const card = $(this).closest('.pg-chat-tpl');
+        const isPinned = card.data('tpl-id') === pg.pinnedTplId;
+        $(this).toggleClass('is-pinned', isPinned);
+        $(this).find('.pg-pin-label').text(isPinned ? 'Fijado' : 'Fijar referencia');
+    });
+    pgRenderPinBanner();
+}
+
+/* Chip "Modificando: <título> ✕" encima del input, visible solo si hay un
+ * template fijado. Lo monta/desmonta bajo demanda dentro de .ia-input-wrap. */
+function pgRenderPinBanner() {
+    const t = pg.pinnedTplId ? pg.templates.find(x => x.id === pg.pinnedTplId) : null;
+    $('#pgPinBanner').remove();
+    if (!t) return;
+    const title = t.title || 'Componente';
+    const $banner = $(`
+        <div id="pgPinBanner" class="pg-pin-banner" title="El próximo mensaje modificará este template">
+            <i data-lucide="pin" class="w-3.5 h-3.5"></i>
+            <span class="pg-pin-banner-text">Modificando: <strong>${pgEscape(title)}</strong></span>
+            <button type="button" class="pg-pin-banner-x" title="Liberar referencia"><i data-lucide="x" class="w-3 h-3"></i></button>
+        </div>`);
+    // Lo insertamos al inicio del wrapper del input (arriba del textarea).
+    const $wrap = $('.ia-input-wrap');
+    if ($wrap.length) $wrap.prepend($banner); else $('#pgInput').before($banner);
+    $banner.find('.pg-pin-banner-x').on('click', () => { pg.pinnedTplId = null; pgRefreshPinUI(); });
+    if (window.lucide) lucide.createIcons();
+}
+
 function pgRenderSandbox(htmlBody, isDoc) {
     $('#pgSandboxEmpty').hide();
     pg.lastHtml = htmlBody; pg.lastTheme = pg.theme; pg._lastIsDoc = !!isDoc;
@@ -1151,12 +1400,14 @@ function pgRenderSandbox(htmlBody, isDoc) {
         if (window.hljs) hljs.highlightElement($code[0]);
     }
     $('.pg-tab[data-sbtab="preview"]').click();
+    pgMobileShowSandbox();   // en móvil, saltar a la vista Sandbox para ver el render
 }
 function pgShowSandboxCode(code) {
     $('#pgSandboxEmpty').hide();
     const $code = $('#pgSandboxCode').find('code').text(code);
     if (window.hljs) hljs.highlightElement($code[0]);
     $('.pg-tab[data-sbtab="code"]').click();
+    pgMobileShowSandbox();
 }
 
 /* ── Zoom del preview ──
@@ -1250,10 +1501,16 @@ function pgWrapHtml(body, themeKey, isDoc) {
            .pg-stage h1,.pg-stage h2,.pg-stage h3{margin:1.2em 0 .5em;font-weight:700;}
            .pg-stage pre{background:rgba(0,0,0,.25);padding:12px;border-radius:8px;overflow:auto;}
            .pg-stage table{border-collapse:collapse;}.pg-stage td,.pg-stage th{border:1px solid currentColor;padding:6px 10px;}`
-        // `safe center`: centra el componente cuando cabe, pero si es más alto
-        // que el iframe alinea al inicio en vez de recortar — así se puede
-        // scrollear y ver TODO el componente (login, formularios largos, etc.).
-        : `body{min-height:100vh;display:grid;place-content:safe center;padding:28px;}.pg-stage{width:auto;max-width:100%;min-width:0;}`;
+        // El stage ocupa TODO el ancho/alto del lienzo: un componente con w-full,
+        // grid o flex llena el sandbox; uno con ancho propio (max-w-sm, etc.) se
+        // centra horizontalmente sin estirarse. Así no queda "encogido" en medio.
+        // align-items:flex-start evita recortar componentes altos (se scrollea).
+        : `body{min-height:100vh;}`
+          + `.pg-stage{box-sizing:border-box;width:100%;min-height:100vh;padding:28px;`
+          +           `display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}`
+          // Hijo directo a ancho completo (la mayoría de componentes que deben
+          // llenar el lienzo) pero respetando su propio max-width si lo declaran.
+          + `.pg-stage > *{width:100%;}`;
 
     return `<!DOCTYPE html><html${htmlAttr}><head><meta charset="utf-8">
         <base href="${appBase}">
