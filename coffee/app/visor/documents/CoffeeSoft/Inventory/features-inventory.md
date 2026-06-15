@@ -21,7 +21,21 @@ date: 2026-06-14
 -   ~Cambia el diseño de los botones para la tabla, ahora en lugar de botones deben ser solo iconos~
     
 
-**Administrador de accesos**
+**Visor de movimientos**
+
+\- Corregir las cards , usar el componente de coffee
+
+\- En la filterBar corregir la sucursal
+
+\- En la tabla ordenar las columnas
+
+\- Cambiar el formato de fecha en la columna
+
+\- Verificar el visor en la tabla de movimientos
+
+  
+
+**\*\*Administrador de accesos**
 
 \- Sucursales
 

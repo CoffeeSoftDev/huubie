@@ -83,10 +83,10 @@ class App extends Templates {
             design: false,
             data: {
                 id: this.PROJECT_NAME,
-                class: 'flex flex-col mx-2',
+                class: 'flex flex-col mx-2 flex-1 min-h-0',
                 container: [
                     { type: 'div', id: `header${this.PROJECT_NAME}`, class: 'w-full' },
-                    { type: 'div', id: `container${this.PROJECT_NAME}`, class: 'w-full  rounded p-2' }
+                    { type: 'div', id: `container${this.PROJECT_NAME}`, class: 'w-full rounded p-2 flex-1 min-h-0 flex flex-col' }
                 ]
             }
         });
@@ -116,26 +116,28 @@ class App extends Templates {
             id: `groups${this.PROJECT_NAME}`,
             theme: 'light',
             type: 'short',
+            content: { class: 'flex-1 min-h-0 flex flex-col' },
             json: [
-                {
-                    id: 'grp-facturacion',
-                    tab: 'Facturación',
-                    lucideIcon: 'credit-card',
-                    class:'p-3',
-                    active: true,
-                    onClick: () => facturacion.render()
-                },
                 {
                     id: 'grp-accesos',
                     tab: 'Accesos y permisos',
                     lucideIcon: 'shield',
-                    class: 'p-3',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col',
+                    active: true,
                     onClick: () => accesos.render()
+                },
+                {
+                    id: 'grp-facturacion',
+                    tab: 'Facturación',
+                    lucideIcon: 'credit-card',
+                    class:'p-3 flex-1 min-h-0 flex flex-col',
+
+                    onClick: () => facturacion.render()
                 },
                 {
                     id: 'grp-promociones',
                     tab: 'Promociones',
-                    class: 'p-3',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col',
                     lucideIcon: 'ticket-percent',
                     onClick: () => promociones.render()
                 },
@@ -144,7 +146,7 @@ class App extends Templates {
     }
 
     renderActiveTab() {
-        facturacion.render();
+        accesos.render();
     }
 }
 
@@ -274,11 +276,13 @@ class AccesosGroup extends Templates {
             id: 'tabsAccesos',
             theme: 'light',
             type: 'button',
+            content: { class: 'flex-1 min-h-0 flex flex-col' },
             json: [
                 {
                     id: 'permisos',
                     tab: 'Permisos',
                     lucideIcon: 'shield-check',
+                    class: 'flex-1 min-h-0 flex flex-col',
                     active: true,
                     onClick: () => { permissions.render(); permissions.lsPermissions(); }
                 },

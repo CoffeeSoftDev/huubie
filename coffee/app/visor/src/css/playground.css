@@ -399,6 +399,58 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 }
 .pg-chat-tpl-pin.is-pinned i { fill: currentColor; }
 
+/* ── Card colapsada para bloques de código en la prosa del chat ──
+   Evita volcar HTML/JS crudo en la burbuja: queda contraída con su rótulo y se
+   expande al hacer clic. (La miniatura del template es aparte: esto es solo para
+   el código que el agente explica en texto.) */
+.pg-codecard {
+    margin: 8px 0;
+    background: var(--vsr-bg-card);
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.pg-codecard-head {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 8px 10px; text-align: left;
+    background: none; border: 0; color: inherit; cursor: pointer;
+}
+.pg-codecard-head:hover { background: var(--vsr-bg-hover, var(--vsr-bg-base)); }
+.pg-codecard-ic {
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 8px;
+    color: var(--vsr-accent-soft);
+    background: var(--vsr-accent-tint);
+    border: 1px solid var(--vsr-border-soft);
+}
+.pg-codecard-info {
+    display: flex; flex-direction: column; gap: 2px;
+    min-width: 0; flex: 1 1 auto;
+}
+.pg-codecard-title {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; color: var(--vsr-text-soft);
+}
+.pg-codecard-badge {
+    flex: 0 0 auto;
+    padding: 1px 6px; border-radius: 5px;
+    font-size: 9.5px; font-weight: 700; letter-spacing: .04em;
+    color: var(--vsr-accent-soft);
+    background: var(--vsr-accent-tint);
+    border: 1px solid var(--vsr-border-soft);
+    font-family: 'JetBrains Mono', monospace;
+}
+.pg-codecard-sub { font-size: 11px; color: var(--vsr-text-mute2); }
+.pg-codecard-caret { flex: 0 0 auto; color: var(--vsr-text-mute2); transition: transform .15s; }
+.pg-codecard.is-open .pg-codecard-caret { transform: rotate(180deg); }
+.pg-codecard-body { display: none; }
+.pg-codecard.is-open .pg-codecard-body { display: block; }
+.pg-codecard-body pre {
+    margin: 0; border-radius: 0;
+    border-top: 1px solid var(--vsr-border-soft);
+}
+
 /* Chip "Modificando: <título>" sobre el input cuando hay un template fijado. */
 .pg-pin-banner {
     display: flex; align-items: center; gap: 7px;

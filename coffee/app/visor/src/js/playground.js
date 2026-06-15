@@ -1039,8 +1039,52 @@ function pgStop() {
 }
 
 function pgAppendAI(text) {
-    $('#pgChatBody').append(`<div class="ia-msg ai"><div class="ia-msg-role"><span class="dot"></span><span>${pgAgentLabel()}</span></div><div class="ia-msg-text">${pgMarkdown(text)}</div></div>`);
+    const $m = $(`<div class="ia-msg ai"><div class="ia-msg-role"><span class="dot"></span><span>${pgAgentLabel()}</span></div><div class="ia-msg-text">${pgMarkdown(text)}</div></div>`);
+    $('#pgChatBody').append($m);
+    const $body = $m.find('.ia-msg-text');
+    $body.find('pre code').each((i, el) => { if (window.hljs) hljs.highlightElement(el); });
+    pgCollapseCode($body);
     pgScroll();
+}
+
+/* Colapsa los bloques de código (<pre><code>) de una burbuja ya renderizada en
+ * una card contraída: rotula el lenguaje (HTML, JS, …) y las líneas, y se abre
+ * con un clic. Evita volcar cientos de líneas de código crudo en el chat —
+ * sobre todo el HTML que los agentes de documento explican en prosa. */
+function pgCollapseCode($scope) {
+    if (!$scope || !$scope.length) return;
+    $scope.find('pre').each(function () {
+        const $pre = $(this);
+        if ($pre.closest('.pg-codecard').length) return;   // ya colapsado
+        const $code = $pre.find('code').first();
+        if (!$code.length) return;
+        const raw   = $code.text();
+        const lines = raw ? raw.split(/\r?\n/).length : 0;
+        // Lenguaje desde la clase (language-xxx de marked/hljs) o heurística HTML.
+        const m    = ($code.attr('class') || '').match(/language-([a-z0-9+-]+)/i);
+        const lang = m ? m[1] : (pgLooksLikeHtml(raw) ? 'html' : 'código');
+        const $card = $(`
+            <div class="pg-codecard">
+                <button type="button" class="pg-codecard-head" aria-expanded="false">
+                    <span class="pg-codecard-ic"><i data-lucide="code-xml" class="w-4 h-4"></i></span>
+                    <span class="pg-codecard-info">
+                        <span class="pg-codecard-title"><span class="pg-codecard-badge">${pgEscape(lang.toUpperCase())}</span>${lines} línea${lines === 1 ? '' : 's'}</span>
+                        <span class="pg-codecard-sub">Clic para ver el código</span>
+                    </span>
+                    <i data-lucide="chevron-down" class="pg-codecard-caret w-4 h-4"></i>
+                </button>
+                <div class="pg-codecard-body"></div>
+            </div>`);
+        $pre.before($card);
+        $card.find('.pg-codecard-body').append($pre);   // mueve el <pre> dentro del cuerpo colapsable
+        $card.find('.pg-codecard-head').on('click', function () {
+            const open = !$card.hasClass('is-open');
+            $card.toggleClass('is-open', open);
+            $(this).attr('aria-expanded', open ? 'true' : 'false');
+            $card.find('.pg-codecard-sub').text(open ? 'Clic para ocultar' : 'Clic para ver el código');
+        });
+    });
+    if (window.lucide) lucide.createIcons();
 }
 
 /* ── Motor de streaming (portado del Visor): typewriter + card "Conjurando…" ── */
@@ -1148,6 +1192,7 @@ function pgCreateAIStream() {
                 pgToast('Respuesta copiada', 'success');
             });
             $msg.find('pre code').each((i, el) => { if (window.hljs) hljs.highlightElement(el); });
+            pgCollapseCode($text);
             if (window.lucide) lucide.createIcons();
             pgScroll();
         },
