@@ -1544,7 +1544,7 @@ class SolicitudesView extends Templates {
                                 <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Solicitar a</label>
                                 <div class="relative">
                                     <select id="${modalId}_selSucursal" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8">
-                                        ${sucursales.map(s => `<option value="${esc(s.id)}"${String(s.id) === branchId ? ' selected' : ''}>${esc(s.valor)}</option>`).join('')}
+                                        ${sucursales.filter(s => String(s.id) !== branchId).map(s => `<option value="${esc(s.id)}">${esc(s.valor)}</option>`).join('')}
                                     </select>
                                     <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 flex items-center">
                                         <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
@@ -1766,6 +1766,15 @@ class SolicitudesView extends Templates {
             return;
         }
 
+        if (!($(`#${modalId}_selSucursal`).val() || '')) {
+            this.alertBox({
+                type:       'warning',
+                title:      'Selecciona una sucursal',
+                detailHtml: 'Debes elegir a qué sucursal le solicitas los materiales.'
+            });
+            return;
+        }
+
         const total = rows.length;
         this.alertBox({
             type:        'confirm',
@@ -1780,7 +1789,7 @@ class SolicitudesView extends Templates {
 
     async submitSolicitud(modalId, rows, closeModal) {
         const payload = {
-            branch_id:  $(`#${modalId}_selSucursal`).val() || app.dataInit.branch_id || '',
+            branch_id:  $(`#${modalId}_selSucursal`).val() || '',
             date_order: $(`#${modalId}_inpFecha`).val() || '',
             note:       $(`#${modalId}_note`).val() || '',
             submit:     true,
