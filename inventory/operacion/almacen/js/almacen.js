@@ -4,7 +4,7 @@ let categorias, unidades, areas, proveedores, almacenes;
 
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
-let  cataloge, category, area, unit, warehouse, inflow, shrinkage, supplier;
+let  cataloge, category, area, unit, warehouse, inflow, shrinkage, supplier, transferStatus;
 
 $(async () => {
     const data     = await useFetch({ url: api, data: { opc: "init" } });
@@ -26,6 +26,7 @@ $(async () => {
     inflow = new InflowOrigin(api_catalogo, "root");
     shrinkage = new ShrinkageReason(api_catalogo, "root");
     supplier = new Supplier(api_catalogo, "root");
+    transferStatus = new TransferStatus(api_catalogo, "root");
 
     cataloge.render();
 
@@ -117,6 +118,12 @@ class Main extends Templates {
                     tab: "Motivos salida",
                     lucideIcon: "log-out",
                     onClick: () => shrinkage.lsShrinkage()
+                },
+                {
+                    id: "transfer-status",
+                    tab: "Estados traspaso",
+                    lucideIcon: "arrow-left-right",
+                    onClick: () => transferStatus.lsTransferStatus()
                 }
             ]
         });

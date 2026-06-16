@@ -24,7 +24,6 @@ class App extends Templates {
         this.PROJECT_NAME = 'Movimientos';
         this.branchId     = null;
         this.selectedId   = null;
-        this.itemFilter   = null;
         this.dataInit     = {};
     }
 
@@ -85,10 +84,6 @@ class App extends Templates {
                 {
                     id:    'filterBar',
                     class: 'px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
-                },
-                {
-                    id:    'productFilterBar',
-                    class: 'px-4 hidden flex-shrink-0 bg-white border-b border-gray-200'
                 },
                 {
                     id:    'tableWrap',
@@ -204,7 +199,7 @@ class App extends Templates {
         return {
             branch_id: $('#fSucursal').val() || '',
             tipo:      $('#fTipo').val()     || '',
-            item_id:   this.itemFilter ? this.itemFilter.id : '',
+            item_id:   '',
             fechaIni:  range.fi              || '',
             fechaFin:  range.ff              || '',
             q:         ''
@@ -214,7 +209,7 @@ class App extends Templates {
     async onChangeFilters() {
         movimientos.lsMovimientos();
         await movimientos.lsKpis();
-        if (this.selectedId) this.selectMovimiento(null);
+        if (this.selectedId != null) this.selectProducto(null);
     }
 
     onBranchChange(detail) {
@@ -223,69 +218,22 @@ class App extends Templates {
             branchId      = this.branchId;
         }
         this.renderHeader();
-        this.selectMovimiento(null);
+        this.selectProducto(null);
         movimientos.lsMovimientos();
         movimientos.lsKpis();
     }
 
-    selectMovimiento(uid) {
-        this.selectedId = uid;
+    selectProducto(itemId) {
+        this.selectedId = itemId;
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
-        if (uid) {
+        if (itemId != null) {
             const $row = $(`#tb${this.PROJECT_NAME} tbody tr`).filter(function () {
-                return $(this).text().includes(uid) ||
-                       $(this).find(`[onclick*="selectMovimiento('${uid}')"]`).length > 0;
+                return $(this).find(`[onclick*="selectProducto(${itemId})"]`).length > 0;
             });
             $row.addClass('row-active');
         }
-        const mov = (uid && movimientos._raw) ? movimientos._raw[uid] : null;
-        movimientosView.renderDetail(mov || null);
-    }
-
-    filterByProduct(mov) {
-        if (!mov || mov.itemId == null) return;
-        this.itemFilter = { id: mov.itemId, name: mov.producto, sku: mov.sku || '' };
-        this.renderProductFilter();
-        movimientos.lsMovimientos();
-        movimientos.lsKpis();
-    }
-
-    clearProductFilter() {
-        this.itemFilter = null;
-        this.renderProductFilter();
-        movimientos.lsMovimientos();
-        movimientos.lsKpis();
-    }
-
-    renderProductFilter() {
-        const f    = this.itemFilter;
-        const $bar = $('#productFilterBar');
-
-        if (!f) {
-            $bar.addClass('hidden').empty();
-            return;
-        }
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        $bar.removeClass('hidden').html(`
-            <div class="flex items-center gap-2 my-2 text-[11px]">
-                <span class="text-gray-500">Movimientos de:</span>
-                <span class="inline-flex items-center gap-2 px-2 py-1 rounded-full font-bold"
-                      style="background:rgba(192,90,64,0.12);color:#C05A40;">
-                    <i data-lucide="package" class="w-3.5 h-3.5"></i>
-                    ${esc(f.name)}${f.sku ? ` <span class="font-normal opacity-70">(${esc(f.sku)})</span>` : ''}
-                    <button id="clearProductFilter" type="button" title="Quitar filtro"
-                            class="ml-1 hover:opacity-70">
-                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
-                    </button>
-                </span>
-            </div>`);
-
-        if (window.lucide) lucide.createIcons();
-        $('#clearProductFilter').on('click', () => this.clearProductFilter());
+        const prod = (itemId != null && movimientos._raw) ? movimientos._raw[itemId] : null;
+        movimientosView.renderDetail(prod || null);
     }
 }
 
@@ -319,15 +267,14 @@ class Movimientos extends Templates {
                 send: (resp) => {
                     this._raw = {};
                     const arr = (resp && resp.data) ? resp.data : [];
-                    arr.forEach(m => { this._raw[m.uid] = m; });
+                    arr.forEach(p => { this._raw[p.itemId] = p; });
                 }
             },
             attr: {
                 id:           `tb${this.PROJECT_NAME}`,
                 theme:        'light',
                 f_size:       12,
-                center:       [1, 3, 5, 6],
-                right:        [7],
+                center:       [2, 3, 4, 5, 7],
                 emptyMessage: 'No se encontraron movimientos con los filtros aplicados',
                 emptyIcon:    'icon-activity'
             }
@@ -363,11 +310,10 @@ class MovimientosView extends Templates {
         this.PROJECT_NAME = 'Movimientos';
     }
 
-    renderDetail(movimiento) {
-        this.movimientoDetailPanel({
+    renderDetail(producto) {
+        this.productMovimientosPanel({
             parent:  'detailPanel',
-            json:    movimiento,
-            onFilterProduct: (m) => app.filterByProduct(m),
+            json:    producto,
             onClose: () => {
                 app.selectedId = null;
                 this.renderDetail(null);
@@ -500,29 +446,16 @@ class MovimientosView extends Templates {
         }
     }
 
-    movimientoDetailPanel(options) {
+    productMovimientosPanel(options) {
         const defaults = {
             parent: 'root',
-            id:     'movimientoDetailPanel',
+            id:     'productMovimientosPanel',
             class:  'w-full h-full flex-shrink-0 bg-white flex flex-col overflow-hidden',
             json:   null,
             labels: {
-                emptyTitle: 'Selecciona un movimiento',
-                emptyHint:  'Haz click en una fila para ver el detalle aqui.',
-                subtitle:   'Detalle del movimiento',
-                tipo:       'Tipo',
-                folio:      'Folio',
-                cant:       'Cantidad',
-                stockPre:   'Stock antes',
-                stockPos:   'Stock despues',
-                costoU:     'Costo unitario',
-                costoT:     'Costo total',
-                alm:        'Almacen',
-                suc:        'Sucursal',
-                usr:        'Usuario',
-                est:        'Estado',
-                fch:        'Fecha',
-                nota:       'Nota'
+                emptyTitle: 'Selecciona un producto',
+                emptyHint:  'Haz click en el boton ver para listar todos sus movimientos.',
+                subtitle:   'Historial de movimientos'
             },
             tipoPalettes: {
                 'ENTRADA':       { bg: 'rgba(63,193,137,0.15)', fg: '#15803D' },
@@ -530,7 +463,6 @@ class MovimientosView extends Templates {
                 'TRANSFERENCIA': { bg: 'rgba(192,90,64,0.15)',  fg: '#C05A40' },
                 'AJUSTE':        { bg: 'rgba(167,139,250,0.15)', fg: '#7C3AED' }
             },
-            onFilterProduct: null,
             onClose: () => {}
         };
 
@@ -544,6 +476,7 @@ class MovimientosView extends Templates {
         }[c]));
 
         const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtQty   = (n) => { const v = Number(n || 0); return (v >= 0 ? '+' : '') + v; };
 
         const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -565,7 +498,7 @@ class MovimientosView extends Templates {
         if (!opts.json) {
             aside.html(`
                 <div class="px-3 py-3 flex-shrink-0 bg-gray-50 border-b border-gray-200">
-                    <h3 class="text-sm font-bold text-gray-800">Detalle Movimiento</h3>
+                    <h3 class="text-sm font-bold text-gray-800">Movimientos del producto</h3>
                     <p class="text-[10px] text-gray-500">${esc(opts.labels.subtitle)}</p>
                 </div>
                 <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
@@ -580,76 +513,77 @@ class MovimientosView extends Templates {
             return;
         }
 
-        const m       = opts.json;
-        const isOut    = Number(m.cant) < 0;
-        const qtyColor = isOut ? 'text-red-600' : 'text-green-600';
-        const qtyTxt   = (isOut ? '' : '+') + Number(m.cant);
-        const tipoC    = opts.tipoPalettes[m.tipo] || { bg: 'rgba(156,163,175,0.18)', fg: '#6B7280' };
-        const tipoBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${tipoC.bg};color:${tipoC.fg};">${esc(m.tipo)}</span>`;
+        const p     = opts.json;
+        const movs  = p.movs || [];
+        const neto  = Number(p.neto || 0);
+        const netoColor = neto < 0 ? 'text-red-600' : 'text-green-600';
 
-        const rowItem = (k, v, extraClass) => `
-            <div class="flex justify-between text-[11px]">
-                <span class="text-gray-500">${esc(k)}</span>
-                <span class="font-medium text-gray-700 ${extraClass || ''}">${v}</span>
+        const summaryItem = (label, value, extraClass) => `
+            <div class="flex flex-col items-center">
+                <span class="text-[9px] uppercase tracking-wider text-gray-400">${esc(label)}</span>
+                <span class="text-sm font-bold ${extraClass || 'text-gray-800'}">${value}</span>
             </div>`;
 
+        const movCard = (m) => {
+            const isOut    = Number(m.cant) < 0;
+            const qtyColor = isOut ? 'text-red-600' : 'text-green-600';
+            const tipoC    = opts.tipoPalettes[m.tipo] || { bg: 'rgba(156,163,175,0.18)', fg: '#6B7280' };
+            return `
+                <div class="border border-gray-200 rounded-lg p-2.5">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style="background:${tipoC.bg};color:${tipoC.fg};">${esc(m.tipo)}</span>
+                            <span class="text-[10px] text-gray-500 truncate">${esc(m.folio || '-')}</span>
+                        </div>
+                        <span class="text-[10px] text-gray-400 flex-shrink-0">${esc(fmtFecha(m.fecha))}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="${qtyColor} font-bold">${fmtQty(m.cant)}</span>
+                        <span class="text-gray-500">${Number(m.stockPrev)} <span class="text-gray-400">&rarr;</span> <b class="text-gray-700">${Number(m.stockPost)}</b></span>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-gray-500 mt-1">
+                        <span class="truncate">${esc(m.almacen || '-')}${m.sucursal && m.sucursal !== '-' ? ` &middot; ${esc(m.sucursal)}` : ''}</span>
+                        <span class="font-semibold text-gray-600 flex-shrink-0">${fmtMoney(m.costoTot)}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-gray-400 mt-0.5">
+                        <span class="truncate">${esc(m.usuario || '-')}</span>
+                        ${m.estado ? `<span class="flex-shrink-0">${esc(m.estado)}</span>` : ''}
+                    </div>
+                    ${m.nota ? `<p class="text-[10px] text-gray-500 mt-1 border-t border-gray-100 pt-1">${esc(m.nota)}</p>` : ''}
+                </div>`;
+        };
+
         aside.html(`
-            <div class="px-3 py-3 flex-shrink-0 flex items-center justify-between bg-gray-50 border-b border-gray-200">
-                <div>
-                    <h3 class="text-sm font-bold text-gray-800">${esc(m.uid)}</h3>
-                    <p class="text-[10px] text-gray-500">${esc(fmtFecha(m.fecha))}</p>
+            <div class="px-3 py-3 flex-shrink-0 flex items-start justify-between bg-gray-50 border-b border-gray-200">
+                <div class="min-w-0">
+                    <h3 class="text-sm font-bold text-gray-800 leading-tight truncate">${esc(p.producto)}</h3>
+                    ${p.sku ? `<p class="text-[10px] text-gray-400">SKU: ${esc(p.sku)}</p>` : ''}
                 </div>
-                <button id="${opts.id}_close" class="text-gray-500 hover:text-gray-700 transition-colors p-1" title="Cerrar">
+                <button id="${opts.id}_close" class="text-gray-500 hover:text-gray-700 transition-colors p-1 flex-shrink-0" title="Cerrar">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                 </button>
             </div>
 
-            <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-3">
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                    <p class="text-[11px] font-bold text-gray-800 leading-tight">${esc(m.producto)}</p>
-                    ${m.sku ? `<p class="text-[10px] text-gray-400">SKU: ${esc(m.sku)}</p>` : ''}
-                    ${opts.onFilterProduct ? `
-                    <button id="${opts.id}_filterProd" type="button"
-                            class="mt-2 inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded transition-colors"
-                            style="background:rgba(192,90,64,0.12);color:#C05A40;">
-                        <i data-lucide="history" class="w-3.5 h-3.5"></i>
-                        Ver movimientos de este producto
-                    </button>` : ''}
+            <div class="px-3 py-3 flex-shrink-0 border-b border-gray-200">
+                <div class="grid grid-cols-4 gap-2">
+                    ${summaryItem('Movs', p.count)}
+                    ${summaryItem('Entradas', p.entradas, 'text-green-600')}
+                    ${summaryItem('Salidas', p.salidas, 'text-red-600')}
+                    ${summaryItem('Neto', fmtQty(neto), netoColor)}
                 </div>
+            </div>
 
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1.5">
-                    ${rowItem(opts.labels.tipo, tipoBadge)}
-                    ${rowItem(opts.labels.folio, esc(m.folio || '-'))}
-                    ${rowItem(opts.labels.cant, qtyTxt, qtyColor + ' font-bold')}
-                    ${rowItem(opts.labels.stockPre, Number(m.stockPrev))}
-                    ${rowItem(opts.labels.stockPos, `<b>${Number(m.stockPost)}</b>`)}
-                    ${rowItem(opts.labels.costoU, fmtMoney(m.costoUnit))}
-                    ${rowItem(opts.labels.costoT, fmtMoney(m.costoTot), 'font-bold')}
-                </div>
-
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1.5">
-                    ${rowItem(opts.labels.alm, esc(m.almacen || '-'))}
-                    ${rowItem(opts.labels.suc, esc(m.sucursal || '-'))}
-                    ${rowItem(opts.labels.usr, esc(m.usuario || '-'))}
-                    ${rowItem(opts.labels.est, esc(m.estado || '-'))}
-                    ${rowItem(opts.labels.fch, esc(fmtFecha(m.fecha)))}
-                </div>
-
-                ${m.nota ? `
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                    <p class="text-[9px] text-gray-500 uppercase tracking-wider mb-1">${esc(opts.labels.nota)}</p>
-                    <p class="text-[11px] text-gray-600">${esc(m.nota)}</p>
-                </div>` : ''}
+            <div class="flex-1 overflow-y-auto cs-scroll px-3 py-3 space-y-2">
+                ${movs.length
+                    ? movs.map(movCard).join('')
+                    : '<p class="text-[11px] text-gray-400 italic text-center py-6">Sin movimientos para este producto.</p>'}
             </div>`);
 
         $(`#${opts.parent}`).html(aside);
         if (window.lucide) lucide.createIcons();
 
-        $(`#${opts.id}_close`).on('click', () => opts.onClose(m));
-        if (opts.onFilterProduct) {
-            $(`#${opts.id}_filterProd`).on('click', () => opts.onFilterProduct(m));
-        }
+        $(`#${opts.id}_close`).on('click', () => opts.onClose(p));
     }
 }

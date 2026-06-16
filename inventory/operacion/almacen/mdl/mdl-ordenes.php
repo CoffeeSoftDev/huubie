@@ -243,6 +243,10 @@ class mdl extends CRUD {
             $data[] = '%' . $array['q'] . '%';
             $data[] = '%' . $array['q'] . '%';
         }
+        if (!empty($array['mine'])) {
+            $where .= ' AND po.user_id = ?';
+            $data[] = $array['mine'];
+        }
 
         $query = "
             SELECT
@@ -276,12 +280,14 @@ class mdl extends CRUD {
                 po.*,
                 w.name         AS warehouse_name,
                 s.name         AS branch_name,
+                ds.name        AS destination_branch_name,
                 sp.name        AS supplier_name,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))   AS user_name,
                 TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name
             FROM {$this->bd}purchase_order po
             LEFT JOIN {$this->bd}warehouse        w  ON w.id  = po.warehouse_id
             LEFT JOIN {$this->bdErp}branches      s  ON s.id  = po.branch_id
+            LEFT JOIN {$this->bdErp}branches      ds ON ds.id = po.destination_branch_id
             LEFT JOIN {$this->bd}supplier         sp ON sp.id = po.supplier_id
             LEFT JOIN {$this->bdErp}users         u  ON u.id  = po.user_id
             LEFT JOIN {$this->bdErp}users         au ON au.id = po.approved_user_id
@@ -325,11 +331,11 @@ class mdl extends CRUD {
     function insertOrden($array) {
         $query = "
             INSERT INTO {$this->bd}purchase_order
-                (folio, supplier_id, branch_id, warehouse_id,
+                (folio, supplier_id, branch_id, destination_branch_id, warehouse_id,
                  date_order, expected_date, note,
                  total_products, total_units, total_cost, total_price_without_tax,
                  status, user_id, companies_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
     }
@@ -509,5 +515,51 @@ class mdl extends CRUD {
             $next  = $num + 1;
         }
         return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
+    }
+
+    // -----------------------------------------------------------------------
+    // Surtido a sucursal: salida de inventario (inventory_shrinkage) + stock
+    // -----------------------------------------------------------------------
+
+    function getShrinkageReasonId($array) {
+        $query = "
+            SELECT id
+            FROM {$this->bd}shrinkage_reason
+            WHERE code = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['id'] : null;
+    }
+
+    function insertShrinkageFromOrden($array) {
+        $query = "
+            INSERT INTO {$this->bd}inventory_shrinkage
+                (folio, note, total_products, total_units, total_cost,
+                 status, shrinkage_reason_id, warehouse_id,
+                 branch_id, user_id, companies_id, date_shrinkage)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function insertShrinkageDetail($array) {
+        $query = "
+            INSERT INTO {$this->bd}detail_inventory_shrinkage
+                (quantity, cost, subtotal, previous_stock, resulting_stock,
+                 item_id, inventory_shrinkage_id)
+            VALUES (?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function qStockByWarehouse($array) {
+        $query = "
+            SELECT item_id, quantity
+            FROM {$this->bd}stock
+            WHERE warehouse_id = ? AND active = 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
     }
 }

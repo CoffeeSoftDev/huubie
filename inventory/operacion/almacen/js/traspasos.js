@@ -127,8 +127,17 @@ class App extends Templates {
                 ? arr
                 : [{ id: '', valor: label }].concat(arr);
         };
-        const estados    = withAll(this.dataInit.estados,    'Todos los estados');
         const sucursales = withAll(this.dataInit.sucursales, 'Todas las sucursales');
+
+        // Estados relativos a mi sucursal (lo que envio vs lo que recibo).
+        const estados = [
+            { id: '',            valor: 'Todos los estados' },
+            { id: 'enviados',    valor: 'Enviados' },
+            { id: 'por_recibir', valor: 'Por recibir' },
+            { id: 'entregados',  valor: 'Entregados' },
+            { id: 'recibidos',   valor: 'Recibidos' },
+            { id: 'rechazados',  valor: 'Rechazados' }
+        ];
 
         const filters = [
             {
@@ -136,6 +145,15 @@ class App extends Templates {
                 id:    `calendar${this.PROJECT_NAME}`,
                 lbl:   'Rango de fecha:',
                 class: 'col-12 col-md-3 col-lg-3'
+            },
+            {
+                opc: 'select',
+                id: 'fDestino',
+                lbl: 'Destino:',
+                class: 'col-12 col-md-2 col-lg-3',
+                onchange: 'app.onChangeFilters()',
+                value: '',
+                data: sucursales
             },
             {
                 opc:      'select',
@@ -146,15 +164,7 @@ class App extends Templates {
                 value:    '',
                 data:     estados
             },
-            {
-                opc:      'select',
-                id:       'fDestino',
-                lbl:      'Destino:',
-                class:    'col-12 col-md-2 col-lg-3',
-                onchange: 'app.onChangeFilters()',
-                value:    '',
-                data:     sucursales
-            },
+           
             {
                 opc:       'button',
                 id:        'btnNuevoTraspaso',
@@ -195,7 +205,7 @@ class App extends Templates {
         return {
             branch_id:   this.branchId || '',
             scope:       this.branchId  || '',
-            estado:      $('#fEstado').val()  || '',
+            relative:    $('#fEstado').val()  || '',
             destino:     $('#fDestino').val() || '',
             fechaIni:    range.fi             || '',
             fechaFin:    range.ff             || '',
@@ -210,6 +220,13 @@ class App extends Templates {
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
             this.selectTraspaso(null);
         }
+    }
+
+    filterByKpi(kpi) {
+        const rel     = (kpi && kpi.rel) || '';
+        const current = $('#fEstado').val() || '';
+        $('#fEstado').val(current === rel ? '' : rel);
+        this.onChangeFilters();
     }
 
     onBranchChange(detail) {
@@ -264,7 +281,7 @@ class Traspasos extends Templates {
             conf:        { datatable: true, pag: 15 },
             data: {
                 opc:                  'lsTraspasos',
-                status_id:            f.estado,
+                relative:             f.relative,
                 scope_branch_id:      f.scope,
                 destination_branch_id: f.destino,
                 fi:                   f.fechaIni,
@@ -290,18 +307,29 @@ class Traspasos extends Templates {
         }, api).catch(() => null);
         const c = (r && r.status === 200) ? r.counts : {};
 
+        const kpiValue = (n) => {
+            const v = parseInt(n || 0, 10);
+            return v === 0 ? '-' : v;
+        };
+
         const kpis = [
-            { id: 'kpiTotal',      label: 'Total Mes',   value: parseInt(c.total       || 0, 10), tone: 'default' },
-            { id: 'kpiPendientes', label: 'Pendientes',  value: parseInt(c.pendientes  || 0, 10), tone: 'warning' },
-            { id: 'kpiTransito',   label: 'En Transito', value: parseInt(c.en_transito || 0, 10), tone: 'warning' },
-            { id: 'kpiRecibidos',  label: 'Recibidos',   value: parseInt(c.recibidos   || 0, 10), tone: 'success' },
-            { id: 'kpiRechazados', label: 'Rechazados',  value: parseInt(c.rechazados  || 0, 10), tone: 'danger'  }
+            { id: 'kpiTotal',      label: 'Total Mes',   value: kpiValue(c.total),       tone: 'default', rel: '' },
+            { id: 'kpiEnviados',   label: 'Enviados',    value: kpiValue(c.enviados),    tone: 'warning', rel: 'enviados' },
+            { id: 'kpiPorRecibir', label: 'Por recibir', value: kpiValue(c.por_recibir), tone: 'info',    rel: 'por_recibir' },
+            { id: 'kpiEntregados', label: 'Entregados',  value: kpiValue(c.entregados),  tone: 'success', rel: 'entregados' },
+            { id: 'kpiRecibidos',  label: 'Recibidos',   value: kpiValue(c.recibidos),   tone: 'success', rel: 'recibidos' },
+            { id: 'kpiRechazados', label: 'Rechazados',  value: kpiValue(c.rechazados),  tone: 'danger',  rel: 'rechazados' }
         ];
-        traspasosView.renderInfoCards(kpis);
+
+        const current     = $('#fEstado').val() || '';
+        const match       = kpis.find(k => (k.rel || '') === current);
+        const activeKpiId = match ? match.id : '';
+
+        traspasosView.renderInfoCards(kpis, activeKpiId);
     }
 
     async getTraspaso(id) {
-        const r = await fn_ajax({ opc: 'getTraspaso', id: id }, api).catch(() => null);
+        const r = await fn_ajax({ opc: 'getTraspaso', id: id, scope_branch_id: app.branchId || '' }, api).catch(() => null);
         if (r && r.status === 200) {
             traspasosView.renderDetail(
                 this.mapTraspasoDetail(r.header || {}, r.detail || [], r.history || [])
@@ -317,7 +345,10 @@ class Traspasos extends Templates {
         return {
             id:         h.id,
             folio:      h.folio,
-            estado:     h.status_name || '',
+            estado:      h.relative_status_name || h.status_name || '',
+            statusCode:  h.status_code || '',
+            estadoColor: h.status_color || '',
+            estadoBg:    h.status_bg    || '',
             fechaIso:   toIso(h.date_request),
             fechaEnvio: toIso(h.date_sent),
             solicito:   h.requested_user_name || '',
@@ -463,7 +494,7 @@ class Traspasos extends Templates {
     async printTraspaso(arg) {
         let t = arg;
         if (!t || typeof t !== 'object') {
-            const r = await fn_ajax({ opc: 'getTraspaso', id: arg }, api).catch(() => null);
+            const r = await fn_ajax({ opc: 'getTraspaso', id: arg, scope_branch_id: app.branchId || '' }, api).catch(() => null);
             if (!(r && r.status === 200)) {
                 if (typeof alert === 'function') alert({ icon: 'error', text: 'No se pudo cargar el traspaso para imprimir' });
                 return;
@@ -692,12 +723,13 @@ class TraspasosView extends Templates {
         });
     }
 
-    renderInfoCards(rows) {
+    renderInfoCards(rows, activeId) {
         this.kpisRow({
-            parent:  'kpisRow',
-            json:    rows,
-            cols:5,
-            onClick: (kpi) => {}
+            parent:   'kpisRow',
+            json:     rows,
+            cols:     6,
+            activeId: activeId,
+            onClick:  (kpi) => app.filterByKpi(kpi)
         });
     }
 
@@ -797,10 +829,12 @@ class TraspasosView extends Templates {
             },
             estadoPalettes: {
                 'Solicitado':  { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
+                'Enviado':     { bg: 'rgba(59,130,246,0.15)',  fg: '#3B82F6' },
                 'Pendiente':   { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
                 'Autorizado':  { bg: 'rgba(167,139,250,0.15)', fg: '#A78BFA' },
                 'En Transito': { bg: 'rgba(251,146,60,0.15)',  fg: '#FB923C' },
                 'Recibido':    { bg: 'rgba(63,193,137,0.15)',  fg: '#3FC189' },
+                'Entregado':   { bg: 'rgba(63,193,137,0.15)',  fg: '#3FC189' },
                 'Rechazado':   { bg: 'rgba(244,63,94,0.15)',   fg: '#F43F5E' }
             },
             routePalette: [
@@ -874,7 +908,9 @@ class TraspasosView extends Templates {
         const items    = (t.productos || []).length;
         const uds      = (t.productos || []).reduce((s, p) => s + Number(p.cant || 0), 0);
         const costoTot = (t.productos || []).reduce((s, p) => s + Number(p.cant || 0) * Number(p.costo || 0), 0);
-        const estadoC  = opts.estadoPalettes[t.estado] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
+        const estadoC  = (t.estadoBg || t.estadoColor)
+            ? { bg: t.estadoBg || 'rgba(156,163,175,0.18)', fg: t.estadoColor || '#9CA3AF' }
+            : (opts.estadoPalettes[t.estado] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' });
         const estadoBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold" style="background:${estadoC.bg};color:${estadoC.fg};">${esc(t.estado)}</span>`;
 
         const palette = opts.routePalette || defaults.routePalette;
@@ -956,8 +992,9 @@ class TraspasosView extends Templates {
         const isOrigin  = subId !== '' && subId === origenId;
         const isDestino = subId !== '' && subId === destinoId;
 
-        const isRequested = t.estado === 'Solicitado' || t.estado === 'Pendiente';
-        const isLegacyMid = t.estado === 'Autorizado' || t.estado === 'En Transito';
+        const code        = t.statusCode || '';
+        const isRequested = code === 'REQUESTED';
+        const isLegacyMid = code === 'AUTHORIZED' || code === 'IN_TRANSIT';
         const canAccept   = isDestino && (isRequested || isLegacyMid);
 
         const btnCancel = `

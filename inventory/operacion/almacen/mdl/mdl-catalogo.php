@@ -300,6 +300,49 @@ class mdl extends CRUD {
         return $result[0]['total'] ?? 0;
     }
 
+    // Estados de traspaso -> transfer_status
+    // Catalogo de sistema: los codigos (code) son fijos y referenciados por el flujo,
+    // por eso el admin es solo edicion (nombres/colores/etiquetas relativas), sin alta.
+
+    function listTransferStatus($array) {
+        $query = "
+            SELECT
+                id,
+                code,
+                name as valor,
+                name_out,
+                name_in,
+                color_hex,
+                bg_hex,
+                order_index,
+                active
+            FROM {$this->bd}transfer_status
+            WHERE active = ?
+            ORDER BY order_index ASC
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
+    function getTransferStatusById($array) {
+        $query = "
+            SELECT *
+            FROM {$this->bd}transfer_status
+            WHERE id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0] ?? null;
+    }
+
+    function updateTransferStatus($array) {
+        return $this->_Update([
+            'table'  => "{$this->bd}transfer_status",
+            'values' => $array['values'],
+            'where'  => $array['where'],
+            'data'   => $array['data']
+        ]);
+    }
+
     // Almacenes -> warehouse
 
     function listWarehouse($array) {

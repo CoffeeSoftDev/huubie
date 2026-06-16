@@ -43,56 +43,42 @@ class ctrl extends mdl {
             'q'             => $_POST['q']              ?? ''
         ]);
 
-        $row  = [];
-        $data = [];
+        // Agrupar los movimientos por producto. Las filas vienen ordenadas por
+        // occurred_at DESC, asi que el primer movimiento de cada producto es el
+        // mas reciente (se usa para la columna "Ultimo movimiento").
+        $prod  = [];
+        $order = [];
         foreach ($rows as $r) {
-            $qty     = (float) $r['quantity'];
-            $isOut   = $qty < 0;
-            $qtyHtml = $isOut
-                ? '<span class="font-bold text-red-600">'   . number_format($qty, 2) . '</span>'
-                : '<span class="font-bold text-green-600">+' . number_format($qty, 2) . '</span>';
+            $iid = (int) $r['item_id'];
+            $qty = (float) $r['quantity'];
 
-            $producto = ($r['item_name'] ?: 'Item #' . $r['item_id'])
-                . ($r['sku'] ? '<br><span class="text-[10px] text-gray-400">' . $r['sku'] . '</span>' : '');
+            if (!isset($prod[$iid])) {
+                $order[]      = $iid;
+                $prod[$iid] = [
+                    'itemId'   => $iid,
+                    'producto' => $r['item_name'] ?: ('Item #' . $iid),
+                    'sku'      => $r['sku'] ?: '',
+                    'count'    => 0,
+                    'entradas' => 0,
+                    'salidas'  => 0,
+                    'neto'     => 0.0,
+                    'costoTot' => 0.0,
+                    'lastType' => $r['movement_type'],
+                    'lastDate' => $r['occurred_at'] ?: '',
+                    'movs'     => []
+                ];
+            }
 
-            $acciones = [
-                [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
-                    'onclick' => "app.selectMovimiento('{$r['movement_uid']}')"
-                ]
-            ];
+            $prod[$iid]['count']++;
+            if ($qty >= 0) $prod[$iid]['entradas']++; else $prod[$iid]['salidas']++;
+            $prod[$iid]['neto']     += $qty;
+            $prod[$iid]['costoTot'] += (float) $r['cost_total'];
 
-            $stockHtml = number_format((float) $r['stock_prev'], 2)
-                . ' <span class="text-gray-400">&rarr;</span> '
-                . '<span class="font-semibold">' . number_format((float) $r['stock_post'], 2) . '</span>';
-
-            $ubicacion = ($r['warehouse_name'] ?: '-')
-                . ($r['branch_name'] ? '<br><span class="text-[10px] text-gray-400">' . $r['branch_name'] . '</span>' : '');
-
-            $row[] = [
-                'id'       => $r['movement_uid'],
-                'Fecha'    => movementDate($r['occurred_at']),
-                'Folio'    => $r['folio'] ?: '-',
-                'Tipo'     => movementBadge($r['movement_type']),
-                'Producto' => $producto,
-                'Cantidad' => $qtyHtml,
-                'Stock'    => $stockHtml,
-                'Costo'    => '$' . number_format((float) $r['cost_total'], 2),
-                'Almacen'  => $ubicacion,
-                'Usuario'  => $r['user_name'] ?: '-',
-                'a'        => $acciones
-            ];
-
-            // Crudo para el panel de detalle (indexado por uid en el front).
-            $data[] = [
+            $prod[$iid]['movs'][] = [
                 'uid'       => $r['movement_uid'],
                 'tipo'      => $r['movement_type'],
                 'folio'     => $r['folio'],
                 'nota'      => $r['note'],
-                'itemId'    => (int) $r['item_id'],
-                'producto'  => $r['item_name'] ?: ('Item #' . $r['item_id']),
-                'sku'       => $r['sku'] ?: '',
                 'cant'      => $qty,
                 'stockPrev' => (float) $r['stock_prev'],
                 'stockPost' => (float) $r['stock_post'],
@@ -103,6 +89,54 @@ class ctrl extends mdl {
                 'usuario'   => $r['user_name'] ?: '-',
                 'estado'    => $r['status'] ?: '',
                 'fecha'     => $r['occurred_at'] ?: ''
+            ];
+        }
+
+        $row  = [];
+        $data = [];
+        foreach ($order as $iid) {
+            $p = $prod[$iid];
+
+            $nombre = $p['producto']
+                . ($p['sku'] ? '<br><span class="text-[10px] text-gray-400">' . $p['sku'] . '</span>' : '');
+
+            $neto     = $p['neto'];
+            $netoHtml = $neto < 0
+                ? '<span class="font-bold text-red-600">'   . number_format($neto, 2) . '</span>'
+                : '<span class="font-bold text-green-600">+' . number_format($neto, 2) . '</span>';
+
+            $ultMov = movementBadge($p['lastType'])
+                . ' <span class="text-[10px] text-gray-400">' . movementDate($p['lastDate']) . '</span>';
+
+            $acciones = [
+                [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
+                    'onclick' => "app.selectProducto({$iid})"
+                ]
+            ];
+
+            $row[] = [
+                'id'        => $iid,
+                'Producto'  => $nombre,
+                'Movs'      => '<span class="font-semibold">' . $p['count'] . '</span>',
+                'Entradas'  => '<span class="text-green-600 font-semibold">' . $p['entradas'] . '</span>',
+                'Salidas'   => '<span class="text-red-600 font-semibold">' . $p['salidas'] . '</span>',
+                'Neto'      => $netoHtml,
+                'Ult. Mov'  => $ultMov,
+                'a'         => $acciones
+            ];
+
+            $data[] = [
+                'itemId'   => $iid,
+                'producto' => $p['producto'],
+                'sku'      => $p['sku'],
+                'count'    => $p['count'],
+                'entradas' => $p['entradas'],
+                'salidas'  => $p['salidas'],
+                'neto'     => $neto,
+                'costoTot' => $p['costoTot'],
+                'movs'     => $p['movs']
             ];
         }
 

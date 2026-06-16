@@ -2,7 +2,14 @@
 
 > Base de datos: `fayxzvov_inventory` (MySQL 5.7, WAMP local)
 > Ubicacion: `inventory/operacion/almacen/`
-> Ultima actualizacion: 2026-06-10
+> Ultima actualizacion: 2026-06-15
+
+> **Actualizacion 2026-06-15 — modelo de surtido inter-sucursal.** La solicitud ya
+> no termina en una *entrada* (compra a proveedor) sino en un **surtido**: la sucursal
+> destino (matriz) descuenta de su almacen para entregar a la sucursal solicitante. El
+> efecto en inventario es una **salida** (`inventory_shrinkage`, motivo `SURTIDO_SUC`),
+> con **reabasto** opcional (`inventory_inflow`) cuando el stock no alcanza. Ver §9.
+> El flujo de compra/recepcion (`receiveOrden`, entrada) se conserva en el backend.
 
 ---
 
@@ -26,7 +33,13 @@ Ambas vistas comparten el mismo backend: `ctrl/ctrl-ordenes.php` + `mdl/mdl-orde
 
 ## 2. Base de datos (Fase 1)
 
-Script: `sql/2026-06-09_purchase_order.sql`
+Script: [`../sql/2026-06-09_purchase_order.sql`](../sql/2026-06-09_purchase_order.sql)
+
+> **Nota (2026-06-15):** el script existia solo como referencia en la documentacion;
+> el archivo `.sql` no estaba en disco y las tablas nunca se habian aplicado en la
+> instancia local (`init`/`lsOrdenes` tronaban con `Table 'fayxzvov_inventory.purchase_order'
+> doesn't exist`, ver `ctrl/error.log`). Se materializo el script y se aplico a
+> `fayxzvov_inventory` (cabecera + renglones + columna `inventory_inflow.purchase_order_id`).
 
 ### 2.1 `purchase_order` (cabecera)
 
@@ -73,6 +86,12 @@ Cancelada: desde cualquier estado no terminal (cancelOrden)
   stock previo/posterior) y actualiza `inventory_stock` del almacen destino.
 - Si la OC no tenia `warehouse_id`, el almacen elegido al recibir se fija en la
   cabecera para trazabilidad.
+- **Surtido (modelo inter-sucursal, §9):** en lugar de `receiveOrden`, la sucursal
+  destino usa `fulfillOrden`, que **descuenta** del almacen origen (salida
+  `inventory_shrinkage` con folio `SI-`, motivo `SURTIDO_SUC`) y reusa
+  `quantity_received` como "cantidad surtida". Mismo recalculo de estado
+  (`Parcial`/`Recibida`). Si el stock no alcanza, un **reabasto** opcional genera
+  antes una entrada `ENT-` que sube el stock; todo en una sola transaccion.
 
 ---
 
@@ -93,7 +112,9 @@ Sesion: `company_id`, `branch_id`, `user_id` (con fallback a POST).
 | `submitOrden` | `Borrador -> Solicitada` |
 | `approveOrden` | `Solicitada -> Aprobada` (registra `approved_user_id`, `approved_at`) |
 | `rejectOrden` | `Solicitada -> Rechazada` (con `reject_reason`) |
-| `receiveOrden` | Valida pendientes, genera entrada `ENT-` + detalle + stock, actualiza `quantity_received` y estado (`Parcial`/`Recibida`) |
+| `receiveOrden` | (Compra) Valida pendientes, genera entrada `ENT-` + detalle + stock, actualiza `quantity_received` y estado (`Parcial`/`Recibida`) |
+| `fulfillOrden` | (Surtido) Solo la sucursal destino. Reabasto opcional (`ENT-`, entrada) + salida `SI-` (`inventory_shrinkage`, motivo `SURTIDO_SUC`) que descuenta el almacen origen, clampeado a pendiente y disponible. Actualiza `quantity_received` y estado. Transaccional. |
+| `stockByWarehouse` | Devuelve el stock disponible (`item_id -> cantidad`) de un almacen, para la pantalla de surtido |
 | `cancelOrden` | Cancela orden no terminal |
 | `printOrden` | Datos para la hoja imprimible (la vista de impresion se arma en `ordenes.js`) |
 
@@ -207,10 +228,11 @@ Los wireframes HTML estaticos que guiaron la implementacion viven en
 
 | Fase | Alcance | Estado |
 |---|---|---|
-| 1 | SQL: `purchase_order`, `detail_purchase_order`, vinculo en `inventory_inflow` | ✔ Aplicada en MySQL local |
+| 1 | SQL: `purchase_order`, `detail_purchase_order`, vinculo en `inventory_inflow` | ✔ Script materializado y aplicado en MySQL local (2026-06-15) |
 | 2 | Backend `ctrl-ordenes.php` / `mdl-ordenes.php` (CRUD + flujo + recepciones) | ✔ Completa |
 | 3 | Frontend gestion (`ordenes.php`) + solicitante responsive (`solicitudes.php`) | ✔ Completa |
 | 3.1 | Refinado del form de solicitud (select sucursal, fecha, cantidad con foco) | ✔ Completa (2026-06-10) |
+| 4 | Surtido inter-sucursal: `fulfillOrden` + `stockByWarehouse` (salida + reabasto, transaccional) y UI `openSurtidoModal` en `ordenes.js` | ✔ Completa y probada end-to-end con rollback (2026-06-16) |
 
 ### Pendientes
 
@@ -219,3 +241,50 @@ Los wireframes HTML estaticos que guiaron la implementacion viven en
       recibir parcial -> verificar entrada `ENT-` y stock).
 - [ ] (Opcional) Enter en el buscador del solicitante para agregar la primera
       coincidencia / SKU exacto, como el modo escaner de EntradaForm.
+
+---
+
+## 9. Modelo de surtido inter-sucursal (2026-06-16)
+
+La sucursal **solicitante** (`branch_id`) pide a la sucursal **destino**
+(`destination_branch_id`, la matriz). Solo el destino puede gestionar/surtir
+(`puedeGestionarDestino`). El surtido descuenta del **almacen origen** de la
+matriz (`warehouse_id`).
+
+### Flujo
+
+```
+Solicitada ─(destino aprueba)─> Aprobada ─(destino surte: fulfillOrden)─> Parcial / Recibida
+```
+
+- La accion **Surtir** (estados Aprobada/Parcial, solo destino) abre
+  `openSurtidoModal` en `ordenes.js`: por renglon muestra **Pedido · Surtido ·
+  Disponible · A surtir · Reabastecer**. "Disponible" se carga de
+  `stockByWarehouse` al elegir el almacen origen; si "A surtir" supera lo
+  disponible, se sugiere el reabasto del faltante.
+- Al confirmar, `fulfillOrden` ejecuta en **una sola transaccion**:
+  1. **Reabasto opcional** (`replenish[]`): entrada `inventory_inflow` (folio
+     `ENT-`, origen `COMPRA` id=1) que **sube** el stock del almacen origen.
+  2. **Surtido** (`items[]`): salida `inventory_shrinkage` (folio `SI-`, motivo
+     `SURTIDO_SUC` id=8, estado `Aplicada`) que **baja** el stock, clampeada al
+     **pendiente** (`quantity_ordered - quantity_received`) y al **disponible**.
+  3. Actualiza `quantity_received` (cantidad surtida) y recalcula estado
+     (`Recibida` si se surtio todo, `Parcial` si no).
+- Los motivos `SURTIDO_SUC` y `PEDIDO_COMP` ya estan sembrados en
+  `shrinkage_reason`. El surtido referencia la solicitud por **nota** (folio);
+  el reabasto si guarda `inventory_inflow.purchase_order_id`.
+
+### Prueba realizada (reversible)
+
+Surtido de OC-0001 (item 23, pedido 1) desde un almacen con 0 disponible +
+reabasto 1: genero `ENT-` (stock 0→1) y `SI-` (stock 1→0), `quantity_received`
+0→1, estado `Solicitada`→`Recibida`, todo atomico. Se revirtio por completo
+dejando la BD intacta.
+
+### Pendientes del surtido
+
+- [ ] Replicar el lenguaje "Surtida" en `solicitudes.php` (vista del solicitante)
+      y en el badge de backend (`statusBadge` aun muestra `RECIBIDA`).
+- [ ] (Opcional) Columna `purchase_order_id` en `inventory_shrinkage` para
+      trazabilidad fuerte del surtido (hoy va por nota).
+- [ ] Filtrar el select de almacen origen por la sucursal destino.

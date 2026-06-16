@@ -3,6 +3,33 @@
   padding: 0;
   /* font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; */
 }
+
+/* ============================================================================
+   SCROLLBAR GLOBAL (tema light del proyecto)
+   ----------------------------------------------------------------------------
+   Barra delgada en tono gris para todo el modulo. Reemplaza la barra gruesa por
+   defecto del sistema. En dark-mode, dark-mode.css la sobreescribe (carga
+   despues / mayor especificidad con body.dark-mode). */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #C1C7CD transparent;
+}
+/* WebKit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #C1C7CD;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9AA0A6;
+}
 body {
   display: flex;
   flex-direction: row;

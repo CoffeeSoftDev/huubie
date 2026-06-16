@@ -684,6 +684,104 @@ class ctrl extends mdl {
             'message' => $message
         ];
     }
+
+    // Estados de traspaso --
+
+    function lsTransferStatus() {
+        $active = $_POST['active'] ?? 1;
+        $ls     = $this->listTransferStatus([$active]);
+        $rows   = [];
+
+        foreach ($ls as $item) {
+            $a = [];
+
+            if ($active == 1) {
+                $a[] = [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
+                    'onclick' => 'transferStatus.editTransferStatus(' . $item['id'] . ')'
+                ];
+                $a[] = [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
+                    'onclick' => 'transferStatus.statusTransferStatus(' . $item['id'] . ', ' . $item['active'] . ')'
+                ];
+            } else {
+                $a[] = [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
+                    'onclick' => 'transferStatus.statusTransferStatus(' . $item['id'] . ', ' . $item['active'] . ')'
+                ];
+            }
+
+            $rows[] = [
+                'id'        => $item['id'],
+                'Código'    => $item['code'],
+                'Estado'    => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null),
+                'Yo envío'  => $item['name_out'] ?: '-',
+                'Yo recibo' => $item['name_in'] ?: '-',
+                'Orden'     => $item['order_index'],
+                'Activo'    => renderStatus($item['active']),
+                'a'         => $a
+            ];
+        }
+
+        return [
+            'row' => $rows,
+            'ls'  => $ls
+        ];
+    }
+
+    function getTransferStatus() {
+        $id  = $_POST['id'];
+        $row = $this->getTransferStatusById([$id]);
+
+        if ($row) {
+            return ['status' => 200, 'message' => 'Estado encontrado', 'data' => $row];
+        }
+
+        return ['status' => 404, 'message' => 'Estado no encontrado', 'data' => null];
+    }
+
+    function editTransferStatus() {
+        $status  = 500;
+        $message = 'Error al editar estado';
+
+        // Regla CoffeeSoft: sql(,1) usa el ULTIMO campo como WHERE.
+        $id = $_POST['id'];
+        unset($_POST['id']);
+        $_POST['id'] = $id;
+
+        $edit = $this->updateTransferStatus($this->util->sql($_POST, 1));
+
+        if ($edit) {
+            $status  = 200;
+            $message = 'Estado de traspaso actualizado correctamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
+    }
+
+    function statusTransferStatus() {
+        $status  = 500;
+        $message = 'Error al cambiar el estado';
+
+        $update = $this->updateTransferStatus($this->util->sql($_POST, 1));
+
+        if ($update) {
+            $status  = 200;
+            $message = 'Estado actualizado correctamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
+    }
+
     // Almacenes --
 
     function lsWarehouse() {

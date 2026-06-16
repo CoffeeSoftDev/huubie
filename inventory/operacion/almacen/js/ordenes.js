@@ -384,6 +384,8 @@ class Ordenes extends Templates {
             supplier_name:    h.supplier_name || '',
             branch_id:        h.branch_id,
             branch_name:      h.branch_name  || '',
+            destination_branch_id:   h.destination_branch_id,
+            destination_branch_name: h.destination_branch_name || '',
             warehouse_id:     h.warehouse_id,
             warehouse_name:   h.warehouse_name || '',
             date_order:       h.date_order    || '',
@@ -552,7 +554,7 @@ class OrdenesView extends Templates {
             onSubmit:        (o) => this.doSubmitOrden(o),
             onApprove:       (o) => this.doApproveOrden(o),
             onReject:        (o) => this.doRejectOrden(o),
-            onRecibir:       (o) => this.openRecepcionModal(o),
+            onRecibir:       (o) => this.openSurtidoModal(o),
             onCancel:        (o) => this.doCancelOrden(o)
         });
     }
@@ -683,7 +685,6 @@ class OrdenesView extends Templates {
 
     openOrdenForm(orden) {
         const isEdit  = !!(orden && orden.id);
-        const curSub  = $('#branch_id').val() || app.subId;
         const esc     = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtNum  = (n) => n != null ? Number(n).toFixed(2) : '';
 
@@ -706,9 +707,9 @@ class OrdenesView extends Templates {
             }));
         }
 
-        // Opciones select sucursal
-        const optsSuc = sucursales.map(s =>
-            `<option value="${s.id}"${(isEdit ? String(orden.branch_id) : String(curSub)) === String(s.id) ? ' selected' : ''}>${esc(s.valor)}</option>`
+        // Opciones select sucursal destino (a quien se le pide)
+        const optsDest = `<option value="">-- Selecciona sucursal --</option>` + sucursales.map(s =>
+            `<option value="${s.id}"${isEdit && String(orden.destination_branch_id) === String(s.id) ? ' selected' : ''}>${esc(s.valor)}</option>`
         ).join('');
 
         // Opciones select almacén
@@ -754,13 +755,9 @@ class OrdenesView extends Templates {
                                 <input type="date" id="${modalId}_date_order" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all" value="${isEdit ? esc(orden.date_order) : moment().format('YYYY-MM-DD')}">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Fecha esperada <span class="text-gray-400 normal-case">(opcional)</span></label>
-                                <input type="date" id="${modalId}_expected_date" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all" value="${isEdit ? esc(orden.expected_date) : ''}">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Sucursal</label>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Sucursal destino</label>
                                 <div class="relative">
-                                    <select id="${modalId}_branch_id" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8">${optsSuc}</select>
+                                    <select id="${modalId}_destination_branch_id" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8">${optsDest}</select>
                                     <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
                                 </div>
                             </div>
@@ -1072,13 +1069,13 @@ class OrdenesView extends Templates {
         }
 
         const payload = {
-            branch_id:     $(`#${modalId}_branch_id`).val()     || '',
-            warehouse_id:  $(`#${modalId}_warehouse_id`).val()  || '',
-            supplier_id:   $(`#${modalId}_supplier_id`).val()   || '',
-            date_order:    $(`#${modalId}_date_order`).val()    || moment().format('YYYY-MM-DD'),
-            expected_date: $(`#${modalId}_expected_date`).val() || '',
-            note:          $(`#${modalId}_note`).val()          || '',
-            submit:        submit,
+            branch_id:             (isEdit && orden ? orden.branch_id : ($('#branch_id').val() || app.subId)) || '',
+            destination_branch_id: $(`#${modalId}_destination_branch_id`).val() || '',
+            warehouse_id:          $(`#${modalId}_warehouse_id`).val()          || '',
+            supplier_id:           $(`#${modalId}_supplier_id`).val()           || '',
+            date_order:            $(`#${modalId}_date_order`).val()            || moment().format('YYYY-MM-DD'),
+            note:                  $(`#${modalId}_note`).val()                  || '',
+            submit:                submit,
             productos:     rows.map(r => ({
                 product_id:        r.id,
                 quantity:          r.cant,
@@ -1344,6 +1341,234 @@ class OrdenesView extends Templates {
     }
 
     // ----------------------------------------------------------
+    // Modal de surtido (la matriz descuenta de su almacen)
+    // ----------------------------------------------------------
+
+    openSurtidoModal(orden) {
+        if (!orden || !orden.id) return;
+
+        const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmtNum    = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
+        const almacenes = app.dataInit.almacenes || [];
+        const productos = orden.productos || [];
+
+        const warehouseFixed = !!(orden.warehouse_id);
+        const optsAlm = `<option value="">-- Selecciona almacen --</option>` + almacenes.map(a =>
+            `<option value="${a.id}"${String(orden.warehouse_id) === String(a.id) ? ' selected' : ''}>${esc(a.valor)}</option>`
+        ).join('');
+
+        const modalId = 'modalSurtido';
+        $(`#${modalId}`).remove();
+
+        let stockMap    = {};
+        let stockLoaded = false;
+
+        const $modal = $(`
+            <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center">
+                <div class="absolute inset-0 bg-black/40"></div>
+                <div class="relative z-10 w-full max-w-[1040px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+
+                    <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style="background:#C05A40">
+                                <i data-lucide="truck" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800">Surtir solicitud</h3>
+                                <p class="text-[11px] text-gray-500">Solicitud <span class="font-semibold text-gray-700">${esc(orden.folio)}</span> &middot; ${orden.status_badge || ''}</p>
+                            </div>
+                        </div>
+                        <button id="${modalId}_close" class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
+                        <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid #C05A40;background:rgba(192,90,64,.05)">
+                            <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#C05A40"></i>
+                            <p class="text-[11px] text-gray-600 leading-relaxed">
+                                Al confirmar se genera una <span class="font-semibold text-gray-800">salida</span> que descuenta el stock del almacen origen.
+                                Si una cantidad supera lo disponible, captura un <span class="font-semibold text-gray-800">reabasto</span>: primero entra al almacen y luego se surte.
+                            </p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacen origen${warehouseFixed ? '' : ' *'}</label>
+                                ${warehouseFixed
+                                    ? `<p class="px-2.5 py-1.5 text-xs text-gray-700 bg-white border border-gray-200 rounded-md">${esc(orden.warehouse_name)}</p>
+                                       <input type="hidden" id="${modalId}_warehouse_id" value="${orden.warehouse_id}">`
+                                    : `<div class="relative">
+                                           <select id="${modalId}_warehouse_id" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 cursor-pointer appearance-none pr-8">${optsAlm}</select>
+                                           <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                       </div>`
+                                }
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
+                                <input type="text" id="${modalId}_note" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 placeholder:text-gray-400" placeholder="Observaciones del surtido...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="px-5 py-2.5 border-b border-gray-200 flex items-center gap-2 flex-shrink-0 bg-gray-50">
+                        <div class="w-6 h-6 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center">
+                            <i data-lucide="boxes" class="w-3.5 h-3.5 text-blue-600"></i>
+                        </div>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">Materiales a surtir</p>
+                    </div>
+
+                    <div class="flex-1 min-h-0 overflow-y-auto cs-scroll">
+                        <table class="w-full border-collapse">
+                            <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-16">Pedido</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Surtido</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Disp.</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">A surtir</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Reabastecer</th>
+                                </tr>
+                            </thead>
+                            <tbody id="${modalId}_tbody" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-5 text-[11px] text-gray-500">
+                            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background:#C05A40"></span>A surtir <strong class="text-gray-800 text-sm" id="${modalId}_totSup">0</strong></span>
+                            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Reabasto <strong class="text-gray-800 text-sm" id="${modalId}_totRep">0</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                        <button id="${modalId}_btnCancelar" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
+                        <button id="${modalId}_btnConfirmar" class="px-3 py-1.5 text-xs font-bold text-white rounded-md hover:shadow-lg transition-all flex items-center gap-1.5" style="background:#C05A40">
+                            <i data-lucide="truck" class="w-3.5 h-3.5"></i><span>Confirmar surtido</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        $('body').append($modal);
+        if (window.lucide) lucide.createIcons();
+
+        const recalc = () => {
+            let totSup = 0, totRep = 0;
+            $modal.find('.sur-qty').each(function () { totSup += parseFloat($(this).val()) || 0; });
+            $modal.find('.sur-rep').each(function () { totRep += parseFloat($(this).val()) || 0; });
+            const fmtN = (n) => (n % 1 === 0) ? String(n) : n.toFixed(2);
+            $(`#${modalId}_totSup`).text(fmtN(totSup));
+            $(`#${modalId}_totRep`).text(fmtN(totRep));
+        };
+
+        const renderRows = () => {
+            $(`#${modalId}_tbody`).html(productos.map(p => {
+                const pendiente = Math.max(0, p.quantity_ordered - p.quantity_received);
+                const disp      = stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
+                const dispTxt   = disp === null ? '—' : fmtNum(disp);
+                const aSurtir   = disp === null ? pendiente : Math.min(pendiente, disp);
+                const completo  = pendiente <= 0;
+                const dispColor = (disp !== null && disp < pendiente) ? '#F97316' : '#3FC189';
+                return `
+                    <tr data-detail-id="${p.detailId}" data-product-id="${p.product_id}" data-pending="${pendiente}">
+                        <td class="px-3 py-2">
+                            <p class="font-medium text-gray-700 text-xs">${esc(p.nombre)}</p>
+                            ${p.sku ? `<p class="text-[10px] text-gray-400">${esc(p.sku)}</p>` : ''}
+                        </td>
+                        <td class="px-3 py-2 text-center text-xs text-gray-600">${fmtNum(p.quantity_ordered)}</td>
+                        <td class="px-3 py-2 text-center text-xs font-semibold" style="color:${p.quantity_received > 0 ? '#3FC189' : '#9CA3AF'}">${fmtNum(p.quantity_received)}</td>
+                        <td class="px-3 py-2 text-center text-xs font-bold sur-disp" style="color:${dispColor}">${dispTxt}</td>
+                        <td class="px-3 py-2">
+                            <input type="number" class="sur-qty no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-[#C05A40] outline-none ${completo ? 'bg-gray-100 text-gray-400' : ''}"
+                                value="${completo ? 0 : aSurtir}" min="0" max="${pendiente}" step="0.01" ${completo ? 'disabled' : ''}>
+                        </td>
+                        <td class="px-3 py-2">
+                            <input type="number" class="sur-rep no-spin w-full px-2 py-1 text-xs text-center text-gray-700 bg-white border border-gray-200 rounded focus:border-green-500 outline-none"
+                                value="0" min="0" step="0.01" ${completo ? 'disabled' : ''}>
+                        </td>
+                    </tr>`;
+            }).join(''));
+            recalc();
+        };
+
+        const loadStock = (warehouseId) => {
+            if (!warehouseId) { stockLoaded = false; stockMap = {}; renderRows(); return; }
+            useFetch({ url: apiOrdenes, data: { opc: 'stockByWarehouse', warehouse_id: warehouseId } }).then(r => {
+                stockMap    = (r && r.status === 200 && r.stock) ? r.stock : {};
+                stockLoaded = true;
+                renderRows();
+            });
+        };
+
+        $(`#${modalId}_tbody`).on('input', '.sur-qty', function () {
+            const $tr  = $(this).closest('tr');
+            const pend = parseFloat($tr.attr('data-pending')) || 0;
+            const pid  = String($tr.attr('data-product-id'));
+            let val    = parseFloat($(this).val());
+            if (isNaN(val) || val < 0) val = 0;
+            if (val > pend) { val = pend; $(this).val(pend); }
+            const disp  = stockLoaded ? (stockMap[pid] || 0) : 0;
+            const falta = Math.max(0, val - disp);
+            $tr.find('.sur-rep').val(falta % 1 === 0 ? falta : falta.toFixed(2));
+            recalc();
+        });
+        $(`#${modalId}_tbody`).on('input', '.sur-rep', recalc);
+
+        $(`#${modalId}_warehouse_id`).on('change', function () { loadStock($(this).val()); });
+
+        const closeModal = () => $(`#${modalId}`).remove();
+        $(`#${modalId}_close`).on('click', closeModal);
+        $(`#${modalId}_btnCancelar`).on('click', closeModal);
+        $modal.on('click', (ev) => { if ($(ev.target).is(`#${modalId}`)) closeModal(); });
+
+        if (warehouseFixed) loadStock(orden.warehouse_id);
+        else                renderRows();
+
+        $(`#${modalId}_btnConfirmar`).on('click', async () => {
+            const warehouseId = $(`#${modalId}_warehouse_id`).val() || '';
+            if (!warehouseId) {
+                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Selecciona el almacen de origen' });
+                return;
+            }
+            const items = {}, replenish = {};
+            $modal.find(`#${modalId}_tbody tr`).each(function () {
+                const $tr = $(this);
+                const did = $tr.attr('data-detail-id');
+                const sup = parseFloat($tr.find('.sur-qty').val());
+                const rep = parseFloat($tr.find('.sur-rep').val());
+                if (!isNaN(sup) && sup > 0) items[did]     = sup;
+                if (!isNaN(rep) && rep > 0) replenish[did] = rep;
+            });
+            if (!Object.keys(items).length) {
+                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Indica al menos una cantidad a surtir' });
+                return;
+            }
+            const note = $(`#${modalId}_note`).val() || '';
+            const r = await useFetch({
+                url:  apiOrdenes,
+                data: {
+                    opc:          'fulfillOrden',
+                    id:           orden.id,
+                    warehouse_id: warehouseId,
+                    note:         note,
+                    items:        JSON.stringify(items),
+                    replenish:    JSON.stringify(replenish)
+                }
+            });
+            if (r && r.status === 200) {
+                if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Surtido registrado' });
+                closeModal();
+                ordenes.lsOrdenes();
+                ordenes.lsKpis();
+                app.selectOrden(null);
+            } else {
+                if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo surtir' });
+            }
+        });
+    }
+
+    // ----------------------------------------------------------
     // Panel de detalle (metodo principal)
     // ----------------------------------------------------------
 
@@ -1414,7 +1639,7 @@ class OrdenesView extends Templates {
                            <div class="flex items-center flex-shrink-0">
                                <div class="flex flex-col items-center">
                                    <div class="w-2.5 h-2.5 rounded-full border-2 flex-shrink-0" style="background:${current ? '#C05A40' : (done ? '#C05A40' : '#fff')};border-color:${dotColor}"></div>
-                                   <p class="text-[9px] font-semibold mt-0.5 whitespace-nowrap" style="color:${labelColor}">${esc(s)}</p>
+                                   <p class="text-[9px] font-semibold mt-0.5 whitespace-nowrap" style="color:${labelColor}">${esc(s === 'Recibida' ? 'Surtida' : s)}</p>
                                </div>
                                ${i < steps.length - 1 ? `<div class="h-0.5 w-6 flex-shrink-0 mb-3" style="background:${lineColor}"></div>` : ''}
                            </div>`;
@@ -1453,23 +1678,55 @@ class OrdenesView extends Templates {
                 <i data-lucide="${icon}" class="w-3 h-3"></i>${text}
              </button>`;
 
+        // Rol por sucursal: "origen" = sucursal solicitante (e.branch_id); "destino" =
+        // sucursal a la que se le pide (e.destination_branch_id). El origen solo puede
+        // cancelar su solicitud; el destino aprueba, rechaza y recibe. La distincion solo
+        // aplica en solicitudes inter-sucursal (hay un destino distinto del origen). Si la
+        // orden no tiene destino, o el usuario no es ninguna de las dos sucursales, el
+        // gestor conserva todas las acciones (comportamiento previo).
+        const miSucursal   = String((app && app.subId != null ? app.subId : (app && app.dataInit ? app.dataInit.branch_id : '')) || '');
+        const ordenBranch  = String(e.branch_id != null ? e.branch_id : '');
+        const ordenDestino = String(e.destination_branch_id != null ? e.destination_branch_id : '');
+        const interSucursal  = ordenDestino !== '' && ordenDestino !== ordenBranch && miSucursal !== '';
+        const sinRestriccion = !interSucursal; // sin destino / mono-sucursal / legacy -> acciones completas
+        const esOrigen     = interSucursal && miSucursal === ordenBranch;
+        const esDestino    = interSucursal && miSucursal === ordenDestino;
+        const roleScoped   = esOrigen || esDestino;
+
         let actionsHtml = '';
         if (status === 'Borrador') {
-            actionsHtml = `
-                ${btnCls('#3B82F6', 'Editar',      'pencil', 'edit')}
-                ${btnCls('#C05A40', 'Enviar',       'send',   'submit')}
-                ${btnCls('#F97316', 'Cancelar',     'ban',    'cancel')}`;
+            // El borrador solo lo gestiona su sucursal de origen.
+            if (esOrigen || sinRestriccion) {
+                actionsHtml = `
+                    ${btnCls('#3B82F6', 'Editar',   'pencil', 'edit')}
+                    ${btnCls('#C05A40', 'Enviar',   'send',   'submit')}
+                    ${btnCls('#F97316', 'Cancelar', 'ban',    'cancel')}`;
+            }
         } else if (status === 'Solicitada') {
-            actionsHtml = `
-                ${btnCls('#3FC189', 'Aprobar',      'check',   'approve')}
-                ${btnCls('#E02424', 'Rechazar',     'x',       'reject')}`;
+            if (esDestino || sinRestriccion) {
+                // Solo la sucursal de destino (o gestor sin restriccion) aprueba o rechaza.
+                actionsHtml = `
+                    ${btnCls('#3FC189', 'Aprobar',  'check', 'approve')}
+                    ${btnCls('#E02424', 'Rechazar', 'x',     'reject')}`;
+            } else if (esOrigen) {
+                // La sucursal de origen solo puede cancelar su solicitud.
+                actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
+            }
         } else if (status === 'Aprobada') {
-            actionsHtml = `
-                ${btnCls('#C05A40', 'Recibir',      'package-check', 'recibir')}
-                ${btnCls('#F97316', 'Cancelar',     'ban',           'cancel')}`;
+            if (sinRestriccion) {
+                actionsHtml = `
+                    ${btnCls('#C05A40', 'Surtir',   'truck', 'recibir')}
+                    ${btnCls('#F97316', 'Cancelar', 'ban',   'cancel')}`;
+            } else if (esDestino) {
+                actionsHtml = btnCls('#C05A40', 'Surtir', 'truck', 'recibir');
+            } else if (esOrigen) {
+                actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
+            }
         } else if (status === 'Parcial') {
-            actionsHtml = `
-                ${btnCls('#C05A40', 'Continuar',    'package-check', 'recibir')}`;
+            // El surtido lo continua la sucursal de destino (o el gestor sin restriccion).
+            if (esDestino || sinRestriccion) {
+                actionsHtml = btnCls('#C05A40', 'Continuar surtido', 'truck', 'recibir');
+            }
         } else {
             actionsHtml = '';
         }
@@ -1515,7 +1772,8 @@ class OrdenesView extends Templates {
                             ? `<span class="text-gray-700 text-right">${esc(e.supplier_name)}</span>`
                             : `<span class="text-gray-400 italic text-right">— sin asignar</span>`}
                     </div>
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Sucursal</span><span class="text-gray-700 text-right">${esc(e.branch_name || '-')}</span></div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Sucursal solicitante</span><span class="text-gray-700 text-right">${esc(e.branch_name || '-')}</span></div>
+                    ${e.destination_branch_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Sucursal destino</span><span class="text-gray-700 text-right">${esc(e.destination_branch_name)}</span></div>` : ''}
                     ${e.warehouse_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Almacen destino</span><span class="text-gray-700 text-right">${esc(e.warehouse_name)}</span></div>` : ''}
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Solicitado por</span><span class="text-gray-700 text-right">${esc(e.user_name || '-')}</span></div>
                     ${e.approved_user_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Aprobado por</span><span class="text-gray-700 text-right">${esc(e.approved_user_name)}</span></div>` : ''}
@@ -1544,8 +1802,15 @@ class OrdenesView extends Templates {
 
                 ${actionsHtml ? `
                 <!-- Barra de acciones -->
-                <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
-                    ${actionsHtml}
+                <div class="px-4 py-3 border-t border-gray-200 flex-shrink-0">
+                    ${roleScoped ? `
+                    <p class="text-[10px] uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1">
+                        <i data-lucide="${esOrigen ? 'building' : 'building-2'}" class="w-3 h-3"></i>
+                        ${esOrigen ? 'Tu sucursal es el origen de esta solicitud' : 'Tu sucursal es el destino de esta solicitud'}
+                    </p>` : ''}
+                    <div class="flex gap-2">
+                        ${actionsHtml}
+                    </div>
                 </div>
                 ` : ''}
             </div>
@@ -1583,52 +1848,7 @@ class OrdenesView extends Templates {
         });
     }
 
-    kpisRow(options) {
-        const defaults = {
-            parent:    'root',
-            id:        'kpisRow',
-            class:     'grid grid-cols-2 md:grid-cols-4 gap-4',
-            json:      [],
-            tones: {
-                default: 'text-gray-800',
-                success: 'text-green-600',
-                warning: 'text-amber-500',
-                danger:  'text-red-600',
-                info:    'text-blue-600',
-                purple:  'text-purple-600'
-            },
-            cardClass:  'bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:shadow-lg transition-shadow',
-            labelClass: 'text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right',
-            valueClass: 'text-2xl font-bold text-right',
-            onClick:    () => {}
-        };
-
-        const opts = Object.assign({}, defaults, options || {});
-        opts.tones = Object.assign({}, defaults.tones, (options || {}).tones || {});
-
-        const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
-        const grid      = $('<div>', { id: opts.id, class: opts.class });
-
-        if (!opts.json || !opts.json.length) {
-            grid.html(`<p class="col-span-full text-xs text-gray-400 italic text-center py-2">Sin indicadores</p>`);
-            $(`#${opts.parent}`).html(grid);
-            return;
-        }
-
-        grid.html(opts.json.map((kpi, idx) => `
-            <div id="${kpi.id || opts.id + '_' + idx}" data-kpi-idx="${idx}" class="${opts.cardClass}">
-                <p class="${opts.labelClass}">${esc(kpi.label)}</p>
-                <p class="${opts.valueClass} ${toneClass(kpi.tone)}">${esc(kpi.value)}</p>
-            </div>
-        `).join(''));
-
-        $(`#${opts.parent}`).html(grid);
-        grid.find('[data-kpi-idx]').on('click', (e) => {
-            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
-            opts.onClick(opts.json[idx], idx);
-        });
-    }
+   
 
     viewHeader(options) {
         const defaults = {

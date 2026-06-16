@@ -10,98 +10,45 @@ date: 2026-06-14
 
 -   ~Funcionalidad a los alerts de coffee: animación, etc.~
     
--   Implementar el cambio de empresa en la navbar.
+-   ~Implementar el cambio de empresa en la navbar.~
     
 -   ~Para todos los formatos el boton de imprimir debe ir a lado de la x de cerrar~
     
 -    ~Revisar el problema que tiene el alert que hace pequeño el contenedor~
     
--   Definir que paleta de colores es la correcta 
+-   *Definir que paleta de colores es la correcta* 
     
 -   ~Cambia el diseño de los botones para la tabla, ahora en lugar de botones deben ser solo iconos~
     
-
-**Visor de movimientos**
-
-\- Corregir las cards , usar el componente de coffee
-
-\- En la filterBar corregir la sucursal
-
-\- En la tabla ordenar las columnas
-
-\- Cambiar el formato de fecha en la columna
-
-\- Verificar el visor en la tabla de movimientos
-
-  
-
-**\*\*Administrador de accesos**
-
-\- Sucursales
-
-      Formato a la tabla
-
-       Formato a la filterbar
-
-\- Usuarios
-
-       Agregar/Editar usuario en sucursal asignada poder agregar multiples sucursales
-
-       Poder seleccionar el color de usuario \*
-
-       Modificar el formato de tabla, darle estilo 
-
-               - Icono de usuario
-
-               - Badge de estado
-
-               - Botones 
-
-**Tenant**
-
-\- Layout
-
-Corregir el tamaño del contenedor que tenga un minimo de altura
-
-Darles un mejor diseño a modulos,submodulos,secciones,roles,tipos de permiso
-
-*\- Accesos y permisos*
-
-        - Permiso
-
-               El permiso de superAdmin debe tener acceso a todos los modulos
-
-               Para que sirve el boton de cancelar? solo debe aparecer cuando se le da editar
-
-               Cambiar los clics, 
-
-                      - Al dar clic sobre el checkbox otorgas/quitas permiso ala sección
-
-                       - Al dar clic sobre la row se abren que tipos de permiso puede tener
-
-              El modulo debe iniciar con los checkbox bloqueados, al darle clic al boton editar se                          habilitan
-
-               Al precionar guardar cierra todo y vuelve a deshabilitar
-
- -
 
 **Traspaso**
 
 \- Cards KPI
 
 -   ~Alinear las cards: título a la izquierda, números a la derecha.~
+-   ~Si la cantidad es 0 , mostrar -~
 
 \- FilterBar
 
 -   ~Definir los estados que estarán disponibles para el traspaso.~
--   Definir el destino de los traspasos.
+-   ~Definir el destino de los traspasos.~
+-   ~Cambiar el orden rango de fecha,destino,estado~
+
+\- Modal de nuevo traspaso
+
+        ~Estrategia para forzar elegir sucursal de destino~
 
 \- Visor de traspaso
 
 -   ~Preguntar si deseas cancelar el traspaso.~
+    
 -   ~Pregunta si deseas aceptar el traspaso.~
+    
+-   ~Modificar scrollbar diseño~
+    
+-   \*\*Importante \*\*
+    
 
-\*\*Importante \*\*  
 Revisar los permisos si eres administrador puedes ver solo los destinos a los que tu tienes asignados
 
 **Entradas**
@@ -143,6 +90,68 @@ Visor Container
 -   Al imprimir el comprobante, debe emitirse la persona que solicitó la salida y debe aparecer la firma **pendiente de detalle**.
 
 ---
+
+Visor de movimientos
+
+\- Corregir las cards , usar el componente de coffee
+
+\- En la filterBar corregir la sucursal
+
+\- En la tabla ordenar las columnas
+
+\- Cambiar el formato de fecha en la columna
+
+\- Verificar el visor en la tabla de movimientos
+
+\*\*Administrador de accesos
+
+\- Sucursales
+
+      Formato a la tabla
+
+       Formato a la filterbar
+
+\- Usuarios
+
+       Agregar/Editar usuario en sucursal asignada poder agregar multiples sucursales
+
+       Poder seleccionar el color de usuario \*
+
+       Modificar el formato de tabla, darle estilo 
+
+               - Icono de usuario
+
+               - Badge de estado
+
+               - Botones 
+
+Tenant
+
+\- Layout
+
+Corregir el tamaño del contenedor que tenga un minimo de altura
+
+Darles un mejor diseño a modulos,submodulos,secciones,roles,tipos de permiso
+
+*\- Accesos y permisos*
+
+        - Permiso
+
+               El permiso de superAdmin debe tener acceso a todos los modulos
+
+               Para que sirve el boton de cancelar? solo debe aparecer cuando se le da editar
+
+               Cambiar los clics, 
+
+                      - Al dar clic sobre el checkbox otorgas/quitas permiso ala sección
+
+                       - Al dar clic sobre la row se abren que tipos de permiso puede tener
+
+              El modulo debe iniciar con los checkbox bloqueados, al darle clic al boton editar se habilitan
+
+               Al precionar guardar cierra todo y vuelve a deshabilitar
+
+ -
 
 **Stock**
 

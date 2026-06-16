@@ -376,6 +376,7 @@ class StockView extends Templates {
         this.kpisRow({
             parent:  'kpisRow',
             json:    rows,
+            cols:5,
             onClick: (kpi) => console.log('[kpisRow] click', kpi.id)
         });
     }

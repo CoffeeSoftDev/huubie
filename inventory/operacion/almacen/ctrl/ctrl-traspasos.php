@@ -70,10 +70,12 @@ class ctrl extends mdl {
     }
 
     function lsTraspasos() {
+        $scope = $_POST['scope_branch_id'] ?? '';
+
         $rows = $this->listTraspasos([
             'companies_id'         => $this->companiesId,
-            'status_id'            => $_POST['status_id'] ?? '',
-            'scope_branch_id'      => $_POST['scope_branch_id'] ?? '',
+            'relative'             => $_POST['relative'] ?? '',
+            'scope_branch_id'      => $scope,
             'destination_branch_id' => $_POST['destination_branch_id'] ?? '',
             'fi'                   => $_POST['fi'] ?? '',
             'ff'                   => $_POST['ff'] ?? '',
@@ -105,6 +107,9 @@ class ctrl extends mdl {
                 false
             );
 
+            $dir        = transferDirection($scope, $r['origin_branch_id'], $r['destination_branch_id']);
+            $estadoName = relativeStatusName($dir, $r['status_name_out'] ?? '', $r['status_name_in'] ?? '', $r['status_name']);
+
             $row[] = [
                 'id'        => $r['id'],
                 'Folio'     => $r['folio'],
@@ -115,7 +120,7 @@ class ctrl extends mdl {
                 'Costo'     => evaluar((float) $r['total_cost']),
                 'Solicito'  => $r['requested_user_name'] ?: '-',
                 'Recibio'   => $r['received_user_name']  ?: '-',
-                'Estado'    => badge($r['status_name'], $r['status_color'], 100, $r['status_bg'] ?? null),
+                'Estado'    => badge($estadoName, $r['status_color'], 100, $r['status_bg'] ?? null),
                 'Solicitud' => formatRequestDate($r['date_request']),
                 'a'         => $acciones
             ];
@@ -134,8 +139,13 @@ class ctrl extends mdl {
 
     function getTraspaso() {
         $id     = (int) $_POST['id'];
+        $scope  = $_POST['scope_branch_id'] ?? '';
         $header = $this->getTraspasoById([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Traspaso no encontrado'];
+
+        $dir = transferDirection($scope, $header['origin_branch_id'] ?? '', $header['destination_branch_id'] ?? '');
+        $header['relative_status_name'] = relativeStatusName($dir, $header['status_name_out'] ?? '', $header['status_name_in'] ?? '', $header['status_name'] ?? '');
+
         $detail  = $this->listTraspasoDetail([$id]);
         $history = $this->listTraspasoHistory([$id]);
         return [
@@ -297,6 +307,27 @@ class ctrl extends mdl {
 }
 
 // Complements
+
+// Direccion del traspaso respecto a la sucursal activa (scope):
+//   'OUT' = mi sucursal es el origen (yo envio)
+//   'IN'  = mi sucursal es el destino (yo recibo)
+//   ''    = sin scope (owner/global) -> se usa el estado global tal cual
+function transferDirection($scope, $originId, $destId) {
+    $scope = (string) $scope;
+    if ($scope === '' || $scope === '0') return '';
+    if ($scope === (string) $originId) return 'OUT';
+    if ($scope === (string) $destId)   return 'IN';
+    return '';
+}
+
+// Traduce el estado global a la etiqueta segun la perspectiva (OUT/IN).
+// Las etiquetas vienen del catalogo transfer_status (name_out / name_in,
+// editables desde el admin). Si estan vacias, cae al nombre global.
+function relativeStatusName($dir, $nameOut, $nameIn, $fallback) {
+    if ($dir === 'OUT') return ($nameOut !== null && $nameOut !== '') ? $nameOut : $fallback;
+    if ($dir === 'IN')  return ($nameIn  !== null && $nameIn  !== '') ? $nameIn  : $fallback;
+    return $fallback;
+}
 
 function formatRequestDate($date) {
     $mesesAbr = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];

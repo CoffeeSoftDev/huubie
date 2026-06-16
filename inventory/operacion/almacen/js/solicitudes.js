@@ -2,15 +2,14 @@ let apiOrdenes = 'ctrl/ctrl-ordenes.php';
 let app, solicitudes, solicitudesView;
 
 $(async () => {
+
     solicitudesView = new SolicitudesView(apiOrdenes, 'root');
     solicitudes     = new Solicitudes(apiOrdenes, 'root');
     app             = new App(apiOrdenes, 'root');
-    await app.init();
-});
 
-// ============================================================
-// App — bootstrap, layout, filterBar
-// ============================================================
+    await app.init();
+
+});
 
 class App extends Templates {
 
@@ -61,9 +60,7 @@ class App extends Templates {
     }
 
     layout() {
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const branchName = esc(this.dataInit.branch_name || 'Mi sucursal');
-        const initials   = this._initials(this.dataInit.user_name || '');
+        const ini = this.initials(this.dataInit.user_name || '');
 
         const mainPanel = {
             type:  'div',
@@ -88,60 +85,58 @@ class App extends Templates {
         });
 
         $('#mainPanel').html(`
-            <!-- ===== viewHeader ===== -->
             <div id="viewHeader" class="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
                 <div>
                     <h1 class="text-lg font-bold text-gray-800">Mis solicitudes</h1>
                     <p class="text-xs text-gray-500">Pide materiales y da seguimiento a tus solicitudes</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FBF3EF] text-[#A84A33] text-xs font-semibold border border-[#EFC9BC]">
-                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${branchName}
-                    </span>
+                    <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 md:hidden" style="background:#C05A40">${ini}</div>
+                </div>
+            </div>
+
+            <div id="filterBar" class="hidden md:block px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="min-w-[220px]">
+                        <div class="relative">
+                            <select id="selEstado" class="w-full pl-3 pr-8 py-2 text-xs text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-[#C05A40] hover:border-gray-400 transition-colors appearance-none cursor-pointer">
+                                <option value="">Todas las solicitudes</option>
+                                <option value="Solicitada">Solicitada</option>
+                                <option value="Aprobada">Aprobada</option>
+                                <option value="Parcial">En recepcion</option>
+                                <option value="Recibida">Recibida</option>
+                                <option value="Rechazada">Rechazada</option>
+                                <option value="Borrador">Borrador</option>
+                            </select>
+                            <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 flex items-center">
+                                <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                            </span>
+                        </div>
+                    </div>
                     <button id="btnNuevaSolicitud"
-                        class="hidden md:flex px-3.5 py-2 text-xs font-bold text-white rounded-md hover:opacity-90 items-center gap-1.5"
+                        class="ml-auto flex px-3.5 py-2 text-xs font-bold text-white rounded-md hover:opacity-90 items-center gap-1.5"
                         style="background:#C05A40">
                         <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva solicitud
                     </button>
-                    <!-- Avatar (movil) -->
-                    <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 md:hidden" style="background:#C05A40">${initials}</div>
                 </div>
             </div>
 
-            <!-- ===== filterBar (escritorio: estado + buscador) ===== -->
-            <div id="filterBar" class="hidden md:block px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0">
-                <div class="flex flex-wrap items-center gap-3">
-                    <div id="statusChipsDesktop" class="flex items-center gap-1.5 flex-wrap"></div>
-                    <div class="relative ml-auto min-w-[220px]">
-                        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                        <input id="qBuscar" type="text" placeholder="Buscar por folio..."
-                            class="w-full pl-9 pr-3 py-2 text-xs text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-[#C05A40]">
-                    </div>
-                </div>
-            </div>
-
-            <!-- ===== kpisRow ===== -->
             <div id="kpisRow" class="hidden md:block px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0"></div>
 
-            <!-- ===== tableWrap (escritorio) ===== -->
             <div id="tableWrap" class="hidden md:block p-3 flex-1 min-h-0 overflow-auto bg-white"></div>
 
-            <!-- ===== MOBILE: top bar chips ===== -->
             <div id="mobileTopBar" class="md:hidden sticky top-0 z-30 bg-white border-b border-gray-200 px-4 pt-3 pb-3 flex-shrink-0">
                 <div id="statusChipsMobile" class="flex items-center gap-2 overflow-x-auto -mx-4 px-4" style="scrollbar-width:none"></div>
             </div>
 
-            <!-- ===== MOBILE: lista de cards ===== -->
             <div id="mobileCards" class="md:hidden flex-1 overflow-y-auto px-4 pt-3 pb-24 space-y-3 bg-gray-50"></div>
 
-            <!-- ===== MOBILE: FAB ===== -->
             <button id="fabNueva"
                 class="md:hidden fixed bottom-20 right-5 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white z-40"
                 style="background:#C05A40;box-shadow:0 4px 14px rgba(192,90,64,.45)">
                 <i data-lucide="plus" class="w-6 h-6"></i>
             </button>
 
-            <!-- ===== MOBILE: bottom nav ===== -->
             <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 pt-2 pb-5 flex items-center justify-around z-30">
                 <button class="flex flex-col items-center gap-0.5 text-gray-400">
                     <i data-lucide="home" class="w-5 h-5"></i>
@@ -166,26 +161,32 @@ class App extends Templates {
             </div>
         `);
 
-        this._buildStatusChips();
+        this.buildStatusChips();
 
         $('#btnNuevaSolicitud, #fabNueva').on('click', () => solicitudesView.openSolicitudForm());
 
-        $('#qBuscar').on('input', () => {
-            clearTimeout(this._searchTimer);
-            this._searchTimer = setTimeout(() => solicitudes.lsSolicitudes(), 300);
+        $('#selEstado').on('change', function () {
+            app.activeStatus = $(this).val() || '';
+            $('#statusChipsMobile .chip-status').each(function () {
+                const match = String($(this).data('status')) === String(app.activeStatus);
+                $(this).toggleClass('text-white', match)
+                       .toggleClass('bg-white text-gray-600 border border-gray-300', !match)
+                       .attr('style', match ? 'background:#C05A40' : '');
+            });
+            solicitudes.lsSolicitudes();
         });
 
         if (window.lucide) lucide.createIcons();
     }
 
-    _initials(name) {
+    initials(name) {
         const parts = (name || '').trim().split(/\s+/);
         if (!parts.length) return '?';
         if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
         return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     }
 
-    _buildStatusChips() {
+    buildStatusChips() {
         const statuses = [
             { id: '', label: 'Todas' },
             { id: 'Solicitada',   label: 'Solicitada' },
@@ -215,11 +216,11 @@ class App extends Templates {
                 $(this).removeClass('bg-white text-gray-600 border border-gray-300').addClass('text-white');
                 $(this).attr('style', 'background:#C05A40');
                 app.activeStatus = $(this).data('status');
+                $('#selEstado').val(app.activeStatus);
                 solicitudes.lsSolicitudes();
             });
         };
 
-        buildChips('statusChipsDesktop');
         buildChips('statusChipsMobile');
 
         this.activeStatus = '';
@@ -228,7 +229,6 @@ class App extends Templates {
     getFilters() {
         return {
             status: this.activeStatus || '',
-            q:      $('#qBuscar').val() || '',
             mine:   1
         };
     }
@@ -249,10 +249,6 @@ class App extends Templates {
     }
 }
 
-// ============================================================
-// Solicitudes — datos, tabla, cards, KPIs
-// ============================================================
-
 class Solicitudes extends Templates {
 
     constructor(link, divModule) {
@@ -264,66 +260,52 @@ class Solicitudes extends Templates {
         const f = app.getFilters();
         const r = await useFetch({
             url:  apiOrdenes,
-            data: { opc: 'lsOrdenes', mine: 1, status: f.status, q: f.q }
+            data: { opc: 'lsOrdenes', mine: 1, status: f.status }
         });
 
         const rows = (r && r.status === 200 && r.row) ? r.row : [];
 
-        this._renderTable(rows);
-        this._renderCards(rows);
-        this._renderKpis(rows);
+        this.renderTable(rows);
+        this.renderCards(rows);
+        this.lsKpis();
     }
 
-    _renderTable(rows) {
+    renderTable(rows) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-        const thead = `
-            <table id="tbsolicitudes" class="w-full text-[13px] border-collapse">
-                <thead class="sticky top-0 z-10">
-                    <tr class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wider">
-                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Folio</th>
-                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Fecha</th>
-                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Estado</th>
-                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Materiales</th>
-                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Almacen / Sucursal</th>
-                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Ver</th>
-                    </tr>
-                </thead>
-                <tbody class="text-gray-700">`;
+        const data = {
+            row: rows.map(r => {
+                const id    = String(r.id || '');
+                const folio = esc(r.Folio || r.folio || '');
+                return {
+                    id:         id,
+                    Folio:      `<span class="font-semibold text-gray-800">${folio}</span>`,
+                    Fecha:      esc(r.Fecha || r.fecha || ''),
+                    Estado:     r.Estado || '',
+                    Materiales: parseInt(r.Materiales || r.materiales || 0, 10),
+                    Almacén:    esc(r.Almacen || r.almacen || r.Sucursal || '—'),
+                    a: [{
+                        class:   'inline-flex items-center justify-center w-8 h-8 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer',
+                        html:    '<i data-lucide="eye" class="w-4 h-4"></i>',
+                        onclick: `app.selectSolicitud('${folio}', '${id}')`
+                    }]
+                };
+            })
+        };
 
-        if (!rows.length) {
-            $('#tableWrap').html(`${thead}
-                    <tr><td colspan="6" class="px-3 py-10 text-center text-xs text-gray-400 italic">
-                        <i data-lucide="clipboard-list" class="w-8 h-8 mx-auto mb-2 text-gray-300 block"></i>
-                        No se encontraron solicitudes
-                    </td></tr>
-                </tbody></table>`);
-            if (window.lucide) lucide.createIcons();
-            return;
-        }
-
-        const tbodyRows = rows.map(row => {
-            const actions = (row.a || []);
-            const idVal   = actions.find(a => a.opc === 'getOrden') ? actions.find(a => a.opc === 'getOrden').id : (row.id || '');
-            const folio   = esc(row.Folio || row.folio || '');
-            const fecha   = esc(row.Fecha || row.fecha || '');
-            const badge   = row.Estado || '';
-            const mats    = esc(row.Materiales || row.materiales || '—');
-            const lugar   = esc(row.Almacen || row.almacen || row.Sucursal || '—');
-
-            return `<tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                        data-folio="${folio}" data-id="${esc(String(idVal))}"
-                        onclick="app.selectSolicitud('${folio}', '${esc(String(idVal))}')">
-                <td class="px-3 py-2 font-semibold text-gray-800">${folio}</td>
-                <td class="px-3 py-2">${fecha}</td>
-                <td class="px-3 py-2 text-center">${badge}</td>
-                <td class="px-3 py-2 text-center">${mats}</td>
-                <td class="px-3 py-2">${lugar}</td>
-                <td class="px-3 py-2 text-center"><i data-lucide="eye" class="w-4 h-4 text-gray-400 inline"></i></td>
-            </tr>`;
-        }).join('');
-
-        $('#tableWrap').html(`${thead}${tbodyRows}</tbody></table>`);
+        this.createCoffeeTable3({
+            parent:       'tableWrap',
+            id:           'tbsolicitudes',
+            theme:        'light',
+            extends:      true,
+            striped:      true,
+            f_size:       13,
+            center:       [3, 4],
+            actionsAlign: 'center',
+            emptyMessage: 'No se encontraron solicitudes',
+            emptyIcon:    'clipboard-list',
+            data:         data
+        });
 
         if (window.lucide) lucide.createIcons();
         if (typeof simple_data_table === 'function' && rows.length > 10) {
@@ -331,7 +313,7 @@ class Solicitudes extends Templates {
         }
     }
 
-    _renderCards(rows) {
+    renderCards(rows) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
         if (!rows.length) {
@@ -353,7 +335,7 @@ class Solicitudes extends Templates {
             const mats     = parseInt(row.Materiales || row.materiales || 0, 10);
             const preview  = esc(row.preview || '');
 
-            const fechaRel = this._fechaRelativa(fecha);
+            const fechaRel = this.fechaRelativa(fecha);
 
             return `<div class="block bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm cursor-pointer active:scale-[.99] transition-transform"
                         data-folio="${folio}" data-id="${esc(String(idVal))}"
@@ -378,23 +360,24 @@ class Solicitudes extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    _renderKpis(rows) {
-        const counts = { Solicitada: 0, Aprobada: 0, Parcial: 0, Recibida: 0 };
-        rows.forEach(row => {
-            const st = row.status || row.Status || '';
-            if (counts[st] !== undefined) counts[st]++;
+    async lsKpis() {
+        const r = await useFetch({
+            url:  apiOrdenes,
+            data: { opc: 'showOrdenes', mine: 1 }
         });
+        const c = (r && r.status === 200) ? (r.counts || {}) : {};
+        const dash = (n) => (n > 0 ? n : '—');
 
         const kpis = [
-            { id: 'kpiSolicitadas', label: 'Solicitadas',  value: counts.Solicitada, tone: 'warning'  },
-            { id: 'kpiAprobadas',   label: 'Aprobadas',    value: counts.Aprobada,   tone: 'default'  },
-            { id: 'kpiEnRecepcion', label: 'En recepcion', value: counts.Parcial,    tone: 'warning'  },
-            { id: 'kpiRecibidas',   label: 'Recibidas',    value: counts.Recibida,   tone: 'success'  }
+            { id: 'kpiSolicitadas', label: 'Solicitadas',  value: dash(parseInt(c.total_solicitadas || 0, 10)), tone: 'warning', status: 'Solicitada' },
+            { id: 'kpiAprobadas',   label: 'Aprobadas',    value: dash(parseInt(c.total_aprobadas   || 0, 10)), tone: 'info',    status: 'Aprobada'   },
+            { id: 'kpiEnRecepcion', label: 'En recepcion', value: dash(parseInt(c.total_parciales   || 0, 10)), tone: 'warning', status: 'Parcial'    },
+            { id: 'kpiRecibidas',   label: 'Recibidas',    value: dash(parseInt(c.total_recibidas   || 0, 10)), tone: 'success', status: 'Recibida'   }
         ];
         solicitudesView.renderKpis(kpis);
     }
 
-    _fechaRelativa(fechaStr) {
+    fechaRelativa(fechaStr) {
         if (!fechaStr || typeof moment === 'undefined') return fechaStr;
         const m = moment(fechaStr, ['YYYY-MM-DD', 'YYYY-MM-DD HH:mm:ss']);
         if (!m.isValid()) return fechaStr;
@@ -444,10 +427,6 @@ class Solicitudes extends Templates {
     }
 }
 
-// ============================================================
-// SolicitudesView — paneles, overlays, formulario, detalle
-// ============================================================
-
 class SolicitudesView extends Templates {
 
     constructor(link, divModule) {
@@ -455,26 +434,24 @@ class SolicitudesView extends Templates {
         this.PROJECT_NAME = 'solicitudes';
     }
 
-    // ----------------------------------------------------------
-    // KPIs
-    // ----------------------------------------------------------
-
     renderKpis(rows) {
-        const tones = { default: 'text-gray-800', success: 'text-green-600', warning: 'text-amber-500', danger: 'text-red-600' };
-        const toneClass = (t) => tones[t] || tones.default;
-        const $grid = $('<div>', { class: 'grid grid-cols-2 md:grid-cols-4 gap-4' });
-        $grid.html(rows.map(kpi => `
-            <div id="${kpi.id}" class="bg-white rounded-lg border border-gray-200 px-4 py-3 hover:shadow-lg transition-shadow">
-                <p class="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-1 text-right">${kpi.label}</p>
-                <p class="text-2xl font-bold text-right ${toneClass(kpi.tone)}">${kpi.value}</p>
-            </div>
-        `).join(''));
-        $('#kpisRow').html($grid);
+        this.kpisRow({
+            parent:   'kpisRow',
+            id:       'solicitudesKpisGrid',
+            json:     rows,
+            cols:     4,
+            activeId: (() => {
+                const match = rows.find(k => String(k.status || '') === String(app.activeStatus || ''));
+                return match ? match.id : null;
+            })(),
+            onClick: (kpi) => {
+                const st = String(app.activeStatus || '') === String(kpi.status || '') ? '' : (kpi.status || '');
+                app.activeStatus = st;
+                $('#selEstado').val(st);
+                solicitudes.lsSolicitudes();
+            }
+        });
     }
-
-    // ----------------------------------------------------------
-    // Panel detalle escritorio — aside derecho (solo lectura)
-    // ----------------------------------------------------------
 
     renderDetailEmpty() {
         $('#detailPanel').html(`
@@ -487,16 +464,24 @@ class SolicitudesView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
+    // renderDetail detecta si hay overlay movil abierto y enruta al panel correcto
     renderDetail(orden) {
+        const isMobileOverlayOpen = $('#mobileDetailOverlay').length > 0;
+
+        if (isMobileOverlayOpen) {
+            if (!orden) {
+                $('#mobileDetailOverlay').remove();
+            } else {
+                this.renderMobileDetail(orden);
+            }
+            return;
+        }
+
         if (!orden) { this.renderDetailEmpty(); return; }
-        $('#detailPanel').html(this._buildDetailHtml(orden, false));
-        this._bindDetailEvents(orden, false);
+        $('#detailPanel').html(this.buildDetailHtml(orden, false));
+        this.bindDetailEvents(orden, false);
         if (window.lucide) lucide.createIcons();
     }
-
-    // ----------------------------------------------------------
-    // Overlay de detalle en movil (full-screen)
-    // ----------------------------------------------------------
 
     openMobileDetail(folio, id) {
         app.selectedFolio = folio;
@@ -517,12 +502,12 @@ class SolicitudesView extends Templates {
         solicitudes.getOrden(id).then(() => {});
     }
 
-    _renderMobileDetail(orden) {
+    renderMobileDetail(orden) {
         const $content = $('#mobileDetailContent');
         const $footer  = $('#mobileDetailFooter');
         if (!$content.length) return;
 
-        $content.html(this._buildDetailHtml(orden, true));
+        $content.html(this.buildDetailHtml(orden, true));
         $footer.html(`
             <button id="mobileDetailBack" class="flex-1 px-3.5 py-2.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg flex items-center justify-center gap-1.5">
                 <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Volver
@@ -541,17 +526,13 @@ class SolicitudesView extends Templates {
         });
     }
 
-    // ----------------------------------------------------------
-    // HTML compartido del detalle (escritorio aside + mobile overlay)
-    // ----------------------------------------------------------
-
-    _buildDetailHtml(orden, isMobile) {
+    buildDetailHtml(orden, isMobile) {
         const esc    = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtNum = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
         const e      = orden;
         const status = e.status || '';
 
-        const stepperHtml = this._buildStepper(status);
+        const stepperHtml = this.buildStepper(status);
         const rejectHtml  = (status === 'Rechazada' && e.reject_reason)
             ? `<div class="mx-4 my-3 rounded-lg px-3 py-2.5" style="border-left:3px solid #E02424;background:rgba(224,36,36,.07)">
                    <p class="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style="color:#E02424">Motivo del rechazo</p>
@@ -560,11 +541,10 @@ class SolicitudesView extends Templates {
             : '';
 
         const productosHtml = (e.productos || []).map(p => {
-            const recibido = p.quantity_received;
-            const ordenado = p.quantity_ordered;
-            const completo = recibido >= ordenado && ordenado > 0;
-            const parcial  = recibido > 0 && recibido < ordenado;
-            const pendiente = recibido === 0;
+            const recibido  = p.quantity_received;
+            const ordenado  = p.quantity_ordered;
+            const completo  = recibido >= ordenado && ordenado > 0;
+            const parcial   = recibido > 0 && recibido < ordenado;
 
             let recvLabel, recvColor, recvIcon;
             if (completo) {
@@ -622,7 +602,6 @@ class SolicitudesView extends Templates {
 
         if (isMobile) {
             return `
-                <!-- Top bar con back + folio + badge -->
                 <div class="sticky top-0 z-30 bg-white border-b border-gray-200 px-3 py-3 flex items-center gap-2 flex-shrink-0">
                     <button id="mobileDetailBackTop" class="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-600 flex-shrink-0">
                         <i data-lucide="arrow-left" class="w-5 h-5"></i>
@@ -646,13 +625,11 @@ class SolicitudesView extends Templates {
                         </div>
                     </div>` : ''}
 
-                    <!-- Timeline vertical mobile -->
                     <div class="bg-white border border-gray-200 rounded-xl p-4">
                         <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-3.5">Seguimiento</p>
-                        ${this._buildMobileStepper(status)}
+                        ${this.buildMobileStepper(status)}
                     </div>
 
-                    <!-- Datos -->
                     <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-2.5">
                         ${e.user_name ? `
                         <div class="flex items-center justify-between gap-2 text-xs">
@@ -681,7 +658,6 @@ class SolicitudesView extends Templates {
                         </div>` : ''}
                     </div>
 
-                    <!-- Materiales -->
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <label class="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Materiales pedidos</label>
@@ -692,7 +668,6 @@ class SolicitudesView extends Templates {
                         </div>
                     </div>
 
-                    <!-- Resumen -->
                     <div class="text-xs text-gray-500 flex items-center justify-between px-1">
                         <span>${(e.productos || []).length} material${(e.productos || []).length !== 1 ? 'es' : ''} &middot; ${fmtNum(totUds)} unidades pedidas</span>
                         ${totRcv > 0 ? `<span class="font-semibold" style="color:#C05A40">${fmtNum(totRcv)} recibidas</span>` : ''}
@@ -703,7 +678,6 @@ class SolicitudesView extends Templates {
 
         return `
             <div class="flex-1 flex flex-col overflow-hidden">
-                <!-- Header folio + badge + cerrar -->
                 <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                     <div>
                         <p class="text-xs text-gray-500 uppercase tracking-wider">Seguimiento de solicitud</p>
@@ -717,12 +691,10 @@ class SolicitudesView extends Templates {
                     </div>
                 </div>
 
-                <!-- Stepper horizontal -->
                 ${stepperHtml}
 
                 ${rejectHtml}
 
-                <!-- Datos cabecera -->
                 <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
                     ${e.user_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Solicitado por</span><span class="text-gray-700 text-right">${esc(e.user_name)}</span></div>` : ''}
                     ${e.date_order ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha</span><span class="text-gray-700 text-right">${esc(e.date_order)}</span></div>` : ''}
@@ -733,13 +705,11 @@ class SolicitudesView extends Templates {
                     ${e.note ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Nota</span><span class="text-gray-700 text-right">${esc(e.note)}</span></div>` : ''}
                 </div>
 
-                <!-- Lista materiales -->
                 <div class="flex-1 overflow-y-auto px-4 py-3">
                     <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">Materiales (${(e.productos || []).length})</p>
                     ${productosHtml || '<p class="text-xs text-gray-400 italic">Sin materiales</p>'}
                 </div>
 
-                <!-- Footer: conteos + duplicar -->
                 <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                     <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
                         <span>${(e.productos || []).length} materiales &middot; ${fmtNum(totUds)} unidades pedidas</span>
@@ -753,7 +723,7 @@ class SolicitudesView extends Templates {
         `;
     }
 
-    _bindDetailEvents(orden, isMobile) {
+    bindDetailEvents(orden, isMobile) {
         if (isMobile) {
             $('#mobileDetailBackTop').on('click', () => { $('#mobileDetailOverlay').remove(); });
         } else {
@@ -762,15 +732,11 @@ class SolicitudesView extends Templates {
         }
     }
 
-    // ----------------------------------------------------------
-    // Stepper horizontal (panel escritorio)
-    // ----------------------------------------------------------
-
-    _buildStepper(status) {
-        const steps = ['Borrador', 'Solicitada', 'Aprobada', 'Parcial', 'Recibida'];
+    buildStepper(status) {
+        const steps        = ['Borrador', 'Solicitada', 'Aprobada', 'Parcial', 'Recibida'];
         const specialStatuses = ['Rechazada', 'Cancelada'];
-        const isSpecial = specialStatuses.includes(status);
-        const activeIdx = isSpecial ? -1 : steps.indexOf(status);
+        const isSpecial    = specialStatuses.includes(status);
+        const activeIdx    = isSpecial ? -1 : steps.indexOf(status);
 
         if (isSpecial) {
             return `<div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-gray-200 flex-shrink-0">
@@ -798,11 +764,7 @@ class SolicitudesView extends Templates {
         return `<div class="flex items-center gap-0 px-4 py-2.5 border-b border-gray-200 flex-shrink-0 overflow-x-auto">${stepsHtml}</div>`;
     }
 
-    // ----------------------------------------------------------
-    // Stepper vertical (overlay mobile)
-    // ----------------------------------------------------------
-
-    _buildMobileStepper(status) {
+    buildMobileStepper(status) {
         const specialStatuses = ['Rechazada', 'Cancelada'];
         const isSpecial = specialStatuses.includes(status);
 
@@ -851,16 +813,12 @@ class SolicitudesView extends Templates {
         }).join('');
     }
 
-    // ----------------------------------------------------------
-    // Formulario nueva solicitud (modal unico responsive)
-    // ----------------------------------------------------------
-
     openSolicitudForm(preloadOrden) {
         const esc        = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const productos  = app.dataInit.productos  || [];
         const sucursales = app.dataInit.sucursales || [];
         const branchId   = String(app.dataInit.branch_id || '');
-        const hoy        = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+        const hoy        = new Date().toLocaleDateString('en-CA');
 
         let rows = [];
         if (preloadOrden && preloadOrden.productos) {
@@ -883,7 +841,15 @@ class SolicitudesView extends Templates {
             style.textContent = `
                 input.no-spin::-webkit-inner-spin-button,
                 input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none !important; appearance: none !important; margin: 0 !important; }
-                input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }`;
+                input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }
+                .ef-scroll { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+                .ef-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+                .ef-scroll::-webkit-scrollbar-track { background: transparent; }
+                .ef-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+                .ef-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+                .ef-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid #D1D5DB; background: #F3F4F6; font-size: 9px; line-height: 1; color: #6B7280; font-family: monospace; }
+                .ef-cat-item.ef-active { background: rgba(192,90,64,0.10); box-shadow: inset 0 0 0 1px rgba(192,90,64,0.45); }
+                .ef-cat-item.ef-active .ef-add-btn { background: #C05A40; border-color: #C05A40; color: #fff; }`;
             document.head.appendChild(style);
         }
 
@@ -891,7 +857,6 @@ class SolicitudesView extends Templates {
             <div id="${modalId}" class="fixed inset-0 z-[9999] bg-black/45 flex items-stretch md:items-center justify-center p-0 md:p-4 overflow-y-auto">
                 <div class="w-full md:max-w-[960px] md:mx-3 bg-white flex flex-col overflow-hidden min-h-screen md:min-h-0 md:h-[90vh] md:rounded-2xl md:shadow-[0_24px_64px_rgba(0,0,0,0.25)]">
 
-                    <!-- Header -->
                     <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
@@ -907,11 +872,10 @@ class SolicitudesView extends Templates {
                         </button>
                     </div>
 
-                    <!-- Datos (zona fija): sucursal -->
                     <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
                         <div class="grid grid-cols-4 gap-3 items-end">
                             <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Sucursal solicitante</label>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Solicitar a</label>
                                 <div class="relative">
                                     <select id="${modalId}_selSucursal" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8">
                                         ${sucursales.map(s => `<option value="${esc(s.id)}"${String(s.id) === branchId ? ' selected' : ''}>${esc(s.valor)}</option>`).join('')}
@@ -928,16 +892,18 @@ class SolicitudesView extends Templates {
                         </div>
                     </div>
 
-                    <!-- Buscador (zona fija) -->
-                    <div class="px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0">
+                    <div id="${modalId}_searchBar" class="px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0">
                         <div class="relative">
                             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center"><i data-lucide="search" class="w-4 h-4"></i></span>
-                            <input type="text" id="${modalId}_search" autocomplete="off" placeholder="Buscar materiales por nombre o SKU..." class="w-full pl-9 pr-3 py-2.5 text-sm text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400">
-                            <div id="${modalId}_results" class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden max-h-72 overflow-y-auto divide-y divide-gray-100"></div>
+                            <input type="text" id="${modalId}_search" autocomplete="off" placeholder="Buscar materiales por nombre o SKU..." class="w-full pl-9 pr-40 py-2.5 text-sm text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400">
+                            <div class="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1.5 text-[10px] text-gray-400 pointer-events-none">
+                                <span class="ef-kbd">&uarr;&darr;</span><span>navegar</span>
+                                <span class="ef-kbd">Enter</span><span>agregar</span>
+                            </div>
+                            <div id="${modalId}_results" class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>
                         </div>
                     </div>
 
-                    <!-- Encabezado lista (zona fija) -->
                     <div class="px-5 py-2.5 border-b border-gray-200 flex items-center gap-2 flex-shrink-0 bg-gray-50">
                         <div class="w-6 h-6 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center">
                             <i data-lucide="boxes" class="w-3.5 h-3.5 text-blue-600"></i>
@@ -945,7 +911,6 @@ class SolicitudesView extends Templates {
                         <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">Materiales solicitados</p>
                     </div>
 
-                    <!-- Lista de materiales (zona flexible con scroll) -->
                     <div class="flex-1 min-h-0 overflow-y-auto cs-scroll">
                         <table class="w-full border-collapse">
                             <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
@@ -959,26 +924,24 @@ class SolicitudesView extends Templates {
                         </table>
                     </div>
 
-                    <!-- Nota (zona fija) -->
-                    <div class="px-5 py-3 border-t border-gray-200 bg-white flex-shrink-0">
-                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota / justificacion <span class="text-gray-400 normal-case">(opcional)</span></label>
-                        <textarea id="${modalId}_note" rows="2" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all resize-none placeholder:text-gray-400" placeholder="Ej. Reabastecimiento semanal para la barra de bebidas..."></textarea>
-                    </div>
-
-                    <!-- Resumen (zona fija) -->
-                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-5 text-[11px] text-gray-500">
-                            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Materiales <strong class="text-gray-800 text-sm" id="${modalId}_totMat">0</strong></span>
-                            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Unidades <strong class="text-gray-800 text-sm" id="${modalId}_totUds">0</strong></span>
+                    <div class="flex-shrink-0 border-t border-gray-200 bg-gray-50 px-5 py-3 space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota / justificacion <span class="text-gray-400 normal-case">(opcional)</span></label>
+                            <textarea id="${modalId}_note" rows="2" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all resize-none placeholder:text-gray-400" placeholder="Ej. Reabastecimiento semanal para la barra de bebidas..."></textarea>
                         </div>
-                    </div>
 
-                    <!-- Footer -->
-                    <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                        <button id="${modalId}_cancel" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all">Cancelar</button>
-                        <button id="${modalId}_send" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
-                            <i data-lucide="send" class="w-3.5 h-3.5"></i><span>Enviar solicitud</span>
-                        </button>
+                        <div class="flex items-center justify-between gap-4">
+                            <div class="flex items-center gap-5 text-[11px] text-gray-500">
+                                <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Materiales <strong class="text-gray-800 text-sm" id="${modalId}_totMat">0</strong></span>
+                                <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Unidades <strong class="text-gray-800 text-sm" id="${modalId}_totUds">0</strong></span>
+                            </div>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <button id="${modalId}_cancel" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all">Cancelar</button>
+                                <button id="${modalId}_send" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
+                                    <i data-lucide="send" class="w-3.5 h-3.5"></i><span>Enviar solicitud</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -990,9 +953,21 @@ class SolicitudesView extends Templates {
         const renderTbody = () => {
             const $tbody = $(`#${modalId}_tbody`);
             if (!rows.length) {
-                $tbody.html(`<tr><td colspan="3" class="px-3 py-4 text-center text-xs text-gray-400 italic">Agrega materiales usando el buscador de arriba</td></tr>`);
+                $tbody.html(`
+                    <tr>
+                        <td colspan="3" class="px-4 py-10">
+                            <div class="flex flex-col items-center justify-center text-center gap-2 text-gray-400">
+                                <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <i data-lucide="package-plus" class="w-6 h-6 text-gray-400"></i>
+                                </div>
+                                <p class="text-sm font-semibold text-gray-500">Agrega productos para continuar</p>
+                                <p class="text-xs text-gray-400">Usa el buscador de arriba para añadir materiales a la solicitud.</p>
+                            </div>
+                        </td>
+                    </tr>`);
                 $(`#${modalId}_totMat`).text('0');
                 $(`#${modalId}_totUds`).text('0');
+                if (window.lucide) lucide.createIcons();
                 return;
             }
 
@@ -1024,9 +999,8 @@ class SolicitudesView extends Templates {
             $(`#${modalId}_totUds`).text(totalUds % 1 === 0 ? String(totalUds) : totalUds.toFixed(2));
         };
 
-        // Enfoca y preselecciona el input de cantidad de la fila recien
-        // agregada (mismo flujo que EntradaForm.focusCantidad): al teclear se
-        // reemplaza el valor y Enter regresa al buscador para encadenar.
+        // Enfoca y preselecciona el input de cantidad de la fila recien agregada;
+        // al teclear se reemplaza el valor y Enter regresa al buscador para encadenar.
         const focusCantidad = (idx) => {
             const $inp = $(`#${modalId}_tbody tr[data-idx="${idx}"] input[data-field="cant"]`);
             if ($inp.length) {
@@ -1039,7 +1013,6 @@ class SolicitudesView extends Templates {
 
         renderTbody();
 
-        // Buscador
         const $search  = $(`#${modalId}_search`);
         const $results = $(`#${modalId}_results`);
 
@@ -1093,7 +1066,7 @@ class SolicitudesView extends Templates {
         });
 
         // Cantidad editable: actualiza el total al teclear; Enter regresa al
-        // buscador para encadenar la siguiente alta (igual que EntradaForm).
+        // buscador para encadenar la siguiente alta.
         $(`#${modalId}_tbody`).on('input', 'input[data-field="cant"]', function () {
             const idx = parseInt($(this).attr('data-idx'), 10);
             if (isNaN(idx) || !rows[idx]) return;
@@ -1119,15 +1092,32 @@ class SolicitudesView extends Templates {
         $(`#${modalId}_cancel`).on('click', closeModal);
         $modal.on('click', (e) => { if ($(e.target).is(`#${modalId}`)) closeModal(); });
 
-        $(`#${modalId}_send`).on('click', () => this._sendSolicitud(modalId, rows, closeModal));
+        $(`#${modalId}_send`).on('click', () => this.sendSolicitud(modalId, rows, closeModal));
     }
 
-    async _sendSolicitud(modalId, rows, closeModal) {
+    sendSolicitud(modalId, rows, closeModal) {
         if (!rows.length) {
-            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Agrega al menos un material' });
+            this.alertBox({
+                type:       'warning',
+                title:      'Agrega productos para continuar',
+                detailHtml: 'Necesitas agregar al menos un material antes de enviar la solicitud.'
+            });
             return;
         }
 
+        const total = rows.length;
+        this.alertBox({
+            type:        'confirm',
+            title:       '¿Deseas crear la solicitud?',
+            detailHtml:  `Se enviará la solicitud con <strong>${total}</strong> material${total !== 1 ? 'es' : ''}.`,
+            okLabel:     'Sí, crear solicitud',
+            okIcon:      'send',
+            cancelLabel: 'Revisar',
+            onOk:        () => this.submitSolicitud(modalId, rows, closeModal)
+        });
+    }
+
+    async submitSolicitud(modalId, rows, closeModal) {
         const payload = {
             branch_id:  $(`#${modalId}_selSucursal`).val() || app.dataInit.branch_id || '',
             date_order: $(`#${modalId}_inpFecha`).val() || '',
@@ -1149,31 +1139,18 @@ class SolicitudesView extends Templates {
         });
 
         if (r && r.status === 200) {
-            if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Solicitud enviada correctamente' });
+            this.alertBox({
+                type:  'success',
+                title: r.message || 'Solicitud enviada correctamente',
+                timer: 1800
+            });
             closeModal();
             solicitudes.lsSolicitudes();
         } else {
-            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo enviar la solicitud' });
+            this.alertBox({
+                type:  'error',
+                title: (r && r.message) || 'No se pudo enviar la solicitud'
+            });
         }
     }
 }
-
-// ----------------------------------------------------------
-// Hook: renderDetail se redirige desde Solicitudes.getOrden
-// para distinguir escritorio vs movil en el mismo flujo
-// ----------------------------------------------------------
-
-const _origRenderDetail = SolicitudesView.prototype.renderDetail;
-SolicitudesView.prototype.renderDetail = function (orden) {
-    const isMobileOverlayOpen = $('#mobileDetailOverlay').length > 0;
-
-    if (isMobileOverlayOpen) {
-        if (!orden) {
-            $('#mobileDetailOverlay').remove();
-        } else {
-            this._renderMobileDetail(orden);
-        }
-    } else {
-        _origRenderDetail.call(this, orden);
-    }
-};

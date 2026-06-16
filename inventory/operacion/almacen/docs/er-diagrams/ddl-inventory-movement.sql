@@ -8,8 +8,14 @@
 --
 --  Esta version agrega las 2 ramas de TRASPASO (salida origen + entrada
 --  destino), portando el patron de fayxzvov_reginas (POS) adaptado al
---  esquema del ERP (item_id / branch_id) y al flujo de UN paso del ERP
---  (filtro por *_stock_post IS NOT NULL en vez de date_sent/date_received).
+--  esquema del ERP (item_id / branch_id) y al flujo de UN paso del ERP.
+--
+--  IMPORTANTE — filtro por estado RECEIVED (no por *_stock_post IS NOT NULL):
+--  saveTraspaso llena origin_stock_post desde que se SOLICITA (es una
+--  proyeccion, el stock fisico NO se mueve ahi), asi que filtrar por
+--  origin_stock_post IS NOT NULL mostraba salidas fantasma de traspasos
+--  SOLICITADOS y RECHAZADOS. El stock real solo se mueve en confirmTraspaso
+--  (estado RECEIVED), por eso ambas ramas filtran ts.code = 'RECEIVED'.
 --
 --  Direccion del movimiento: signo de quantity (negativa = salida,
 --  positiva = entrada) y prefijo del movement_uid (TR-OUT- / TR-IN-).
@@ -92,7 +98,7 @@ SELECT
 FROM fayxzvov_inventory.detail_inventory_transfer d
 JOIN fayxzvov_inventory.inventory_transfer r ON r.id = d.inventory_transfer_id
 JOIN fayxzvov_inventory.transfer_status ts ON ts.id = r.status_id
-WHERE d.active = 1 AND r.active = 1 AND d.origin_stock_post IS NOT NULL
+WHERE d.active = 1 AND r.active = 1 AND ts.code = 'RECEIVED' AND d.origin_stock_post IS NOT NULL
 
 UNION ALL
 
@@ -118,7 +124,7 @@ SELECT
 FROM fayxzvov_inventory.detail_inventory_transfer d
 JOIN fayxzvov_inventory.inventory_transfer r ON r.id = d.inventory_transfer_id
 JOIN fayxzvov_inventory.transfer_status ts ON ts.id = r.status_id
-WHERE d.active = 1 AND r.active = 1 AND d.destination_stock_post IS NOT NULL;
+WHERE d.active = 1 AND r.active = 1 AND ts.code = 'RECEIVED' AND d.destination_stock_post IS NOT NULL;
 
 
 -- =====================================================================

@@ -38,6 +38,7 @@ class Catalogo extends Templates {
         inflow.filterBarInflow();
         shrinkage.filterBarShrinkage();
         supplier.filterBarSupplier();
+        transferStatus.filterBarTransferStatus();
 
         category.lsCategory();
     }
@@ -1138,6 +1139,147 @@ class Supplier extends Templates {
                 required: false
 
             }
+        ];
+    }
+}
+
+class TransferStatus extends Templates {
+    constructor(link, div_modulo) {
+        super(link, div_modulo);
+        this.PROJECT_NAME = "transferStatus";
+    }
+
+    filterBarTransferStatus() {
+        const container = $("#container-transfer-status");
+        container.html('<div id="filterbar-transfer-status" class="mb-2"></div><div id="table-transfer-status"></div>');
+
+        this.createfilterBar({
+            parent: "filterbar-transfer-status",
+            data: [
+                {
+                    opc: "select",
+                    id: "active",
+                    lbl: "Estado",
+                    class: "col-12 col-md-2",
+                    data: [
+                        { id: "1", valor: "Activos" },
+                        { id: "0", valor: "Inactivos" }
+                    ],
+                    onchange: "transferStatus.lsTransferStatus()"
+                }
+            ]
+        });
+    }
+
+    lsTransferStatus() {
+        this.createTable({
+            parent: "table-transfer-status",
+            idFilterBar: "filterbar-transfer-status",
+            data: { opc: "lsTransferStatus" },
+            coffeesoft: true,
+            conf: { datatable: true, pag: 15 },
+            attr: {
+                id: "tbTransferStatus",
+                theme: "light",
+                striped: true,
+                title: "Estados de traspaso",
+                subtitle: "Etiquetas que ve el origen (envía) y el destino (recibe)",
+                center: [4, 5, 6]
+            }
+        });
+    }
+
+    async editTransferStatus(id) {
+        const request = await useFetch({ url: this._link, data: { opc: "getTransferStatus", id: id } });
+
+        if (request.status === 200) {
+            this.createModalForm({
+                id: "formTransferStatusEdit",
+                data: { opc: "editTransferStatus", id: id },
+                theme: 'light',
+                coffeesoft: true,
+                bootbox: { title: "Editar estado de traspaso", size: 'small', closeButton: true },
+                autofill: request.data,
+                json: this.jsonTransferStatus(),
+                success: (response) => {
+                    if (response.status === 200) {
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.lsTransferStatus();
+                    } else {
+                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                    }
+                }
+            });
+            wireBadgeSimulator("formTransferStatusEdit");
+        }
+    }
+
+    statusTransferStatus(id, active) {
+        const action = active === 1 ? "desactivar" : "activar";
+        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+
+        this.swalQuestion({
+            opts: { title: `¿${actionTitle} estado?`, text: `Esta acción ${action}á el estado de traspaso`, icon: "warning" },
+            data: { opc: "statusTransferStatus", active: active === 1 ? 0 : 1, id: id },
+            methods: {
+                send: (response) => {
+                    if (response.status === 200) {
+                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.lsTransferStatus();
+                    } else {
+                        alert({ icon: "error", text: response.message, btn1: true });
+                    }
+                }
+            }
+        });
+    }
+
+    jsonTransferStatus() {
+        return [
+            {
+                opc: "input",
+                id: "name",
+                lbl: "Nombre global",
+                tipo: "texto",
+                class: "col-12 mb-3",
+                required: true
+            },
+            {
+                opc: "input",
+                id: "name_out",
+                lbl: "Como lo ve el origen (envía)",
+                tipo: "texto",
+                class: "col-12 col-md-6 mb-3"
+            },
+            {
+                opc: "input",
+                id: "name_in",
+                lbl: "Como lo ve el destino (recibe)",
+                tipo: "texto",
+                class: "col-12 col-md-6 mb-3"
+            },
+            {
+                opc: "input",
+                id: "order_index",
+                lbl: "Orden",
+                type: "number",
+                class: "col-12 col-md-4 mb-3"
+            },
+            {
+                opc: "input",
+                id: "color_hex",
+                lbl: "Color de texto",
+                type: "color",
+                class: "col-12 col-md-4 mb-3"
+            },
+            {
+                opc: "input",
+                id: "bg_hex",
+                lbl: "Color de fondo",
+                type: "color",
+                class: "col-12 col-md-4 mb-3"
+            },
+            badgePreviewField()
         ];
     }
 }

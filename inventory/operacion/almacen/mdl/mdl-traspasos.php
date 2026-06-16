@@ -149,15 +149,35 @@ class mdl extends CRUD {
         $where = 't.active = 1 AND t.companies_id = ?';
         $data  = [$array['companies_id']];
 
-        if (!empty($array['status_id'])) {
-            $where .= ' AND t.status_id = ?';
-            $data[] = $array['status_id'];
-        }
         if (!empty($array['scope_branch_id'])) {
             $where .= ' AND (t.origin_branch_id = ? OR t.destination_branch_id = ?)';
             $data[] = $array['scope_branch_id'];
             $data[] = $array['scope_branch_id'];
         }
+
+        // Filtro por estado relativo (Enviados / Por recibir / Entregados / Recibidos / Rechazados)
+        $relMap = [
+            'enviados'    => ['code' => 'REQUESTED', 'dir' => 'OUT'],
+            'por_recibir' => ['code' => 'REQUESTED', 'dir' => 'IN'],
+            'entregados'  => ['code' => 'RECEIVED',  'dir' => 'OUT'],
+            'recibidos'   => ['code' => 'RECEIVED',  'dir' => 'IN'],
+            'rechazados'  => ['code' => 'REJECTED',  'dir' => null]
+        ];
+        $rel = $array['relative'] ?? '';
+        if ($rel !== '' && isset($relMap[$rel])) {
+            $where .= ' AND ts.code = ?';
+            $data[] = $relMap[$rel]['code'];
+
+            $scopeInt = (int) ($array['scope_branch_id'] ?? 0);
+            if ($scopeInt && $relMap[$rel]['dir'] === 'OUT') {
+                $where .= ' AND t.origin_branch_id = ?';
+                $data[] = $scopeInt;
+            } elseif ($scopeInt && $relMap[$rel]['dir'] === 'IN') {
+                $where .= ' AND t.destination_branch_id = ?';
+                $data[] = $scopeInt;
+            }
+        }
+
         if (!empty($array['destination_branch_id'])) {
             $where .= ' AND t.destination_branch_id = ?';
             $data[] = $array['destination_branch_id'];
@@ -188,6 +208,8 @@ class mdl extends CRUD {
                 t.status_id,
                 ts.code              AS status_code,
                 ts.name              AS status_name,
+                ts.name_out          AS status_name_out,
+                ts.name_in           AS status_name_in,
                 ts.color_hex         AS status_color,
                 ts.bg_hex            AS status_bg,
                 ts.is_terminal       AS status_terminal,
@@ -229,21 +251,26 @@ class mdl extends CRUD {
             $data[] = $array['scope_branch_id'];
         }
 
+        // scope como entero seguro: define la perspectiva (mi sucursal) para
+        // separar lo que envio (origin) de lo que recibo (destination).
+        $scopeInt = (int) ($array['scope_branch_id'] ?? 0);
+
         $query = "
             SELECT
                 COUNT(t.id) AS total,
-                COUNT(CASE WHEN ts.code = 'REQUESTED'  THEN 1 END) AS pendientes,
-                COUNT(CASE WHEN ts.code = 'IN_TRANSIT' THEN 1 END) AS en_transito,
-                COUNT(CASE WHEN ts.code = 'RECEIVED'   THEN 1 END) AS recibidos,
-                COUNT(CASE WHEN ts.code = 'REJECTED'   THEN 1 END) AS rechazados
+                COUNT(CASE WHEN ts.code = 'REQUESTED' AND t.origin_branch_id      = {$scopeInt} THEN 1 END) AS enviados,
+                COUNT(CASE WHEN ts.code = 'REQUESTED' AND t.destination_branch_id = {$scopeInt} THEN 1 END) AS por_recibir,
+                COUNT(CASE WHEN ts.code = 'RECEIVED'  AND t.origin_branch_id      = {$scopeInt} THEN 1 END) AS entregados,
+                COUNT(CASE WHEN ts.code = 'RECEIVED'  AND t.destination_branch_id = {$scopeInt} THEN 1 END) AS recibidos,
+                COUNT(CASE WHEN ts.code = 'REJECTED'  THEN 1 END) AS rechazados
             FROM {$this->bd}inventory_transfer t
             LEFT JOIN {$this->bd}transfer_status ts ON ts.id = t.status_id
             WHERE {$where}
         ";
         $r = $this->_Read($query, $data);
         return !empty($r) ? $r[0] : [
-            'total' => 0, 'pendientes' => 0,
-            'en_transito' => 0, 'recibidos' => 0, 'rechazados' => 0
+            'total' => 0, 'enviados' => 0, 'por_recibir' => 0,
+            'entregados' => 0, 'recibidos' => 0, 'rechazados' => 0
         ];
     }
 
@@ -253,6 +280,8 @@ class mdl extends CRUD {
                 t.*,
                 ts.code              AS status_code,
                 ts.name              AS status_name,
+                ts.name_out          AS status_name_out,
+                ts.name_in           AS status_name_in,
                 ts.color_hex         AS status_color,
                 ts.bg_hex            AS status_bg,
                 wo.name              AS origin_warehouse_name,

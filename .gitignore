@@ -1,3 +1,8 @@
 # Configuracion local de Claude Code (contiene secretos como API keys)
 .claude/settings.local.json
 .claude/settings.json
+
+# Base de datos local de conversaciones del Visor (CoffeeIA) — runtime, no versionar
+coffee/app/visor/data/*.sqlite
+coffee/app/visor/data/*.sqlite-wal
+coffee/app/visor/data/*.sqlite-shm

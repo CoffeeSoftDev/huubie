@@ -6409,6 +6409,8 @@ class Templates extends Components {
                 purple: 'bg-purple-100'
             },
             cardClass: 'bg-white rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:shadow-md transition-shadow',
+            activeId: null,
+            activeClass: 'ring-1 ring-[#C05A40] border-[#C05A40]',
             labelClass: 'text-[10px] uppercase tracking-wider font-bold text-gray-500 whitespace-nowrap truncate text-left',
             valueClass: 'text-lg font-bold text-right',
             iconWrapClass: 'w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0',
@@ -6434,13 +6436,14 @@ class Templates extends Components {
 
         const kpiCard = (kpi, idx) => {
             const cardId = kpi.id || `${opts.id}_${idx}`;
+            const isActive = opts.activeId != null && String(cardId) === String(opts.activeId);
             const iconHtml = kpi.icon ? `
                 <div class="${opts.iconWrapClass} ${iconBgClass(kpi.tone)}">
                     <i data-lucide="${esc(kpi.icon)}" class="${opts.iconClass} ${toneClass(kpi.tone)}"></i>
                 </div>
             ` : '';
             return `
-                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
+                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}${isActive ? ' ' + opts.activeClass : ''}">
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex-1 min-w-0">
                             <p class="${opts.labelClass}">${esc(kpi.label)}</p>
@@ -6471,6 +6474,8 @@ class Templates extends Components {
         grid.find('[data-kpi-idx]').on('click', (e) => {
             const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
             const kpi = opts.json[idx];
+            grid.find('[data-kpi-idx]').removeClass(opts.activeClass);
+            $(e.currentTarget).addClass(opts.activeClass);
             opts.onClick(kpi, idx);
         });
     }

@@ -49,6 +49,10 @@ class TraspasoForm {
                 confirmOk:    'Si, enviar',
                 nota:         'Nota (opcional)',
                 agregar:      'Agregar',
+                lockTitle:    'Define el destino para empezar',
+                lockHint:     'Selecciona la sucursal y el almacen destino para habilitar la busqueda de productos.',
+                lockSuc:      'Sucursal destino',
+                lockAlm:      'Almacen destino',
                 errSucIgual:       'Origen y destino son iguales',
                 errSucIgualDesc:   'La sucursal de origen y la de destino no pueden ser la misma.',
                 errSinDest:        'Falta la sucursal destino',
@@ -375,7 +379,8 @@ class TraspasoForm {
                 ${this.renderHeader()}
                 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
                     ${this.renderConfigRow()}
-                    <div class="flex flex-1 min-h-0">
+                    <div id="${o.id}_lockArea" class="flex-1 min-h-0 flex items-center justify-center"></div>
+                    <div id="${o.id}_workArea" class="flex flex-1 min-h-0 hidden">
                         <div class="w-[360px] border-r border-gray-200 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
                             ${this.renderSearchPanel()}
                         </div>
@@ -418,9 +423,64 @@ class TraspasoForm {
         return cat ? String(cat.valor != null ? cat.valor : '').trim() : '';
     }
 
+    isDestinoListo() {
+        const id = this.opts.id;
+        return !!($(`#${id}_destinoSuc`).val() || '') && !!($(`#${id}_destinoAlm`).val() || '');
+    }
+
+    updateSearchLock() {
+        const o     = this.opts;
+        const ready = this.isDestinoListo();
+        $(`#${o.id}_workArea`).toggleClass('hidden', !ready);
+        $(`#${o.id}_lockArea`).toggleClass('hidden', ready);
+        $(`#${o.id}_destinoSuc`).toggleClass('ring-2 ring-orange-300 border-orange-400', !$(`#${o.id}_destinoSuc`).val());
+        $(`#${o.id}_destinoAlm`).toggleClass('ring-2 ring-orange-300 border-orange-400', !$(`#${o.id}_destinoAlm`).val());
+        if (!ready) {
+            $(`#${o.id}_lockArea`).html(this.renderLockState());
+            if (window.lucide) lucide.createIcons();
+        }
+        return ready;
+    }
+
+    renderLockState() {
+        const o      = this.opts;
+        const id     = o.id;
+        const hasSuc = !!$(`#${id}_destinoSuc`).val();
+        const hasAlm = !!$(`#${id}_destinoAlm`).val();
+        const step = (n, done, label, target, icon) => `
+            <button type="button" data-focus="${target}"
+                class="group relative flex flex-col items-center gap-2 w-[150px] px-4 py-4 rounded-xl border transition-all
+                       ${done ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-200 hover:border-orange-400 hover:bg-orange-50/40'}">
+                <span class="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
+                       ${done ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400 border border-gray-300'}">
+                    ${done ? '<i data-lucide="check" class="w-3 h-3"></i>' : n}
+                </span>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center ${done ? 'bg-green-500' : 'bg-gray-100 group-hover:bg-orange-100'}">
+                    <i data-lucide="${icon}" class="w-5 h-5 ${done ? 'text-white' : 'text-gray-500 group-hover:text-orange-500'}"></i>
+                </div>
+                <span class="text-[11px] font-semibold ${done ? 'text-green-700' : 'text-gray-700'}">${this.esc(label)}</span>
+                <span class="text-[9px] uppercase tracking-wider font-bold ${done ? 'text-green-500' : 'text-gray-400'}">${done ? 'Listo' : 'Pendiente'}</span>
+            </button>`;
+        return `
+            <div class="flex flex-col items-center justify-center px-4 text-center w-full">
+                <p class="text-base font-bold text-gray-800">${this.esc(o.labels.lockTitle)}</p>
+                <p class="text-[11px] text-gray-500 mt-1.5 mb-5 leading-snug max-w-[320px]">${this.esc(o.labels.lockHint)}</p>
+                <div class="flex items-center gap-3">
+                    ${step('1', hasSuc, o.labels.lockSuc, `${id}_destinoSuc`, 'building-2')}
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 flex-shrink-0"></i>
+                    ${step('2', hasAlm, o.labels.lockAlm, `${id}_destinoAlm`, 'warehouse')}
+                </div>
+            </div>`;
+    }
+
     renderCatalogo() {
         const o      = this.opts;
         const $cat   = $(`#${o.id}_catalogoLista`);
+        if (!this.updateSearchLock()) {
+            this.catalogItems = [];
+            this.activeIdx    = 0;
+            return;
+        }
         const term   = (this.searchTerm || '').toLowerCase();
         const catName = this.selectedCategoriaNombre();
         const items  = (o.json || [])
@@ -497,6 +557,7 @@ class TraspasoForm {
     }
 
     addProducto(id) {
+        if (!this.isDestinoListo()) return;
         const prod = (this.opts.json || []).find(p => String(p.id) === String(id));
         if (!prod) return;
         if (!this.allowZero && this.stockOrigen(prod, this.currentOrigen()) <= 0) return;
@@ -859,6 +920,8 @@ class TraspasoForm {
         wrap.on('click', `#${id}_btnRegistrar`,     () => this.doRegistrar());
 
         wrap.on('change', `#${id}_origenSuc, #${id}_destinoSuc`, () => this.onChangeSucursal());
+        wrap.on('change', `#${id}_destinoAlm`, () => { this.activeIdx = 0; this.renderCatalogo(); });
+        wrap.on('click', '[data-focus]', (e) => { const t = $(e.currentTarget).attr('data-focus'); $(`#${t}`).trigger('focus'); });
         wrap.on('change', `#${id}_categoria`, () => { this.activeIdx = 0; this.renderCatalogo(); });
 
         $(document).off('keydown.traspasoForm').on('keydown.traspasoForm', (e) => {
@@ -907,8 +970,13 @@ class TraspasoForm {
     open() {
         this.wrap.removeClass('hidden');
         this.refreshAlmacenes();
+        this.renderCatalogo();
         if (window.lucide) lucide.createIcons();
-        setTimeout(() => $(`#${this.opts.id}_buscarProducto`).trigger('focus'), 50);
+        setTimeout(() => {
+            const id = this.opts.id;
+            if (this.isDestinoListo()) $(`#${id}_buscarProducto`).trigger('focus');
+            else                       $(`#${id}_destinoSuc`).trigger('focus');
+        }, 50);
     }
 
     close() {
