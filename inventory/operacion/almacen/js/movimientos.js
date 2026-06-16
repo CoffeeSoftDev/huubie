@@ -24,6 +24,7 @@ class App extends Templates {
         this.PROJECT_NAME = 'Movimientos';
         this.branchId     = null;
         this.selectedId   = null;
+        this.itemFilter   = null;
         this.dataInit     = {};
     }
 
@@ -84,6 +85,10 @@ class App extends Templates {
                 {
                     id:    'filterBar',
                     class: 'px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                },
+                {
+                    id:    'productFilterBar',
+                    class: 'px-4 hidden flex-shrink-0 bg-white border-b border-gray-200'
                 },
                 {
                     id:    'tableWrap',
@@ -199,6 +204,7 @@ class App extends Templates {
         return {
             branch_id: $('#fSucursal').val() || '',
             tipo:      $('#fTipo').val()     || '',
+            item_id:   this.itemFilter ? this.itemFilter.id : '',
             fechaIni:  range.fi              || '',
             fechaFin:  range.ff              || '',
             q:         ''
@@ -235,6 +241,52 @@ class App extends Templates {
         const mov = (uid && movimientos._raw) ? movimientos._raw[uid] : null;
         movimientosView.renderDetail(mov || null);
     }
+
+    filterByProduct(mov) {
+        if (!mov || mov.itemId == null) return;
+        this.itemFilter = { id: mov.itemId, name: mov.producto, sku: mov.sku || '' };
+        this.renderProductFilter();
+        movimientos.lsMovimientos();
+        movimientos.lsKpis();
+    }
+
+    clearProductFilter() {
+        this.itemFilter = null;
+        this.renderProductFilter();
+        movimientos.lsMovimientos();
+        movimientos.lsKpis();
+    }
+
+    renderProductFilter() {
+        const f    = this.itemFilter;
+        const $bar = $('#productFilterBar');
+
+        if (!f) {
+            $bar.addClass('hidden').empty();
+            return;
+        }
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        $bar.removeClass('hidden').html(`
+            <div class="flex items-center gap-2 my-2 text-[11px]">
+                <span class="text-gray-500">Movimientos de:</span>
+                <span class="inline-flex items-center gap-2 px-2 py-1 rounded-full font-bold"
+                      style="background:rgba(192,90,64,0.12);color:#C05A40;">
+                    <i data-lucide="package" class="w-3.5 h-3.5"></i>
+                    ${esc(f.name)}${f.sku ? ` <span class="font-normal opacity-70">(${esc(f.sku)})</span>` : ''}
+                    <button id="clearProductFilter" type="button" title="Quitar filtro"
+                            class="ml-1 hover:opacity-70">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </span>
+            </div>`);
+
+        if (window.lucide) lucide.createIcons();
+        $('#clearProductFilter').on('click', () => this.clearProductFilter());
+    }
 }
 
 
@@ -258,6 +310,7 @@ class Movimientos extends Templates {
                 opc:           'lsMovimientos',
                 branch_id:     f.branch_id,
                 movement_type: f.tipo,
+                item_id:       f.item_id,
                 fi:            f.fechaIni,
                 ff:            f.fechaFin,
                 q:             f.q
@@ -273,8 +326,8 @@ class Movimientos extends Templates {
                 id:           `tb${this.PROJECT_NAME}`,
                 theme:        'light',
                 f_size:       12,
-                center:       [1, 4, 5, 9],
-                right:        [6],
+                center:       [1, 3, 5, 6],
+                right:        [7],
                 emptyMessage: 'No se encontraron movimientos con los filtros aplicados',
                 emptyIcon:    'icon-activity'
             }
@@ -286,6 +339,7 @@ class Movimientos extends Templates {
         const r = await fn_ajax({
             opc:       'showMovimientos',
             branch_id: f.branch_id,
+            item_id:   f.item_id,
             fi:        f.fechaIni,
             ff:        f.fechaFin
         }, api).catch(() => null);
@@ -313,6 +367,7 @@ class MovimientosView extends Templates {
         this.movimientoDetailPanel({
             parent:  'detailPanel',
             json:    movimiento,
+            onFilterProduct: (m) => app.filterByProduct(m),
             onClose: () => {
                 app.selectedId = null;
                 this.renderDetail(null);
@@ -475,6 +530,7 @@ class MovimientosView extends Templates {
                 'TRANSFERENCIA': { bg: 'rgba(192,90,64,0.15)',  fg: '#C05A40' },
                 'AJUSTE':        { bg: 'rgba(167,139,250,0.15)', fg: '#7C3AED' }
             },
+            onFilterProduct: null,
             onClose: () => {}
         };
 
@@ -554,6 +610,13 @@ class MovimientosView extends Templates {
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <p class="text-[11px] font-bold text-gray-800 leading-tight">${esc(m.producto)}</p>
                     ${m.sku ? `<p class="text-[10px] text-gray-400">SKU: ${esc(m.sku)}</p>` : ''}
+                    ${opts.onFilterProduct ? `
+                    <button id="${opts.id}_filterProd" type="button"
+                            class="mt-2 inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded transition-colors"
+                            style="background:rgba(192,90,64,0.12);color:#C05A40;">
+                        <i data-lucide="history" class="w-3.5 h-3.5"></i>
+                        Ver movimientos de este producto
+                    </button>` : ''}
                 </div>
 
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1.5">
@@ -585,5 +648,8 @@ class MovimientosView extends Templates {
         if (window.lucide) lucide.createIcons();
 
         $(`#${opts.id}_close`).on('click', () => opts.onClose(m));
+        if (opts.onFilterProduct) {
+            $(`#${opts.id}_filterProd`).on('click', () => opts.onFilterProduct(m));
+        }
     }
 }

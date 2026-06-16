@@ -60,6 +60,10 @@ class mdl extends CRUD {
             $where .= ' AND mv.movement_type = ?';
             $data[] = $array['movement_type'];
         }
+        if (!empty($array['item_id'])) {
+            $where .= ' AND mv.item_id = ?';
+            $data[] = $array['item_id'];
+        }
         if (!empty($array['fi']) && !empty($array['ff'])) {
             $where .= ' AND DATE(mv.occurred_at) BETWEEN ? AND ?';
             $data[] = $array['fi'];
@@ -116,6 +120,10 @@ class mdl extends CRUD {
         if (!empty($array['branch_id'])) {
             $where .= ' AND mv.branch_id = ?';
             $data[] = $array['branch_id'];
+        }
+        if (!empty($array['item_id'])) {
+            $where .= ' AND mv.item_id = ?';
+            $data[] = $array['item_id'];
         }
         if (!empty($array['fi']) && !empty($array['ff'])) {
             $where .= ' AND DATE(mv.occurred_at) BETWEEN ? AND ?';

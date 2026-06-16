@@ -37,6 +37,7 @@ class ctrl extends mdl {
             'companies_id'  => $this->companiesId,
             'branch_id'     => $_POST['branch_id']     ?? '',
             'movement_type' => $_POST['movement_type'] ?? '',
+            'item_id'       => $_POST['item_id']       ?? '',
             'fi'            => $_POST['fi']             ?? '',
             'ff'            => $_POST['ff']             ?? '',
             'q'             => $_POST['q']              ?? ''
@@ -51,27 +52,36 @@ class ctrl extends mdl {
                 ? '<span class="font-bold text-red-600">'   . number_format($qty, 2) . '</span>'
                 : '<span class="font-bold text-green-600">+' . number_format($qty, 2) . '</span>';
 
-            $nombre   = ($r['item_name'] ?: 'Item #' . $r['item_id'])
+            $producto = ($r['item_name'] ?: 'Item #' . $r['item_id'])
                 . ($r['sku'] ? '<br><span class="text-[10px] text-gray-400">' . $r['sku'] . '</span>' : '');
-            $producto = '<span class="cursor-pointer hover:text-[#C05A40]" onclick="app.selectMovimiento(\''
-                . $r['movement_uid'] . '\')">' . $nombre . '</span>';
+
+            $acciones = [
+                [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
+                    'onclick' => "app.selectMovimiento('{$r['movement_uid']}')"
+                ]
+            ];
 
             $stockHtml = number_format((float) $r['stock_prev'], 2)
                 . ' <span class="text-gray-400">&rarr;</span> '
                 . '<span class="font-semibold">' . number_format((float) $r['stock_post'], 2) . '</span>';
 
+            $ubicacion = ($r['warehouse_name'] ?: '-')
+                . ($r['branch_name'] ? '<br><span class="text-[10px] text-gray-400">' . $r['branch_name'] . '</span>' : '');
+
             $row[] = [
                 'id'       => $r['movement_uid'],
-                'Tipo'     => movementBadge($r['movement_type']),
+                'Fecha'    => movementDate($r['occurred_at']),
                 'Folio'    => $r['folio'] ?: '-',
+                'Tipo'     => movementBadge($r['movement_type']),
                 'Producto' => $producto,
                 'Cantidad' => $qtyHtml,
                 'Stock'    => $stockHtml,
                 'Costo'    => '$' . number_format((float) $r['cost_total'], 2),
-                'Almacen'  => $r['warehouse_name'] ?: '-',
-                'Sucursal' => $r['branch_name'] ?: '-',
-                'Fecha'    => $r['occurred_at'] ?: '-',
-                'Usuario'  => $r['user_name'] ?: '-'
+                'Almacen'  => $ubicacion,
+                'Usuario'  => $r['user_name'] ?: '-',
+                'a'        => $acciones
             ];
 
             // Crudo para el panel de detalle (indexado por uid en el front).
@@ -80,6 +90,7 @@ class ctrl extends mdl {
                 'tipo'      => $r['movement_type'],
                 'folio'     => $r['folio'],
                 'nota'      => $r['note'],
+                'itemId'    => (int) $r['item_id'],
                 'producto'  => $r['item_name'] ?: ('Item #' . $r['item_id']),
                 'sku'       => $r['sku'] ?: '',
                 'cant'      => $qty,
@@ -102,6 +113,7 @@ class ctrl extends mdl {
         $kpis = $this->getMovimientoKpis([
             'companies_id' => $this->companiesId,
             'branch_id'    => $_POST['branch_id'] ?? '',
+            'item_id'      => $_POST['item_id']   ?? '',
             'fi'           => $_POST['fi']         ?? '',
             'ff'           => $_POST['ff']         ?? ''
         ]);
@@ -120,6 +132,16 @@ function movementBadge($type) {
     ];
     $c = $map[$type] ?? ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#6B7280'];
     return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>{$type}</span>";
+}
+
+function movementDate($val) {
+    if (empty($val)) return '-';
+    $ts = strtotime($val);
+    if ($ts === false) return $val;
+    $mon  = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    $base = date('d', $ts) . ' ' . $mon[(int) date('n', $ts)] . ' ' . date('Y', $ts);
+    if (date('H:i', $ts) === '00:00') return $base;
+    return $base . ' ' . date('g:i', $ts) . ' ' . date('a', $ts);
 }
 
 $obj = new ctrl();

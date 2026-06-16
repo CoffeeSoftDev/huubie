@@ -393,6 +393,12 @@
                         <button id="iaAttachBtn" class="ia-attach-btn" title="Adjuntar imagen o documento de texto (tambien Ctrl+V para pegar)">
                             <i data-lucide="paperclip" class="w-3 h-3"></i>
                         </button>
+                        <button id="iaSaveChatBtn" class="ia-attach-btn" title="Guardar conversacion">
+                            <i data-lucide="save" class="w-3 h-3"></i>
+                        </button>
+                        <button id="iaSavedChatsBtn" class="ia-attach-btn" title="Chats guardados">
+                            <i data-lucide="messages-square" class="w-3 h-3"></i>
+                        </button>
                         <button id="iaClearBtn" class="ia-attach-btn" title="Limpiar conversacion">
                             <i data-lucide="trash-2" class="w-3 h-3"></i>
                         </button>

@@ -2484,8 +2484,11 @@ class CoffeeIA {
         this._api     = apiEndpoint;
         // Endpoint gemelo en streaming (SSE). Mismo contexto, transporte distinto.
         this._apiStream = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-coffeeia-stream.php');
+        // Endpoint de persistencia de conversaciones (SQLite).
+        this._apiChats  = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-chats.php');
         this._app     = appRef;
         this.history  = [];
+        this._currentChatUid = null;   // uid de la conversacion guardada activa (para re-guardar/actualizar)
         this.isOpen   = false;
         this.isBusy   = false;
         this._abort   = null;   // AbortController de la consulta en curso (botón Detener)
@@ -2715,6 +2718,10 @@ class CoffeeIA {
         $('#btnCloseIA').on('click', () => this.close());
 
         $('#iaClearBtn').on('click', () => this.clearConversation());
+
+        $('#iaSaveChatBtn').on('click', () => this.saveConversation());
+
+        $('#iaSavedChatsBtn').on('click', () => this.openSavedChatsModal());
 
         $('#iaEditorToggle').on('click', () => this._toggleEditorMode());
 
@@ -4464,10 +4471,196 @@ class CoffeeIA {
 
     clearConversation() {
         this.history = [];
+        this._currentChatUid = null;
+        this._currentChatTitle = null;
         this._chipsRendered = false;
         $('#iaBodyChat').empty().hide();
         $('#iaBodyEmpty').show();
         this._syncContext();
+    }
+
+    /* ── Persistencia de conversaciones (SQLite via ctrl-chats.php) ── */
+
+    _toast(msg, kind) {
+        if (typeof visorView !== 'undefined' && visorView) visorView.toast(msg, kind);
+    }
+
+    // Titulo sugerido a partir del primer mensaje del usuario.
+    _suggestChatTitle() {
+        const first = this.history.find(m => m.role === 'user');
+        let t = first && first.content ? String(first.content).trim().replace(/\s+/g, ' ') : '';
+        // Quitar bloques de docs adjuntos embebidos en el content.
+        t = t.replace(/===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '').trim();
+        if (!t) return 'Conversacion ' + new Date().toLocaleString();
+        return t.slice(0, 80);
+    }
+
+    // Guarda la conversacion actual en el servidor. Si ya tiene uid, la actualiza.
+    async saveConversation() {
+        if (!this.history.length) {
+            this._toast('No hay conversación que guardar', 'warn');
+            return;
+        }
+
+        const suggested = this._currentChatTitle || this._suggestChatTitle();
+        const title = window.prompt('Nombre para guardar esta conversación:', suggested);
+        if (title === null) return;   // cancelado
+
+        const userId = (this._app && this._app.currentUser) ? this._app.currentUser.id : '';
+
+        try {
+            const form = new FormData();
+            form.append('action',   'save');
+            if (this._currentChatUid) form.append('uid', this._currentChatUid);
+            form.append('title',    title.trim());
+            form.append('user_id',  userId);
+            form.append('model',    this.model || '');
+            form.append('doc',      (this._app && this._app.currentFile) || '');
+            form.append('messages', JSON.stringify(this.history));
+
+            const res  = await fetch(this._apiChats, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { this._toast(data.message || 'No se pudo guardar el chat', 'error'); return; }
+
+            this._currentChatUid   = data.uid;
+            this._currentChatTitle = data.title;
+            this._toast('Chat guardado: ' + data.title, 'success');
+        } catch (e) {
+            this._toast('Error de red al guardar el chat', 'error');
+        }
+    }
+
+    /* ── Modal de chats guardados ── */
+
+    // El modal se inyecta una sola vez en el DOM (lazy) para no tocar el HTML base.
+    _ensureSavedChatsModal() {
+        if (document.getElementById('iaSavedModal')) return;
+        const $modal = $(`
+            <div id="iaSavedModal" class="ia-saved-modal hidden" aria-hidden="true">
+                <div class="ia-saved-backdrop"></div>
+                <div class="ia-saved-dialog" role="dialog" aria-label="Chats guardados">
+                    <div class="ia-saved-head">
+                        <span class="ia-saved-title"><i data-lucide="messages-square" class="w-4 h-4"></i> Chats guardados</span>
+                        <button id="iaSavedClose" class="ia-saved-close" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
+                    <div id="iaSavedList" class="ia-saved-list"></div>
+                </div>
+            </div>
+        `);
+        $('body').append($modal);
+
+        $modal.find('.ia-saved-backdrop, #iaSavedClose').on('click', () => this._closeSavedChatsModal());
+        $(document).on('keydown.iaSavedModal', (e) => {
+            if (e.key === 'Escape' && !$modal.hasClass('hidden')) this._closeSavedChatsModal();
+        });
+
+        $('#iaSavedList').on('click', '[data-load-chat]', (e) => {
+            const uid = $(e.currentTarget).data('load-chat');
+            this.loadConversation(uid);
+        });
+        $('#iaSavedList').on('click', '[data-del-chat]', (e) => {
+            e.stopPropagation();
+            const uid = $(e.currentTarget).data('del-chat');
+            this.deleteSavedChat(uid);
+        });
+    }
+
+    async openSavedChatsModal() {
+        this._ensureSavedChatsModal();
+        $('#iaSavedModal').removeClass('hidden').attr('aria-hidden', 'false');
+        $('#iaSavedList').html('<div class="ia-saved-empty">Cargando…</div>');
+        if (window.lucide) lucide.createIcons();
+
+        try {
+            const url  = this._apiChats + '?action=list';
+            const res  = await fetch(url, { cache: 'no-store' });
+            const data = await res.json();
+            if (!data.success) { $('#iaSavedList').html('<div class="ia-saved-empty">' + (data.message || 'Error al listar') + '</div>'); return; }
+            this._renderSavedChatsList(data.rows || []);
+        } catch (e) {
+            $('#iaSavedList').html('<div class="ia-saved-empty">Error de red al cargar la lista</div>');
+        }
+    }
+
+    _closeSavedChatsModal() {
+        $('#iaSavedModal').addClass('hidden').attr('aria-hidden', 'true');
+    }
+
+    _renderSavedChatsList(rows) {
+        if (!rows.length) {
+            $('#iaSavedList').html('<div class="ia-saved-empty">No hay conversaciones guardadas todavía.</div>');
+            return;
+        }
+        const html = rows.map(r => `
+            <div class="ia-saved-item" data-load-chat="${r.uid}" title="Abrir esta conversación">
+                <div class="ia-saved-item-main">
+                    <span class="ia-saved-item-title">${this._escape(r.title)}</span>
+                    <span class="ia-saved-item-meta">
+                        <i data-lucide="message-circle" class="w-3 h-3"></i> ${r.msg_count}
+                        ${r.doc ? '· <i data-lucide="file-text" class="w-3 h-3"></i> ' + this._escape(r.doc) : ''}
+                        ${r.model ? '· ' + this._escape(r.model) : ''}
+                        · ${this._escape(r.updated_at || '')}
+                    </span>
+                </div>
+                <button class="ia-saved-del" data-del-chat="${r.uid}" title="Eliminar"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </div>
+        `).join('');
+        $('#iaSavedList').html(html);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Trae una conversacion del servidor y reconstruye las burbujas en el chat.
+    async loadConversation(uid) {
+        try {
+            const url  = this._apiChats + '?action=get&uid=' + encodeURIComponent(uid);
+            const res  = await fetch(url, { cache: 'no-store' });
+            const data = await res.json();
+            if (!data.success || !data.chat) { this._toast(data.message || 'No se pudo abrir la conversación', 'error'); return; }
+
+            const chat = data.chat;
+            this.history = Array.isArray(chat.messages) ? chat.messages : [];
+            this._currentChatUid   = chat.uid;
+            this._currentChatTitle = chat.title;
+            if (chat.model) { this.model = chat.model; this._saveModel(); this._applyModelUI(); }
+
+            // Reconstruir la UID del chat desde el historial.
+            this._chipsRendered = false;
+            $('#iaBodyChat').empty();
+            this._switchToChat();
+            this.history.forEach(m => {
+                if (m.role === 'user') {
+                    // Mostrar solo el texto visible (sin los docs embebidos en el content).
+                    let text = String(m.content || '').replace(/\n*===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '').trim();
+                    this._appendUserMessage(text, m.imagesPreview, m.docsMeta);
+                } else {
+                    this._appendAIMessage(String(m.content || ''), null);
+                }
+            });
+            this._scrollBottom();
+
+            this._closeSavedChatsModal();
+            if (!this.isOpen) this.open();
+            this._toast('Conversación cargada: ' + chat.title, 'success');
+        } catch (e) {
+            this._toast('Error de red al abrir la conversación', 'error');
+        }
+    }
+
+    async deleteSavedChat(uid) {
+        if (!window.confirm('¿Eliminar esta conversación guardada? No se puede deshacer.')) return;
+        try {
+            const form = new FormData();
+            form.append('action', 'delete');
+            form.append('uid',    uid);
+            const res  = await fetch(this._apiChats, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { this._toast(data.message || 'No se pudo eliminar', 'error'); return; }
+            if (this._currentChatUid === uid) this._currentChatUid = null;
+            this.openSavedChatsModal();   // refrescar lista
+            this._toast('Conversación eliminada', 'success');
+        } catch (e) {
+            this._toast('Error de red al eliminar', 'error');
+        }
     }
 
     /* ── Normalización de HTML del modo lienzo ── */

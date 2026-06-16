@@ -101,7 +101,20 @@ class mdl extends CRUD {
             }
         }
 
-        $data = array_merge($stockParams, $whereParams);
+        // Tipo del ultimo movimiento por item (para mostrar en la columna).
+        // Respeta el filtro de sucursal si esta activo. Va primero en el SELECT,
+        // por eso sus parametros se anteponen al resto.
+        $lastMovSub    = "SELECT lm.movement_type
+                          FROM {$this->bd}inventory_movement lm
+                          WHERE lm.item_id = i.id AND lm.companies_id = i.companies_id";
+        $lastMovParams = [];
+        if (!empty($array['branch_id'])) {
+            $lastMovSub      .= ' AND lm.branch_id = ?';
+            $lastMovParams[]  = $array['branch_id'];
+        }
+        $lastMovSub .= ' ORDER BY lm.occurred_at DESC, lm.created_at DESC LIMIT 1';
+
+        $data = array_merge($lastMovParams, $stockParams, $whereParams);
 
         $query = "
             SELECT
@@ -120,7 +133,8 @@ class mdl extends CRUD {
                 wa.name             AS area_name,
                 wa.color_hex        AS area_color,
                 IFNULL(s.quantity_total, 0) AS quantity_total,
-                s.last_movement_at          AS last_movement_at
+                s.last_movement_at          AS last_movement_at,
+                ({$lastMovSub})             AS last_movement_type
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1

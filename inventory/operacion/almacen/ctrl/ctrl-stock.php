@@ -58,6 +58,7 @@ class ctrl extends mdl {
                 'Max'       => $max > 0 ? $this->_qty($max) : '-',
                 'Unidad'    => $r['unit_code'] ?: '-',
                 'Estado'    => $this->_levelBadge($qty, $min),
+                'Ult. Mov'  => $this->_lastMovBadge($r['last_movement_type'] ?? ''),
                 'a'         => [
                     [
                         'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
@@ -416,6 +417,20 @@ class ctrl extends mdl {
                     ' . $skuTag . '
                 </div>
             </div>';
+    }
+
+    private function _lastMovBadge($type) {
+        if (empty($type)) {
+            return "<span class='text-[10px] text-gray-300'>Sin movimiento</span>";
+        }
+        $map = [
+            'ENTRADA'       => ['bg' => 'rgba(63,193,137,0.15)', 'fg' => '#15803D', 'lbl' => 'Entrada'],
+            'MERMA'         => ['bg' => 'rgba(224,36,36,0.15)',  'fg' => '#B91C1C', 'lbl' => 'Merma'],
+            'TRANSFERENCIA' => ['bg' => 'rgba(192,90,64,0.15)',  'fg' => '#C05A40', 'lbl' => 'Traspaso'],
+            'AJUSTE'        => ['bg' => 'rgba(167,139,250,0.15)','fg' => '#7C3AED', 'lbl' => 'Ajuste']
+        ];
+        $c = $map[$type] ?? ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#6B7280', 'lbl' => $type];
+        return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>{$c['lbl']}</span>";
     }
 
     private function _levelBadge($qty, $min) {
