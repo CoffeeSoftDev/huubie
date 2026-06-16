@@ -303,7 +303,7 @@ class Stock extends Templates {
                 theme:        'light',
                 striped:      true,
                 f_size:       12,
-                center:       [3, 7, 8],
+                center:       [3, 7, 8, 9],
                 emptyMessage: 'No se encontraron productos con los filtros aplicados',
                 emptyIcon:    'icon-cube'
             }
