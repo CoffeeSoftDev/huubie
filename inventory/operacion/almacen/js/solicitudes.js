@@ -128,6 +128,7 @@ class App extends Templates {
                 {
                     id:    'mobileCards',
                     class: 'md:hidden flex-1 overflow-y-auto px-4 pt-3 pb-24 space-y-3 bg-gray-50'
+                    // pb-24 deja holgura para que la ultima tarjeta no quede tapada por el FAB
                 }
             ]
         };
@@ -153,29 +154,15 @@ class App extends Templates {
         $('#mainPanel').append(`
             <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 md:hidden" style="background:#C05A40;position:absolute;top:12px;right:16px">${ini}</div>
             <button id="fabNueva"
-                class="md:hidden fixed bottom-20 right-5 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white z-40"
+                class="md:hidden fixed bottom-5 right-5 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white z-40"
                 style="background:#C05A40;box-shadow:0 4px 14px rgba(192,90,64,.45)">
                 <i data-lucide="plus" class="w-6 h-6"></i>
             </button>
-            <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 pt-2 pb-5 flex items-center justify-around z-30">
-                <button class="flex flex-col items-center gap-0.5 text-gray-400">
-                    <i data-lucide="home" class="w-5 h-5"></i>
-                    <span class="text-[10px] font-medium">Inicio</span>
-                </button>
-                <button class="flex flex-col items-center gap-0.5" style="color:#C05A40">
-                    <i data-lucide="clipboard-list" class="w-5 h-5"></i>
-                    <span class="text-[10px] font-semibold">Mis solicitudes</span>
-                </button>
-                <button class="flex flex-col items-center gap-0.5 text-gray-400">
-                    <i data-lucide="user" class="w-5 h-5"></i>
-                    <span class="text-[10px] font-medium">Perfil</span>
-                </button>
-            </div>
         `);
 
-        $('#mobileTopBar').html(`<div id="statusChipsMobile" class="flex items-center gap-2 overflow-x-auto -mx-4 px-4" style="scrollbar-width:none"></div>`);
+        $('#mobileTopBar').html(`<div id="statusChipsMobile" class="w-full"></div>`);
 
-        this.buildStatusChips();
+        this.buildStatusSelect();
         $('#fabNueva').on('click', () => solicitudesView.openSolicitudForm());
 
         if (window.lucide) lucide.createIcons();
@@ -271,12 +258,7 @@ class App extends Templates {
     }
 
     syncChips(activeStatus) {
-        $('#statusChipsMobile .chip-status').each(function () {
-            const match = String($(this).data('status')) === String(activeStatus);
-            $(this).toggleClass('text-white', match)
-                   .toggleClass('bg-white text-gray-600 border border-gray-300', !match)
-                   .attr('style', match ? 'background:#C05A40' : '');
-        });
+        $('#statusSelectMobile').val(activeStatus || '');
     }
 
     initials(name) {
@@ -286,7 +268,7 @@ class App extends Templates {
         return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     }
 
-    buildStatusChips() {
+    buildStatusSelect() {
         const statuses = [
             { id: '',           label: 'Todas' },
             { id: 'Solicitada', label: 'Solicitada' },
@@ -298,24 +280,19 @@ class App extends Templates {
             { id: 'Borrador',   label: 'Borrador' }
         ];
 
-        const $c = $('#statusChipsMobile');
-        $c.html(statuses.map((s, i) => {
-            const active = i === 0;
-            const base   = active
-                ? 'flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white whitespace-nowrap chip-status'
-                : 'flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-600 border border-gray-300 whitespace-nowrap hover:border-[#C05A40] chip-status';
-            const style  = active ? 'style="background:#C05A40"' : '';
-            return `<button class="${base}" data-status="${s.id}" ${style}>${s.label}</button>`;
-        }).join(''));
+        const options = statuses.map(s =>
+            `<option value="${s.id}">${s.label}</option>`
+        ).join('');
 
-        $c.on('click', '.chip-status', function () {
-            $c.find('.chip-status').each(function () {
-                $(this).removeClass('text-white').addClass('bg-white text-gray-600 border border-gray-300');
-                $(this).removeAttr('style');
-            });
-            $(this).removeClass('bg-white text-gray-600 border border-gray-300').addClass('text-white');
-            $(this).attr('style', 'background:#C05A40');
-            app.activeStatus = $(this).data('status');
+        $('#statusChipsMobile').html(`
+            <select id="statusSelectMobile"
+                class="w-full px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-300 focus:border-[#C05A40] focus:ring-1 focus:ring-[#C05A40] focus:outline-none">
+                ${options}
+            </select>
+        `);
+
+        $('#statusSelectMobile').on('change', function () {
+            app.activeStatus = $(this).val();
             $('#fEstado').val(app.activeStatus);
             solicitudes.lsSolicitudes();
         });
@@ -371,7 +348,7 @@ class Solicitudes extends Templates {
                 id:           `tb${this.PROJECT_NAME}`,
                 theme:        'light',
                 f_size:       12,
-                center:       [3, 4, 5, 6],
+                center:       [2, 6, 7],
                 emptyMessage: 'No se encontraron solicitudes con los filtros aplicados',
                 emptyIcon:    'icon-clipboard-list'
             }
@@ -1656,21 +1633,21 @@ class SolicitudesView extends Templates {
                             <textarea id="${modalId}_note" rows="2" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all resize-none placeholder:text-gray-400" placeholder="Ej. Reabastecimiento semanal para la barra de bebidas..."></textarea>
                         </div>
 
-                        <div class="flex items-center justify-between gap-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div class="flex items-center gap-5 text-[11px] text-gray-500">
                                 <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Materiales <strong class="text-gray-800 text-sm" id="${modalId}_totMat">0</strong></span>
                                 <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Unidades <strong class="text-gray-800 text-sm" id="${modalId}_totUds">0</strong></span>
                             </div>
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <button id="${modalId}_cancel" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all">Cancelar</button>
+                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <button id="${modalId}_cancel" class="flex-1 sm:flex-none flex items-center justify-center px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all">Cancelar</button>
                                 ${isEdit ? `
-                                <button id="${modalId}_saveEdit" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
+                                <button id="${modalId}_saveEdit" class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center justify-center gap-1.5">
                                     <i data-lucide="save" class="w-3.5 h-3.5"></i><span>Guardar cambios</span>
                                 </button>` : `
-                                <button id="${modalId}_draft" class="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-all flex items-center gap-1.5">
+                                <button id="${modalId}_draft" class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-all flex items-center justify-center gap-1.5">
                                     <i data-lucide="file-text" class="w-3.5 h-3.5"></i><span>Guardar borrador</span>
                                 </button>
-                                <button id="${modalId}_send" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
+                                <button id="${modalId}_send" class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center justify-center gap-1.5">
                                     <i data-lucide="send" class="w-3.5 h-3.5"></i><span>Enviar solicitud</span>
                                 </button>`}
                             </div>

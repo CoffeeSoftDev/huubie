@@ -16,9 +16,9 @@ require_once('layout/core-libraries.php');
 ?>
 
 <!-- CoffeeSoft Framework -->
-<script src="../../src/js/coffeeSoft.js"></script>
-<script src="https://rawcdn.githack.com/SomxS/Grupo-Varoch/refs/heads/main/src/js/plugins.js"></script>
-<script src="https://www.plugins.erp-varoch.com/ERP/JS/complementos.js"></script>
+<script src="../../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
+<script src="../../src/js/plugins.js?t=<?php echo time(); ?>"></script>
+<script src="../../src/js/complementos.js?t=<?php echo time(); ?>"></script>
 <link rel="stylesheet" href="../../src/css/dark-mode.css">
 
 <body>

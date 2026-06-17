@@ -17,24 +17,25 @@ class ctrl extends mdl {
 
     public function __construct() {
         parent::__construct();
-        $this->companiesId = (int) ($_SESSION['company_id'] ?? $_POST['companies_id'] ?? 0);
-        $this->branchId    = (int) ($_SESSION['branch_id']  ?? $_POST['branch_id']    ?? 0);
-        $this->userId      = (int) ($_SESSION['user_id']    ?? $_POST['user_id']      ?? 0);
+        $_POST += ['companies_id' => 0, 'branch_id' => 0, 'user_id' => 0];
+        $this->companiesId = (int) ($_SESSION['company_id'] ?? $_POST['companies_id']);
+        $this->branchId    = (int) ($_SESSION['branch_id']  ?? $_POST['branch_id']);
+        $this->userId      = (int) ($_SESSION['user_id']    ?? $_POST['user_id']);
     }
 
     function init() {
-        $productos = array_map(function ($p) {
+        $productos = array_map(function ($producto) {
             return [
-                'id'                => (string) $p['id'],
-                'sku'               => $p['sku'] ?: '',
-                'nombre'            => $p['nombre'],
-                'categoria'         => $p['categoria'] ?: 'Sin categoria',
-                'costo'             => (float) $p['costo'],
-                'precio'            => (float) ($p['precio'] ?? 0),
-                'price_without_tax' => $p['price_without_tax'] !== null ? (float) $p['price_without_tax'] : null,
-                'tax'               => $p['tax'] !== null ? (float) $p['tax'] : null,
+                'id'                => (string) $producto['id'],
+                'sku'               => $producto['sku'] ?: '',
+                'nombre'            => $producto['nombre'],
+                'categoria'         => $producto['categoria'] ?: 'Sin categoria',
+                'costo'             => (float) $producto['costo'],
+                'precio'            => (float) ($producto['precio'] ?? 0),
+                'price_without_tax' => $producto['price_without_tax'] !== null ? (float) $producto['price_without_tax'] : null,
+                'tax'               => $producto['tax'] !== null ? (float) $producto['tax'] : null,
                 'stock'             => 0,
-                'image'             => $p['image'] ?? '',
+                'image'             => $producto['image'] ?? '',
                 'icon'              => 'package',
                 'bg'                => 'bg-gray-100',
                 'color'             => 'text-gray-500'
@@ -42,97 +43,97 @@ class ctrl extends mdl {
         }, $this->qProductsForTransfer([$this->companiesId]));
 
         return [
-            'status'         => 200,
-            'companies_id'   => $this->companiesId,
-            'branch_id'      => $this->branchId,
-            'user_id'        => $this->userId,
-            'sucursales'     => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
-            'almacenes'      => $this->lsWarehouses(['companies_id' => $this->companiesId]),
-            'proveedores'    => $this->lsSuppliers([$this->companiesId]),
-            'productos'      => $productos,
-            'estados_orden'  => [
-                ['id' => '',          'valor' => 'Todos los estados'],
-                ['id' => 'Activas',   'valor' => 'Activas (sin Cancelada)'],
-                ['id' => 'Borrador',  'valor' => 'Borrador'],
-                ['id' => 'Solicitada','valor' => 'Solicitada'],
-                ['id' => 'Aprobada',  'valor' => 'Aprobada'],
-                ['id' => 'Parcial',   'valor' => 'Parcial'],
-                ['id' => 'Recibida',  'valor' => 'Recibida'],
-                ['id' => 'Rechazada', 'valor' => 'Rechazada'],
-                ['id' => 'Cancelada', 'valor' => 'Cancelada']
+            'status'        => 200,
+            'companies_id'  => $this->companiesId,
+            'branch_id'     => $this->branchId,
+            'user_id'       => $this->userId,
+            'sucursales'    => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
+            'almacenes'     => $this->lsWarehouses(['companies_id' => $this->companiesId]),
+            'proveedores'   => $this->lsSuppliers([$this->companiesId]),
+            'productos'     => $productos,
+            'estados_orden' => [
+                ['id' => '',           'valor' => 'Todos los estados'],
+                ['id' => 'Activas',    'valor' => 'Activas (sin Cancelada)'],
+                ['id' => 'Borrador',   'valor' => 'Borrador'],
+                ['id' => 'Solicitada', 'valor' => 'Solicitada'],
+                ['id' => 'Aprobada',   'valor' => 'Aprobada'],
+                ['id' => 'Parcial',    'valor' => 'Parcial'],
+                ['id' => 'Recibida',   'valor' => 'Recibida'],
+                ['id' => 'Rechazada',  'valor' => 'Rechazada'],
+                ['id' => 'Cancelada',  'valor' => 'Cancelada']
             ]
         ];
     }
 
     function lsOrdenes() {
-        $mine = !empty($_POST['mine']) ? $this->userId : null;
-        // Vista solicitante (solicitudes.js): suma la columna "Solicitar a" y
-        // muestra la fecha+hora real del pedido. La gestion (ordenes.js) no lo
-        // envia, asi que conserva sus columnas y formato originales.
-        $withTarget = !empty($_POST['withTarget']);
+        $_POST += ['mine' => 0, 'withTarget' => 0, 'branch_id' => '', 'supplier_id' => '', 'status' => '', 'fi' => '', 'ff' => '', 'q' => ''];
 
-        $rows = $this->qOrdenes([
+        // withTarget: vista solicitante (suma "Solicitar a" y muestra fecha+hora del pedido).
+        $mine       = $_POST['mine'] ? $this->userId : null;
+        $withTarget = (bool) $_POST['withTarget'];
+
+        $ordenes = $this->qOrdenes([
             'companies_id' => $this->companiesId,
-            'branch_id'    => $_POST['branch_id']   ?? '',
-            'supplier_id'  => $_POST['supplier_id'] ?? '',
-            'status'       => $_POST['status']      ?? '',
-            'fi'           => $_POST['fi']           ?? '',
-            'ff'           => $_POST['ff']           ?? '',
-            'q'            => $_POST['q']            ?? '',
+            'branch_id'    => $_POST['branch_id'],
+            'supplier_id'  => $_POST['supplier_id'],
+            'status'       => $_POST['status'],
+            'fi'           => $_POST['fi'],
+            'ff'           => $_POST['ff'],
+            'q'            => $_POST['q'],
             'mine'         => $mine
         ]);
 
-        $row = [];
-        foreach ($rows as $r) {
-            $a = [
-                [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
-                    'onclick' => "app.selectOrden('{$r['folio']}', {$r['id']})"
-                ]
-            ];
-
+        $__row = [];
+        foreach ($ordenes as $orden) {
             $fila = [
-                'id'     => $r['id'],
-                'Folio'  => $r['folio'],
+                'id'     => $orden['id'],
+                'Folio'  => $orden['folio'],
                 'Fecha'  => $withTarget
-                    ? $this->fechaHoraSolicitud($r['created_at'] ?? $r['date_order'])
-                    : formatSpanishDate($r['date_order']),
-                'Estado' => $this->statusBadge($r['status']),
+                    ? $this->fechaHoraSolicitud($orden['created_at'] ?? $orden['date_order'])
+                    : formatSpanishDate($orden['date_order']),
             ];
 
             if ($withTarget) {
                 // Mismo formato que la columna "Destino" de traspasos: chip con la
                 // sucursal a la que se solicita (titulo) y el almacen como subtitulo.
-                $fila['Solicitar a'] = $this->sucChipCell($r['branch_id'], $r['branch_name'], $r['warehouse_name']);
+                $fila['Solicitar a'] = $this->sucChipCell($orden['branch_id'], $orden['branch_name'], $orden['warehouse_name']);
             }
 
-            $fila['Proveedor']  = $r['supplier_name'] ?: '<span class="italic text-gray-400">N/A</span>';
+            $fila['Proveedor']  = $orden['supplier_name'] ?: '<span class="italic text-gray-400">N/A</span>';
             if (!$withTarget) {
                 // En la gestion el almacen va en columna propia; en la vista
                 // solicitante ya queda embebido dentro del chip "Solicitar a".
-                $fila['Almacen'] = $r['warehouse_name'] ?: '-';
+                $fila['Almacen'] = $orden['warehouse_name'] ?: '-';
             }
-            $fila['Materiales'] = (int) $r['total_products'];
-            // $fila['Total']      = evaluar((float) $r['total_cost']);
-            $fila['a']          = $a;
+            $fila['Materiales'] = (int) $orden['total_products'];
+            // $fila['Total']      = evaluar((float) $orden['total_cost']);
+            $fila['a'] = [
+                [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
+                    'onclick' => "app.selectOrden('{$orden['folio']}', {$orden['id']})"
+                ]
+            ];
 
-            $row[] = $fila;
+            $__row[] = $fila;
         }
-        return ['status' => 200, 'row' => $row];
+
+        return ['status' => 200, 'row' => $__row, 'thead' => ''];
     }
 
     function showOrdenes() {
-        $mine = !empty($_POST['mine']) ? $this->userId : null;
+        $_POST += ['mine' => 0, 'branch_id' => '', 'supplier_id' => '', 'status' => '', 'fi' => '', 'ff' => '', 'q' => ''];
+
+        $mine = $_POST['mine'] ? $this->userId : null;
 
         $counts = $this->getOrdenKpis([
             'companies_id' => $this->companiesId,
-            'branch_id'    => $_POST['branch_id']   ?? '',
-            'supplier_id'  => $_POST['supplier_id'] ?? '',
-            'status'       => $_POST['status']      ?? '',
-            'fi'           => $_POST['fi']           ?? '',
-            'ff'           => $_POST['ff']           ?? '',
-            'q'            => $_POST['q']            ?? '',
+            'branch_id'    => $_POST['branch_id'],
+            'supplier_id'  => $_POST['supplier_id'],
+            'status'       => $_POST['status'],
+            'fi'           => $_POST['fi'],
+            'ff'           => $_POST['ff'],
+            'q'            => $_POST['q'],
             'mine'         => $mine
         ]);
         return ['status' => 200, 'counts' => $counts];
@@ -149,7 +150,9 @@ class ctrl extends mdl {
     }
 
     function createSupplier() {
-        $name = trim($_POST['name'] ?? '');
+        $_POST += ['name' => '', 'contact_name' => '', 'phone' => '', 'email' => ''];
+
+        $name = trim($_POST['name']);
         if ($name === '') {
             return ['status' => 400, 'message' => 'El nombre del proveedor es obligatorio'];
         }
@@ -167,9 +170,9 @@ class ctrl extends mdl {
 
         $ok = $this->insertSupplier([
             $name,
-            trim($_POST['contact_name'] ?? '') ?: null,
-            trim($_POST['phone']        ?? '') ?: null,
-            trim($_POST['email']        ?? '') ?: null,
+            trim($_POST['contact_name']) ?: null,
+            trim($_POST['phone']) ?: null,
+            trim($_POST['email']) ?: null,
             $this->companiesId
         ]);
         if (!$ok) return ['status' => 500, 'message' => 'No se pudo crear el proveedor'];
@@ -185,7 +188,9 @@ class ctrl extends mdl {
     }
 
     function saveOrden() {
-        $payload   = json_decode($_POST['payload'] ?? '[]', true);
+        $_POST += ['payload' => '[]'];
+
+        $payload   = json_decode($_POST['payload'], true);
         $productos = $payload['productos'] ?? [];
 
         if (empty($productos)) {
@@ -196,14 +201,13 @@ class ctrl extends mdl {
         $status = $submit ? 'Solicitada' : 'Borrador';
         $folio  = $this->nextFolio('OC-', 'purchase_order', $this->companiesId);
 
-        // Normaliza el desglose de impuesto igual que saveEntrada.
-        // El costo con impuesto es el valor pivote; la base se deriva.
+        // El costo con impuesto es el pivote; la base sin impuesto se deriva.
         // Si el solicitante no manda costo, los campos de costo quedan null.
         $norm = [];
-        foreach ($productos as $p) {
-            $tax  = ($p['tax']  ?? '') === '' || $p['tax']  === null ? 0.0  : (float) $p['tax'];
-            $base = ($p['price_without_tax'] ?? '') === '' || $p['price_without_tax'] === null ? null : (float) $p['price_without_tax'];
-            $cost = ($p['cost'] ?? '') === '' || $p['cost'] === null ? null : (float) $p['cost'];
+        foreach ($productos as $producto) {
+            $tax  = ($producto['tax']  ?? '') === '' || $producto['tax']  === null ? 0.0  : (float) $producto['tax'];
+            $base = ($producto['price_without_tax'] ?? '') === '' || $producto['price_without_tax'] === null ? null : (float) $producto['price_without_tax'];
+            $cost = ($producto['cost'] ?? '') === '' || $producto['cost'] === null ? null : (float) $producto['cost'];
 
             if ($cost !== null) {
                 $base = $tax > 0 ? $cost / (1 + $tax / 100) : $cost;
@@ -211,15 +215,14 @@ class ctrl extends mdl {
                 $cost = $base + ($base * $tax / 100);
                 $base = $tax > 0 ? $cost / (1 + $tax / 100) : $cost;
             }
-            // Si ambos son null el solicitante no ingresa costos -> se mantienen null.
 
             $norm[] = [
-                'product_id'        => (int) $p['product_id'],
-                'quantity'          => (float) $p['quantity'],
+                'product_id'        => (int) $producto['product_id'],
+                'quantity'          => (float) $producto['quantity'],
                 'price_without_tax' => $base,
                 'tax'               => $tax,
                 'cost'              => $cost,
-                'unit_id'           => !empty($p['unit_id']) ? (int) $p['unit_id'] : null
+                'unit_id'           => !empty($producto['unit_id']) ? (int) $producto['unit_id'] : null
             ];
         }
 
@@ -227,13 +230,13 @@ class ctrl extends mdl {
         $totalUnits    = 0;
         $totalCost     = 0.0;
         $totalBase     = 0.0;
-        foreach ($norm as $p) {
-            $totalUnits += $p['quantity'];
-            if ($p['cost'] !== null) {
-                $totalCost += $p['quantity'] * $p['cost'];
+        foreach ($norm as $renglon) {
+            $totalUnits += $renglon['quantity'];
+            if ($renglon['cost'] !== null) {
+                $totalCost += $renglon['quantity'] * $renglon['cost'];
             }
-            if ($p['price_without_tax'] !== null) {
-                $totalBase += $p['quantity'] * $p['price_without_tax'];
+            if ($renglon['price_without_tax'] !== null) {
+                $totalBase += $renglon['quantity'] * $renglon['price_without_tax'];
             }
         }
 
@@ -257,23 +260,23 @@ class ctrl extends mdl {
 
         if (!$ok) return ['status' => 500, 'message' => 'No se pudo registrar la orden'];
 
-        // _CUD no devuelve el id generado; lo recuperamos por folio.
+        // _CUD no devuelve el id generado; se recupera por folio.
         $ordenRow = $this->_Read(
             "SELECT id FROM {$this->bd}purchase_order WHERE folio = ? AND companies_id = ? LIMIT 1",
             [$folio, $this->companiesId]
         );
         $ordenId = (int) ($ordenRow[0]['id'] ?? 0);
 
-        foreach ($norm as $p) {
-            $subtotal = ($p['cost'] !== null) ? $p['quantity'] * $p['cost'] : 0.0;
+        foreach ($norm as $renglon) {
+            $subtotal = ($renglon['cost'] !== null) ? $renglon['quantity'] * $renglon['cost'] : 0.0;
             $this->insertOrdenDetail([
                 $ordenId,
-                $p['product_id'],
-                $p['unit_id'],
-                $p['quantity'],
-                $p['price_without_tax'],
-                $p['tax'],
-                $p['cost'],
+                $renglon['product_id'],
+                $renglon['unit_id'],
+                $renglon['quantity'],
+                $renglon['price_without_tax'],
+                $renglon['tax'],
+                $renglon['cost'],
                 $subtotal
             ]);
         }
@@ -290,6 +293,8 @@ class ctrl extends mdl {
     // Estrategia edit: soft-delete de renglones anteriores + reinsercion.
     // Garantiza quantity_received = 0 en renglones nuevos (OC no aprobada).
     function editOrden() {
+        $_POST += ['payload' => '[]'];
+
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
@@ -300,7 +305,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Solo se puede editar una orden en estado Borrador o Solicitada'];
         }
 
-        $payload   = json_decode($_POST['payload'] ?? '[]', true);
+        $payload   = json_decode($_POST['payload'], true);
         $productos = $payload['productos'] ?? [];
 
         if (empty($productos)) {
@@ -310,10 +315,10 @@ class ctrl extends mdl {
         $this->softDeleteOrdenDetails([$id]);
 
         $norm = [];
-        foreach ($productos as $p) {
-            $tax  = ($p['tax']  ?? '') === '' || $p['tax']  === null ? 0.0  : (float) $p['tax'];
-            $base = ($p['price_without_tax'] ?? '') === '' || $p['price_without_tax'] === null ? null : (float) $p['price_without_tax'];
-            $cost = ($p['cost'] ?? '') === '' || $p['cost'] === null ? null : (float) $p['cost'];
+        foreach ($productos as $producto) {
+            $tax  = ($producto['tax']  ?? '') === '' || $producto['tax']  === null ? 0.0  : (float) $producto['tax'];
+            $base = ($producto['price_without_tax'] ?? '') === '' || $producto['price_without_tax'] === null ? null : (float) $producto['price_without_tax'];
+            $cost = ($producto['cost'] ?? '') === '' || $producto['cost'] === null ? null : (float) $producto['cost'];
 
             if ($cost !== null) {
                 $base = $tax > 0 ? $cost / (1 + $tax / 100) : $cost;
@@ -323,12 +328,12 @@ class ctrl extends mdl {
             }
 
             $norm[] = [
-                'product_id'        => (int) $p['product_id'],
-                'quantity'          => (float) $p['quantity'],
+                'product_id'        => (int) $producto['product_id'],
+                'quantity'          => (float) $producto['quantity'],
                 'price_without_tax' => $base,
                 'tax'               => $tax,
                 'cost'              => $cost,
-                'unit_id'           => !empty($p['unit_id']) ? (int) $p['unit_id'] : null
+                'unit_id'           => !empty($producto['unit_id']) ? (int) $producto['unit_id'] : null
             ];
         }
 
@@ -336,26 +341,26 @@ class ctrl extends mdl {
         $totalUnits    = 0;
         $totalCost     = 0.0;
         $totalBase     = 0.0;
-        foreach ($norm as $p) {
-            $totalUnits += $p['quantity'];
-            if ($p['cost'] !== null) {
-                $totalCost += $p['quantity'] * $p['cost'];
+        foreach ($norm as $renglon) {
+            $totalUnits += $renglon['quantity'];
+            if ($renglon['cost'] !== null) {
+                $totalCost += $renglon['quantity'] * $renglon['cost'];
             }
-            if ($p['price_without_tax'] !== null) {
-                $totalBase += $p['quantity'] * $p['price_without_tax'];
+            if ($renglon['price_without_tax'] !== null) {
+                $totalBase += $renglon['quantity'] * $renglon['price_without_tax'];
             }
         }
 
-        foreach ($norm as $p) {
-            $subtotal = ($p['cost'] !== null) ? $p['quantity'] * $p['cost'] : 0.0;
+        foreach ($norm as $renglon) {
+            $subtotal = ($renglon['cost'] !== null) ? $renglon['quantity'] * $renglon['cost'] : 0.0;
             $this->insertOrdenDetail([
                 $id,
-                $p['product_id'],
-                $p['unit_id'],
-                $p['quantity'],
-                $p['price_without_tax'],
-                $p['tax'],
-                $p['cost'],
+                $renglon['product_id'],
+                $renglon['unit_id'],
+                $renglon['quantity'],
+                $renglon['price_without_tax'],
+                $renglon['tax'],
+                $renglon['cost'],
                 $subtotal
             ]);
         }
@@ -399,10 +404,10 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Solo se puede enviar una orden en estado Borrador'];
         }
 
-        $r = $this->updateOrdenStatus(['Solicitada', $id]);
+        $ok = $this->updateOrdenStatus(['Solicitada', $id]);
         return [
-            'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Solicitud enviada para aprobacion' : 'No se pudo actualizar el estado'
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Solicitud enviada para aprobacion' : 'No se pudo actualizar el estado'
         ];
     }
 
@@ -418,14 +423,16 @@ class ctrl extends mdl {
             return ['status' => 403, 'message' => 'Solo la sucursal de destino puede aprobar esta solicitud'];
         }
 
-        $r = $this->updateOrdenStatusApprove(['Aprobada', $this->userId, $id]);
+        $ok = $this->updateOrdenStatusApprove(['Aprobada', $this->userId, $id]);
         return [
-            'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Orden aprobada' : 'No se pudo aprobar la orden'
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Orden aprobada' : 'No se pudo aprobar la orden'
         ];
     }
 
     function rejectOrden() {
+        $_POST += ['reason' => ''];
+
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
@@ -437,59 +444,56 @@ class ctrl extends mdl {
             return ['status' => 403, 'message' => 'Solo la sucursal de destino puede rechazar esta solicitud'];
         }
 
-        $reason = trim($_POST['reason'] ?? '');
-        $r = $this->updateOrdenStatusReject([$this->userId, $reason ?: null, $id]);
+        $reason = trim($_POST['reason']);
+        $ok = $this->updateOrdenStatusReject([$this->userId, $reason ?: null, $id]);
         return [
-            'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Orden rechazada' : 'No se pudo rechazar la orden'
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Orden rechazada' : 'No se pudo rechazar la orden'
         ];
     }
 
     function receiveOrden() {
-        $id        = (int) $_POST['id'];
-        $header    = $this->qGetOrden([$id]);
+        $_POST += ['warehouse_id' => 0, 'items' => '{}', 'note' => ''];
+
+        $id     = (int) $_POST['id'];
+        $header = $this->qGetOrden([$id]);
 
         if (!$header) return ['status' => 404, 'message' => 'Orden no encontrada'];
         if (!in_array($header['status'], ['Aprobada', 'Parcial'], true)) {
             return ['status' => 400, 'message' => 'Solo se puede recibir una orden Aprobada o Parcial'];
         }
 
-        // El warehouse destino puede venir del POST (cuando la OC no lo tenia definido)
-        // o del propio header de la OC.
-        $warehouseId = !empty($_POST['warehouse_id'])
-            ? (int) $_POST['warehouse_id']
-            : (int) $header['warehouse_id'];
+        $warehouseId = $_POST['warehouse_id'] ? (int) $_POST['warehouse_id'] : (int) $header['warehouse_id'];
 
         if ($warehouseId <= 0) {
             return ['status' => 400, 'message' => 'Se requiere un almacen de destino para recibir la orden'];
         }
 
-        // Si la OC no tenia almacen, lo fijamos ahora para trazabilidad.
         if (empty($header['warehouse_id'])) {
             $this->updateOrdenWarehouse([$warehouseId, $id]);
         }
 
-        $items = json_decode($_POST['items'] ?? '{}', true);
+        $items = json_decode($_POST['items'], true);
         if (!is_array($items) || empty($items)) {
             return ['status' => 400, 'message' => 'No se indicaron materiales a recibir'];
         }
 
-        $detail = $this->qGetOrdenDetail([$id]);
-        if (empty($detail)) return ['status' => 400, 'message' => 'La orden no tiene renglones'];
+        $detalle = $this->qGetOrdenDetail([$id]);
+        if (empty($detalle)) return ['status' => 400, 'message' => 'La orden no tiene renglones'];
 
-        // Valida y clampea cantidades al pendiente real de cada renglon.
+        // Valida y clampea cada cantidad al pendiente real del renglon.
         $toReceive = [];
-        foreach ($detail as $d) {
-            $detailId  = (string) $d['id'];
+        foreach ($detalle as $renglon) {
+            $detailId = (string) $renglon['id'];
             if (!array_key_exists($detailId, $items)) continue;
 
-            $pending = (float) $d['quantity_ordered'] - (float) $d['quantity_received'];
+            $pending = (float) $renglon['quantity_ordered'] - (float) $renglon['quantity_received'];
             if ($pending <= 0) continue;
 
             $qtyNow = max(0, min((float) $items[$detailId], $pending));
             if ($qtyNow <= 0) continue;
 
-            $toReceive[] = array_merge($d, ['qty_now' => $qtyNow]);
+            $toReceive[] = array_merge($renglon, ['qty_now' => $qtyNow]);
         }
 
         if (empty($toReceive)) {
@@ -497,18 +501,18 @@ class ctrl extends mdl {
         }
 
         $entFolio = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId);
-        $note     = trim($_POST['note'] ?? '') ?: 'Recepcion de OC ' . $header['folio'];
+        $note     = trim($_POST['note']) ?: 'Recepcion de OC ' . $header['folio'];
 
-        $totalProds  = count($toReceive);
-        $totalUnits  = 0;
-        $totalCost   = 0.0;
-        $totalBase   = 0.0;
-        foreach ($toReceive as $r) {
-            $cost = $r['cost'] !== null ? (float) $r['cost'] : 0.0;
-            $base = $r['price_without_tax'] !== null ? (float) $r['price_without_tax'] : 0.0;
-            $totalUnits += $r['qty_now'];
-            $totalCost  += $r['qty_now'] * $cost;
-            $totalBase  += $r['qty_now'] * $base;
+        $totalProds = count($toReceive);
+        $totalUnits = 0;
+        $totalCost  = 0.0;
+        $totalBase  = 0.0;
+        foreach ($toReceive as $linea) {
+            $cost = $linea['cost'] !== null ? (float) $linea['cost'] : 0.0;
+            $base = $linea['price_without_tax'] !== null ? (float) $linea['price_without_tax'] : 0.0;
+            $totalUnits += $linea['qty_now'];
+            $totalCost  += $linea['qty_now'] * $cost;
+            $totalBase  += $linea['qty_now'] * $base;
         }
 
         $originId = 1; // inflow_origin COMPRA
@@ -563,7 +567,7 @@ class ctrl extends mdl {
                 $post,
                 $productId,
                 $inflowId,
-                $r['unit_id'] ?: null
+                $linea['unit_id'] ?: null
             ]);
 
             if ($cost > 0) {
@@ -590,13 +594,13 @@ class ctrl extends mdl {
         $newStatus = $allReceived ? 'Recibida' : ($anyReceived ? 'Parcial' : $header['status']);
         $this->updateOrdenStatus([$newStatus, $id]);
 
-        $udsTxt  = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
+        $udsTxt = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
 
         return [
-            'status'       => 200,
-            'message'      => "Recepcion registrada: entrada {$entFolio} generada, {$totalProds} materiales, {$udsTxt} uds. Orden ahora {$newStatus}",
-            'entrada_folio'=> $entFolio,
-            'orden_status' => $newStatus
+            'status'        => 200,
+            'message'       => "Recepcion registrada: entrada {$entFolio} generada, {$totalProds} materiales, {$udsTxt} uds. Orden ahora {$newStatus}",
+            'entrada_folio' => $entFolio,
+            'orden_status'  => $newStatus
         ];
     }
 
@@ -614,10 +618,10 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'La orden ya esta cancelada'];
         }
 
-        $r = $this->updateOrdenStatus(['Cancelada', $id]);
+        $ok = $this->updateOrdenStatus(['Cancelada', $id]);
         return [
-            'status'  => $r ? 200 : 500,
-            'message' => $r ? 'Orden cancelada' : 'No se pudo cancelar la orden'
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Orden cancelada' : 'No se pudo cancelar la orden'
         ];
     }
 
@@ -696,12 +700,14 @@ class ctrl extends mdl {
     }
 
     function stockByWarehouse() {
-        $warehouseId = (int) ($_POST['warehouse_id'] ?? 0);
+        $_POST += ['warehouse_id' => 0];
+
+        $warehouseId = (int) $_POST['warehouse_id'];
         if ($warehouseId <= 0) return ['status' => 400, 'message' => 'Almacen no valido'];
 
         $map = [];
-        foreach ($this->qStockByWarehouse([$warehouseId]) as $r) {
-            $map[(string) $r['item_id']] = (float) $r['quantity'];
+        foreach ($this->qStockByWarehouse([$warehouseId]) as $registro) {
+            $map[(string) $registro['item_id']] = (float) $registro['quantity'];
         }
         return ['status' => 200, 'stock' => $map];
     }
@@ -709,6 +715,8 @@ class ctrl extends mdl {
     // Surtido inter-sucursal: reabasto opcional (ENT-) + salida (SI-, motivo SURTIDO_SUC).
     // Clampeado al pendiente y al stock real. Todo en una transaccion atomica.
     function fulfillOrden() {
+        $_POST += ['warehouse_id' => 0, 'items' => '{}', 'replenish' => '{}', 'note' => ''];
+
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
@@ -720,9 +728,7 @@ class ctrl extends mdl {
             return ['status' => 403, 'message' => 'Solo la sucursal de destino puede surtir esta solicitud'];
         }
 
-        $warehouseId = !empty($_POST['warehouse_id'])
-            ? (int) $_POST['warehouse_id']
-            : (int) $header['warehouse_id'];
+        $warehouseId = $_POST['warehouse_id'] ? (int) $_POST['warehouse_id'] : (int) $header['warehouse_id'];
         if ($warehouseId <= 0) {
             return ['status' => 400, 'message' => 'Se requiere un almacen de origen para surtir'];
         }
@@ -730,20 +736,20 @@ class ctrl extends mdl {
         $items = json_decode($_POST['items'] ?? '{}', true);
         if (!is_array($items)) $items = [];
 
-        $detail = $this->qGetOrdenDetail([$id]);
-        if (empty($detail)) return ['status' => 400, 'message' => 'La solicitud no tiene renglones'];
+        $detalle = $this->qGetOrdenDetail([$id]);
+        if (empty($detalle)) return ['status' => 400, 'message' => 'La solicitud no tiene renglones'];
 
         $reasonId = $this->getShrinkageReasonId(['SURTIDO_SUC']);
         if (!$reasonId) return ['status' => 500, 'message' => 'Falta configurar el motivo de salida (SURTIDO_SUC)'];
 
         $byId = [];
-        foreach ($detail as $d) $byId[(string) $d['id']] = $d;
+        foreach ($detalle as $renglon) $byId[(string) $renglon['id']] = $renglon;
 
         try {
             return $this->transaction(function () use ($id, $header, $warehouseId, $items, $byId, $reasonId) {
                 if (empty($header['warehouse_id'])) $this->updateOrdenWarehouse([$warehouseId, $id]);
 
-                $note = trim($_POST['note'] ?? '') ?: ('Surtido de solicitud ' . $header['folio']);
+                $note = trim($_POST['note']) ?: ('Surtido de solicitud ' . $header['folio']);
 
                 // Se surte el pendiente completo aunque el stock no alcance: el almacen
                 // queda en deficit (negativo) y el faltante (qtyNow - disponible) genera una
@@ -755,11 +761,11 @@ class ctrl extends mdl {
                     $detailId = (string) $detailId;
                     if (!isset($byId[$detailId])) continue;
 
-                    $d       = $byId[$detailId];
-                    $pending = (float) $d['quantity_ordered'] - (float) $d['quantity_received'];
+                    $renglon = $byId[$detailId];
+                    $pending = (float) $renglon['quantity_ordered'] - (float) $renglon['quantity_received'];
                     if ($pending <= 0) continue;
 
-                    $pid = (int) $d['product_id'];
+                    $pid = (int) $renglon['product_id'];
                     if (!isset($stockCache[$pid])) {
                         $sr = $this->getStockRow([$pid, $warehouseId]);
                         $stockCache[$pid] = ['id' => $sr ? (int) $sr['id'] : 0, 'qty' => $sr ? (float) $sr['quantity'] : 0.0];
@@ -774,12 +780,12 @@ class ctrl extends mdl {
                     $stockCache[$pid]['qty'] = $post;
 
                     $faltante = $qtyNow - $avail;          // lo que no se tenia -> a comprar
-                    if ($faltante > 0) $faltantes[] = ['detail' => $d, 'qty' => $faltante];
+                    if ($faltante > 0) $faltantes[] = ['detail' => $renglon, 'qty' => $faltante];
 
                     $toSupply[] = [
-                        'detail_row_id' => (int) $d['id'],
+                        'detail_row_id' => (int) $renglon['id'],
                         'product_id'    => $pid,
-                        'cost'          => $d['cost'] !== null ? (float) $d['cost'] : 0.0,
+                        'cost'          => $renglon['cost'] !== null ? (float) $renglon['cost'] : 0.0,
                         'qty'           => $qtyNow,
                         'prev'          => $prev,
                         'post'          => $post,
@@ -795,9 +801,9 @@ class ctrl extends mdl {
                 $totProds = count($toSupply);
                 $totUnits = 0;
                 $totCost  = 0.0;
-                foreach ($toSupply as $r) {
-                    $totUnits += $r['qty'];
-                    $totCost  += $r['qty'] * $r['cost'];
+                foreach ($toSupply as $linea) {
+                    $totUnits += $linea['qty'];
+                    $totCost  += $linea['qty'] * $linea['cost'];
                 }
 
                 $this->insertShrinkageFromOrden([
@@ -812,15 +818,15 @@ class ctrl extends mdl {
                 $shrId = (int) ($shrRow[0]['id'] ?? 0);
                 if ($shrId <= 0) throw new Exception('No se pudo generar la salida de surtido');
 
-                foreach ($toSupply as $r) {
+                foreach ($toSupply as $linea) {
                     $this->insertShrinkageDetail([
-                        $r['qty'], $r['cost'], $r['qty'] * $r['cost'], $r['prev'], $r['post'], $r['product_id'], $shrId
+                        $linea['qty'], $linea['cost'], $linea['qty'] * $linea['cost'], $linea['prev'], $linea['post'], $linea['product_id'], $shrId
                     ]);
                     // Si el producto no tenia fila de stock en el almacen, se crea con el
                     // valor resultante (que puede ser negativo: refleja el deficit a cubrir).
-                    if ($r['stock_id'] > 0) $this->updateStockQuantity([$r['post'], $r['stock_id']]);
-                    else                    $this->insertStockRow([$r['post'], $warehouseId, $r['product_id'], $this->companiesId]);
-                    $this->updateDetailReceived([$r['qty'], $r['detail_row_id']]);
+                    if ($linea['stock_id'] > 0) $this->updateStockQuantity([$linea['post'], $linea['stock_id']]);
+                    else                        $this->insertStockRow([$linea['post'], $warehouseId, $linea['product_id'], $this->companiesId]);
+                    $this->updateDetailReceived([$linea['qty'], $linea['detail_row_id']]);
                 }
 
                 // El faltante genera una OC de reabasto pendiente (la compra a registrar).
@@ -829,9 +835,9 @@ class ctrl extends mdl {
                 $detailUpdated = $this->qGetOrdenDetail([$id]);
                 $allDone = true;
                 $anyDone = false;
-                foreach ($detailUpdated as $d) {
-                    if ((float) $d['quantity_received'] > 0) $anyDone = true;
-                    if ((float) $d['quantity_received'] < (float) $d['quantity_ordered']) $allDone = false;
+                foreach ($detailUpdated as $renglon) {
+                    if ((float) $renglon['quantity_received'] > 0) $anyDone = true;
+                    if ((float) $renglon['quantity_received'] < (float) $renglon['quantity_ordered']) $allDone = false;
                 }
                 $newStatus = $allDone ? 'Recibida' : ($anyDone ? 'Parcial' : $header['status']);
                 $this->updateOrdenStatus([$newStatus, $id]);
