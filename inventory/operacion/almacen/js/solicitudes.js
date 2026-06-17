@@ -357,17 +357,18 @@ class Solicitudes extends Templates {
             coffeesoft:  true,
             conf:        { datatable: true, pag: 15 },
             data: {
-                opc:    'lsOrdenes',
-                mine:   1,
-                status: f.status,
-                fi:     f.fechaIni,
-                ff:     f.fechaFin
+                opc:        'lsOrdenes',
+                mine:       1,
+                withTarget: 1,
+                status:     f.status,
+                fi:         f.fechaIni,
+                ff:         f.fechaFin
             },
             attr: {
                 id:           `tb${this.PROJECT_NAME}`,
                 theme:        'light',
                 f_size:       12,
-                center:       [3, 4, 5],
+                center:       [3, 4, 5, 6],
                 emptyMessage: 'No se encontraron solicitudes con los filtros aplicados',
                 emptyIcon:    'icon-clipboard-list'
             }
@@ -552,7 +553,7 @@ class SolicitudesView extends Templates {
                 this.renderDetail(null);
                 $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
             },
-            onDuplicate: (o) => this.openSolicitudForm(o),
+            onCancel:    (o) => this.cancelSolicitud(o),
             onShare:     (o) => this.openShareSheet(o)
         });
     }
@@ -580,6 +581,13 @@ class SolicitudesView extends Templates {
         const $footer  = $('#mobileDetailFooter');
         if (!$content.length) return;
 
+        // No se puede cancelar una solicitud ya finalizada.
+        const cancelable = !['Recibida', 'Cancelada', 'Rechazada'].includes(orden.status || '');
+        const cancelBtn  = cancelable ? `
+            <button id="mobileDetailCancel" class="flex-1 px-3.5 py-2.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 border" style="border-color:#DC2626;color:#DC2626">
+                <i data-lucide="ban" class="w-3.5 h-3.5"></i> Cancelar
+            </button>` : '';
+
         $content.html(this.buildMobileDetailHtml(orden));
         $footer.html(`
             <button id="mobileDetailBack" class="flex-1 px-3.5 py-2.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg flex items-center justify-center gap-1.5">
@@ -588,19 +596,14 @@ class SolicitudesView extends Templates {
             <button id="mobileDetailShare" class="flex-1 px-3.5 py-2.5 text-xs font-semibold text-white rounded-lg flex items-center justify-center gap-1.5" style="background:#25D366">
                 <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Compartir
             </button>
-            <button id="mobileDetailDuplicate" class="flex-1 px-3.5 py-2.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 border" style="border-color:#C05A40;color:#C05A40">
-                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Duplicar
-            </button>
+            ${cancelBtn}
         `);
 
         if (window.lucide) lucide.createIcons();
 
         $('#mobileDetailBack').on('click', () => { $('#mobileDetailOverlay').remove(); });
         $('#mobileDetailShare').on('click', () => { this.openShareSheet(orden); });
-        $('#mobileDetailDuplicate').on('click', () => {
-            $('#mobileDetailOverlay').remove();
-            this.openSolicitudForm(orden);
-        });
+        if (cancelable) $('#mobileDetailCancel').on('click', () => { this.cancelSolicitud(orden); });
     }
 
     buildSystemLink(e) {
@@ -646,22 +649,43 @@ class SolicitudesView extends Templates {
         return lines.join('\n');
     }
 
-    // Hoja de seleccion: deja elegir entre compartir un mensaje de texto
-    // (con la liga al sistema) o generar un comprobante tipo ticket.
+    // Hoja de seleccion: compartir por WhatsApp (texto + liga), compartir el
+    // ticket como imagen (solo en dispositivos que pueden compartir archivos,
+    // p.ej. WhatsApp en celular) o abrir el comprobante para imprimir / PDF.
     openShareSheet(e) {
         if (!e) return;
         const esc      = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const modalId  = 'modalShareSolicitud';
-        const isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 767px)').matches);
+        // ¿El dispositivo puede compartir imagenes? (WhatsApp en celular). En
+        // escritorio normalmente no, por eso ahi se oculta el ticket en imagen.
+        const canShareImage = (() => {
+            try {
+                const probe = new File([''], 'probe.png', { type: 'image/png' });
+                return !!(navigator.canShare && navigator.canShare({ files: [probe] }));
+            } catch (_) { return false; }
+        })();
         $(`#${modalId}`).remove();
 
-        // "Enviar mensaje" (WhatsApp) solo en movil; en escritorio se oculta.
-        const msgBtn = isMobile ? `
+        // WhatsApp (texto + liga): disponible siempre. En celular usa el
+        // compartir nativo; en escritorio abre WhatsApp Web (wa.me).
+        const msgBtn = `
                         <button id="${modalId}_msg" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-[#25D366] hover:bg-green-50/40 transition-all text-left">
                             <span class="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style="background:#25D366"><i data-lucide="message-circle" class="w-5 h-5"></i></span>
                             <span class="min-w-0 flex-1">
-                                <span class="block text-sm font-semibold text-gray-800">Enviar mensaje</span>
+                                <span class="block text-sm font-semibold text-gray-800">WhatsApp</span>
                                 <span class="block text-[11px] text-gray-500">Resumen de texto con la liga del sistema</span>
+                            </span>
+                            <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 flex-shrink-0"></i>
+                        </button>`;
+
+        // Ticket en imagen: solo cuando el dispositivo puede compartir archivos
+        // (WhatsApp en celular). En escritorio se omite.
+        const docBtn = canShareImage ? `
+                        <button id="${modalId}_doc" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-[#C05A40] hover:bg-orange-50/40 transition-all text-left">
+                            <span class="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style="background:#C05A40"><i data-lucide="receipt" class="w-5 h-5"></i></span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-sm font-semibold text-gray-800">Enviar ticket</span>
+                                <span class="block text-[11px] text-gray-500">Comprobante en imagen, listo para mandar por chat</span>
                             </span>
                             <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 flex-shrink-0"></i>
                         </button>` : '';
@@ -680,14 +704,7 @@ class SolicitudesView extends Templates {
                     </div>
                     <div class="p-4 space-y-3">
                         ${msgBtn}
-                        <button id="${modalId}_doc" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-[#C05A40] hover:bg-orange-50/40 transition-all text-left">
-                            <span class="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style="background:#C05A40"><i data-lucide="receipt" class="w-5 h-5"></i></span>
-                            <span class="min-w-0 flex-1">
-                                <span class="block text-sm font-semibold text-gray-800">Enviar ticket</span>
-                                <span class="block text-[11px] text-gray-500">Comprobante en imagen, listo para mandar por chat</span>
-                            </span>
-                            <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 flex-shrink-0"></i>
-                        </button>
+                        ${docBtn}
                         <button id="${modalId}_print" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all text-left">
                             <span class="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style="background:#374151"><i data-lucide="printer" class="w-5 h-5"></i></span>
                             <span class="min-w-0 flex-1">
@@ -707,8 +724,8 @@ class SolicitudesView extends Templates {
         const close = () => $(`#${modalId}`).remove();
         $(`#${modalId}_close`).on('click', close);
         $modal.on('click', (ev) => { if ($(ev.target).is(`#${modalId}`)) close(); });
-        if (isMobile) $(`#${modalId}_msg`).on('click', () => { close(); this.shareMessage(e); });
-        $(`#${modalId}_doc`).on('click',   () => { close(); this.shareDocument(e); });
+        $(`#${modalId}_msg`).on('click', () => { close(); this.shareMessage(e); });
+        if (canShareImage) $(`#${modalId}_doc`).on('click', () => { close(); this.shareDocument(e); });
         $(`#${modalId}_print`).on('click', () => { close(); this.printDocument(e); });
     }
 
@@ -907,18 +924,12 @@ class SolicitudesView extends Templates {
                 }
             }
 
-            // Sin Web Share de archivos (escritorio): descarga la imagen para adjuntarla.
-            const url = URL.createObjectURL(blob);
-            const a   = document.createElement('a');
-            a.href = url; a.download = fileName;
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1500);
-
+            // Sin Web Share de archivos (escritorio): ya no se descarga la
+            // imagen. Se sugiere usar Imprimir / PDF para el comprobante.
             this.alertBox({
-                type:       'success',
-                title:      'Ticket generado',
-                detailHtml: 'Se descargo la imagen del ticket para que la adjuntes en tu chat.',
-                timer:      2600
+                type:       'warning',
+                title:      'Este dispositivo no puede compartir la imagen',
+                detailHtml: 'Usa la opción <strong>Imprimir / PDF</strong> para generar el comprobante.'
             });
         }, 'image/png');
     }
@@ -1170,7 +1181,7 @@ class SolicitudesView extends Templates {
                 materiales:    'Materiales',
                 pedido:        'Pedido',
                 recibido:      'Recibido',
-                duplicar:      'Duplicar solicitud',
+                cancelar:      'Cancelar solicitud',
                 compartir:     'Compartir',
                 cerrar:        'Cerrar'
             },
@@ -1184,7 +1195,7 @@ class SolicitudesView extends Templates {
                 'Cancelada':  { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' }
             },
             onClose:     () => {},
-            onDuplicate: () => {},
+            onCancel:    () => {},
             onShare:     () => {}
         };
 
@@ -1342,9 +1353,10 @@ class SolicitudesView extends Templates {
                 <button id="${opts.id}_share" class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity" style="background:#25D366">
                     <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> ${esc(opts.labels.compartir)}
                 </button>
-                <button id="${opts.id}_duplicate" class="flex-1 px-3 py-1.5 text-[11px] font-semibold rounded-lg border flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity" style="border-color:#C05A40;color:#C05A40">
-                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> ${esc(opts.labels.duplicar)}
-                </button>
+                ${(!['Recibida', 'Cancelada', 'Rechazada'].includes(status)) ? `
+                <button id="${opts.id}_cancel" class="flex-1 px-3 py-1.5 text-[11px] font-semibold rounded-lg border flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity" style="border-color:#DC2626;color:#DC2626">
+                    <i data-lucide="ban" class="w-3.5 h-3.5"></i> ${esc(opts.labels.cancelar)}
+                </button>` : ''}
             </div>
         `);
 
@@ -1353,7 +1365,7 @@ class SolicitudesView extends Templates {
 
         $(`#${opts.id}_close`).on('click', () => opts.onClose(e));
         $(`#${opts.id}_share`).on('click', () => opts.onShare(e));
-        $(`#${opts.id}_duplicate`).on('click', () => opts.onDuplicate(e));
+        $(`#${opts.id}_cancel`).on('click', () => opts.onCancel(e));
     }
 
     viewHeader(options) {
@@ -1515,7 +1527,11 @@ class SolicitudesView extends Templates {
             style.textContent = `
                 input.no-spin::-webkit-inner-spin-button,
                 input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none !important; appearance: none !important; margin: 0 !important; }
-                input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }`;
+                input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }
+                .prod-result.sol-cat-active { background: rgba(192,90,64,0.10); box-shadow: inset 0 0 0 1px rgba(192,90,64,0.45); }
+                @keyframes solFlash { 0% { background-color: rgba(16,185,129,0.20); } 100% { background-color: transparent; } }
+                tr.sol-flash { animation: solFlash 0.6s ease-out; }
+                .sol-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid #D1D5DB; background: #F3F4F6; font-size: 9px; line-height: 1; color: #6B7280; font-family: monospace; }`;
             document.head.appendChild(style);
         }
 
@@ -1544,7 +1560,7 @@ class SolicitudesView extends Templates {
                                 <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Solicitar a</label>
                                 <div class="relative">
                                     <select id="${modalId}_selSucursal" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8">
-                                        ${sucursales.map(s => `<option value="${esc(s.id)}"${String(s.id) === branchId ? ' selected' : ''}>${esc(s.valor)}</option>`).join('')}
+                                        ${sucursales.filter(s => String(s.id) !== branchId).map(s => `<option value="${esc(s.id)}">${esc(s.valor)}</option>`).join('')}
                                     </select>
                                     <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 flex items-center">
                                         <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
@@ -1561,7 +1577,11 @@ class SolicitudesView extends Templates {
                     <div class="px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0">
                         <div class="relative">
                             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center"><i data-lucide="search" class="w-4 h-4"></i></span>
-                            <input type="text" id="${modalId}_search" autocomplete="off" placeholder="Buscar materiales por nombre o SKU..." class="w-full pl-9 pr-3 py-2.5 text-sm text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400">
+                            <input type="text" id="${modalId}_search" autocomplete="off" placeholder="Buscar materiales por nombre o SKU..." class="w-full pl-9 pr-36 py-2.5 text-sm text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400">
+                            <div class="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1.5 text-[10px] text-gray-400 pointer-events-none">
+                                <span class="sol-kbd">&uarr;&darr;</span><span>navegar</span>
+                                <span class="sol-kbd">Enter</span><span>agregar</span>
+                            </div>
                             <div id="${modalId}_results" class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden max-h-72 overflow-y-auto divide-y divide-gray-100"></div>
                         </div>
                     </div>
@@ -1676,19 +1696,54 @@ class SolicitudesView extends Templates {
         const $search  = $(`#${modalId}_search`);
         const $results = $(`#${modalId}_results`);
 
-        $search.on('input', function () {
-            const q = $(this).val().trim().toLowerCase();
-            if (!q) { $results.addClass('hidden').html(''); return; }
-            const found = productos.filter(p =>
-                p.nombre.toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase().includes(q))
+        // Estado de la busqueda: catalogItems es el orden EXACTO en que se
+        // pintan los .prod-result (highlightActive y la navegacion con flechas
+        // indexan por posicion); activeIdx es el resultado resaltado.
+        let catalogItems = [];
+        let activeIdx    = 0;
+
+        // Resalta el resultado activo y lo trae a la vista (navegacion ↑/↓).
+        const highlightActive = () => {
+            const $items = $results.find('.prod-result');
+            $items.removeClass('sol-cat-active');
+            const $a = $items.eq(activeIdx);
+            $a.addClass('sol-cat-active');
+            if ($a.length && $a[0].scrollIntoView) $a[0].scrollIntoView({ block: 'nearest' });
+        };
+
+        // Animacion al agregar/incrementar una fila (reinicia el flash si se
+        // re-escanea el mismo material).
+        const flashRow = (idx) => {
+            const $row = $(`#${modalId}_tbody tr[data-idx="${idx}"]`);
+            if (!$row.length) return;
+            $row.removeClass('sol-flash');
+            void $row[0].offsetWidth;
+            $row.addClass('sol-flash');
+        };
+
+        const resetSearch = () => {
+            catalogItems = [];
+            activeIdx    = 0;
+            $search.val('');
+            $results.addClass('hidden').html('');
+        };
+
+        const renderResults = (raw) => {
+            const q = String(raw == null ? '' : raw).trim().toLowerCase();
+            if (!q) { catalogItems = []; activeIdx = 0; $results.addClass('hidden').html(''); return; }
+
+            catalogItems = productos.filter(p =>
+                (p.nombre || '').toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase().includes(q))
             ).slice(0, 20);
-            if (!found.length) {
+            if (activeIdx >= catalogItems.length) activeIdx = Math.max(0, catalogItems.length - 1);
+
+            if (!catalogItems.length) {
                 $results.removeClass('hidden').html(`<div class="px-3 py-2 text-xs text-gray-400 italic">Sin resultados</div>`);
                 return;
             }
-            $results.removeClass('hidden').html(found.map(p => `
+            $results.removeClass('hidden').html(catalogItems.map((p, i) => `
                 <div class="prod-result flex items-center justify-between px-3 py-2.5 hover:bg-blue-50/60 cursor-pointer transition-all border-b border-gray-100 last:border-b-0"
-                     data-id="${p.id}" data-nombre="${esc(p.nombre)}" data-sku="${esc(p.sku || '')}">
+                     data-cat-idx="${i}">
                     <div class="flex items-center gap-2">
                         <span class="w-7 h-7 rounded bg-gray-100 flex items-center justify-center">
                             <i data-lucide="package" class="w-3.5 h-3.5 text-gray-500"></i>
@@ -1704,25 +1759,77 @@ class SolicitudesView extends Templates {
                 </div>
             `).join(''));
             if (window.lucide) lucide.createIcons();
-        });
+            highlightActive();
+        };
 
-        $results.on('click', '.prod-result', function () {
-            const id     = String($(this).data('id'));
-            const nombre = $(this).data('nombre');
-            const sku    = $(this).data('sku');
+        // Agrega (o acumula) el producto al lote y limpia la busqueda. Con
+        // focusQty enfoca la casilla de cantidad de la fila para teclear el
+        // valor; sin el, deja el foco en el buscador (modo escaner).
+        const commitProducto = (prod, focusQty) => {
+            if (!prod) return;
+            const id     = String(prod.id);
             const exists = rows.findIndex(r => String(r.id) === id);
             let idx;
             if (exists >= 0) {
-                rows[exists].cant += 1;
+                rows[exists].cant = Number(rows[exists].cant || 0) + 1;
                 idx = exists;
             } else {
-                rows.push({ id, nombre, sku, cant: 1 });
+                rows.push({ id, nombre: prod.nombre, sku: prod.sku || '', cant: 1 });
                 idx = rows.length - 1;
             }
-            $search.val('');
-            $results.addClass('hidden').html('');
+            resetSearch();
             renderTbody();
-            focusCantidad(idx);
+            flashRow(idx);
+            if (focusQty) focusCantidad(idx);
+            else $search.trigger('focus');
+        };
+
+        // Enter en el buscador: prioriza SKU exacto (lector de codigo) -> agrega
+        // 1 directo y sigue escaneando (foco en el buscador); luego el resultado
+        // resaltado o la primera coincidencia -> enfoca la cantidad para teclearla.
+        const handleSearchEnter = () => {
+            const q = ($search.val() || '').trim().toLowerCase();
+            if (q) {
+                const exact = productos.find(p => String(p.sku || '').toLowerCase() === q);
+                if (exact) { commitProducto(exact, false); return; }
+            }
+            let prod = catalogItems.length ? (catalogItems[activeIdx] || catalogItems[0]) : null;
+            if (!prod && q) {
+                prod = productos.find(p => (p.nombre || '').toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase().includes(q)));
+            }
+            commitProducto(prod, true);
+        };
+
+        $search.on('input', function () {
+            activeIdx = 0;
+            renderResults($(this).val());
+        });
+
+        $search.on('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (catalogItems.length) { activeIdx = Math.min(activeIdx + 1, catalogItems.length - 1); highlightActive(); }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (catalogItems.length) { activeIdx = Math.max(activeIdx - 1, 0); highlightActive(); }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSearchEnter();
+            } else if (e.key === 'Escape') {
+                // Primer Escape limpia el buscador; el segundo (vacio) cierra el modal.
+                if (($search.val() || '').length) { e.stopPropagation(); resetSearch(); }
+            }
+        });
+
+        $results.on('click', '.prod-result', function () {
+            const i = parseInt($(this).attr('data-cat-idx'), 10);
+            commitProducto(catalogItems[i], true);
+        });
+
+        // Hover sincroniza el resaltado con el cursor del mouse.
+        $results.on('mouseenter', '.prod-result', function () {
+            const i = parseInt($(this).attr('data-cat-idx'), 10);
+            if (!isNaN(i)) { activeIdx = i; highlightActive(); }
         });
 
         $(`#${modalId}_tbody`).on('input', 'input[data-field="cant"]', function () {
@@ -1745,10 +1852,16 @@ class SolicitudesView extends Templates {
             renderTbody();
         });
 
-        const closeModal = () => $(`#${modalId}`).remove();
+        const closeModal = () => { $(document).off('keydown.solForm'); $(`#${modalId}`).remove(); };
         $(`#${modalId}_close`).on('click', closeModal);
         $(`#${modalId}_cancel`).on('click', closeModal);
         $modal.on('click', (e) => { if ($(e.target).is(`#${modalId}`)) closeModal(); });
+
+        // Escape cierra el modal cuando el buscador ya esta vacio (el primer
+        // Escape, con texto, solo limpia la busqueda -> ver keydown del buscador).
+        $(document).off('keydown.solForm').on('keydown.solForm', (e) => {
+            if (e.key === 'Escape' && $(`#${modalId}`).length && !($search.val() || '').length) closeModal();
+        });
 
         $(`#${modalId}_send`).on('click', () => this.sendSolicitud(modalId, rows, closeModal));
 
@@ -1762,6 +1875,15 @@ class SolicitudesView extends Templates {
                 type:       'warning',
                 title:      'Agrega productos para continuar',
                 detailHtml: 'Necesitas agregar al menos un material antes de enviar la solicitud.'
+            });
+            return;
+        }
+
+        if (!($(`#${modalId}_selSucursal`).val() || '')) {
+            this.alertBox({
+                type:       'warning',
+                title:      'Selecciona una sucursal',
+                detailHtml: 'Debes elegir a qué sucursal le solicitas los materiales.'
             });
             return;
         }
@@ -1780,7 +1902,7 @@ class SolicitudesView extends Templates {
 
     async submitSolicitud(modalId, rows, closeModal) {
         const payload = {
-            branch_id:  $(`#${modalId}_selSucursal`).val() || app.dataInit.branch_id || '',
+            branch_id:  $(`#${modalId}_selSucursal`).val() || '',
             date_order: $(`#${modalId}_inpFecha`).val() || '',
             note:       $(`#${modalId}_note`).val() || '',
             submit:     true,
@@ -1812,6 +1934,45 @@ class SolicitudesView extends Templates {
             this.alertBox({
                 type:  'error',
                 title: (r && r.message) || 'No se pudo enviar la solicitud'
+            });
+        }
+    }
+
+    cancelSolicitud(e) {
+        if (!e || !e.id) return;
+        this.alertBox({
+            type:        'confirm',
+            title:       `¿Cancelar la solicitud ${e.folio || ''}?`,
+            detailHtml:  'La solicitud quedará cancelada y ya no podrá surtirse. Esta acción no se puede deshacer.',
+            okLabel:     'Sí, cancelar',
+            okIcon:      'ban',
+            cancelLabel: 'No',
+            onOk:        () => this.doCancelSolicitud(e)
+        });
+    }
+
+    async doCancelSolicitud(e) {
+        const r = await useFetch({
+            url:  apiOrdenes,
+            data: { opc: 'cancelOrden', id: e.id }
+        });
+
+        if (r && r.status === 200) {
+            this.alertBox({
+                type:  'success',
+                title: r.message || 'Solicitud cancelada',
+                timer: 1800
+            });
+            app.selectedId    = null;
+            app.selectedFolio = null;
+            this.renderDetail(null);
+            $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
+            solicitudes.lsSolicitudes();
+            solicitudes.lsKpis();
+        } else {
+            this.alertBox({
+                type:  'error',
+                title: (r && r.message) || 'No se pudo cancelar la solicitud'
             });
         }
     }

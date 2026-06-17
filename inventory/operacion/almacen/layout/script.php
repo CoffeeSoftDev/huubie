@@ -25,13 +25,7 @@
     <script src="../src/js/navbar.js"></script>
     <script src="../src/js/sidebar.js"></script>
 
-    <script src="https://15-92.com/ERP3/src/js/CoffeSoft.js?t=<?php echo time(); ?>"></script>
-
-
-    <script src="https://www.plugins.erp-varoch.com/ERP/JS/complementos.js?t=1724390004"></script>
-    <script src="https://15-92.com/ERP3/src/js/plugin-forms.js?t=<?php echo time(); ?>"></script>
-    <script src="https://15-92.com/ERP3/src/js/plugin-table.js?t=<?php echo time(); ?>"></script>
-
+  
     <!-- EXTERNOS -->
 
 </head>

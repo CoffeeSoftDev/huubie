@@ -6335,7 +6335,7 @@ class Templates extends Components {
             : `<div class="px-5 pb-4 flex gap-2">${cancelBtn}${okBtn}</div>`;
 
         const $overlay = $(`
-            <div id="${uid}" class="fixed inset-0 z-[999] flex items-center justify-center">
+            <div id="${uid}" class="fixed inset-0 z-[10001] flex items-center justify-center">
                 <div class="absolute inset-0 bg-black/40 tf-ab-backdrop tf-ab-in" data-ab-backdrop></div>
                 <div class="tf-alert-card tf-ab-in relative z-10 ${opts.width} max-w-[88%] bg-white border border-gray-200 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
                     <div class="flex flex-col items-center text-center px-5 pt-5 ${isToast ? 'pb-5' : 'pb-4'}">
