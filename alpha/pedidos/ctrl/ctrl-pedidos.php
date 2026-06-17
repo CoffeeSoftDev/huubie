@@ -1696,7 +1696,8 @@ class Pedidos extends MPedidos{
 
         // Obtener nombre de sucursal
         $subsidiary = $this->getSucursalByID([$subsidiary_id]);
-        $subsidiary_name = ($subsidiary && isset($subsidiary['name'])) ? $subsidiary['name'] : 'Sucursal';
+        $company_name    = ($subsidiary && isset($subsidiary['name']))     ? $subsidiary['name']     : '';
+        $subsidiary_name = ($subsidiary && isset($subsidiary['sucursal'])) ? $subsidiary['sucursal'] : 'Sucursal';
 
         if ($shift['status'] === 'closed') {
             // Obtener conteos de status guardados
@@ -1714,6 +1715,7 @@ class Pedidos extends MPedidos{
                 'status'          => 200,
                 'shift'           => $shift,
                 'subsidiary_name' => $subsidiary_name,
+                'company_name'    => $company_name,
                 'logo'            => $_SESSION['LOGO'],
                 'data' => [
                     'total_sales'     => $shift['total_sales'],
@@ -1737,6 +1739,7 @@ class Pedidos extends MPedidos{
             'status'          => 200,
             'shift'           => $shift,
             'subsidiary_name' => $subsidiary_name,
+            'company_name'    => $company_name,
             'logo'            => $_SESSION['LOGO'],
             'data'            => $metrics
         ];

@@ -2676,6 +2676,7 @@ class App extends Templates {
             data: metricsRes.data,
             shift: metricsRes.shift,
             subsidiary_name: metricsRes.subsidiary_name,
+            company_name: metricsRes.company_name,
             logo: metricsRes.logo,
             orders: orders,
             externalPayments: externalPayments
@@ -2696,6 +2697,7 @@ class App extends Templates {
         const d = options.data || {};
         const shift = options.shift || {};
         const subsidiaryName = options.subsidiary_name || '';
+        const companyName = options.company_name || subsidiaryName;
         const logo = options.logo || '';
         const orders = options.orders || [];
         const isDetailed = this.reportMode === 'detailed';
@@ -2781,11 +2783,11 @@ class App extends Templates {
                     <!-- Header -->
                     <div class="flex flex-col items-center mb-3">
                         ${logo ? `<div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
-                            <img src="/alpha${logo}" alt="" onerror="this.parentElement.outerHTML='<div style=\\'width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;\\'><span style=\\'color:white;font-size:24px;font-weight:bold;\\'>${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span></div>'" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                            <img src="/alpha${logo}" alt="" onerror="this.parentElement.outerHTML='<div style=\\'width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;\\'><span style=\\'color:white;font-size:24px;font-weight:bold;\\'>${(companyName || 'H').charAt(0).toUpperCase()}</span></div>'" style="width:100%;height:100%;object-fit:cover;display:block;" />
                         </div>` : `<div style="width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;" class="mb-1">
-                            <span style="color:white;font-size:24px;font-weight:bold;">${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span>
+                            <span style="color:white;font-size:24px;font-weight:bold;">${(companyName || 'H').charAt(0).toUpperCase()}</span>
                         </div>`}
-                        <h1 class="text-sm font-bold uppercase">${subsidiaryName}</h1>
+                        <h1 class="text-sm font-bold uppercase">${companyName}</h1>
                         <div class="text-xs font-semibold">PEDIDOS DE PASTELERÍA</div>
                         <div class="text-xs text-gray-600">Cierre Operativo</div>
                         ${closedBadge}
