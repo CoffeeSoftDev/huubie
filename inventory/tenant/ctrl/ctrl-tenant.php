@@ -97,8 +97,9 @@ class ctrl extends mdl {
         return (int) ($_SESSION['company_id'] ?? 1);
     }
 
-    // Escanea inventory/ (hasta 2 niveles) y devuelve las carpetas que tienen index.php,
-    // es decir, las rutas realmente navegables. Formato {id: ruta, valor: etiqueta}.
+    // Escanea inventory/ (hasta 2 niveles) y devuelve las rutas navegables: las carpetas
+    // que tienen index.php y, dentro de cada una, los archivos .php sueltos (ej.
+    // operacion/almacen/salidas.php). Formato {id: ruta, valor: etiqueta}.
     private function scanRoutes() {
         // El controlador vive en inventory/tenant/ctrl/ -> la raíz del módulo es ../../
         $base = realpath(__DIR__ . '/../../');
@@ -115,9 +116,10 @@ class ctrl extends mdl {
             $path = $base . DIRECTORY_SEPARATOR . $dir;
             if (!is_dir($path)) continue;
 
-            // Nivel 1: carpeta con index.php.
+            // Nivel 1: carpeta con index.php + sus archivos .php directos.
             if (is_file($path . DIRECTORY_SEPARATOR . 'index.php')) {
                 $routes[] = ['id' => $dir, 'valor' => $dir];
+                $this->collectPhpFiles($path, $dir, $routes);
             }
 
             // Nivel 2: subcarpetas con index.php (ej. operacion/almacen, admin/usuarios).
@@ -129,6 +131,8 @@ class ctrl extends mdl {
                 if (is_dir($childPath) && is_file($childPath . DIRECTORY_SEPARATOR . 'index.php')) {
                     $route = $dir . '/' . $child;
                     $routes[] = ['id' => $route, 'valor' => $route];
+                    // Archivos .php directos de la subcarpeta (ej. operacion/almacen/salidas.php).
+                    $this->collectPhpFiles($childPath, $route, $routes);
                 }
             }
         }
@@ -136,6 +140,20 @@ class ctrl extends mdl {
         // Orden alfabético por ruta para una lista predecible.
         usort($routes, function ($a, $b) { return strcmp($a['id'], $b['id']); });
         return $routes;
+    }
+
+    // Agrega a $routes los archivos .php que viven directamente en $dirPath (sin entrar a
+    // subcarpetas), omitiendo index.php porque la carpeta ya lo representa como ruta.
+    private function collectPhpFiles($dirPath, $prefix, &$routes) {
+        $files = @scandir($dirPath);
+        if ($files === false) return;
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..' || $file === 'index.php') continue;
+            if (strtolower(substr($file, -4)) !== '.php') continue;
+            if (!is_file($dirPath . DIRECTORY_SEPARATOR . $file)) continue;
+            $route = $prefix . '/' . $file;
+            $routes[] = ['id' => $route, 'valor' => $route];
+        }
     }
 
     /* ===== Empresas (companies) ===== */

@@ -6,3 +6,5 @@
 coffee/app/visor/data/*.sqlite
 coffee/app/visor/data/*.sqlite-wal
 coffee/app/visor/data/*.sqlite-shm
+
+.vscode/settings.json

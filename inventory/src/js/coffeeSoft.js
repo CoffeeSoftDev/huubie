@@ -628,6 +628,10 @@ class Components extends Complements {
         const css = {};
         for (const k in CF_CSS) css[k] = self.cfThemedClass(CF_CSS[k], opts.theme);
 
+        // Campos marcados con select2:true. Se inicializan al final, ya en el DOM,
+        // porque select2 necesita el elemento insertado para calcular posición/ancho.
+        const select2Fields = [];
+
         const makeLabel = (text, forId, required) => {
             let lbl = $('<label>', {
                 class: css.label,
@@ -1020,12 +1024,23 @@ class Components extends Complements {
                         });
                     }
 
-                    let chevron = $('<div>', {
-                        class: 'pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5',
-                        html: '<svg class="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>',
-                    });
+                    selectWrap.append(select);
 
-                    selectWrap.append(select, chevron);
+                    if (x.select2) {
+                        // select2 dibuja su propia flecha y caja de búsqueda; omitimos el
+                        // chevron nativo y diferimos la inicialización a cuando esté en el DOM.
+                        select2Fields.push({
+                            id: opts.prefijo + x.id,
+                            placeholder: x.selected || x.placeholder || '',
+                            tags: !!x.tags
+                        });
+                    } else {
+                        selectWrap.append($('<div>', {
+                            class: 'pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5',
+                            html: '<svg class="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>',
+                        }));
+                    }
+
                     div_hijo.append(selectWrap);
                     div_hijo.append($('<span>', { class: css.error }));
                     break;
@@ -1208,6 +1223,20 @@ class Components extends Complements {
         $(`#${opts.parent}`).html(themeWrap);
 
         if (opts.autofill) self.cfAutofill(opts.id, opts.autofill);
+
+        // select2 (campos con select2:true): se inicializa una vez en el DOM y tras el
+        // autofill. El dropdown se ancla al modal contenedor porque el layout fuerza
+        // .select2-dropdown { z-index:1 }, y fuera del modal quedaría detrás de él.
+        if (select2Fields.length && $.fn.select2) {
+            select2Fields.forEach(f => {
+                const $sel = $('#' + f.id);
+                if (!$sel.length) return;
+                const $modal = $sel.closest('.cf-modal, .modal, .bootbox');
+                const cfg = { theme: 'bootstrap-5', width: '100%', placeholder: f.placeholder, tags: f.tags };
+                if ($modal.length) cfg.dropdownParent = $modal;
+                $sel.select2(cfg);
+            });
+        }
 
         self.cfBindLiveValidation(container);
 

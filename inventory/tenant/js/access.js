@@ -59,7 +59,7 @@ class Modules extends Templates {
             { opc: 'input', id: 'name', lbl: 'Nombre del módulo', class: 'col-12 col-md-6 mb-3', required: true, onkeyup: 'autoCode(this.value)' },
             { opc: 'input', id: 'code', lbl: 'Código (automático)', class: 'col-12 col-md-6 mb-3', readonly: true },
             { opc: 'input', id: 'icon', lbl: 'Ícono (Lucide)', class: 'col-12 col-md-6 mb-3', placeholder: 'ej. package, dollar-sign' },
-            { opc: 'select', id: 'route', lbl: 'Ruta', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', data: dataInit.routes || [] },
+            { opc: 'select', id: 'route', lbl: 'Ruta', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', select2: true, data: dataInit.routes || [] },
             { opc: 'input', id: 'description', lbl: 'Descripción', class: 'col-12 col-md-8 mb-3', placeholder: 'Texto que se muestra en la tarjeta' },
             { opc: 'input', id: 'orden', lbl: 'Orden', type: 'number', class: 'col-12 col-md-4 mb-3' }
         ];
@@ -129,7 +129,7 @@ class Submodules extends Templates {
             { opc: 'select', id: 'module_id', lbl: 'Módulo', class: 'col-12 col-md-6 mb-3', required: true, data: dataInit.modules || [] },
             { opc: 'input', id: 'code', lbl: 'Código (automático)', class: 'col-12 col-md-6 mb-3', readonly: true },
             { opc: 'input', id: 'icon', lbl: 'Ícono (Lucide)', class: 'col-12 col-md-6 mb-3', placeholder: 'ej. folder-tree, box' },
-            { opc: 'select', id: 'route', lbl: 'Ruta', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', data: dataInit.routes || [] },
+            { opc: 'select', id: 'route', lbl: 'Ruta', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', select2: true, data: dataInit.routes || [] },
             { opc: 'input', id: 'description', lbl: 'Descripción', class: 'col-12 col-md-6 mb-3', placeholder: 'Texto que se muestra en la tarjeta' },
             { opc: 'input', id: 'orden', lbl: 'Orden', type: 'number', class: 'col-12 col-md-6 mb-3' }
         ];
@@ -200,7 +200,7 @@ class Sections extends Templates {
             { opc: 'select', id: 'submodule_id', lbl: 'Submódulo (opcional)', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', data: dataInit.submodules || [] },
             { opc: 'input', id: 'code', lbl: 'Código (automático)', class: 'col-12 col-md-6 mb-3', readonly: true },
             { opc: 'input', id: 'icon', lbl: 'Ícono (Lucide)', class: 'col-12 col-md-6 mb-3', placeholder: 'ej. boxes, house, shopping-cart' },
-            { opc: 'select', id: 'route', lbl: 'Ruta', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', data: dataInit.routes || [] },
+            { opc: 'select', id: 'route', lbl: 'Ruta', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', select2: true, data: dataInit.routes || [] },
             { opc: 'input', id: 'orden', lbl: 'Orden', type: 'number', class: 'col-12 col-md-6 mb-3' }
         ];
     }

@@ -132,7 +132,7 @@ class Access extends MAccess {
 
     // Menú lateral dinámico: secciones a las que el usuario logueado tiene acceso
     // en su sucursal activa. Fail-closed: si no hay sesión o no hay permisos, regresa vacío.
-    function menu() {
+    function menu () {
         $userId   = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
         $branchId = (int) ($_SESSION['branch_id'] ?? 0);
 
