@@ -1694,6 +1694,7 @@ function pgRenderTemplatesList() {
         // distinto al nombre del archivo).
         let desc = (t.title || t.userText || '').trim();
         if (desc.toLowerCase() === (t.name || '').toLowerCase()) desc = '';
+        const $cell = $('<div class="pg-tpl-cell"></div>');
         const $card = $(`
             <button type="button" class="pg-tpl-card" style="--tpl-hue:${hue};" title="Cargar «${pgEscape(t.name)}» en el sandbox">
                 <span class="pg-tpl-head">
@@ -1710,8 +1711,11 @@ function pgRenderTemplatesList() {
                     ${dateShort ? `<span class="pg-tpl-date">${pgEscape(dateShort)}</span>` : ''}
                 </span>
             </button>`);
+        const $del = $(`<button type="button" class="pg-tpl-del" title="Eliminar plantilla"><i data-lucide="trash-2"></i></button>`);
         $card.on('click', () => pgLoadSavedTemplate(t));
-        $list.append($card);
+        $del.on('click', function (e) { e.stopPropagation(); pgDeleteSavedTemplate(t, $(this)); });
+        $cell.append($card, $del);
+        $list.append($cell);
     });
     if (window.lucide) lucide.createIcons();
 }
@@ -1763,6 +1767,43 @@ function pgLoadSavedTemplate(t) {
     }
     pgCloseTemplates();
     pgToast('Plantilla "' + (t.name || '') + '" cargada', 'success');
+}
+
+/* Elimina una plantilla del disco. Confirmación en dos pasos sobre el propio
+ * botón: el primer clic lo "arma" (rojo) y el segundo confirma; si no se
+ * confirma en 3 s vuelve a su estado normal. */
+async function pgDeleteSavedTemplate(t, $btn) {
+    if (!t || !t.slug) return;
+
+    if (!$btn.hasClass('is-armed')) {
+        $btn.addClass('is-armed').attr('title', 'Pulsa otra vez para eliminar');
+        clearTimeout($btn.data('armTimer'));
+        $btn.data('armTimer', setTimeout(() => {
+            $btn.removeClass('is-armed').attr('title', 'Eliminar plantilla');
+        }, 3000));
+        return;
+    }
+
+    clearTimeout($btn.data('armTimer'));
+    $btn.prop('disabled', true);
+    try {
+        const form = new FormData();
+        form.append('action', 'deletetemplate');
+        form.append('slug', t.slug);
+        const res  = await fetch(PG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            pg._savedTemplates = (pg._savedTemplates || []).filter(x => x.slug !== t.slug);
+            pgRenderTemplatesList();
+            pgToast('Plantilla "' + (t.name || t.slug) + '" eliminada', 'success');
+        } else {
+            pgToast(data.message || 'No se pudo eliminar', 'error');
+            $btn.prop('disabled', false).removeClass('is-armed');
+        }
+    } catch (e) {
+        pgToast('Error de red al eliminar la plantilla', 'error');
+        $btn.prop('disabled', false).removeClass('is-armed');
+    }
 }
 
 /* ── Helpers ── */

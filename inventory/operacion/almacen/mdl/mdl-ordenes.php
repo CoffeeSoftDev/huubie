@@ -256,6 +256,7 @@ class mdl extends CRUD {
                 SUM(po.status = 'Aprobada')                 AS total_aprobadas,
                 SUM(po.status = 'Parcial')                  AS total_parciales,
                 SUM(po.status = 'Recibida')                 AS total_recibidas,
+                SUM(po.status = 'Cancelada')                AS total_canceladas,
                 IFNULL(SUM(po.total_cost), 0)               AS total_costo
             FROM {$this->bd}purchase_order po
             WHERE {$where}
@@ -267,6 +268,7 @@ class mdl extends CRUD {
             'total_aprobadas'   => 0,
             'total_parciales'   => 0,
             'total_recibidas'   => 0,
+            'total_canceladas'  => 0,
             'total_costo'       => 0
         ];
     }

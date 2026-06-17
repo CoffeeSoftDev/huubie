@@ -38,6 +38,7 @@
 
             <select id="chatModelSelect" class="ia-model-pill" title="Modelo activo">
                 <optgroup label="Ollama Cloud">
+                    <option value="glm-5.2:cloud">GLM 5.2 (código)</option>
                     <option value="qwen3-coder:480b-cloud">Qwen3 Coder 480B</option>
                     <option value="qwen3-vl:235b-cloud">Qwen3 VL 235B (vision)</option>
                     <option value="deepseek-v3.1:671b-cloud">DeepSeek V3.1 671B</option>

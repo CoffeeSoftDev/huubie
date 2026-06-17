@@ -6325,10 +6325,10 @@ class Templates extends Components {
         const isToast = opts.timer > 0 && !opts.dual && !inputField;
 
         const cancelBtn = opts.dual
-            ? `<button type="button" data-ab-cancel class="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-gray-600 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-800 transition-all">${opts.cancelLabel}</button>`
+            ? `<button type="button" data-ab-cancel class="flex-1 min-w-[110px] whitespace-nowrap py-2.5 rounded-xl text-[12px] font-bold text-gray-600 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-800 transition-all">${opts.cancelLabel}</button>`
             : '';
 
-        const okBtn = `<button type="button" data-ab-ok class="${opts.dual ? 'flex-1' : 'w-full'} py-2.5 rounded-xl text-[12px] font-bold text-white ${opts.okBg} transition-all flex items-center justify-center gap-1.5">${okIconHtml}${opts.okLabel}</button>`;
+        const okBtn = `<button type="button" data-ab-ok class="${opts.dual ? 'flex-1 min-w-[110px] whitespace-nowrap' : 'w-full'} py-2.5 rounded-xl text-[12px] font-bold text-white ${opts.okBg} transition-all flex items-center justify-center gap-1.5">${okIconHtml}${opts.okLabel}</button>`;
 
         const buttonsHtml = isToast
             ? ''

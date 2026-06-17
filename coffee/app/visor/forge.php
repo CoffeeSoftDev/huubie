@@ -56,6 +56,7 @@
 
             <select id="pgModelSelect" class="ia-model-pill" title="Modelo activo">
                 <optgroup label="Ollama Cloud">
+                    <option value="glm-5.2:cloud">GLM 5.2 (código)</option>
                     <option value="glm-5.1:cloud">GLM 5.1 (código)</option>
                     <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
                     <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>

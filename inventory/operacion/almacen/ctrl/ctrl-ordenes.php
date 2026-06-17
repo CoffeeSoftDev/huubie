@@ -22,10 +22,6 @@ class ctrl extends mdl {
         $this->userId      = (int) ($_SESSION['user_id']    ?? $_POST['user_id']      ?? 0);
     }
 
-    // -----------------------------------------------------------------------
-    // init
-    // -----------------------------------------------------------------------
-
     function init() {
         $productos = array_map(function ($p) {
             return [
@@ -68,10 +64,6 @@ class ctrl extends mdl {
         ];
     }
 
-    // -----------------------------------------------------------------------
-    // Listado
-    // -----------------------------------------------------------------------
-
     function lsOrdenes() {
         $mine = !empty($_POST['mine']) ? $this->userId : null;
         // Vista solicitante (solicitudes.js): suma la columna "Solicitar a" y
@@ -110,11 +102,17 @@ class ctrl extends mdl {
             ];
 
             if ($withTarget) {
-                $fila['Solicitar a'] = $r['branch_name'] ?: '<span class="italic text-gray-400">-</span>';
+                // Mismo formato que la columna "Destino" de traspasos: chip con la
+                // sucursal a la que se solicita (titulo) y el almacen como subtitulo.
+                $fila['Solicitar a'] = $this->sucChipCell($r['branch_id'], $r['branch_name'], $r['warehouse_name']);
             }
 
             $fila['Proveedor']  = $r['supplier_name'] ?: '<span class="italic text-gray-400">N/A</span>';
-            $fila['Almacen']    = $r['warehouse_name'] ?: '-';
+            if (!$withTarget) {
+                // En la gestion el almacen va en columna propia; en la vista
+                // solicitante ya queda embebido dentro del chip "Solicitar a".
+                $fila['Almacen'] = $r['warehouse_name'] ?: '-';
+            }
             $fila['Materiales'] = (int) $r['total_products'];
             // $fila['Total']      = evaluar((float) $r['total_cost']);
             $fila['a']          = $a;
@@ -123,10 +121,6 @@ class ctrl extends mdl {
         }
         return ['status' => 200, 'row' => $row];
     }
-
-    // -----------------------------------------------------------------------
-    // KPIs
-    // -----------------------------------------------------------------------
 
     function showOrdenes() {
         $mine = !empty($_POST['mine']) ? $this->userId : null;
@@ -144,10 +138,6 @@ class ctrl extends mdl {
         return ['status' => 200, 'counts' => $counts];
     }
 
-    // -----------------------------------------------------------------------
-    // Detalle de una orden
-    // -----------------------------------------------------------------------
-
     function getOrden() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
@@ -157,10 +147,6 @@ class ctrl extends mdl {
         $detail = $this->qGetOrdenDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
-
-    // -----------------------------------------------------------------------
-    // Crear proveedor inline (identico a ctrl-entradas)
-    // -----------------------------------------------------------------------
 
     function createSupplier() {
         $name = trim($_POST['name'] ?? '');
@@ -197,10 +183,6 @@ class ctrl extends mdl {
             'existed' => false
         ];
     }
-
-    // -----------------------------------------------------------------------
-    // Crear OC (Borrador o Solicitada directamente)
-    // -----------------------------------------------------------------------
 
     function saveOrden() {
         $payload   = json_decode($_POST['payload'] ?? '[]', true);
@@ -305,13 +287,8 @@ class ctrl extends mdl {
         ];
     }
 
-    // -----------------------------------------------------------------------
-    // Editar OC (solo Borrador o Solicitada)
-    // Estrategia: soft-delete de renglones anteriores + reinsercion.
-    // Es la opcion mas simple y garantiza que quantity_received quede en 0
-    // en los renglones nuevos (una OC no aprobada no ha recibido nada aun).
-    // -----------------------------------------------------------------------
-
+    // Estrategia edit: soft-delete de renglones anteriores + reinsercion.
+    // Garantiza quantity_received = 0 en renglones nuevos (OC no aprobada).
     function editOrden() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
@@ -330,7 +307,6 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
 
-        // Soft-delete de renglones anteriores.
         $this->softDeleteOrdenDetails([$id]);
 
         $norm = [];
@@ -387,9 +363,12 @@ class ctrl extends mdl {
         $this->updateOrdenTotals([$totalProducts, $totalUnits, $totalCost, $totalBase, $id]);
 
         // Si el payload incluye campos de cabecera opcionales, se actualizan.
-        if (!empty($payload['supplier_id']) || isset($payload['warehouse_id']) || isset($payload['note']) || isset($payload['destination_branch_id'])) {
+        if (!empty($payload['supplier_id']) || isset($payload['warehouse_id']) || isset($payload['note']) || isset($payload['destination_branch_id']) || !empty($payload['branch_id']) || !empty($payload['date_order'])) {
             $fields = [];
             $vals   = [];
+            // branch_id ("Solicitar a") y date_order solo se tocan si traen valor real (NOT NULL en BD).
+            if (!empty($payload['branch_id']))            { $fields[] = 'branch_id = ?';            $vals[] = (int) $payload['branch_id']; }
+            if (!empty($payload['date_order']))           { $fields[] = 'date_order = ?';           $vals[] = $payload['date_order']; }
             if (isset($payload['supplier_id']))           { $fields[] = 'supplier_id = ?';           $vals[] = !empty($payload['supplier_id']) ? (int) $payload['supplier_id'] : null; }
             if (isset($payload['destination_branch_id'])) { $fields[] = 'destination_branch_id = ?'; $vals[] = !empty($payload['destination_branch_id']) ? (int) $payload['destination_branch_id'] : null; }
             if (isset($payload['warehouse_id']))          { $fields[] = 'warehouse_id = ?';          $vals[] = !empty($payload['warehouse_id']) ? (int) $payload['warehouse_id'] : null; }
@@ -410,10 +389,6 @@ class ctrl extends mdl {
             'id'      => $id
         ];
     }
-
-    // -----------------------------------------------------------------------
-    // Transiciones de estado
-    // -----------------------------------------------------------------------
 
     function submitOrden() {
         $id     = (int) $_POST['id'];
@@ -470,10 +445,6 @@ class ctrl extends mdl {
         ];
     }
 
-    // -----------------------------------------------------------------------
-    // Recepcion parcial o total de la OC -> genera entrada de inventario
-    // -----------------------------------------------------------------------
-
     function receiveOrden() {
         $id        = (int) $_POST['id'];
         $header    = $this->qGetOrden([$id]);
@@ -525,7 +496,6 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'No hay cantidades validas a recibir o todos los renglones ya estan completos'];
         }
 
-        // Genera folio de la nueva entrada de inventario.
         $entFolio = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId);
         $note     = trim($_POST['note'] ?? '') ?: 'Recepcion de OC ' . $header['folio'];
 
@@ -541,8 +511,7 @@ class ctrl extends mdl {
             $totalBase  += $r['qty_now'] * $base;
         }
 
-        // inflow_origin COMPRA tiene id=1 segun el esquema.
-        $originId = 1;
+        $originId = 1; // inflow_origin COMPRA
 
         $okInflow = $this->insertInflowFromOrden([
             $entFolio,
@@ -572,7 +541,6 @@ class ctrl extends mdl {
 
         if ($inflowId <= 0) return ['status' => 500, 'message' => 'No se pudo recuperar la entrada generada'];
 
-        // Procesa cada renglon recibido: stock + detalle de la entrada.
         foreach ($toReceive as $r) {
             $productId = (int) $r['product_id'];
             $qtyNow    = $r['qty_now'];
@@ -598,23 +566,19 @@ class ctrl extends mdl {
                 $r['unit_id'] ?: null
             ]);
 
-            // Actualiza precio/costo en el catalogo del item si hay costo.
             if ($cost > 0) {
                 $this->updateItemTax([$cost, $base, $tax, $productId, $this->companiesId]);
             }
 
-            // Aplica el movimiento al stock.
             if ($stockRow) {
                 $this->updateStockQuantity([$post, (int) $stockRow['id']]);
             } else {
                 $this->insertStockRow([$post, $warehouseId, $productId, $this->companiesId]);
             }
 
-            // Suma la cantidad recibida al renglon de la OC.
             $this->updateDetailReceived([$qtyNow, (int) $r['id']]);
         }
 
-        // Recalcula el estado de la OC leyendo los renglones actualizados.
         $detailUpdated = $this->qGetOrdenDetail([$id]);
         $allReceived   = true;
         $anyReceived   = false;
@@ -636,12 +600,8 @@ class ctrl extends mdl {
         ];
     }
 
-    // -----------------------------------------------------------------------
-    // Cancelar OC
-    // Las entradas ya generadas en recepciones parciales previas NO se revierten;
-    // solo se bloquea la posibilidad de seguir recibiendo contra esta OC.
-    // -----------------------------------------------------------------------
-
+    // Las entradas generadas en recepciones parciales previas NO se revierten al cancelar;
+    // solo se bloquea seguir recibiendo contra esta OC.
     function cancelOrden() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
@@ -661,11 +621,6 @@ class ctrl extends mdl {
         ];
     }
 
-    // -----------------------------------------------------------------------
-    // Imprimir OC (devuelve el mismo shape que getOrden para que el front
-    // arme el documento; igual que printEntrada hace en entradas)
-    // -----------------------------------------------------------------------
-
     function printOrden() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
@@ -676,13 +631,8 @@ class ctrl extends mdl {
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
 
-    // -----------------------------------------------------------------------
-    // Permiso por sucursal: solo la sucursal destino (a quien se le pide) puede
-    // aprobar/rechazar una solicitud inter-sucursal. Si la orden no tiene destino,
-    // el destino coincide con el origen (p.ej. mono-sucursal) o no hay sucursal de
-    // sesion conocida, no se restringe (conserva el comportamiento previo).
-    // -----------------------------------------------------------------------
-
+    // Solo la sucursal destino puede aprobar/rechazar solicitudes inter-sucursal.
+    // Si la orden no tiene destino definido o es mono-sucursal, no se restringe.
     private function puedeGestionarDestino($header) {
         $dest = (int) ($header['destination_branch_id'] ?? 0);
         $orig = (int) ($header['branch_id'] ?? 0);
@@ -691,12 +641,7 @@ class ctrl extends mdl {
         return $this->branchId === $dest;
     }
 
-    // -----------------------------------------------------------------------
-    // Badge de estado por color
-    // -----------------------------------------------------------------------
-
     private function statusBadge($status) {
-        // [color de texto, color de fondo] - modelo pastel de 2 colores (igual que los motivos).
         $map = [
             'Borrador'   => ['#475569', '#F1F5F9'],
             'Solicitada' => ['#D97706', '#FEF3C7'],
@@ -710,8 +655,7 @@ class ctrl extends mdl {
         return badge(strtoupper($status), $c[0], 100, $c[1]);
     }
 
-    // Fecha y hora en que se pidio, p.ej. "16 jun 26 10:00 Am".
-    // Se construye a mano (sin strftime) para mes en espanol y AM/PM "Am"/"Pm".
+    // Formato "16 jun 26 10:00 Am" — sin strftime, mes en espanol, AM/PM capitalizado.
     private function fechaHoraSolicitud($dt) {
         if (empty($dt) || $dt === '0000-00-00 00:00:00') return '-';
         $ts = strtotime($dt);
@@ -724,9 +668,27 @@ class ctrl extends mdl {
         return date('d', $ts) . ' ' . $mes . ' ' . date('y', $ts) . ' ' . date('g:i', $ts) . ' ' . $ampm;
     }
 
-    // -----------------------------------------------------------------------
-    // Stock disponible por almacen (para la pantalla de surtido)
-    // -----------------------------------------------------------------------
+    private function sucChipCell($branchId, $branchName, $whName) {
+        $palette = [
+            ['icon' => 'text-blue-400',   'bg' => 'rgba(59,130,246,0.15)',  'border' => 'rgba(59,130,246,0.35)'],
+            ['icon' => 'text-green-400',  'bg' => 'rgba(63,193,137,0.15)',  'border' => 'rgba(63,193,137,0.35)'],
+            ['icon' => 'text-purple-400', 'bg' => 'rgba(168,85,247,0.15)',  'border' => 'rgba(168,85,247,0.35)'],
+            ['icon' => 'text-pink-400',   'bg' => 'rgba(244,114,182,0.15)', 'border' => 'rgba(244,114,182,0.35)'],
+            ['icon' => 'text-orange-400', 'bg' => 'rgba(251,146,60,0.15)',  'border' => 'rgba(251,146,60,0.35)'],
+            ['icon' => 'text-cyan-400',   'bg' => 'rgba(34,211,238,0.15)',  'border' => 'rgba(34,211,238,0.35)']
+        ];
+        $name = $branchName ?: '-';
+        $idx  = $branchId ? ((int) $branchId % count($palette)) : 0;
+        $p    = $palette[$idx];
+        $wh   = $whName
+            ? "<div class='text-[10px] text-gray-500 truncate'>{$whName}</div>"
+            : "";
+        return "<div class='flex items-center gap-2 w-full text-left'>"
+             . "<div class='w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0' style='background:{$p['bg']};border:1px solid {$p['border']};'>"
+             . "<i data-lucide='store' class='w-4 h-4 {$p['icon']}'></i></div>"
+             . "<div class='min-w-0'><div class='font-semibold text-gray-800 truncate leading-tight'>{$name}</div>{$wh}</div>"
+             . "</div>";
+    }
 
     function stockByWarehouse() {
         $warehouseId = (int) ($_POST['warehouse_id'] ?? 0);
@@ -739,15 +701,8 @@ class ctrl extends mdl {
         return ['status' => 200, 'stock' => $map];
     }
 
-    // -----------------------------------------------------------------------
-    // Surtido a sucursal: la matriz (destino) descuenta de su almacen.
-    //   - Reabasto opcional: entrada (inventory_inflow) que sube stock antes de surtir.
-    //   - Surtido: salida (inventory_shrinkage, motivo SURTIDO_SUC) que descuenta stock,
-    //     clampeado al pendiente y al disponible real.
-    //   - Reusa quantity_received como "cantidad surtida" y recalcula el estado.
-    // Todo dentro de una transaccion: entrada + salida + stock + estado, o nada.
-    // -----------------------------------------------------------------------
-
+    // Surtido inter-sucursal: reabasto opcional (ENT-) + salida (SI-, motivo SURTIDO_SUC).
+    // Clampeado al pendiente y al stock real. Todo en una transaccion atomica.
     function fulfillOrden() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
@@ -783,16 +738,12 @@ class ctrl extends mdl {
 
         try {
             return $this->transaction(function () use ($id, $header, $warehouseId, $items, $replenish, $byId, $reasonId) {
-                // Si la solicitud no tenia almacen, lo fijamos al surtir (trazabilidad).
                 if (empty($header['warehouse_id'])) $this->updateOrdenWarehouse([$warehouseId, $id]);
 
                 $note = trim($_POST['note'] ?? '') ?: ('Surtido de solicitud ' . $header['folio']);
 
-                // 1) Reabasto opcional -> entrada que sube stock.
-                $entFolio = $this->applyReplenish($id, $header, $warehouseId, $replenish, $byId);
-
-                // 2) Surtido -> salida que descuenta stock (ya reabastecido).
-                //    stockCache permite manejar el mismo producto en varios renglones.
+                $entFolio   = $this->applyReplenish($id, $header, $warehouseId, $replenish, $byId);
+                // stockCache evita releer el mismo producto en renglones multiples.
                 $stockCache = [];
                 $toSupply   = [];
                 foreach ($items as $detailId => $qty) {
@@ -861,7 +812,6 @@ class ctrl extends mdl {
                     $this->updateDetailReceived([$r['qty'], $r['detail_row_id']]);
                 }
 
-                // 3) Recalcula el estado leyendo los renglones actualizados.
                 $detailUpdated = $this->qGetOrdenDetail([$id]);
                 $allDone = true;
                 $anyDone = false;
@@ -890,8 +840,8 @@ class ctrl extends mdl {
         }
     }
 
-    // Reabasto: genera una entrada (inventory_inflow, origen COMPRA) por las cantidades
-    // indicadas y sube el stock del almacen. Devuelve el folio ENT- o null si no hubo.
+    // Genera entrada ENT- (origen COMPRA) por las cantidades de reabasto y sube stock.
+    // Devuelve el folio ENT- o null si no hubo reabasto.
     private function applyReplenish($id, $header, $warehouseId, $replenish, $byId) {
         $repLines = [];
         foreach ($replenish as $detailId => $qty) {

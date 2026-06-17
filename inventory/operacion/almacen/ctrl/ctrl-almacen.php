@@ -191,6 +191,64 @@ class ctrl extends mdl {
         ];
     }
 
+    // Alta exprés desde el buscador de Solicitudes: el solicitante solo aporta el
+    // nombre (obligatorio) y, opcionalmente, categoría y unidad. Los precios entran
+    // en 0 porque los fija después quien surte/compra; el SKU se autogenera. Devuelve
+    // id y sku para inyectar el producto directo en la solicitud sin recargar todo.
+    function addProductoRapido() {
+        if (($_POST['name'] ?? '') === '') {
+            return ['status' => 400, 'message' => 'El nombre del producto es obligatorio'];
+        }
+
+        $now          = date('Y-m-d H:i:s');
+        $companies_id = $_SESSION['company_id'];
+        $branch_id    = $_SESSION['branch_id'];
+
+        $item = [
+            'name'         => $_POST['name'],
+            'image'        => '',
+            'category_id'  => ($_POST['category_id'] ?? '') === '' ? null : $_POST['category_id'],
+            'branch_id'    => $branch_id,
+            'companies_id' => $companies_id,
+            'created_at'   => $now,
+            'active'       => 1
+        ];
+
+        // price, price_without_tax y tax se anexan DESPUÉS de util->sql() y en 0 para
+        // esquivar el gotcha 0 == '' (PHP 7.4), que los volvería NULL y violaría el NOT NULL.
+        $sql = $this->util->sql($item);
+        $sql['values'][] = 'price';
+        $sql['values'][] = 'price_without_tax';
+        $sql['values'][] = 'tax';
+        $sql['data'][]   = 0;
+        $sql['data'][]   = 0;
+        $sql['data'][]   = 0;
+
+        if (!$this->createMaterial($sql)) {
+            return ['status' => 500, 'message' => 'No se pudo crear el producto'];
+        }
+
+        $itemId = $this->getMaxItemId();
+        $sku    = $this->getNextSku();
+
+        $attribute = [
+            'sku'          => $sku,
+            'unit_id'      => ($_POST['unit_id'] ?? '') === '' ? null : $_POST['unit_id'],
+            'item_id'      => $itemId,
+            'companies_id' => $companies_id,
+            'created_at'   => $now,
+            'active'       => 1
+        ];
+        $this->createItemAttribute($this->util->sql($attribute));
+
+        return [
+            'status'  => 200,
+            'message' => 'Producto creado',
+            'id'      => $itemId,
+            'sku'     => $sku
+        ];
+    }
+
     function editMaterial() {
         $status  = 500;
         $message = 'Error al editar el insumo';
