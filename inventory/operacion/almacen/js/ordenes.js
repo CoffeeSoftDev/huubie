@@ -262,6 +262,15 @@ class App extends Templates {
         }
     }
 
+    // Click en una KPI card -> filtra la tabla por ese estado. Toggle: si el estado ya
+    // está aplicado, vuelve al filtro por defecto (Activas, sin Cancelada).
+    filterByKpi(kpi) {
+        const st      = (kpi && kpi.status) || '';
+        const current = $('#fEstado').val() || '';
+        $('#fEstado').val(current === st ? 'Activas' : st);
+        this.onChangeFilters();
+    }
+
     isVisibleAfterFilters(folio) {
         return $(`#tb${this.PROJECT_NAME} tbody tr`).filter(function () {
             return $(this).text().includes(folio);
@@ -347,7 +356,9 @@ class Ordenes extends Templates {
                 opc:         'showOrdenes',
                 branch_id:   f.branch_id,
                 supplier_id: f.supplier_id,
-                status:      f.status,
+                // El estado NO se envía a los KPIs: cuentan por estado, así que deben
+                // reflejar el total real (si se filtrara, los demás caerían a 0 y dejarían
+                // de servir como navegación). El filtro de estado solo aplica a la tabla.
                 fi:          f.fi,
                 ff:          f.ff,
                 q:           f.q
@@ -357,10 +368,10 @@ class Ordenes extends Templates {
         const c = (r && r.status === 200) ? r.counts : {};
 
         const kpis = [
-            { id: 'kpiSolicitadas', label: 'Solicitadas',   value: parseInt(c.total_solicitadas || 0, 10), tone: 'warning'  },
-            { id: 'kpiAprobadas',   label: 'Aprobadas',     value: parseInt(c.total_aprobadas   || 0, 10), tone: 'default'  },
-            { id: 'kpiParciales',   label: 'En recepcion',  value: parseInt(c.total_parciales   || 0, 10), tone: 'warning'  },
-            { id: 'kpiRecibidas',   label: 'Recibidas',     value: parseInt(c.total_recibidas   || 0, 10), tone: 'success'  }
+            { id: 'kpiSolicitadas', label: 'Solicitadas',   value: parseInt(c.total_solicitadas || 0, 10), tone: 'warning', status: 'Solicitada' },
+            { id: 'kpiAprobadas',   label: 'Aprobadas',     value: parseInt(c.total_aprobadas   || 0, 10), tone: 'default', status: 'Aprobada'   },
+            { id: 'kpiParciales',   label: 'En recepcion',  value: parseInt(c.total_parciales   || 0, 10), tone: 'warning', status: 'Parcial'    },
+            { id: 'kpiRecibidas',   label: 'Recibidas',     value: parseInt(c.total_recibidas   || 0, 10), tone: 'success', status: 'Recibida'   }
         ];
         ordenesView.renderInfoCards(kpis);
     }
@@ -554,7 +565,7 @@ class OrdenesView extends Templates {
             onSubmit:        (o) => this.doSubmitOrden(o),
             onApprove:       (o) => this.doApproveOrden(o),
             onReject:        (o) => this.doRejectOrden(o),
-            onRecibir:       (o) => this.openSurtidoModal(o),
+            onRecibir:       (o) => (String(o && o.folio || '').startsWith('REAB-') ? this.openRecepcionModal(o) : this.openSurtidoModal(o)),
             onCancel:        (o) => this.doCancelOrden(o)
         });
     }
@@ -589,57 +600,215 @@ class OrdenesView extends Templates {
 
     doApproveOrden(o) {
         if (!o || !o.id) return;
-        this.swalQuestion({
-            opts: {
-                title:             `Aprobar orden ${o.folio}`,
-                text:              'La orden quedara lista para recepcion de materiales.',
-                icon:              'question',
-                confirmButtonText: 'Si, aprobar',
-                cancelButtonText:  'No'
-            },
-            data: { opc: 'approveOrden', id: o.id },
-            methods: {
-                send: (r) => {
-                    if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Orden aprobada' });
-                        this._refreshAfterAction(o.folio, o.id);
-                    } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo aprobar la orden' });
-                    }
+        this.openAprobacionModal(o);
+    }
+
+    // Visor de decisión al aprobar: muestra lo pedido vs el stock disponible de un
+    // almacén (informativo, no bloquea). Aprobar solo cambia el estado; el descuento
+    // de inventario ocurre después, al surtir.
+    openAprobacionModal(orden) {
+        if (!orden || !orden.id) return;
+
+        const self      = this;
+        const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmtNum    = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
+        const almacenes = app.dataInit.almacenes || [];
+        const productos = orden.productos || [];
+
+        const warehouseFixed = !!(orden.warehouse_id);
+        const optsAlm = `<option value="">-- Selecciona almacén --</option>` + almacenes.map(a =>
+            `<option value="${a.id}"${String(orden.warehouse_id) === String(a.id) ? ' selected' : ''}>${esc(a.valor)}</option>`
+        ).join('');
+
+        const modalId = 'modalAprobacion';
+        $(`#${modalId}`).remove();
+
+        let stockMap    = {};
+        let stockLoaded = false;
+
+        const estadoCell = (disp, ped) => {
+            if (disp === null) return `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400">—</span>`;
+            if (disp >= ped)   return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,.15);color:#15803D"><i data-lucide="check" class="w-3 h-3"></i>Disponible</span>`;
+            if (disp > 0)      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(249,115,22,.15);color:#C2410C"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Parcial</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,.15);color:#B91C1C"><i data-lucide="x" class="w-3 h-3"></i>Sin stock</span>`;
+        };
+
+        const $modal = $(`
+            <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/40"></div>
+                <div class="relative z-10 w-full max-w-[640px] max-h-[90vh] bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+
+                    <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style="background:#3FC189">
+                                <i data-lucide="clipboard-check" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800">Revisar y aprobar</h3>
+                                <p class="text-[11px] text-gray-500">Solicitud <span class="font-semibold text-gray-700">${esc(orden.folio)}</span> &middot; ${orden.status_badge || ''}</p>
+                            </div>
+                        </div>
+                        <button id="${modalId}_close" class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
+                        <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid #3FC189;background:rgba(63,193,137,.06)">
+                            <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#15803D"></i>
+                            <p class="text-[11px] text-gray-600 leading-relaxed">
+                                Aprobar <span class="font-semibold text-gray-800">no descuenta inventario</span>: solo confirma la solicitud. El stock se descuenta después, al surtir. Revisa la disponibilidad para decidir.
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacén a consultar</label>
+                            ${warehouseFixed
+                                ? `<p class="px-2.5 py-1.5 text-xs text-gray-700 bg-white border border-gray-200 rounded-md">${esc(orden.warehouse_name)}</p>
+                                   <input type="hidden" id="${modalId}_warehouse_id" value="${orden.warehouse_id}">`
+                                : `<div class="relative">
+                                       <select id="${modalId}_warehouse_id" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 cursor-pointer appearance-none pr-8">${optsAlm}</select>
+                                       <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                   </div>`
+                            }
+                        </div>
+                    </div>
+
+                    <div class="flex-1 min-h-0 overflow-y-auto cs-scroll">
+                        <table class="w-full border-collapse">
+                            <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Pedido</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Disp.</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="${modalId}_tbody" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50">
+                        <p id="${modalId}_resumen" class="text-[11px] text-gray-500">Selecciona un almacén para ver la disponibilidad.</p>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                        <button id="${modalId}_cerrar" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cerrar</button>
+                        <div class="flex items-center gap-2">
+                            <button id="${modalId}_rechazar" class="px-3 py-1.5 text-xs font-semibold rounded-md border flex items-center gap-1.5 transition-all" style="border-color:#E02424;color:#E02424">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i><span>Rechazar</span>
+                            </button>
+                            <button id="${modalId}_aprobar" class="px-3 py-1.5 text-xs font-bold text-white rounded-md hover:shadow-lg transition-all flex items-center gap-1.5" style="background:#3FC189">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Aprobar</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        $('body').append($modal);
+        if (window.lucide) lucide.createIcons();
+
+        const updateResumen = () => {
+            const $r = $(`#${modalId}_resumen`);
+            if (!stockLoaded) { $r.html('Selecciona un almacén para ver la disponibilidad.'); return; }
+            let ok = 0;
+            productos.forEach(p => {
+                const ped = Math.max(0, p.quantity_ordered - p.quantity_received);
+                const d   = stockMap[String(p.product_id)] || 0;
+                if (ped > 0 && d >= ped) ok++;
+            });
+            const total = productos.length;
+            const cls   = ok === total ? '#15803D' : (ok === 0 ? '#B91C1C' : '#C2410C');
+            $r.html(`Puedes cubrir <strong style="color:${cls}">${ok}</strong> de <strong>${total}</strong> materiales con el stock de este almacén.`);
+        };
+
+        const renderRows = () => {
+            $(`#${modalId}_tbody`).html(productos.map(p => {
+                const ped     = Math.max(0, p.quantity_ordered - p.quantity_received);
+                const disp    = stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
+                const dispTxt = disp === null ? '—' : fmtNum(disp);
+                const color   = disp === null ? '#9CA3AF' : (disp >= ped ? '#15803D' : (disp > 0 ? '#C2410C' : '#B91C1C'));
+                return `
+                    <tr>
+                        <td class="px-3 py-2">
+                            <p class="font-medium text-gray-700 text-xs">${esc(p.nombre)}</p>
+                            ${p.sku ? `<p class="text-[10px] text-gray-400">${esc(p.sku)}</p>` : ''}
+                        </td>
+                        <td class="px-3 py-2 text-center text-xs text-gray-600">${fmtNum(p.quantity_ordered)}</td>
+                        <td class="px-3 py-2 text-center text-xs font-bold" style="color:${color}">${dispTxt}</td>
+                        <td class="px-3 py-2 text-center">${estadoCell(disp, ped)}</td>
+                    </tr>`;
+            }).join(''));
+            if (window.lucide) lucide.createIcons();
+        };
+
+        const loadStock = (warehouseId) => {
+            if (!warehouseId) { stockLoaded = false; stockMap = {}; renderRows(); updateResumen(); return; }
+            useFetch({ url: apiOrdenes, data: { opc: 'stockByWarehouse', warehouse_id: warehouseId } }).then(r => {
+                stockMap    = (r && r.status === 200 && r.stock) ? r.stock : {};
+                stockLoaded = true;
+                renderRows();
+                updateResumen();
+            });
+        };
+
+        const closeModal = () => $(`#${modalId}`).remove();
+        $(`#${modalId}_close`).on('click', closeModal);
+        $(`#${modalId}_cerrar`).on('click', closeModal);
+        $modal.on('click', (ev) => { if ($(ev.target).is(`#${modalId}`)) closeModal(); });
+        $(`#${modalId}_warehouse_id`).on('change', function () { loadStock($(this).val()); });
+
+        $(`#${modalId}_rechazar`).on('click', () => { closeModal(); self.doRejectOrden(orden); });
+
+        $(`#${modalId}_aprobar`).on('click', async () => {
+            const $btn = $(`#${modalId}_aprobar`).prop('disabled', true).addClass('opacity-60 pointer-events-none');
+            const r = await useFetch({ url: apiOrdenes, data: { opc: 'approveOrden', id: orden.id } }).catch(() => null);
+            if (r && r.status === 200) {
+                closeModal();
+                self._refreshAfterAction(orden.folio, orden.id);
+                const rDetalle = await useFetch({ url: apiOrdenes, data: { opc: 'getOrden', id: orden.id } }).catch(() => null);
+                if (rDetalle && rDetalle.status === 200) {
+                    const ordenActualizada = ordenes.mapOrdenDetail(rDetalle.header || {}, rDetalle.detail || []);
+                    self.openSurtidoModal(ordenActualizada);
                 }
+            } else {
+                $btn.prop('disabled', false).removeClass('opacity-60 pointer-events-none');
+                if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo aprobar la orden' });
             }
         });
+
+        if (warehouseFixed) loadStock(orden.warehouse_id);
+        else                { renderRows(); updateResumen(); }
     }
 
     doRejectOrden(o) {
         if (!o || !o.id) return;
-        Swal.fire({
-            title:              `Rechazar orden ${o.folio}`,
-            input:              'textarea',
-            inputLabel:         'Motivo del rechazo',
-            inputPlaceholder:   'Escribe el motivo...',
-            inputAttributes:    { maxlength: 500 },
-            showCancelButton:   true,
-            confirmButtonText:  'Rechazar',
-            cancelButtonText:   'Cancelar',
-            confirmButtonColor: '#E02424',
-            icon:               'warning'
-        }).then(result => {
-            if (!result.isConfirmed) return;
-            const reason = (result.value || '').trim();
-            useFetch({
-                url:  apiOrdenes,
-                data: { opc: 'rejectOrden', id: o.id, reason: reason }
-            }).then(r => {
-                if (r && r.status === 200) {
-                    if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Orden rechazada' });
-                    app.selectOrden(null);
-                    ordenes.lsOrdenes();
-                    ordenes.lsKpis();
-                } else {
-                    if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo rechazar la orden' });
-                }
-            });
+        this.alertBox({
+            type:             'cancel',
+            title:            `Rechazar orden ${o.folio}`,
+            okLabel:          'Rechazar',
+            cancelLabel:      'Cancelar',
+            input:            'textarea',
+            inputLabel:       'Motivo del rechazo',
+            inputPlaceholder: 'Escribe el motivo...',
+            inputRequired:    true,
+            onOk: (value) => {
+                const reason = (value || '').trim();
+                useFetch({
+                    url:  apiOrdenes,
+                    data: { opc: 'rejectOrden', id: o.id, reason: reason }
+                }).then(r => {
+                    if (r && r.status === 200) {
+                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Orden rechazada' });
+                        app.selectOrden(null);
+                        ordenes.lsOrdenes();
+                        ordenes.lsKpis();
+                    } else {
+                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo rechazar la orden' });
+                    }
+                });
+            }
         });
     }
 
@@ -996,50 +1165,53 @@ class OrdenesView extends Templates {
 
         // Crear proveedor inline
         $(`#${modalId}_btnCrearProv`).on('click', () => {
-            Swal.fire({
-                title:  'Nuevo proveedor',
-                html: `
+            this.alertBox({
+                type:        'confirm',
+                title:       'Nuevo proveedor',
+                okLabel:     'Crear',
+                cancelLabel: 'Cancelar',
+                detailHtml: `
                     <div class="text-left space-y-2 text-sm">
                         <div><label class="block text-xs font-semibold text-gray-600 mb-0.5">Nombre *</label>
-                        <input id="swal_prov_name" class="swal2-input" placeholder="Nombre del proveedor"></div>
+                        <input id="ab_prov_name" class="w-full px-3 py-1.5 text-[13px] border border-gray-300 rounded-xl focus:outline-none" placeholder="Nombre del proveedor"></div>
                         <div><label class="block text-xs font-semibold text-gray-600 mb-0.5">Contacto</label>
-                        <input id="swal_prov_contact" class="swal2-input" placeholder="Nombre de contacto"></div>
+                        <input id="ab_prov_contact" class="w-full px-3 py-1.5 text-[13px] border border-gray-300 rounded-xl focus:outline-none" placeholder="Nombre de contacto"></div>
                         <div><label class="block text-xs font-semibold text-gray-600 mb-0.5">Telefono</label>
-                        <input id="swal_prov_phone" class="swal2-input" placeholder="Telefono"></div>
+                        <input id="ab_prov_phone" class="w-full px-3 py-1.5 text-[13px] border border-gray-300 rounded-xl focus:outline-none" placeholder="Telefono"></div>
                         <div><label class="block text-xs font-semibold text-gray-600 mb-0.5">Email</label>
-                        <input id="swal_prov_email" class="swal2-input" placeholder="Email"></div>
+                        <input id="ab_prov_email" class="w-full px-3 py-1.5 text-[13px] border border-gray-300 rounded-xl focus:outline-none" placeholder="Email"></div>
                     </div>
                 `,
-                showCancelButton:  true,
-                confirmButtonText: 'Crear',
-                cancelButtonText:  'Cancelar',
-                preConfirm: () => {
-                    const name = ($('#swal_prov_name').val() || '').trim();
-                    if (!name) { Swal.showValidationMessage('El nombre es obligatorio'); return false; }
-                    return {
-                        name:         name,
-                        contact_name: ($('#swal_prov_contact').val() || '').trim() || '',
-                        phone:        ($('#swal_prov_phone').val()   || '').trim() || '',
-                        email:        ($('#swal_prov_email').val()   || '').trim() || ''
-                    };
-                }
-            }).then(result => {
-                if (!result.isConfirmed) return;
-                useFetch({
-                    url:  apiOrdenes,
-                    data: Object.assign({ opc: 'createSupplier' }, result.value)
-                }).then(r => {
-                    if (r && r.status === 200 && r.id) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Proveedor creado' });
-                        const $sel = $(`#${modalId}_supplier_id`);
-                        if (!$sel.find(`option[value="${r.id}"]`).length) {
-                            $sel.append(`<option value="${r.id}">${esc(r.valor)}</option>`);
-                        }
-                        $sel.val(r.id);
-                    } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo crear el proveedor' });
+                onOk: () => {
+                    // Los campos viven en detailHtml (no en el input nativo de alertBox),
+                    // por eso la validacion del nombre se hace aqui, no con inputValidator.
+                    const name = ($('#ab_prov_name').val() || '').trim();
+                    if (!name) {
+                        this.alertBox({ type: 'warning', title: 'El nombre es obligatorio', detailHtml: 'Captura el nombre del proveedor para continuar.', timer: 1800 });
+                        return;
                     }
-                });
+                    const payload = {
+                        name:         name,
+                        contact_name: ($('#ab_prov_contact').val() || '').trim(),
+                        phone:        ($('#ab_prov_phone').val()   || '').trim(),
+                        email:        ($('#ab_prov_email').val()   || '').trim()
+                    };
+                    useFetch({
+                        url:  apiOrdenes,
+                        data: Object.assign({ opc: 'createSupplier' }, payload)
+                    }).then(r => {
+                        if (r && r.status === 200 && r.id) {
+                            if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Proveedor creado' });
+                            const $sel = $(`#${modalId}_supplier_id`);
+                            if (!$sel.find(`option[value="${r.id}"]`).length) {
+                                $sel.append(`<option value="${r.id}">${esc(r.valor)}</option>`);
+                            }
+                            $sel.val(r.id);
+                        } else {
+                            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo crear el proveedor' });
+                        }
+                    });
+                }
             });
         });
 
@@ -1299,7 +1471,7 @@ class OrdenesView extends Templates {
         $(`#${modalId}_btnConfirmar`).on('click', async () => {
             const warehouseId = $(`#${modalId}_warehouse_id`).val() || '';
             if (!warehouseFixed && !warehouseId) {
-                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Selecciona el almacen de destino' });
+                this.alertBox({ type: 'warning', title: 'Selecciona el almacén de destino', timer: 1800 });
                 return;
             }
 
@@ -1311,7 +1483,7 @@ class OrdenesView extends Templates {
             });
 
             if (!Object.keys(items).length) {
-                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Indica al menos una cantidad a recibir' });
+                this.alertBox({ type: 'warning', title: 'Indica al menos una cantidad a recibir', timer: 1800 });
                 return;
             }
 
@@ -1329,13 +1501,13 @@ class OrdenesView extends Templates {
             });
 
             if (r && r.status === 200) {
-                if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Recepcion registrada' });
+                this.alertBox({ type: 'success', title: r.message || 'Recepción registrada', timer: 2200 });
                 closeModal();
                 ordenes.lsOrdenes();
                 ordenes.lsKpis();
                 app.selectOrden(null);
             } else {
-                if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la recepcion' });
+                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la recepción' });
             }
         });
     }
@@ -1388,7 +1560,7 @@ class OrdenesView extends Templates {
                             <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#C05A40"></i>
                             <p class="text-[11px] text-gray-600 leading-relaxed">
                                 Al confirmar se genera una <span class="font-semibold text-gray-800">salida</span> que descuenta el stock del almacen origen.
-                                Si una cantidad supera lo disponible, captura un <span class="font-semibold text-gray-800">reabasto</span>: primero entra al almacen y luego se surte.
+                                Si surtes mas de lo disponible, el faltante queda como una <span class="font-semibold text-gray-800">orden de compra de reabasto</span> pendiente, que deberas recibir cuando registres la compra.
                             </p>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1467,7 +1639,8 @@ class OrdenesView extends Templates {
                 const pendiente = Math.max(0, p.quantity_ordered - p.quantity_received);
                 const disp      = stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
                 const dispTxt   = disp === null ? '—' : fmtNum(disp);
-                const aSurtir   = disp === null ? pendiente : Math.min(pendiente, disp);
+                const aSurtir   = pendiente; // se propone surtir todo lo pendiente (agiliza la salida)
+                const repInit   = disp === null ? 0 : Math.max(0, aSurtir - disp); // faltante -> reabasto
                 const completo  = pendiente <= 0;
                 const dispColor = (disp !== null && disp < pendiente) ? '#F97316' : '#3FC189';
                 return `
@@ -1484,8 +1657,8 @@ class OrdenesView extends Templates {
                                 value="${completo ? 0 : aSurtir}" min="0" max="${pendiente}" step="0.01" ${completo ? 'disabled' : ''}>
                         </td>
                         <td class="px-3 py-2">
-                            <input type="number" class="sur-rep no-spin w-full px-2 py-1 text-xs text-center text-gray-700 bg-white border border-gray-200 rounded focus:border-green-500 outline-none"
-                                value="0" min="0" step="0.01" ${completo ? 'disabled' : ''}>
+                            <input type="number" class="sur-rep no-spin w-full px-2 py-1 text-xs text-center text-gray-600 bg-gray-50 border border-gray-200 rounded outline-none cursor-default"
+                                value="${completo ? 0 : repInit}" min="0" step="0.01" readonly tabindex="-1">
                         </td>
                     </tr>`;
             }).join(''));
@@ -1528,7 +1701,7 @@ class OrdenesView extends Templates {
         $(`#${modalId}_btnConfirmar`).on('click', async () => {
             const warehouseId = $(`#${modalId}_warehouse_id`).val() || '';
             if (!warehouseId) {
-                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Selecciona el almacen de origen' });
+                this.alertBox({ type: 'warning', title: 'Selecciona el almacén de origen', timer: 1800 });
                 return;
             }
             const items = {}, replenish = {};
@@ -1541,7 +1714,7 @@ class OrdenesView extends Templates {
                 if (!isNaN(rep) && rep > 0) replenish[did] = rep;
             });
             if (!Object.keys(items).length) {
-                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Indica al menos una cantidad a surtir' });
+                this.alertBox({ type: 'warning', title: 'Indica al menos una cantidad a surtir', timer: 1800 });
                 return;
             }
             const note = $(`#${modalId}_note`).val() || '';
@@ -1557,13 +1730,13 @@ class OrdenesView extends Templates {
                 }
             });
             if (r && r.status === 200) {
-                if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Surtido registrado' });
+                this.alertBox({ type: 'success', title: r.message || 'Surtido registrado', timer: 2200 });
                 closeModal();
                 ordenes.lsOrdenes();
                 ordenes.lsKpis();
                 app.selectOrden(null);
             } else {
-                if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo surtir' });
+                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo surtir' });
             }
         });
     }
@@ -1692,6 +1865,9 @@ class OrdenesView extends Templates {
         const esOrigen     = interSucursal && miSucursal === ordenBranch;
         const esDestino    = interSucursal && miSucursal === ordenDestino;
         const roleScoped   = esOrigen || esDestino;
+        // Las OC de reabasto (REAB-) son compras a recibir, no surtidos: se reciben para
+        // reponer el almacen y cuadrar el deficit dejado por un surtido sin stock.
+        const esReabasto   = String(e.folio || '').startsWith('REAB-');
 
         let actionsHtml = '';
         if (status === 'Borrador') {
@@ -1713,7 +1889,12 @@ class OrdenesView extends Templates {
                 actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
             }
         } else if (status === 'Aprobada') {
-            if (sinRestriccion) {
+            if (esReabasto) {
+                // OC de reabasto: se recibe la compra para reponer el almacen (no se surte).
+                actionsHtml = `
+                    ${btnCls('#3FC189', 'Recibir',  'package-check', 'recibir')}
+                    ${btnCls('#F97316', 'Cancelar', 'ban',           'cancel')}`;
+            } else if (sinRestriccion) {
                 actionsHtml = `
                     ${btnCls('#C05A40', 'Surtir',   'truck', 'recibir')}
                     ${btnCls('#F97316', 'Cancelar', 'ban',   'cancel')}`;
@@ -1723,9 +1904,11 @@ class OrdenesView extends Templates {
                 actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
             }
         } else if (status === 'Parcial') {
-            // El surtido lo continua la sucursal de destino (o el gestor sin restriccion).
-            if (esDestino || sinRestriccion) {
-                actionsHtml = btnCls('#C05A40', 'Continuar surtido', 'truck', 'recibir');
+            // La REAB- sí continúa recibiéndose (la compra puede llegar por partes).
+            // Una solicitud Parcial es un surtido CERRADO: no se continúa; lo que faltó
+            // se pide con una nueva solicitud. El estado solo indica "surtido incompleto".
+            if (esReabasto) {
+                actionsHtml = btnCls('#3FC189', 'Continuar recepción', 'package-check', 'recibir');
             }
         } else {
             actionsHtml = '';
@@ -1833,10 +2016,13 @@ class OrdenesView extends Templates {
     // ----------------------------------------------------------
 
     renderInfoCards(rows) {
+        const current = $('#fEstado').val() || '';
+        const match   = rows.find(k => String(k.status || '') === String(current));
         this.kpisRow({
-            parent:  'kpisRow',
-            json:    rows,
-            onClick: () => {}
+            parent:   'kpisRow',
+            json:     rows,
+            activeId: match ? match.id : null,
+            onClick:  (kpi) => app.filterByKpi(kpi)
         });
     }
 

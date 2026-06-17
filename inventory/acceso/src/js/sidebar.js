@@ -21,14 +21,23 @@ class Sidebar {
         return i >= 0 ? p.slice(0, i + '/inventory'.length) : '/inventory';
     }
 
-    // Trae las secciones permitidas y las mapea a items del rail.
+    // Ruta de la pagina actual relativa a /inventory/ (ej. "operacion/almacen/stock.php"
+    // o "configuracion/"). Identifica el modulo para acotar las secciones del rail.
+    currentModulePath() {
+        const p = window.location.pathname;
+        const i = p.indexOf('/inventory/');
+        return i >= 0 ? p.slice(i + '/inventory/'.length) : '';
+    }
+
+    // Trae las secciones permitidas del modulo actual y las mapea a items del rail.
     async fetchMenu() {
         const base = this.inventoryBase();
+        const modulePath = this.currentModulePath();
         try {
             const res = await fetch(base + '/acceso/ctrl/ctrl-access.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'opc=menu'
+                body: 'opc=menu&module=' + encodeURIComponent(modulePath)
             });
             const data = await res.json();
             const items = (data && data.items) || [];

@@ -1388,10 +1388,12 @@ function pgRenderTemplatesList() {
                     <i data-lucide="layout-template" class="w-4 h-4" style="color:var(--vsr-accent-soft);"></i>
                     <span class="ci-name">${pgEscape(t.name)}</span>
                     <span class="ci-meta">${pgEscape(t.size || '')}</span>
+                    <button type="button" class="pg-tpl-del" title="Eliminar plantilla"><i data-lucide="trash-2"></i></button>
                 </div>
                 <span class="pg-hint" style="margin:0 0 0 24px;">${pgEscape(meta)}</span>
             </div>`);
         $row.on('click', () => pgLoadSavedTemplate(t));
+        $row.find('.pg-tpl-del').on('click', function (e) { e.stopPropagation(); pgDeleteSavedTemplate(t, $(this)); });
         $list.append($row);
     });
     if (window.lucide) lucide.createIcons();
@@ -1444,6 +1446,43 @@ function pgLoadSavedTemplate(t) {
     }
     pgCloseTemplates();
     pgToast('Plantilla "' + (t.name || '') + '" cargada', 'success');
+}
+
+/* Elimina una plantilla del disco. Confirmación en dos pasos sobre el propio
+ * botón: el primer clic lo "arma" (rojo) y el segundo confirma; si no se
+ * confirma en 3 s vuelve a su estado normal. */
+async function pgDeleteSavedTemplate(t, $btn) {
+    if (!t || !t.slug) return;
+
+    if (!$btn.hasClass('is-armed')) {
+        $btn.addClass('is-armed').attr('title', 'Pulsa otra vez para eliminar');
+        clearTimeout($btn.data('armTimer'));
+        $btn.data('armTimer', setTimeout(() => {
+            $btn.removeClass('is-armed').attr('title', 'Eliminar plantilla');
+        }, 3000));
+        return;
+    }
+
+    clearTimeout($btn.data('armTimer'));
+    $btn.prop('disabled', true);
+    try {
+        const form = new FormData();
+        form.append('action', 'deletetemplate');
+        form.append('slug', t.slug);
+        const res  = await fetch(PG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            pg._savedTemplates = (pg._savedTemplates || []).filter(x => x.slug !== t.slug);
+            pgRenderTemplatesList();
+            pgToast('Plantilla "' + (t.name || t.slug) + '" eliminada', 'success');
+        } else {
+            pgToast(data.message || 'No se pudo eliminar', 'error');
+            $btn.prop('disabled', false).removeClass('is-armed');
+        }
+    } catch (e) {
+        pgToast('Error de red al eliminar la plantilla', 'error');
+        $btn.prop('disabled', false).removeClass('is-armed');
+    }
 }
 
 /* ── Helpers ── */

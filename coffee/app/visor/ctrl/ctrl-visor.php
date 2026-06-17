@@ -416,6 +416,51 @@ if (($_GET['action'] ?? '') === 'listtemplates') {
     exit;
 }
 
+// Endpoint para ELIMINAR una plantilla guardada (POST deletetemplate).
+// Borra la carpeta documents/template/<slug>/ completa. El slug se sanea a
+// nombre de carpeta simple y se valida que el destino quede dentro de la
+// carpeta de plantillas (sin path traversal).
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'deletetemplate') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $slug = basename(str_replace('\\', '/', trim($_POST['slug'] ?? '')));
+    if ($slug === '' || $slug === '.' || $slug === '..') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Slug inválido']);
+        exit;
+    }
+
+    $baseDir  = str_replace('\\', '/', __DIR__ . '/../documents/template');
+    $realBase = realpath($baseDir);
+    $realDir  = realpath($baseDir . '/' . $slug);
+
+    $insideBase = $realBase !== false && $realDir !== false
+        && strpos(str_replace('\\', '/', $realDir), str_replace('\\', '/', $realBase) . '/') === 0;
+
+    if (!$insideBase || !is_dir($realDir)) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Plantilla no encontrada']);
+        exit;
+    }
+
+    $rrmdir = function ($path) use (&$rrmdir) {
+        foreach (array_diff(@scandir($path) ?: [], ['.', '..']) as $f) {
+            $full = $path . '/' . $f;
+            is_dir($full) ? $rrmdir($full) : @unlink($full);
+        }
+        return @rmdir($path);
+    };
+
+    if (!$rrmdir($realDir)) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo eliminar la plantilla']);
+        exit;
+    }
+
+    echo json_encode(['success' => true, 'message' => 'Plantilla eliminada', 'slug' => $slug]);
+    exit;
+}
+
 // Endpoint para leer el contenido de un archivo (usado por el modulo Chat)
 if (($_GET['action'] ?? '') === 'read') {
     header('Content-Type: application/json; charset=utf-8');

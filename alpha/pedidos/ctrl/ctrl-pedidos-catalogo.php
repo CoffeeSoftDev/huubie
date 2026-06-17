@@ -388,9 +388,10 @@ class ctrl extends MPedidos{
         $discount   = floatval($_POST['discount'] ?? 0);
 
         if ($total_paid > 0) {
-            $type_id = 2; // Ya tiene abonos previos, mantener como abono parcial
+            $type_id = 2;
         } else if ($pay <= 0) {
-            $type_id = 1; // Cotización sin abono
+            $target  = intval($_POST['target_status'] ?? 0);
+            $type_id = ($target === 2) ? 2 : 1;
         } else if ($pay == $saldo) {
             $type_id = 3; // Pago completo
         } else {

@@ -1,4 +1,5 @@
 let apiOrdenes = 'ctrl/ctrl-ordenes.php';
+let apiAlmacen = 'ctrl/ctrl-almacen.php';
 let app, solicitudes, solicitudesView;
 
 const VIEW_HEADER_SOLICITUDES = {
@@ -24,7 +25,7 @@ class App extends Templates {
         this.PROJECT_NAME  = 'solicitudes';
         this.selectedId    = null;
         this.selectedFolio = null;
-        this.activeStatus  = '';
+        this.activeStatus  = 'Activas';
         this.dataInit      = {};
     }
 
@@ -182,11 +183,12 @@ class App extends Templates {
 
     filterBar() {
         const estados = [
-            { id: '',           valor: 'Todos los estados' },
+            { id: 'Activas',    valor: 'Todos los estados' },
             { id: 'Solicitada', valor: 'Solicitada' },
             { id: 'Aprobada',   valor: 'Aprobada' },
             { id: 'Parcial',    valor: 'En recepcion' },
             { id: 'Recibida',   valor: 'Recibida' },
+            { id: 'Cancelada',  valor: 'Cancelada' },
             { id: 'Rechazada',  valor: 'Rechazada' },
             { id: 'Borrador',   valor: 'Borrador' }
         ];
@@ -204,7 +206,7 @@ class App extends Templates {
                 lbl:      'Estado:',
                 class:    'col-12 col-md-3 col-lg-3',
                 onchange: 'app.onChangeFilters()',
-                value:    '',
+                value:    'Activas',
                 data:     estados
             },
             {
@@ -291,6 +293,7 @@ class App extends Templates {
             { id: 'Aprobada',   label: 'Aprobada' },
             { id: 'Parcial',    label: 'En recepcion' },
             { id: 'Recibida',   label: 'Recibida' },
+            { id: 'Cancelada',  label: 'Cancelada' },
             { id: 'Rechazada',  label: 'Rechazada' },
             { id: 'Borrador',   label: 'Borrador' }
         ];
@@ -403,7 +406,8 @@ class Solicitudes extends Templates {
             { id: 'kpiSolicitadas', label: 'Solicitadas',  value: kpiValue(c.total_solicitadas || 0), tone: 'warning', status: 'Solicitada' },
             { id: 'kpiAprobadas',   label: 'Aprobadas',    value: kpiValue(c.total_aprobadas   || 0), tone: 'info',    status: 'Aprobada'   },
             { id: 'kpiEnRecepcion', label: 'En recepcion', value: kpiValue(c.total_parciales   || 0), tone: 'warning', status: 'Parcial'    },
-            { id: 'kpiRecibidas',   label: 'Recibidas',    value: kpiValue(c.total_recibidas   || 0), tone: 'success', status: 'Recibida'   }
+            { id: 'kpiRecibidas',   label: 'Recibidas',    value: kpiValue(c.total_recibidas   || 0), tone: 'success', status: 'Recibida'   },
+            { id: 'kpiCanceladas',  label: 'Canceladas',   value: kpiValue(c.total_canceladas  || 0), tone: 'danger',  status: 'Cancelada'  }
         ];
 
         solicitudesView.renderInfoCards(kpis);
@@ -475,7 +479,7 @@ class SolicitudesView extends Templates {
             parent:   'kpisRow',
             id:       'solicitudesKpisGrid',
             json:     rows,
-            cols:     4,
+            cols:     5,
             activeId: match ? match.id : null,
             onClick:  (kpi) => app.filterByKpi(kpi)
         });
@@ -554,7 +558,9 @@ class SolicitudesView extends Templates {
                 $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
             },
             onCancel:    (o) => this.cancelSolicitud(o),
-            onShare:     (o) => this.openShareSheet(o)
+            onShare:     (o) => this.openShareSheet(o),
+            onSubmit:    (o) => this.enviarBorrador(o),
+            onEdit:      (o) => this.editarSolicitud(o)
         });
     }
 
@@ -588,22 +594,42 @@ class SolicitudesView extends Templates {
                 <i data-lucide="ban" class="w-3.5 h-3.5"></i> Cancelar
             </button>` : '';
 
+        // Un borrador puede enviarse para aprobacion (Borrador -> Solicitada) y, al no
+        // estar enviado todavia, no se ofrece compartir.
+        const isBorrador = (orden.status || '') === 'Borrador';
+        const sendBtn    = isBorrador ? `
+            <button id="mobileDetailSend" class="flex-1 px-3.5 py-2.5 text-xs font-semibold text-white rounded-lg flex items-center justify-center gap-1.5" style="background:#16A34A">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar
+            </button>` : '';
+        const shareBtn   = isBorrador ? '' : `
+            <button id="mobileDetailShare" class="flex-1 px-3.5 py-2.5 text-xs font-semibold text-white rounded-lg flex items-center justify-center gap-1.5" style="background:#25D366">
+                <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Compartir
+            </button>`;
+        // Editable solo antes de aprobarse (Borrador o Solicitada).
+        const editable = ['Borrador', 'Solicitada'].includes(orden.status || '');
+        const editBtn  = editable ? `
+            <button id="mobileDetailEdit" class="flex-1 px-3.5 py-2.5 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 bg-white flex items-center justify-center gap-1.5">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar
+            </button>` : '';
+
         $content.html(this.buildMobileDetailHtml(orden));
         $footer.html(`
             <button id="mobileDetailBack" class="flex-1 px-3.5 py-2.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg flex items-center justify-center gap-1.5">
                 <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Volver
             </button>
-            <button id="mobileDetailShare" class="flex-1 px-3.5 py-2.5 text-xs font-semibold text-white rounded-lg flex items-center justify-center gap-1.5" style="background:#25D366">
-                <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Compartir
-            </button>
+            ${editBtn}
+            ${sendBtn}
+            ${shareBtn}
             ${cancelBtn}
         `);
 
         if (window.lucide) lucide.createIcons();
 
         $('#mobileDetailBack').on('click', () => { $('#mobileDetailOverlay').remove(); });
-        $('#mobileDetailShare').on('click', () => { this.openShareSheet(orden); });
-        if (cancelable) $('#mobileDetailCancel').on('click', () => { this.cancelSolicitud(orden); });
+        if (!isBorrador) $('#mobileDetailShare').on('click', () => { this.openShareSheet(orden); });
+        if (cancelable)  $('#mobileDetailCancel').on('click', () => { this.cancelSolicitud(orden); });
+        if (isBorrador)  $('#mobileDetailSend').on('click', () => { this.enviarBorrador(orden); });
+        if (editable)    $('#mobileDetailEdit').on('click', () => { this.editarSolicitud(orden); });
     }
 
     buildSystemLink(e) {
@@ -1183,6 +1209,8 @@ class SolicitudesView extends Templates {
                 recibido:      'Recibido',
                 cancelar:      'Cancelar solicitud',
                 compartir:     'Compartir',
+                enviar:        'Enviar solicitud',
+                editar:        'Editar',
                 cerrar:        'Cerrar'
             },
             estadoPalettes: {
@@ -1196,7 +1224,9 @@ class SolicitudesView extends Templates {
             },
             onClose:     () => {},
             onCancel:    () => {},
-            onShare:     () => {}
+            onShare:     () => {},
+            onSubmit:    () => {},
+            onEdit:      () => {}
         };
 
         const o    = options || {};
@@ -1316,6 +1346,10 @@ class SolicitudesView extends Templates {
                 </div>
                 <div class="flex items-center gap-2">
                     ${estadoBadge}
+                    ${['Borrador', 'Solicitada'].includes(status) ? `
+                    <button id="${opts.id}_edit" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-[#C05A40] hover:bg-gray-100 transition-colors" title="${esc(opts.labels.editar)}">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>` : ''}
                     <button id="${opts.id}_close" class="text-gray-500 hover:text-gray-700 transition-colors p-1" title="${esc(opts.labels.cerrar)}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
@@ -1350,9 +1384,14 @@ class SolicitudesView extends Templates {
             </div>
 
             <div class="px-3 py-3 flex-shrink-0 border-t border-gray-200 flex gap-2">
+                ${status === 'Borrador' ? `
+                <button id="${opts.id}_send" class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity" style="background:#16A34A">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i> ${esc(opts.labels.enviar)}
+                </button>` : ''}
+                ${status !== 'Borrador' ? `
                 <button id="${opts.id}_share" class="flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity" style="background:#25D366">
                     <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> ${esc(opts.labels.compartir)}
-                </button>
+                </button>` : ''}
                 ${(!['Recibida', 'Cancelada', 'Rechazada'].includes(status)) ? `
                 <button id="${opts.id}_cancel" class="flex-1 px-3 py-1.5 text-[11px] font-semibold rounded-lg border flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity" style="border-color:#DC2626;color:#DC2626">
                     <i data-lucide="ban" class="w-3.5 h-3.5"></i> ${esc(opts.labels.cancelar)}
@@ -1366,6 +1405,8 @@ class SolicitudesView extends Templates {
         $(`#${opts.id}_close`).on('click', () => opts.onClose(e));
         $(`#${opts.id}_share`).on('click', () => opts.onShare(e));
         $(`#${opts.id}_cancel`).on('click', () => opts.onCancel(e));
+        $(`#${opts.id}_send`).on('click', () => opts.onSubmit(e));
+        $(`#${opts.id}_edit`).on('click', () => opts.onEdit(e));
     }
 
     viewHeader(options) {
@@ -1501,12 +1542,15 @@ class SolicitudesView extends Templates {
         }).join('');
     }
 
-    openSolicitudForm(preloadOrden) {
+    // preloadOrden: precarga renglones/cabecera (duplicar o editar).
+    // editCtx: { id, status } -> modo edición de una solicitud existente (Borrador o Solicitada).
+    openSolicitudForm(preloadOrden, editCtx) {
         const esc        = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const productos  = app.dataInit.productos  || [];
         const sucursales = app.dataInit.sucursales || [];
         const branchId   = String(app.dataInit.branch_id || '');
         const hoy        = new Date().toLocaleDateString('en-CA');
+        const isEdit     = !!(editCtx && editCtx.id);
 
         let rows = [];
         if (preloadOrden && preloadOrden.productos) {
@@ -1545,8 +1589,8 @@ class SolicitudesView extends Templates {
                                 <i data-lucide="clipboard-list" class="w-5 h-5 text-white"></i>
                             </div>
                             <div>
-                                <h3 class="text-sm font-bold text-gray-800">${preloadOrden ? 'Duplicar solicitud' : 'Nueva solicitud'}</h3>
-                                <p class="text-[11px] text-gray-500">Arma la lista de materiales que necesitas</p>
+                                <h3 class="text-sm font-bold text-gray-800">${isEdit ? ('Editar solicitud' + (preloadOrden && preloadOrden.folio ? ' · ' + esc(preloadOrden.folio) : '')) : (preloadOrden ? 'Duplicar solicitud' : 'Nueva solicitud')}</h3>
+                                <p class="text-[11px] text-gray-500">${isEdit ? 'Ajusta los materiales y datos de la solicitud' : 'Arma la lista de materiales que necesitas'}</p>
                             </div>
                         </div>
                         <button id="${modalId}_close" class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400">
@@ -1619,9 +1663,16 @@ class SolicitudesView extends Templates {
                             </div>
                             <div class="flex items-center gap-2 flex-shrink-0">
                                 <button id="${modalId}_cancel" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all">Cancelar</button>
+                                ${isEdit ? `
+                                <button id="${modalId}_saveEdit" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
+                                    <i data-lucide="save" class="w-3.5 h-3.5"></i><span>Guardar cambios</span>
+                                </button>` : `
+                                <button id="${modalId}_draft" class="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-all flex items-center gap-1.5">
+                                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i><span>Guardar borrador</span>
+                                </button>
                                 <button id="${modalId}_send" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
                                     <i data-lucide="send" class="w-3.5 h-3.5"></i><span>Enviar solicitud</span>
-                                </button>
+                                </button>`}
                             </div>
                         </div>
                     </div>
@@ -1631,6 +1682,13 @@ class SolicitudesView extends Templates {
 
         $('body').append($modal);
         if (window.lucide) lucide.createIcons();
+
+        // Modo edición: precarga la cabecera de la solicitud (sucursal destino, fecha y nota).
+        if (isEdit && preloadOrden) {
+            if (preloadOrden.branch_id)  $(`#${modalId}_selSucursal`).val(String(preloadOrden.branch_id));
+            if (preloadOrden.date_order) $(`#${modalId}_inpFecha`).val(String(preloadOrden.date_order).slice(0, 10));
+            if (preloadOrden.note)       $(`#${modalId}_note`).val(preloadOrden.note);
+        }
 
         const renderTbody = () => {
             const $tbody = $(`#${modalId}_tbody`);
@@ -1728,8 +1786,25 @@ class SolicitudesView extends Templates {
             $results.addClass('hidden').html('');
         };
 
+        // CTA para dar de alta el material que se buscó cuando no está en el catálogo.
+        // Queda al pie del dropdown (o como única opción si no hubo coincidencias).
+        const createCtaHtml = (rawTrim, hasResults) => `
+            <div class="sol-create-cta flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-emerald-50/70 transition-all ${hasResults ? 'border-t border-gray-200' : ''}">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-7 h-7 rounded bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="plus" class="w-3.5 h-3.5 text-emerald-600"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-xs font-semibold text-emerald-700 truncate">Crear &ldquo;${esc(rawTrim)}&rdquo;</p>
+                        <p class="text-[10px] text-gray-400">Lo das de alta y se agrega a la solicitud</p>
+                    </div>
+                </div>
+                <i data-lucide="corner-down-left" class="w-3.5 h-3.5 text-gray-300 flex-shrink-0"></i>
+            </div>`;
+
         const renderResults = (raw) => {
-            const q = String(raw == null ? '' : raw).trim().toLowerCase();
+            const q       = String(raw == null ? '' : raw).trim().toLowerCase();
+            const rawTrim = String(raw == null ? '' : raw).trim();
             if (!q) { catalogItems = []; activeIdx = 0; $results.addClass('hidden').html(''); return; }
 
             catalogItems = productos.filter(p =>
@@ -1738,7 +1813,10 @@ class SolicitudesView extends Templates {
             if (activeIdx >= catalogItems.length) activeIdx = Math.max(0, catalogItems.length - 1);
 
             if (!catalogItems.length) {
-                $results.removeClass('hidden').html(`<div class="px-3 py-2 text-xs text-gray-400 italic">Sin resultados</div>`);
+                $results.removeClass('hidden').html(
+                    `<div class="px-3 py-2 text-xs text-gray-400 italic">Sin resultados</div>` + createCtaHtml(rawTrim, false)
+                );
+                if (window.lucide) lucide.createIcons();
                 return;
             }
             $results.removeClass('hidden').html(catalogItems.map((p, i) => `
@@ -1757,7 +1835,7 @@ class SolicitudesView extends Templates {
                         <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar
                     </span>
                 </div>
-            `).join(''));
+            `).join('') + createCtaHtml(rawTrim, true));
             if (window.lucide) lucide.createIcons();
             highlightActive();
         };
@@ -1782,6 +1860,137 @@ class SolicitudesView extends Templates {
             flashRow(idx);
             if (focusQty) focusCantidad(idx);
             else $search.trigger('focus');
+        };
+
+        // Alta exprés cuando el material buscado no está en el catálogo: el solicitante
+        // teclea nombre (+ categoría/unidad opcionales), se da de alta en el catálogo real
+        // (ctrl-almacen) y el producto entra directo a la solicitud. Quien recibe la orden
+        // decide después si lo surte.
+        const openCrearProducto = async (prefill) => {
+            // Catálogos del módulo de Almacén; se piden una vez y se cachean en dataInit.
+            if (!app.dataInit.categorias || !app.dataInit.unidades) {
+                const cat = await useFetch({ url: apiAlmacen, data: { opc: 'init' } }).catch(() => null);
+                app.dataInit.categorias = (cat && cat.categorias) || [];
+                app.dataInit.unidades   = (cat && cat.unidades)   || [];
+            }
+
+            const optList = (arr) => (arr || []).map(o => `<option value="${esc(o.id)}">${esc(o.valor)}</option>`).join('');
+            const cpId    = 'modalCrearProducto';
+            $(`#${cpId}`).remove();
+
+            const $cp = $(`
+                <div id="${cpId}" class="fixed inset-0 z-[10000] bg-black/45 flex items-center justify-center p-4">
+                    <div class="w-full max-w-[440px] bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.3)] overflow-hidden">
+                        <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 bg-gray-50">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center">
+                                    <i data-lucide="package-plus" class="w-5 h-5 text-white"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-gray-800">Crear producto</h3>
+                                    <p class="text-[11px] text-gray-500">Se da de alta y se agrega a la solicitud</p>
+                                </div>
+                            </div>
+                            <button id="${cpId}_close" class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="px-5 py-4 space-y-3">
+                            <div>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nombre del producto</label>
+                                <input id="${cpId}_name" type="text" autocomplete="off" class="w-full px-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 transition-all" placeholder="Ej. Leche entera 1L">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Categoría</label>
+                                    <select id="${cpId}_cat" class="w-full px-2.5 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-emerald-500 cursor-pointer">
+                                        <option value="">Sin categoría</option>${optList(app.dataInit.categorias)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Unidad</label>
+                                    <select id="${cpId}_unit" class="w-full px-2.5 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-emerald-500 cursor-pointer">
+                                        <option value="">Sin unidad</option>${optList(app.dataInit.unidades)}
+                                    </select>
+                                </div>
+                            </div>
+                            <p id="${cpId}_err" class="hidden text-[11px] font-medium text-red-500"></p>
+                            <p class="text-[10px] text-gray-400">El precio y costo se definen luego en el catálogo. El SKU se genera solo.</p>
+                        </div>
+                        <div class="px-5 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-2">
+                            <button id="${cpId}_cancel" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-all">Cancelar</button>
+                            <button id="${cpId}_save" class="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-md hover:bg-emerald-500 hover:shadow-lg transition-all flex items-center gap-1.5">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Crear y agregar</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `);
+
+            $('body').append($cp);
+            $(`#${cpId}_name`).val(prefill || '');
+            if (window.lucide) lucide.createIcons();
+            setTimeout(() => $(`#${cpId}_name`).trigger('focus').trigger('select'), 50);
+
+            const $err    = $(`#${cpId}_err`);
+            const closeCp = () => $(`#${cpId}`).remove();
+            $(`#${cpId}_close`).on('click', closeCp);
+            $(`#${cpId}_cancel`).on('click', closeCp);
+            $cp.on('click', (e) => { if ($(e.target).is(`#${cpId}`)) closeCp(); });
+            // Escape cierra solo este modal; se frena para que no dispare el cierre del form de solicitud.
+            $cp.on('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeCp(); } });
+
+            const saveCp = async () => {
+                const nombre = ($(`#${cpId}_name`).val() || '').trim();
+                if (!nombre) {
+                    $err.text('Escribe el nombre del producto.').removeClass('hidden');
+                    $(`#${cpId}_name`).trigger('focus');
+                    return;
+                }
+                const catId  = $(`#${cpId}_cat`).val()  || '';
+                const unitId = $(`#${cpId}_unit`).val() || '';
+                const $btn   = $(`#${cpId}_save`).prop('disabled', true).addClass('opacity-60 pointer-events-none');
+
+                const resp = await useFetch({
+                    url:  apiAlmacen,
+                    data: { opc: 'addProductoRapido', name: nombre, category_id: catId, unit_id: unitId }
+                }).catch(() => null);
+
+                if (!resp || resp.status !== 200) {
+                    $btn.prop('disabled', false).removeClass('opacity-60 pointer-events-none');
+                    $err.text((resp && resp.message) || 'No se pudo crear el producto.').removeClass('hidden');
+                    return;
+                }
+
+                const catObj = (app.dataInit.categorias || []).find(c => String(c.id) === String(catId));
+                const nuevo  = {
+                    id:                String(resp.id),
+                    nombre:            nombre,
+                    sku:               resp.sku || '',
+                    categoria:         catObj ? catObj.valor : 'Sin categoria',
+                    costo:             0,
+                    precio:            0,
+                    price_without_tax: null,
+                    tax:               null,
+                    stock:             0,
+                    image:             '',
+                    icon:              'package',
+                    bg:                'bg-gray-100',
+                    color:             'text-gray-500'
+                };
+                productos.push(nuevo);
+                // `productos` suele ser la misma referencia que app.dataInit.productos; solo
+                // sincronizamos aparte si por alguna razón son arrays distintos (evita duplicado).
+                if (Array.isArray(app.dataInit.productos) && app.dataInit.productos !== productos) {
+                    app.dataInit.productos.push(nuevo);
+                }
+
+                closeCp();
+                commitProducto(nuevo, true);
+            };
+
+            $(`#${cpId}_save`).on('click', saveCp);
+            $(`#${cpId}_name`).on('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveCp(); } });
         };
 
         // Enter en el buscador: prioriza SKU exacto (lector de codigo) -> agrega
@@ -1826,6 +2035,11 @@ class SolicitudesView extends Templates {
             commitProducto(catalogItems[i], true);
         });
 
+        // CTA "Crear ..." al pie del dropdown: abre el alta exprés con el texto buscado.
+        $results.on('click', '.sol-create-cta', function () {
+            openCrearProducto(($search.val() || '').trim());
+        });
+
         // Hover sincroniza el resaltado con el cursor del mouse.
         $results.on('mouseenter', '.prod-result', function () {
             const i = parseInt($(this).attr('data-cat-idx'), 10);
@@ -1863,7 +2077,12 @@ class SolicitudesView extends Templates {
             if (e.key === 'Escape' && $(`#${modalId}`).length && !($search.val() || '').length) closeModal();
         });
 
-        $(`#${modalId}_send`).on('click', () => this.sendSolicitud(modalId, rows, closeModal));
+        if (isEdit) {
+            $(`#${modalId}_saveEdit`).on('click', () => this.guardarEdicion(modalId, rows, closeModal, editCtx.id));
+        } else {
+            $(`#${modalId}_send`).on('click', () => this.sendSolicitud(modalId, rows, closeModal));
+            $(`#${modalId}_draft`).on('click', () => this.guardarBorrador(modalId, rows, closeModal));
+        }
 
         // Al abrir, el foco arranca en el buscador para teclear/escanear de una.
         setTimeout(() => $(`#${modalId}_search`).trigger('focus'), 50);
@@ -1874,7 +2093,8 @@ class SolicitudesView extends Templates {
             this.alertBox({
                 type:       'warning',
                 title:      'Agrega productos para continuar',
-                detailHtml: 'Necesitas agregar al menos un material antes de enviar la solicitud.'
+                detailHtml: 'Necesitas agregar al menos un material antes de enviar la solicitud.',
+                timer:      1500
             });
             return;
         }
@@ -1883,7 +2103,8 @@ class SolicitudesView extends Templates {
             this.alertBox({
                 type:       'warning',
                 title:      'Selecciona una sucursal',
-                detailHtml: 'Debes elegir a qué sucursal le solicitas los materiales.'
+                detailHtml: 'Debes elegir a qué sucursal le solicitas los materiales.',
+                timer:      1500
             });
             return;
         }
@@ -1928,6 +2149,175 @@ class SolicitudesView extends Templates {
                 timer: 1800
             });
             closeModal();
+            solicitudes.lsSolicitudes();
+            solicitudes.lsKpis();
+        } else {
+            this.alertBox({
+                type:  'error',
+                title: (r && r.message) || 'No se pudo enviar la solicitud'
+            });
+        }
+    }
+
+    // Guarda la solicitud como Borrador (submit:false): solo exige al menos un
+    // material; la sucursal destino puede quedar pendiente y completarse al enviarla.
+    guardarBorrador(modalId, rows, closeModal) {
+        if (!rows.length) {
+            this.alertBox({
+                type:       'warning',
+                title:      'Agrega productos para continuar',
+                detailHtml: 'Necesitas agregar al menos un material para guardar el borrador.',
+                timer:      1500
+            });
+            return;
+        }
+
+        const total = rows.length;
+        this.alertBox({
+            type:        'confirm',
+            title:       '¿Deseas guardar el borrador?',
+            detailHtml:  `Se guardará el borrador con <strong>${total}</strong> material${total !== 1 ? 'es' : ''}. Podrás enviarlo después.`,
+            okLabel:     'Sí, guardar borrador',
+            okIcon:      'file-text',
+            cancelLabel: 'Seguir editando',
+            onOk:        () => this.doGuardarBorrador(modalId, rows, closeModal)
+        });
+    }
+
+    async doGuardarBorrador(modalId, rows, closeModal) {
+        const payload = {
+            branch_id:  $(`#${modalId}_selSucursal`).val() || '',
+            date_order: $(`#${modalId}_inpFecha`).val() || '',
+            note:       $(`#${modalId}_note`).val() || '',
+            submit:     false,
+            productos:  rows.map(r => ({
+                product_id:        r.id,
+                quantity:          r.cant,
+                cost:              null,
+                price_without_tax: null,
+                tax:               0,
+                unit_id:           null
+            }))
+        };
+
+        const r = await useFetch({
+            url:  apiOrdenes,
+            data: { opc: 'saveOrden', payload: JSON.stringify(payload) }
+        });
+
+        if (r && r.status === 200) {
+            this.alertBox({
+                type:  'success',
+                title: r.message || 'Borrador guardado',
+                timer: 1800
+            });
+            closeModal();
+            solicitudes.lsSolicitudes();
+            solicitudes.lsKpis();
+        } else {
+            this.alertBox({
+                type:  'error',
+                title: (r && r.message) || 'No se pudo guardar el borrador'
+            });
+        }
+    }
+
+    // Edición de una solicitud existente (solo Borrador o Solicitada). No cambia el
+    // estado: actualiza renglones y cabecera vía editOrden. Un borrador se envía aparte.
+    guardarEdicion(modalId, rows, closeModal, orderId) {
+        if (!rows.length) {
+            this.alertBox({
+                type:       'warning',
+                title:      'Agrega productos para continuar',
+                detailHtml: 'La solicitud debe quedar con al menos un material.',
+                timer:      1500
+            });
+            return;
+        }
+
+        const total = rows.length;
+        this.alertBox({
+            type:        'confirm',
+            title:       '¿Guardar los cambios?',
+            detailHtml:  `Se actualizará la solicitud con <strong>${total}</strong> material${total !== 1 ? 'es' : ''}.`,
+            okLabel:     'Sí, guardar cambios',
+            okIcon:      'save',
+            cancelLabel: 'Seguir editando',
+            onOk:        () => this.doGuardarEdicion(modalId, rows, closeModal, orderId)
+        });
+    }
+
+    async doGuardarEdicion(modalId, rows, closeModal, orderId) {
+        const payload = {
+            branch_id:  $(`#${modalId}_selSucursal`).val() || '',
+            date_order: $(`#${modalId}_inpFecha`).val() || '',
+            note:       $(`#${modalId}_note`).val() || '',
+            productos:  rows.map(r => ({
+                product_id:        r.id,
+                quantity:          r.cant,
+                cost:              null,
+                price_without_tax: null,
+                tax:               0,
+                unit_id:           null
+            }))
+        };
+
+        const r = await useFetch({
+            url:  apiOrdenes,
+            data: { opc: 'editOrden', id: orderId, payload: JSON.stringify(payload) }
+        });
+
+        if (r && r.status === 200) {
+            this.alertBox({
+                type:  'success',
+                title: r.message || 'Solicitud actualizada',
+                timer: 1800
+            });
+            closeModal();
+            solicitudes.getOrden(orderId);
+            solicitudes.lsSolicitudes();
+            solicitudes.lsKpis();
+        } else {
+            this.alertBox({
+                type:  'error',
+                title: (r && r.message) || 'No se pudieron guardar los cambios'
+            });
+        }
+    }
+
+    // Abre el form en modo edición con la solicitud precargada (renglones + cabecera).
+    editarSolicitud(e) {
+        if (!e || !e.id) return;
+        this.openSolicitudForm(e, { id: e.id, status: e.status });
+    }
+
+    // Envía un borrador ya guardado (Borrador -> Solicitada) desde el detalle.
+    enviarBorrador(e) {
+        if (!e || !e.id) return;
+        this.alertBox({
+            type:        'confirm',
+            title:       `¿Enviar la solicitud ${e.folio || ''}?`,
+            detailHtml:  'El borrador pasará a estado <strong>Solicitada</strong> y quedará listo para aprobación.',
+            okLabel:     'Sí, enviar',
+            okIcon:      'send',
+            cancelLabel: 'Revisar',
+            onOk:        () => this.doEnviarBorrador(e)
+        });
+    }
+
+    async doEnviarBorrador(e) {
+        const r = await useFetch({
+            url:  apiOrdenes,
+            data: { opc: 'submitOrden', id: e.id }
+        });
+
+        if (r && r.status === 200) {
+            this.alertBox({
+                type:  'success',
+                title: r.message || 'Solicitud enviada',
+                timer: 1800
+            });
+            solicitudes.getOrden(e.id);
             solicitudes.lsSolicitudes();
             solicitudes.lsKpis();
         } else {

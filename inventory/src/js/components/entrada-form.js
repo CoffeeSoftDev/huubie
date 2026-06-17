@@ -91,6 +91,8 @@ class EntradaForm {
                 unidadesLbl:  'Unidades',
                 categoriasLbl:'Categorias',
                 costoRefLbl:  'Costo ref.',
+                costoSinImpLbl: 'Costo sin imp.',
+                impuestosLbl: 'Impuestos',
                 costoTotLbl:  'Costo total',
                 emptyTitle:   'Aun no has agregado productos',
                 emptyHint:    'Usa el buscador para empezar',
@@ -358,9 +360,20 @@ class EntradaForm {
                     <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>${this.esc(o.labels.unidadesLbl)} <strong class="text-gray-800 text-sm" id="${o.id}_qtyUnits">0</strong> uds</span>
                     <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>${this.esc(o.labels.categoriasLbl)} <strong class="text-gray-800 text-sm" id="${o.id}_qtyCats">0</strong></span>
                 </div>
-                <div class="flex items-baseline gap-2.5">
-                    <span class="text-[10px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.costoTotLbl)}</span>
-                    <span class="text-green-600 font-bold text-lg leading-none" id="${o.id}_qtyCost">$0.00</span>
+                <div class="flex items-center gap-5">
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-[10px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.costoSinImpLbl)}</span>
+                        <span class="text-gray-700 font-semibold text-sm leading-none" id="${o.id}_qtyBase">$0.00</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-[10px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.impuestosLbl)}</span>
+                        <span class="text-gray-700 font-semibold text-sm leading-none" id="${o.id}_qtyTax">$0.00</span>
+                    </div>
+                    <div class="h-6 w-px bg-gray-300"></div>
+                    <div class="flex items-baseline gap-2.5">
+                        <span class="text-[10px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.costoTotLbl)}</span>
+                        <span class="text-green-600 font-bold text-lg leading-none" id="${o.id}_qtyCost">$0.00</span>
+                    </div>
                 </div>
             </div>`;
     }
@@ -597,10 +610,15 @@ class EntradaForm {
         const totalItems = this.lote.length;
         const totalUds   = this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
         const totalCosto = this.lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
+        // Costo sin impuestos (base) e impuestos = total c/imp - total s/imp.
+        const totalBase  = this.lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costoSinTax || 0), 0);
+        const totalTax   = totalCosto - totalBase;
         const totalCats  = new Set(this.lote.map(p => (p.categoria && String(p.categoria).trim()) || 'Sin categoria')).size;
         $(`#${o.id}_qtyItems`).text(totalItems);
         $(`#${o.id}_qtyUnits`).text(totalUds);
         $(`#${o.id}_qtyCats`).text(totalCats);
+        $(`#${o.id}_qtyBase`).text(this.fmtMoney(totalBase));
+        $(`#${o.id}_qtyTax`).text(this.fmtMoney(totalTax));
         $(`#${o.id}_qtyCost`).text(this.fmtMoney(totalCosto));
         $(`#${o.id}_cntProductos`).text(totalItems);
     }

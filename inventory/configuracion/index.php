@@ -10,15 +10,16 @@ if (empty($_SESSION["IDU"])) {
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 
-// Modo embebido: dentro del iframe de /inventory/root/ se ocultan navbar/sidebar
-// para mostrar solo el contenido del módulo.
+// Modo embebido: cuando se carga dentro del iframe de /configuracion se ocultan
+// navbar/sidebar/breadcrumb para mostrar solo el contenido del módulo.
 $embed = isset($_GET['embed']);
 ?>
 
 <!-- CoffeeSoft Framework -->
 <script src="../src/js/coffeeSoft.js"></script>
-<script src="https://rawcdn.githack.com/SomxS/Grupo-Varoch/refs/heads/main/src/js/plugins.js"></script>
-<script src="https://www.plugins.erp-varoch.com/ERP/JS/complementos.js"></script>
+<script src="../src/js/complementos.js"></script>
+<script src="../src/js/plugin-form.js"></script>
+
 <link rel="stylesheet" href="../src/css/dark-mode.css">
 
 <!-- Forzar modales (bootbox) en light theme aunque el body este en dark-mode -->
@@ -63,8 +64,9 @@ $embed = isset($_GET['embed']);
 
 <?php if ($embed): ?>
 <style>
-    /* Embebido en /inventory/root/: sin navbar ni sidebar, a todo lo ancho. */
+    /* Embebido en /configuracion: sin navbar ni sidebar, a todo lo ancho. */
     body.embed-mode { padding-left: 0 !important; padding-top: 0 !important; }
+    body.embed-mode main > #main__content { padding: 12px !important; }
 </style>
 <?php endif; ?>
 
@@ -78,13 +80,15 @@ $embed = isset($_GET['embed']);
         <?php endif; ?>
 
         <div id="main__content">
+            <?php if (!$embed): ?>
             <!-- Breadcrumb Navigation -->
-            <!-- <nav aria-label="breadcrumb">
+            <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item text-uppercase text-muted">Administración</li>
-                    <li class="breadcrumb-item fw-bold active">Tenant</li>
+                    <li class="breadcrumb-item fw-bold active">Accesos</li>
                 </ol>
-            </nav> -->
+            </nav>
+            <?php endif; ?>
 
             <!-- Contenedor principal -->
             <div class="" id="root"></div>
@@ -94,12 +98,10 @@ $embed = isset($_GET['embed']);
     <?php if (!$embed): ?>
     <!-- Importación navbar y sidebar -->
     <script src="../acceso/src/js/navbar.js"></script>
-    <script src="../acceso/src/js/sidebar.js"></script>
+    <!-- <script src="../acceso/src/js/sidebar.js"></script> -->
     <?php endif; ?>
 
-    <!-- Módulo Administrador del Tenant -->
-    <script src="js/saas.js?t=<?php echo time(); ?>"></script>
-    <script src="js/access.js?t=<?php echo time(); ?>"></script>
-    <script src="js/tenant.js?t=<?php echo time(); ?>"></script>
+    <!-- Módulo de Accesos -->
+    <script src="js/accesos.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

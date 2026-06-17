@@ -234,6 +234,22 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-context-item input { accent-color: var(--vsr-accent); width: 15px; height: 15px; cursor: pointer; }
 .pg-context-item .ci-name { font-size: 12.5px; font-weight: 600; color: var(--vsr-text-soft); }
 .pg-context-item .ci-meta { font-size: 11px; color: var(--vsr-text-mute2); margin-left: auto; }
+.pg-context-item .pg-tpl-del {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; padding: 0; border-radius: 6px; flex-shrink: 0;
+    background: var(--vsr-bg-card); border: 1px solid var(--vsr-border-soft);
+    color: var(--vsr-text-mute2); cursor: pointer; opacity: 0;
+    transition: opacity .15s ease, color .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.pg-context-item .pg-tpl-del i { width: 13px; height: 13px; }
+.pg-context-item:hover .pg-tpl-del,
+.pg-context-item .pg-tpl-del:focus-visible { opacity: 1; }
+.pg-context-item .pg-tpl-del:hover { color: #fff; background: #dc2626; border-color: #dc2626; }
+.pg-context-item .pg-tpl-del.is-armed {
+    opacity: 1; color: #fff; background: #dc2626; border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, .25);
+}
+.pg-context-item .pg-tpl-del:disabled { opacity: .5; cursor: default; }
 
 /* ── Tarjeta-miniatura de template renderizado (dentro de la burbuja del chat) ── */
 .pg-chat-tpl {
