@@ -1,0 +1,612 @@
+﻿[
+    {
+        "name":  "FECULA DE MAIZ",
+        "pres":  "500 GR",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "POLVO PARA HORNEAR",
+        "pres":  "500 GR",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "CANELA EN POLVO",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "GLASSE DE FRESA",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "MANGA DE PIÑA",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "MANGA DE FRESA",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "MANGA DE ZARZAMORA",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "GANASHE BLANCO",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "GANASHE OSCURO",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "MANGA DE VAINILLA",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "CHOCOLATE CARAT",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 1"
+    },
+    {
+        "name":  "COCOA",
+        "pres":  "500 GR",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "NUEZ PICADA",
+        "pres":  "500 GR",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "AJONJOLI",
+        "pres":  "500 GR",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "ALMENDRA FILETEADA",
+        "pres":  "500 GR",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "COCO",
+        "pres":  "500 GR",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "CACAHUATE",
+        "pres":  "500 GR",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "GALLETA MARIAS",
+        "pres":  "ROLLO",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "LECHE PRADEL",
+        "pres":  "LITRO",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "JARABE 3 LECHES",
+        "pres":  "LITRO",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "AMBIANTE",
+        "pres":  "LITRO",
+        "cat":  "ANAQUEL 2"
+    },
+    {
+        "name":  "GALLETA RITZ",
+        "pres":  "ROLLO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "GALLETA OREO",
+        "pres":  "PAQUETE",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "GALLETA LOTUS",
+        "pres":  "PAQUETE",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "MIEL",
+        "pres":  "BOTE",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "BOTE DE CANELA",
+        "pres":  "BOTE",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "CREMA LOTUS",
+        "pres":  "BOTE",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "HARINA DE ALMENDRAS",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "TEQUILA",
+        "pres":  "BOTELLA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "ROMPOPE",
+        "pres":  "BOTELLA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "BRANDY",
+        "pres":  "BOTELLA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "LICOR DE BAILEYS",
+        "pres":  "BOTELLA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "OSTIONES AHUMADOS",
+        "pres":  "CAJITA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "MERMELADA DE FRESA",
+        "pres":  "FRASCO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "MERMELADA DE ZARZAMORA",
+        "pres":  "FRASCO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "CREMA DE AVELLANAS",
+        "pres":  "FRASCO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "EXTRACTO DE VAINILLA",
+        "pres":  "LITRO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "LECHE LALA DESLACTOSADA",
+        "pres":  "LITRO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "DULCE DE LECHE",
+        "pres":  "LATA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "LECHERA",
+        "pres":  "LATA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "CARNETION",
+        "pres":  "LATA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "LEVADURA",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "CHOCOLATE PARA DONA",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "COBERTURA PARA DONA MAPLE",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "GELATINAS",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "MEJORAMIX",
+        "pres":  "BOLSA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "SALSA PARA PIZZA",
+        "pres":  "BOLSA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "CAFE",
+        "pres":  "BOTE",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "MAYONESA MEMBER`S MARK",
+        "pres":  "3.5 KG",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "MAYONESA MCCORMICK",
+        "pres":  "3.5 KG",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "SAL",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "ACEITE",
+        "pres":  "LITRO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "VAINILLA",
+        "pres":  "4 LT",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "CEREZAS",
+        "pres":  "3.5 KG",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "DURAZNO MITADES",
+        "pres":  "3.5 KG",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "PIÑA TROZOS",
+        "pres":  "3.5 KG",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "PIÑA RODAJAS",
+        "pres":  "3.5 KG",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "GRANILLO DE COLORES",
+        "pres":  "BOLSA",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "AZUCAR REFINADA",
+        "pres":  "KILO",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "AZUCAR MASCABADO",
+        "pres":  "2 KG",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "AZUCAR GLASS",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "AZUCAR ESTANDAR",
+        "pres":  "25 KG",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "HARINA MAYRAN",
+        "pres":  "25 KG",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "HUEVO",
+        "pres":  "CJA 360",
+        "cat":  "ANAQUEL 3"
+    },
+    {
+        "name":  "MANTEQUILLA AZTURIAS",
+        "pres":  "KILO",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "MARGARINA BIZCOCHO",
+        "pres":  "KILO",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "FEITE DANES",
+        "pres":  "KILO",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "CAJETA",
+        "pres":  "KILO",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "SELECTA",
+        "pres":  "KILO",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "QUESO CREMA SANTA CRUZ",
+        "pres":  "KILO",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "QUESO PHILADELPHIA",
+        "pres":  "KILO",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "CHOCOLATE BLANCO",
+        "pres":  "500 GR",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "YOGURT",
+        "pres":  "LITRO",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "FERREROS",
+        "pres":  "CAJA",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "CREMA DE BAILYES",
+        "pres":  "PZ",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "GRANILLO DE CHOCOLATE",
+        "pres":  "PZ",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "JAMON",
+        "pres":  "PZ",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "SALCHICHA",
+        "pres":  "PZ",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "QUESO AMARILLO",
+        "pres":  "PZ",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "QUESO MOZZARELLA",
+        "pres":  "PZ",
+        "cat":  "REFRIGERADOR"
+    },
+    {
+        "name":  "CREMA PARA BATIR BETTERCREAM",
+        "pres":  "CAJA",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "DOBLE CHOCOLATE",
+        "pres":  "CAJA",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "JARABE 3 LECHES RICHES",
+        "pres":  "CAJA",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "JARABE DE BAILYES",
+        "pres":  "CAJA",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "FRUTOS ROJOS CONGELADOS",
+        "pres":  "2KG",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "FRESAS CONGELADAS",
+        "pres":  "2KG",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "MANGO EN CUBITOS",
+        "pres":  "2KG",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "PULPA DE MANGO",
+        "pres":  "KILO",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "PEPERONI",
+        "pres":  "2KG",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "ELOTE EN GRANO",
+        "pres":  "2KG",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "CHOCOLANTE OSCURO",
+        "pres":  "5KG",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "CHOCOLANTE LECHE",
+        "pres":  "5KG",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "RAJAS",
+        "pres":  "2KG",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "QUESO DOBLE CREMA",
+        "pres":  "PZ",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "CHISPA DE CHOCOLATE",
+        "pres":  "PZ",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "CONCENTRADO DE JARABE 3 LECHES",
+        "pres":  "CAJA",
+        "cat":  "CONGELADOR"
+    },
+    {
+        "name":  "DOMO C-85",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO C-95",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO C-105",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO P-32AN",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO P-20AN",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO C-15N",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO REBANADAS",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO LASAÑA",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO 1/4 DE PLANCHA",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO 1/2 PLANCHA",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO CUPCAKE",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO BOCADILLO GD",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO BOCADILLO CH",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO ROSCA MED",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO ROSCA GD",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO ROSCA FAMILIAR",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "BASE 15CM",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "BASE 20 CM",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "BASE 25 CM",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "BASE 30 CM",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "BASE 35 CM",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "BASE 40 CM",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "BASE 45 CM",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "DOMO CHUNCAKE",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "CAJAS DE GALLETA",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    },
+    {
+        "name":  "BASE DORADA",
+        "pres":  "PZ",
+        "cat":  "ANAQUEL 4"
+    }
+]
