@@ -368,7 +368,7 @@ class Solicitudes extends Templates {
                 id:           `tb${this.PROJECT_NAME}`,
                 theme:        'light',
                 f_size:       12,
-                center:       [3, 4, 5, 6],
+                center:       [2, 6, 7],
                 emptyMessage: 'No se encontraron solicitudes con los filtros aplicados',
                 emptyIcon:    'icon-clipboard-list'
             }
