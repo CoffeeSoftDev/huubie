@@ -1,3 +1,291 @@
+[ 2026-06-17 11:09:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                COUNT(po.id)                                AS total_ordenes,
+                SUM(po.status = 'Solicitada')               AS total_solicitadas,
+                SUM(po.status = 'Aprobada')                 AS total_aprobadas,
+                SUM(po.status = 'Parcial')                  AS total_parciales,
+                SUM(po.status = 'Recibida')                 AS total_recibidas,
+                SUM(po.status = 'Cancelada')                AS total_canceladas,
+                IFNULL(SUM(po.total_cost), 0)               AS total_costo
+            FROM fayxzvov_inventory.purchase_order po
+            WHERE po.active = 1 AND po.companies_id = ? AND po.user_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order' doesn't exist
+
+
+[ 2026-06-17 11:09:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                po.id,
+                po.folio,
+                po.note,
+                po.total_products,
+                po.total_units,
+                po.total_cost,
+                po.status,
+                po.date_order,
+                po.created_at,
+                po.expected_date,
+                po.warehouse_id,
+                w.name         AS warehouse_name,
+                po.branch_id,
+                s.name         AS branch_name,
+                po.supplier_id,
+                sp.name        AS supplier_name,
+                po.user_id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))  AS user_name,
+                po.approved_user_id,
+                TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
+                po.approved_at,
+                po.reject_reason
+            FROM fayxzvov_inventory.purchase_order po
+            LEFT JOIN fayxzvov_inventory.warehouse        w  ON w.id  = po.warehouse_id
+            LEFT JOIN fayxzvov_erp.branches      s  ON s.id  = po.branch_id
+            LEFT JOIN fayxzvov_inventory.supplier         sp ON sp.id = po.supplier_id
+            LEFT JOIN fayxzvov_erp.users         u  ON u.id  = po.user_id
+            LEFT JOIN fayxzvov_erp.users         au ON au.id = po.approved_user_id
+            WHERE po.active = 1 AND po.companies_id = ? AND po.status <> 'Cancelada' AND DATE(po.date_order) BETWEEN ? AND ? AND po.user_id = ?
+            ORDER BY po.date_order DESC, po.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order' doesn't exist
+
+
+[ 2026-06-17 11:09:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                po.id,
+                po.folio,
+                po.note,
+                po.total_products,
+                po.total_units,
+                po.total_cost,
+                po.status,
+                po.date_order,
+                po.created_at,
+                po.expected_date,
+                po.warehouse_id,
+                w.name         AS warehouse_name,
+                po.branch_id,
+                s.name         AS branch_name,
+                po.supplier_id,
+                sp.name        AS supplier_name,
+                po.user_id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))  AS user_name,
+                po.approved_user_id,
+                TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
+                po.approved_at,
+                po.reject_reason
+            FROM fayxzvov_inventory.purchase_order po
+            LEFT JOIN fayxzvov_inventory.warehouse        w  ON w.id  = po.warehouse_id
+            LEFT JOIN fayxzvov_erp.branches      s  ON s.id  = po.branch_id
+            LEFT JOIN fayxzvov_inventory.supplier         sp ON sp.id = po.supplier_id
+            LEFT JOIN fayxzvov_erp.users         u  ON u.id  = po.user_id
+            LEFT JOIN fayxzvov_erp.users         au ON au.id = po.approved_user_id
+            WHERE po.active = 1 AND po.companies_id = ? AND po.status <> 'Cancelada' AND DATE(po.date_order) BETWEEN ? AND ? AND po.user_id = ?
+            ORDER BY po.date_order DESC, po.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order' doesn't exist
+
+
+[ 2026-06-17 11:09:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                po.id,
+                po.folio,
+                po.note,
+                po.total_products,
+                po.total_units,
+                po.total_cost,
+                po.status,
+                po.date_order,
+                po.created_at,
+                po.expected_date,
+                po.warehouse_id,
+                w.name         AS warehouse_name,
+                po.branch_id,
+                s.name         AS branch_name,
+                po.supplier_id,
+                sp.name        AS supplier_name,
+                po.user_id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))  AS user_name,
+                po.approved_user_id,
+                TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
+                po.approved_at,
+                po.reject_reason
+            FROM fayxzvov_inventory.purchase_order po
+            LEFT JOIN fayxzvov_inventory.warehouse        w  ON w.id  = po.warehouse_id
+            LEFT JOIN fayxzvov_erp.branches      s  ON s.id  = po.branch_id
+            LEFT JOIN fayxzvov_inventory.supplier         sp ON sp.id = po.supplier_id
+            LEFT JOIN fayxzvov_erp.users         u  ON u.id  = po.user_id
+            LEFT JOIN fayxzvov_erp.users         au ON au.id = po.approved_user_id
+            WHERE po.active = 1 AND po.companies_id = ? AND po.status <> 'Cancelada' AND DATE(po.date_order) BETWEEN ? AND ? AND po.user_id = ?
+            ORDER BY po.date_order DESC, po.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order' doesn't exist
+
+
+[ 2026-06-17 11:09:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                COUNT(po.id)                                AS total_ordenes,
+                SUM(po.status = 'Solicitada')               AS total_solicitadas,
+                SUM(po.status = 'Aprobada')                 AS total_aprobadas,
+                SUM(po.status = 'Parcial')                  AS total_parciales,
+                SUM(po.status = 'Recibida')                 AS total_recibidas,
+                SUM(po.status = 'Cancelada')                AS total_canceladas,
+                IFNULL(SUM(po.total_cost), 0)               AS total_costo
+            FROM fayxzvov_inventory.purchase_order po
+            WHERE po.active = 1 AND po.companies_id = ? AND po.user_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order' doesn't exist
+
+
+[ 2026-06-17 11:09:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                po.id,
+                po.folio,
+                po.note,
+                po.total_products,
+                po.total_units,
+                po.total_cost,
+                po.status,
+                po.date_order,
+                po.created_at,
+                po.expected_date,
+                po.warehouse_id,
+                w.name         AS warehouse_name,
+                po.branch_id,
+                s.name         AS branch_name,
+                po.supplier_id,
+                sp.name        AS supplier_name,
+                po.user_id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))  AS user_name,
+                po.approved_user_id,
+                TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
+                po.approved_at,
+                po.reject_reason
+            FROM fayxzvov_inventory.purchase_order po
+            LEFT JOIN fayxzvov_inventory.warehouse        w  ON w.id  = po.warehouse_id
+            LEFT JOIN fayxzvov_erp.branches      s  ON s.id  = po.branch_id
+            LEFT JOIN fayxzvov_inventory.supplier         sp ON sp.id = po.supplier_id
+            LEFT JOIN fayxzvov_erp.users         u  ON u.id  = po.user_id
+            LEFT JOIN fayxzvov_erp.users         au ON au.id = po.approved_user_id
+            WHERE po.active = 1 AND po.companies_id = ? AND po.status <> 'Cancelada' AND DATE(po.date_order) BETWEEN ? AND ? AND po.user_id = ?
+            ORDER BY po.date_order DESC, po.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order' doesn't exist
+
+
+[ 2026-06-17 11:09:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                COUNT(po.id)                                AS total_ordenes,
+                SUM(po.status = 'Solicitada')               AS total_solicitadas,
+                SUM(po.status = 'Aprobada')                 AS total_aprobadas,
+                SUM(po.status = 'Parcial')                  AS total_parciales,
+                SUM(po.status = 'Recibida')                 AS total_recibidas,
+                SUM(po.status = 'Cancelada')                AS total_canceladas,
+                IFNULL(SUM(po.total_cost), 0)               AS total_costo
+            FROM fayxzvov_inventory.purchase_order po
+            WHERE po.active = 1 AND po.companies_id = ? AND po.user_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order' doesn't exist
+
+
+[ 2026-06-17 11:09:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                po.id,
+                po.folio,
+                po.note,
+                po.total_products,
+                po.total_units,
+                po.total_cost,
+                po.status,
+                po.date_order,
+                po.created_at,
+                po.expected_date,
+                po.warehouse_id,
+                w.name         AS warehouse_name,
+                po.branch_id,
+                s.name         AS branch_name,
+                po.supplier_id,
+                sp.name        AS supplier_name,
+                po.user_id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))  AS user_name,
+                po.approved_user_id,
+                TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
+                po.approved_at,
+                po.reject_reason
+            FROM fayxzvov_inventory.purchase_order po
+            LEFT JOIN fayxzvov_inventory.warehouse        w  ON w.id  = po.warehouse_id
+            LEFT JOIN fayxzvov_erp.branches      s  ON s.id  = po.branch_id
+            LEFT JOIN fayxzvov_inventory.supplier         sp ON sp.id = po.supplier_id
+            LEFT JOIN fayxzvov_erp.users         u  ON u.id  = po.user_id
+            LEFT JOIN fayxzvov_erp.users         au ON au.id = po.approved_user_id
+            WHERE po.active = 1 AND po.companies_id = ? AND po.status <> 'Cancelada' AND DATE(po.date_order) BETWEEN ? AND ? AND po.user_id = ?
+            ORDER BY po.date_order DESC, po.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order' doesn't exist
+
+
+[ 2026-06-17 11:09:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                po.id,
+                po.folio,
+                po.note,
+                po.total_products,
+                po.total_units,
+                po.total_cost,
+                po.status,
+                po.date_order,
+                po.created_at,
+                po.expected_date,
+                po.warehouse_id,
+                w.name         AS warehouse_name,
+                po.branch_id,
+                s.name         AS branch_name,
+                po.supplier_id,
+                sp.name        AS supplier_name,
+                po.user_id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))  AS user_name,
+                po.approved_user_id,
+                TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
+                po.approved_at,
+                po.reject_reason
+            FROM fayxzvov_inventory.purchase_order po
+            LEFT JOIN fayxzvov_inventory.warehouse        w  ON w.id  = po.warehouse_id
+            LEFT JOIN fayxzvov_erp.branches      s  ON s.id  = po.branch_id
+            LEFT JOIN fayxzvov_inventory.supplier         sp ON sp.id = po.supplier_id
+            LEFT JOIN fayxzvov_erp.users         u  ON u.id  = po.user_id
+            LEFT JOIN fayxzvov_erp.users         au ON au.id = po.approved_user_id
+            WHERE po.active = 1 AND po.companies_id = ? AND po.status <> 'Cancelada' AND DATE(po.date_order) BETWEEN ? AND ? AND po.user_id = ?
+            ORDER BY po.date_order DESC, po.id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order' doesn't exist
+
+
 [ 2026-06-14 20:17:53 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
