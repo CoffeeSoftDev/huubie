@@ -652,6 +652,11 @@ class ctrl extends mdl {
             'Cancelada'  => ['#DC2626', '#FEE2E2']
         ];
         $c = $map[$status] ?? ['#475569', '#F1F5F9'];
+        // "Solicitada" espera accion (aprobar/rechazar): se marca con un puntito que pulsa.
+        if ($status === 'Solicitada') {
+            return '<span class="inline-flex items-center gap-1.5 text-[10px] font-semibold px-3 py-1 rounded" style="background:' . $c[1] . ';color:' . $c[0] . ';">'
+                 . '<span class="cs-pulse-dot" style="background:' . $c[0] . ';"></span>SOLICITADA</span>';
+        }
         return badge(strtoupper($status), $c[0], 100, $c[1]);
     }
 
@@ -722,10 +727,8 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Se requiere un almacen de origen para surtir'];
         }
 
-        $items     = json_decode($_POST['items']     ?? '{}', true);
-        $replenish = json_decode($_POST['replenish'] ?? '{}', true);
-        if (!is_array($items))     $items     = [];
-        if (!is_array($replenish)) $replenish = [];
+        $items = json_decode($_POST['items'] ?? '{}', true);
+        if (!is_array($items)) $items = [];
 
         $detail = $this->qGetOrdenDetail([$id]);
         if (empty($detail)) return ['status' => 400, 'message' => 'La solicitud no tiene renglones'];
@@ -737,15 +740,17 @@ class ctrl extends mdl {
         foreach ($detail as $d) $byId[(string) $d['id']] = $d;
 
         try {
-            return $this->transaction(function () use ($id, $header, $warehouseId, $items, $replenish, $byId, $reasonId) {
+            return $this->transaction(function () use ($id, $header, $warehouseId, $items, $byId, $reasonId) {
                 if (empty($header['warehouse_id'])) $this->updateOrdenWarehouse([$warehouseId, $id]);
 
                 $note = trim($_POST['note'] ?? '') ?: ('Surtido de solicitud ' . $header['folio']);
 
-                $entFolio   = $this->applyReplenish($id, $header, $warehouseId, $replenish, $byId);
-                // stockCache evita releer el mismo producto en renglones multiples.
+                // Se surte el pendiente completo aunque el stock no alcance: el almacen
+                // queda en deficit (negativo) y el faltante (qtyNow - disponible) genera una
+                // OC de reabasto pendiente que el encargado debera comprar/registrar.
                 $stockCache = [];
                 $toSupply   = [];
+                $faltantes  = [];
                 foreach ($items as $detailId => $qty) {
                     $detailId = (string) $detailId;
                     if (!isset($byId[$detailId])) continue;
@@ -761,12 +766,15 @@ class ctrl extends mdl {
                     }
 
                     $avail  = $stockCache[$pid]['qty'];
-                    $qtyNow = min((float) $qty, $pending, $avail);
+                    $qtyNow = min((float) $qty, $pending); // ya NO se topa al disponible
                     if ($qtyNow <= 0) continue;
 
                     $prev = $avail;
-                    $post = $avail - $qtyNow;
+                    $post = $avail - $qtyNow;              // puede quedar negativo (deficit)
                     $stockCache[$pid]['qty'] = $post;
+
+                    $faltante = $qtyNow - $avail;          // lo que no se tenia -> a comprar
+                    if ($faltante > 0) $faltantes[] = ['detail' => $d, 'qty' => $faltante];
 
                     $toSupply[] = [
                         'detail_row_id' => (int) $d['id'],
@@ -780,7 +788,7 @@ class ctrl extends mdl {
                 }
 
                 if (empty($toSupply)) {
-                    throw new Exception('No hay stock disponible para surtir las cantidades indicadas');
+                    throw new Exception('No se indicaron cantidades a surtir');
                 }
 
                 $siFolio  = $this->nextFolio('SI-', 'inventory_shrinkage', $this->companiesId);
@@ -808,9 +816,15 @@ class ctrl extends mdl {
                     $this->insertShrinkageDetail([
                         $r['qty'], $r['cost'], $r['qty'] * $r['cost'], $r['prev'], $r['post'], $r['product_id'], $shrId
                     ]);
+                    // Si el producto no tenia fila de stock en el almacen, se crea con el
+                    // valor resultante (que puede ser negativo: refleja el deficit a cubrir).
                     if ($r['stock_id'] > 0) $this->updateStockQuantity([$r['post'], $r['stock_id']]);
+                    else                    $this->insertStockRow([$r['post'], $warehouseId, $r['product_id'], $this->companiesId]);
                     $this->updateDetailReceived([$r['qty'], $r['detail_row_id']]);
                 }
+
+                // El faltante genera una OC de reabasto pendiente (la compra a registrar).
+                $reabFolio = $this->createReabastoOrden($header, $warehouseId, $faltantes);
 
                 $detailUpdated = $this->qGetOrdenDetail([$id]);
                 $allDone = true;
@@ -824,15 +838,15 @@ class ctrl extends mdl {
 
                 $udsTxt = (fmod($totUnits, 1) == 0) ? (string) (int) $totUnits : (string) round($totUnits, 2);
                 $msg    = "Surtido registrado: salida {$siFolio}, {$totProds} materiales, {$udsTxt} uds.";
-                if ($entFolio) $msg .= " Reabasto {$entFolio} aplicado.";
+                if ($reabFolio) $msg .= " Se generó la orden de reabasto {$reabFolio} (pendiente de compra).";
                 $msg .= " Solicitud ahora {$newStatus}.";
 
                 return [
-                    'status'        => 200,
-                    'message'       => $msg,
-                    'salida_folio'  => $siFolio,
-                    'entrada_folio' => $entFolio,
-                    'orden_status'  => $newStatus
+                    'status'         => 200,
+                    'message'        => $msg,
+                    'salida_folio'   => $siFolio,
+                    'reabasto_folio' => $reabFolio,
+                    'orden_status'   => $newStatus
                 ];
             });
         } catch (\Throwable $e) {
@@ -840,62 +854,70 @@ class ctrl extends mdl {
         }
     }
 
-    // Genera entrada ENT- (origen COMPRA) por las cantidades de reabasto y sube stock.
-    // Devuelve el folio ENT- o null si no hubo reabasto.
-    private function applyReplenish($id, $header, $warehouseId, $replenish, $byId) {
-        $repLines = [];
-        foreach ($replenish as $detailId => $qty) {
-            $qty = (float) $qty;
-            if ($qty <= 0 || !isset($byId[(string) $detailId])) continue;
-            $repLines[] = array_merge($byId[(string) $detailId], ['rep_qty' => $qty]);
-        }
-        if (empty($repLines)) return null;
+    // Genera una OC de reabasto pendiente (REAB-, Aprobada, sin proveedor) por el faltante
+    // que el stock no alcanzo a cubrir al surtir. El encargado la recibe cuando registra la
+    // compra real, y esa entrada repone el almacen y cuadra el deficit. Devuelve el folio
+    // REAB- o null si no hubo faltante.
+    private function createReabastoOrden($header, $warehouseId, $faltantes) {
+        if (empty($faltantes)) return null;
 
-        $entFolio = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId);
+        $folio    = $this->nextFolio('REAB-', 'purchase_order', $this->companiesId);
+        $totProds = count($faltantes);
         $totUnits = 0;
         $totCost  = 0.0;
         $totBase  = 0.0;
-        foreach ($repLines as $r) {
-            $cost = $r['cost'] !== null ? (float) $r['cost'] : 0.0;
-            $base = $r['price_without_tax'] !== null ? (float) $r['price_without_tax'] : 0.0;
-            $totUnits += $r['rep_qty'];
-            $totCost  += $r['rep_qty'] * $cost;
-            $totBase  += $r['rep_qty'] * $base;
+        foreach ($faltantes as $f) {
+            $cost = $f['detail']['cost'] !== null ? (float) $f['detail']['cost'] : 0.0;
+            $base = $f['detail']['price_without_tax'] !== null ? (float) $f['detail']['price_without_tax'] : 0.0;
+            $totUnits += $f['qty'];
+            $totCost  += $f['qty'] * $cost;
+            $totBase  += $f['qty'] * $base;
         }
 
-        $this->insertInflowFromOrden([
-            $entFolio, 'Reabasto para surtir ' . $header['folio'],
-            count($repLines), $totUnits, $totCost, $totBase,
-            'Aplicada', 1, $warehouseId, $header['supplier_id'] ?: null,
-            $header['branch_id'], $this->userId, $this->companiesId, date('Y-m-d'), $id
+        $this->insertOrden([
+            $folio,
+            null,                       // proveedor: lo asigna el encargado al comprar
+            (int) $header['branch_id'], // sucursal que repone su almacen
+            null,                       // destination_branch_id
+            $warehouseId,               // almacen a reponer
+            date('Y-m-d'),
+            null,                       // expected_date
+            'Reabasto por surtido de la solicitud ' . $header['folio'],
+            $totProds,
+            $totUnits,
+            $totCost,
+            $totBase,
+            'Aprobada',                 // lista para recibir (registrar la compra)
+            $this->userId,
+            $this->companiesId
         ]);
-        $inflowRow = $this->_Read(
-            "SELECT id FROM {$this->bd}inventory_inflow WHERE folio = ? AND companies_id = ? LIMIT 1",
-            [$entFolio, $this->companiesId]
+
+        $row    = $this->_Read(
+            "SELECT id FROM {$this->bd}purchase_order WHERE folio = ? AND companies_id = ? LIMIT 1",
+            [$folio, $this->companiesId]
         );
-        $inflowId = (int) ($inflowRow[0]['id'] ?? 0);
-        if ($inflowId <= 0) throw new Exception('No se pudo generar la entrada de reabasto');
+        $reabId = (int) ($row[0]['id'] ?? 0);
+        if ($reabId <= 0) throw new Exception('No se pudo generar la orden de reabasto');
 
-        foreach ($repLines as $r) {
-            $productId = (int) $r['product_id'];
-            $qtyRep    = $r['rep_qty'];
-            $cost      = $r['cost'] !== null ? (float) $r['cost'] : 0.0;
-            $base      = $r['price_without_tax'] !== null ? (float) $r['price_without_tax'] : 0.0;
-            $tax       = $r['tax'] !== null ? (float) $r['tax'] : 0.0;
-
-            $stockRow = $this->getStockRow([$productId, $warehouseId]);
-            $prev     = $stockRow ? (float) $stockRow['quantity'] : 0.0;
-            $post     = $prev + $qtyRep;
-
-            $this->insertInflowDetail([
-                $qtyRep, $cost, $qtyRep * $cost, $base, $tax,
-                $prev, $post, $productId, $inflowId, $r['unit_id'] ?: null
+        foreach ($faltantes as $f) {
+            $d        = $f['detail'];
+            $cost     = $d['cost'] !== null ? (float) $d['cost'] : null;
+            $base     = $d['price_without_tax'] !== null ? (float) $d['price_without_tax'] : null;
+            $tax      = $d['tax'] !== null ? (float) $d['tax'] : 0;
+            $subtotal = $cost !== null ? $f['qty'] * $cost : 0.0;
+            $this->insertOrdenDetail([
+                $reabId,
+                (int) $d['product_id'],
+                !empty($d['unit_id']) ? (int) $d['unit_id'] : null,
+                $f['qty'],
+                $base,
+                $tax,
+                $cost,
+                $subtotal
             ]);
-            if ($stockRow) $this->updateStockQuantity([$post, (int) $stockRow['id']]);
-            else           $this->insertStockRow([$post, $warehouseId, $productId, $this->companiesId]);
         }
 
-        return $entFolio;
+        return $folio;
     }
 
 }

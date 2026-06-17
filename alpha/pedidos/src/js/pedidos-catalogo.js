@@ -2024,6 +2024,7 @@ class CatalogProduct extends Pos {
                         <input type="hidden" id="hdn_saldo" name="saldo" value="${saldo_restante}">
                         <input type="hidden" id="hdn_discount" name="discount" value="${discount}">
                         <input type="hidden" id="hdn_total_paid" name="total_paid" value="${total_paid}">
+                        <input type="hidden" id="hdn_target_status" name="target_status" value="">
 
                         ${this.cardPay(total, total_paid, discount)}
 
@@ -2178,14 +2179,32 @@ class CatalogProduct extends Pos {
                 alert({
                     icon: "question",
                     title: "Sin abono",
-                    text: "No se registró ningún abono. El pedido se guardará como cotización. ¿Deseas continuar?",
-                    btn1Text: "Sí, continuar",
+                    text: "No se registró ningún abono. ¿Cómo deseas guardar el pedido?",
+                    btn1Text: "Cotización",
+                    btn3: true,
+                    btn3Text: "Pendiente",
                     btn2Text: "Cancelar",
                 }).then((result) => {
                     if (result.isConfirmed) {
+                        $("#hdn_target_status").val(1);
+                        originalHandlers.forEach(fn => fn());
+                    } else if (result.isDenied) {
+                        $("#hdn_target_status").val(2);
                         originalHandlers.forEach(fn => fn());
                     }
                 });
+
+                const btnCotizacion = Swal.getConfirmButton();
+                const btnPendiente  = Swal.getDenyButton();
+
+                if (btnCotizacion) {
+                    btnCotizacion.style.backgroundColor = "#9EBBDB";
+                    btnCotizacion.style.color           = "#2A55A3";
+                }
+                if (btnPendiente) {
+                    btnPendiente.style.backgroundColor = "#633112";
+                    btnPendiente.style.color           = "#F2C215";
+                }
             } else {
                 originalHandlers.forEach(fn => fn());
             }

@@ -565,7 +565,7 @@ class OrdenesView extends Templates {
             onSubmit:        (o) => this.doSubmitOrden(o),
             onApprove:       (o) => this.doApproveOrden(o),
             onReject:        (o) => this.doRejectOrden(o),
-            onRecibir:       (o) => this.openSurtidoModal(o),
+            onRecibir:       (o) => (String(o && o.folio || '').startsWith('REAB-') ? this.openRecepcionModal(o) : this.openSurtidoModal(o)),
             onCancel:        (o) => this.doCancelOrden(o)
         });
     }
@@ -1471,7 +1471,7 @@ class OrdenesView extends Templates {
         $(`#${modalId}_btnConfirmar`).on('click', async () => {
             const warehouseId = $(`#${modalId}_warehouse_id`).val() || '';
             if (!warehouseFixed && !warehouseId) {
-                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Selecciona el almacen de destino' });
+                this.alertBox({ type: 'warning', title: 'Selecciona el almacén de destino', timer: 1800 });
                 return;
             }
 
@@ -1483,7 +1483,7 @@ class OrdenesView extends Templates {
             });
 
             if (!Object.keys(items).length) {
-                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Indica al menos una cantidad a recibir' });
+                this.alertBox({ type: 'warning', title: 'Indica al menos una cantidad a recibir', timer: 1800 });
                 return;
             }
 
@@ -1501,13 +1501,13 @@ class OrdenesView extends Templates {
             });
 
             if (r && r.status === 200) {
-                if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Recepcion registrada' });
+                this.alertBox({ type: 'success', title: r.message || 'Recepción registrada', timer: 2200 });
                 closeModal();
                 ordenes.lsOrdenes();
                 ordenes.lsKpis();
                 app.selectOrden(null);
             } else {
-                if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo registrar la recepcion' });
+                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la recepción' });
             }
         });
     }
@@ -1560,7 +1560,7 @@ class OrdenesView extends Templates {
                             <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#C05A40"></i>
                             <p class="text-[11px] text-gray-600 leading-relaxed">
                                 Al confirmar se genera una <span class="font-semibold text-gray-800">salida</span> que descuenta el stock del almacen origen.
-                                Si una cantidad supera lo disponible, captura un <span class="font-semibold text-gray-800">reabasto</span>: primero entra al almacen y luego se surte.
+                                Si surtes mas de lo disponible, el faltante queda como una <span class="font-semibold text-gray-800">orden de compra de reabasto</span> pendiente, que deberas recibir cuando registres la compra.
                             </p>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1639,7 +1639,8 @@ class OrdenesView extends Templates {
                 const pendiente = Math.max(0, p.quantity_ordered - p.quantity_received);
                 const disp      = stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
                 const dispTxt   = disp === null ? '—' : fmtNum(disp);
-                const aSurtir   = disp === null ? pendiente : Math.min(pendiente, disp);
+                const aSurtir   = pendiente; // se propone surtir todo lo pendiente (agiliza la salida)
+                const repInit   = disp === null ? 0 : Math.max(0, aSurtir - disp); // faltante -> reabasto
                 const completo  = pendiente <= 0;
                 const dispColor = (disp !== null && disp < pendiente) ? '#F97316' : '#3FC189';
                 return `
@@ -1656,8 +1657,8 @@ class OrdenesView extends Templates {
                                 value="${completo ? 0 : aSurtir}" min="0" max="${pendiente}" step="0.01" ${completo ? 'disabled' : ''}>
                         </td>
                         <td class="px-3 py-2">
-                            <input type="number" class="sur-rep no-spin w-full px-2 py-1 text-xs text-center text-gray-700 bg-white border border-gray-200 rounded focus:border-green-500 outline-none"
-                                value="0" min="0" step="0.01" ${completo ? 'disabled' : ''}>
+                            <input type="number" class="sur-rep no-spin w-full px-2 py-1 text-xs text-center text-gray-600 bg-gray-50 border border-gray-200 rounded outline-none cursor-default"
+                                value="${completo ? 0 : repInit}" min="0" step="0.01" readonly tabindex="-1">
                         </td>
                     </tr>`;
             }).join(''));
@@ -1700,7 +1701,7 @@ class OrdenesView extends Templates {
         $(`#${modalId}_btnConfirmar`).on('click', async () => {
             const warehouseId = $(`#${modalId}_warehouse_id`).val() || '';
             if (!warehouseId) {
-                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Selecciona el almacen de origen' });
+                this.alertBox({ type: 'warning', title: 'Selecciona el almacén de origen', timer: 1800 });
                 return;
             }
             const items = {}, replenish = {};
@@ -1713,7 +1714,7 @@ class OrdenesView extends Templates {
                 if (!isNaN(rep) && rep > 0) replenish[did] = rep;
             });
             if (!Object.keys(items).length) {
-                if (typeof alert === 'function') alert({ icon: 'warning', text: 'Indica al menos una cantidad a surtir' });
+                this.alertBox({ type: 'warning', title: 'Indica al menos una cantidad a surtir', timer: 1800 });
                 return;
             }
             const note = $(`#${modalId}_note`).val() || '';
@@ -1729,13 +1730,13 @@ class OrdenesView extends Templates {
                 }
             });
             if (r && r.status === 200) {
-                if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Surtido registrado' });
+                this.alertBox({ type: 'success', title: r.message || 'Surtido registrado', timer: 2200 });
                 closeModal();
                 ordenes.lsOrdenes();
                 ordenes.lsKpis();
                 app.selectOrden(null);
             } else {
-                if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo surtir' });
+                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo surtir' });
             }
         });
     }
@@ -1864,6 +1865,9 @@ class OrdenesView extends Templates {
         const esOrigen     = interSucursal && miSucursal === ordenBranch;
         const esDestino    = interSucursal && miSucursal === ordenDestino;
         const roleScoped   = esOrigen || esDestino;
+        // Las OC de reabasto (REAB-) son compras a recibir, no surtidos: se reciben para
+        // reponer el almacen y cuadrar el deficit dejado por un surtido sin stock.
+        const esReabasto   = String(e.folio || '').startsWith('REAB-');
 
         let actionsHtml = '';
         if (status === 'Borrador') {
@@ -1885,7 +1889,12 @@ class OrdenesView extends Templates {
                 actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
             }
         } else if (status === 'Aprobada') {
-            if (sinRestriccion) {
+            if (esReabasto) {
+                // OC de reabasto: se recibe la compra para reponer el almacen (no se surte).
+                actionsHtml = `
+                    ${btnCls('#3FC189', 'Recibir',  'package-check', 'recibir')}
+                    ${btnCls('#F97316', 'Cancelar', 'ban',           'cancel')}`;
+            } else if (sinRestriccion) {
                 actionsHtml = `
                     ${btnCls('#C05A40', 'Surtir',   'truck', 'recibir')}
                     ${btnCls('#F97316', 'Cancelar', 'ban',   'cancel')}`;
@@ -1895,9 +1904,11 @@ class OrdenesView extends Templates {
                 actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
             }
         } else if (status === 'Parcial') {
-            // El surtido lo continua la sucursal de destino (o el gestor sin restriccion).
-            if (esDestino || sinRestriccion) {
-                actionsHtml = btnCls('#C05A40', 'Continuar surtido', 'truck', 'recibir');
+            // La REAB- sí continúa recibiéndose (la compra puede llegar por partes).
+            // Una solicitud Parcial es un surtido CERRADO: no se continúa; lo que faltó
+            // se pide con una nueva solicitud. El estado solo indica "surtido incompleto".
+            if (esReabasto) {
+                actionsHtml = btnCls('#3FC189', 'Continuar recepción', 'package-check', 'recibir');
             }
         } else {
             actionsHtml = '';
