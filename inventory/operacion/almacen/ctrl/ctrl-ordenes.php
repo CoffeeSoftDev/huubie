@@ -89,25 +89,31 @@ class ctrl extends mdl {
                 'id'     => $orden['id'],
                 'Folio'  => $orden['folio'],
                 'Fecha'  => $withTarget
-                    ? fechaHoraSolicitud($orden['created_at'] ?? $orden['date_order'])
+                    ? $this->fechaHoraSolicitud($orden['created_at'] ?? $orden['date_order'])
                     : formatSpanishDate($orden['date_order']),
             ];
 
             if ($withTarget) {
                 // Mismo formato que la columna "Destino" de traspasos: chip con la
                 // sucursal a la que se solicita (titulo) y el almacen como subtitulo.
-                $fila['Solicitar a'] = $this->sucChipCell($r['branch_id'], $r['branch_name'], $r['warehouse_name']);
+                $fila['Solicitar a'] = $this->sucChipCell($orden['branch_id'], $orden['branch_name'], $orden['warehouse_name']);
             }
 
-            $fila['Proveedor']  = $r['supplier_name'] ?: '<span class="italic text-gray-400">N/A</span>';
+            $fila['Proveedor']  = $orden['supplier_name'] ?: '<span class="italic text-gray-400">N/A</span>';
             if (!$withTarget) {
                 // En la gestion el almacen va en columna propia; en la vista
                 // solicitante ya queda embebido dentro del chip "Solicitar a".
-                $fila['Almacen'] = $r['warehouse_name'] ?: '-';
+                $fila['Almacen'] = $orden['warehouse_name'] ?: '-';
             }
-            $fila['Materiales'] = (int) $r['total_products'];
-            // $fila['Total']      = evaluar((float) $r['total_cost']);
-            $fila['a']          = $a;
+            $fila['Materiales'] = (int) $orden['total_products'];
+            // $fila['Total']      = evaluar((float) $orden['total_cost']);
+            $fila['a'] = [
+                [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
+                    'onclick' => "app.selectOrden('{$orden['folio']}', {$orden['id']})"
+                ]
+            ];
 
             $__row[] = $fila;
         }
@@ -138,7 +144,7 @@ class ctrl extends mdl {
         $header = $this->qGetOrden([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Orden no encontrada'];
 
-        $header['status_badge'] = statusBadge($header['status']);
+        $header['status_badge'] = $this->statusBadge($header['status']);
         $detail = $this->qGetOrdenDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
@@ -624,7 +630,7 @@ class ctrl extends mdl {
         $header = $this->qGetOrden([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Orden no encontrada'];
 
-        $header['status_badge'] = statusBadge($header['status']);
+        $header['status_badge'] = $this->statusBadge($header['status']);
         $detail = $this->qGetOrdenDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
@@ -774,7 +780,7 @@ class ctrl extends mdl {
                     $stockCache[$pid]['qty'] = $post;
 
                     $faltante = $qtyNow - $avail;          // lo que no se tenia -> a comprar
-                    if ($faltante > 0) $faltantes[] = ['detail' => $d, 'qty' => $faltante];
+                    if ($faltante > 0) $faltantes[] = ['detail' => $renglon, 'qty' => $faltante];
 
                     $toSupply[] = [
                         'detail_row_id' => (int) $renglon['id'],
@@ -818,9 +824,9 @@ class ctrl extends mdl {
                     ]);
                     // Si el producto no tenia fila de stock en el almacen, se crea con el
                     // valor resultante (que puede ser negativo: refleja el deficit a cubrir).
-                    if ($r['stock_id'] > 0) $this->updateStockQuantity([$r['post'], $r['stock_id']]);
-                    else                    $this->insertStockRow([$r['post'], $warehouseId, $r['product_id'], $this->companiesId]);
-                    $this->updateDetailReceived([$r['qty'], $r['detail_row_id']]);
+                    if ($linea['stock_id'] > 0) $this->updateStockQuantity([$linea['post'], $linea['stock_id']]);
+                    else                        $this->insertStockRow([$linea['post'], $warehouseId, $linea['product_id'], $this->companiesId]);
+                    $this->updateDetailReceived([$linea['qty'], $linea['detail_row_id']]);
                 }
 
                 // El faltante genera una OC de reabasto pendiente (la compra a registrar).
@@ -829,7 +835,7 @@ class ctrl extends mdl {
                 $detailUpdated = $this->qGetOrdenDetail([$id]);
                 $allDone = true;
                 $anyDone = false;
-                foreach ($detalleActualizado as $renglon) {
+                foreach ($detailUpdated as $renglon) {
                     if ((float) $renglon['quantity_received'] > 0) $anyDone = true;
                     if ((float) $renglon['quantity_received'] < (float) $renglon['quantity_ordered']) $allDone = false;
                 }
