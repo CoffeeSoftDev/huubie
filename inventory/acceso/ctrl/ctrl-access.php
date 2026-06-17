@@ -48,7 +48,10 @@ class Access extends MAccess {
     }
 
     function company() {
-        $sql = !empty($_SESSION['IDU']) ? $this->getSessionUser([$_SESSION['IDU']]) : null;
+        // El rol depende de la sucursal accedida: se pasa la branch_id activa para
+        // resolver users_braches -> roles de esa sucursal (no de una cualquiera).
+        $branchId = (int) ($_SESSION['branch_id'] ?? 0);
+        $sql = !empty($_SESSION['IDU']) ? $this->getSessionUser([$branchId, $_SESSION['IDU']]) : null;
 
         // Se prioriza el valor vivo de la BD sobre el cacheado en sesion (login viejo),
         // asi un rename de compania/sucursal se refleja sin cerrar sesion.
@@ -140,7 +143,15 @@ class Access extends MAccess {
             return ['status' => 200, 'items' => []];
         }
 
-        $ls = $this->getAccessibleSections([$userId, $branchId]);
+        // Modulo actual: se resuelve por la ruta de la pagina (relativa a /inventory/)
+        // que envia el sidebar. Asi el menu muestra solo las secciones de ese modulo.
+        $moduleId = $this->resolveModuleId($_POST['module'] ?? '');
+
+        // Con modulo resuelto se acota a sus secciones; si no (pagina fuera de un
+        // modulo) se cae al comportamiento previo: todas las secciones accesibles.
+        $ls = $moduleId > 0
+            ? $this->getAccessibleSectionsByModule([$userId, $branchId, $moduleId])
+            : $this->getAccessibleSections([$userId, $branchId]);
 
         $items = [];
         foreach ($ls as $s) {
@@ -152,7 +163,25 @@ class Access extends MAccess {
             ];
         }
 
-        return ['status' => 200, 'items' => $items];
+        return ['status' => 200, 'items' => $items, 'module_id' => $moduleId];
+    }
+
+    // Empareja la ruta de la pagina (relativa a /inventory/) contra modules.route,
+    // tomando el prefijo de ruta mas largo (segmento a segmento). 0 si no hay match.
+    private function resolveModuleId($path) {
+        $path = trim((string) $path, "/ \t\n\r\0\x0B");
+        if ($path === '') return 0;
+
+        foreach ($this->getModulesForMatch() as $m) {
+            $route = trim((string) $m['route'], '/');
+            if ($route === '') continue;
+            // Match exacto o por segmento: "operacion/almacen" cubre
+            // "operacion/almacen/stock.php" pero "admin" no cubre "administracion".
+            if ($path === $route || strpos($path . '/', $route . '/') === 0) {
+                return (int) $m['id'];
+            }
+        }
+        return 0;
     }
 
     function branches() {

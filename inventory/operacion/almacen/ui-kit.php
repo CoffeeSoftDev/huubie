@@ -9,6 +9,10 @@ if (empty($_SESSION["IDU"])) {
 
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
+
+// Modo embebido: dentro del iframe de /inventory/root/ se ocultan navbar/sidebar
+// para mostrar solo el contenido de la sección.
+$embed = isset($_GET['embed']);
 ?>
 
 <!-- CoffeeSoft Framework -->
@@ -123,10 +127,21 @@ require_once('layout/core-libraries.php');
     }
 </style>
 
-<body>
+<?php if ($embed): ?>
+<style>
+    /* Embebido en /inventory/root/: sin navbar ni sidebar, a todo lo ancho. */
+    body.embed-mode { padding-left: 0 !important; padding-top: 0 !important; }
+</style>
+<?php endif; ?>
+
+<body class="<?php echo $embed ? 'embed-mode' : ''; ?>">
+    <?php if (!$embed): ?>
     <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
+    <?php endif; ?>
     <main>
+        <?php if (!$embed): ?>
         <div id="menu-navbar"></div>
+        <?php endif; ?>
 
         <div id="main__content">
             <div id="root">
@@ -625,9 +640,11 @@ require_once('layout/core-libraries.php');
         </div>
     </main>
 
+    <?php if (!$embed): ?>
     <!-- Importación navbar y sidebar -->
     <script src="../../acceso/src/js/navbar.js"></script>
     <script src="../../acceso/src/js/sidebar.js"></script>
+    <?php endif; ?>
 
     <script>
         // Toggle de tema local, sincronizado con el resto del módulo (localStorage 'darkMode').

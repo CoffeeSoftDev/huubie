@@ -8,8 +8,15 @@ require_once '../mdl/mdl-modulos.php';
 class ctrl extends mdl {
 
     // Módulos como cards de primer nivel, con su conteo de submódulos.
+    // Solo se incluyen los módulos en los que el rol del usuario (en su sucursal
+    // activa) tiene permiso a alguna sección. Sin sesión/sucursal -> sin módulos.
     function init() {
-        $ls = $this->qModules();
+        $userId   = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
+        $branchId = (int) ($_SESSION['branch_id'] ?? 0);
+
+        $ls = ($userId > 0 && $branchId > 0)
+            ? $this->qAccessibleModules([$userId, $branchId])
+            : [];
 
         $modules = [];
         foreach ($ls as $m) {

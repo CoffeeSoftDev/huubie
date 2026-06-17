@@ -26,6 +26,24 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    // Módulos activos con AL MENOS una sección accesible para el rol del usuario
+    // en su sucursal activa (users_braches -> permissions -> sections). Así el
+    // dashboard solo muestra módulos en los que el rol puede entrar a algo.
+    function qAccessibleModules($array) {
+        // [user_id, branch_id]
+        $query = "
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM {$this->bd}modules m
+            JOIN {$this->bd}sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN {$this->bd}permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN {$this->bd}users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     // Submódulos activos de un módulo (cards de segundo nivel).
     function qSubmodulesByModule($array) {
         // [module_id]
