@@ -74,6 +74,10 @@ class ctrl extends mdl {
 
     function lsOrdenes() {
         $mine = !empty($_POST['mine']) ? $this->userId : null;
+        // Vista solicitante (solicitudes.js): suma la columna "Solicitar a" y
+        // muestra la fecha+hora real del pedido. La gestion (ordenes.js) no lo
+        // envia, asi que conserva sus columnas y formato originales.
+        $withTarget = !empty($_POST['withTarget']);
 
         $rows = $this->qOrdenes([
             'companies_id' => $this->companiesId,
@@ -96,17 +100,26 @@ class ctrl extends mdl {
                 ]
             ];
 
-            $row[] = [
-                'id'         => $r['id'],
-                'Folio'      => $r['folio'],
-                'Fecha'      => formatSpanishDate($r['date_order']),
-                'Estado'     => $this->statusBadge($r['status']),
-                'Proveedor'  => $r['supplier_name'] ?: '<span class="italic text-gray-400">N/A</span>',
-                'Almacen'    => $r['warehouse_name'] ?: '-',
-                'Materiales' => (int) $r['total_products'],
-                'Total'      => evaluar((float) $r['total_cost']),
-                'a'          => $a
+            $fila = [
+                'id'     => $r['id'],
+                'Folio'  => $r['folio'],
+                'Fecha'  => $withTarget
+                    ? $this->fechaHoraSolicitud($r['created_at'] ?? $r['date_order'])
+                    : formatSpanishDate($r['date_order']),
+                'Estado' => $this->statusBadge($r['status']),
             ];
+
+            if ($withTarget) {
+                $fila['Solicitar a'] = $r['branch_name'] ?: '<span class="italic text-gray-400">-</span>';
+            }
+
+            $fila['Proveedor']  = $r['supplier_name'] ?: '<span class="italic text-gray-400">N/A</span>';
+            $fila['Almacen']    = $r['warehouse_name'] ?: '-';
+            $fila['Materiales'] = (int) $r['total_products'];
+            // $fila['Total']      = evaluar((float) $r['total_cost']);
+            $fila['a']          = $a;
+
+            $row[] = $fila;
         }
         return ['status' => 200, 'row' => $row];
     }
@@ -695,6 +708,20 @@ class ctrl extends mdl {
         ];
         $c = $map[$status] ?? ['#475569', '#F1F5F9'];
         return badge(strtoupper($status), $c[0], 100, $c[1]);
+    }
+
+    // Fecha y hora en que se pidio, p.ej. "16 jun 26 10:00 Am".
+    // Se construye a mano (sin strftime) para mes en espanol y AM/PM "Am"/"Pm".
+    private function fechaHoraSolicitud($dt) {
+        if (empty($dt) || $dt === '0000-00-00 00:00:00') return '-';
+        $ts = strtotime($dt);
+        if ($ts === false) return '-';
+
+        $meses = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        $mes   = $meses[(int) date('n', $ts)];
+        $ampm  = ucfirst(strtolower(date('A', $ts)));
+
+        return date('d', $ts) . ' ' . $mes . ' ' . date('y', $ts) . ' ' . date('g:i', $ts) . ' ' . $ampm;
     }
 
     // -----------------------------------------------------------------------

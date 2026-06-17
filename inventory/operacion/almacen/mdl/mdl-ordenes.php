@@ -187,6 +187,7 @@ class mdl extends CRUD {
                 po.total_cost,
                 po.status,
                 po.date_order,
+                po.created_at,
                 po.expected_date,
                 po.warehouse_id,
                 w.name         AS warehouse_name,
