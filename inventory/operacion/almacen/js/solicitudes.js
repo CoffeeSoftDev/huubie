@@ -1633,21 +1633,21 @@ class SolicitudesView extends Templates {
                             <textarea id="${modalId}_note" rows="2" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all resize-none placeholder:text-gray-400" placeholder="Ej. Reabastecimiento semanal para la barra de bebidas..."></textarea>
                         </div>
 
-                        <div class="flex items-center justify-between gap-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div class="flex items-center gap-5 text-[11px] text-gray-500">
                                 <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Materiales <strong class="text-gray-800 text-sm" id="${modalId}_totMat">0</strong></span>
                                 <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Unidades <strong class="text-gray-800 text-sm" id="${modalId}_totUds">0</strong></span>
                             </div>
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <button id="${modalId}_cancel" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all">Cancelar</button>
+                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <button id="${modalId}_cancel" class="flex-1 sm:flex-none flex items-center justify-center px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all">Cancelar</button>
                                 ${isEdit ? `
-                                <button id="${modalId}_saveEdit" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
+                                <button id="${modalId}_saveEdit" class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center justify-center gap-1.5">
                                     <i data-lucide="save" class="w-3.5 h-3.5"></i><span>Guardar cambios</span>
                                 </button>` : `
-                                <button id="${modalId}_draft" class="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-all flex items-center gap-1.5">
+                                <button id="${modalId}_draft" class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-all flex items-center justify-center gap-1.5">
                                     <i data-lucide="file-text" class="w-3.5 h-3.5"></i><span>Guardar borrador</span>
                                 </button>
-                                <button id="${modalId}_send" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
+                                <button id="${modalId}_send" class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center justify-center gap-1.5">
                                     <i data-lucide="send" class="w-3.5 h-3.5"></i><span>Enviar solicitud</span>
                                 </button>`}
                             </div>
