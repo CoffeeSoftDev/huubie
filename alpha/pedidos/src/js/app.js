@@ -2500,8 +2500,10 @@ class App extends Templates {
                     startDate: moment(),
                     locale: { format: 'YYYY-MM-DD' }
                 },
-                onSelect: () => this.onDailyCloseFilterChange(),
             });
+
+            // Recargar turnos al seleccionar una fecha en el calendario
+            $('#calendarDailyClose').on('apply.daterangepicker', () => this.loadShifts());
 
             this.loadShifts();
         });
@@ -2759,13 +2761,30 @@ class App extends Templates {
             if (externalPayments.length > 0) {
                 const extTotal = externalPayments.reduce((sum, o) => sum + parseFloat(o.payment_real || 0), 0);
 
-                const extRows = externalPayments.map(o => `
-                    <div class="flex justify-between items-center">
-                        <div class="italic truncate" style="max-width:140px">${o.folio || 'Folio #' + o.id}</div>
-                        <div class="text-green-700">${parseFloat(o.payment_real || 0) ? formatPrice(o.payment_real) : '-'}</div>
-                    </div>
-                    <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
-                `).join('');
+                const money = (v) => `$${parseFloat(v || 0).toFixed(2)}`;
+                const extRows = externalPayments.map(o => {
+                    const total     = parseFloat(o.total_pay || 0);
+                    const discount  = parseFloat(o.discount || 0);
+                    const abono     = parseFloat(o.payment_real || 0);       // abonó en este turno
+                    const paidUpto  = parseFloat(o.total_paid_upto || 0);    // abonado hasta el cierre (incluye este turno)
+                    const quedoRaw  = total - discount - paidUpto;           // saldo restante
+                    const quedo     = quedoRaw < 0 ? 0 : quedoRaw;
+                    const debia     = quedo + abono;                         // saldo antes del abono de este turno
+                    const liquidado = quedoRaw <= 0.005;
+                    const badge = liquidado
+                        ? `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-bold">LIQUIDADO</span>`
+                        : `<span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[9px] font-bold">PENDIENTE</span>`;
+                    return `
+                        <div class="flex justify-between items-center mt-3 pt-2 border-t border-dashed border-gray-200">
+                            <div class="italic truncate" style="max-width:150px">${o.folio || 'Folio #' + o.id}</div>
+                            ${badge}
+                        </div>
+                        <div class="text-[10px] text-gray-500 mb-0.5">${o.client_name || 'Sin cliente'}</div>
+                        <div class="flex justify-between text-[11px]"><span class="text-gray-600">Debía</span><span>${money(debia)} <span class="text-gray-400">de ${money(total)}</span></span></div>
+                        <div class="flex justify-between text-[11px] text-green-700"><span>Abonó</span><span>${money(abono)}</span></div>
+                        <div class="flex justify-between text-[11px] font-semibold border-t border-dashed pt-0.5 mt-0.5"><span>Quedó</span><span>${money(quedo)}</span></div>
+                    `;
+                }).join('');
 
                 detailedSection += `
                     <div class="font-semibold mt-2 mb-1">ABONOS DE PEDIDOS ANTERIORES</div>
@@ -2780,6 +2799,19 @@ class App extends Templates {
         }
 
         const totalPayments = parseFloat(d.cash_sales || 0) + parseFloat(d.card_sales || 0) + parseFloat(d.transfer_sales || 0);
+
+        // Actividad de pedidos del turno = creados en el turno + cobrados de turnos anteriores
+        const createdOrders  = parseInt(d.total_orders)    || 0;
+        const createdQuot    = parseInt(d.quotation_count) || 0;
+        const createdCancel  = parseInt(d.cancelled_count) || 0;
+        const createdPending = parseInt(d.pending_count)   || 0;
+        const createdPaid    = createdOrders - createdQuot - createdCancel - createdPending;
+        const prevCount      = parseInt(d.prev_count)   || 0; // pedidos anteriores cobrados en el turno
+        const prevPaid       = parseInt(d.prev_paid)    || 0; // de esos, los que quedaron liquidados
+        const prevPending    = parseInt(d.prev_pending) || 0; // de esos, los que aun tienen saldo
+        const ordersTurno    = createdOrders  + prevCount;
+        const paidTurno      = createdPaid    + prevPaid;
+        const pendingTurno   = createdPending + prevPending;
 
         const ticketHtml = `
             <div id="layoutPrintCloseTicket" class="flex justify-center p-4">
@@ -2837,24 +2869,24 @@ class App extends Templates {
 
                         <div class="flex justify-between items-center font-semibold">
                             <div>NÚMERO DE PEDIDOS DEL TURNO:</div>
-                            <div>${parseInt(d.total_orders) || '-'}</div>
+                            <div>${ordersTurno || '-'}</div>
                         </div>
                         <div class="mt-2"></div>
                         <div class="flex justify-between items-center font-semibold">
                             <div>PAGADOS:</div>
-                            <div>${((d.total_orders || 0) - (d.quotation_count || 0) - (d.cancelled_count || 0) - (d.pending_count || 0)) || '-'}</div>
+                            <div>${paidTurno || '-'}</div>
                         </div>
                         <div class="flex justify-between items-center font-semibold">
                             <div>PENDIENTES:</div>
-                            <div>${d.pending_count || '-'}</div>
+                            <div>${pendingTurno || '-'}</div>
                         </div>
                         <div class="flex justify-between items-center font-semibold">
                             <div>COTIZACIONES:</div>
-                            <div>${d.quotation_count || '-'}</div>
+                            <div>${createdQuot || '-'}</div>
                         </div>
                         <div class="flex justify-between items-center font-semibold">
                             <div>CANCELADOS:</div>
-                            <div>${d.cancelled_count || '-'}</div>
+                            <div>${createdCancel || '-'}</div>
                         </div>
                     </div>
 

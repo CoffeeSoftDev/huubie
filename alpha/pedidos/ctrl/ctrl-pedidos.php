@@ -1711,6 +1711,10 @@ class Pedidos extends MPedidos{
                 }
             }
 
+            // Pedidos de turnos anteriores cobrados durante este turno
+            $closed_at = $shift['closed_at'];
+            $prev = $this->getShiftPrevPaymentsSummary([$closed_at, $shift['opened_at'], $closed_at, $shift_id, $subsidiary_id]);
+
             return [
                 'status'          => 200,
                 'shift'           => $shift,
@@ -1725,7 +1729,10 @@ class Pedidos extends MPedidos{
                     'total_orders'    => $shift['total_orders'],
                     'quotation_count' => $quotation_count,
                     'pending_count'   => $pending_count,
-                    'cancelled_count' => $cancelled_count
+                    'cancelled_count' => $cancelled_count,
+                    'prev_count'      => intval($prev['prev_count']),
+                    'prev_paid'       => intval($prev['prev_paid']),
+                    'prev_pending'    => intval($prev['prev_pending'])
                 ]
             ];
         }
@@ -1734,6 +1741,12 @@ class Pedidos extends MPedidos{
         $opened_at = $shift['opened_at'];
         $now = date('Y-m-d H:i:s');
         $metrics = $this->getShiftSalesMetrics([$shift_id, $opened_at, $now, $subsidiary_id]);
+
+        // Pedidos de turnos anteriores cobrados durante este turno
+        $prev = $this->getShiftPrevPaymentsSummary([$now, $opened_at, $now, $shift_id, $subsidiary_id]);
+        $metrics['prev_count']   = intval($prev['prev_count']);
+        $metrics['prev_paid']    = intval($prev['prev_paid']);
+        $metrics['prev_pending'] = intval($prev['prev_pending']);
 
         return [
             'status'          => 200,

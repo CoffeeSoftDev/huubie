@@ -1569,7 +1569,12 @@ class MPedidos extends CRUD {
             SELECT
                 o.id,
                 o.total_pay,
+                o.discount,
                 SUM(op.pay) AS payment_real,
+                (SELECT COALESCE(SUM(op2.pay), 0)
+                   FROM {$this->bd}order_payments op2
+                  WHERE op2.order_id = o.id
+                    AND op2.date_pay <= ?) AS total_paid_upto,
                 o.status,
                 o.date_creation,
                 c.name AS client_name
@@ -1581,10 +1586,11 @@ class MPedidos extends CRUD {
             AND o.cash_shift_id != ?
             AND o.subsidiaries_id = ?
             AND o.status != 4
-            GROUP BY o.id, o.total_pay, o.status, o.date_creation, c.name
+            GROUP BY o.id, o.total_pay, o.discount, o.status, o.date_creation, c.name
             ORDER BY o.date_creation ASC
         ";
         $externalPayments = $this->_Read($query2, [
+            $endDate,
             $startDate, $endDate,
             $shift_id,
             $subsidiary_id
@@ -1594,6 +1600,51 @@ class MPedidos extends CRUD {
             'shift_orders'      => is_array($shiftOrders) ? $shiftOrders : [],
             'external_payments' => is_array($externalPayments) ? $externalPayments : []
         ];
+    }
+
+    // Conteo de pedidos de turnos anteriores cobrados en este turno,
+    // clasificados por su estado de liquidacion al momento del cierre.
+    function getShiftPrevPaymentsSummary($array) {
+        $balanceDate   = $array[0]; // saldo calculado hasta esta fecha (cierre o ahora)
+        $startDate     = $array[1];
+        $endDate       = $array[2];
+        $shift_id      = $array[3];
+        $subsidiary_id = $array[4];
+
+        $query = "
+            SELECT
+                COUNT(*) AS prev_count,
+                SUM(CASE WHEN saldo <= 0.005 THEN 1 ELSE 0 END) AS prev_paid,
+                SUM(CASE WHEN saldo  > 0.005 THEN 1 ELSE 0 END) AS prev_pending
+            FROM (
+                SELECT
+                    o.id,
+                    (o.total_pay - COALESCE(o.discount, 0) -
+                        (SELECT COALESCE(SUM(op2.pay), 0)
+                           FROM {$this->bd}order_payments op2
+                          WHERE op2.order_id = o.id
+                            AND op2.date_pay <= ?)
+                    ) AS saldo
+                FROM {$this->bd}order_payments op
+                JOIN {$this->bd}`order` o ON o.id = op.order_id
+                WHERE op.date_pay >= ? AND op.date_pay <= ?
+                  AND o.cash_shift_id IS NOT NULL
+                  AND o.cash_shift_id != ?
+                  AND o.subsidiaries_id = ?
+                  AND o.status != 4
+                GROUP BY o.id, o.total_pay, o.discount
+            ) AS sub
+        ";
+        $res = $this->_Read($query, [
+            $balanceDate,
+            $startDate, $endDate,
+            $shift_id,
+            $subsidiary_id
+        ]);
+
+        return is_array($res) && !empty($res)
+            ? $res[0]
+            : ['prev_count' => 0, 'prev_paid' => 0, 'prev_pending' => 0];
     }
 
     function createShiftPayment($array) {

@@ -2044,6 +2044,12 @@ class VisorView {
             expanded      = JSON.parse(localStorage.getItem('visor:tree:expanded') || '[]');
             expandedTypes = JSON.parse(localStorage.getItem('visor:tree:expandedTypes') || '[]');
         } catch (e) { expanded = []; expandedTypes = []; }
+        // Acordeon: a lo sumo UNA carpeta raiz puede quedar abierta. Si un estado
+        // previo guardo varias, conservamos solo la primera (tambien al iniciar).
+        if (Array.isArray(expanded) && expanded.length > 1) {
+            expanded = [expanded[0]];
+            try { localStorage.setItem('visor:tree:expanded', JSON.stringify(expanded)); } catch (e) {}
+        }
         // Cuando hay filtro activo, abrimos todo para que se vean los resultados.
         const forceOpen = f !== '';
 
@@ -2129,21 +2135,30 @@ class VisorView {
 
         $('#sidebarList').html(html + empty).addClass('is-doc-tree');
 
-        // Bind collapse toggle de proyecto (nivel 1)
+        // Bind collapse toggle de proyecto (nivel 1) — comportamiento acordeon:
+        // al abrir una carpeta se colapsan automaticamente las demas del mismo
+        // nivel, de modo que solo una carpeta raiz queda expandida a la vez.
         $('#sidebarList .tree-project-header').off('click').on('click', (e) => {
             const $header = $(e.currentTarget);
             const proj = $header.data('project');
-            $header.toggleClass('collapsed');
-            $header.next('.tree-project-body').toggleClass('collapsed');
-            let state = [];
-            try { state = JSON.parse(localStorage.getItem('visor:tree:expanded') || '[]'); }
-            catch (e) { state = []; }
-            if ($header.hasClass('collapsed')) {
-                state = state.filter(p => p !== proj);
-            } else if (!state.includes(proj)) {
-                state.push(proj);
+            const willExpand = $header.hasClass('collapsed');
+
+            if (willExpand) {
+                // Colapsar el resto de carpetas raiz (acordeon)...
+                const $all = $('#sidebarList .tree-project-header');
+                $all.not($header).addClass('collapsed')
+                    .next('.tree-project-body').addClass('collapsed');
+                // ...y abrir esta.
+                $header.removeClass('collapsed');
+                $header.next('.tree-project-body').removeClass('collapsed');
+                // Solo esta carpeta queda expandida en el estado persistido.
+                localStorage.setItem('visor:tree:expanded', JSON.stringify([proj]));
+            } else {
+                // Estaba abierta -> colapsar (no queda ninguna abierta).
+                $header.addClass('collapsed');
+                $header.next('.tree-project-body').addClass('collapsed');
+                localStorage.setItem('visor:tree:expanded', JSON.stringify([]));
             }
-            localStorage.setItem('visor:tree:expanded', JSON.stringify(state));
             if (window.lucide) lucide.createIcons();
         });
 
