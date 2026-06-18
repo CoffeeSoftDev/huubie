@@ -129,6 +129,8 @@ const PG_INTERACTIVITY_NOTE =
     + `- Usa \`addEventListener\` y \`querySelector\`/\`data-*\`; evita IDs globales que choquen.\n`
     + `- El \`<script>\` va al final del componente y se autoejecuta (envuélvelo en un IIFE o \`DOMContentLoaded\`).\n`
     + `- Si insertas iconos Lucide dinámicamente, llama a \`window.lucide && lucide.createIcons()\` tras inyectarlos.\n`
+    + `- El componente se renderiza en un contenedor a pantalla completa: debe LLENAR el ancho disponible (usa \`w-full\`/grid/flex), no quedar encogido en una columna estrecha.\n`
+    + `- Si es un modal/diálogo, el overlay (\`fixed inset-0\`) debe llevar \`overflow-y-auto\` y la tarjeta márgenes verticales (\`my-8\`) para que se vea COMPLETO y haga scroll cuando sea alto — nunca recortado arriba o abajo.\n`
     + `- NO agregues un toggle de tema claro/oscuro.\n`
     + `- Si no hay datos reales, usa datos de muestra para que la interacción sea demostrable haciendo clic.`;
 
@@ -1478,6 +1480,18 @@ function pgIsFullDoc(html) {
            /<head[\s>]/i.test(html) || /<body[\s>]/i.test(html);
 }
 
+// Parche del preview para overlays/modales a pantalla completa (fixed inset-0).
+// Un position:fixed se ancla al viewport del IFRAME y NO genera scroll, así que
+// un modal más alto que el lienzo se recorta arriba y abajo (el contenido queda
+// cortado). Aquí lo hacemos scrollable (overflow-y:auto en el overlay) y
+// centramos su tarjeta con margin:auto: a diferencia de align-items:center, los
+// márgenes automáticos colapsan a 0 al desbordar en lugar de recortar la parte
+// superior. Resultado: el componente SIEMPRE se ve completo dentro del contenedor.
+// Vive dentro del srcdoc del iframe, por eso el selector global es seguro.
+const PG_PREVIEW_FIX_CSS =
+      '[class*="fixed"][class*="inset-0"]{overflow-y:auto;}'
+    + '[class*="fixed"][class*="inset-0"] > *{margin-top:auto;margin-bottom:auto;}';
+
 // Reune los assets de un sistema de diseño: <link> + <style> embebido + <script> + atributos.
 function pgThemeAssets(t) {
     const appBase = new URL('.', document.baseURI).href;
@@ -1516,7 +1530,7 @@ function pgWrapHtml(body, themeKey, isDoc) {
         } else {
             doc = `<html${htmlAttr}>` + doc + '</html>';
         }
-        const headInject = `<base href="${appBase}">${scripts}${links}${style}`;
+        const headInject = `<base href="${appBase}">${scripts}${links}${style}<style>${PG_PREVIEW_FIX_CSS}</style>`;
         if (/<head(\s[^>]*)?>/i.test(doc)) {
             doc = doc.replace(/<head(\s[^>]*)?>/i, m => `${m}${headInject}`);
         } else {
@@ -1564,7 +1578,7 @@ function pgWrapHtml(body, themeKey, isDoc) {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
         ${links}${style}
         <script src="https://unpkg.com/lucide@latest"><\/script>
-        <style>html,body{margin:0;}body{background:${t.bg};color:${t.fg};font-family:'Inter',system-ui,sans-serif;}*{box-sizing:border-box;}${center}</style>
+        <style>html,body{margin:0;}body{background:${t.bg};color:${t.fg};font-family:'Inter',system-ui,sans-serif;}*{box-sizing:border-box;}${center}${PG_PREVIEW_FIX_CSS}</style>
         </head><body${bodyClass}${bodyData}><div class="pg-stage">${body}</div><script>if(window.lucide)lucide.createIcons();<\/script></body></html>`;
 }
 
