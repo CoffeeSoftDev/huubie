@@ -2433,13 +2433,6 @@ class App extends Templates {
                     </div>
                     <div id="openShiftsAlert" class="hidden"></div>
                     <div>
-                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Modo de reporte</label>
-                        <div class="flex rounded-lg overflow-hidden border border-gray-600">
-                            <button id="btnModeSummary" class="flex-1 py-2 text-sm font-semibold bg-purple-600 text-white" onclick="app.toggleReportMode('summary')">Resumido</button>
-                            <button id="btnModeDetailed" class="flex-1 py-2 text-sm font-semibold bg-[#1a2332] text-gray-300 hover:bg-gray-700" onclick="app.toggleReportMode('detailed')">Detallado</button>
-                        </div>
-                    </div>
-                    <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar turno</label>
                         <select id="shiftSelector" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.viewShiftPreview()">
                             <option value="">-- Seleccionar --</option>
@@ -2465,7 +2458,13 @@ class App extends Templates {
                 <!-- Ticket Preview -->
                 <div class="flex-1 relative">
                     <div id="ticketPreview" class="absolute inset-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
-                        <p class="text-xs text-gray-500 mb-2">Vista previa de impresión</p>
+                        <div id="ticketModeBar" class="flex items-center justify-between mb-3 gap-3 hidden">
+                            <p class="text-xs text-gray-500">Vista previa de impresión</p>
+                            <div class="flex items-center gap-1 text-[11px] flex-shrink-0">
+                                <button id="btnModeSummary" class="px-3 py-1 rounded-full font-semibold bg-purple-600 text-white transition-colors" onclick="app.toggleReportMode('summary')">Resumido</button>
+                                <button id="btnModeDetailed" class="px-3 py-1 rounded-full font-semibold text-gray-400 hover:text-gray-200 transition-colors" onclick="app.toggleReportMode('detailed')">Detallado</button>
+                            </div>
+                        </div>
                         <div id="ticketContainer">
                             <div class="text-center text-gray-400 py-16">
                                 <i class="icon-doc-text text-5xl mb-4"></i>
@@ -2608,6 +2607,7 @@ class App extends Templates {
             `);
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            $('#ticketModeBar').addClass('hidden');
         }
 
         // Habilitar botón Cerrar Día solo si hay al menos un turno cerrado
@@ -2642,6 +2642,7 @@ class App extends Templates {
         if (!shiftId) {
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            $('#ticketModeBar').addClass('hidden');
             return;
         }
 
@@ -2702,14 +2703,17 @@ class App extends Templates {
         const orders = options.orders || [];
         const isDetailed = this.reportMode === 'detailed';
 
-        const fecha = moment(shift.opened_at).format('DD/MM/YYYY');
+        const aperturaFull = moment(shift.opened_at).locale('es').format('DD/MMM/YYYY hh:mm a');
+        const cierreFull   = shift.closed_at ? moment(shift.closed_at).locale('es').format('DD/MMM/YYYY hh:mm a') : '-';
 
         const isClosed = shift.status === 'closed';
 
+        const subsidiaryHeader = (subsidiaryName && subsidiaryName !== companyName)
+            ? `<div class="text-xs font-semibold text-gray-700">${subsidiaryName}</div>`
+            : '';
+
         const closedBadge = isClosed
-            ? `<div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO</div>
-               <div class="text-[10px] text-gray-500 mt-0.5">Por: ${shift.employee_name || 'N/A'}</div>
-               <div class="text-[10px] text-gray-500">${shift.closed_at ? moment(shift.closed_at).format('DD/MM/YYYY HH:mm') : ''}</div>`
+            ? `<div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO</div>`
             : `<div class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">EN CURSO</div>`;
 
         // Desglose de ventas (modo detallado)
@@ -2726,7 +2730,7 @@ class App extends Templates {
                     <div class="flex items-center">
                         <div class="italic truncate flex-1">${o.folio || 'Folio #' + o.id}</div>
                         <div class="text-right" style="width:72px">${formatPrice(o.total_pay)}</div>
-                        <div class="text-right text-green-700" style="width:72px">${formatPrice(o.payment_real)}</div>
+                        <div class="text-right text-green-700" style="width:72px">${parseFloat(o.payment_real || 0) ? formatPrice(o.payment_real) : '-'}</div>
                     </div>
                     <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
                 `).join('');
@@ -2758,7 +2762,7 @@ class App extends Templates {
                 const extRows = externalPayments.map(o => `
                     <div class="flex justify-between items-center">
                         <div class="italic truncate" style="max-width:140px">${o.folio || 'Folio #' + o.id}</div>
-                        <div class="text-green-700">${formatPrice(o.payment_real)}</div>
+                        <div class="text-green-700">${parseFloat(o.payment_real || 0) ? formatPrice(o.payment_real) : '-'}</div>
                     </div>
                     <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
                 `).join('');
@@ -2779,7 +2783,7 @@ class App extends Templates {
 
         const ticketHtml = `
             <div id="layoutPrintCloseTicket" class="flex justify-center p-4">
-                <div id="ticketDailyClose" class="bg-white p-4 rounded-lg shadow-lg font-mono text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%;">
+                <div id="ticketDailyClose" class="bg-white p-4 rounded-lg shadow-lg text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%; font-family: 'Roboto Mono', ui-monospace, 'Courier New', monospace;">
                     <!-- Header -->
                     <div class="flex flex-col items-center mb-3">
                         ${logo ? `<div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
@@ -2788,6 +2792,7 @@ class App extends Templates {
                             <span style="color:white;font-size:24px;font-weight:bold;">${(companyName || 'H').charAt(0).toUpperCase()}</span>
                         </div>`}
                         <h1 class="text-sm font-bold uppercase">${companyName}</h1>
+                        ${subsidiaryHeader}
                         <div class="text-xs font-semibold">PEDIDOS DE PASTELERÍA</div>
                         <div class="text-xs text-gray-600">Cierre Operativo</div>
                         ${closedBadge}
@@ -2795,10 +2800,10 @@ class App extends Templates {
 
                     <!-- Info -->
                     <div class="text-xs space-y-0.5 mb-2">
-                        <div class="flex justify-between"><span>Fecha:</span><span>${fecha}</span></div>
-                        <div class="flex justify-between"><span>Apertura:</span><span>${moment(shift.opened_at).format('hh:mm A')}</span></div>
+                        <div class="flex justify-between"><span>Aperturó:</span><span>${shift.employee_name || 'N/A'}</span></div>
+                        <div class="flex justify-between"><span>Apertura:</span><span>${aperturaFull}</span></div>
+                        ${isClosed ? `<div class="flex justify-between"><span>Cierre:</span><span>${cierreFull}</span></div>` : ''}
                         <div class="flex justify-between"><span>Inicio de caja:</span><span>${formatPrice(shift.opening_amount || 0)}</span></div>
-                        <div class="flex justify-between"><span>Sucursal:</span><span>${subsidiaryName}</span></div>
                     </div>
 
                     <hr class="border-dashed border-t my-1" />
@@ -2808,47 +2813,47 @@ class App extends Templates {
                         ${detailedSection}
 
                         <!-- Formas de pago -->
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">EFECTIVO:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>EFECTIVO:</div>
                             <div>${parseFloat(d.cash_sales || 0) ? formatPrice(d.cash_sales) : '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">TARJETA:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>TARJETA:</div>
                             <div>${parseFloat(d.card_sales || 0) ? formatPrice(d.card_sales) : '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">TRANSFERENCIA:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>TRANSFERENCIA:</div>
                             <div>${parseFloat(d.transfer_sales || 0) ? formatPrice(d.transfer_sales) : '-'}</div>
                         </div>
 
                         <hr class="border-dashed border-t my-1" />
 
-                        <div class="flex justify-between items-center font-bold">
+                        <div class="flex justify-between items-center font-semibold">
                             <div>TOTAL CAJA:</div>
                             <div class="text-sm">${totalPayments ? formatPrice(totalPayments) : '-'}</div>
                         </div>
 
                         <hr class="border-dashed border-t my-1" />
 
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">NÚMERO DE PEDIDOS DEL TURNO:</div>
-                            <div class="font-bold">${parseInt(d.total_orders) || '-'}</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>NÚMERO DE PEDIDOS DEL TURNO:</div>
+                            <div>${parseInt(d.total_orders) || '-'}</div>
                         </div>
                         <div class="mt-2"></div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">PAGADOS:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>PAGADOS:</div>
                             <div>${((d.total_orders || 0) - (d.quotation_count || 0) - (d.cancelled_count || 0) - (d.pending_count || 0)) || '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">PENDIENTES:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>PENDIENTES:</div>
                             <div>${d.pending_count || '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">COTIZACIONES:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>COTIZACIONES:</div>
                             <div>${d.quotation_count || '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">CANCELADOS:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>CANCELADOS:</div>
                             <div>${d.cancelled_count || '-'}</div>
                         </div>
                     </div>
@@ -2866,17 +2871,18 @@ class App extends Templates {
         `;
 
         $('#ticketContainer').html(ticketHtml);
+        $('#ticketModeBar').removeClass('hidden');
     }
 
     toggleReportMode(mode) {
         this.reportMode = mode;
 
         if (mode === 'detailed') {
-            $('#btnModeDetailed').addClass('bg-purple-600 text-white').removeClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700');
-            $('#btnModeSummary').addClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700').removeClass('bg-purple-600 text-white');
+            $('#btnModeDetailed').addClass('bg-purple-600 text-white').removeClass('text-gray-400 hover:text-gray-200');
+            $('#btnModeSummary').addClass('text-gray-400 hover:text-gray-200').removeClass('bg-purple-600 text-white');
         } else {
-            $('#btnModeSummary').addClass('bg-purple-600 text-white').removeClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700');
-            $('#btnModeDetailed').addClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700').removeClass('bg-purple-600 text-white');
+            $('#btnModeSummary').addClass('bg-purple-600 text-white').removeClass('text-gray-400 hover:text-gray-200');
+            $('#btnModeDetailed').addClass('text-gray-400 hover:text-gray-200').removeClass('bg-purple-600 text-white');
         }
 
         if (this._selectedShiftId) {

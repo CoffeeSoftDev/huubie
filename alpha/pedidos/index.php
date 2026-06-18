@@ -9,6 +9,10 @@
     <title>Alpha</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fuente del ticket: monoespaciada con peso 600 real (semibold) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- icons -->
     <link rel="stylesheet" href="<?=PATH_BASE?>src/plugins/fontello/css/fontello.css" />
     <link rel="stylesheet" href="<?=PATH_EVENTOS?>src/css/style.css" />

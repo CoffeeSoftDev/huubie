@@ -13,6 +13,7 @@ class Cierre {
         let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
 
         $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        $('#ticketModeBar').addClass('hidden');
         $('#ticketContainer').html(`
             <div class="text-center text-gray-400 py-16">
                 <div class="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -223,6 +224,7 @@ class Cierre {
             btnArea.html('');
         }
 
+        $('#ticketModeBar').addClass('hidden');
         this.renderDailyTicket(res);
     }
 
@@ -316,6 +318,7 @@ class Cierre {
         let date            = rangePicker.fi;
         let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
 
+        $('#ticketModeBar').addClass('hidden');
         $('#ticketContainer').html(`
             <div class="text-center text-gray-400 py-16">
                 <div class="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
