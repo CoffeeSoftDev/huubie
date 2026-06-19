@@ -58,6 +58,37 @@
     background: var(--vsr-accent-tint); color: var(--vsr-accent-soft);
 }
 
+/* ── Barra de hilos (sesiones paralelas) ── */
+.fg-threadbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; flex-shrink: 0;
+    background: var(--vsr-bg-chrome); border-bottom: 1px solid var(--vsr-border);
+    overflow-x: auto;
+}
+.fg-threads { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
+.fg-thread {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 9px; border-radius: 8px; cursor: pointer; max-width: 220px;
+    background: var(--vsr-bg-base); border: 1px solid var(--vsr-border-soft); color: var(--vsr-text-muted);
+}
+.fg-thread:hover { border-color: var(--vsr-border); color: var(--vsr-text-soft); }
+.fg-thread.active { background: var(--vsr-accent-tint); border-color: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.fg-thread-ic { width: 13px; height: 13px; flex-shrink: 0; }
+.fg-thread-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg-thread-x {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; padding: 0; border: none; border-radius: 4px; flex-shrink: 0;
+    background: transparent; color: inherit; opacity: .5; cursor: pointer;
+}
+.fg-thread-x:hover { opacity: 1; background: rgba(0,0,0,.25); }
+.fg-thread-x i { width: 12px; height: 12px; }
+.fg-thread-new {
+    display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+    padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
+    background: transparent; border: 1px dashed var(--vsr-border); color: var(--vsr-text-muted);
+}
+.fg-thread-new:hover { border-color: var(--vsr-accent); color: var(--vsr-accent-soft); }
+
 /* ── Workspace 2 paneles (flex + splitter redimensionable) ── */
 .pg-workspace {
     flex: 1;
@@ -102,6 +133,28 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-iconbtn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border-color: var(--vsr-border); }
 /* Botón en estado activo (p.ej. modo "recrear" esperando clic en el Live) */
 .pg-iconbtn.is-on { background: rgba(34,197,94,.18); color: #4ade80; border-color: rgba(34,197,94,.4); }
+
+/* Banner del modo "Recrear" (sobre el sandbox) */
+.fg-rec-banner {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 20;
+    display: flex; align-items: center; gap: 8px; pointer-events: none;
+    padding: 7px 14px; border-radius: 9px; font-size: 12px; font-weight: 600; color: #fff;
+    background: rgba(16,185,129,.95); box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+.fg-rec-banner.hidden { display: none; }
+.fg-rec-banner strong { background: rgba(0,0,0,.2); padding: 0 5px; border-radius: 4px; }
+
+/* Botón contextual "Recrear componente" (flotante sobre la vista Live) */
+.fg-rec-fab {
+    position: absolute; right: 14px; bottom: 14px; z-index: 18;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 14px; border-radius: 10px; cursor: pointer;
+    font-size: 12.5px; font-weight: 700; color: #fff; border: none;
+    background: var(--vsr-accent); box-shadow: 0 6px 18px rgba(0,0,0,.4);
+}
+.fg-rec-fab:hover { filter: brightness(1.08); }
+.fg-rec-fab.is-on { background: #16a34a; }
+.fg-rec-fab.hidden { display: none; }
 
 /* ── Chat ── */
 .pg-chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }

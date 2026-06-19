@@ -159,6 +159,7 @@ $(async () => {
     pgApplyAgent(pg.agentKey, true);
     pgApplyCanvasUI();
     fgRenderModulePanel();
+    fgInitThreads();
     if (window.lucide) lucide.createIcons();
 });
 
@@ -385,11 +386,15 @@ function pgBind() {
         $('#pgSandboxCode').toggleClass('hidden', tab !== 'code');
         $('#pgModulePanel').toggleClass('hidden', tab !== 'module');
         $('#fgLiveEmpty').toggleClass('hidden', !(tab === 'live' && !pg._liveModule));
+        // El botón "Recrear componente" solo tiene sentido viendo el Live.
+        $('#fgRecFab').toggleClass('hidden', !(tab === 'live' && pg._liveModule));
+        if (tab !== 'live' && pg._recActive) fgStopRecreate();
         // El "empty" del preview solo aplica a la pestaña Preview sin render.
         if (tab === 'preview' && !pg.lastHtml) $('#pgSandboxEmpty').show();
         else $('#pgSandboxEmpty').hide();
         pgApplyZoom();
     });
+    $('#fgRecFab').on('click', () => fgToggleRecreate());
 
     $('#pgSandboxOpen').on('click', () => {
         if (!pg.lastHtml) { pgToast('Aún no hay nada que abrir', 'warn'); return; }
@@ -621,7 +626,7 @@ function pgSubmit() {
     const hasImages = pg.pendingImages.length > 0;
     const hasDocs   = pg.pendingDocs.length > 0;
     if (!text && !hasImages && !hasDocs) return;
-    if (text) pg._lastUserText = text;   // titula los templates del historial
+    if (text) { pg._lastUserText = text; fgMaybeAutoName(text); }   // titula templates + hilo
     $ta.val('').css('height', 'auto');
     const images = pg.pendingImages.slice();
     const docs   = pg.pendingDocs.slice();
@@ -1779,13 +1784,19 @@ function fgOpenManualUrl() {
 function fgLoadUrlInSandbox(url) {
     const fr = document.getElementById('fgLiveFrame');
     $('.pg-sandbox-body').css('background', '#0d1320');
+    // Para "Recrear" hay que leer el DOM del iframe → solo si es mismo origen.
+    let sameOrigin = false;
+    try { sameOrigin = new URL(url, location.href).origin === location.origin; } catch (e) { sameOrigin = false; }
     fr.onload = () => pgApplyZoom();
     fr.src = url;
-    pg._liveModule = { url };
+    pg._liveModule = { url, sameOrigin };
     $('#fgLiveDot').show();
     $('.pg-tab[data-sbtab="live"]').click();
     fgCloseBrowser();   // cerramos para ver el resultado; el campo recuerda la URL
     pgToast('Módulo en vivo: ' + url, 'info');
+    if (!sameOrigin) {
+        pgToast('Ojo: el módulo está en otro dominio; "Recrear" no podrá copiarlo. Abre Forge en ' + (new URL(url, location.href)).origin, 'warn');
+    }
 }
 
 /* ── Recrear un componente del Live como template en Preview ──
@@ -1799,12 +1810,21 @@ function fgLiveDoc() {
 function fgToggleRecreate() {
     if (pg._recActive) { fgStopRecreate(); return; }
     if (!pg._liveModule) { pgToast('Primero abre un módulo en Live (📂)', 'warn'); return; }
-    const doc = fgLiveDoc();
-    if (!doc || !doc.body) { pgToast('No puedo leer el Live (¿otro origen o aún cargando?)', 'error'); return; }
     $('.pg-tab[data-sbtab="live"]').click();   // asegurar que el Live esté visible
+    const doc = fgLiveDoc();
+    if (!doc || !doc.body) {
+        // Cross-origin: el navegador prohíbe leer el iframe. Hay que abrir Forge
+        // en el MISMO dominio que el módulo.
+        const liveOrigin = pg._liveModule && pg._liveModule.url ? (new URL(pg._liveModule.url, location.href)).origin : '?';
+        pgToast('No puedo copiar el Live: está en otro dominio (' + liveOrigin + '). Abre Forge en ese mismo dominio.', 'error');
+        return;
+    }
     pg._recActive = true;
     pg._recDoc = doc;
     $('#fgRecreateBtn').addClass('is-on');
+    $('#fgRecFab').addClass('is-on').html('<i data-lucide="x" class="w-4 h-4"></i> Cancelar');
+    $('#fgRecBanner').removeClass('hidden');
+    if (window.lucide) lucide.createIcons();
     if (!doc.getElementById('fgRecStyle')) {
         const st = doc.createElement('style');
         st.id = 'fgRecStyle';
@@ -1819,6 +1839,9 @@ function fgToggleRecreate() {
 function fgStopRecreate() {
     pg._recActive = false;
     $('#fgRecreateBtn').removeClass('is-on');
+    $('#fgRecFab').removeClass('is-on').html('<i data-lucide="copy-plus" class="w-4 h-4"></i> Recrear componente');
+    $('#fgRecBanner').addClass('hidden');
+    if (window.lucide) lucide.createIcons();
     const doc = pg._recDoc;
     if (doc) {
         try {
@@ -1997,4 +2020,167 @@ function fgBind() {
     // Recrear componente del Live → Preview.
     $('#fgRecreateBtn').on('click', () => fgToggleRecreate());
     $(document).on('keydown', e => { if (e.key === 'Escape' && pg._recActive) fgStopRecreate(); });
+
+    // Hilos paralelos.
+    $('#fgNewThreadBtn').on('click', () => fgNewThread());
+}
+
+/* ── Hilos paralelos ──
+ * Cada hilo es una SESIÓN completa e independiente: su agente/modelo/tema, su
+ * conversación, su Live, su Preview, sus adjuntos y su módulo generado. Al
+ * cambiar de hilo se guarda el estado vivo del actual y se restaura el destino.
+ * Viven en memoria (se pierden al recargar). */
+function fgThreadId() { return 'th-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5); }
+
+// Captura el estado de sesión actual desde pg (arrays por referencia: se
+// re-capturan en cada cambio de hilo, así que se mantienen consistentes).
+function fgSnapshotSession() {
+    return {
+        agentKey: pg.agentKey, theme: pg.theme, model: pg.model, prompt: pg.prompt,
+        knowledge: Array.from(pg.knowledge || []), canvasMode: !!pg.canvasMode,
+        history: pg.history, templates: pg.templates, activeTplId: pg._activeTplId,
+        lastUserText: pg._lastUserText, lastIsDoc: pg._lastIsDoc, lastHtml: pg.lastHtml, lastTheme: pg.lastTheme,
+        pendingDocs: pg.pendingDocs, pendingImages: pg.pendingImages,
+        moduleFiles: (pg.module && pg.module.files) || [], project: pg.project,
+        liveModule: pg._liveModule || null, openProject: pg._openProject || '', openRel: pg._openRel || ''
+    };
+}
+// Vuelca una sesión a pg y reconstruye toda la UI.
+function fgApplySession(s) {
+    pg.agentKey = s.agentKey;
+    $('#pgAgentSelect').val(s.agentKey);
+    pgApplyAgent(s.agentKey, true);                 // labels/icono sin limpiar chat
+    pg.prompt = s.prompt || '';                     // conservar el prompt del hilo
+    $('#pgPromptEditor').val(pg.prompt);
+
+    pg.theme = s.theme; $('#pgThemeSelect').val(s.theme);
+    $('#pgSandboxTheme').text((PG_THEMES[s.theme] || {}).label || s.theme);
+    pg.model = s.model || ''; if (s.model) $('#pgModelSelect').val(s.model);
+    pg.knowledge = new Set(s.knowledge || []);
+    pg.canvasMode = !!s.canvasMode; pgApplyCanvasUI();
+
+    pg.history = s.history || [];
+    pg.templates = s.templates || [];
+    pg._activeTplId = s.activeTplId || null;
+    pg._lastUserText = s.lastUserText || '';
+    pg._lastIsDoc = !!s.lastIsDoc;
+    pg.lastHtml = s.lastHtml || '';
+    pg.lastTheme = s.lastTheme || s.theme;
+    pg.pendingDocs = s.pendingDocs || [];
+    pg.pendingImages = s.pendingImages || [];
+    pg.module = { files: s.moduleFiles || [] };
+    pg.project = s.project || ''; if (pg.project) $('#fgProjectSelect').val(pg.project);
+    pg._liveModule = s.liveModule || null;
+    pg._openProject = s.openProject || ''; pg._openRel = s.openRel || '';
+
+    fgRebuildChat();
+    pgRenderImageStrip();
+    fgSetModule(pg.module.files);
+    pgUpdateKnowledgeCount();
+    fgRestoreSandbox();
+    if (window.lucide) lucide.createIcons();
+}
+// Solo el texto del usuario (sin el bloque de documentos embebidos).
+function fgUserText(c) {
+    c = String(c || '');
+    const i = c.indexOf('\n\n=== DOCUMENTOS ADJUNTOS');
+    return i >= 0 ? c.slice(0, i) : c;
+}
+function fgRebuildChat() {
+    const $b = $('#pgChatBody').empty();
+    if (!pg.history.length) {
+        $b.html(`<div class="pg-empty"><i data-lucide="sparkles"></i>
+            <div class="pg-empty-title">Pon a prueba a tu agente</div>
+            <div class="pg-empty-sub">Escríbele una instrucción y observa el resultado en el sandbox.</div></div>`);
+        return;
+    }
+    pg.history.forEach(m => {
+        if (m.role === 'user') pgAppendUser(fgUserText(m.content), m.imagesPreview, m.docsMeta);
+        else pgAppendAI(m.content);
+    });
+    pgScroll();
+}
+// Restaura Live (src) y Preview (lastHtml) del hilo, eligiendo la pestaña visible.
+function fgRestoreSandbox() {
+    const lf = document.getElementById('fgLiveFrame');
+    if (pg._liveModule && pg._liveModule.url) { lf.src = pg._liveModule.url; $('#fgLiveDot').show(); }
+    else { lf.removeAttribute('src'); $('#fgLiveDot').hide(); }
+
+    const pf = document.getElementById('pgSandboxFrame');
+    if (pg.lastHtml) {
+        pgRenderSandbox(pg.lastHtml, pg._lastIsDoc);   // pinta Preview y activa esa pestaña
+    } else {
+        pf.removeAttribute('srcdoc');
+        if (pg._liveModule) { $('#pgSandboxEmpty').hide(); $('.pg-tab[data-sbtab="live"]').click(); }
+        else { $('#pgSandboxEmpty').show(); $('.pg-tab[data-sbtab="preview"]').click(); }
+    }
+}
+
+function fgActiveThread() { return pg.threads.find(t => t.id === pg.activeThread); }
+function fgInitThreads() {
+    const id = fgThreadId();
+    pg.threads = [{ id, name: 'Hilo 1', session: fgSnapshotSession() }];
+    pg.activeThread = id;
+    fgRenderThreadBar();
+}
+function fgNewThread() {
+    if (pg.isBusy) { pgToast('Espera a que termine la respuesta actual', 'warn'); return; }
+    const cur = fgActiveThread(); if (cur) cur.session = fgSnapshotSession();
+    const id = fgThreadId();
+    // Hereda agente/modelo/tema actuales, pero arranca conversación y sandbox vacíos.
+    const fresh = fgSnapshotSession();
+    fresh.history = []; fresh.templates = []; fresh.activeTplId = null;
+    fresh.lastUserText = ''; fresh.lastHtml = ''; fresh.lastIsDoc = false;
+    fresh.pendingDocs = []; fresh.pendingImages = []; fresh.moduleFiles = []; fresh.liveModule = null;
+    pg.threads.push({ id, name: 'Hilo ' + (pg.threads.length + 1), session: fresh });
+    pg.activeThread = id;
+    fgApplySession(fresh);
+    fgRenderThreadBar();
+    pgToast('Nuevo hilo creado', 'success');
+}
+function fgSwitchThread(id) {
+    if (id === pg.activeThread) return;
+    if (pg.isBusy) { pgToast('Espera a que termine la respuesta actual', 'warn'); return; }
+    const cur = fgActiveThread(); if (cur) cur.session = fgSnapshotSession();
+    const dst = pg.threads.find(t => t.id === id); if (!dst) return;
+    pg.activeThread = id;
+    fgApplySession(dst.session);
+    fgRenderThreadBar();
+}
+function fgCloseThread(id) {
+    if (pg.threads.length === 1) { pgToast('Debe quedar al menos un hilo', 'warn'); return; }
+    const idx = pg.threads.findIndex(t => t.id === id); if (idx < 0) return;
+    const wasActive = pg.activeThread === id;
+    pg.threads.splice(idx, 1);
+    if (wasActive) {
+        const next = pg.threads[Math.max(0, idx - 1)];
+        pg.activeThread = next.id;
+        fgApplySession(next.session);
+    }
+    fgRenderThreadBar();
+}
+function fgRenameThread(id) {
+    const t = pg.threads.find(x => x.id === id); if (!t) return;
+    const name = window.prompt('Nombre del hilo:', t.name);
+    if (name && name.trim()) { t.name = name.trim().slice(0, 40); fgRenderThreadBar(); }
+}
+// Auto-nombra el hilo con el primer mensaje (si sigue con el nombre por defecto).
+function fgMaybeAutoName(text) {
+    const t = fgActiveThread();
+    if (t && /^Hilo \d+$/.test(t.name) && text) { t.name = text.trim().slice(0, 28); fgRenderThreadBar(); }
+}
+function fgRenderThreadBar() {
+    const $w = $('#fgThreads').empty();
+    pg.threads.forEach(t => {
+        const $t = $(`<div class="fg-thread${t.id === pg.activeThread ? ' active' : ''}" data-id="${t.id}" title="Doble clic para renombrar">
+            <i data-lucide="message-square" class="fg-thread-ic"></i>
+            <span class="fg-thread-name">${pgEscape(t.name)}</span>
+            <button class="fg-thread-x" title="Cerrar hilo"><i data-lucide="x"></i></button>
+        </div>`);
+        $t.on('click', e => { if ($(e.target).closest('.fg-thread-x').length) return; fgSwitchThread(t.id); });
+        $t.on('dblclick', () => fgRenameThread(t.id));
+        $t.find('.fg-thread-x').on('click', e => { e.stopPropagation(); fgCloseThread(t.id); });
+        $w.append($t);
+    });
+    if (window.lucide) lucide.createIcons();
 }
