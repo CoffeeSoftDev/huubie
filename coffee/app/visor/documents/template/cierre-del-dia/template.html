@@ -1,0 +1,362 @@
+<div class="w-full min-h-screen bg-[#0F172A] text-slate-100 font-[Inter] flex flex-col overflow-hidden">
+  <!-- Header -->
+  <header class="flex items-center justify-between px-6 py-4 border-b border-slate-700/50 bg-[#0F172A]">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center">
+        <i data-lucide="calendar-days" class="w-5 h-5 text-white"></i>
+      </div>
+      <h1 class="text-lg font-semibold tracking-tight">Cierre del Día</h1>
+    </div>
+    <button id="btnCloseModule" class="p-2 rounded-lg hover:bg-slate-700/50 transition-colors">
+      <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+    </button>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-hidden">
+    <!-- Left Panel: Controls -->
+    <section class="lg:col-span-4 flex flex-col gap-5 overflow-y-auto">
+      <!-- Sucursal -->
+      <div class="flex flex-col gap-2">
+        <label class="text-[11px] font-medium uppercase tracking-wider text-slate-400">Sucursal</label>
+        <div class="relative">
+          <select id="selectBranch" class="cs-input w-full appearance-none bg-[#1F2A37] border border-slate-700/60 text-slate-100 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500 transition-colors">
+            <option value="reginas">Reginas kafeto</option>
+            <option value="centro">Reginas Centro</option>
+            <option value="norte">Reginas Norte</option>
+          </select>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+      </div>
+
+      <!-- Fecha -->
+      <div class="flex flex-col gap-2">
+        <label class="text-[11px] font-medium uppercase tracking-wider text-slate-400">Seleccionar Fecha</label>
+        <input id="inputDate" type="date" value="2026-06-18" class="cs-input w-full bg-[#1F2A37] border border-slate-700/60 text-slate-100 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500 transition-colors font-[JetBrains_Mono]">
+      </div>
+
+      <!-- Turno -->
+      <div class="flex flex-col gap-2">
+        <label class="text-[11px] font-medium uppercase tracking-wider text-slate-400">Seleccionar Turno</label>
+        <div class="relative">
+          <select id="selectShift" class="cs-input w-full appearance-none bg-[#1F2A37] border border-slate-700/60 text-slate-100 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500 transition-colors">
+            <option value="closed">2026-06-18 12:48 AM [CERRADO]</option>
+            <option value="open">2026-06-18 08:00 AM [ABIERTO]</option>
+            <option value="night">2026-06-18 02:00 PM [ABIERTO]</option>
+          </select>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col gap-3 mt-2">
+        <button id="btnOpenShift" class="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg px-4 py-3 transition-colors">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          Abrir Turno
+        </button>
+
+        <button id="btnCloseShift" disabled class="w-full flex items-center justify-center gap-2 bg-purple-900/60 text-purple-300/60 font-medium rounded-lg px-4 py-3 cursor-not-allowed border border-purple-700/30">
+          <i data-lucide="lock" class="w-4 h-4"></i>
+          Cerrar Turno
+        </button>
+
+        <button id="btnPrintTicket" class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg px-4 py-3 transition-colors">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          Imprimir Ticket
+        </button>
+
+        <button id="btnCloseDay" class="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-medium rounded-lg px-4 py-3 transition-colors">
+          <i data-lucide="check-square" class="w-4 h-4"></i>
+          Cerrar Día
+        </button>
+      </div>
+    </section>
+
+    <!-- Right Panel: Preview -->
+    <section class="lg:col-span-8 flex flex-col bg-[#111928] rounded-xl border border-slate-700/40 p-6 overflow-hidden">
+      <!-- Preview Header + Tabs -->
+      <div class="flex items-center justify-between mb-6">
+        <span class="text-sm text-slate-400">Vista previa de impresión</span>
+        <div class="flex items-center gap-1 bg-[#1F2A37] rounded-lg p-1 border border-slate-700/60">
+          <button data-tab="resumido" class="tab-btn px-4 py-1.5 text-xs font-medium rounded-md bg-purple-600 text-white transition-all">Resumido</button>
+          <button data-tab="detallado" class="tab-btn px-4 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-slate-100 transition-all">Detallado</button>
+        </div>
+      </div>
+
+      <!-- Ticket -->
+      <div class="flex-1 flex items-start justify-center overflow-y-auto">
+        <div id="ticketPreview" class="bg-white text-slate-900 w-full max-w-[360px] rounded-lg shadow-2xl p-6 text-sm">
+          <!-- Logo -->
+          <div class="flex flex-col items-center gap-3 mb-4">
+            <div class="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center text-white text-2xl font-bold">R</div>
+            <div class="text-center">
+              <h2 class="font-bold text-base uppercase tracking-wide">Reginas Pastelería</h2>
+              <p id="ticketBranch" class="text-slate-600 text-xs">Reginas kafeto</p>
+              <p class="font-bold text-xs uppercase mt-1">Pedidos de Pastelería</p>
+              <p class="text-slate-500 text-xs">Cierre Operativo</p>
+            </div>
+            <span id="ticketStatus" class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700 border border-green-200">Cerrado</span>
+          </div>
+
+          <!-- Info Grid -->
+          <div class="space-y-1.5 mb-4 font-[JetBrains_Mono] text-xs">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Aperturó:</span>
+              <span id="ticketOpenedBy">Somx</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Apertura:</span>
+              <span id="ticketOpenTime">18/Jun/2026 12:48 am</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Cierre:</span>
+              <span id="ticketCloseTime">18/Jun/2026 12:48 am</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Inicio de caja:</span>
+              <span id="ticketStartCash">$0.00</span>
+            </div>
+          </div>
+
+          <!-- Totals -->
+          <div class="border-t border-dashed border-slate-300 pt-3 space-y-1.5 font-[JetBrains_Mono] text-xs">
+            <div class="flex justify-between">
+              <span class="font-semibold">EFECTIVO:</span>
+              <span id="ticketCash">-</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-semibold">TARJETA:</span>
+              <span id="ticketCard">-</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-semibold">TRANSFERENCIA:</span>
+              <span id="ticketTransfer">-</span>
+            </div>
+            <div class="flex justify-between border-t border-dashed border-slate-300 pt-2 mt-2">
+              <span class="font-bold uppercase">Total Caja:</span>
+              <span id="ticketTotal" class="font-bold">-</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-semibold uppercase">Número de pedidos del turno:</span>
+              <span id="ticketOrders">-</span>
+            </div>
+          </div>
+
+          <!-- Detailed Tab Content (hidden by default) -->
+          <div id="detailedContent" class="hidden border-t border-dashed border-slate-300 mt-4 pt-4">
+            <h3 class="font-bold text-xs uppercase mb-2 text-slate-700">Desglose de pedidos</h3>
+            <div class="space-y-2 text-xs font-[JetBrains_Mono]">
+              <div class="flex justify-between">
+                <span class="text-slate-600">#1001 - Pastel choco</span>
+                <span>$450.00</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">#1002 - Cupcakes x6</span>
+                <span>$180.00</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">#1003 - Café americano</span>
+                <span>$65.00</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">#1004 - Tarta fresa</span>
+                <span>$295.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+    <div class="bg-[#1F2A37] border border-slate-700/60 text-slate-100 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+      <i data-lucide="info" class="w-5 h-5 text-purple-400"></i>
+      <span id="toastMsg" class="text-sm">Mensaje</span>
+    </div>
+  </div>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    
+    .cs-input::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      opacity: 0.6;
+      cursor: pointer;
+    }
+  </style>
+
+  <script>
+    (function() {
+      // Data
+      const branchNames = {
+        'reginas': 'Reginas kafeto',
+        'centro': 'Reginas Centro',
+        'norte': 'Reginas Norte'
+      };
+
+      const sampleData = {
+        closed: {
+          status: 'Cerrado',
+          statusClass: 'bg-green-100 text-green-700 border-green-200',
+          openTime: '18/Jun/2026 12:48 am',
+          closeTime: '18/Jun/2026 12:48 am',
+          startCash: '$0.00',
+          cash: '$1,240.00',
+          card: '$890.50',
+          transfer: '$320.00',
+          total: '$2,450.50',
+          orders: '24'
+        },
+        open: {
+          status: 'Abierto',
+          statusClass: 'bg-blue-100 text-blue-700 border-blue-200',
+          openTime: '18/Jun/2026 08:00 am',
+          closeTime: '-',
+          startCash: '$500.00',
+          cash: '$850.00',
+          card: '$420.00',
+          transfer: '$150.00',
+          total: '$1,420.00',
+          orders: '16'
+        },
+        night: {
+          status: 'Abierto',
+          statusClass: 'bg-blue-100 text-blue-700 border-blue-200',
+          openTime: '18/Jun/2026 02:00 pm',
+          closeTime: '-',
+          startCash: '$300.00',
+          cash: '$220.00',
+          card: '$180.00',
+          transfer: '$50.00',
+          total: '$450.00',
+          orders: '7'
+        }
+      };
+
+      // DOM refs
+      const selectBranch = document.getElementById('selectBranch');
+      const inputDate = document.getElementById('inputDate');
+      const selectShift = document.getElementById('selectShift');
+      const btnOpenShift = document.getElementById('btnOpenShift');
+      const btnCloseShift = document.getElementById('btnCloseShift');
+      const btnPrintTicket = document.getElementById('btnPrintTicket');
+      const btnCloseDay = document.getElementById('btnCloseDay');
+      const btnCloseModule = document.getElementById('btnCloseModule');
+      const tabBtns = document.querySelectorAll('.tab-btn');
+      const detailedContent = document.getElementById('detailedContent');
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+
+      // Ticket refs
+      const ticketBranch = document.getElementById('ticketBranch');
+      const ticketStatus = document.getElementById('ticketStatus');
+      const ticketOpenTime = document.getElementById('ticketOpenTime');
+      const ticketCloseTime = document.getElementById('ticketCloseTime');
+      const ticketStartCash = document.getElementById('ticketStartCash');
+      const ticketCash = document.getElementById('ticketCash');
+      const ticketCard = document.getElementById('ticketCard');
+      const ticketTransfer = document.getElementById('ticketTransfer');
+      const ticketTotal = document.getElementById('ticketTotal');
+      const ticketOrders = document.getElementById('ticketOrders');
+
+      function updateTicket() {
+        const shift = selectShift.value;
+        const data = sampleData[shift];
+        const branch = branchNames[selectBranch.value];
+
+        ticketBranch.textContent = branch;
+        ticketStatus.textContent = data.status;
+        ticketStatus.className = `px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${data.statusClass}`;
+        ticketOpenTime.textContent = data.openTime;
+        ticketCloseTime.textContent = data.closeTime;
+        ticketStartCash.textContent = data.startCash;
+        ticketCash.textContent = data.cash;
+        ticketCard.textContent = data.card;
+        ticketTransfer.textContent = data.transfer;
+        ticketTotal.textContent = data.total;
+        ticketOrders.textContent = data.orders;
+
+        // Update shift label with selected date
+        const dateVal = inputDate.value;
+        const formatted = dateVal ? new Date(dateVal + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+        
+        // Enable/disable close shift based on status
+        if (shift === 'closed') {
+          btnCloseShift.disabled = true;
+          btnCloseShift.classList.add('cursor-not-allowed', 'bg-purple-900/60', 'text-purple-300/60', 'border-purple-700/30');
+          btnCloseShift.classList.remove('bg-purple-600', 'hover:bg-purple-500', 'text-white', 'border-transparent');
+          btnOpenShift.disabled = true;
+          btnOpenShift.classList.add('opacity-60', 'cursor-not-allowed');
+        } else {
+          btnCloseShift.disabled = false;
+          btnCloseShift.classList.remove('cursor-not-allowed', 'bg-purple-900/60', 'text-purple-300/60', 'border-purple-700/30');
+          btnCloseShift.classList.add('bg-purple-600', 'hover:bg-purple-500', 'text-white', 'border-transparent');
+          btnOpenShift.disabled = false;
+          btnOpenShift.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
+      }
+
+      function showToast(msg) {
+        toastMsg.textContent = msg;
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => {
+          toast.classList.add('translate-y-20', 'opacity-0');
+        }, 2500);
+      }
+
+      // Events
+      selectBranch.addEventListener('change', updateTicket);
+      selectShift.addEventListener('change', updateTicket);
+      inputDate.addEventListener('change', updateTicket);
+
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabBtns.forEach(b => {
+            b.classList.remove('bg-purple-600', 'text-white');
+            b.classList.add('text-slate-400');
+          });
+          btn.classList.remove('text-slate-400');
+          btn.classList.add('bg-purple-600', 'text-white');
+
+          if (btn.dataset.tab === 'detallado') {
+            detailedContent.classList.remove('hidden');
+          } else {
+            detailedContent.classList.add('hidden');
+          }
+        });
+      });
+
+      btnOpenShift.addEventListener('click', () => {
+        if (btnOpenShift.disabled) return;
+        showToast('Turno abierto correctamente');
+        selectShift.value = 'open';
+        updateTicket();
+      });
+
+      btnCloseShift.addEventListener('click', () => {
+        if (btnCloseShift.disabled) return;
+        showToast('Turno cerrado correctamente');
+        selectShift.value = 'closed';
+        updateTicket();
+      });
+
+      btnPrintTicket.addEventListener('click', () => {
+        showToast('Enviando ticket a impresora...');
+      });
+
+      btnCloseDay.addEventListener('click', () => {
+        showToast('Día cerrado exitosamente');
+      });
+
+      btnCloseModule.addEventListener('click', () => {
+        showToast('Cerrando módulo...');
+      });
+
+      // Init
+      updateTicket();
+      if (window.lucide) lucide.createIcons();
+    })();
+  </script>
+</div>

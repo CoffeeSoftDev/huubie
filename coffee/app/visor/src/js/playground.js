@@ -389,8 +389,20 @@ function pgBind() {
         $('.pg-tab').removeClass('active');
         $(this).addClass('active');
         const tab = $(this).data('sbtab');
-        $('#pgSandboxFrame').toggleClass('hidden', tab !== 'preview');
+        // En "Estilos" el iframe sigue visible (es lo que se inspecciona); solo
+        // se oculta en "Código".
+        $('#pgSandboxFrame').toggleClass('hidden', tab === 'code');
         $('#pgSandboxCode').toggleClass('hidden', tab !== 'code');
+        if (tab === 'styles') pgEnterInspect(); else pgExitInspect();
+    });
+
+    // Copiar toda la configuración CSS del elemento inspeccionado.
+    $('#pgStylesContent').on('click', '#pgStyCopyBtn', function (e) { e.stopPropagation(); pgCopyStyleConfig(); });
+
+    // Copiar un valor/clase suelto desde el inspector de estilos (delegado).
+    $('#pgStylesContent').on('click', '[data-copy]', function () {
+        const v = $(this).attr('data-copy');
+        if (v && navigator.clipboard) { navigator.clipboard.writeText(v); pgToast('Copiado: ' + v, 'success'); }
     });
 
     $('#pgSandboxOpen').on('click', () => {
@@ -1439,7 +1451,7 @@ function pgRenderSandbox(htmlBody, isDoc) {
     const t = PG_THEMES[pg.theme] || PG_THEMES[PG_DEFAULT_THEME];
     $('.pg-sandbox-body').css('background', t.bg || '#fff');
     const fr = document.getElementById('pgSandboxFrame');
-    fr.onload = () => pgApplyZoom();   // el scroll lo hace el iframe interno; reaplicamos el zoom al cargar
+    fr.onload = () => { pgApplyZoom(); if (pg._inspecting) pgBindInspect(); };   // el scroll lo hace el iframe interno; reaplicamos el zoom al cargar
     fr.srcdoc = pgWrapHtml(htmlBody, pg.theme, isDoc);
     // La pestaña "Código" refleja la fuente de lo que se está renderizando.
     if (!isDoc) {
@@ -1455,6 +1467,265 @@ function pgShowSandboxCode(code) {
     if (window.hljs) hljs.highlightElement($code[0]);
     $('.pg-tab[data-sbtab="code"]').click();
     pgMobileShowSandbox();
+}
+
+/* ── Inspector de estilos ──
+ * La pestaña "Estilos" mantiene el preview visible y, al hacer clic en cualquier
+ * elemento (input, card, botón…), muestra su CSS resuelto: color, fondo, borde,
+ * tipografía, espaciado y las reglas :hover que le aplican. Como el iframe es
+ * srcdoc del mismo origen, leemos su computed style y sus styleSheets directamente. */
+function pgInspectDoc() {
+    const fr = document.getElementById('pgSandboxFrame');
+    try { return fr.contentDocument || (fr.contentWindow && fr.contentWindow.document); } catch (e) { return null; }
+}
+function pgEnterInspect() {
+    pg._inspecting = true;
+    $('.pg-sandbox-body').addClass('is-inspecting');
+    $('#pgStylesPanel').attr('aria-hidden', 'false');
+    pgBindInspect();
+    if (window.lucide) lucide.createIcons();
+}
+function pgExitInspect() {
+    pg._inspecting = false;
+    $('.pg-sandbox-body').removeClass('is-inspecting');
+    $('#pgStylesPanel').attr('aria-hidden', 'true');
+    pgUnbindInspect();
+}
+function pgBindInspect() {
+    const doc = pgInspectDoc();
+    if (!doc || !doc.body) return;
+    pgUnbindInspect(doc);   // idempotente: evita listeners duplicados al recargar
+    if (!doc.getElementById('pgInspectStyle')) {
+        const st = doc.createElement('style');
+        st.id = 'pgInspectStyle';
+        st.textContent = '.pg-ins-hover{outline:2px solid #C05A40!important;outline-offset:-2px;cursor:crosshair!important;}'
+                       + '.pg-ins-sel{outline:2px solid #E8A68F!important;outline-offset:-2px;}';
+        doc.head.appendChild(st);
+    }
+    doc.addEventListener('mouseover', pgInsOver, true);
+    doc.addEventListener('mouseout', pgInsOut, true);
+    doc.addEventListener('click', pgInsClick, true);
+    pg._insDoc = doc;
+}
+function pgUnbindInspect(passedDoc) {
+    const doc = passedDoc || pg._insDoc;
+    if (!doc) return;
+    try {
+        doc.removeEventListener('mouseover', pgInsOver, true);
+        doc.removeEventListener('mouseout', pgInsOut, true);
+        doc.removeEventListener('click', pgInsClick, true);
+        doc.querySelectorAll('.pg-ins-hover, .pg-ins-sel').forEach(el => el.classList.remove('pg-ins-hover', 'pg-ins-sel'));
+    } catch (e) {}
+    if (!passedDoc) pg._insDoc = null;
+}
+function pgInsOver(e) { if (e.target && e.target.classList && e.target !== e.currentTarget.body) e.target.classList.add('pg-ins-hover'); }
+function pgInsOut(e)  { if (e.target && e.target.classList) e.target.classList.remove('pg-ins-hover'); }
+function pgInsClick(e) {
+    e.preventDefault(); e.stopPropagation();
+    const el = e.target;
+    if (!el || !el.tagName) return;
+    const doc = pg._insDoc;
+    if (doc) doc.querySelectorAll('.pg-ins-sel').forEach(n => n.classList.remove('pg-ins-sel'));
+    el.classList.remove('pg-ins-hover');
+    el.classList.add('pg-ins-sel');
+    pgRenderStyles(el);
+}
+
+// ¿El valor parece un color (para pintar el swatch junto a la propiedad)?
+function pgIsColor(v) { return /^(#|rgb|hsl)/i.test(String(v).trim()); }
+function pgSwatch(v) { return pgIsColor(v) ? `<span class="pg-sty-swatch" style="background:${pgEscape(v)}"></span>` : ''; }
+
+// rgb()/rgba() → #HEX legible (o rgba si tiene transparencia; 'transparent' si alpha 0).
+function pgToHex(r, g, b) {
+    const h = n => ('0' + Math.max(0, Math.min(255, n | 0)).toString(16)).slice(-2);
+    return ('#' + h(r) + h(g) + h(b)).toUpperCase();
+}
+function pgFmtColor(v) {
+    if (!v) return '';
+    v = String(v).trim();
+    const m = v.match(/^rgba?\(([^)]+)\)/i);
+    if (!m) return v;
+    const p = m[1].split(',').map(s => s.trim());
+    const a = p[3] !== undefined ? parseFloat(p[3]) : 1;
+    if (a === 0) return 'transparent';
+    if (a < 1)  return `rgba(${p[0]}, ${p[1]}, ${p[2]}, ${a})`;
+    return pgToHex(+p[0], +p[1], +p[2]);
+}
+function pgIsTransparent(v) {
+    if (!v) return true;
+    if (/transparent/i.test(v)) return true;
+    const m = String(v).match(/^rgba?\(([^)]+)\)/i);
+    if (m) { const p = m[1].split(','); return p[3] !== undefined && parseFloat(p[3]) === 0; }
+    return false;
+}
+
+// Una propiedad agrupada de 4 lados (padding/margin/border-width) → valor compacto.
+function pgBoxVal(cs, prop) {
+    const t = cs.getPropertyValue(prop + '-top'), r = cs.getPropertyValue(prop + '-right'),
+          b = cs.getPropertyValue(prop + '-bottom'), l = cs.getPropertyValue(prop + '-left');
+    return (t === r && r === b && b === l) ? t : `${t} ${r} ${b} ${l}`;
+}
+
+// Fila etiqueta→valor (etiqueta legible en español; el valor se copia al clic).
+function pgStyRow(label, val) {
+    if (val === '' || val == null) return '';
+    return `<div class="pg-sty-row" data-copy="${pgEscape(val)}" title="Clic para copiar">`
+         + `<span class="pg-sty-key">${label}</span>`
+         + `<span class="pg-sty-val">${pgSwatch(val)}${pgEscape(val)}</span></div>`;
+}
+// Fila de color destacada: swatch grande + nombre + valor en HEX.
+function pgColorRow(label, val) {
+    if (!val) return '';
+    const sw = val === 'transparent'
+        ? `<span class="pg-sty-swatch-lg pg-sty-swatch-transp"></span>`
+        : `<span class="pg-sty-swatch-lg" style="background:${pgEscape(val)}"></span>`;
+    return `<div class="pg-sty-color-row" data-copy="${pgEscape(val)}" title="Clic para copiar">${sw}`
+         + `<div class="pg-sty-color-meta"><span class="pg-sty-color-label">${label}</span>`
+         + `<span class="pg-sty-color-val">${pgEscape(val)}</span></div></div>`;
+}
+function pgStySec(title, icon, rows) {
+    const body = rows.filter(Boolean).join('');
+    return body
+        ? `<div class="pg-sty-sec"><div class="pg-sty-sec-title"><i data-lucide="${icon}"></i> ${title}</div>${body}</div>`
+        : '';
+}
+
+function pgRenderStyles(el) {
+    const win = el.ownerDocument.defaultView;
+    const cs  = win.getComputedStyle(el);
+    const r   = el.getBoundingClientRect();
+
+    const tag    = el.tagName.toLowerCase();
+    const id     = el.id ? '#' + el.id : '';
+    const selName = tag + id;
+    const clsArr = (el.getAttribute('class') || '').split(/\s+/).filter(c => c && !/^pg-ins-/.test(c));
+
+    const hasBorder = ['Top', 'Right', 'Bottom', 'Left'].some(s => parseFloat(cs['border' + s + 'Width']) > 0);
+    const hover = pgHoverDecls(el);
+
+    // Snippet CSS copiable (config completa del elemento + su :hover).
+    pg._styleSnippet = pgBuildSnippet(selName || tag, cs, hasBorder, hover);
+
+    const head = `<div class="pg-sty-head"><div class="pg-sty-head-top">`
+        + `<div class="pg-sty-tag">&lt;${tag}${id}&gt;</div>`
+        + `<button id="pgStyCopyBtn" class="pg-sty-copy" title="Copiar toda la configuración CSS"><i data-lucide="clipboard-copy" class="w-3.5 h-3.5"></i> Copiar CSS</button>`
+        + `</div><div class="pg-sty-dims">${Math.round(r.width)} × ${Math.round(r.height)} px · ${cs.display}</div></div>`;
+
+    const chips = pgClassChips(clsArr);
+
+    // Colores (lo que más se consulta: texto, fondo, borde) con swatch grande.
+    const colors = pgStySec('Colores', 'palette', [
+        pgColorRow('Texto', pgFmtColor(cs.color)),
+        pgColorRow('Fondo', pgIsTransparent(cs.backgroundColor) ? 'transparent' : pgFmtColor(cs.backgroundColor)),
+        hasBorder ? pgColorRow('Borde', pgFmtColor(cs.borderTopColor)) : ''
+    ]);
+
+    const typo = pgStySec('Tipografía', 'type', [
+        pgStyRow('Tamaño', cs.fontSize),
+        pgStyRow('Grosor', cs.fontWeight),
+        pgStyRow('Interlineado', cs.lineHeight),
+        cs.letterSpacing !== 'normal' ? pgStyRow('Espaciado letras', cs.letterSpacing) : '',
+        pgStyRow('Alineación', cs.textAlign),
+        pgStyRow('Fuente', cs.fontFamily.replace(/"/g, ''))
+    ]);
+
+    const box = pgStySec('Caja y espaciado', 'box-select', [
+        hasBorder ? pgStyRow('Borde', `${cs.borderTopWidth} ${cs.borderTopStyle} ${pgFmtColor(cs.borderTopColor)}`) : '',
+        cs.borderTopLeftRadius !== '0px' ? pgStyRow('Radio', cs.borderRadius) : '',
+        pgBoxVal(cs, 'padding') !== '0px' ? pgStyRow('Padding', pgBoxVal(cs, 'padding')) : '',
+        pgBoxVal(cs, 'margin')  !== '0px' ? pgStyRow('Margen', pgBoxVal(cs, 'margin')) : '',
+        (cs.gap && cs.gap !== 'normal' && cs.gap !== '0px') ? pgStyRow('Separación', cs.gap) : ''
+    ]);
+
+    const fx = pgStySec('Efectos', 'sparkles', [
+        cs.boxShadow !== 'none' ? pgStyRow('Sombra', cs.boxShadow) : '',
+        cs.opacity !== '1' ? pgStyRow('Opacidad', cs.opacity) : '',
+        (cs.transition && cs.transition !== 'all 0s ease 0s') ? pgStyRow('Transición', cs.transition) : ''
+    ]);
+
+    $('#pgStylesHint').hide();
+    $('#pgStylesContent').html(head + chips + colors + typo + box + fx + pgHoverHtml(hover));
+    if (window.lucide) lucide.createIcons();
+}
+
+// Texto CSS listo para pegar con la configuración del elemento y su :hover.
+function pgBuildSnippet(sel, cs, hasBorder, hover) {
+    const L = [];
+    const add = (prop, val) => { if (val && val !== 'none') L.push(`  ${prop}: ${val};`); };
+    if (!pgIsTransparent(cs.backgroundColor)) add('background', pgFmtColor(cs.backgroundColor));
+    if (cs.backgroundImage !== 'none') add('background-image', cs.backgroundImage);
+    add('color', pgFmtColor(cs.color));
+    if (hasBorder) add('border', `${cs.borderTopWidth} ${cs.borderTopStyle} ${pgFmtColor(cs.borderTopColor)}`);
+    if (cs.borderTopLeftRadius !== '0px') add('border-radius', cs.borderRadius);
+    add('font-family', cs.fontFamily);
+    add('font-size', cs.fontSize);
+    add('font-weight', cs.fontWeight);
+    add('line-height', cs.lineHeight);
+    if (cs.letterSpacing !== 'normal') add('letter-spacing', cs.letterSpacing);
+    add('text-align', cs.textAlign);
+    if (pgBoxVal(cs, 'padding') !== '0px') add('padding', pgBoxVal(cs, 'padding'));
+    if (pgBoxVal(cs, 'margin')  !== '0px') add('margin', pgBoxVal(cs, 'margin'));
+    if (cs.gap && cs.gap !== 'normal' && cs.gap !== '0px') add('gap', cs.gap);
+    if (cs.boxShadow !== 'none') add('box-shadow', cs.boxShadow);
+    if (cs.opacity !== '1') add('opacity', cs.opacity);
+    if (cs.transition && cs.transition !== 'all 0s ease 0s') add('transition', cs.transition);
+
+    let out = `${sel} {\n${L.join('\n')}\n}`;
+    hover.forEach(h => {
+        const hl = h.decls.map(d => `  ${d.prop}: ${pgIsColor(d.val) ? pgFmtColor(d.val) : d.val};`).join('\n');
+        if (hl) out += `\n\n${sel}:hover {\n${hl}\n}`;
+    });
+    return out;
+}
+function pgCopyStyleConfig() {
+    if (!pg._styleSnippet) { pgToast('Selecciona un elemento primero', 'warn'); return; }
+    if (navigator.clipboard) { navigator.clipboard.writeText(pg._styleSnippet); pgToast('Configuración CSS copiada', 'success'); }
+}
+
+/* Reglas :hover de las hojas del iframe que matchean el elemento (Tailwind
+ * hover:*, .cs-*:hover, a:hover…). Quita ':hover' del selector y prueba
+ * element.matches() contra el resto. Devuelve [{ sel, decls:[{prop,val}] }]. */
+function pgHoverDecls(el) {
+    const doc  = el.ownerDocument;
+    const out  = [];
+    const seen = {};
+    const walk = (rules) => {
+        for (const rule of Array.from(rules || [])) {
+            if (rule.cssRules && rule.selectorText === undefined) { walk(rule.cssRules); continue; }   // @media, @supports
+            const sel = rule.selectorText;
+            if (!sel || sel.indexOf(':hover') === -1) continue;
+            sel.split(',').forEach(part => {
+                part = part.trim();
+                if (part.indexOf(':hover') === -1) return;
+                const test = part.replace(/:hover/g, '');
+                let ok = false;
+                try { ok = el.matches(test); } catch (e) { ok = false; }
+                if (!ok || seen[part]) return;
+                seen[part] = 1;
+                const decls = [];
+                for (let i = 0; i < rule.style.length; i++) {
+                    const p = rule.style[i];
+                    decls.push({ prop: p, val: rule.style.getPropertyValue(p) });
+                }
+                if (decls.length) out.push({ sel: part, decls });
+            });
+        }
+    };
+    for (const sheet of Array.from(doc.styleSheets || [])) {
+        let rules; try { rules = sheet.cssRules || sheet.rules; } catch (e) { continue; }   // hoja cross-origin
+        walk(rules);
+    }
+    return out.slice(0, 12);
+}
+function pgHoverHtml(hover) {
+    if (!hover.length) return '';
+    const blocks = hover.map(o => {
+        const rows = o.decls.map(d => pgStyRow(d.prop, pgIsColor(d.val) ? pgFmtColor(d.val) : d.val)).join('');
+        return rows ? `<div class="pg-sty-hover"><div class="pg-sty-hover-sel">${pgEscape(o.sel)}</div>${rows}</div>` : '';
+    }).filter(Boolean).join('');
+    if (!blocks) return '';
+    return `<div class="pg-sty-sec"><div class="pg-sty-sec-title pg-sty-hover-head">`
+         + `<i data-lucide="mouse-pointer-2"></i> Al pasar el mouse (:hover)</div>${blocks}</div>`;
 }
 
 /* ── Zoom del preview ──
@@ -1632,6 +1903,12 @@ async function pgConfirmSaveTemplate() {
     if (!pg.lastHtml) { pgToast('No hay render para guardar', 'warn'); return; }
 
     const t = PG_THEMES[pg.lastTheme] || PG_THEMES[pg.theme] || {};
+    // Al persistir solo guardamos el HTML generado: el history se despoja de las
+    // imágenes adjuntas (base64) para no inflar meta.json con la imagen.
+    const cleanHistory = (pg.history || []).map(m => {
+        const { images, imagesPreview, ...rest } = m;
+        return rest;
+    });
     const meta = {
         title:      (pg._lastUserText || name).slice(0, 120),
         theme:      pg.lastTheme || pg.theme,
@@ -1642,7 +1919,7 @@ async function pgConfirmSaveTemplate() {
         prompt:     pg.prompt || '',
         userText:   pg._lastUserText || '',
         isDoc:      !!pg._lastIsDoc,
-        history:    pg.history
+        history:    cleanHistory
     };
 
     const $btn = $('#pgSaveTplConfirm').prop('disabled', true);

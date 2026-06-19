@@ -348,6 +348,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     $metaArr['slug']      = $slug;
     $metaArr['savedAt']   = date('Y-m-d H:i:s');
 
+    // Solo se persiste el HTML generado: nunca las imagenes adjuntas. Despojamos
+    // el history de images/imagesPreview (base64) para no inflar meta.json.
+    if (isset($metaArr['history']) && is_array($metaArr['history'])) {
+        foreach ($metaArr['history'] as &$msg) {
+            if (is_array($msg)) unset($msg['images'], $msg['imagesPreview']);
+        }
+        unset($msg);
+    }
+
     $okHtml = @file_put_contents($dir . '/template.html', $html);
     $okMeta = @file_put_contents($dir . '/meta.json', json_encode($metaArr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
 

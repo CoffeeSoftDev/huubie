@@ -2429,7 +2429,12 @@ class App extends Templates {
                     ${subsidiarySelect}
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar fecha</label>
-                        <input type="text" id="calendarDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm cursor-pointer" readonly placeholder="Seleccionar fecha" />
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none">
+                                <i class="icon-calendar"></i>
+                            </span>
+                            <input type="text" id="calendarDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm cursor-pointer focus:border-purple-500 focus:outline-none" readonly placeholder="Seleccionar fecha" />
+                        </div>
                     </div>
                     <div id="openShiftsAlert" class="hidden"></div>
                     <div>
@@ -2460,9 +2465,9 @@ class App extends Templates {
                     <div id="ticketPreview" class="absolute inset-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
                         <div id="ticketModeBar" class="flex items-center justify-between mb-3 gap-3 hidden">
                             <p class="text-xs text-gray-500">Vista previa de impresión</p>
-                            <div class="flex items-center gap-1 text-[11px] flex-shrink-0">
-                                <button id="btnModeSummary" class="px-3 py-1 rounded-full font-semibold bg-purple-600 text-white transition-colors" onclick="app.toggleReportMode('summary')">Resumido</button>
-                                <button id="btnModeDetailed" class="px-3 py-1 rounded-full font-semibold text-gray-400 hover:text-gray-200 transition-colors" onclick="app.toggleReportMode('detailed')">Detallado</button>
+                            <div class="inline-flex items-center gap-1 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px] flex-shrink-0">
+                                <button id="btnModeSummary" class="px-3 py-1 rounded-md font-semibold bg-purple-600 text-white shadow-sm transition-all" onclick="app.toggleReportMode('summary')">Resumido</button>
+                                <button id="btnModeDetailed" class="px-3 py-1 rounded-md font-semibold text-gray-400 hover:text-gray-200 transition-all" onclick="app.toggleReportMode('detailed')">Detallado</button>
                             </div>
                         </div>
                         <div id="ticketContainer">
@@ -2910,11 +2915,11 @@ class App extends Templates {
         this.reportMode = mode;
 
         if (mode === 'detailed') {
-            $('#btnModeDetailed').addClass('bg-purple-600 text-white').removeClass('text-gray-400 hover:text-gray-200');
-            $('#btnModeSummary').addClass('text-gray-400 hover:text-gray-200').removeClass('bg-purple-600 text-white');
+            $('#btnModeDetailed').addClass('bg-purple-600 text-white shadow-sm').removeClass('text-gray-400 hover:text-gray-200');
+            $('#btnModeSummary').addClass('text-gray-400 hover:text-gray-200').removeClass('bg-purple-600 text-white shadow-sm');
         } else {
-            $('#btnModeSummary').addClass('bg-purple-600 text-white').removeClass('text-gray-400 hover:text-gray-200');
-            $('#btnModeDetailed').addClass('text-gray-400 hover:text-gray-200').removeClass('bg-purple-600 text-white');
+            $('#btnModeSummary').addClass('bg-purple-600 text-white shadow-sm').removeClass('text-gray-400 hover:text-gray-200');
+            $('#btnModeDetailed').addClass('text-gray-400 hover:text-gray-200').removeClass('bg-purple-600 text-white shadow-sm');
         }
 
         if (this._selectedShiftId) {
@@ -2928,57 +2933,42 @@ class App extends Templates {
             ? $('#subsidiariesDailyClose option:selected').text()
             : sub_name;
 
-        bootbox.dialog({
-            title: 'Abrir Turno de Caja',
-            message: `
-                <div class="space-y-3">
-                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
-                        <i class="icon-home text-purple-400"></i>
-                        <span class="text-sm font-medium text-purple-300">${subName}</span>
-                    </div>
-                    <!-- <div>
-                        <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
-                        <input id="shiftName" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="Ej: Matutino, Vespertino">
-                    </div> -->
-                    <div>
-                        <label class="text-sm font-medium text-gray-300 block mb-1">Fondo de caja inicial</label>
-                        <input id="openingAmount" type="number" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="0.00" min="0" step="0.01">
-                    </div>
-                </div>
-            `,
-            closeButton: true,
-            buttons: {
-                cancel: {
-                    label: 'Cancelar',
-                    className: 'btn-secondary'
-                },
-                confirm: {
-                    label: 'Abrir Turno',
-                    className: 'btn-success',
-                    callback: async () => {
-                        const shift_name = ($('#shiftName').val() || '').trim();
-                        const opening_amount = parseFloat($('#openingAmount').val()) || 0;
+        this.createCoffeeModalForm({
+            id: 'frmOpenShift',
+            title: 'Abrir Turno',
+            icon: 'icon-clock',
+            iconBg: 'bg-emerald-600',
+            theme: 'dark',
+            confirmText: 'Confirmar Apertura',
+            cancelText: 'Cancelar',
+            json: [
+                { opc: 'display', id: 'sucursal',    lbl: 'Sucursal',             value: subName },
+                { opc: 'display', id: 'responsable', lbl: 'Responsable',          value: user_name || 'Sin asignar' },
+                { opc: 'money',   id: 'openingAmount', lbl: 'Fondo inicial de caja', placeholder: '0.00', min: 0, step: 0.01, autofocus: true }
+            ],
+            onConfirm: async (data, modal) => {
+                const opening_amount = parseFloat(data.openingAmount) || 0;
 
-                        const response = await useFetch({
-                            url: this._link,
-                            data: {
-                                opc: "openShift",
-                                shift_name: shift_name,
-                                opening_amount: opening_amount,
-                                subsidiaries_id: subsidiaries_id
-                            }
-                        });
-
-                        if (response.status === 200) {
-                            alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
-                            this.loadShifts();
-                            openShift = { has_open_shift: true, shift_id: response.shift_id, shift_name: shift_name || null, opened_at: new Date().toISOString() };
-                            this.updateDailyClosureStatus();
-                            this.actualizarFechaHora({ label: sub_name });
-                        } else {
-                            alert({ icon: "error", title: "Error", text: response.message, btn1: true });
-                        }
+                const response = await useFetch({
+                    url: this._link,
+                    data: {
+                        opc: "openShift",
+                        shift_name: '',
+                        opening_amount: opening_amount,
+                        subsidiaries_id: subsidiaries_id
                     }
+                });
+
+                modal.modal('hide');
+
+                if (response.status === 200) {
+                    alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
+                    openShift = { has_open_shift: true, shift_id: response.shift_id, shift_name: null, opened_at: new Date().toISOString() };
+                    this.updateDailyClosureStatus();
+                    this.actualizarFechaHora({ label: sub_name });
+                    await this.selectOpenShift(response.shift_id, moment().format('YYYY-MM-DD'));
+                } else {
+                    alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }
             }
         });
