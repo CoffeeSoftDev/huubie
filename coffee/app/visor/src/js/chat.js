@@ -70,10 +70,26 @@ $(async () => {
     chatBind();
     chatApplyModeUI();
     chatRenderMain();
+    await chatLoadAgents();
     await chatLoadConversations();
     chatApplyAgent(chat.agentKey, true);
     if (window.lucide) lucide.createIcons();
 });
+
+/* ---------- Prompts de agentes (hace funcional el selector) ---------- */
+// Carga el .md de cada agente desde la libreria de .claude/agents y guarda su
+// "personalidad" para inyectarla como systemOverride al hablar con ese agente.
+async function chatLoadAgents() {
+    chat._agentPrompts = chat._agentPrompts || {};
+    try {
+        const res = await fetch(`${CHAT_API_DOCS}?folder=agents`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        (data.agents || []).forEach(f => { if (f && f.file) chat._agentPrompts[f.file] = f.raw || ''; });
+    } catch (err) {
+        console.error('chatLoadAgents:', err);
+    }
+}
 
 /* ---------- Settings ---------- */
 function chatLoadSettings() {
@@ -192,6 +208,9 @@ function chatBind() {
 function chatApplyAgent(key, silent) {
     if (!CHAT_AGENTS[key]) return;
     chat.agentKey = key;
+    // Aplica la personalidad del agente (si su .md ya se cargo). Si no hay prompt,
+    // queda vacio y el backend usa el "alma" por defecto (coffee-system.md).
+    chat.systemOverride = (chat._agentPrompts && chat._agentPrompts[key]) || '';
     if (!silent) {
         $('#chatAgentSelect').val(key);
         chatSaveSettings();
@@ -266,15 +285,24 @@ function chatBindAttachments() {
         Array.from(e.target.files || []).forEach(f => chatAddFile(f));
         e.target.value = '';
     });
+    // Pegar (Ctrl+V) imagenes o archivos de texto desde el portapapeles. Tambien
+    // funciona con el foco DENTRO del textarea (#chatInput): el texto normal se
+    // pega como siempre y solo los archivos se adjuntan. Se ignora el modal de
+    // renombrar para no robarle el pegado.
     $(document).on('paste', e => {
-        if (e.target && (e.target.id === 'chatRenameInput' || e.target.id === 'chatInput')) return;
+        if (e.target && e.target.id === 'chatRenameInput') return;
         const cd = e.originalEvent && e.originalEvent.clipboardData;
-        if (!cd || !cd.items) return;
+        if (!cd) return;
+        const items = cd.items ? Array.from(cd.items) : [];
         let pasted = 0;
-        for (const it of cd.items) {
+        for (const it of items) {
             if (it.kind !== 'file') continue;
             const f = it.getAsFile();
             if (f) { chatAddFile(f); pasted++; }
+        }
+        // Fallback: algunos navegadores exponen los archivos en clipboardData.files.
+        if (!pasted && cd.files && cd.files.length) {
+            Array.from(cd.files).forEach(f => { chatAddFile(f); pasted++; });
         }
         if (pasted > 0) {
             e.preventDefault();
@@ -283,16 +311,35 @@ function chatBindAttachments() {
     });
     const $wrap = $('.ia-input-wrap');
     $wrap.on('dragover', e => { e.preventDefault(); $wrap.addClass('is-drag-over'); });
-    $wrap.on('dragleave drop', () => $wrap.removeClass('is-drag-over'));
+    $wrap.on('dragleave', () => $wrap.removeClass('is-drag-over'));
     $wrap.on('drop', e => {
         e.preventDefault();
+        $wrap.removeClass('is-drag-over');
         const dt = e.originalEvent && e.originalEvent.dataTransfer;
-        if (!dt || !dt.files) return;
-        Array.from(dt.files).forEach(f => chatAddFile(f));
+        if (!dt) return;
+        let dropped = 0;
+        const files = dt.files && dt.files.length ? Array.from(dt.files)
+            : (dt.items ? Array.from(dt.items).filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean) : []);
+        files.forEach(f => { chatAddFile(f); dropped++; });
+        if (dropped > 0) chatToast(dropped === 1 ? 'Adjunto agregado' : dropped + ' adjuntos agregados', 'success');
     });
 }
 
+// Extensiones tratadas como texto plano (se inyectan al contexto, no como imagen).
+const CHAT_TEXT_EXTS = [
+    'txt','md','markdown','rtf','log','csv','tsv','html','htm','xml','svg','json','json5',
+    'yaml','yml','toml','ini','env','conf','js','mjs','cjs','ts','jsx','tsx','css','scss','less',
+    'php','py','rb','go','rs','java','kt','c','h','cpp','cs','swift','sql','sh','bash','ps1','bat','vue','astro'
+];
+function chatIsTextFile(file) {
+    if (!file) return false;
+    const ext = (file.name || '').split('.').pop().toLowerCase();
+    if (CHAT_TEXT_EXTS.indexOf(ext) !== -1) return true;
+    return /^(text\/|application\/(json|xml|javascript|x-yaml|x-sh|sql)|image\/svg)/i.test(file.type || '');
+}
+
 function chatAddFile(file) {
+    if (!file) return;
     if (file.size > 8 * 1024 * 1024) {
         chatToast('Archivo demasiado grande (>8MB)', 'error');
         return;
@@ -304,13 +351,15 @@ function chatAddFile(file) {
             chatRenderAttachments();
         };
         reader.readAsDataURL(file);
-    } else {
+    } else if (chatIsTextFile(file)) {
         const reader = new FileReader();
         reader.onload = ev => {
             chat.pendingDocs.push({ name: file.name, text: ev.target.result });
             chatRenderAttachments();
         };
         reader.readAsText(file);
+    } else {
+        chatToast('Formato no soportado: ' + (file.name || 'archivo') + ' (solo imágenes y texto)', 'error');
     }
 }
 
@@ -674,7 +723,24 @@ function chatRenderMessage(m, idx) {
     const $msg = $('<div>').addClass('chat-msg').addClass(m.role);
     const $text = $('<div>').addClass('chat-msg-text');
     if (isUser) {
-        $text.text(m.content);
+        // Miniaturas de imagenes adjuntas + chips de documentos.
+        if (Array.isArray(m.imagesPreview) && m.imagesPreview.length) {
+            const $imgs = $('<div class="chat-msg-imgs"></div>');
+            m.imagesPreview.forEach(src => {
+                const $im = $(`<img src="${src}" alt="imagen adjunta" loading="lazy">`);
+                $im.on('click', () => window.open(src, '_blank'));
+                $imgs.append($im);
+            });
+            $text.append($imgs);
+        }
+        if (Array.isArray(m.docsMeta) && m.docsMeta.length) {
+            const $docs = $('<div class="chat-msg-docs"></div>');
+            m.docsMeta.forEach(d => $docs.append(
+                `<span class="chat-msg-doc-chip" title="${chatEscape(d.name)}"><i data-lucide="file-text" class="w-3 h-3"></i><span>${chatEscape(d.name)}</span></span>`
+            ));
+            $text.append($docs);
+        }
+        if (m.content) $text.append($('<div>').text(m.content));
     } else {
         $text.html(chatMarkdown(m.content || ''));
     }
@@ -685,6 +751,7 @@ function chatRenderMessage(m, idx) {
         $actions.append(chatActionBtn('edit-3', 'Editar', () => chatEditMessage(idx)));
     } else {
         $actions.append(chatActionBtn('copy', 'Copiar', () => chatCopyMessage(idx)));
+        $actions.append(chatActionBtn('file-down', 'Guardar como archivo', () => chatSaveMessageFile(idx)));
         $actions.append(chatActionBtn('refresh-cw', 'Regenerar', () => chatRegenerate(idx)));
     }
     $msg.append($actions);
@@ -740,6 +807,27 @@ function chatCopyMessage(idx) {
     }
 }
 
+// Descarga el contenido de una respuesta como archivo .md (sugiere el nombre
+// desde su primer encabezado markdown).
+function chatSaveMessageFile(idx) {
+    const m = chat.history[idx];
+    if (!m || !m.content) { chatToast('Nada que guardar', 'info'); return; }
+    let title = '';
+    const h = m.content.match(/^#{1,6}\s+(.+)$/m);
+    if (h) title = h[1].trim();
+    const slug = chatSlugify(title) || ('respuesta-' + chatStamp());
+    if (window.IARender) IARender.downloadText(slug + '.md', m.content);
+    else {
+        const blob = new Blob([m.content], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = slug + '.md';
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
+    }
+    chatToast('Respuesta descargada', 'success');
+}
+
 function chatEditMessage(idx) {
     const m = chat.history[idx];
     if (!m || m.role !== 'user') return;
@@ -783,10 +871,14 @@ async function chatSubmit() {
     if (!text && !chat.pendingImages.length && !chat.pendingDocs.length) return;
     if (chat.isBusy) { chatStop(); return; }
 
+    // Snapshot de adjuntos ANTES de limpiar (si no, el payload viajaba vacio).
+    const docsContext = chatDocsToContextString();
     const userMsg = {
         role: 'user',
         content: text,
-        images: chat.pendingImages.map(img => (img.dataurl || '').replace(/^data:[^;]+;base64,/, '')),
+        images:        chat.pendingImages.map(img => (img.dataurl || '').replace(/^data:[^;]+;base64,/, '')),
+        imagesPreview: chat.pendingImages.map(img => img.dataurl),
+        docsMeta:      chat.pendingDocs.map(d => ({ name: d.name })),
         ts: Date.now()
     };
     chat.history.push(userMsg);
@@ -825,7 +917,7 @@ async function chatSubmit() {
             canvasMode: !!chat.canvasMode,
             graphMode: chat.graphMode || '',
             currentFile: '',
-            currentFileContent: chatDocsToContextString() || ''
+            currentFileContent: docsContext || ''
         };
 
         const res = await fetch(CHAT_API_STREAM, {

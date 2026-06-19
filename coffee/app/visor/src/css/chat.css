@@ -819,6 +819,40 @@
     border-color: var(--vsr-accent);
 }
 
+/* Adjuntos dentro de la burbuja del usuario (imagenes + documentos) */
+.chat-msg.user .chat-msg-imgs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.chat-msg.user .chat-msg-imgs img {
+    width: 92px;
+    height: 92px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--vsr-border);
+    cursor: zoom-in;
+}
+.chat-msg.user .chat-msg-docs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.chat-msg.user .chat-msg-doc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 8px;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border);
+    font-size: 11.5px;
+    color: var(--vsr-text-soft);
+}
+.chat-msg.user .chat-msg-doc-chip i { color: var(--vsr-accent-soft); }
+
 /* Indicador de razonamiento ("thinking") en el typing */
 .chat-typing-phase {
     display: inline-flex;
