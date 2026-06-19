@@ -106,6 +106,8 @@ function chatApplyUiTheme(theme) {
         if (window.lucide) lucide.createIcons();
     }
     chatSaveSettings();
+    // Re-render para que los diagramas Mermaid/HTML adopten el tema nuevo.
+    if (chat.history && chat.history.length) chatRenderMain();
 }
 
 /* ---------- Populate selects ---------- */
@@ -638,6 +640,8 @@ function chatRenderMain() {
     const $inner = $('<div class="chat-body-inner"></div>');
     chat.history.forEach((m, idx) => $inner.append(chatRenderMessage(m, idx)));
     $body.append($inner);
+    // Visores ricos (mermaid / chart / graphviz / html / diagramas) + resaltado.
+    if (window.IARender) $inner.find('.chat-msg.assistant .chat-msg-text').each((_, el) => IARender.postProcess($(el)));
     if (window.lucide) lucide.createIcons();
     chatScrollBottom();
 }
@@ -700,25 +704,15 @@ function chatActionBtn(icon, title, handler) {
     return $(`<button class="chat-msg-action" title="${title}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i></button>`).on('click', handler);
 }
 
+// Markdown → HTML. Delega en el motor compartido (marked + DOMPurify). El
+// resaltado de codigo y los visores ricos (mermaid/chart/html/diagramas) los
+// aplica IARender.postProcess sobre el mensaje ya montado en el DOM.
 function chatMarkdown(text) {
     if (!text) return '';
-    if (!window.marked || !window.DOMPurify) return chatEscape(text);
-    try {
-        const raw = window.marked.parse(text, { breaks: true, gfm: true });
-        const clean = window.DOMPurify.sanitize(raw, { ADD_ATTR: ['target'] });
-        if (window.hljs) {
-            const tmp = document.createElement('div');
-            tmp.innerHTML = clean;
-            tmp.querySelectorAll('pre code').forEach(el => {
-                try { window.hljs.highlightElement(el); } catch (_) { /* noop */ }
-            });
-            return tmp.innerHTML;
-        }
-        return clean;
-    } catch (err) {
-        console.error('chatMarkdown:', err);
-        return chatEscape(text);
-    }
+    if (window.IARender) return IARender.markdownToHtml(text);
+    if (!window.marked) return chatEscape(text);
+    const raw = window.marked.parse(text, { breaks: true, gfm: true });
+    return window.DOMPurify ? window.DOMPurify.sanitize(raw, { ADD_ATTR: ['target'] }) : raw;
 }
 
 function chatScrollBottom() {
@@ -816,6 +810,8 @@ async function chatSubmit() {
     let meta = null;
     let streamErr = null;
     let firstToken = false;
+    let thinkChars = 0;
+    const streamState = { conjuring: false, kind: null };
 
     try {
         const payload = {
@@ -826,6 +822,8 @@ async function chatSubmit() {
             }),
             systemOverride: chat.systemOverride,
             model: chat.model || '',
+            canvasMode: !!chat.canvasMode,
+            graphMode: chat.graphMode || '',
             currentFile: '',
             currentFileContent: chatDocsToContextString() || ''
         };
@@ -857,10 +855,12 @@ async function chatSubmit() {
                 });
                 let obj = {};
                 try { obj = dataStr ? JSON.parse(dataStr) : {}; } catch (_) { continue; }
-                if (ev === 'chunk') {
+                if (ev === 'thinking') {
+                    if (!firstToken) { thinkChars += (obj.t || '').length; chatSetTypingPhase($typing, thinkChars); }
+                } else if (ev === 'chunk') {
                     if (!firstToken) { firstToken = true; $typing.remove(); }
                     received += obj.t || '';
-                    chatAppendOrUpdateStream(received);
+                    chatAppendOrUpdateStream(received, streamState);
                 } else if (ev === 'done') {
                     meta = obj;
                 } else if (ev === 'error') {
@@ -889,7 +889,15 @@ async function chatSubmit() {
     if (streamErr) {
         chat.history.push({ role: 'assistant', content: '⚠️ ' + streamErr, ts: Date.now(), meta: meta });
     } else {
-        chat.history.push({ role: 'assistant', content: received, ts: Date.now(), meta: meta });
+        // Normaliza salida cruda (modo lienzo/grafica) a bloques fenced para que
+        // el post-procesador la convierta en visores ricos.
+        let finalText = received;
+        if (window.IARender) {
+            finalText = IARender.normalizeCanvasHtml(finalText, chat.canvasMode);
+            finalText = IARender.normalizeDrawioXml(finalText);
+            finalText = IARender.normalizeExcalidrawJson(finalText);
+        }
+        chat.history.push({ role: 'assistant', content: finalText, ts: Date.now(), meta: meta });
     }
     chat.dirty = true;
     chatRenderMain();
@@ -915,7 +923,25 @@ function chatAppendTyping() {
     return $typing;
 }
 
-function chatAppendOrUpdateStream(received) {
+// Pinta el stream. Si detecta un bloque de codigo "conjurable" (HTML en modo
+// lienzo, o cualquier diagrama/grafica) muestra una tarjeta animada en vez de
+// teclear el codigo crudo; el render real lo hace el post-proceso al terminar.
+const CHAT_CONJURE_UI = {
+    html:       { icon: 'wand-sparkles', title: 'Conjurando componente…', sub: 'Tejiendo el HTML' },
+    mermaid:    { icon: 'git-graph',     title: 'Construyendo diagrama…',  sub: 'Trazando el gráfico' },
+    drawio:     { icon: 'workflow',      title: 'Construyendo diagrama…',  sub: 'Trazando el lienzo' },
+    excalidraw: { icon: 'pencil-ruler',  title: 'Bosquejando…',            sub: 'Trazando el boceto' }
+};
+
+function chatConjureKindFor(buf) {
+    if (/```[ \t]*drawio/i.test(buf) || /<(mxGraphModel|mxfile)[\s>]/i.test(buf)) return 'drawio';
+    if (/```[ \t]*excalidraw/i.test(buf) || /"type"\s*:\s*"excalidraw/i.test(buf)) return 'excalidraw';
+    if (/```[ \t]*html/i.test(buf) || (chat.canvasMode && /<(!doctype html|html|head|body|section|main|header|nav|article|aside|footer|form|table|ul|ol|div|button|h[1-6])[\s>]/i.test(buf))) return 'html';
+    if (chat.graphMode && /```/.test(buf)) return chat.graphMode;
+    return null;
+}
+
+function chatAppendOrUpdateStream(received, state) {
     const $inner = $('#chatBody .chat-body-inner');
     if (!$inner.length) return;
     let $last = $inner.find('.chat-msg.assistant').last();
@@ -923,7 +949,49 @@ function chatAppendOrUpdateStream(received) {
         $last = $('<div class="chat-msg assistant"><div class="chat-msg-text"></div></div>');
         $inner.append($last);
     }
+
+    if (state && !state.conjuring) {
+        const kind = chatConjureKindFor(received);
+        if (kind) {
+            state.conjuring = true;
+            state.kind = kind;
+            const ui = CHAT_CONJURE_UI[kind] || CHAT_CONJURE_UI.html;
+            $last.find('.chat-msg-text').html(`
+                <div class="ia-conjuring">
+                    <span class="ia-conjuring-orb"><i data-lucide="${ui.icon}"></i></span>
+                    <div class="ia-conjuring-info">
+                        <span class="ia-conjuring-title">${ui.title}</span>
+                        <span class="ia-conjuring-sub"></span>
+                    </div>
+                </div>`);
+            if (window.lucide) lucide.createIcons();
+        }
+    }
+
+    if (state && state.conjuring) {
+        const ui = CHAT_CONJURE_UI[state.kind] || CHAT_CONJURE_UI.html;
+        const lines = received.split('\n').length;
+        $last.find('.ia-conjuring-sub').text(ui.sub + ' · ' + lines + (lines === 1 ? ' línea' : ' líneas'));
+        chatScrollBottom();
+        return;
+    }
+
     $last.find('.chat-msg-text').html(chatMarkdown(received) + '<span class="ia-stream-cursor">▍</span>');
+    chatScrollBottom();
+}
+
+// Indica que el modelo esta razonando (tokens de "thinking") con progreso vivo.
+function chatSetTypingPhase($typing, chars) {
+    if (!$typing || !$typing.length) return;
+    let $phase = $typing.find('.chat-typing-phase');
+    if (!$phase.length) {
+        $typing.find('span').hide();
+        $phase = $('<span class="chat-typing-phase"><i data-lucide="brain" class="w-3 h-3"></i><span class="phase-text"></span></span>');
+        $typing.append($phase);
+        if (window.lucide) lucide.createIcons();
+    }
+    const approxToks = Math.max(1, Math.round(chars / 4));
+    $phase.find('.phase-text').text('Razonando… ≈ ' + approxToks + ' tokens');
     chatScrollBottom();
 }
 
