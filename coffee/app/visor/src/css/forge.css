@@ -100,6 +100,8 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     color: var(--vsr-text-muted); cursor: pointer; transition: all .15s;
 }
 .pg-iconbtn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border-color: var(--vsr-border); }
+/* Botón en estado activo (p.ej. modo "recrear" esperando clic en el Live) */
+.pg-iconbtn.is-on { background: rgba(34,197,94,.18); color: #4ade80; border-color: rgba(34,197,94,.4); }
 
 /* ── Chat ── */
 .pg-chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -156,6 +158,9 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     background: transparent; border: 1px solid transparent; color: var(--vsr-text-muted); cursor: pointer;
 }
 .pg-tab.active { background: var(--vsr-accent-tint); color: var(--vsr-accent-soft); border-color: var(--vsr-accent-tint); }
+/* Punto "en vivo" de la pestaña Live cuando hay un módulo cargado */
+.fg-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,.28); animation: fgLivePulse 1.8s ease-in-out infinite; }
+@keyframes fgLivePulse { 0%,100% { box-shadow: 0 0 0 2px rgba(34,197,94,.28); } 50% { box-shadow: 0 0 0 4px rgba(34,197,94,.10); } }
 .pg-sandbox-actions { display: flex; align-items: center; gap: 8px; }
 .pg-theme-chip { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--vsr-bg-hover); color: var(--vsr-text-muted); }
 
@@ -360,3 +365,45 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 
 /* La pestaña Módulo con módulo activo resalta su contador. */
 #fgModuleTab .pg-count { background: var(--vsr-accent); color: #fff; }
+
+/* ── Explorador "Abrir módulo existente" ── */
+.fg-browser-bar { display: flex; align-items: center; gap: 12px; margin: 4px 0 10px; flex-wrap: wrap; }
+.fg-browser-crumbs { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; font-size: 12px; }
+.fg-crumb {
+    background: transparent; border: none; cursor: pointer; padding: 2px 5px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 600; color: var(--vsr-accent-soft);
+}
+.fg-crumb:hover { background: var(--vsr-bg-hover); }
+.fg-crumb-sep { color: var(--vsr-text-mute2); }
+
+.fg-browser-list { display: flex; flex-direction: column; gap: 3px; max-height: 52vh; overflow-y: auto; }
+.fg-br-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 11px; border-radius: 8px;
+    background: var(--vsr-bg-card); border: 1px solid var(--vsr-border-soft);
+}
+.fg-br-dir { cursor: pointer; }
+.fg-br-dir:hover { border-color: var(--vsr-accent); background: var(--vsr-bg-hover); }
+.fg-br-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--vsr-text-muted); }
+.fg-br-dir .fg-br-icon { color: var(--vsr-accent-soft); }
+.fg-br-name { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--vsr-text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg-br-go { width: 15px; height: 15px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+.fg-br-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.fg-br-act {
+    font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--vsr-border); background: var(--vsr-bg-hover); color: var(--vsr-text-soft);
+}
+.fg-br-open { background: var(--vsr-accent); border-color: var(--vsr-accent); color: #fff; }
+.fg-br-open:hover { filter: brightness(1.08); }
+.fg-br-import:hover { border-color: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.fg-br-na { font-size: 11px; color: var(--vsr-text-mute2); padding: 0 6px; }
+
+/* Barra de URL editable para abrir el módulo */
+.fg-open-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--vsr-border); }
+.fg-open-ic { color: var(--vsr-accent-soft); flex-shrink: 0; }
+.fg-open-input {
+    flex: 1; min-width: 0; padding: 7px 11px; border-radius: 8px;
+    background: var(--vsr-bg-input); border: 1px solid var(--vsr-border-input);
+    color: var(--vsr-text-soft); font-family: 'JetBrains Mono', monospace; font-size: 11.5px; outline: none;
+}
+.fg-open-input:focus { border-color: var(--vsr-accent); }

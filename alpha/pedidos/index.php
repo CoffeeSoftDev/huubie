@@ -136,6 +136,7 @@
 
 
     <!-- Init -->
+    <script src="<?=PATH_PEDIDOS?>src/js/lucide-icons.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/coffee-modal-form.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/app.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/pedidos-catalogo.js?t=<?php echo time(); ?>"></script>

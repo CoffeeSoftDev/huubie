@@ -374,15 +374,21 @@ function pgBind() {
         (dt ? Array.from(dt.files || []) : []).forEach(f => pgAddFile(f));
     });
 
-    // Tabs del sandbox
+    // Tabs del sandbox. "Live" (módulo real) y "Preview" (diseños generados) son
+    // iframes SEPARADOS: generar un diseño nunca pisa el módulo en vivo.
     $('.pg-tab').on('click', function () {
         $('.pg-tab').removeClass('active');
         $(this).addClass('active');
         const tab = $(this).data('sbtab');
         $('#pgSandboxFrame').toggleClass('hidden', tab !== 'preview');
+        $('#fgLiveFrame').toggleClass('hidden', tab !== 'live');
         $('#pgSandboxCode').toggleClass('hidden', tab !== 'code');
         $('#pgModulePanel').toggleClass('hidden', tab !== 'module');
-        if (tab === 'module') $('#pgSandboxEmpty').hide();
+        $('#fgLiveEmpty').toggleClass('hidden', !(tab === 'live' && !pg._liveModule));
+        // El "empty" del preview solo aplica a la pestaña Preview sin render.
+        if (tab === 'preview' && !pg.lastHtml) $('#pgSandboxEmpty').show();
+        else $('#pgSandboxEmpty').hide();
+        pgApplyZoom();
     });
 
     $('#pgSandboxOpen').on('click', () => {
@@ -1169,8 +1175,10 @@ function pgShowSandboxCode(code) {
  * hace scroll. Usa la propiedad CSS `zoom` (reflowea el layout, a diferencia de
  * transform:scale). Se reaplica en cada render (onload) porque el iframe recarga. */
 function pgApplyZoom() {
-    const fr = document.getElementById('pgSandboxFrame');
     $('#pgZoomLabel').text((pg.zoom || 100) + '%');
+    // Aplica el zoom al iframe visible (Preview o Live).
+    const id = $('#fgLiveFrame').hasClass('hidden') ? 'pgSandboxFrame' : 'fgLiveFrame';
+    const fr = document.getElementById(id);
     if (!fr) return;
     let doc;
     try { doc = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document); } catch (e) { return; }
@@ -1599,6 +1607,7 @@ async function fgLoadProjects() {
         const res  = await fetch(`${FG_API}?action=projects`, { cache: 'no-store' });
         const data = await res.json();
         pg.projects = data.projects || [];
+        pg._container = data.container || '';   // proyecto que aloja al visor
     } catch (e) { pg.projects = []; }
     const $sel = $('#fgProjectSelect').empty();
     pg.projects.forEach(p => $sel.append(`<option value="${pgEscape(p.key)}">${pgEscape(p.name)}</option>`));
@@ -1720,6 +1729,254 @@ async function fgMaterialize() {
     $btn.prop('disabled', false);
 }
 
+/* ── Trabajar sobre un módulo EXISTENTE ──
+ * Carga el módulo real (su URL pública) en el sandbox: corre con su backend,
+ * sesión y datos reales. Importa los archivos fuente al contexto del agente para
+ * que los modifique, y luego el ciclo normal (módulo → diff → materializar) los
+ * reescribe. No hay edición visual que se guarde sola: el preview es para VER,
+ * el agente + diff es quien toca el código. */
+
+// URL base del proyecto que contiene al visor: el visor vive en
+// <base>/coffee/app/visor/, así que <base> es justo lo que va antes. Sirve para
+// el caso normal (vhost con docroot = el proyecto, p.ej. www.cs-huubie.com → /).
+function fgContainerBase() {
+    const p = location.pathname;
+    const i = p.indexOf('/coffee/app/visor/');
+    const before = i >= 0 ? p.slice(0, i) : '';   // '' (docroot=proyecto) o '/huubie' (docroot=www)
+    return location.origin + before + '/';
+}
+
+// URL de apertura propuesta para un archivo: usa la base recordada del proyecto
+// (si el usuario ya la corrigió) o la base del proyecto contenedor.
+function fgComposeOpenUrl(project, relPath) {
+    const rel    = String(relPath || '').replace(/^\/+/, '');
+    const stored = localStorage.getItem('forge:openbase:' + project);
+    let base = stored || fgContainerBase();
+    if (!/\/$/.test(base)) base += '/';
+    return base + rel;
+}
+// Prellena el campo de URL con el mejor intento y la abre (el usuario puede
+// corregirla y reabrir con "Abrir URL" si su app usa otra base).
+function fgOpenModuleInSandbox(project, relPath) {
+    pg._openProject = project;
+    pg._openRel     = String(relPath || '').replace(/^\/+/, '');
+    const url = fgComposeOpenUrl(project, relPath);
+    $('#fgOpenUrl').val(url);
+    fgLoadUrlInSandbox(url);
+}
+// Abre lo que haya escrito el usuario y RECUERDA la base por proyecto (la URL
+// sin la ruta relativa al final), para que el próximo "Abrir" ya salga bien.
+function fgOpenManualUrl() {
+    const url = ($('#fgOpenUrl').val() || '').trim();
+    if (!url) { pgToast('Escribe una URL', 'warn'); return; }
+    if (pg._openProject && pg._openRel && url.endsWith(pg._openRel)) {
+        localStorage.setItem('forge:openbase:' + pg._openProject, url.slice(0, url.length - pg._openRel.length));
+        fgUpdateBaseHint();
+    }
+    fgLoadUrlInSandbox(url);
+}
+// Carga el módulo real en el iframe LIVE (separado del Preview de diseños).
+function fgLoadUrlInSandbox(url) {
+    const fr = document.getElementById('fgLiveFrame');
+    $('.pg-sandbox-body').css('background', '#0d1320');
+    fr.onload = () => pgApplyZoom();
+    fr.src = url;
+    pg._liveModule = { url };
+    $('#fgLiveDot').show();
+    $('.pg-tab[data-sbtab="live"]').click();
+    fgCloseBrowser();   // cerramos para ver el resultado; el campo recuerda la URL
+    pgToast('Módulo en vivo: ' + url, 'info');
+}
+
+/* ── Recrear un componente del Live como template en Preview ──
+ * El Live es same-origin, así que leemos su DOM ya renderizado (con datos). El
+ * usuario hace clic en un componente y se "calca" al Preview como HTML estático
+ * editable + se importa al contexto del agente para iterarlo. */
+function fgLiveDoc() {
+    const fr = document.getElementById('fgLiveFrame');
+    try { return fr.contentDocument || (fr.contentWindow && fr.contentWindow.document); } catch (e) { return null; }
+}
+function fgToggleRecreate() {
+    if (pg._recActive) { fgStopRecreate(); return; }
+    if (!pg._liveModule) { pgToast('Primero abre un módulo en Live (📂)', 'warn'); return; }
+    const doc = fgLiveDoc();
+    if (!doc || !doc.body) { pgToast('No puedo leer el Live (¿otro origen o aún cargando?)', 'error'); return; }
+    $('.pg-tab[data-sbtab="live"]').click();   // asegurar que el Live esté visible
+    pg._recActive = true;
+    pg._recDoc = doc;
+    $('#fgRecreateBtn').addClass('is-on');
+    if (!doc.getElementById('fgRecStyle')) {
+        const st = doc.createElement('style');
+        st.id = 'fgRecStyle';
+        st.textContent = '.fg-rec-hover{outline:2px solid #22c55e!important;outline-offset:-2px;cursor:copy!important;}';
+        doc.head.appendChild(st);
+    }
+    doc.addEventListener('mouseover', fgRecOver, true);
+    doc.addEventListener('mouseout', fgRecOut, true);
+    doc.addEventListener('click', fgRecClick, true);
+    pgToast('Clic en el componente del Live que quieres recrear (Esc para cancelar)', 'info');
+}
+function fgStopRecreate() {
+    pg._recActive = false;
+    $('#fgRecreateBtn').removeClass('is-on');
+    const doc = pg._recDoc;
+    if (doc) {
+        try {
+            doc.removeEventListener('mouseover', fgRecOver, true);
+            doc.removeEventListener('mouseout', fgRecOut, true);
+            doc.removeEventListener('click', fgRecClick, true);
+            doc.querySelectorAll('.fg-rec-hover').forEach(n => n.classList.remove('fg-rec-hover'));
+        } catch (e) {}
+    }
+    pg._recDoc = null;
+}
+function fgRecOver(e) { if (e.target && e.target.classList && e.target !== e.currentTarget.body) e.target.classList.add('fg-rec-hover'); }
+function fgRecOut(e)  { if (e.target && e.target.classList) e.target.classList.remove('fg-rec-hover'); }
+function fgRecClick(e) {
+    e.preventDefault(); e.stopPropagation();
+    const el = e.target;
+    if (el && el.tagName) fgRecreateFromNode(el);
+    fgStopRecreate();
+}
+
+// Calca un nodo del Live al Preview: HTML del nodo + los assets de estilo del
+// Live (con <base> para que rutas/imágenes resuelvan) → render fiel y estático.
+function fgRecreateFromNode(el) {
+    const liveDoc = el.ownerDocument;
+    const fr = document.getElementById('fgLiveFrame');
+    let baseHref = '';
+    try { baseHref = fr.contentWindow.location.href; } catch (e) { baseHref = pg._liveModule ? pg._liveModule.url : ''; }
+
+    const clone = el.cloneNode(true);
+    if (clone.classList) clone.classList.remove('fg-rec-hover');
+    const nodeHtml = clone.outerHTML;
+
+    const headBits = Array.from(liveDoc.querySelectorAll('link[rel="stylesheet"], style'))
+        .map(n => n.outerHTML).join('\n');
+    const tw = liveDoc.querySelector('script[src*="tailwindcss"]') ? '<script src="https://cdn.tailwindcss.com"><\/script>' : '';
+    const bodyClass = liveDoc.body.getAttribute('class') || '';
+    const bodyStyle = liveDoc.body.getAttribute('style') || '';
+    const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><base href="${pgEscape(baseHref)}">`
+        + `${tw}\n${headBits}\n<style>body{padding:16px;}</style></head>`
+        + `<body class="${pgEscape(bodyClass)}" style="${pgEscape(bodyStyle)}">${nodeHtml}</body></html>`;
+
+    // Preview (estático, sin JS del módulo): srcdoc con los estilos reales.
+    $('#pgSandboxEmpty').hide();
+    const pf = document.getElementById('pgSandboxFrame');
+    pf.removeAttribute('src');
+    pf.onload = () => pgApplyZoom();
+    pf.srcdoc = doc;
+    pg.lastHtml = nodeHtml; pg.lastTheme = pg.theme; pg._lastIsDoc = false;
+
+    // Pestaña Código refleja el HTML del componente.
+    const $code = $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text(nodeHtml);
+    if (window.hljs) hljs.highlightElement($code[0]);
+
+    // Importar al contexto del agente para iterarlo ("mejora este componente").
+    const name = 'componente-live.html';
+    pg.pendingDocs = pg.pendingDocs.filter(d => d.name !== name);
+    pg.pendingDocs.push({ name, content: nodeHtml, size: nodeHtml.length });
+    pgRenderImageStrip();
+
+    $('.pg-tab[data-sbtab="preview"]').click();
+    pgToast('Componente recreado en Preview e importado al contexto', 'success');
+}
+
+// Lee un archivo del proyecto y lo añade como contexto del agente (pendingDocs).
+async function fgImportSource(project, relPath) {
+    if (pg.pendingDocs.some(d => d.name === relPath)) { pgToast('Ya estaba importado', 'info'); return; }
+    try {
+        const res  = await fetch(`${FG_API}?action=readfile&project=${encodeURIComponent(project)}&path=${encodeURIComponent(relPath)}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (!data.success) { pgToast(data.message || 'No se pudo leer', 'error'); return; }
+        pg.pendingDocs.push({ name: relPath, content: data.content, size: data.bytes || data.content.length });
+        pgRenderImageStrip();
+        pgToast('Importado al contexto: ' + relPath, 'success');
+    } catch (e) { pgToast('Error de red al importar', 'error'); }
+}
+
+/* ── Explorador del proyecto ── */
+function fgOpenBrowser() {
+    const $sel = $('#fgBrowserProject').empty();
+    pg.projects.forEach(p => $sel.append(`<option value="${pgEscape(p.key)}">${pgEscape(p.name)}</option>`));
+    $sel.val(pg.project || ($sel.val() || ''));
+    pg._browseProject = $sel.val();
+    pg._browsePath = '';
+    $('#fgBrowserModal').removeClass('hidden').attr('aria-hidden', 'false');
+    fgUpdateBaseHint();
+    fgBrowseTo('');
+    if (window.lucide) lucide.createIcons();
+}
+// Muestra la base que se usará para abrir el proyecto actual: automática para el
+// proyecto que aloja al visor, recordada si ya se ajustó, o por confirmar.
+function fgUpdateBaseHint() {
+    const proj   = pg._browseProject;
+    const stored = localStorage.getItem('forge:openbase:' + proj);
+    const base   = stored || fgContainerBase();
+    let msg;
+    if (stored)                       msg = `Base recordada para <strong>${pgEscape(proj)}</strong>: <code>${pgEscape(base)}</code>`;
+    else if (proj === pg._container)  msg = `Base detectada para <strong>${pgEscape(proj)}</strong>: <code>${pgEscape(base)}</code> (aloja al visor).`;
+    else                              msg = `Base propuesta: <code>${pgEscape(base)}</code>. Si <strong>${pgEscape(proj)}</strong> se sirve en otro vhost, ajusta la URL al abrir y se recordará.`;
+    $('#fgBrowserBaseHint').html(msg);
+}
+function fgCloseBrowser() {
+    $('#fgBrowserModal').addClass('hidden').attr('aria-hidden', 'true');
+}
+async function fgBrowseTo(rel) {
+    const project = pg._browseProject;
+    if (!project) return;
+    pg._browsePath = rel;
+    const $list = $('#fgBrowserList').html('<p class="pg-hint" style="padding:14px;">Cargando…</p>');
+    try {
+        const res  = await fetch(`${FG_API}?action=listdir&project=${encodeURIComponent(project)}&path=${encodeURIComponent(rel)}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (!data.success) { $list.html(`<p class="pg-hint" style="padding:14px;">${pgEscape(data.message || 'Error')}</p>`); return; }
+        fgRenderBrowser(data);
+    } catch (e) { $list.html('<p class="pg-hint" style="padding:14px;">Error de red.</p>'); }
+}
+function fgRenderBrowser(data) {
+    // Breadcrumbs navegables.
+    const parts = (data.path || '').split('/').filter(Boolean);
+    let acc = '';
+    let crumbs = `<button class="fg-crumb" data-rel="">${pgEscape(data.project)}</button>`;
+    parts.forEach(seg => { acc += (acc ? '/' : '') + seg; crumbs += `<span class="fg-crumb-sep">/</span><button class="fg-crumb" data-rel="${pgEscape(acc)}">${pgEscape(seg)}</button>`; });
+    $('#fgBrowserPath').html(crumbs);
+
+    const $list = $('#fgBrowserList').empty();
+    const entries = data.entries || [];
+    if (!entries.length) { $list.html('<p class="pg-hint" style="padding:14px;">Carpeta vacía.</p>'); }
+
+    entries.forEach(en => {
+        if (en.type === 'dir') {
+            $list.append(`
+                <div class="fg-br-row fg-br-dir" data-rel="${pgEscape(en.rel)}">
+                    <i data-lucide="folder" class="fg-br-icon"></i>
+                    <span class="fg-br-name">${pgEscape(en.name)}</span>
+                    <i data-lucide="chevron-right" class="fg-br-go"></i>
+                </div>`);
+        } else {
+            const open = en.openable ? `<button class="fg-br-act fg-br-open" data-rel="${pgEscape(en.rel)}" title="Abrir en el sandbox con datos reales">Abrir</button>` : '';
+            const imp  = en.readable ? `<button class="fg-br-act fg-br-import" data-rel="${pgEscape(en.rel)}" title="Importar al contexto del agente">Importar</button>` : '<span class="fg-br-na" title="No es archivo de texto">—</span>';
+            $list.append(`
+                <div class="fg-br-row">
+                    <i data-lucide="${fgFileIcon(en.name)}" class="fg-br-icon"></i>
+                    <span class="fg-br-name">${pgEscape(en.name)}</span>
+                    <span class="fg-br-acts">${open}${imp}</span>
+                </div>`);
+        }
+    });
+
+    $('#fgBrowserPath .fg-crumb').on('click', function () { fgBrowseTo($(this).data('rel') || ''); });
+    $list.find('.fg-br-dir').on('click', function () { fgBrowseTo($(this).data('rel')); });
+    $list.find('.fg-br-open').on('click', function (e) { e.stopPropagation(); fgOpenModuleInSandbox(pg._browseProject, $(this).data('rel')); });
+    $list.find('.fg-br-import').on('click', function (e) { e.stopPropagation(); fgImportSource(pg._browseProject, $(this).data('rel')); });
+
+    const nDir = entries.filter(x => x.type === 'dir').length;
+    const nFile = entries.length - nDir;
+    $('#fgBrowserSummary').text(`${nDir} carpeta(s) · ${nFile} archivo(s)`);
+    if (window.lucide) lucide.createIcons();
+}
+
 /** Bindings de la capa fábrica. */
 function fgBind() {
     $('#fgProjectSelect').on('change', e => { pg.project = e.target.value || ''; pgSaveSettings(); });
@@ -1728,4 +1985,16 @@ function fgBind() {
     $('#fgPreviewConfirm').on('click', () => fgMaterialize());
     $('#fgPreviewClose, #fgPreviewCancel').on('click', () => fgClosePreviewModal());
     $('#fgPreviewModal .pg-modal-backdrop').on('click', () => fgClosePreviewModal());
+
+    // Explorador "Abrir módulo existente".
+    $('#fgOpenModuleBtn').on('click', () => fgOpenBrowser());
+    $('#fgBrowserClose, #fgBrowserDone').on('click', () => fgCloseBrowser());
+    $('#fgBrowserModal .pg-modal-backdrop').on('click', () => fgCloseBrowser());
+    $('#fgBrowserProject').on('change', e => { pg._browseProject = e.target.value || ''; fgUpdateBaseHint(); fgBrowseTo(''); });
+    $('#fgOpenUrlBtn').on('click', () => fgOpenManualUrl());
+    $('#fgOpenUrl').on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fgOpenManualUrl(); } });
+
+    // Recrear componente del Live → Preview.
+    $('#fgRecreateBtn').on('click', () => fgToggleRecreate());
+    $(document).on('keydown', e => { if (e.key === 'Escape' && pg._recActive) fgStopRecreate(); });
 }

@@ -396,14 +396,30 @@ function pgBind() {
         if (tab === 'styles') pgEnterInspect(); else pgExitInspect();
     });
 
-    // Copiar toda la configuración CSS del elemento inspeccionado.
+    // Copiar la configuración del elemento inspeccionado: CSS resuelto o clases Tailwind.
     $('#pgStylesContent').on('click', '#pgStyCopyBtn', function (e) { e.stopPropagation(); pgCopyStyleConfig(); });
+    $('#pgStylesContent').on('click', '#pgStyCopyCls', function (e) { e.stopPropagation(); pgCopyClasses(); });
 
     // Copiar un valor/clase suelto desde el inspector de estilos (delegado).
     $('#pgStylesContent').on('click', '[data-copy]', function () {
         const v = $(this).attr('data-copy');
-        if (v && navigator.clipboard) { navigator.clipboard.writeText(v); pgToast('Copiado: ' + v, 'success'); }
+        if (v) pgCopyText(v, 'Copiado: ' + v);
     });
+
+    // Tooltip explicativo de cada chip de clase (qué hace esa utilidad).
+    $('#pgStylesContent')
+        .on('mouseenter', '.pg-sty-chip', function () {
+            const d = $(this).attr('data-desc'); if (!d) return;
+            const t = pgChipTip(); t.textContent = d; t.classList.add('visible');
+        })
+        .on('mousemove', '.pg-sty-chip', function (e) {
+            const t = pgChipTip();
+            let x = e.clientX + 14, y = e.clientY + 16;
+            if (x + t.offsetWidth > window.innerWidth - 8) x = window.innerWidth - 8 - t.offsetWidth;
+            if (y + t.offsetHeight > window.innerHeight - 8) y = e.clientY - t.offsetHeight - 10;
+            t.style.left = x + 'px'; t.style.top = y + 'px';
+        })
+        .on('mouseleave', '.pg-sty-chip', function () { pgChipTip().classList.remove('visible'); });
 
     $('#pgSandboxOpen').on('click', () => {
         if (!pg.lastHtml) { pgToast('Aún no hay nada que abrir', 'warn'); return; }
@@ -1478,6 +1494,12 @@ function pgInspectDoc() {
     const fr = document.getElementById('pgSandboxFrame');
     try { return fr.contentDocument || (fr.contentWindow && fr.contentWindow.document); } catch (e) { return null; }
 }
+// Tooltip flotante (position:fixed, fuera del panel para no recortarse) reutilizable.
+function pgChipTip() {
+    let t = document.getElementById('pgChipTip');
+    if (!t) { t = document.createElement('div'); t.id = 'pgChipTip'; t.className = 'pg-chip-tip'; document.body.appendChild(t); }
+    return t;
+}
 function pgEnterInspect() {
     pg._inspecting = true;
     $('.pg-sandbox-body').addClass('is-inspecting');
@@ -1502,6 +1524,7 @@ function pgBindInspect() {
                        + '.pg-ins-sel{outline:2px solid #E8A68F!important;outline-offset:-2px;}';
         doc.head.appendChild(st);
     }
+    doc.addEventListener('mousedown', pgInsDown, true);
     doc.addEventListener('mouseover', pgInsOver, true);
     doc.addEventListener('mouseout', pgInsOut, true);
     doc.addEventListener('click', pgInsClick, true);
@@ -1511,6 +1534,7 @@ function pgUnbindInspect(passedDoc) {
     const doc = passedDoc || pg._insDoc;
     if (!doc) return;
     try {
+        doc.removeEventListener('mousedown', pgInsDown, true);
         doc.removeEventListener('mouseover', pgInsOver, true);
         doc.removeEventListener('mouseout', pgInsOut, true);
         doc.removeEventListener('click', pgInsClick, true);
@@ -1518,6 +1542,9 @@ function pgUnbindInspect(passedDoc) {
     } catch (e) {}
     if (!passedDoc) pg._insDoc = null;
 }
+// Evita que el elemento tome foco al inspeccionarlo (el foco cambiaría su estilo
+// computado: leeríamos el borde/color de :focus en vez del estado real).
+function pgInsDown(e) { e.preventDefault(); }
 function pgInsOver(e) { if (e.target && e.target.classList && e.target !== e.currentTarget.body) e.target.classList.add('pg-ins-hover'); }
 function pgInsOut(e)  { if (e.target && e.target.classList) e.target.classList.remove('pg-ins-hover'); }
 function pgInsClick(e) {
@@ -1590,10 +1617,139 @@ function pgStySec(title, icon, rows) {
         : '';
 }
 
+/* ── Clasificación de clases utilitarias (Tailwind) ──
+ * Agrupa las clases por categoría (Color, Texto, Espaciado, Layout, Efectos,
+ * Estado, Otros) y genera una descripción legible para el tooltip de cada chip. */
+const PG_SP = { 0: '0', 0.5: '2px', 1: '4px', 1.5: '6px', 2: '8px', 2.5: '10px', 3: '12px', 3.5: '14px',
+    4: '16px', 5: '20px', 6: '24px', 7: '28px', 8: '32px', 9: '36px', 10: '40px', 11: '44px', 12: '48px',
+    14: '56px', 16: '64px', 20: '80px', 24: '96px', 28: '112px', 32: '128px' };
+function pgSpacePx(n) { const v = PG_SP[n]; return v !== undefined && v !== '0' ? ` (${v})` : ''; }
+function pgSizeLabel(v, arbVal) {
+    if (v === 'full') return '100%';
+    if (v === 'screen') return '100vw/vh';
+    if (v === 'auto') return 'automático';
+    if (v === 'min' || v === 'max' || v === 'fit') return v + '-content';
+    if (/^\[/.test(v)) return arbVal || v;
+    const fr = v.match(/^(\d+)\/(\d+)$/);
+    if (fr) return Math.round(100 * (+fr[1] / +fr[2])) + '%';
+    const n = parseFloat(v);
+    if (!isNaN(n)) { const px = PG_SP[n]; return px !== undefined ? px : (n * 0.25) + 'rem'; }
+    return v;
+}
+function pgVariantLabel(v) {
+    const map = { hover: 'hover (mouse encima)', focus: 'focus (enfocado)', 'focus-within': 'focus interno',
+        'focus-visible': 'focus visible', active: 'active (presionado)', disabled: 'deshabilitado',
+        checked: 'marcado', visited: 'visitado', 'group-hover': 'hover del grupo', 'group-focus': 'focus del grupo',
+        dark: 'modo oscuro', sm: '≥640px', md: '≥768px', lg: '≥1024px', xl: '≥1280px', '2xl': '≥1536px' };
+    return v.split(':').map(x => map[x] || x).join(' · ');
+}
+function pgBaseMeta(b) {
+    const C = (cat, desc) => ({ cat, desc });
+    const arb = b.match(/\[(.+)\]$/); const arbVal = arb ? arb[1] : '';
+
+    // Texto: tamaño / alineación / fuente (antes que color, por text-*)
+    if (/^text-(xs|sm|base|lg|xl|\d?xl)$/.test(b)) return C('text', `Tamaño de texto (${b.slice(5)})`);
+    if (/^text-\[/.test(b)) return C('text', `Tamaño de texto (${arbVal})`);
+    if (/^text-(left|center|right|justify|start|end)$/.test(b)) return C('text', `Alineación del texto (${b.slice(5)})`);
+    if (/^font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/.test(b)) return C('text', `Grosor de fuente (${b.slice(5)})`);
+    if (/^font-(sans|serif|mono)$/.test(b)) return C('text', `Familia tipográfica (${b.slice(5)})`);
+    if (/^leading-/.test(b)) return C('text', `Interlineado (${b.slice(8)})`);
+    if (/^tracking-/.test(b)) return C('text', `Espaciado entre letras (${b.slice(9)})`);
+    if (/^(uppercase|lowercase|capitalize|normal-case)$/.test(b)) return C('text', 'Mayúsculas/minúsculas');
+    if (/^(italic|not-italic)$/.test(b)) return C('text', 'Estilo cursiva');
+    if (/^(underline|line-through|no-underline|overline)$/.test(b)) return C('text', 'Decoración del texto');
+    if (/^truncate$/.test(b)) return C('text', 'Texto truncado con «…»');
+    if (/^whitespace-/.test(b)) return C('text', 'Manejo de espacios en blanco');
+    if (/^break-/.test(b)) return C('text', 'Quiebre de palabras/líneas');
+
+    // Color
+    if (/^bg-/.test(b)) return C('color', `Color de fondo (${arb ? arbVal : b.slice(3)})`);
+    if (/^text-/.test(b)) return C('color', `Color de texto (${arb ? arbVal : b.slice(5)})`);
+    if (/^border-(\[|[a-z]+-\d|white$|black$|transparent$|current$|inherit$)/.test(b)) return C('color', `Color del borde (${arb ? arbVal : b.slice(7)})`);
+    if (/^(from|via|to)-/.test(b)) return C('color', 'Parada de degradado');
+    if (/^(ring|divide|placeholder|caret|accent|fill|stroke|decoration)-(\[|[a-z]+-\d|white|black)/.test(b)) return C('color', 'Color (anillo/relleno/etc.)');
+
+    // Espaciado
+    const sp = b.match(/^(-?)(p|m)([xytrbl]?)-(.+)$/);
+    if (sp) {
+        const kind = sp[2] === 'p' ? 'Padding' : 'Margen';
+        const side = { '': '', x: ' horizontal', y: ' vertical', t: ' superior', r: ' derecho', b: ' inferior', l: ' izquierdo' }[sp[3]];
+        const val = arb ? arbVal : sp[1] + sp[4] + pgSpacePx(parseFloat(sp[4]));
+        return C('space', `${kind}${side}: ${val}`);
+    }
+    if (/^gap(-[xy])?-/.test(b)) return C('space', 'Separación (gap) entre celdas');
+    if (/^space-[xy]-/.test(b)) return C('space', 'Separación entre elementos hijos');
+
+    // Layout / caja
+    if (/^w-/.test(b)) return C('layout', `Ancho: ${pgSizeLabel(b.slice(2), arbVal)}`);
+    if (/^h-/.test(b)) return C('layout', `Alto: ${pgSizeLabel(b.slice(2), arbVal)}`);
+    if (/^(min-w|max-w|min-h|max-h)-/.test(b)) return C('layout', 'Tamaño mínimo/máximo');
+    if (/^(flex|inline-flex|grid|inline-grid|block|inline-block|inline|hidden|table|contents|flow-root)$/.test(b)) return C('layout', `Display: ${b}`);
+    if (/^(items|justify|content|self|place)-/.test(b)) return C('layout', `Alineación (${b})`);
+    if (/^(flex|grid|col|row|order|basis|grow|shrink)-?/.test(b)) return C('layout', `Flujo flex/grid (${b})`);
+    if (/^rounded/.test(b)) return C('layout', `Esquinas redondeadas (${b.replace(/^rounded-?/, '') || 'base'})`);
+    if (/^border$/.test(b)) return C('layout', 'Borde de 1px');
+    if (/^border-(\d+|x|y|t|r|b|l)(-\d+)?$/.test(b)) return C('layout', `Grosor/lado del borde (${b.slice(7)})`);
+    if (/^(absolute|relative|fixed|sticky|static)$/.test(b)) return C('layout', `Posición: ${b}`);
+    if (/^(top|right|bottom|left|inset)-/.test(b)) return C('layout', 'Posición (desplazamiento)');
+    if (/^z-/.test(b)) return C('layout', `Capa z-index (${b.slice(2)})`);
+    if (/^overflow-/.test(b)) return C('layout', `Desbordamiento (${b.slice(9)})`);
+    if (/^(object|aspect)-/.test(b)) return C('layout', 'Ajuste de contenido');
+    if (/^appearance-none$/.test(b)) return C('layout', 'Quita la apariencia nativa del control');
+    if (/^container$/.test(b)) return C('layout', 'Contenedor responsive');
+
+    // Efectos
+    if (/^shadow/.test(b)) return C('fx', `Sombra (${b.replace(/^shadow-?/, '') || 'base'})`);
+    if (/^opacity-/.test(b)) return C('fx', `Opacidad ${b.slice(8)}%`);
+    if (/^(transition|duration|delay|ease)/.test(b)) return C('fx', 'Transición / temporización');
+    if (/^animate-/.test(b)) return C('fx', `Animación (${b.slice(8)})`);
+    if (/^(transform|scale|rotate|translate|skew|origin)-?/.test(b)) return C('fx', 'Transformación');
+    if (/^cursor-/.test(b)) return C('fx', `Cursor (${b.slice(7)})`);
+    if (/^ring(-|$)/.test(b)) return C('fx', 'Anillo de enfoque (ring)');
+    if (/^outline/.test(b)) return C('fx', 'Contorno (outline)');
+    if (/^(blur|brightness|contrast|grayscale|backdrop)/.test(b)) return C('fx', 'Filtro visual');
+
+    return C('other', /^cs-/.test(b) ? 'Clase del sistema CoffeeSoft' : 'Clase sin descripción');
+}
+function pgClassMeta(raw) {
+    const parts = raw.split(':');
+    const base = parts.pop();
+    const variants = parts;
+    const meta = pgBaseMeta(base);
+    let cat = meta.cat, desc = meta.desc;
+    if (variants.length) {
+        const isState = variants.some(v => /^(hover|focus|focus-within|focus-visible|active|disabled|checked|visited|target)$/.test(v) || /^(group|peer)(-|$)/.test(v));
+        if (isState) cat = 'state';
+        desc = `En ${pgVariantLabel(variants.join(':'))}: ` + desc.charAt(0).toLowerCase() + desc.slice(1);
+    }
+    return { cat, desc };
+}
+// Construye los chips de clases agrupados por categoría (con data-desc para tooltip).
+function pgClassChips(clsArr) {
+    if (!clsArr.length) return '';
+    const cats = { color: [], text: [], space: [], layout: [], fx: [], state: [], other: [] };
+    clsArr.forEach(c => { const m = pgClassMeta(c); cats[m.cat].push({ cls: c, desc: m.desc }); });
+    const order = [['color', 'Color'], ['text', 'Texto'], ['space', 'Espaciado'], ['layout', 'Layout'], ['fx', 'Efectos'], ['state', 'Estado'], ['other', 'Otros']];
+    let html = '';
+    order.forEach(([key, label]) => {
+        if (!cats[key].length) return;
+        html += `<div class="pg-sty-cls-group cat-${key}"><span class="pg-sty-cls-cat">${label}</span><div class="pg-sty-cls-chips">`
+            + cats[key].map(o => `<span class="pg-sty-chip" data-copy="${pgEscape(o.cls)}" data-desc="${pgEscape(o.desc)}" title="${pgEscape(o.desc)}">${pgEscape(o.cls)}</span>`).join('')
+            + `</div></div>`;
+    });
+    return `<div class="pg-sty-classes">${html}</div>`;
+}
+
 function pgRenderStyles(el) {
     const win = el.ownerDocument.defaultView;
-    const cs  = win.getComputedStyle(el);
     const r   = el.getBoundingClientRect();
+    const disp = win.getComputedStyle(el).display;
+
+    // El estilo se mide sobre un clon FUERA DE PANTALLA: así getComputedStyle
+    // devuelve el estado BASE (sin :hover ni :focus). De lo contrario, si el
+    // elemento estaba enfocado/bajo el cursor, mostraría el borde/color del hover.
+    const probe = pgBaseProbe(el);
+    const cs    = probe.cs;
 
     const tag    = el.tagName.toLowerCase();
     const id     = el.id ? '#' + el.id : '';
@@ -1603,13 +1759,17 @@ function pgRenderStyles(el) {
     const hasBorder = ['Top', 'Right', 'Bottom', 'Left'].some(s => parseFloat(cs['border' + s + 'Width']) > 0);
     const hover = pgHoverDecls(el);
 
-    // Snippet CSS copiable (config completa del elemento + su :hover).
+    // Config copiable: snippet CSS (con su :hover) y las clases Tailwind tal cual.
     pg._styleSnippet = pgBuildSnippet(selName || tag, cs, hasBorder, hover);
+    pg._styleClasses = clsArr.join(' ');
 
-    const head = `<div class="pg-sty-head"><div class="pg-sty-head-top">`
+    const head = `<div class="pg-sty-head">`
         + `<div class="pg-sty-tag">&lt;${tag}${id}&gt;</div>`
-        + `<button id="pgStyCopyBtn" class="pg-sty-copy" title="Copiar toda la configuración CSS"><i data-lucide="clipboard-copy" class="w-3.5 h-3.5"></i> Copiar CSS</button>`
-        + `</div><div class="pg-sty-dims">${Math.round(r.width)} × ${Math.round(r.height)} px · ${cs.display}</div></div>`;
+        + `<div class="pg-sty-dims">${Math.round(r.width)} × ${Math.round(r.height)} px · ${disp}</div>`
+        + `<div class="pg-sty-actions">`
+        +   `<button id="pgStyCopyBtn" class="pg-sty-copy" title="Copiar el CSS resuelto del elemento"><i data-lucide="clipboard-copy" class="w-3.5 h-3.5"></i> Copiar CSS</button>`
+        +   `<button id="pgStyCopyCls" class="pg-sty-copy pg-sty-copy-alt" title="Copiar las clases Tailwind del elemento"><i data-lucide="code-2" class="w-3.5 h-3.5"></i> Copiar clases</button>`
+        + `</div></div>`;
 
     const chips = pgClassChips(clsArr);
 
@@ -1643,9 +1803,29 @@ function pgRenderStyles(el) {
         (cs.transition && cs.transition !== 'all 0s ease 0s') ? pgStyRow('Transición', cs.transition) : ''
     ]);
 
+    probe.cleanup();
     $('#pgStylesHint').hide();
     $('#pgStylesContent').html(head + chips + colors + typo + box + fx + pgHoverHtml(hover));
     if (window.lucide) lucide.createIcons();
+}
+
+/* Mide el estilo del elemento en su estado BASE (sin :hover ni :focus) usando un
+ * clon superficial insertado fuera de pantalla. Devuelve { cs, cleanup }: cs es
+ * un CSSStyleDeclaration VIVO del clon, por lo que debe leerse antes de cleanup(). */
+function pgBaseProbe(el) {
+    const win = el.ownerDocument.defaultView;
+    if (!el.parentNode || el === el.ownerDocument.body || el === el.ownerDocument.documentElement) {
+        return { cs: win.getComputedStyle(el), cleanup() {} };
+    }
+    const clone = el.cloneNode(false);
+    clone.removeAttribute('id');
+    if (clone.classList) clone.classList.remove('pg-ins-hover', 'pg-ins-sel');
+    clone.setAttribute('aria-hidden', 'true');
+    ['position:absolute', 'left:-99999px', 'top:0', 'pointer-events:none', 'visibility:hidden'].forEach(d => {
+        const [p, v] = d.split(':'); clone.style.setProperty(p, v, 'important');
+    });
+    el.parentNode.insertBefore(clone, el);
+    return { cs: win.getComputedStyle(clone), cleanup() { try { clone.remove(); } catch (e) {} } };
 }
 
 // Texto CSS listo para pegar con la configuración del elemento y su :hover.
@@ -1679,7 +1859,35 @@ function pgBuildSnippet(sel, cs, hasBorder, hover) {
 }
 function pgCopyStyleConfig() {
     if (!pg._styleSnippet) { pgToast('Selecciona un elemento primero', 'warn'); return; }
-    if (navigator.clipboard) { navigator.clipboard.writeText(pg._styleSnippet); pgToast('Configuración CSS copiada', 'success'); }
+    pgCopyText(pg._styleSnippet, 'Configuración CSS copiada');
+}
+function pgCopyClasses() {
+    if (!pg._styleClasses) { pgToast('Selecciona un elemento primero', 'warn'); return; }
+    pgCopyText(pg._styleClasses, 'Clases Tailwind copiadas');
+}
+// Copia robusta: usa la Clipboard API si está disponible (contexto seguro) y, si
+// no (p.ej. http por IP/hostname), cae al método clásico con execCommand.
+function pgCopyText(text, okMsg) {
+    if (text == null || text === '') { pgToast('Nada que copiar', 'warn'); return; }
+    const ok   = () => pgToast(okMsg || 'Copiado', 'success');
+    const fail = () => pgCopyFallback(String(text), ok);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(String(text)).then(ok).catch(fail);
+    } else {
+        fail();
+    }
+}
+function pgCopyFallback(text, done) {
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed'; ta.style.left = '-9999px'; ta.style.top = '0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        ok ? done() : pgToast('No se pudo copiar', 'error');
+    } catch (e) { pgToast('No se pudo copiar', 'error'); }
 }
 
 /* Reglas :hover de las hojas del iframe que matchean el elemento (Tailwind

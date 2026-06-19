@@ -3,7 +3,7 @@ let api_catalogo = 'ctrl/ctrl-pedidos-catalogo.php';
 let api_custom = 'ctrl/ctrl-pedidos-personalizado.php';
 
 let normal, app, custom, cierre; //Clases.
-let idFolio, sub_name;
+let idFolio, sub_name, user_name;
 let categories, estado, clients;
 
 let rol, subsidiaries, udn;
@@ -19,6 +19,7 @@ $(async () => {
           clients      = req.clients || [];
           rol          = req.access;
           sub_name     = req.subsidiaries_name;
+          user_name    = req.user_name;
           subsidiaries = req.sucursales;
           dailyClosure = req.daily_closure || { is_closed: false };
           udn          = dailyClosure.subsidiary_id;
@@ -525,7 +526,22 @@ class App extends Templates {
 
     }
 
+    requireOpenShift() {
+        if (typeof openShift !== 'undefined' && openShift && openShift.has_open_shift) return true;
+        Swal.fire({
+            icon: 'warning',
+            title: 'No hay turno abierto',
+            text: 'Debes abrir un turno antes de continuar.',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#7c3aed',
+            background: '#1F2A37',
+            color: '#fff'
+        });
+        return false;
+    }
+
     async editOrder(id) {
+        if (!this.requireOpenShift()) return;
         idFolio = id;
         normal.layoutEdit = true;
         normal.render();
@@ -636,6 +652,7 @@ class App extends Templates {
     }
 
     cancelOrder(id) {
+        if (!this.requireOpenShift()) return;
         const row = event.target.closest('tr');
         const folio = row.querySelectorAll('td')[0]?.innerText || '';
 
@@ -690,6 +707,7 @@ class App extends Templates {
     // Descuentos.
 
     async addDiscount(id) {
+        if (!this.requireOpenShift()) return;
         const discountInfo = await useFetch({
             url: this._link,
             data: { opc: "getDiscount", id: id }
@@ -1290,6 +1308,7 @@ class App extends Templates {
     // Payments.
 
     async historyPay(id) {
+        if (!this.requireOpenShift()) return;
 
         const data = await useFetch({ url: this._link, data: { opc: 'initHistoryPay', id } });
         const order = data.order;
@@ -2416,7 +2435,7 @@ class App extends Templates {
         const subsidiarySelect = rol == 1 ? `
             <div class="mb-3">
                 <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
-                <select id="subsidiariesDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.onDailyCloseFilterChange()">
+                <select id="subsidiariesDailyClose" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg px-3 py-2 text-sm font-normal" onchange="app.onDailyCloseFilterChange()">
                     ${subsidiaries.map(s => `<option value="${s.id}" ${dailyClosure.subsidiary_id == s.id ? 'selected' : ''}>${s.valor}</option>`).join('')}
                 </select>
             </div>
@@ -2427,36 +2446,36 @@ class App extends Templates {
                 <!-- Sidebar -->
                 <div class="w-full lg:w-[280px] flex-shrink-0 space-y-4">
                     ${subsidiarySelect}
-                    <div>
+                    <div id="dateFieldWrapper">
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar fecha</label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none">
-                                <i class="icon-calendar"></i>
+                            <input type="text" id="calendarDailyClose" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg pl-3 pr-9 py-2 text-sm font-normal cursor-pointer focus:border-purple-500 focus:outline-none" readonly placeholder="Seleccionar fecha" />
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-300 pointer-events-none">
+                                ${lucideIcon('calendar', 'w-[18px] h-[18px]')}
                             </span>
-                            <input type="text" id="calendarDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm cursor-pointer focus:border-purple-500 focus:outline-none" readonly placeholder="Seleccionar fecha" />
                         </div>
                     </div>
                     <div id="openShiftsAlert" class="hidden"></div>
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar turno</label>
-                        <select id="shiftSelector" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.viewShiftPreview()">
+                        <select id="shiftSelector" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg px-3 py-2 text-sm font-normal" onchange="app.viewShiftPreview()">
                             <option value="">-- Seleccionar --</option>
                         </select>
                     </div>
                     <div class="space-y-2 mt-2">
                         <button id="btnOpenShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2" onclick="app.openShift()">
-                            <i class="icon-plus"></i> Abrir Turno
+                            ${lucideIcon('circle-plus')} Abrir Turno
                         </button>
                         <button id="btnCloseShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.closeShift()">
-                            <i class="icon-lock"></i> Cerrar Turno
+                            ${lucideIcon('lock')} Cerrar Turno
                         </button>
                         <button id="btnPrintTicket" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
-                            <i class="icon-print"></i> Imprimir Ticket
+                            ${lucideIcon('printer')} Imprimir Ticket
                         </button>
                     </div>
                     <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
                         <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
-                            <i class="icon-check"></i> Cerrar Dia
+                            ${lucideIcon('check-check')} Cerrar Dia
                         </button>
                     </div>
                 </div>
@@ -2485,7 +2504,7 @@ class App extends Templates {
             title: `
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                        <i class="icon-calendar text-white"></i>
+                        ${lucideIcon('calendar', 'w-5 h-5 text-white')}
                     </div>
                     <span class="text-lg font-bold text-white">Cierre del Día</span>
                 </div>`,
@@ -2831,7 +2850,7 @@ class App extends Templates {
                         <h1 class="text-sm font-bold uppercase">${companyName}</h1>
                         ${subsidiaryHeader}
                         <div class="text-xs font-semibold">PEDIDOS DE PASTELERÍA</div>
-                        <div class="text-xs text-gray-600">Cierre Operativo</div>
+                        <div class="text-xs text-gray-600">Cierre x Turno</div>
                         ${closedBadge}
                     </div>
 
@@ -2933,17 +2952,17 @@ class App extends Templates {
             ? $('#subsidiariesDailyClose option:selected').text()
             : sub_name;
 
-        this.createCoffeeModalForm({
+        createCoffeeModalForm({
             id: 'frmOpenShift',
             title: 'Abrir Turno',
-            icon: 'icon-clock',
+            iconSvg: lucideIcon('clock', 'w-5 h-5'),
             iconBg: 'bg-emerald-600',
             theme: 'dark',
             confirmText: 'Confirmar Apertura',
             cancelText: 'Cancelar',
             json: [
                 { opc: 'display', id: 'sucursal',    lbl: 'Sucursal',             value: subName },
-                { opc: 'display', id: 'responsable', lbl: 'Responsable',          value: user_name || 'Sin asignar' },
+                { opc: 'display', id: 'responsable', lbl: 'Responsable',          value: (typeof user_name !== 'undefined' && user_name) ? user_name : 'Sin asignar' },
                 { opc: 'money',   id: 'openingAmount', lbl: 'Fondo inicial de caja', placeholder: '0.00', min: 0, step: 0.01, autofocus: true }
             ],
             onConfirm: async (data, modal) => {
