@@ -741,6 +741,108 @@
     background: var(--vsr-scrollbar-hov);
 }
 
+/* ============================================================
+   Mejoras de diseño (layout OpenAI conservado)
+   ============================================================ */
+
+/* Composer: contenedor con realce y foco suave (estilo OpenAI) */
+.chat-input .ia-input-wrap {
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border);
+    border-radius: 16px;
+    padding: 6px 6px 6px 14px;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    transition: border-color .15s, box-shadow .15s;
+}
+.chat-input .ia-input-wrap:focus-within {
+    border-color: var(--vsr-accent);
+    box-shadow: 0 0 0 3px var(--vsr-accent-tint);
+}
+.chat-input .ia-input-wrap.is-drag-over {
+    border-color: var(--vsr-accent);
+    box-shadow: 0 0 0 3px var(--vsr-accent-tint);
+}
+.chat-input .ia-input-textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    color: var(--vsr-text);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.55;
+    padding: 8px 2px;
+    max-height: 180px;
+}
+.chat-input .ia-send-btn {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    border: none;
+    background: var(--vsr-accent);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+}
+.chat-input .ia-send-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+
+/* Botones del composer (adjuntar, lienzo, gráficas) */
+.chat-input-hint .ia-attach-btn,
+.chat-input-hint .ia-editor-toggle {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--vsr-text-muted);
+    cursor: pointer;
+    transition: all .15s;
+}
+.chat-input-hint .ia-attach-btn:hover,
+.chat-input-hint .ia-editor-toggle:hover {
+    background: var(--vsr-bg-hover);
+    color: var(--vsr-text-soft);
+    border-color: var(--vsr-border);
+}
+.chat-input-hint .ia-attach-btn.is-active,
+.chat-input-hint .ia-editor-toggle.is-active {
+    background: var(--vsr-accent-tint);
+    color: var(--vsr-accent-soft);
+    border-color: var(--vsr-accent);
+}
+
+/* Indicador de razonamiento ("thinking") en el typing */
+.chat-typing-phase {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--vsr-text-muted);
+}
+.chat-typing-phase i { color: var(--vsr-accent-soft); }
+
+/* Visores ricos (mermaid/chart/html/diagramas) dentro de una respuesta */
+.chat-msg.assistant .chat-msg-text .ia-render-block {
+    margin: 0 0 12px;
+}
+.chat-msg.assistant .chat-msg-text .ia-conjuring {
+    margin: 2px 0;
+}
+
+/* Tarjeta de usuario más compacta en pantallas chicas */
+@media (max-width: 720px) {
+    .chat-sidebar { display: none; }
+    .chat-body-inner { padding: 0 16px; }
+}
+
 /* Tema light overrides */
 [data-theme="light"] .chat-body-root { background: #F3F4F6; color: #1A1A1A; }
 [data-theme="light"] .chat-header { background: #FFFFFF; border-bottom-color: #E5E7EB; }
