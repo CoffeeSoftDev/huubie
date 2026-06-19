@@ -200,7 +200,7 @@ class Cierre {
         $('#openShiftsAlert').addClass('hidden').html('');
 
         // Opcion C: badge integrado junto al label de fecha
-        const dateLabel = $('#calendarDailyClose').closest('div');
+        const dateLabel = $('#dateFieldWrapper');
         dateLabel.find('.closure-badge, .closure-wrapper').remove();
         const label = dateLabel.find('label');
         label.wrap(`<div class="closure-wrapper flex items-center justify-between mb-1"></div>`);
@@ -216,7 +216,7 @@ class Cierre {
         if (rol == 1) {
             btnArea.html(`
                 <button id="btnReabrirDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-2" onclick="cierre.reopenClosure(${res.closure.id})">
-                    <i class="icon-cw"></i> Reabrir Dia
+                    ${lucideIcon('rotate-cw')} Reabrir Dia
                 </button>
                 <p class="text-[9px] text-gray-600 mt-1 text-center">Solo admin — requiere motivo</p>
             `);
@@ -251,14 +251,13 @@ class Cierre {
                         </div>
                         <h1 class="text-sm font-bold uppercase">${res.company_name || 'Reginas Pasteleria'}</h1>
                         <div class="text-xs font-semibold">PEDIDOS DE PASTELERIA</div>
-                        <div class="text-xs text-gray-600 mt-0.5">Cierre Diario Consolidado</div>
+                        <div class="text-xs text-gray-600 mt-0.5">Cierre Diarios</div>
                         <div class="bg-green-100 text-green-800 px-3 py-0.5 rounded-full text-[10px] font-bold mt-1.5">CERRADO</div>
                         <div class="text-[10px] text-gray-500 mt-0.5">Por: ${c.closed_by || 'Admin'}</div>
-                        <div class="text-[10px] text-gray-500">${moment(c.created_at).format('DD/MM/YYYY HH:mm')}</div>
                     </div>
                     <div class="text-xs space-y-0.5 mb-2">
-                        <div class="flex justify-between"><span>Fecha:</span><span class="font-semibold">${moment(c.closure_date).format('DD/MM/YYYY')}</span></div>
                         <div class="flex justify-between"><span>Sucursal:</span><span>${res.subsidiary_name}</span></div>
+                        <div class="flex justify-between"><span>Fecha:</span><span class="font-semibold">${moment(c.closure_date).locale('es').format('DD/MMM/YYYY')} ${moment(c.created_at).format('hh:mm A')}</span></div>
                     </div>
                     <hr class="border-dashed border-t border-gray-400 my-2" />
                     <div class="text-xs mb-2">

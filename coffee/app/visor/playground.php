@@ -182,6 +182,9 @@
                     <button class="pg-tab" data-sbtab="code">
                         <i data-lucide="code-2" class="w-3.5 h-3.5"></i> Código
                     </button>
+                    <button class="pg-tab" data-sbtab="styles" title="Inspeccionar estilos de cada elemento">
+                        <i data-lucide="palette" class="w-3.5 h-3.5"></i> Estilos
+                    </button>
                 </div>
                 <div class="pg-sandbox-actions">
                     <div class="pg-zoom" title="Zoom del preview">
@@ -222,6 +225,17 @@
             <div class="pg-sandbox-body">
                 <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Sandbox"></iframe>
                 <pre id="pgSandboxCode" class="pg-sandbox-code hidden"><code></code></pre>
+
+                <!-- Inspector de estilos: panel lateral que muestra el CSS resuelto
+                     (color, borde, tipografía, hover…) del elemento clicado en el preview. -->
+                <aside id="pgStylesPanel" class="pg-styles-panel" aria-hidden="true">
+                    <div id="pgStylesHint" class="pg-styles-hint">
+                        <i data-lucide="mouse-pointer-click"></i>
+                        <p>Haz clic en cualquier elemento del preview (input, card, botón…) para ver cómo está construido: colores, borde, tipografía y su estado <code>:hover</code>.</p>
+                    </div>
+                    <div id="pgStylesContent"></div>
+                </aside>
+
                 <div id="pgSandboxEmpty" class="pg-empty pg-sandbox-empty">
                     <i data-lucide="layout-template"></i>
                     <div class="pg-empty-title">Sandbox vacío</div>

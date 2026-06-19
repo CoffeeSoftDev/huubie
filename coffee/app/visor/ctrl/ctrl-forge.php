@@ -97,7 +97,80 @@ $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
 
 // ── GET projects ──────────────────────────────────────────────
 if ($action === 'projects') {
-    echo json_encode(['success' => true, 'wwwRoot' => $WWW_ROOT, 'projects' => forge_projects($WWW_ROOT)],
+    // Proyecto que ALOJA al visor (primer segmento de la ruta de este ctrl bajo
+    // www). Para ese proyecto la URL de apertura se deduce sola en el frontend.
+    $selfDir   = str_replace('\\', '/', __DIR__);
+    $container = '';
+    if ($WWW_ROOT !== '' && strpos($selfDir, $WWW_ROOT . '/') === 0) {
+        $rest = substr($selfDir, strlen($WWW_ROOT) + 1);
+        $container = explode('/', $rest)[0];
+    }
+    echo json_encode(['success' => true, 'wwwRoot' => $WWW_ROOT, 'container' => $container, 'projects' => forge_projects($WWW_ROOT)],
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// ── GET readfile ──────────────────────────────────────────────
+// Lee un archivo existente del proyecto (texto, whitelist) para importarlo como
+// contexto del agente. Misma validación de seguridad que la escritura.
+if ($action === 'readfile') {
+    $project = trim($_GET['project'] ?? $_POST['project'] ?? '');
+    $root    = forge_project_root($WWW_ROOT, $project);
+    if ($root === null) { http_response_code(400); echo json_encode(['success' => false, 'message' => 'Proyecto inválido']); exit; }
+
+    $rel = $_GET['path'] ?? $_POST['path'] ?? '';
+    $res = forge_resolve($root, $rel, $ALLOWED_EXTS);
+    if (!$res['ok'])              { http_response_code(400); echo json_encode(['success' => false, 'message' => $res['reason']]); exit; }
+    if (!is_file($res['target'])) { http_response_code(404); echo json_encode(['success' => false, 'message' => 'No existe el archivo']); exit; }
+
+    $content = (string) @file_get_contents($res['target']);
+    echo json_encode(['success' => true, 'path' => $rel, 'content' => $content, 'bytes' => strlen($content)],
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// ── GET listdir ───────────────────────────────────────────────
+// Lista carpetas y archivos de una ruta del proyecto (para el explorador). Las
+// carpetas siempre; los archivos marcan si su extensión es escribible/legible.
+if ($action === 'listdir') {
+    $project = trim($_GET['project'] ?? '');
+    $root    = forge_project_root($WWW_ROOT, $project);
+    if ($root === null) { http_response_code(400); echo json_encode(['success' => false, 'message' => 'Proyecto inválido']); exit; }
+
+    $rel = str_replace('\\', '/', trim($_GET['path'] ?? ''));
+    $rel = ltrim($rel, '/');
+    if (preg_match('#(^|/)\.\.(/|$)#', $rel)) { http_response_code(400); echo json_encode(['success' => false, 'message' => 'path traversal']); exit; }
+
+    $dir      = $rel === '' ? $root : rtrim($root, '/') . '/' . $rel;
+    $dirReal  = realpath($dir);
+    $rootReal = str_replace('\\', '/', realpath($root));
+    if ($dirReal === false || strpos(str_replace('\\', '/', $dirReal) . '/', $rootReal . '/') !== 0 || !is_dir($dirReal)) {
+        http_response_code(404); echo json_encode(['success' => false, 'message' => 'Carpeta no encontrada']); exit;
+    }
+
+    // Extensiones que además se pueden ABRIR en el sandbox (corren en el navegador).
+    $openable = ['php', 'html', 'htm'];
+    $entries = [];
+    foreach (@scandir($dirReal) ?: [] as $e) {
+        if ($e === '.' || $e === '..' || $e[0] === '.') continue;
+        $full     = $dirReal . '/' . $e;
+        $childRel = ($rel === '' ? '' : $rel . '/') . $e;
+        if (is_dir($full)) {
+            $entries[] = ['name' => $e, 'type' => 'dir', 'rel' => $childRel];
+        } else {
+            $ext = strtolower(pathinfo($e, PATHINFO_EXTENSION));
+            $entries[] = [
+                'name' => $e, 'type' => 'file', 'rel' => $childRel, 'ext' => $ext,
+                'readable' => in_array($ext, $ALLOWED_EXTS, true),
+                'openable' => in_array($ext, $openable, true)
+            ];
+        }
+    }
+    usort($entries, function ($a, $b) {
+        if ($a['type'] !== $b['type']) return $a['type'] === 'dir' ? -1 : 1;
+        return strcasecmp($a['name'], $b['name']);
+    });
+    echo json_encode(['success' => true, 'project' => $project, 'path' => $rel, 'entries' => $entries],
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }

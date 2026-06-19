@@ -186,6 +186,134 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sandbox-code { position: absolute; inset: 0; margin: 0; overflow: auto; padding: 16px; background: #0d1320; }
 .pg-sandbox-code code { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #e5e7eb; white-space: pre; }
 
+/* ── Scrollbars finas del playground (acordes al sistema del visor) ── */
+.pg-chat-body, .pg-sandbox-code, .pg-styles-panel, .pg-modal-body, .pg-actions-pop {
+    scrollbar-width: thin;
+    scrollbar-color: var(--vsr-scrollbar) transparent;
+}
+.pg-chat-body::-webkit-scrollbar,
+.pg-sandbox-code::-webkit-scrollbar,
+.pg-styles-panel::-webkit-scrollbar,
+.pg-modal-body::-webkit-scrollbar { width: 8px; height: 8px; }
+.pg-chat-body::-webkit-scrollbar-track,
+.pg-sandbox-code::-webkit-scrollbar-track,
+.pg-styles-panel::-webkit-scrollbar-track,
+.pg-modal-body::-webkit-scrollbar-track { background: transparent; }
+.pg-chat-body::-webkit-scrollbar-thumb,
+.pg-sandbox-code::-webkit-scrollbar-thumb,
+.pg-styles-panel::-webkit-scrollbar-thumb,
+.pg-modal-body::-webkit-scrollbar-thumb {
+    background: var(--vsr-scrollbar); border-radius: 6px;
+    border: 2px solid transparent; background-clip: padding-box;   /* afina el thumb visualmente */
+}
+.pg-chat-body::-webkit-scrollbar-thumb:hover,
+.pg-sandbox-code::-webkit-scrollbar-thumb:hover,
+.pg-styles-panel::-webkit-scrollbar-thumb:hover,
+.pg-modal-body::-webkit-scrollbar-thumb:hover { background: var(--vsr-scrollbar-hov); }
+
+/* ── Inspector de estilos ──
+   En modo "Estilos" el body se vuelve flex: el iframe queda a la izquierda
+   (clicable) y el panel del inspector a la derecha. */
+.pg-styles-panel { display: none; }
+.pg-sandbox-body.is-inspecting { display: flex; }
+.pg-sandbox-body.is-inspecting .pg-sandbox-frame { flex: 1 1 auto; width: auto; }
+.pg-sandbox-body.is-inspecting .pg-styles-panel {
+    display: block; flex: 0 0 340px; max-width: 55%; height: 100%; overflow-y: auto;
+    background: var(--vsr-bg-chrome); border-left: 1px solid var(--vsr-border);
+}
+.pg-styles-hint {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    text-align: center; color: var(--vsr-text-muted); padding: 32px 22px; font-size: 12px; line-height: 1.55;
+}
+.pg-styles-hint i { width: 28px; height: 28px; color: var(--vsr-accent-soft); opacity: .85; }
+.pg-styles-hint code { background: var(--vsr-bg-hover); color: var(--vsr-accent-soft); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+
+/* Cabecera: etiqueta del elemento + botones "Copiar CSS" / "Copiar clases" */
+.pg-sty-head { padding: 11px 14px; border-bottom: 1px solid var(--vsr-border); position: sticky; top: 0; background: var(--vsr-bg-chrome); z-index: 2; }
+.pg-sty-tag { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700; color: var(--vsr-accent-soft); word-break: break-all; }
+.pg-sty-dims { font-size: 10.5px; color: var(--vsr-text-mute2); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.pg-sty-actions { display: flex; gap: 6px; margin-top: 9px; }
+.pg-sty-copy {
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: 1 1 0; cursor: pointer;
+    font-size: 11px; font-weight: 700; padding: 6px 9px; border-radius: 7px;
+    background: var(--vsr-accent); color: #fff; border: 1px solid var(--vsr-accent);
+}
+.pg-sty-copy:hover { filter: brightness(1.08); }
+.pg-sty-copy-alt { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border: 1px solid var(--vsr-border); }
+.pg-sty-copy-alt:hover { filter: none; border-color: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+
+/* Chips de clases utilitarias (Tailwind, .cs-*, etc.), agrupados por categoría */
+.pg-sty-classes { display: flex; flex-direction: column; gap: 7px; padding: 11px 14px 4px; }
+.pg-sty-cls-group { display: flex; align-items: flex-start; gap: 8px; }
+.pg-sty-cls-cat { flex: 0 0 60px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--vsr-text-mute2); padding-top: 5px; }
+.pg-sty-cls-chips { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
+.pg-sty-chip {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; line-height: 1;
+    padding: 4px 6px; border-radius: 5px; cursor: pointer;
+    background: var(--vsr-bg-hover); color: var(--vsr-text-mid);
+    border: 1px solid var(--vsr-border-soft); border-left-width: 2px;
+}
+.pg-sty-chip:hover { color: var(--vsr-text-soft); filter: brightness(1.15); }
+
+/* Acento de color por categoría (etiqueta + borde izquierdo del chip) */
+.cat-color  .pg-sty-cls-cat { color: #E8A68F; }  .cat-color  .pg-sty-chip { border-left-color: #C05A40; }
+.cat-text   .pg-sty-cls-cat { color: #C4B5FD; }  .cat-text   .pg-sty-chip { border-left-color: #8B5CF6; }
+.cat-space  .pg-sty-cls-cat { color: #6EE7B7; }  .cat-space  .pg-sty-chip { border-left-color: #10B981; }
+.cat-layout .pg-sty-cls-cat { color: #93C5FD; }  .cat-layout .pg-sty-chip { border-left-color: #3B82F6; }
+.cat-fx     .pg-sty-cls-cat { color: #67E8F9; }  .cat-fx     .pg-sty-chip { border-left-color: #06B6D4; }
+.cat-state  .pg-sty-cls-cat { color: #FCD34D; }  .cat-state  .pg-sty-chip { border-left-color: #F59E0B; }
+.cat-other  .pg-sty-cls-cat { color: #9CA3AF; }  .cat-other  .pg-sty-chip { border-left-color: #6B7280; }
+
+/* Tooltip flotante de los chips (qué hace cada clase) */
+.pg-chip-tip {
+    position: fixed; z-index: 9999; max-width: 240px; pointer-events: none;
+    padding: 6px 9px; border-radius: 7px; font-size: 11px; line-height: 1.4;
+    background: #0d1320; color: var(--vsr-text-soft); border: 1px solid var(--vsr-border);
+    box-shadow: 0 6px 18px rgba(0,0,0,.45);
+    opacity: 0; transform: translateY(3px); transition: opacity .1s ease;
+}
+.pg-chip-tip.visible { opacity: 1; transform: none; }
+
+/* Secciones de propiedades */
+.pg-sty-sec { padding: 6px 14px 8px; }
+.pg-sty-sec-title {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--vsr-text-mute2); margin: 10px 0 5px;
+}
+.pg-sty-sec-title i { width: 13px; height: 13px; color: var(--vsr-accent-soft); }
+.pg-sty-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 5px 0; font-size: 11.5px; cursor: pointer; border-bottom: 1px solid var(--vsr-border-soft);
+}
+.pg-sty-row:hover { background: var(--vsr-bg-hover); }
+.pg-sty-key { color: var(--vsr-text-muted); font-size: 11.5px; flex: 0 0 auto; }
+.pg-sty-val { color: var(--vsr-text-soft); font-family: 'JetBrains Mono', monospace; font-size: 11px; text-align: right; word-break: break-all; display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.pg-sty-swatch { width: 13px; height: 13px; border-radius: 3px; border: 1px solid rgba(255,255,255,.25); flex: 0 0 auto; box-shadow: 0 0 0 1px rgba(0,0,0,.3) inset; }
+
+/* Filas de color destacadas (swatch grande + nombre + HEX) */
+.pg-sty-color-row {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    padding: 7px 8px; margin-bottom: 5px; border-radius: 8px;
+    background: var(--vsr-bg-hover); border: 1px solid var(--vsr-border-soft);
+}
+.pg-sty-color-row:hover { border-color: var(--vsr-accent-tint); }
+.pg-sty-swatch-lg { width: 30px; height: 30px; border-radius: 7px; flex: 0 0 auto; border: 1px solid rgba(255,255,255,.2); box-shadow: 0 0 0 1px rgba(0,0,0,.3) inset; }
+.pg-sty-swatch-transp {
+    background-image: linear-gradient(45deg, #888 25%, transparent 25%), linear-gradient(-45deg, #888 25%, transparent 25%),
+                      linear-gradient(45deg, transparent 75%, #888 75%), linear-gradient(-45deg, transparent 75%, #888 75%);
+    background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px; background-color: #fff;
+}
+.pg-sty-color-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pg-sty-color-label { font-size: 11.5px; font-weight: 600; color: var(--vsr-text-soft); }
+.pg-sty-color-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--vsr-text-muted); text-transform: uppercase; }
+
+/* Sub-bloque de reglas :hover */
+.pg-sty-hover-head { color: var(--vsr-accent-soft) !important; }
+.pg-sty-hover { margin: 4px 0 8px; border: 1px dashed var(--vsr-accent-tint); border-radius: 8px; padding: 6px 10px; background: var(--vsr-accent-tint); }
+.pg-sty-hover-sel { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--vsr-text-mute2); margin-bottom: 2px; word-break: break-all; }
+.pg-sty-empty { padding: 22px 14px; text-align: center; color: var(--vsr-text-mute2); font-size: 11.5px; }
+
 /* ── Estados vacios ── */
 .pg-empty {
     display: flex; flex-direction: column; align-items: center; justify-content: center;

@@ -26,7 +26,7 @@
 
 
 {
-  // "workbench.colorTheme": "Dracula Theme",
+  "workbench.colorTheme": "Dracula Dark+",
   // "editor.fontFamily": "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
   "editor.fontSize": 14,
   "editor.lineHeight": 1.6,
@@ -35,7 +35,5 @@
   "editor.cursorSmoothCaretAnimation": "on",
   // "workbench.tree.indent": 20,
   "workbench.tree.renderIndentGuides": "always",
-  // "workbench.colorCustomizations": {
-  //      "activityBar.activeBackground": "#372258",
-  // }
+ 
 }

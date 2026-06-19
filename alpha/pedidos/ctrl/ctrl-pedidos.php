@@ -26,6 +26,7 @@ class Pedidos extends MPedidos{
             'sucursales'        => $subsidiaries['data'],
             'access'            => $_SESSION['ROLID'],
             'subsidiaries_name' => $_SESSION['SUBSIDIARIE_NAME'],
+            'user_name'         => $_SESSION['USER'] ?? '',
             'daily_closure'     => $dailyClosure,
             'open_shift'        => $openShift ? [
                 'has_open_shift' => true,

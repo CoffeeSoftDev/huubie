@@ -112,6 +112,42 @@ body { color: red; }
 
 ---
 
+## 4.bis Trabajar sobre un módulo EXISTENTE (cirugía asistida)
+
+Además de generar desde cero, Forge puede **mejorar un módulo que ya existe** sin
+reescribirlo a ciegas. El modelo mental es **quirófano + bisturí**: el sandbox
+sirve para VER el módulo real corriendo; el agente + el diff son quienes tocan
+el código, y tú apruebas cada cambio.
+
+1. En la barra del sandbox pulsa **Abrir módulo existente** (📂). Se abre el
+   explorador del proyecto.
+2. **Navega** las carpetas y, sobre un archivo:
+   - **Abrir** (solo `.php`/`.html`) → carga ese módulo en el sandbox con su
+     **URL real**: corre con su backend, sesión y **datos reales** (no es una
+     maqueta). Requiere tener sesión iniciada en ese proyecto.
+   - **Importar** (cualquier archivo de texto) → mete su **código fuente** al
+     contexto del agente (aparece como chip de adjunto en el chat).
+3. Importa el/los archivo(s) del componente que quieres tocar (p. ej.
+   `alpha/pedidos/src/js/pedidos-cierre.js`) y pídele el cambio en el chat:
+   *"reestiliza el modal de cierre…"*. El agente devuelve el archivo con su
+   marcador `// @file:` → pestaña **Módulo**.
+4. **Previsualizar** (diff) → **Materializar**. El diff es la sutura: ves
+   exactamente qué líneas cambian antes de escribir.
+
+> **El preview en vivo es para VER, no se autoguarda.** Muchos modales (como los
+> de pedidos) no son HTML en un archivo: se generan en *template strings* dentro
+> del JS. Por eso el cambio real lo hace el agente reescribiendo ese archivo, con
+> diff de por medio — nunca una edición visual que se persista sola.
+
+**Recomendado:** trabaja sobre una rama o con respaldo antes de materializar
+cambios en un módulo vivo.
+
+**Endpoints nuevos de `ctrl-forge.php`:** `GET ?action=listdir` (navegar) y
+`GET ?action=readfile` (importar fuente), ambos con la misma whitelist/seguridad
+que la escritura.
+
+---
+
 ## 5. Seguridad (sandbox)
 
 El backend ([ctrl/ctrl-forge.php](ctrl/ctrl-forge.php)) sólo escribe si:

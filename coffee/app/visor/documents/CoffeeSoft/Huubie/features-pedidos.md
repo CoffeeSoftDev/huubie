@@ -4,32 +4,30 @@ description:
 date: 2026-06-18
 ---
 
-  
+\*\* Turno abierto \*\*
 
-\*\* Cierre del día \*\*
+\- seleccionar fecha debe ser un input con icono de calendar
 
-**Turno  - Abierto**
+\- Modifica el diseño del selector abrir turno 
 
-/ Resumido
+Al seleccionar abrir turno ...
 
-\- Agregar al ticket de turno resumido la sucursal a la que pertenece
-
-\- Cambiar el formato de fecha debe ser lunes,  17 junio 2026
-
-\- Agregar al ticket que persona aperturo el ticket.
-
-/ Detallado
-
- Si los montos de abono son 0.0 o 0 agregar signo -
+\- Mostrar en la caja de turno abierto ( vista de un ticket )
 
   
 
-**Turno - Cerrado**
+\*\* Turno cerrado \*\*\*
 
-La sucursal debe ir debajo de reginas pasteleria
+Cuando se cierra turno.
 
-Debe mostrarse fecha y hora de apertura / fecha hora de cierrre
+se debe mostrar quien cerro el turno abajo del cierre
 
-/ Detallado
+si el inicio de caja es 0 , no mostrarlo en el ticket 
 
- Si los montos de abono son 0.0 o 0 agregar signo -
+  
+
+En caso de no cerrar turno.
+
+ - Mostrar una alerta de que hay un turno pendiente por cerrar invitar al usuario a cerrar dicho turno 
+
+\- Si es turno ya pasado debe decirte de cerrar dia

@@ -162,6 +162,10 @@
         <section class="pg-sandbox">
             <header class="pg-pane-head">
                 <div class="pg-sandbox-tabs">
+                    <button class="pg-tab" data-sbtab="live" id="fgLiveTab">
+                        <i data-lucide="radio" class="w-3.5 h-3.5"></i> Live
+                        <span id="fgLiveDot" class="fg-live-dot" style="display:none;"></span>
+                    </button>
                     <button class="pg-tab active" data-sbtab="preview">
                         <i data-lucide="eye" class="w-3.5 h-3.5"></i> Preview
                     </button>
@@ -180,6 +184,12 @@
                         <button id="pgZoomIn" class="pg-iconbtn" title="Acercar"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
                     </div>
                     <span id="pgSandboxTheme" class="pg-theme-chip">Huubie Dark</span>
+                    <button id="fgOpenModuleBtn" class="pg-iconbtn" title="Abrir un módulo existente (con sus datos reales) para mejorarlo">
+                        <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="fgRecreateBtn" class="pg-iconbtn" title="Recrear un componente del Live como template en Preview (clic en el elemento)">
+                        <i data-lucide="copy-plus" class="w-3.5 h-3.5"></i>
+                    </button>
                     <button id="pgTemplatesBtn" class="pg-iconbtn" title="Plantillas guardadas">
                         <i data-lucide="library" class="w-3.5 h-3.5"></i>
                     </button>
@@ -196,7 +206,15 @@
             </header>
 
             <div class="pg-sandbox-body">
-                <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Sandbox"></iframe>
+                <!-- Preview: los diseños que genera el agente (srcdoc) -->
+                <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Preview"></iframe>
+                <!-- Live: el módulo real en línea (src), independiente del preview -->
+                <iframe id="fgLiveFrame" class="pg-sandbox-frame hidden" title="Live"></iframe>
+                <div id="fgLiveEmpty" class="pg-empty pg-sandbox-empty hidden">
+                    <i data-lucide="radio"></i>
+                    <div class="pg-empty-title">Sin módulo en vivo</div>
+                    <div class="pg-empty-sub">Pulsa <strong>Abrir módulo existente</strong> (📂) para cargar aquí un módulo real con sus datos. Tus diseños generados viven aparte, en <strong>Preview</strong>.</div>
+                </div>
                 <pre id="pgSandboxCode" class="pg-sandbox-code hidden"><code></code></pre>
 
                 <!-- ── Panel Módulo: archivos generados + destino + acciones ── -->
@@ -349,6 +367,45 @@
                         <i data-lucide="hammer" class="w-3.5 h-3.5"></i> Materializar
                     </button>
                 </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ── Modal: Abrir módulo existente (explorador del proyecto) ── -->
+    <div id="fgBrowserModal" class="pg-modal hidden" aria-hidden="true">
+        <div class="pg-modal-backdrop"></div>
+        <div class="pg-modal-dialog" role="dialog" style="max-width:720px;">
+            <header class="pg-modal-head">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="folder-open" class="w-4 h-4"></i>
+                    <h3>Abrir módulo existente</h3>
+                </div>
+                <button id="fgBrowserClose" class="pg-iconbtn" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </header>
+            <div class="pg-modal-body">
+                <p class="pg-hint">Navega el proyecto, <strong>abre</strong> un módulo en el sandbox (corre con su backend y datos reales) e <strong>importa</strong> los archivos fuente que quieras que el agente modifique. Luego pídele el cambio y materialízalo con el diff.</p>
+                <div class="fg-browser-bar">
+                    <div class="pg-select-wrap" title="Proyecto">
+                        <i data-lucide="folder-tree" class="w-4 h-4"></i>
+                        <select id="fgBrowserProject" class="pg-select"></select>
+                    </div>
+                    <div id="fgBrowserPath" class="fg-browser-crumbs"></div>
+                </div>
+                <div id="fgBrowserList" class="fg-browser-list"></div>
+
+                <!-- URL de apertura: editable porque muchas apps usan rutas
+                     absolutas (ej. /alpha/) y no se sirven bajo /proyecto/. Se
+                     prellena al pulsar "Abrir" en un archivo y se recuerda. -->
+                <div class="fg-open-row">
+                    <i data-lucide="globe" class="w-4 h-4 fg-open-ic"></i>
+                    <input id="fgOpenUrl" class="fg-open-input" placeholder="URL del módulo para abrir en el sandbox…" spellcheck="false" autocomplete="off">
+                    <button id="fgOpenUrlBtn" class="cs-btn cs-btn-primary cs-btn-sm" title="Abrir esta URL en el sandbox">Abrir URL</button>
+                </div>
+                <p id="fgBrowserBaseHint" class="pg-hint" style="margin-top:6px;">Si la app usa rutas absolutas (como <code>/alpha/</code>), ajusta aquí la URL con la que abres el módulo en tu navegador. Se recuerda por proyecto.</p>
+            </div>
+            <footer class="pg-modal-foot">
+                <span id="fgBrowserSummary" class="pg-hint">—</span>
+                <button id="fgBrowserDone" class="cs-btn cs-btn-primary cs-btn-sm">Cerrar</button>
             </footer>
         </div>
     </div>
