@@ -2599,7 +2599,7 @@ class App extends Templates {
             }).join('');
 
             alertContainer.html(`
-                <div class="bg-orange-900/30 border border-orange-600/50 rounded-lg p-3">
+                <div class="bg-orange-900/30 rounded-lg p-3">
                     <div class="flex items-center gap-2 mb-2">
                         <i class="icon-attention text-orange-400 text-sm"></i>
                         <span class="text-xs font-bold text-orange-400 uppercase">Turnos sin cerrar (${openShifts.length})</span>
