@@ -558,6 +558,7 @@
             <div class="new-file-body">
                 <label class="new-file-label" for="newFilePathInput">Carpeta destino</label>
                 <input id="newFilePathInput" type="text" class="folder-browse-path new-file-input" placeholder="C:/ruta/destino" spellcheck="false">
+                <select id="newFileFolderSelect" class="folder-browse-path new-file-input hidden"></select>
                 <label class="new-file-label" for="newFileNameInput">Nombre del archivo</label>
                 <input id="newFileNameInput" type="text" class="folder-browse-path new-file-input" placeholder="documento.md" spellcheck="false">
                 <span class="new-file-hint">Si no escribes extensi&oacute;n se usar&aacute; <strong>.md</strong>. Tambi&eacute;n puedes crear .drawio, .json, .txt, etc.</span>

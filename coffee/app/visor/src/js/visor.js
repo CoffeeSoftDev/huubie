@@ -1317,17 +1317,63 @@ class App {
             visorView.toast('Selecciona una carpeta local (o Custom) para crear archivos', 'warn');
             return;
         }
-        let dir = prefill.dir || this.newFileTargetDir();
-        if (/^drive:/i.test(dir)) dir = this.settings.customPath || '';
+        // En el arbol de documentos sin carpeta prefijada el usuario ELIGE la
+        // carpeta destino con un selector. En el resto de casos el destino es fijo
+        // (lo que esta abierto, o el prefill.dir de CoffeeIA/diagramas).
+        const treeMode     = !!(this.dataInit && this.dataInit.documents);
+        const chooseFolder = treeMode && !prefill.dir;
 
-        // La carpeta destino es fija: la que esta abierta. Se muestra de solo
-        // lectura para que el archivo SIEMPRE caiga donde estas parado.
-        $('#newFilePathInput').val(dir).prop('readonly', true).attr('title', dir);
+        if (chooseFolder) {
+            const baseDir = (this.dataInit.header && this.dataInit.header.currentPath
+                ? String(this.dataInit.header.currentPath) : '').replace(/\/+$/, '');
+            const opts = this._buildFolderOptions(baseDir);
+            $('#newFileFolderSelect').html(
+                opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('')
+            );
+            // Preseleccionar la carpeta del archivo abierto, si aplica.
+            const active = (this.allFiles || []).find(x => x.file === this.currentFile);
+            if (active && active.project) {
+                const want = (active.type && active.type !== '(sin clasificar)')
+                    ? `${baseDir}/${active.project}/${active.type}`
+                    : `${baseDir}/${active.project}`;
+                $('#newFileFolderSelect').val(want);
+            }
+            $('#newFilePathInput').addClass('hidden');
+            $('#newFileFolderSelect').removeClass('hidden');
+        } else {
+            let dir = prefill.dir || this.newFileTargetDir();
+            if (/^drive:/i.test(dir)) dir = this.settings.customPath || '';
+            // Destino fijo: solo lectura para que el archivo caiga donde estas parado.
+            $('#newFilePathInput').val(dir).prop('readonly', true).attr('title', dir).removeClass('hidden');
+            $('#newFileFolderSelect').addClass('hidden');
+        }
+
         $('#newFileNameInput').val(prefill.name || '');
         $('#newFileContent').val(prefill.content || '');
         $('#newFileModal').removeClass('hidden').attr('aria-hidden', 'false');
         setTimeout(() => $('#newFileNameInput').trigger('focus'), 30);
         if (window.lucide) lucide.createIcons();
+    }
+
+    // Opciones de carpeta destino para el modal (arbol de documentos): cada
+    // proyecto y cada subcarpeta real. Omitimos "(sin clasificar)" porque
+    // equivale a la propia carpeta del proyecto.
+    _buildFolderOptions(baseDir) {
+        const docs = (this.dataInit && this.dataInit.documents) || {};
+        const out = [];
+        Object.keys(docs).sort((a, b) => a.localeCompare(b)).forEach(proj => {
+            out.push({ value: `${baseDir}/${proj}`, label: proj });
+            const types = docs[proj];
+            Object.keys(types).sort((a, b) => {
+                if (a === '(sin clasificar)') return 1;
+                if (b === '(sin clasificar)') return -1;
+                return a.localeCompare(b);
+            }).forEach(tipo => {
+                if (tipo === '(sin clasificar)') return;
+                out.push({ value: `${baseDir}/${proj}/${tipo}`, label: `${proj} / ${tipo}` });
+            });
+        });
+        return out;
     }
 
     closeNewFileModal() {
@@ -1354,7 +1400,12 @@ class App {
     }
 
     async createFile() {
-        const dir     = ($('#newFilePathInput').val() || '').trim().replace(/[\\/]+$/, '');
+        // El destino sale del selector (modo arbol) o del input de ruta fija.
+        const usingSelect = !$('#newFileFolderSelect').hasClass('hidden');
+        const dir = (usingSelect
+            ? ($('#newFileFolderSelect').val() || '')
+            : ($('#newFilePathInput').val() || '')
+        ).trim().replace(/[\\/]+$/, '');
         let   name    = ($('#newFileNameInput').val() || '').trim();
         const content = $('#newFileContent').val();
 
@@ -1391,10 +1442,24 @@ class App {
             this.closeNewFileModal();
             visorView.toast('Archivo creado: ' + name, 'success');
 
-            // Si cae en la carpeta abierta, recargar y abrirlo automaticamente.
+            // Si cae en la carpeta abierta —o en cualquier subcarpeta del arbol de
+            // documentos— recargar y abrirlo automaticamente.
             const openDir = (this.dataInit && this.dataInit.header ? this.dataInit.header.currentPath : '') || '';
-            if (this._samePath(dir, openDir)) {
+            const norm = s => String(s || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+            const insideTree = !!(this.dataInit && this.dataInit.documents)
+                && !!openDir && norm(dir).indexOf(norm(openDir) + '/') === 0;
+            if (this._samePath(dir, openDir) || insideTree) {
                 this._pendingOpen = name;
+                if (insideTree) {
+                    // Acordeon: dejar abierta la carpeta-proyecto donde se acaba de
+                    // crear el archivo para que se vea en el arbol tras recargar.
+                    const baseSlash = String(openDir).replace(/\\/g, '/').replace(/\/+$/, '');
+                    const dirSlash  = String(dir).replace(/\\/g, '/').replace(/\/+$/, '');
+                    const proj = dirSlash.slice(baseSlash.length + 1).split('/')[0];
+                    if (proj) {
+                        try { localStorage.setItem('visor:tree:expanded', JSON.stringify([proj])); } catch (e) {}
+                    }
+                }
                 await this.reloadLibrary();
             }
         } catch (e) {
@@ -1945,7 +2010,7 @@ class VisorView {
 
     renderSidebar(data, currentFile, filter) {
         if (data.documents && typeof data.documents === 'object') {
-            return this.renderSidebarTree(data.documents, currentFile, filter);
+            return this.renderSidebarTree(data.documents, currentFile, filter, data.header);
         }
 
         // Solo el arbol de documentos lleva el acento rojo "carpeta de archivos".
@@ -2034,8 +2099,11 @@ class VisorView {
             </div>`;
     }
 
-    renderSidebarTree(documents, currentFile, filter) {
+    renderSidebarTree(documents, currentFile, filter, header) {
         const f = (filter || '').trim().toLowerCase();
+        // Crear archivos solo en origenes locales validos (Drive no usa 'save').
+        // El unico boton "+" vive en la cabecera raiz; el destino se elige en el modal.
+        const canCreate = !!(header && header.source !== 'Drive' && header.currentPath && header.valid !== false);
         // Convencion: todo arranca COLAPSADO; localStorage guarda solo lo
         // que el usuario ha expandido manualmente.
         let expanded = [];
@@ -2133,7 +2201,17 @@ class VisorView {
             </div>
         ` : '';
 
-        $('#sidebarList').html(html + empty).addClass('is-doc-tree');
+        // Cabecera raiz del arbol: unico punto de creacion. El destino se elige
+        // dentro del modal (selector de carpetas), no por carpeta del arbol.
+        const rootHeader = canCreate ? `
+            <div class="tree-root-header">
+                <span class="tree-root-title">${(header && header.currentLabel) || 'Documentos'}</span>
+                <button type="button" class="tree-new-btn tree-root-new" title="Nuevo archivo — elige la carpeta destino">
+                    <i data-lucide="file-plus" class="w-4 h-4"></i>
+                </button>
+            </div>` : '';
+
+        $('#sidebarList').html(rootHeader + html + empty).addClass('is-doc-tree');
 
         // Bind collapse toggle de proyecto (nivel 1) — comportamiento acordeon:
         // al abrir una carpeta se colapsan automaticamente las demas del mismo
@@ -2178,6 +2256,15 @@ class VisorView {
             }
             localStorage.setItem('visor:tree:expandedTypes', JSON.stringify(state));
             if (window.lucide) lucide.createIcons();
+        });
+
+        // Boton "+" de la raiz: abre el modal "Nuevo archivo"; la carpeta destino
+        // se elige ahi con un selector. stopPropagation para no togglear nada.
+        $('#sidebarList .tree-root-new').off('click').on('click', (e) => {
+            e.stopPropagation();
+            if (typeof app !== 'undefined' && app && app.openNewFileModal) {
+                app.openNewFileModal();
+            }
         });
     }
 
