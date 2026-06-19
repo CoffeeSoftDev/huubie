@@ -16,7 +16,15 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://unpkg.com/@viz-js/viz@3.2.4/lib/viz-standalone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script>
+        if (window.mermaid) {
+            mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
+        }
+    </script>
 </head>
 
 <body class="chat-body-root" data-theme="dark">
@@ -39,19 +47,24 @@
             <select id="chatModelSelect" class="ia-model-pill" title="Modelo activo">
                 <optgroup label="Ollama Cloud">
                     <option value="glm-5.2:cloud">GLM 5.2 (código)</option>
-                    <option value="qwen3-coder:480b-cloud">Qwen3 Coder 480B</option>
-                    <option value="qwen3-vl:235b-cloud">Qwen3 VL 235B (vision)</option>
-                    <option value="deepseek-v3.1:671b-cloud">DeepSeek V3.1 671B</option>
+                    <option value="glm-5.1:cloud">GLM 5.1 (código)</option>
+                    <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
+                    <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>
+                    <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
+                    <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
+                    <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
+                    <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código)</option>
                 </optgroup>
                 <optgroup label="OpenRouter (free)">
-                    <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (free)</option>
-                    <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (free)</option>
+                    <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
+                    <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (free)</option>
+                    <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super 120B (free)</option>
+                    <option value="google/gemma-4-31b-it:free">Gemma 4 31B (free, vision)</option>
+                    <option value="nvidia/nemotron-nano-12b-v2-vl:free">Nemotron Nano 12B VL (free, vision)</option>
                 </optgroup>
                 <optgroup label="OpenRouter (de pago)">
-                    <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
-                    <option value="anthropic/claude-opus-4.8">Claude Opus 4.8</option>
-                    <option value="openai/gpt-4o">GPT-4o</option>
-                    <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+                    <option value="qwen/qwen3.7-max">Qwen3.7 Max (pago)</option>
+                    <option value="qwen/qwen3.6-27b">Qwen3.6 27B (pago)</option>
                 </optgroup>
             </select>
 
@@ -163,6 +176,37 @@
                     <button id="chatAttachBtn" class="ia-attach-btn" title="Adjuntar imagen o documento de texto (también Ctrl+V)">
                         <i data-lucide="paperclip" class="w-3 h-3"></i>
                     </button>
+                    <button id="chatCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo lienzo (la IA genera componentes HTML renderizables)">
+                        <i data-lucide="layout-template" class="w-3 h-3"></i>
+                    </button>
+                    <div class="ia-graph-wrap" style="position:relative;">
+                        <button id="chatGraphBtn" class="ia-attach-btn" title="Lienzos de gráficas (Mermaid / draw.io / Excalidraw)">
+                            <i data-lucide="feather" class="w-3 h-3"></i>
+                        </button>
+                        <div id="chatGraphMenu" class="graph-menu graph-menu-up" style="display:none;">
+                            <button type="button" class="graph-menu-item" data-graph="mermaid">
+                                <i data-lucide="git-graph" class="w-4 h-4"></i>
+                                <span class="graph-menu-info">
+                                    <span class="graph-menu-name">Mermaid</span>
+                                    <span class="graph-menu-desc">Diagrama desde texto</span>
+                                </span>
+                            </button>
+                            <button type="button" class="graph-menu-item" data-graph="drawio">
+                                <i data-lucide="pen-tool" class="w-4 h-4"></i>
+                                <span class="graph-menu-info">
+                                    <span class="graph-menu-name">draw.io</span>
+                                    <span class="graph-menu-desc">Lienzo de diagramas</span>
+                                </span>
+                            </button>
+                            <button type="button" class="graph-menu-item" data-graph="excalidraw">
+                                <i data-lucide="pencil-ruler" class="w-4 h-4"></i>
+                                <span class="graph-menu-info">
+                                    <span class="graph-menu-name">Excalidraw</span>
+                                    <span class="graph-menu-desc">Boceto a mano alzada</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
                     <span id="chatContextInfo" class="chat-context-info"></span>
                     <span class="chat-spacer"></span>
                     <span id="chatStatusInfo" class="chat-status">Listo</span>
@@ -230,6 +274,7 @@
 
     <div id="chatToast" class="visor-toast"></div>
 
+    <script src="src/js/ia-render.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/chat.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

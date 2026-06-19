@@ -16,29 +16,39 @@ const CHAT_DEFAULT_AGENT = 'CoffeeIA.md';
 
 const CHAT_MODEL_OPTIONS = [
     { group: 'Ollama Cloud', options: [
-        { value: 'qwen3-coder:480b-cloud', label: 'Qwen3 Coder 480B (cloud)' },
-        { value: 'qwen3-vl:235b-cloud',     label: 'Qwen3 VL 235B (vision)' },
-        { value: 'deepseek-v3.1:671b-cloud', label: 'DeepSeek V3.1 671B' }
+        { value: 'glm-5.2:cloud',            label: 'GLM 5.2 (código)' },
+        { value: 'glm-5.1:cloud',            label: 'GLM 5.1 (código)' },
+        { value: 'qwen3-coder-next:cloud',   label: 'Qwen3 Coder Next (código)' },
+        { value: 'minimax-m3:cloud',         label: 'MiniMax M3 (código, vision)' },
+        { value: 'gemma4:31b-cloud',         label: 'Gemma4 31B (vision)' },
+        { value: 'deepseek-v4-pro:cloud',    label: 'DeepSeek V4 Pro (razonamiento)' },
+        { value: 'kimi-k2.6:cloud',          label: 'Kimi K2.6 (agéntico, vision)' },
+        { value: 'kimi-k2.7-code:cloud',     label: 'Kimi K2.7 Code (código)' }
     ]},
     { group: 'OpenRouter (free)', options: [
-        { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (free)' },
-        { value: 'google/gemini-2.0-flash-exp:free',       label: 'Gemini 2.0 Flash (free)' },
-        { value: 'qwen/qwen-2.5-72b-instruct:free',       label: 'Qwen 2.5 72B (free)' }
+        { value: 'openai/gpt-oss-120b:free',                  label: 'GPT-OSS 120B (free)' },
+        { value: 'z-ai/glm-4.5-air:free',                     label: 'GLM 4.5 Air (free)' },
+        { value: 'nvidia/nemotron-3-super-120b-a12b:free',    label: 'Nemotron 3 Super 120B (free)' },
+        { value: 'google/gemma-4-31b-it:free',                label: 'Gemma 4 31B (free, vision)' },
+        { value: 'nvidia/nemotron-nano-12b-v2-vl:free',       label: 'Nemotron Nano 12B VL (free, vision)' }
     ]},
     { group: 'OpenRouter (de pago)', options: [
-        { value: 'anthropic/claude-sonnet-4',  label: 'Claude Sonnet 4' },
-        { value: 'anthropic/claude-opus-4.8',  label: 'Claude Opus 4.8' },
-        { value: 'openai/gpt-4o',              label: 'GPT-4o' },
-        { value: 'openai/gpt-4o-mini',         label: 'GPT-4o mini' },
-        { value: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash' }
+        { value: 'qwen/qwen3.7-max',  label: 'Qwen3.7 Max (pago)' },
+        { value: 'qwen/qwen3.6-27b',  label: 'Qwen3.6 27B (pago)' }
     ]}
 ];
+
+// Tipos de grafica del modo grafica (mismo set que el visor).
+const CHAT_GRAPH_TYPES  = ['mermaid', 'drawio', 'excalidraw'];
+const CHAT_GRAPH_LABELS = { mermaid: 'Mermaid', drawio: 'draw.io', excalidraw: 'Excalidraw' };
 
 const chat = {
     agentKey:      CHAT_DEFAULT_AGENT,
     model:         '',
     systemOverride: '',
     uiTheme:       'dark',
+    canvasMode:    false,      // la IA genera componentes HTML renderizables
+    graphMode:     '',         // '' | 'mermaid' | 'drawio' | 'excalidraw'
     history:       [],
     pendingImages: [],
     pendingDocs:   [],
@@ -58,6 +68,7 @@ $(async () => {
     chatPopulateAgentSelect();
     chatPopulateModelSelect();
     chatBind();
+    chatApplyModeUI();
     chatRenderMain();
     await chatLoadConversations();
     chatApplyAgent(chat.agentKey, true);
@@ -68,9 +79,11 @@ $(async () => {
 function chatLoadSettings() {
     try {
         const s = JSON.parse(localStorage.getItem('chat:settings:v1') || '{}');
-        chat.agentKey = s.agentKey || CHAT_DEFAULT_AGENT;
-        chat.model    = s.model || '';
-        chat.uiTheme  = s.uiTheme || 'dark';
+        chat.agentKey   = s.agentKey || CHAT_DEFAULT_AGENT;
+        chat.model      = s.model || '';
+        chat.uiTheme    = s.uiTheme || 'dark';
+        chat.canvasMode = !!s.canvasMode;
+        chat.graphMode  = CHAT_GRAPH_TYPES.indexOf(s.graphMode) !== -1 ? s.graphMode : '';
     } catch (_) { /* noop */ }
 }
 
@@ -78,7 +91,9 @@ function chatSaveSettings() {
     localStorage.setItem('chat:settings:v1', JSON.stringify({
         agentKey: chat.agentKey,
         model: chat.model,
-        uiTheme: chat.uiTheme
+        uiTheme: chat.uiTheme,
+        canvasMode: chat.canvasMode,
+        graphMode: chat.graphMode
     }));
 }
 
@@ -123,6 +138,21 @@ function chatBind() {
     $('#chatModelSelect').on('change', e => { chat.model = e.target.value || ''; chatSaveSettings(); });
     $('#chatThemeToggle').on('click', () => chatApplyUiTheme(chat.uiTheme === 'dark' ? 'light' : 'dark'));
 
+    // Modo lienzo (HTML renderizable).
+    $('#chatCanvasToggle').on('click', () => chatToggleCanvasMode());
+
+    // Menu de graficas: elegir tipo activa el "modo grafica".
+    $('#chatGraphBtn').on('click', e => { e.stopPropagation(); chatToggleGraphMenu(e.currentTarget); });
+    $(document).on('click.chatGraphMenu', e => {
+        if (!$(e.target).closest('#chatGraphMenu, #chatGraphBtn').length) $('#chatGraphMenu').hide();
+    });
+    $(window).on('resize.chatGraphMenu scroll.chatGraphMenu', () => $('#chatGraphMenu').hide());
+    $('#chatGraphMenu').on('click', '.graph-menu-item', e => {
+        const type = $(e.currentTarget).data('graph');
+        $('#chatGraphMenu').hide();
+        chatSetGraphMode(type);
+    });
+
     $('#chatNewBtn, #chatNewSidebarBtn').on('click', () => chatNewConversation());
 
     $('#chatSendBtn').on('click', () => {
@@ -164,6 +194,68 @@ function chatApplyAgent(key, silent) {
         $('#chatAgentSelect').val(key);
         chatSaveSettings();
     }
+}
+
+/* ---------- Modos lienzo / grafica ---------- */
+function chatApplyModeUI() {
+    const $canvas = $('#chatCanvasToggle');
+    $canvas.toggleClass('is-active', chat.canvasMode);
+    $canvas.attr('title', chat.canvasMode
+        ? 'Modo lienzo ACTIVO — la IA generará componentes HTML renderizables'
+        : 'Activar modo lienzo (la IA generará componentes HTML renderizables)');
+
+    const $graph = $('#chatGraphBtn');
+    $graph.toggleClass('is-active', !!chat.graphMode);
+    $graph.attr('title', chat.graphMode
+        ? 'Modo gráfica ACTIVO (' + (CHAT_GRAPH_LABELS[chat.graphMode] || chat.graphMode) + ') — la IA generará diagramas de este tipo'
+        : 'Lienzos de gráficas (Mermaid / draw.io / Excalidraw)');
+    $('#chatGraphMenu .graph-menu-item').each(function () {
+        $(this).toggleClass('is-active', $(this).data('graph') === chat.graphMode);
+    });
+
+    chatApplyInputPlaceholder();
+}
+
+function chatApplyInputPlaceholder() {
+    const $ta = $('#chatInput');
+    if (chat.canvasMode) {
+        $ta.attr('placeholder', 'Pide un componente UI (ej: "una card de producto con precio y botón")…');
+    } else if (chat.graphMode) {
+        const label = CHAT_GRAPH_LABELS[chat.graphMode] || chat.graphMode;
+        $ta.attr('placeholder', 'Describe el diagrama y la IA lo genera en ' + label + '…');
+    } else {
+        $ta.attr('placeholder', 'Pregunta lo que quieras… (Enter para enviar, Shift+Enter para nueva línea)');
+    }
+}
+
+function chatToggleCanvasMode() {
+    chat.canvasMode = !chat.canvasMode;
+    if (chat.canvasMode && chat.graphMode) chat.graphMode = '';   // excluyentes
+    chatSaveSettings();
+    chatApplyModeUI();
+}
+
+function chatSetGraphMode(type) {
+    if (CHAT_GRAPH_TYPES.indexOf(type) === -1) return;
+    chat.graphMode = (chat.graphMode === type) ? '' : type;
+    if (chat.graphMode && chat.canvasMode) chat.canvasMode = false;   // excluyentes
+    chatSaveSettings();
+    chatApplyModeUI();
+}
+
+// Posiciona el menu FIXED sobre el boton (abre hacia arriba) para que el
+// overflow del composer no lo recorte.
+function chatToggleGraphMenu(btnEl) {
+    const $menu = $('#chatGraphMenu');
+    if ($menu.is(':visible')) { $menu.hide(); return; }
+    $menu.css({ display: 'block', visibility: 'hidden', position: 'fixed', top: '0px', left: '0px' });
+    const rect = btnEl.getBoundingClientRect();
+    const mw = $menu.outerWidth(), mh = $menu.outerHeight(), gap = 8;
+    let left = rect.left, top = rect.top - mh - gap;
+    left = Math.max(8, Math.min(left, window.innerWidth - mw - 8));
+    if (top < 8) top = rect.bottom + gap;
+    $menu.css({ left: left + 'px', top: top + 'px', visibility: 'visible' });
+    if (window.lucide) lucide.createIcons();
 }
 
 function chatBindAttachments() {
