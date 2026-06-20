@@ -82,6 +82,14 @@
         </div>
     </header>
 
+    <!-- Barra de hilos: cada hilo es una sesión completa (chat + sandbox + módulo) -->
+    <div class="fg-threadbar">
+        <div id="fgThreads" class="fg-threads"></div>
+        <button id="fgNewThreadBtn" class="fg-thread-new" title="Nuevo hilo (sesión independiente)">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo hilo
+        </button>
+    </div>
+
     <div class="pg-workspace">
 
         <!-- Rail de navegacion entre modulos (Visor / Playground / Admin) -->
@@ -215,6 +223,15 @@
                 <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Preview"></iframe>
                 <!-- Live: el módulo real en línea (src), independiente del preview -->
                 <iframe id="fgLiveFrame" class="pg-sandbox-frame hidden" title="Live"></iframe>
+                <!-- Banner del modo "Recrear": guía visual al hacer clic en un componente -->
+                <div id="fgRecBanner" class="fg-rec-banner hidden">
+                    <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i>
+                    <span>Haz clic en el componente del Live que quieres recrear · <strong>Esc</strong> cancela</span>
+                </div>
+                <!-- Botón contextual: solo visible en la vista Live -->
+                <button id="fgRecFab" class="fg-rec-fab hidden" title="Copiar un componente del Live a Preview/contexto">
+                    <i data-lucide="copy-plus" class="w-4 h-4"></i> Recrear componente
+                </button>
                 <div id="fgLiveEmpty" class="pg-empty pg-sandbox-empty hidden">
                     <i data-lucide="radio"></i>
                     <div class="pg-empty-title">Sin módulo en vivo</div>
