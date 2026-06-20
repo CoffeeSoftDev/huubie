@@ -7,8 +7,9 @@
    sonido al terminar, adjuntar imagenes y modo lienzo.
    ────────────────────────────────────────────────────────────── */
 
-const PG_API        = 'ctrl/ctrl-visor.php';
-const PG_API_STREAM = 'ctrl/ctrl-coffeeia-stream.php';
+const PG_API         = 'ctrl/ctrl-visor.php';
+const PG_API_STREAM  = 'ctrl/ctrl-coffeeia-stream.php';
+const PG_API_THREADS = 'ctrl/ctrl-pg-threads.php';   // hilos de conversación (SQLite)
 
 // Extensiones tratadas como TEXTO plano (gemelo del Visor): se leen con readAsText
 // y se embeben al contexto del chat. Los binarios (pdf/docx/xlsx) no entran aqui.
@@ -159,7 +160,10 @@ const pg = {
     splitW:    '',           // ancho del panel de chat (px) — splitter
     zoom:      100,          // zoom del preview (%) — escala el contenido del iframe
     _popSound: null,
-    _varochCss: ''           // CSS embebido extraido del grimorio Coffee-Varoch
+    _varochCss: '',          // CSS embebido extraido del grimorio Coffee-Varoch
+    threadUid:   null,       // uid del hilo activo (null = aún no persistido)
+    threadTitle: '',         // título del hilo activo
+    _threadSaveTimer: null   // debounce del autosave del hilo
 };
 
 $(async () => {
@@ -170,6 +174,7 @@ $(async () => {
     await pgLoadLibrary();
     pgApplyAgent(pg.agentKey, true);
     pgApplyCanvasUI();
+    pgApplyViewport();
     if (window.lucide) lucide.createIcons();
 });
 
@@ -234,6 +239,7 @@ function pgLoadSettings() {
         if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
         if (typeof s.model === 'string')         pg.model    = s.model;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
+        if (PG_VIEWPORTS[s.viewport])            pg.viewport = s.viewport;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
     } catch (e) {}
 }
@@ -241,7 +247,8 @@ function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
-            canvasMode: pg.canvasMode, splitW: pg.splitW, zoom: pg.zoom, knowledge: Array.from(pg.knowledge)
+            canvasMode: pg.canvasMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
+            knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
 }
@@ -329,7 +336,14 @@ function pgBind() {
         pgSaveSettings();
     });
 
-    $('#pgClearBtn, #pgResetBtn').on('click', () => pgClearChat());
+    $('#pgClearBtn, #pgResetBtn').on('click', () => pgNewThread());
+
+    // Hilos de conversación
+    $('#pgNewThreadBtn').on('click', () => pgNewThread());
+    $('#pgThreadsBtn').on('click', () => pgOpenThreads());
+    $('#pgThreadsClose, #pgThreadsDone').on('click', () => pgCloseThreads());
+    $('#pgThreadsModal .pg-modal-backdrop').on('click', () => pgCloseThreads());
+    $('#pgThreadsNew').on('click', () => { pgNewThread(); pgCloseThreads(); });
 
     pgBindSplitter();
 
@@ -435,6 +449,9 @@ function pgBind() {
     $('#pgZoomLabel').on('click', () => pgSetZoom(100));   // clic en el % restablece a 100%
     $('#pgZoomLabel').text((pg.zoom || 100) + '%');
 
+    // Viewport del preview (móvil / laptop / completo)
+    $('.pg-vp-btn').on('click', function () { pgSetViewport($(this).data('vp')); });
+
     // Modal de conocimiento
     $('#pgKnowledgeBtn').on('click', () => pgOpenKnowledge());
     $('#pgKnowClose, #pgKnowDone').on('click', () => pgCloseKnowledge());
@@ -471,7 +488,7 @@ function pgBind() {
     $('#pgTemplatesModal .pg-modal-backdrop').on('click', () => pgCloseTemplates());
 
     $(document).on('keydown', e => {
-        if (e.key === 'Escape') { pgCloseKnowledge(); pgCloseSaveTemplate(); pgCloseTemplates(); }
+        if (e.key === 'Escape') { pgCloseKnowledge(); pgCloseSaveTemplate(); pgCloseTemplates(); pgCloseThreads(); }
     });
 
     // Conmutador Chat/Sandbox (solo visible en móvil vía CSS). Cambia qué panel
@@ -698,6 +715,10 @@ function pgClearChat() {
     pg.templates = [];
     pg._activeTplId = null;
     pg.pinnedTplId = null;
+    pg.threadUid = null;
+    pg.threadTitle = '';
+    clearTimeout(pg._threadSaveTimer);
+    pgUpdateThreadChip();
     pgRenderPinBanner();   // quita el chip "Modificando…" si quedaba
     $('#pgChatBody').html(`
         <div class="pg-empty">
@@ -740,6 +761,219 @@ function pgRegenerateForTheme() {
         : 'a un diseño libre (sin paleta impuesta, tú eliges los estilos)';
     pgToast(`Regenerando con ${t.label}…`, 'info');
     pgSend(`Adapta ${what} anterior ${sys}. Conserva la misma estructura y funcionalidad; cambia solo clases, tokens y estilos para respetar ese sistema de diseño.`, []);
+}
+
+/* ── Hilos de conversación (persistencia SQLite vía ctrl-pg-threads.php) ──
+ * Cada hilo guarda el historial + los templates del sandbox + meta (tema/agente/
+ * modelo). Se autoguarda tras cada respuesta del agente; el usuario puede crear
+ * hilos nuevos y reabrir cualquiera para seguir iterando donde lo dejó. */
+
+function pgUpdateThreadChip() {
+    const $chip = $('#pgThreadChip');
+    if (pg.threadUid && pg.threadTitle) {
+        const t = pg.threadTitle;
+        $('#pgThreadChipTitle').text(t.length > 28 ? t.slice(0, 28) + '…' : t);
+        $chip.removeClass('hidden').attr('title', 'Hilo activo: ' + t);
+    } else {
+        $chip.addClass('hidden');
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+// Título del hilo: el guardado si existe, si no el primer mensaje del usuario
+// (limpio de los bloques de docs/template embebidos en el content).
+function pgThreadTitle() {
+    if (pg.threadTitle) return pg.threadTitle;
+    const first = pg.history.find(m => m.role === 'user');
+    let t = first && first.content ? String(first.content) : '';
+    t = t.replace(/\n*===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '')
+         .replace(/\n*===\s*TEMPLATE A MODIFICAR[\s\S]*$/i, '')
+         .replace(/\s+/g, ' ').trim();
+    return t ? t.slice(0, 80) : ('Hilo ' + new Date().toLocaleString());
+}
+
+function pgResetSandbox() {
+    $('#pgSandboxEmpty').show();
+    const fr = document.getElementById('pgSandboxFrame');
+    if (fr) fr.srcdoc = '';
+    $('#pgSandboxCode').find('code').text('');
+    pg.lastHtml = '';
+}
+
+function pgNewThread() {
+    if (pg.isBusy) { pgToast('Espera a que termine la generación en curso', 'warn'); return; }
+    pgClearChat();        // ya resetea threadUid/título/templates/historial
+    pgResetSandbox();
+    pgToast('Nuevo hilo', 'info');
+}
+
+// Empuja un guardado del hilo con debounce, para no saturar al iterar rápido.
+function pgAutoSaveThread() {
+    clearTimeout(pg._threadSaveTimer);
+    pg._threadSaveTimer = setTimeout(() => pgSaveThread(true), 600);
+}
+
+async function pgSaveThread(silent) {
+    if (!pg.history.length) return;
+    const meta = {
+        theme: pg.theme, agentKey: pg.agentKey,
+        canvasMode: !!pg.canvasMode, lastUserText: pg._lastUserText || ''
+    };
+    try {
+        const form = new FormData();
+        form.append('action', 'save');
+        if (pg.threadUid) form.append('uid', pg.threadUid);
+        form.append('title',     pgThreadTitle());
+        form.append('model',     pg.model || '');
+        form.append('meta',      JSON.stringify(meta));
+        form.append('messages',  JSON.stringify(pg.history));
+        form.append('templates', JSON.stringify(pg.templates));
+        const res  = await fetch(PG_API_THREADS, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { if (!silent) pgToast(data.message || 'No se pudo guardar el hilo', 'error'); return; }
+        pg.threadUid   = data.uid;
+        pg.threadTitle = data.title;
+        pgUpdateThreadChip();
+        if (!silent) pgToast('Hilo guardado', 'success');
+    } catch (e) {
+        if (!silent) pgToast('Error de red al guardar el hilo', 'error');
+    }
+}
+
+function pgCloseThreads() {
+    $('#pgThreadsModal').addClass('hidden').attr('aria-hidden', 'true');
+}
+
+async function pgOpenThreads() {
+    $('#pgThreadsModal').removeClass('hidden').attr('aria-hidden', 'false');
+    $('#pgThreadsList').html('<p class="pg-hint" style="text-align:center;padding:20px 0;">Cargando…</p>');
+    if (window.lucide) lucide.createIcons();
+    try {
+        const res  = await fetch(PG_API_THREADS + '?action=list', { cache: 'no-store' });
+        const data = await res.json();
+        if (!data.success) { $('#pgThreadsList').html('<p class="pg-hint">' + (data.message || 'Error al listar') + '</p>'); return; }
+        pgRenderThreadsList(data.rows || []);
+    } catch (e) {
+        $('#pgThreadsList').html('<p class="pg-hint">Error de red al cargar los hilos.</p>');
+    }
+}
+
+function pgRenderThreadsList(rows) {
+    $('#pgThreadsSummary').text(rows.length ? (rows.length + ' hilo(s) guardado(s)') : 'Sin hilos guardados');
+    if (!rows.length) {
+        $('#pgThreadsList').html('<p class="pg-hint" style="text-align:center;padding:24px 0;">No hay hilos guardados todavía. Empieza a conversar y el hilo se guardará solo.</p>');
+        return;
+    }
+    const html = rows.map(r => `
+        <div class="pg-thread-item${r.uid === pg.threadUid ? ' is-active' : ''}" data-thread="${r.uid}" title="Abrir este hilo">
+            <div class="pg-thread-main">
+                <span class="pg-thread-title">${pgEscape(r.title)}</span>
+                <span class="pg-thread-meta">
+                    <i data-lucide="message-circle" class="w-3 h-3"></i> ${r.msg_count}
+                    ${Number(r.tpl_count) ? '· <i data-lucide="layout-template" class="w-3 h-3"></i> ' + r.tpl_count : ''}
+                    ${r.model ? '· ' + pgEscape(r.model) : ''}
+                    · ${pgEscape(r.updated_at || '')}
+                </span>
+            </div>
+            <button class="pg-thread-del" data-thread-del="${r.uid}" title="Eliminar hilo"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+        </div>`).join('');
+    $('#pgThreadsList').html(html);
+    $('#pgThreadsList .pg-thread-item').on('click', function () { pgLoadThread($(this).data('thread')); });
+    $('#pgThreadsList .pg-thread-del').on('click', function (e) { e.stopPropagation(); pgDeleteThread($(this).data('thread-del'), $(this)); });
+    if (window.lucide) lucide.createIcons();
+}
+
+async function pgLoadThread(uid) {
+    if (pg.isBusy) { pgToast('Espera a que termine la generación en curso', 'warn'); return; }
+    try {
+        const res  = await fetch(PG_API_THREADS + '?action=get&uid=' + encodeURIComponent(uid), { cache: 'no-store' });
+        const data = await res.json();
+        if (!data.success || !data.thread) { pgToast(data.message || 'No se pudo abrir el hilo', 'error'); return; }
+        const th = data.thread;
+
+        pgClearChat();
+        pg.threadUid   = th.uid;
+        pg.threadTitle = th.title;
+        pg.history     = Array.isArray(th.messages)  ? th.messages  : [];
+        pg.templates   = Array.isArray(th.templates) ? th.templates : [];
+
+        const meta = th.meta || {};
+        if (meta.theme && PG_THEMES[meta.theme]) {
+            pg.theme = meta.theme;
+            $('#pgThemeSelect').val(meta.theme);
+            $('#pgSandboxTheme').text((PG_THEMES[meta.theme] || {}).label || meta.theme);
+        }
+        if (meta.agentKey && PG_AGENTS[meta.agentKey] && meta.agentKey !== pg.agentKey) {
+            $('#pgAgentSelect').val(meta.agentKey);
+            pgApplyAgent(meta.agentKey, true);   // keepHistory: no borra lo recién cargado
+        }
+        if (typeof meta.canvasMode === 'boolean') { pg.canvasMode = meta.canvasMode; pgApplyCanvasUI(); }
+        pg._lastUserText = meta.lastUserText || '';
+        if (th.model) { pg.model = th.model; $('#pgModelSelect').val(th.model); }
+        pgSaveSettings();
+
+        pgRebuildChat();
+
+        // Restaurar el último render al sandbox para seguir iterando sobre él.
+        const lastTpl = pg.templates[pg.templates.length - 1];
+        if (lastTpl && lastTpl.html) { pg._activeTplId = lastTpl.id; pgRenderSandbox(lastTpl.html, lastTpl.isDoc); }
+        else pgResetSandbox();
+
+        pgUpdateThreadChip();
+        pgCloseThreads();
+        pgToast('Hilo abierto: ' + th.title, 'success');
+    } catch (e) {
+        pgToast('Error de red al abrir el hilo', 'error');
+    }
+}
+
+// Reconstruye las burbujas del chat desde pg.history, re-anclando las tarjetas
+// de template a la respuesta del agente que las generó (por su histLen).
+function pgRebuildChat() {
+    $('#pgChatBody').empty();
+    pg.history.forEach((m, i) => {
+        if (m.role === 'user') {
+            const text = String(m.content || '')
+                .replace(/\n*===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '')
+                .replace(/\n*===\s*TEMPLATE A MODIFICAR[\s\S]*$/i, '').trim();
+            pgAppendUser(text, m.imagesPreview, m.docsMeta);
+        } else {
+            const tpl = pg.templates.find(t => t.histLen === i + 1);
+            if (tpl) {
+                let rest = String(m.content || '').replace(/```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/gi, '').trim();
+                if (pgLooksLikeHtml(rest)) rest = '';
+                pgAppendAI((rest ? rest + '\n\n' : '') + '🪄 *Render en el sandbox →*');
+                pgAppendTemplateCard($('#pgChatBody .ia-msg.ai').last(), tpl);
+            } else {
+                pgAppendAI(String(m.content || ''));
+            }
+        }
+    });
+    pgScroll();
+}
+
+// Eliminación en dos pasos sobre el propio botón (primer clic arma, segundo borra).
+async function pgDeleteThread(uid, $btn) {
+    if ($btn && !$btn.hasClass('is-armed')) {
+        $btn.addClass('is-armed').attr('title', 'Pulsa otra vez para eliminar');
+        clearTimeout($btn.data('armTimer'));
+        $btn.data('armTimer', setTimeout(() => $btn.removeClass('is-armed').attr('title', 'Eliminar hilo'), 3000));
+        return;
+    }
+    if ($btn) clearTimeout($btn.data('armTimer'));
+    try {
+        const form = new FormData();
+        form.append('action', 'delete');
+        form.append('uid', uid);
+        const res  = await fetch(PG_API_THREADS, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { pgToast(data.message || 'No se pudo eliminar', 'error'); return; }
+        if (pg.threadUid === uid) { pg.threadUid = null; pg.threadTitle = ''; pgUpdateThreadChip(); }
+        pgOpenThreads();   // refrescar lista
+        pgToast('Hilo eliminado', 'success');
+    } catch (e) {
+        pgToast('Error de red al eliminar', 'error');
+    }
 }
 
 function pgAppendUser(text, previews, docsMeta) {
@@ -993,6 +1227,7 @@ async function pgSend(text, images, docs) {
         elapsed_ms:       meta.elapsed_ms
     }, false);
     pgPlayPopSound();
+    pgAutoSaveThread();
     pgFinish();
 }
 
@@ -1037,6 +1272,7 @@ async function pgTryRescuePartial(stream, received, reason) {
     await stream.drain();
     pg.history.push({ role: 'assistant', content: received });
     pgFinalizeResponse(stream, received, {}, true);
+    pgAutoSaveThread();
     pgToast(reason ? ('Respuesta cortada: ' + reason) : 'La respuesta se cortó antes de terminar', 'warn');
     return true;
 }
@@ -1302,16 +1538,20 @@ function pgPushTemplate(html, isDoc) {
 /* Inserta la tarjeta-miniatura clicable al final de la burbuja del chat. */
 function pgAppendTemplateCard($msg, tpl) {
     if (!$msg || !$msg.length || !tpl) return;
+    const pinned = tpl.id === pg.pinnedTplId;
     const $card = $(`
         <div class="pg-chat-tpl${tpl.id === pg._activeTplId ? ' is-active' : ''}" data-tpl-id="${tpl.id}" title="Clic para ver en el sandbox">
-            <div class="pg-chat-tpl-thumb"><iframe class="pg-chat-tpl-frame" sandbox="allow-scripts" scrolling="no" tabindex="-1" aria-hidden="true"></iframe></div>
+            <div class="pg-chat-tpl-thumb">
+                <iframe class="pg-chat-tpl-frame" sandbox="allow-scripts" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>
+                <button type="button" class="pg-chat-tpl-thread" title="Abrir un hilo nuevo heredando este sandbox como contexto"><i data-lucide="git-branch" class="w-3.5 h-3.5"></i></button>
+            </div>
             <div class="pg-chat-tpl-info">
                 <span class="pg-chat-tpl-title">${pgEscape(tpl.title)}</span>
                 <span class="pg-chat-tpl-sub">${pgEscape(tpl.themeLabel)}</span>
                 <span class="pg-chat-tpl-actions">
-                    <span class="pg-chat-tpl-cta"><i data-lucide="eye" class="w-3 h-3"></i>Ver en el sandbox</span>
-                    <button type="button" class="pg-chat-tpl-pin${tpl.id === pg.pinnedTplId ? ' is-pinned' : ''}" title="Fijar este template como referencia: el próximo mensaje pedirá modificarlo"><i data-lucide="pin" class="w-3 h-3"></i><span class="pg-pin-label">${tpl.id === pg.pinnedTplId ? 'Fijado' : 'Fijar referencia'}</span></button>
-                    <button type="button" class="pg-chat-tpl-fork" title="Abrir un hilo nuevo heredando este sandbox como contexto"><i data-lucide="git-branch" class="w-3 h-3"></i>Bifurcar aquí</button>
+                    <button type="button" class="pg-tpl-ico pg-chat-tpl-view" title="Ver en el sandbox"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
+                    <button type="button" class="pg-tpl-ico pg-chat-tpl-pin${pinned ? ' is-pinned' : ''}" title="${pinned ? 'Fijado como referencia' : 'Fijar este template como referencia: el próximo mensaje pedirá modificarlo'}"><i data-lucide="pin" class="w-3.5 h-3.5"></i></button>
+                    <button type="button" class="pg-tpl-ico pg-chat-tpl-fork" title="Bifurcar: abrir un hilo nuevo heredando este sandbox como contexto"><i data-lucide="git-branch" class="w-3.5 h-3.5"></i></button>
                 </span>
             </div>
         </div>`);
@@ -1319,8 +1559,9 @@ function pgAppendTemplateCard($msg, tpl) {
     const fr = $card.find('.pg-chat-tpl-frame')[0];
     if (fr) fr.srcdoc = pgWrapHtml(tpl.html, tpl.theme, tpl.isDoc);
     $card.on('click', () => pgRestoreTemplate(tpl.id));
+    $card.find('.pg-chat-tpl-view').on('click', e => { e.stopPropagation(); pgRestoreTemplate(tpl.id); });
     $card.find('.pg-chat-tpl-pin').on('click', e => { e.stopPropagation(); pgTogglePinTemplate(tpl.id); });
-    $card.find('.pg-chat-tpl-fork').on('click', e => { e.stopPropagation(); pgForkFromTemplate(tpl.id); });
+    $card.find('.pg-chat-tpl-thread, .pg-chat-tpl-fork').on('click', e => { e.stopPropagation(); pgForkFromTemplate(tpl.id); });
     if (window.lucide) lucide.createIcons();
     pgScroll();
 }
@@ -1433,7 +1674,7 @@ function pgRefreshPinUI() {
         const card = $(this).closest('.pg-chat-tpl');
         const isPinned = card.data('tpl-id') === pg.pinnedTplId;
         $(this).toggleClass('is-pinned', isPinned);
-        $(this).find('.pg-pin-label').text(isPinned ? 'Fijado' : 'Fijar referencia');
+        $(this).attr('title', isPinned ? 'Fijado como referencia' : 'Fijar este template como referencia: el próximo mensaje pedirá modificarlo');
     });
     pgRenderPinBanner();
 }
@@ -1951,6 +2192,39 @@ function pgApplyZoom() {
 function pgSetZoom(z) {
     pg.zoom = Math.max(25, Math.min(200, Math.round(z / 5) * 5));   // 25%–200%, pasos de 5
     pgApplyZoom();
+    pgSaveSettings();
+}
+
+/* ── Viewport del preview (móvil / laptop / completo) ──
+ * Fija el ancho del iframe para previsualizar diseños responsive. 'full' deja el
+ * iframe al 100%; los demás centran un ancho concreto sobre un fondo de escritorio. */
+const PG_VIEWPORTS = {
+    mobile: { w: 390 },
+    laptop: { w: 1280 },
+    full:   { w: 0 }
+};
+function pgApplyViewport() {
+    const mode = PG_VIEWPORTS[pg.viewport] ? pg.viewport : 'full';
+    pg.viewport = mode;
+    const $body  = $('.pg-sandbox-body');
+    const $frame = $('#pgSandboxFrame');
+    const fixed  = mode !== 'full';
+    $body.toggleClass('pg-vp-fixed', fixed);
+    if (fixed) {
+        $body.css('--pg-vp-w', PG_VIEWPORTS[mode].w + 'px');
+    } else {
+        // Ancho completo: sin residuos del modo fijo; el iframe llena el contenedor.
+        $body.css('--pg-vp-w', '');
+        $frame.css({ width: '', height: '' });
+    }
+    $('.pg-vp-btn').each(function () {
+        $(this).toggleClass('is-active', $(this).data('vp') === mode);
+    });
+    pgApplyZoom();   // el iframe recargó/cambió de ancho: reaplica el zoom interno
+}
+function pgSetViewport(mode) {
+    pg.viewport = PG_VIEWPORTS[mode] ? mode : 'full';
+    pgApplyViewport();
     pgSaveSettings();
 }
 // Detecta si el HTML ya es un documento completo (head/tailwind/tema propios).

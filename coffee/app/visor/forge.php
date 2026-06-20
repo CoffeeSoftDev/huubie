@@ -415,6 +415,16 @@
                 </div>
                 <div id="fgBrowserList" class="fg-browser-list"></div>
 
+                <!-- Host/base del proyecto: tú decides con qué origen se abren
+                     SUS módulos (ej. http://localhost/ERP-GV/). Se guarda por
+                     proyecto y manda sobre la detección automática. -->
+                <div class="fg-open-row">
+                    <i data-lucide="server" class="w-4 h-4 fg-open-ic"></i>
+                    <input id="fgProjectBase" class="fg-open-input" placeholder="Host/base del proyecto (ej. http://localhost/ERP-GV/)" spellcheck="false" autocomplete="off">
+                    <button id="fgSaveBaseBtn" class="cs-btn cs-btn-primary cs-btn-sm" title="Guardar este host como base del proyecto">Guardar host</button>
+                    <button id="fgClearBaseBtn" class="cs-btn cs-btn-outline cs-btn-sm" title="Olvidar host y volver a la detección automática">Auto</button>
+                </div>
+
                 <!-- URL de apertura: editable porque muchas apps usan rutas
                      absolutas (ej. /alpha/) y no se sirven bajo /proyecto/. Se
                      prellena al pulsar "Abrir" en un archivo y se recuerda. -->

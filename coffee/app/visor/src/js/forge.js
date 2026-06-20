@@ -168,6 +168,7 @@ $(async () => {
     pgApplyCanvasUI();
     fgRenderModulePanel();
     await fgResumeThread();   // si había un hilo activo, lo retoma (diseño + conversación)
+    fgRestoreLastModule();    // reabre en Live el último módulo que se había abierto
     if (window.lucide) lucide.createIcons();
 });
 
@@ -1889,12 +1890,29 @@ function fgVhostUrlFor(project, relPath) {
     return location.protocol + '//' + best.server + '/' + rest;
 }
 
+// Base same-origin de www cuando el visor se sirve con docroot=www (p.ej.
+// localhost/huubie/coffee/app/visor/…). En ese caso CUALQUIER proyecto de www es
+// alcanzable bajo el MISMO origen que Forge (localhost/<project>/…), lo que
+// preserva "Recrear" (leer el DOM del iframe) y la herencia de cookies de sesión.
+// Devuelve '' si no es deducible (docroot=proyecto, p.ej. servido por vhost).
+function fgWwwOriginBase() {
+    const p = location.pathname;
+    const i = p.indexOf('/coffee/app/visor/');
+    const before = i >= 0 ? p.slice(0, i) : '';        // '/huubie' (docroot=www) o '' (docroot=proyecto)
+    const cont   = pg._container ? '/' + pg._container : '';
+    if (before && cont && before.toLowerCase() === cont.toLowerCase()) {
+        return location.origin + '/';                  // www vive en el origen actual
+    }
+    return '';
+}
+
 // URL de apertura propuesta para un archivo. Prioridad:
 //   1) base recordada por el usuario (override manual explícito),
-//   2) proyecto que aloja al visor → su mismo origen (preserva same-origin, así
-//      la recreación de componentes sigue funcionando aunque entres por localhost),
-//   3) vhost real detectado para esa ruta (auto, recorta el docroot),
-//   4) base del proyecto contenedor del visor (último recurso).
+//   2) proyecto que aloja al visor → su mismo origen,
+//   3) MISMO origen que Forge si www es alcanzable así (preserva Recrear +
+//      cookies de sesión; evita abrir el módulo en otro dominio),
+//   4) vhost real detectado para esa ruta (cuando no hay same-origin posible),
+//   5) base del proyecto contenedor del visor (último recurso).
 function fgComposeOpenUrl(project, relPath) {
     const rel    = String(relPath || '').replace(/^\/+/, '');
     const stored = localStorage.getItem('forge:openbase:' + project);
@@ -1903,10 +1921,15 @@ function fgComposeOpenUrl(project, relPath) {
         if (!/\/$/.test(base)) base += '/';
         return base + rel;
     }
-    if (project !== pg._container) {
-        const vurl = fgVhostUrlFor(project, rel);
-        if (vurl) return vurl;
+    if (project === pg._container) {
+        let base = fgContainerBase();
+        if (!/\/$/.test(base)) base += '/';
+        return base + rel;
     }
+    const wwwBase = fgWwwOriginBase();
+    if (wwwBase) return wwwBase + project + '/' + rel;
+    const vurl = fgVhostUrlFor(project, rel);
+    if (vurl) return vurl;
     let base = fgContainerBase();
     if (!/\/$/.test(base)) base += '/';
     return base + rel;
@@ -1932,7 +1955,9 @@ function fgOpenManualUrl() {
     fgLoadUrlInSandbox(url);
 }
 // Carga el módulo real en el iframe LIVE (separado del Preview de diseños).
-function fgLoadUrlInSandbox(url) {
+// `restore` = true cuando se reabre solo al iniciar Forge (recuerdo del último
+// módulo): no roba el foco del tab ni grita en el toast.
+function fgLoadUrlInSandbox(url, restore) {
     const fr = document.getElementById('fgLiveFrame');
     $('.pg-sandbox-body').css('background', '#0d1320');
     // Para "Recrear" hay que leer el DOM del iframe → solo si es mismo origen.
@@ -1942,12 +1967,33 @@ function fgLoadUrlInSandbox(url) {
     fr.src = url;
     pg._liveModule = { url, sameOrigin };
     $('#fgLiveDot').show();
+    // Recordar el último módulo abierto para reabrirlo en la próxima sesión.
+    try {
+        localStorage.setItem('forge:lastmodule', JSON.stringify({
+            url, project: pg._openProject || '', rel: pg._openRel || ''
+        }));
+    } catch (e) {}
+    if (restore) {
+        pgToast('Módulo recordado: ' + url, 'info');
+        return;   // al restaurar dejamos el tab donde esté; el dot avisa que hay Live
+    }
     $('.pg-tab[data-sbtab="live"]').click();
     fgCloseBrowser();   // cerramos para ver el resultado; el campo recuerda la URL
     pgToast('Módulo en vivo: ' + url, 'info');
     if (!sameOrigin) {
         pgToast('Ojo: el módulo está en otro dominio; "Recrear" no podrá copiarlo. Abre Forge en ' + (new URL(url, location.href)).origin, 'warn');
     }
+}
+// Reabre el último módulo que se cargó en Live (persistido en localStorage), de
+// modo que al volver a Forge el módulo siga disponible sin volver a navegarlo.
+function fgRestoreLastModule() {
+    let m = null;
+    try { m = JSON.parse(localStorage.getItem('forge:lastmodule') || 'null'); } catch (e) {}
+    if (!m || !m.url) return;
+    pg._openProject = m.project || null;
+    pg._openRel     = m.rel || '';
+    $('#fgOpenUrl').val(m.url);
+    fgLoadUrlInSandbox(m.url, true);
 }
 
 /* ── Recrear un componente del Live como template en Preview ──
@@ -2102,6 +2148,34 @@ function fgUpdateBaseHint() {
                                             `. Al abrir, Forge usará la URL real automáticamente.`;
     else                              msg = `Base propuesta: <code>${pgEscape(base)}</code>. Si <strong>${pgEscape(proj)}</strong> se sirve en otro vhost, ajusta la URL al abrir y se recordará.`;
     $('#fgBrowserBaseHint').html(msg);
+    // Reflejar la base efectiva (recordada o automática) en el campo editable.
+    $('#fgProjectBase').val(fgEffectiveBase(proj));
+}
+
+// Base (sin ruta de archivo) que se usaría hoy para abrir el proyecto: respeta el
+// override recordado y, si no hay, la que deduce fgComposeOpenUrl (same-origin / vhost).
+function fgEffectiveBase(project) {
+    return fgComposeOpenUrl(project, '');
+}
+// Guarda el host/base que el usuario escribió como override del proyecto. Gana
+// sobre la detección automática en todas las aperturas futuras de ese proyecto.
+function fgSaveProjectBase() {
+    const proj = pg._browseProject;
+    if (!proj) { pgToast('Elige un proyecto primero', 'warn'); return; }
+    let base = ($('#fgProjectBase').val() || '').trim();
+    if (!base) { pgToast('Escribe un host/base (ej. http://localhost/ERP-GV/)', 'warn'); return; }
+    if (!/\/$/.test(base)) base += '/';
+    localStorage.setItem('forge:openbase:' + proj, base);
+    fgUpdateBaseHint();
+    pgToast('Host guardado para ' + proj + ': ' + base, 'success');
+}
+// Olvida el override y vuelve a la detección automática (same-origin / vhost).
+function fgClearProjectBase() {
+    const proj = pg._browseProject;
+    if (!proj) return;
+    localStorage.removeItem('forge:openbase:' + proj);
+    fgUpdateBaseHint();
+    pgToast('Host en automático para ' + proj, 'info');
 }
 function fgCloseBrowser() {
     $('#fgBrowserModal').addClass('hidden').attr('aria-hidden', 'true');
@@ -2176,6 +2250,10 @@ function fgBind() {
     $('#fgBrowserModal .pg-modal-backdrop').on('click', () => fgCloseBrowser());
     $('#fgBrowserProject').on('change', e => { pg._browseProject = e.target.value || ''; fgUpdateBaseHint(); fgBrowseTo(''); });
     $('#fgOpenUrlBtn').on('click', () => fgOpenManualUrl());
+    // Host/base del proyecto: el usuario lo fija y se persiste con prioridad.
+    $('#fgSaveBaseBtn').on('click', () => fgSaveProjectBase());
+    $('#fgClearBaseBtn').on('click', () => fgClearProjectBase());
+    $('#fgProjectBase').on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fgSaveProjectBase(); } });
     $('#fgOpenUrl').on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fgOpenManualUrl(); } });
 
     // Recrear componente del Live → Preview.

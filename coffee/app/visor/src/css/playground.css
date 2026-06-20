@@ -174,6 +174,36 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sandbox-body { flex: 1; position: relative; min-height: 0; overflow: hidden; background: var(--vsr-bg-base); }
 .pg-sandbox-frame { width: 100%; height: 100%; border: none; display: block; }
 
+/* Viewport fijo (móvil/laptop): centra el iframe con un ancho concreto sobre un
+   fondo de "escritorio" para que se vea como un dispositivo. El ancho lo fija JS
+   en --pg-vp-w. En "full" no se aplica esta clase y el iframe ocupa el 100%. */
+.pg-sandbox-body.pg-vp-fixed {
+    overflow: auto;
+    display: flex; justify-content: center; align-items: flex-start;
+    padding: 14px 0;
+    background: var(--vsr-bg-chrome);
+}
+.pg-sandbox-body.pg-vp-fixed .pg-sandbox-frame {
+    flex: 0 0 auto;
+    width: var(--pg-vp-w, 390px);
+    max-width: 100%;
+    height: 100%;
+    background: #fff;
+    border-radius: 12px;
+}
+
+/* Selector de viewport: grupo de iconos con el activo en acento. */
+.pg-viewport { display: inline-flex; align-items: center; gap: 1px; }
+.pg-vp-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 26px; border-radius: 6px;
+    color: var(--vsr-text-muted);
+    background: transparent; border: none; cursor: pointer;
+    transition: color .12s ease, background .12s ease;
+}
+.pg-vp-btn:hover { color: var(--vsr-text-soft); background: var(--vsr-bg-hover); }
+.pg-vp-btn.is-active { color: var(--vsr-accent-soft); background: var(--vsr-accent-tint); }
+
 /* Control de zoom del preview */
 .pg-zoom { display: flex; align-items: center; gap: 1px; }
 .pg-zoom-label {
@@ -490,6 +520,27 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     transform: scale(0.1785); transform-origin: top left;
     pointer-events: none;
 }
+/* Botón "hilo" (bifurcar) sobre el visor de la card: abre un hilo nuevo
+   heredando este sandbox. Vive en el thumbnail (pointer-events:auto porque el
+   thumb los desactiva). Visible al hover de la card o si tiene foco. */
+.pg-chat-tpl-thread {
+    position: absolute; top: 6px; right: 6px; z-index: 2;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 7px;
+    color: #fff;
+    background: rgba(17, 24, 39, .72);
+    border: 1px solid rgba(255, 255, 255, .18);
+    cursor: pointer; pointer-events: auto;
+    opacity: 0; transform: translateY(-2px);
+    transition: opacity .14s ease, transform .14s ease, background .12s ease, border-color .12s ease;
+    backdrop-filter: blur(2px);
+}
+.pg-chat-tpl:hover .pg-chat-tpl-thread,
+.pg-chat-tpl-thread:focus-visible { opacity: 1; transform: translateY(0); }
+.pg-chat-tpl-thread:hover {
+    background: var(--vsr-accent);
+    border-color: var(--vsr-accent);
+}
 
 .pg-chat-tpl-info {
     display: flex; flex-direction: column; justify-content: center; gap: 3px;
@@ -500,47 +551,27 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .pg-chat-tpl-sub { font-size: 11px; color: var(--vsr-text-mute2); }
-.pg-chat-tpl-cta {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 11px; font-weight: 600; color: var(--vsr-accent-soft);
-}
 .pg-chat-tpl-actions {
-    display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 4px;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px;
 }
-/* Botón "Bifurcar aquí": chip discreto que abre un hilo nuevo heredando este
-   sandbox. pointer-events:auto porque la tarjeta contenedora captura el clic. */
-.pg-chat-tpl-fork {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 2px 8px; border-radius: 999px;
-    font-size: 11px; font-weight: 600; line-height: 1.6;
+/* Acciones de la card como iconos cuadrados (sin texto): ver, fijar, bifurcar.
+   pointer-events:auto porque la tarjeta contenedora captura el clic. El tooltip
+   (title) conserva el nombre de cada acción. */
+.pg-tpl-ico {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px;
     color: var(--vsr-text-mute2);
     background: var(--vsr-bg-base);
     border: 1px solid var(--vsr-border-soft);
     cursor: pointer; pointer-events: auto;
     transition: color .12s ease, border-color .12s ease, background .12s ease;
 }
-.pg-chat-tpl-fork:hover {
+.pg-tpl-ico:hover {
     color: var(--vsr-accent-soft);
     border-color: var(--vsr-accent-soft);
     background: var(--vsr-bg-hover, var(--vsr-bg-base));
 }
-
-/* Botón "Fijar referencia": mismo chip que el fork. is-pinned = activo (acento). */
-.pg-chat-tpl-pin {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 2px 8px; border-radius: 999px;
-    font-size: 11px; font-weight: 600; line-height: 1.6;
-    color: var(--vsr-text-mute2);
-    background: var(--vsr-bg-base);
-    border: 1px solid var(--vsr-border-soft);
-    cursor: pointer; pointer-events: auto;
-    transition: color .12s ease, border-color .12s ease, background .12s ease;
-}
-.pg-chat-tpl-pin:hover {
-    color: var(--vsr-accent-soft);
-    border-color: var(--vsr-accent-soft);
-    background: var(--vsr-bg-hover, var(--vsr-bg-base));
-}
+/* "Fijar referencia" activo: acento sólido. */
 .pg-chat-tpl-pin.is-pinned {
     color: #fff;
     background: var(--vsr-accent);
@@ -774,14 +805,56 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
         transform: scale(0.34); transform-origin: top left;
     }
     .pg-chat-tpl-info { justify-content: flex-start; }
-    /* Acciones: cada una como chip táctil, en una fila que envuelve si hace falta. */
+    /* Acciones: iconos un poco más grandes para tacto cómodo. */
     .pg-chat-tpl-actions { gap: 8px; }
-    .pg-chat-tpl-cta,
-    .pg-chat-tpl-pin,
-    .pg-chat-tpl-fork {
-        padding: 6px 11px; font-size: 11.5px; border-radius: 999px;
-        border: 1px solid var(--vsr-border-soft);
-        background: var(--vsr-bg-base);
-    }
-    .pg-chat-tpl-cta { color: var(--vsr-accent-soft); border-color: transparent; background: var(--vsr-accent-tint); }
+    .pg-tpl-ico { width: 34px; height: 34px; }
+    /* El botón de hilo sobre el visor queda siempre visible en táctil. */
+    .pg-chat-tpl-thread { opacity: 1; transform: none; width: 30px; height: 30px; }
 }
+
+/* ── Hilos de conversación ── */
+.pg-pane-head-actions { display: flex; align-items: center; gap: 4px; }
+
+.pg-thread-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--vsr-accent-tint); color: var(--vsr-accent-soft);
+    font-size: 11px; font-weight: 600; max-width: 220px;
+    border: 1px solid var(--vsr-accent-tint);
+}
+.pg-thread-chip.hidden { display: none; }
+.pg-thread-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pg-threads-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 12px;
+}
+.pg-threads-list { display: flex; flex-direction: column; gap: 7px; max-height: 52vh; overflow-y: auto; }
+
+.pg-thread-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 9px; cursor: pointer;
+    background: var(--vsr-bg-card); border: 1px solid var(--vsr-border-soft);
+    transition: all .15s;
+}
+.pg-thread-item:hover { border-color: var(--vsr-accent); background: var(--vsr-bg-hover); }
+.pg-thread-item.is-active { border-color: var(--vsr-accent); background: var(--vsr-accent-tint); }
+.pg-thread-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pg-thread-title {
+    font-size: 13px; font-weight: 600; color: var(--vsr-text-soft);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pg-thread-meta {
+    display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+    font-size: 11px; color: var(--vsr-text-muted);
+}
+.pg-thread-meta i { display: inline-block; vertical-align: middle; }
+
+.pg-thread-del {
+    flex-shrink: 0; display: grid; place-items: center;
+    width: 28px; height: 28px; border-radius: 7px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--vsr-text-muted); cursor: pointer; transition: all .15s;
+}
+.pg-thread-del:hover { background: var(--vsr-bg-hover); color: #ef4444; }
+.pg-thread-del.is-armed { background: #ef4444; color: #fff; border-color: #ef4444; }

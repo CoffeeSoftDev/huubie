@@ -1,0 +1,643 @@
+<div class="flex h-screen w-full bg-[#F8F9FB] text-[#1F2937] font-sans overflow-hidden">
+  <!-- Main -->
+  <div class="flex-1 flex flex-col min-w-0">
+    <header class="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-3 shrink-0">
+      <div class="flex items-center gap-2">
+        <span class="text-[#E85A5A] font-bold text-sm">Visor de Agentes</span>
+        <span class="text-[10px] text-gray-400 uppercase tracking-wide hidden sm:inline">DOCUMENTS</span>
+        <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[11px] font-medium">13 archivos</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btn-refresh" class="h-8 px-3 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium flex items-center gap-1.5 hover:border-gray-300 transition">
+          <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+          Refrescar
+        </button>
+        <div class="flex items-center gap-2 pl-2 border-l border-gray-200">
+          <div class="w-7 h-7 rounded-full bg-[#7C3AED] text-white flex items-center justify-center text-xs font-bold">RV</div>
+          <div class="hidden sm:block leading-tight">
+            <div class="text-xs font-medium text-gray-700">Rosy V.</div>
+            <div class="text-[10px] text-gray-400">Guardiana</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="flex-1 flex min-h-0 overflow-hidden">
+      <div class="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0">
+        <div class="p-3 border-b border-gray-200">
+          <select id="project-selector" class="w-full h-8 px-3 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 focus:outline-none focus:border-[#E85A5A]">
+            <option value="all">Todos los proyectos</option>
+            <option value="encuestas">Encuestas</option>
+            <option value="contabilidad">Contabilidad</option>
+            <option value="inventarios">Inventarios</option>
+          </select>
+        </div>
+
+        <div class="flex-1 flex flex-col min-h-0">
+          <div class="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+            <div class="flex items-center gap-1.5">
+              <button id="btn-back" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-600 bg-white border border-gray-200 hover:border-[#E85A5A] hover:text-[#E85A5A] transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:text-gray-600" disabled title="Atrás">
+                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+              </button>
+              <div class="leading-tight">
+                <div class="text-[10px] text-gray-400 uppercase tracking-wider font-medium">Carpeta</div>
+                <div id="breadcrumb-current" class="text-xs font-semibold text-gray-800">Proyectos</div>
+              </div>
+            </div>
+            <button id="btn-new-folder" class="w-7 h-7 rounded-lg flex items-center justify-center bg-[#E85A5A] text-white hover:bg-[#D44A4A] transition shadow-sm" title="Nueva carpeta">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+          
+          <div id="folders-container" class="flex-1 overflow-y-auto p-4"></div>
+        </div>
+      </div>
+
+      <div class="flex-1 flex flex-col min-w-0 bg-[#F8F9FB]">
+        <div class="h-11 bg-white border-b border-gray-200 flex items-center justify-between px-4">
+          <div class="flex items-center gap-2 text-xs text-gray-500">
+            <span>documents</span><span>/</span><span id="doc-folder">encuestas</span><span>/</span><span id="doc-name" class="text-gray-800 font-medium">features-encuestas.md</span>
+          </div>
+          <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+            <button class="tab-btn px-3 py-1 rounded-md text-xs font-medium bg-[#E85A5A] text-white" data-tab="render">Renderizado</button>
+            <button class="tab-btn px-3 py-1 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700" data-tab="raw">Raw</button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-5">
+          <div class="max-w-3xl mx-auto bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+            <div id="doc-render" class="prose prose-sm max-w-none"></div>
+            <pre id="doc-raw" class="hidden text-xs font-mono text-gray-600 whitespace-pre-wrap"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: New Folder -->
+  <div id="modal-new-folder" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+        <h3 class="text-sm font-semibold text-gray-800">Nueva carpeta virtual</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+      </div>
+      <div class="p-4 space-y-3">
+        <div>
+          <label class="block text-[11px] font-medium text-gray-500 uppercase mb-1">Nombre</label>
+          <input id="new-folder-name" type="text" class="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#E85A5A]" placeholder="Ej: Evaluación 360">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium text-gray-500 uppercase mb-1">Proyecto</label>
+          <select id="new-folder-project" class="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:border-[#E85A5A]">
+            <option value="encuestas">Encuestas</option>
+            <option value="contabilidad">Contabilidad</option>
+            <option value="inventarios">Inventarios</option>
+          </select>
+        </div>
+      </div>
+      <div class="px-4 py-3 border-t border-gray-200 bg-gray-50 flex justify-end gap-2">
+        <button class="modal-close h-8 px-3 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
+        <button id="btn-create-folder" class="h-8 px-3 rounded-lg bg-[#E85A5A] text-white text-xs font-medium hover:bg-[#D44A4A]">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder Inspector Modal -->
+  <div id="modal-folder-inspector" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="relative h-24 bg-gradient-to-br from-[#E85A5A] to-[#D44A4A] flex items-end px-5 pb-3">
+        <button class="inspector-close absolute top-3 right-3 text-white/80 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <div class="flex items-center gap-3 text-white">
+          <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+            <i data-lucide="folder-open" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-white/70 font-medium">Carpeta virtual</div>
+            <input id="inspector-name" type="text" class="text-lg font-bold bg-transparent border-b border-transparent hover:border-white/30 focus:border-white focus:outline-none w-full mt-0.5">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-5">
+        <div class="grid grid-cols-3 gap-3 mb-5">
+          <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+            <div class="text-[10px] uppercase text-gray-400 font-medium mb-1">Proyecto</div>
+            <select id="inspector-project" class="text-sm font-medium text-gray-800 bg-transparent border-none p-0 focus:outline-none focus:ring-0 w-full">
+              <option value="encuestas">Encuestas</option>
+              <option value="contabilidad">Contabilidad</option>
+              <option value="inventarios">Inventarios</option>
+            </select>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+            <div class="text-[10px] uppercase text-gray-400 font-medium mb-1">Documentos</div>
+            <div id="inspector-count" class="text-lg font-bold text-gray-800">0</div>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+            <div class="text-[10px] uppercase text-gray-400 font-medium mb-1">Tamaño total</div>
+            <div id="inspector-size" class="text-lg font-bold text-gray-800">0 B</div>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Descripción</label>
+          <textarea id="inspector-description" rows="2" class="w-full text-xs text-gray-700 bg-gray-50 border border-gray-100 rounded-lg p-2 focus:outline-none focus:border-[#E85A5A] resize-none" placeholder="Notas o contexto del agrupamiento..."></textarea>
+        </div>
+
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Documentos relacionados</h4>
+          <button id="btn-inspector-add" class="text-[10px] text-[#E85A5A] font-medium hover:underline flex items-center gap-1">
+            <i data-lucide="plus" class="w-3 h-3"></i>
+            Agregar
+          </button>
+        </div>
+
+        <div id="inspector-docs" class="space-y-1.5"></div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+        <button id="btn-inspector-delete" class="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1">
+          <i data-lucide="trash-2" class="w-3 h-3"></i>
+          Eliminar carpeta
+        </button>
+        <div class="flex gap-2">
+          <button class="inspector-close h-8 px-3 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200">Cerrar</button>
+          <button id="btn-inspector-save" class="h-8 px-3 rounded-lg bg-[#E85A5A] text-white text-xs font-medium hover:bg-[#D44A4A]">Guardar cambios</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    (function() {
+      const $ = (sel) => document.querySelector(sel);
+      const $$ = (sel) => document.querySelectorAll(sel);
+
+      const files = [
+        { id: 'f1', name: 'features-encuestas.md', folder: 'encuestas', project: 'encuestas', size: '867 B', icon: 'file-text', content: '**MODULO - ENCUESTAS REALIZADAS**\n\n**Contenedor layout**\n- Verificar que el visor sea adaptado a una tablet.\n\n**Visor de encuesta**\n- Quitar el color de calificación dejarlo en color negro\n- Debajo del puesto de la columna responsable agregar a la persona encargada\n- Cambiar el diseño del contenedor de datos', sections: ['MODULO - ENCUESTAS REALIZADAS', 'MODULO - REPORTE DE ENCUESTAS'] },
+        { id: 'f2', name: 'reporte-encuestas.md', folder: 'encuestas', project: 'encuestas', size: '1.2 KB', icon: 'bar-chart-3', content: '**MODULO - REPORTE DE ENCUESTAS**\n\n- Resumen de calificaciones por gerente\n- Exportar a Excel\n- Filtros por periodo', sections: ['MODULO - REPORTE DE ENCUESTAS'] },
+        { id: 'f3', name: 'diagrama-encuestas.mmd', folder: 'encuestas', project: 'encuestas', size: '2.4 KB', icon: 'git-branch', content: 'graph TD\n    A[Inicio encuesta] --> B{¿Gerente?}', sections: ['Diagrama de flujo'] },
+        { id: 'f4', name: 'features-contabilidad.md', folder: 'contabilidad', project: 'contabilidad', size: '945 B', icon: 'calculator', content: '**MODULO - CONTABILIDAD**\n\n- Libro mayor\n- Balance general\n- Estado de resultados', sections: ['MODULO - CONTABILIDAD'] },
+        { id: 'f5', name: 'flujo-contabilidad.mmd', folder: 'contabilidad', project: 'contabilidad', size: '1.8 KB', icon: 'workflow', content: 'graph TD\n    A[Asiento contable] --> B[Validación]', sections: ['Flujo contable'] },
+        { id: 'f6', name: 'features-inventarios.md', folder: 'inventarios', project: 'inventarios', size: '1.1 KB', icon: 'package', content: '**MODULO - INVENTARIOS**\n\n- Entradas y salidas\n- Kardex\n- Ajustes de inventario', sections: ['MODULO - INVENTARIOS'] }
+      ];
+
+      let folders = [
+        { id: 'v1', name: 'Evaluación 360', project: 'encuestas', icon: 'clipboard-check', description: 'Documentos de evaluación 360°.', docs: ['f1', 'f3'] },
+        { id: 'v2', name: 'Reportes Q3', project: 'encuestas', icon: 'pie-chart', description: '', docs: ['f2'] },
+        { id: 'v3', name: 'Libro Mayor', project: 'contabilidad', icon: 'book-open', description: '', docs: ['f4', 'f5'] },
+        { id: 'v4', name: 'Kardex y Ajustes', project: 'inventarios', icon: 'boxes', description: '', docs: ['f6'] }
+      ];
+
+      let currentFileId = 'f1';
+      let currentProject = 'all';
+      let activeFolderId = null;
+      let historyStack = [];
+      let activeFolderId_for_inspector = null;
+
+      function parseSize(str) {
+        const m = str.match(/^([\d.]+)\s*(B|KB|MB)$/);
+        if (!m) return 0;
+        const n = parseFloat(m[1]);
+        return n * (m[2] === 'MB' ? 1024 * 1024 : m[2] === 'KB' ? 1024 : 1);
+      }
+
+      function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+
+      function simpleMarkdown(text) {
+        return text
+          .replace(/\*\*(.*?)\*\*/g, '<strong class="text-gray-900">$1</strong>')
+          .replace(/^-\s+(.*$)/gim, '<li class="ml-4 text-gray-600 text-sm leading-relaxed">$1</li>')
+          .replace(/^(?!<li>)(.*$)/gim, '<p class="text-sm text-gray-600 mb-2 leading-relaxed">$1</p>');
+      }
+
+      function getProjectColor(val) {
+        const map = { 
+          encuestas: { main: '#E85A5A', light: 'rgba(232,90,90,0.12)', bg: 'rgba(232,90,90,0.06)', border: 'rgba(232,90,90,0.3)' }, 
+          contabilidad: { main: '#3B82F6', light: 'rgba(59,130,246,0.12)', bg: 'rgba(59,130,246,0.06)', border: 'rgba(59,130,246,0.3)' }, 
+          inventarios: { main: '#10B981', light: 'rgba(16,185,129,0.12)', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.3)' } 
+        };
+        return map[val] || { main: '#6B7280', light: 'rgba(107,114,128,0.12)', bg: 'rgba(107,114,128,0.06)', border: 'rgba(107,114,128,0.3)' };
+      }
+
+      function getFileColor(name) {
+        if (name.endsWith('.mmd')) return { main: '#8B5CF6', light: 'rgba(139,92,246,0.12)' };
+        if (name.endsWith('.pdf')) return { main: '#EF4444', light: 'rgba(239,68,68,0.12)' };
+        if (name.endsWith('.xlsx') || name.endsWith('.csv')) return { main: '#10B981', light: 'rgba(16,185,129,0.12)' };
+        return { main: '#3B82F6', light: 'rgba(59,130,246,0.12)' };
+      }
+
+      function renderDocument() {
+        const f = files.find(x => x.id === currentFileId);
+        if (!f) return;
+        $('#doc-folder').textContent = f.folder;
+        $('#doc-name').textContent = f.name;
+        $('#fm-name').textContent = f.name.replace('.md', '').replace('.mmd', '');
+        $('#fm-date').textContent = '2026-06-20';
+        $('#fm-size').textContent = f.size;
+        $('#doc-render').innerHTML = simpleMarkdown(f.content);
+        $('#doc-raw').textContent = f.content;
+        
+        const list = $('#content-list');
+        list.innerHTML = f.sections.map(s => `<li class="hover:text-gray-700 cursor-pointer">${s}</li>`).join('');
+      }
+
+      // === BIG VISUAL FOLDER (Windows/Android style) ===
+      function renderFolders() {
+        const container = $('#folders-container');
+        container.innerHTML = '';
+        
+        const currentFolder = activeFolderId ? folders.find(f => f.id === activeFolderId) : null;
+        $('#breadcrumb-current').textContent = currentFolder ? currentFolder.name : 'Proyectos';
+        $('#btn-back').disabled = historyStack.length === 0;
+        
+        if (!currentFolder) {
+          // === ROOT: show big folder visual with all sub-folders as icons inside ===
+          const projectFolders = currentProject === 'all' 
+            ? folders 
+            : folders.filter(f => f.project === currentProject);
+          
+          if (projectFolders.length === 0) {
+            container.innerHTML = `<div class="text-center py-12 text-gray-400 text-[11px]">No hay carpetas.<br>Pulsa <span class="inline-flex items-center justify-center w-4 h-4 rounded bg-[#E85A5A] text-white align-middle mx-0.5"><i data-lucide="plus" class="w-2.5 h-2.5"></i></span> para crear la primera.</div>`;
+            if (window.lucide) lucide.createIcons();
+            return;
+          }
+
+          projectFolders.forEach(folder => {
+            const colors = getProjectColor(folder.project);
+            const docFiles = folder.docs.map(id => files.find(f => f.id === id)).filter(Boolean);
+            
+            // Build the BIG folder visual
+            const card = document.createElement('div');
+            card.className = 'folder-card group relative mb-3 cursor-pointer transition-all duration-200 hover:-translate-y-0.5';
+            card.dataset.folder = folder.id;
+            card.innerHTML = `
+              <div class="relative rounded-2xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-all hover:shadow-xl bg-gradient-to-br from-white to-gray-50">
+                <!-- Folder tab (Windows-style) -->
+                <div class="relative h-7 flex items-end px-3" style="background: linear-gradient(180deg, ${colors.light} 0%, transparent 100%);">
+                  <div class="flex items-center gap-1.5 px-3 py-1 rounded-t-lg" style="background: ${colors.main};">
+                    <i data-lucide="${folder.icon || 'folder'}" class="w-3 h-3 text-white"></i>
+                    <span class="text-[10px] font-semibold text-white tracking-wide">${folder.name}</span>
+                  </div>
+                  <div class="ml-auto flex items-center gap-1.5 pb-1">
+                    <span class="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style="background: ${colors.light}; color: ${colors.main};">${folder.docs.length} doc${folder.docs.length === 1 ? '' : 's'}</span>
+                    <button class="folder-inspect w-5 h-5 rounded-md flex items-center justify-center text-gray-400 hover:bg-white hover:text-gray-700 transition opacity-0 group-hover:opacity-100" data-folder="${folder.id}" title="Inspeccionar">
+                      <i data-lucide="settings-2" class="w-3 h-3"></i>
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Body with icons grid -->
+                <div class="p-3">
+                  ${docFiles.length === 0 ? `
+                    <div class="flex flex-col items-center justify-center py-6 text-gray-300">
+                      <i data-lucide="folder-open" class="w-10 h-10 mb-1" style="color: ${colors.main}; opacity: 0.3;"></i>
+                      <span class="text-[10px] text-gray-400">Carpeta vacía</span>
+                    </div>
+                  ` : `
+                    <div class="grid grid-cols-3 gap-2">
+                      ${docFiles.map(f => {
+                        const fc = getFileColor(f.name);
+                        return `<div class="folder-icon-item flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 cursor-pointer transition" data-file="${f.id}">
+                          <div class="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm border border-gray-100" style="background: ${fc.light};">
+                            <i data-lucide="${f.icon || 'file'}" class="w-5 h-5" style="color: ${fc.main};"></i>
+                          </div>
+                          <span class="text-[9px] text-gray-600 truncate w-full text-center leading-tight">${f.name.replace(/\.(md|mmd|pdf|xlsx|csv)$/, '')}</span>
+                        </div>`;
+                      }).join('')}
+                      <!-- Add tile to hint growth -->
+                      <div class="flex flex-col items-center gap-1 p-2 rounded-lg border-2 border-dashed border-gray-200 text-gray-300">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-50">
+                          <i data-lucide="plus" class="w-4 h-4"></i>
+                        </div>
+                        <span class="text-[9px]">Agregar</span>
+                      </div>
+                    </div>
+                  `}
+                </div>
+                
+                <!-- Footer hint -->
+                <div class="px-3 pb-2 flex items-center justify-between text-[9px] text-gray-400">
+                  <span class="flex items-center gap-1">
+                    <i data-lucide="folder" class="w-2.5 h-2.5" style="color: ${colors.main};"></i>
+                    ${docFiles.reduce((sum, f) => sum + parseSize(f.size), 0) > 0 ? formatSize(docFiles.reduce((sum, f) => sum + parseSize(f.size), 0)) : '0 B'}
+                  </span>
+                  <span class="flex items-center gap-1">
+                    Toca para abrir
+                    <i data-lucide="arrow-right" class="w-2.5 h-2.5"></i>
+                  </span>
+                </div>
+              </div>
+            `;
+            container.appendChild(card);
+          });
+
+        } else {
+          // === INSIDE A FOLDER: detailed list ===
+          const docFiles = currentFolder.docs.map(id => files.find(f => f.id === id)).filter(Boolean);
+          const folderColor = getProjectColor(currentFolder.project);
+          
+          // Folder header (compact)
+          const header = document.createElement('div');
+          header.className = 'mb-3 p-3 rounded-xl border';
+          header.style.background = folderColor.light;
+          header.style.borderColor = folderColor.border;
+          header.innerHTML = `
+            <div class="flex items-center gap-2">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm" style="background: ${folderColor.main};">
+                <i data-lucide="${currentFolder.icon || 'folder-open'}" class="w-5 h-5 text-white"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-bold text-gray-800 truncate">${currentFolder.name}</div>
+                <div class="text-[10px] text-gray-500">${docFiles.length} archivo${docFiles.length === 1 ? '' : 's'}</div>
+              </div>
+              <button id="btn-inspect-from-list" class="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#E85A5A] hover:border-[#E85A5A] transition" title="Inspeccionar carpeta">
+                <i data-lucide="info" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          `;
+          container.appendChild(header);
+
+          if (docFiles.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'text-center py-8 text-gray-400 text-[11px]';
+            empty.innerHTML = `<i data-lucide="folder-open" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i>Esta carpeta está vacía.`;
+            container.appendChild(empty);
+          } else {
+            const list = document.createElement('div');
+            list.className = 'space-y-1.5';
+            docFiles.forEach(f => {
+              const fc = getFileColor(f.name);
+              const active = f.id === currentFileId;
+              const item = document.createElement('button');
+              item.className = `doc-item w-full flex items-center gap-3 p-2.5 rounded-xl border transition text-left ${active ? 'border-[#E85A5A] bg-red-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}`;
+              item.dataset.file = f.id;
+              item.innerHTML = `
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm shrink-0" style="background: ${fc.light};">
+                  <i data-lucide="${f.icon || 'file'}" class="w-5 h-5" style="color: ${fc.main};"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold ${active ? 'text-[#E85A5A]' : 'text-gray-800'} truncate">${f.name}</div>
+                  <div class="text-[10px] text-gray-400 flex items-center gap-1.5">
+                    <span>${f.folder}</span>
+                    <span>•</span>
+                    <span>${f.size}</span>
+                  </div>
+                </div>
+                ${active ? '<i data-lucide="check-circle-2" class="w-4 h-4 text-[#E85A5A]"></i>' : '<i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i>'}
+              `;
+              list.appendChild(item);
+            });
+            container.appendChild(list);
+          }
+        }
+
+        // Click handlers
+        $$('.folder-card').forEach(card => {
+          card.onclick = (e) => {
+            if (e.target.closest('.folder-inspect') || e.target.closest('.folder-icon-item')) return;
+            const id = card.dataset.folder;
+            historyStack.push(activeFolderId);
+            activeFolderId = id;
+            renderFolders();
+          };
+        });
+
+        $$('.folder-inspect').forEach(btn => {
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            openFolderInspector(btn.dataset.folder);
+          };
+        });
+
+        const inspectFromList = $('#btn-inspect-from-list');
+        if (inspectFromList) {
+          inspectFromList.onclick = () => openFolderInspector(activeFolderId);
+        }
+
+        $$('.folder-icon-item').forEach(item => {
+          item.onclick = (e) => {
+            e.stopPropagation();
+            currentFileId = item.dataset.file;
+            // also navigate into the folder
+            const folderId = item.closest('.folder-card').dataset.folder;
+            if (activeFolderId !== folderId) {
+              historyStack.push(activeFolderId);
+              activeFolderId = folderId;
+            }
+            renderDocument();
+            renderFolders();
+          };
+        });
+
+        $$('.doc-item').forEach(item => {
+          item.onclick = () => {
+            currentFileId = item.dataset.file;
+            renderDocument();
+            renderFolders();
+          };
+        });
+
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function goBack() {
+        if (historyStack.length === 0) return;
+        activeFolderId = historyStack.pop();
+        renderFolders();
+      }
+
+      function openFolderInspector(folderId) {
+        const folder = folders.find(f => f.id === folderId);
+        if (!folder) return;
+        activeFolderId_for_inspector = folderId;
+        
+        $('#inspector-name').value = folder.name;
+        $('#inspector-project').value = folder.project;
+        $('#inspector-description').value = folder.description || '';
+        $('#inspector-count').textContent = folder.docs.length;
+        
+        const totalSize = folder.docs.reduce((sum, id) => {
+          const f = files.find(x => x.id === id);
+          return sum + (f ? parseSize(f.size) : 0);
+        }, 0);
+        $('#inspector-size').textContent = formatSize(totalSize);
+        
+        renderInspectorDocs();
+        $('#modal-folder-inspector').classList.remove('hidden');
+        $('#modal-folder-inspector').classList.add('flex');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function closeFolderInspector() {
+        $('#modal-folder-inspector').classList.add('hidden');
+        $('#modal-folder-inspector').classList.remove('flex');
+        activeFolderId_for_inspector = null;
+      }
+
+      function renderInspectorDocs() {
+        const folder = folders.find(f => f.id === activeFolderId_for_inspector);
+        if (!folder) return;
+        const container = $('#inspector-docs');
+        
+        if (folder.docs.length === 0) {
+          container.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs border border-dashed border-gray-200 rounded-lg">Sin documentos.</div>`;
+          return;
+        }
+        
+        container.innerHTML = folder.docs.map(docId => {
+          const f = files.find(x => x.id === docId);
+          if (!f) return '';
+          const fc = getFileColor(f.name);
+          return `<div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-200 transition group">
+            <div class="w-8 h-8 rounded-md flex items-center justify-center shrink-0" style="background: ${fc.light};">
+              <i data-lucide="${f.icon || 'file'}" class="w-4 h-4" style="color: ${fc.main};"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-medium text-gray-800 truncate">${f.name}</div>
+              <div class="text-[10px] text-gray-400">${f.folder} · ${f.size}</div>
+            </div>
+            <button class="remove-doc opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 p-1 transition" data-id="${f.id}">
+              <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+          </div>`;
+        }).join('');
+
+        container.querySelectorAll('.remove-doc').forEach(btn => {
+          btn.onclick = () => {
+            folder.docs = folder.docs.filter(id => id !== btn.dataset.id);
+            renderInspectorDocs();
+            $('#inspector-count').textContent = folder.docs.length;
+            const totalSize = folder.docs.reduce((sum, id) => {
+              const f = files.find(x => x.id === id);
+              return sum + (f ? parseSize(f.size) : 0);
+            }, 0);
+            $('#inspector-size').textContent = formatSize(totalSize);
+            renderFolders();
+            if (window.lucide) lucide.createIcons();
+          };
+        });
+        if (window.lucide) lucide.createIcons();
+      }
+
+      // Events
+      $('#project-selector').onchange = (e) => {
+        currentProject = e.target.value;
+        activeFolderId = null;
+        historyStack = [];
+        renderFolders();
+      };
+
+      $('#btn-back').onclick = goBack;
+
+      $$('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+          const tab = btn.dataset.tab;
+          $$('.tab-btn').forEach(b => {
+            b.classList.toggle('bg-[#E85A5A]', b.dataset.tab === tab);
+            b.classList.toggle('text-white', b.dataset.tab === tab);
+            b.classList.toggle('text-gray-500', b.dataset.tab !== tab);
+          });
+          $('#doc-render').classList.toggle('hidden', tab !== 'render');
+          $('#doc-raw').classList.toggle('hidden', tab !== 'raw');
+        };
+      });
+
+      $('#btn-new-folder').onclick = () => {
+        $('#new-folder-name').value = '';
+        $('#new-folder-project').value = currentProject === 'all' ? 'encuestas' : currentProject;
+        $('#modal-new-folder').classList.remove('hidden');
+        $('#modal-new-folder').classList.add('flex');
+      };
+
+      $('#btn-create-folder').onclick = () => {
+        const name = $('#new-folder-name').value.trim();
+        if (!name) return;
+        const project = $('#new-folder-project').value;
+        const newId = 'v' + Date.now();
+        folders.push({ id: newId, name, project, icon: 'folder', description: '', docs: [] });
+        $('#modal-new-folder').classList.add('hidden');
+        $('#modal-new-folder').classList.remove('flex');
+        if (currentProject !== 'all' && currentProject !== project) {
+          currentProject = project;
+          $('#project-selector').value = project;
+        }
+        renderFolders();
+        openFolderInspector(newId);
+      };
+
+      $$('.inspector-close').forEach(btn => {
+        btn.onclick = closeFolderInspector;
+      });
+
+      $('#btn-inspector-save').onclick = () => {
+        const folder = folders.find(f => f.id === activeFolderId_for_inspector);
+        if (!folder) return;
+        const newName = $('#inspector-name').value.trim();
+        if (newName) folder.name = newName;
+        folder.project = $('#inspector-project').value;
+        folder.description = $('#inspector-description').value;
+        if (currentProject !== 'all' && currentProject !== folder.project) {
+          currentProject = folder.project;
+          $('#project-selector').value = folder.project;
+        }
+        renderFolders();
+        closeFolderInspector();
+      };
+
+      $('#btn-inspector-delete').onclick = () => {
+        if (!confirm('¿Eliminar esta carpeta virtual?')) return;
+        folders = folders.filter(f => f.id !== activeFolderId_for_inspector);
+        if (activeFolderId === activeFolderId_for_inspector) {
+          activeFolderId = null;
+          historyStack = [];
+        }
+        renderFolders();
+        closeFolderInspector();
+      };
+
+      $('#btn-inspector-add').onclick = () => {
+        const folder = folders.find(f => f.id === activeFolderId_for_inspector);
+        if (!folder) return;
+        const available = files.filter(f => f.project === folder.project && !folder.docs.includes(f.id));
+        if (available.length === 0) {
+          alert('No hay más documentos disponibles.');
+          return;
+        }
+        const docName = prompt('Nombre del documento:\nDisponibles: ' + available.map(d => d.name).join(', '));
+        if (!docName) return;
+        const match = available.find(d => d.name.toLowerCase().includes(docName.toLowerCase()));
+        if (match) {
+          folder.docs.push(match.id);
+          renderInspectorDocs();
+          $('#inspector-count').textContent = folder.docs.length;
+          const totalSize = folder.docs.reduce((sum, id) => {
+            const f = files.find(x => x.id === id);
+            return sum + (f ? parseSize(f.size) : 0);
+          }, 0);
+          $('#inspector-size').textContent = formatSize(totalSize);
+          renderFolders();
+        } else {
+          alert('No se encontró el documento.');
+        }
+      };
+
+      $$('.modal-close').forEach(btn => {
+        btn.onclick = () => {
+          $('#modal-new-folder').classList.add('hidden');
+          $('#modal-new-folder').classList.remove('flex');
+        };
+      });
+
+      // Init
+      renderDocument();
+      renderFolders();
+      if (window.lucide) lucide.createIcons();
+    })();
+  </script>
+</div>

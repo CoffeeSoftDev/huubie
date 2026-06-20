@@ -130,10 +130,22 @@
                 <div class="pg-pane-title">
                     <i id="pgChatAgentIcon" data-lucide="sparkles" class="w-4 h-4"></i>
                     <span id="pgChatAgentName">CoffeeIA</span>
+                    <span id="pgThreadChip" class="pg-thread-chip hidden" title="Hilo activo">
+                        <i data-lucide="git-branch" class="w-3 h-3"></i>
+                        <span id="pgThreadChipTitle">Hilo</span>
+                    </span>
                 </div>
-                <button id="pgResetBtn" class="pg-iconbtn" title="Reiniciar conversación">
-                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                </button>
+                <div class="pg-pane-head-actions">
+                    <button id="pgNewThreadBtn" class="pg-iconbtn" title="Nuevo hilo de conversación">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="pgThreadsBtn" class="pg-iconbtn" title="Hilos guardados">
+                        <i data-lucide="messages-square" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="pgResetBtn" class="pg-iconbtn" title="Reiniciar conversación">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
             </header>
 
             <div id="pgChatBody" class="pg-chat-body">
@@ -192,6 +204,14 @@
                         <button id="pgZoomLabel" class="pg-zoom-label" title="Restablecer a 100%">100%</button>
                         <button id="pgZoomIn" class="pg-iconbtn" title="Acercar"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
                     </div>
+
+                    <!-- Viewport del preview: ancho fijo móvil/laptop o completo. -->
+                    <div class="pg-viewport" title="Ancho del preview">
+                        <button class="pg-vp-btn" data-vp="mobile" title="Vista móvil (390 px)"><i data-lucide="smartphone" class="w-3.5 h-3.5"></i></button>
+                        <button class="pg-vp-btn" data-vp="laptop" title="Vista laptop (1280 px)"><i data-lucide="laptop" class="w-3.5 h-3.5"></i></button>
+                        <button class="pg-vp-btn is-active" data-vp="full" title="Ancho completo"><i data-lucide="monitor" class="w-3.5 h-3.5"></i></button>
+                    </div>
+
                     <span id="pgSandboxTheme" class="pg-theme-chip">Huubie Dark</span>
 
                     <!-- Menú de acciones: en desktop los botones van sueltos; en
@@ -340,6 +360,33 @@
             <footer class="pg-modal-foot">
                 <span id="pgTemplatesSummary" class="pg-hint">—</span>
                 <button id="pgTemplatesDone" class="cs-btn cs-btn-primary cs-btn-sm">Cerrar</button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ── Modal: Hilos de conversación ── -->
+    <div id="pgThreadsModal" class="pg-modal hidden" aria-hidden="true">
+        <div class="pg-modal-backdrop"></div>
+        <div class="pg-modal-dialog" role="dialog" style="max-width:560px;">
+            <header class="pg-modal-head">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="messages-square" class="w-4 h-4"></i>
+                    <h3>Hilos de conversación</h3>
+                </div>
+                <button id="pgThreadsClose" class="pg-iconbtn" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </header>
+            <div class="pg-modal-body">
+                <div class="pg-threads-bar">
+                    <p class="pg-hint" style="margin:0;">Cada hilo guarda su conversación y los renders del sandbox. Ábrelo para seguir iterando donde lo dejaste.</p>
+                    <button id="pgThreadsNew" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo hilo
+                    </button>
+                </div>
+                <div id="pgThreadsList" class="pg-threads-list"></div>
+            </div>
+            <footer class="pg-modal-foot">
+                <span id="pgThreadsSummary" class="pg-hint">—</span>
+                <button id="pgThreadsDone" class="cs-btn cs-btn-ghost cs-btn-sm">Cerrar</button>
             </footer>
         </div>
     </div>
