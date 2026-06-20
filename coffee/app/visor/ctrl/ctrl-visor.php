@@ -325,7 +325,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     }
 
     // Slug seguro para nombre de carpeta: minusculas, sin acentos ni caracteres raros.
-    $slug = strtolower($name);
+    // Si el frontend manda un `slug` explicito (hilo activo: autoguardado sobre la
+    // MISMA carpeta aunque cambie el titulo), se usa ese; si no, se deriva del nombre.
+    $slugSrc = trim($_POST['slug'] ?? '');
+    if ($slugSrc === '') $slugSrc = $name;
+    $slug = strtolower($slugSrc);
     $slug = strtr($slug, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n','ü'=>'u']);
     $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
     $slug = trim($slug, '-');

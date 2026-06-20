@@ -137,6 +137,13 @@ const pg = {
     templates: [],           // historial de templates renderizados (sesión): {id, html, isDoc, theme, themeLabel, title, ts}
     _savedTemplates: [],     // plantillas persistentes leídas de documents/template/ (cache del modal)
     _activeTplId: null,      // template actualmente cargado en el sandbox
+    // ── Hilos ── un hilo es una plantilla con seguimiento: se crea al generar el
+    // primer diseño y se AUTOGUARDA en su carpeta conforme se itera (sin tocar el
+    // proyecto). threadSlug identifica el hilo activo; se persiste para retomarlo.
+    threadSlug: null,        // slug del hilo activo (carpeta documents/template/<slug>/)
+    threadName: '',          // nombre legible del hilo activo
+    _autosaveTimer: null,    // debounce del autoguardado del hilo
+    _chipTimer: null,        // limpia el indicador "guardado" del chip
     _lastUserText: '',       // último prompt del usuario (titula los templates)
     splitW:    '',           // ancho del panel de chat (px) — splitter
     zoom:      100,          // zoom del preview (%) — escala el contenido del iframe
@@ -145,7 +152,8 @@ const pg = {
     // ── Fábrica ──
     module:   { files: [] }, // último módulo multi-archivo parseado de la respuesta
     project:  '',            // proyecto destino elegido para materializar
-    projects: []             // proyectos destino disponibles (subcarpetas de www)
+    projects: [],            // proyectos destino disponibles (subcarpetas de www)
+    vhosts:   []             // vhosts de Apache dentro de www: [{server, rel, docRoot}]
 };
 
 $(async () => {
@@ -159,6 +167,7 @@ $(async () => {
     pgApplyAgent(pg.agentKey, true);
     pgApplyCanvasUI();
     fgRenderModulePanel();
+    await fgResumeThread();   // si había un hilo activo, lo retoma (diseño + conversación)
     if (window.lucide) lucide.createIcons();
 });
 
@@ -224,6 +233,8 @@ function pgLoadSettings() {
         if (typeof s.model === 'string')         pg.model    = s.model;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
         if (typeof s.project === 'string')       pg.project  = s.project;
+        if (typeof s.threadSlug === 'string')    pg.threadSlug = s.threadSlug || null;
+        if (typeof s.threadName === 'string')    pg.threadName = s.threadName;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
     } catch (e) {}
 }
@@ -231,7 +242,8 @@ function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
-            canvasMode: pg.canvasMode, splitW: pg.splitW, zoom: pg.zoom, project: pg.project, knowledge: Array.from(pg.knowledge)
+            canvasMode: pg.canvasMode, splitW: pg.splitW, zoom: pg.zoom, project: pg.project,
+            threadSlug: pg.threadSlug || '', threadName: pg.threadName || '', knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
 }
@@ -435,8 +447,9 @@ function pgBind() {
         $('#pgSaveTplSlug').text(this.value.trim() ? 'Carpeta: documents/template/' + pgSlugify(this.value) + '/' : '');
     }).on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pgConfirmSaveTemplate(); } });
 
-    // Plantillas guardadas
+    // Hilos guardados (el chip del hilo activo también abre la lista)
     $('#pgTemplatesBtn').on('click', () => pgOpenTemplates());
+    $('#pgThreadChip').on('click', () => pgOpenTemplates());
     $('#pgTemplatesClose, #pgTemplatesDone').on('click', () => pgCloseTemplates());
     $('#pgTemplatesModal .pg-modal-backdrop').on('click', () => pgCloseTemplates());
 
@@ -605,6 +618,13 @@ function pgClearChat() {
     pg.history = [];
     pg.templates = [];
     pg._activeTplId = null;
+    // Cerrar el hilo activo: el próximo diseño abrirá un hilo nuevo. (Al cargar un
+    // hilo existente, pgLoadSavedTemplate vuelve a fijar su identidad acto seguido.)
+    clearTimeout(pg._autosaveTimer);
+    pg.threadSlug = null;
+    pg.threadName = '';
+    fgUpdateThreadChip();
+    pgSaveSettings();
     $('#pgChatBody').html(`
         <div class="pg-empty">
             <i data-lucide="sparkles"></i>
@@ -887,6 +907,9 @@ function pgFinalizeResponse(stream, received, meta, interrupted) {
     const modFiles = fgParseModule(received);
     fgSetModule(modFiles);
     if (modFiles.length) fgActivateModuleTab();
+
+    // Hilos: abre/actualiza el hilo activo con el último diseño + la conversación.
+    fgThreadTrack();
 }
 
 /* Rescata el contenido parcial cuando el stream se corta a media generación.
@@ -1407,10 +1430,11 @@ function pgRenderTemplatesList() {
     if (window.lucide) lucide.createIcons();
 }
 
-/* Carga una plantilla de disco: restaura su tema, la pinta en el sandbox y deja
- * su conversación lista para seguir iterando en un chat independiente. */
-function pgLoadSavedTemplate(t) {
-    if (!t || !t.html) { pgToast('Plantilla sin contenido', 'warn'); return; }
+/* Carga un hilo/plantilla de disco: restaura su tema, lo pinta en el sandbox y
+ * rehidrata su conversación. Fija ese hilo como activo, de modo que seguir
+ * iterando autoguarda en él. `resume` (arranque silencioso) evita el toast. */
+function pgLoadSavedTemplate(t, resume) {
+    if (!t || !t.html) { pgToast('Hilo sin contenido', 'warn'); return; }
 
     // Restaurar el tema con el que se generó.
     if (t.theme && PG_THEMES[t.theme]) {
@@ -1452,8 +1476,15 @@ function pgLoadSavedTemplate(t) {
         const $last = $('#pgChatBody .ia-msg.ai').last();
         pgAppendTemplateCard($last.length ? $last : $('#pgChatBody'), tpl);
     }
+
+    // Fijar este hilo como activo: seguir iterando autoguarda sobre su carpeta.
+    pg.threadSlug = t.slug || null;
+    pg.threadName = t.name || t.title || pg.threadSlug || '';
+    fgUpdateThreadChip();
+    pgSaveSettings();
+
     pgCloseTemplates();
-    pgToast('Plantilla "' + (t.name || '') + '" cargada', 'success');
+    if (!resume) pgToast('Hilo "' + (t.name || '') + '" abierto', 'success');
 }
 
 /* Elimina una plantilla del disco. Confirmación en dos pasos sobre el propio
@@ -1491,6 +1522,93 @@ async function pgDeleteSavedTemplate(t, $btn) {
         pgToast('Error de red al eliminar la plantilla', 'error');
         $btn.prop('disabled', false).removeClass('is-armed');
     }
+}
+
+/* ── Hilos (seguimiento del diseño) ──────────────────────────────
+ * Un hilo evoluciona una plantilla: se crea automáticamente al generar el primer
+ * diseño y se AUTOGUARDA en su carpeta (documents/template/<slug>/) conforme se
+ * itera, persistiendo el último render + la conversación completa. Reabrir un
+ * hilo continúa el trabajo EN ESE mismo hilo. Nada de esto toca el proyecto: la
+ * materialización sigue siendo un paso aparte explícito. */
+
+// Tras cada respuesta con diseño: si no hay hilo activo lo crea; en cualquier
+// caso, autoguarda el estado actual del hilo.
+function fgThreadTrack() {
+    if (!pg.lastHtml) return;   // sin diseño renderizado no hay hilo que seguir
+    if (!pg.threadSlug) {
+        const base = (pg._lastUserText || 'Hilo').trim().slice(0, 46) || 'Hilo';
+        pg.threadName = base;
+        pg.threadSlug = pgSlugify(base) + '-' + Date.now().toString(36);   // único
+        fgUpdateThreadChip();
+        pgSaveSettings();
+        pgToast('Hilo iniciado: ' + pg.threadName, 'info');
+    }
+    fgThreadSave();
+}
+
+// Autoguardado con debounce: vuelca el hilo activo a disco (mismo endpoint que
+// las plantillas, pasando el slug fijo del hilo para sobrescribir su carpeta).
+function fgThreadSave() {
+    if (!pg.threadSlug || !pg.lastHtml) return;
+    clearTimeout(pg._autosaveTimer);
+    pg._autosaveTimer = setTimeout(fgThreadSaveNow, 500);
+}
+async function fgThreadSaveNow() {
+    if (!pg.threadSlug || !pg.lastHtml) return;
+    const t = PG_THEMES[pg.lastTheme] || PG_THEMES[pg.theme] || {};
+    const meta = {
+        title:      (pg._lastUserText || pg.threadName).slice(0, 120),
+        theme:      pg.lastTheme || pg.theme,
+        themeLabel: t.label || (pg.lastTheme || pg.theme),
+        agentKey:   pg.agentKey,
+        agentLabel: pgAgentLabel(),
+        model:      pg.model || '',
+        prompt:     pg.prompt || '',
+        userText:   pg._lastUserText || '',
+        isDoc:      !!pg._lastIsDoc,
+        history:    pg.history
+    };
+    try {
+        const form = new FormData();
+        form.append('action', 'savetemplate');
+        form.append('name', pg.threadName || pg.threadSlug);
+        form.append('slug', pg.threadSlug);     // hilo fijo: autoguarda sobre su carpeta
+        form.append('html', pg.lastHtml);
+        form.append('meta', JSON.stringify(meta));
+        const res  = await fetch(PG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data && data.success) fgUpdateThreadChip('saved');
+    } catch (e) { /* autoguardado silencioso: no interrumpe la iteración */ }
+}
+
+// Pinta el chip del hilo activo en la cabecera del chat.
+function fgUpdateThreadChip(state) {
+    const $chip = $('#pgThreadChip');
+    if (!$chip.length) return;
+    if (!pg.threadSlug) { $chip.hide(); return; }
+    $chip.css('display', 'inline-flex');
+    $('#pgThreadName').text(pg.threadName || pg.threadSlug);
+    if (state === 'saved') {
+        $('#pgThreadState').text('· guardado');
+        clearTimeout(pg._chipTimer);
+        pg._chipTimer = setTimeout(() => $('#pgThreadState').text(''), 1500);
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+// Al arrancar: si había un hilo activo persistido, lo retoma (diseño + chat).
+async function fgResumeThread() {
+    if (!pg.threadSlug) { fgUpdateThreadChip(); return; }
+    try {
+        const res  = await fetch(`${PG_API}?action=listtemplates`, { cache: 'no-store' });
+        const data = await res.json();
+        const t = (data.templates || []).find(x => x.slug === pg.threadSlug);
+        if (t) { pgLoadSavedTemplate(t, true); return; }
+    } catch (e) {}
+    // El hilo ya no existe en disco: limpiar la referencia.
+    pg.threadSlug = null; pg.threadName = '';
+    pgSaveSettings();
+    fgUpdateThreadChip();
 }
 
 /* ── Helpers ── */
@@ -1607,8 +1725,9 @@ async function fgLoadProjects() {
         const res  = await fetch(`${FG_API}?action=projects`, { cache: 'no-store' });
         const data = await res.json();
         pg.projects = data.projects || [];
+        pg.vhosts = data.vhosts || [];          // vhosts dentro de www (para abrir en su URL real)
         pg._container = data.container || '';   // proyecto que aloja al visor
-    } catch (e) { pg.projects = []; }
+    } catch (e) { pg.projects = []; pg.vhosts = []; }
     const $sel = $('#fgProjectSelect').empty();
     pg.projects.forEach(p => $sel.append(`<option value="${pgEscape(p.key)}">${pgEscape(p.name)}</option>`));
     if (pg.project && pg.projects.some(p => p.key === pg.project)) $sel.val(pg.project);
@@ -1746,12 +1865,45 @@ function fgContainerBase() {
     return location.origin + before + '/';
 }
 
-// URL de apertura propuesta para un archivo: usa la base recordada del proyecto
-// (si el usuario ya la corrigió) o la base del proyecto contenedor.
+// Busca, entre los vhosts detectados dentro de www, el DocumentRoot que sirve
+// `project/relPath` y compone la URL pública recortando ese docroot (p.ej.
+// grupovaroch/erp-gv/index.php → http://www.erp-pro.com/index.php). Gana el
+// docroot más específico. Devuelve '' si ninguna ruta cae bajo un vhost.
+function fgVhostUrlFor(project, relPath) {
+    const key = (project + '/' + relPath).replace(/\/+/g, '/').replace(/^\//, '');
+    const keyLc = key.toLowerCase();
+    let best = null;
+    (pg.vhosts || []).forEach(v => {
+        const root = String(v.rel || '').replace(/^\/+|\/+$/g, '');   // docroot relativo a www
+        if (!root) return;                                            // www-root (localhost): no secuestra
+        const rootLc = root.toLowerCase();
+        const isPrefix = keyLc === rootLc || keyLc.indexOf(rootLc + '/') === 0;
+        if (isPrefix && (!best || root.length > best.len)) best = { len: root.length, server: v.server };
+    });
+    if (!best) return '';
+    const rest = key.slice(best.len).replace(/^\/+/, '');             // ruta relativa al docroot del vhost
+    return location.protocol + '//' + best.server + '/' + rest;
+}
+
+// URL de apertura propuesta para un archivo. Prioridad:
+//   1) base recordada por el usuario (override manual explícito),
+//   2) proyecto que aloja al visor → su mismo origen (preserva same-origin, así
+//      la recreación de componentes sigue funcionando aunque entres por localhost),
+//   3) vhost real detectado para esa ruta (auto, recorta el docroot),
+//   4) base del proyecto contenedor del visor (último recurso).
 function fgComposeOpenUrl(project, relPath) {
     const rel    = String(relPath || '').replace(/^\/+/, '');
     const stored = localStorage.getItem('forge:openbase:' + project);
-    let base = stored || fgContainerBase();
+    if (stored) {
+        let base = stored;
+        if (!/\/$/.test(base)) base += '/';
+        return base + rel;
+    }
+    if (project !== pg._container) {
+        const vurl = fgVhostUrlFor(project, rel);
+        if (vurl) return vurl;
+    }
+    let base = fgContainerBase();
     if (!/\/$/.test(base)) base += '/';
     return base + rel;
 }
@@ -1913,9 +2065,19 @@ function fgUpdateBaseHint() {
     const proj   = pg._browseProject;
     const stored = localStorage.getItem('forge:openbase:' + proj);
     const base   = stored || fgContainerBase();
+    // Vhosts (dentro de www) que sirven este proyecto: su docroot es el proyecto o
+    // una subcarpeta suya (p.ej. grupovaroch/erp-gv → www.erp-pro.com).
+    const projLc = String(proj || '').toLowerCase();
+    const hosts = (pg.vhosts || []).filter(v => {
+        const r = String(v.rel || '').toLowerCase();
+        return r && (r === projLc || r.indexOf(projLc + '/') === 0);
+    });
     let msg;
     if (stored)                       msg = `Base recordada para <strong>${pgEscape(proj)}</strong>: <code>${pgEscape(base)}</code>`;
     else if (proj === pg._container)  msg = `Base detectada para <strong>${pgEscape(proj)}</strong>: <code>${pgEscape(base)}</code> (aloja al visor).`;
+    else if (hosts.length)            msg = `Vhost(s) detectado(s) para <strong>${pgEscape(proj)}</strong>: ` +
+                                            hosts.map(v => `<code>${location.protocol}//${pgEscape(v.server)}/</code> → <code>${pgEscape(v.rel)}</code>`).join(', ') +
+                                            `. Al abrir, Forge usará la URL real automáticamente.`;
     else                              msg = `Base propuesta: <code>${pgEscape(base)}</code>. Si <strong>${pgEscape(proj)}</strong> se sirve en otro vhost, ajusta la URL al abrir y se recordará.`;
     $('#fgBrowserBaseHint').html(msg);
 }

@@ -40,6 +40,37 @@ function forge_projects($wwwRoot) {
     return $out;
 }
 
+/**
+ * VirtualHosts de Apache cuyo DocumentRoot cae DENTRO de www. Permite que el
+ * frontend componga la URL pública real de un módulo (p.ej. grupovaroch/erp-gv
+ * se sirve por www.erp-pro.com), en vez de asumir el origen del visor.
+ * Devuelve [{server, rel, docRoot}] con `rel` = docroot relativo a www.
+ */
+function forge_vhosts($wwwRoot) {
+    $out = [];
+    if ($wwwRoot === '') return $out;
+    $wampDir = str_replace('\\', '/', dirname($wwwRoot));   // p.ej. c:/wamp64
+    $files   = glob($wampDir . '/bin/apache/*/conf/extra/httpd-vhosts.conf') ?: [];
+    $wwwLower = strtolower($wwwRoot);
+    foreach ($files as $cf) {
+        $txt = @file_get_contents($cf);
+        if ($txt === false) continue;
+        if (!preg_match_all('#<VirtualHost\b[^>]*>(.*?)</VirtualHost>#is', $txt, $blocks)) continue;
+        foreach ($blocks[1] as $blk) {
+            if (!preg_match('#^\s*ServerName\s+(\S+)#im', $blk, $sn)) continue;
+            if (!preg_match('#^\s*DocumentRoot\s+"?([^"\r\n]+)"?#im', $blk, $dr)) continue;
+            $server  = trim($sn[1]);
+            $docRoot = rtrim(str_replace('\\', '/', trim($dr[1])), '/');
+            $docRoot = str_replace('${INSTALL_DIR}', $wampDir, $docRoot);
+            // Solo vhosts servidos desde dentro de www (los externos no aplican).
+            if (strpos(strtolower($docRoot) . '/', $wwwLower . '/') !== 0) continue;
+            $rel = ltrim(substr($docRoot, strlen($wwwRoot)), '/');
+            $out[$server] = ['server' => $server, 'rel' => $rel, 'docRoot' => $docRoot];
+        }
+    }
+    return array_values($out);
+}
+
 /** Resuelve la raíz absoluta de un proyecto destino validado contra la whitelist. */
 function forge_project_root($wwwRoot, $key) {
     foreach (forge_projects($wwwRoot) as $p) {
@@ -105,7 +136,8 @@ if ($action === 'projects') {
         $rest = substr($selfDir, strlen($WWW_ROOT) + 1);
         $container = explode('/', $rest)[0];
     }
-    echo json_encode(['success' => true, 'wwwRoot' => $WWW_ROOT, 'container' => $container, 'projects' => forge_projects($WWW_ROOT)],
+    echo json_encode(['success' => true, 'wwwRoot' => $WWW_ROOT, 'container' => $container,
+        'projects' => forge_projects($WWW_ROOT), 'vhosts' => forge_vhosts($WWW_ROOT)],
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }

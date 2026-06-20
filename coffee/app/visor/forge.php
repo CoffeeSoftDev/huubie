@@ -116,8 +116,13 @@
                 <div class="pg-pane-title">
                     <i id="pgChatAgentIcon" data-lucide="sparkles" class="w-4 h-4"></i>
                     <span id="pgChatAgentName">CoffeeIA</span>
+                    <button id="pgThreadChip" title="Hilo activo — clic para ver todos los hilos" style="display:none;align-items:center;gap:4px;margin-left:8px;padding:2px 8px;border-radius:999px;border:1px solid var(--vsr-border,#374151);background:transparent;color:var(--vsr-accent-soft,#93c5fd);font-size:10px;cursor:pointer;max-width:180px;">
+                        <i data-lucide="git-branch" class="w-3 h-3" style="flex:0 0 auto;"></i>
+                        <span id="pgThreadName" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Hilo</span>
+                        <span id="pgThreadState" style="opacity:.7;flex:0 0 auto;"></span>
+                    </button>
                 </div>
-                <button id="pgResetBtn" class="pg-iconbtn" title="Reiniciar conversación">
+                <button id="pgResetBtn" class="pg-iconbtn" title="Nuevo hilo (reinicia la conversación)">
                     <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
                 </button>
             </header>
@@ -190,7 +195,7 @@
                     <button id="fgRecreateBtn" class="pg-iconbtn" title="Recrear un componente del Live como template en Preview (clic en el elemento)">
                         <i data-lucide="copy-plus" class="w-3.5 h-3.5"></i>
                     </button>
-                    <button id="pgTemplatesBtn" class="pg-iconbtn" title="Plantillas guardadas">
+                    <button id="pgTemplatesBtn" class="pg-iconbtn" title="Hilos guardados">
                         <i data-lucide="library" class="w-3.5 h-3.5"></i>
                     </button>
                     <button id="pgSaveTplBtn" class="pg-iconbtn" title="Guardar como plantilla reutilizable">
@@ -329,12 +334,12 @@
             <header class="pg-modal-head">
                 <div class="flex items-center gap-2">
                     <i data-lucide="library" class="w-4 h-4"></i>
-                    <h3>Plantillas guardadas</h3>
+                    <h3>Hilos guardados</h3>
                 </div>
                 <button id="pgTemplatesClose" class="pg-iconbtn" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
             </header>
             <div class="pg-modal-body">
-                <p class="pg-hint">Carga una plantilla en el sandbox y, si quieres, restaura su conversación para seguir iterándola en un chat independiente.</p>
+                <p class="pg-hint">Abre un hilo para retomar su diseño y su conversación: seguirás iterando en ese mismo hilo (autoguardado) sin afectar el proyecto.</p>
                 <div id="pgTemplatesList" class="pg-context-list"></div>
             </div>
             <footer class="pg-modal-foot">
