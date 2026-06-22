@@ -132,7 +132,7 @@ class Pedidos extends MPedidos{
         // Si es admin (rol 1), usar la sucursal del POST, sino usar la de sesión
         if ($rolId == 1) {
             // Validar que subsidiaries_id exista y no sea vacío
-            $subsidiaries_id = $_POST['subsidiaries_id'];
+            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $sessionSub;
         } else {
             $subsidiaries_id = $sessionSub;
         }
@@ -173,7 +173,7 @@ class Pedidos extends MPedidos{
                 : number_format($total, 2);
 
 
-            $Folio   = formatSucursal($Sucursal['name'], $Sucursal['sucursal'], $order['id']);
+            $Folio   = formatSucursal($order['subsidiaries_id'], $order['id']);
 
             $isCurrentShift = $currentShiftId && $order['cash_shift_id'] == $currentShiftId;
             $shiftDot = $isCurrentShift
@@ -387,12 +387,13 @@ class Pedidos extends MPedidos{
         }
 
         // Actualizar el pedido con el client_id (nuevo o existente)
+        // La sucursal (subsidiaries_id) NO se reescribe en edición: queda fija
+        // desde la creación del pedido para que un pedido no cambie de sucursal.
         $update = $this->updateOrder($this->util->sql([
             'date_order'      => $_POST['date_order'],
             'time_order'      => $_POST['time_order'],
             'note'            => $_POST['note'],
             'delivery_type'   => $_POST['delivery_type'],
-            'subsidiaries_id' => $subsidiaries_id,
             'client_id'       => $client_id,
             'id'              => $_POST['id'],
         ], 1));
@@ -448,7 +449,7 @@ class Pedidos extends MPedidos{
             if (!$sucursal) {
                 $sucursal = ['name' => '', 'sucursal' => 'SIN SUCURSAL'];
             }
-            $folio = formatSucursal($sucursal['name'], $sucursal['sucursal'], $orderData['id']);
+            $folio = formatSucursal($subsidiaries_id, $orderData['id']);
             
             // Calcular totales
             $totalPagado = $this->getTotalPaidByOrder([$orderId]);
@@ -582,7 +583,7 @@ class Pedidos extends MPedidos{
         $methods             = $this-> getMethodPayment([$_POST['id']]);
         $ls[0]['total_paid'] = array_sum(array_column($methods, 'pay'));
 
-         $folio    = formatSucursal($sucursal['name'], $sucursal['sucursal'], $ls[0]['folio']);
+         $folio    = formatSucursal($SUB, $ls[0]['folio']);
         $ls[0]['folio']      = $folio;
 
         $PaymentsDetails     = 0;
@@ -1773,10 +1774,18 @@ class Pedidos extends MPedidos{
 
         $result = $this->getShiftDetailedOrders([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
 
+        $addFolio = function ($order) use ($subsidiary_id) {
+            $order['folio'] = formatSucursal($subsidiary_id, $order['id']);
+            return $order;
+        };
+
+        $shiftOrders      = array_map($addFolio, $result['shift_orders']);
+        $externalPayments = array_map($addFolio, $result['external_payments']);
+
         return [
             'status'            => 200,
-            'orders'            => $result['shift_orders'],
-            'external_payments' => $result['external_payments']
+            'orders'            => $shiftOrders,
+            'external_payments' => $externalPayments
         ];
     }
 
@@ -2198,20 +2207,13 @@ function renderDeliveryStatus($order) {
 
 
 
-function formatSucursal($compania, $sucursal=null, $numero = null){
+function formatSucursal($subsidiariesId = null, $numero = null){
 
-    $letraCompania = strtoupper(substr(trim($compania), 0, 1));
-    if ($sucursal === null) {
-        $letraSucursal = 'X';
-    } else {
-        $letraSucursal = strtoupper(substr(trim($sucursal), 0, 1));
-    }
+    $sucursal = ($subsidiariesId === null || $subsidiariesId === '') ? 'X' : str_pad($subsidiariesId, 2, '0', STR_PAD_LEFT);
 
     $number = $numero ?? rand(1, 99);
 
-    $formattedNumber = str_pad($number, 2, '0', STR_PAD_LEFT);
-
-    return 'P-'.$letraCompania . $letraSucursal .'-'. $formattedNumber;
+    return 'P' . $number . '-' . $sucursal;
 }
 
 function formatDateTime($date, $time) {

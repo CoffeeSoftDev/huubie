@@ -115,6 +115,17 @@
             scrollbar-width: none !important;
         }
 
+        /* Filter bar: alinear inputs (con label) y botones (sin label) por su base
+           y colapsar el <label> vacio que el plugin inyecta en los botones, que
+           dejaba un hueco superior sobre ellos. */
+        #filterBarPedidos .row {
+            align-items: flex-end;
+        }
+
+        #filterBarPedidos label:empty {
+            display: none;
+        }
+
         /* Específico para las tablas */
       /*  #tbPedidos_wrapper,
         #tbPedidos_wrapper .dataTables_scrollBody,
@@ -145,7 +156,8 @@
     <script src="<?=PATH_PEDIDOS?>src/js/dashboard-pedidos.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/pedidos-cierre.js?t=<?php echo time(); ?>"></script>
 
-    
-    
+    <!-- Badge de nueva actualización -->
+    <script src="<?=PATH_PEDIDOS?>src/js/version-badge.js?t=<?php echo time(); ?>"></script>
+
 </body>
 </html>

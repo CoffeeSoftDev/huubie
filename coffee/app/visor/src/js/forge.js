@@ -117,6 +117,14 @@ const PG_THEMES = {
 };
 const PG_DEFAULT_THEME = 'huubie-ui';
 
+// Modelos del selector con capacidad de visión (aceptan imágenes). Solo
+// informativo: al capturar el Live como imagen avisamos si el modelo activo no
+// está aquí, para que el usuario cambie a uno que sí procese la captura.
+const PG_VISION_MODELS = new Set([
+    'minimax-m3:cloud', 'gemma4:31b-cloud', 'gemini-3-flash-preview:cloud',
+    'kimi-k2.6:cloud', 'google/gemma-4-31b-it:free'
+]);
+
 const pg = {
     agents:    {},   // file -> {file, raw, fullPath, frontmatter}
     grimoires: {},   // file -> {file, raw, fullPath}
@@ -127,6 +135,7 @@ const pg = {
     prompt:    '',           // prompt vivo (puede estar editado sin guardar)
     knowledge: new Set(),    // grimorios seleccionados como contexto
     canvasMode: false,       // modo lienzo (genera HTML renderizable)
+    liveContext: false,      // adjuntar la vista renderizada del Live al chat en cada envío
     pendingImages: [],       // [{ dataUrl, base64, mime, name }]
     pendingDocs: [],         // [{ name, content, size }] documentos de texto adjuntos
     history:   [],
@@ -147,17 +156,23 @@ const pg = {
     _lastUserText: '',       // último prompt del usuario (titula los templates)
     splitW:    '',           // ancho del panel de chat (px) — splitter
     zoom:      100,          // zoom del preview (%) — escala el contenido del iframe
+    viewport:  'full',       // ancho de la vista: 'mobile' | 'laptop' | 'full'
     _popSound: null,
     _varochCss: '',          // CSS embebido extraido del grimorio Coffee-Varoch
     // ── Fábrica ──
     module:   { files: [] }, // último módulo multi-archivo parseado de la respuesta
     project:  '',            // proyecto destino elegido para materializar
     projects: [],            // proyectos destino disponibles (subcarpetas de www)
-    vhosts:   []             // vhosts de Apache dentro de www: [{server, rel, docRoot}]
+    vhosts:   [],            // vhosts de Apache dentro de www: [{server, rel, docRoot}]
+    // ── Hilos paralelos (sesiones en memoria) ── inicializados aquí para que
+    // fgActiveThread()/fgMaybeAutoName() nunca operen sobre undefined.
+    threads:      [],
+    activeThread: null
 };
 
 $(async () => {
     pgLoadSettings();
+    const wantedTab = pg.sandboxTab;   // pestaña que el usuario tenía abierta (se restaura al final)
     pgApplyUiTheme(pg.uiTheme);
     pgApplySplit(pg.splitW);
     pgBind();
@@ -166,9 +181,23 @@ $(async () => {
     await fgLoadProjects();
     pgApplyAgent(pg.agentKey, true);
     pgApplyCanvasUI();
+    pgApplyLiveUI();
+    pgApplyViewport();        // restaura el ancho de vista (móvil/laptop/desktop) guardado
     fgRenderModulePanel();
     await fgResumeThread();   // si había un hilo activo, lo retoma (diseño + conversación)
     fgRestoreLastModule();    // reabre en Live el último módulo que se había abierto
+    // Si la Vista Live venía activada pero no hay módulo para leer, la apagamos.
+    if (pg.liveContext && !pg._liveModule) { pg.liveContext = false; pgApplyLiveUI(); pgSaveSettings(); }
+    fgInitThreads();          // crea el "Hilo 1" (sesión en memoria) + pinta la barra de hilos
+    // Restaurar la pestaña activa que el usuario dejó (p.ej. Live) para que el
+    // módulo recordado se siga viendo sin tener que reabrirlo. Solo si tiene
+    // contenido: Live necesita módulo; Módulo necesita archivos generados.
+    if (wantedTab && wantedTab !== 'preview') {
+        const hasLive = wantedTab === 'live' && pg._liveModule;
+        const hasMod  = wantedTab === 'module' && pg.module.files.length;
+        const hasCode = wantedTab === 'code' && pg.lastHtml;
+        if (hasLive || hasMod || hasCode) $('.pg-tab[data-sbtab="' + wantedTab + '"]').trigger('click');
+    }
     if (window.lucide) lucide.createIcons();
 });
 
@@ -203,6 +232,7 @@ function pgBindSplitter() {
         dragging = false;
         $sp.removeClass('is-dragging');
         document.body.classList.remove('pg-resizing');
+        pgApplyZoom();   // el escalado externo usa px del contenedor: recalcular tras redimensionar
         pgSaveSettings();
     });
 }
@@ -231,11 +261,14 @@ function pgLoadSettings() {
         if (s.uiTheme === 'light' || s.uiTheme === 'dark') pg.uiTheme = s.uiTheme;
         if (s.splitW) pg.splitW = s.splitW;
         if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
+        if (PG_VIEWPORTS[s.viewport])            pg.viewport = s.viewport;
         if (typeof s.model === 'string')         pg.model    = s.model;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
+        if (typeof s.liveContext === 'boolean')  pg.liveContext = s.liveContext;
         if (typeof s.project === 'string')       pg.project  = s.project;
         if (typeof s.threadSlug === 'string')    pg.threadSlug = s.threadSlug || null;
         if (typeof s.threadName === 'string')    pg.threadName = s.threadName;
+        if (typeof s.sandboxTab === 'string')    pg.sandboxTab = s.sandboxTab;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
     } catch (e) {}
 }
@@ -243,8 +276,9 @@ function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
-            canvasMode: pg.canvasMode, splitW: pg.splitW, zoom: pg.zoom, project: pg.project,
-            threadSlug: pg.threadSlug || '', threadName: pg.threadName || '', knowledge: Array.from(pg.knowledge)
+            canvasMode: pg.canvasMode, liveContext: pg.liveContext, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport, project: pg.project,
+            threadSlug: pg.threadSlug || '', threadName: pg.threadName || '', sandboxTab: pg.sandboxTab || 'preview',
+            knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
 }
@@ -336,6 +370,11 @@ function pgBind() {
 
     pgBindSplitter();
 
+    // Reaplicar el zoom al redimensionar la ventana (el escalado externo del Live
+    // cross-origin usa px del contenedor, así que debe seguir el nuevo tamaño).
+    let _rzT;
+    $(window).on('resize', () => { clearTimeout(_rzT); _rzT = setTimeout(pgApplyZoom, 120); });
+
     $('#pgSendBtn').on('click', () => { if (pg.isBusy) pgStop(); else pgSubmit(); });
     $('#pgInput').on('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); pgSubmit(); }
@@ -350,6 +389,11 @@ function pgBind() {
         pgApplyCanvasUI();
         pgSaveSettings();
     });
+
+    // Vista Live: adjunta el módulo renderizado al chat en cada envío.
+    $('#pgLiveToggle').on('click', () => fgToggleLiveContext());
+    // Capturar el Live como imagen (visión): foto puntual adjunta al chat.
+    $('#pgLiveShotBtn').on('click', () => fgCaptureLiveImage());
 
     // Adjuntar archivos: imagenes -> vision; texto/codigo/html/md/csv/json -> contexto.
     $('#pgAttachBtn').on('click', () => $('#pgImageInput').trigger('click'));
@@ -393,20 +437,24 @@ function pgBind() {
         $('.pg-tab').removeClass('active');
         $(this).addClass('active');
         const tab = $(this).data('sbtab');
+        pg.sandboxTab = tab; pgSaveSettings();   // recordar la pestaña para reabrir Forge en ella
         $('#pgSandboxFrame').toggleClass('hidden', tab !== 'preview');
         $('#fgLiveFrame').toggleClass('hidden', tab !== 'live');
         $('#pgSandboxCode').toggleClass('hidden', tab !== 'code');
         $('#pgModulePanel').toggleClass('hidden', tab !== 'module');
+        pgUpdateSandboxBg();   // fondo según viewport + vista activa
         $('#fgLiveEmpty').toggleClass('hidden', !(tab === 'live' && !pg._liveModule));
-        // El botón "Recrear componente" solo tiene sentido viendo el Live.
-        $('#fgRecFab').toggleClass('hidden', !(tab === 'live' && pg._liveModule));
-        if (tab !== 'live' && pg._recActive) fgStopRecreate();
+        // Los botones de recrear (módulo completo · seleccionar) solo viendo el Live.
+        $('#fgRecFabWrap').toggleClass('hidden', !(tab === 'live' && pg._liveModule));
+        fgReflectRecreate();
+        if (tab !== 'live' && pg._recActive) fgStopSelectRecreate();
         // El "empty" del preview solo aplica a la pestaña Preview sin render.
         if (tab === 'preview' && !pg.lastHtml) $('#pgSandboxEmpty').show();
         else $('#pgSandboxEmpty').hide();
         pgApplyZoom();
     });
-    $('#fgRecFab').on('click', () => fgToggleRecreate());
+    $('#fgRecFab').on('click', () => fgCopyModuleToAgent());
+    $('#fgRecSelectFab').on('click', () => fgToggleSelectRecreate());
 
     $('#pgSandboxOpen').on('click', () => {
         if (!pg.lastHtml) { pgToast('Aún no hay nada que abrir', 'warn'); return; }
@@ -416,11 +464,34 @@ function pgBind() {
 
     $('#pgSandboxDownload').on('click', () => pgDownloadHtml());
 
+    // Menú "puntitos": abre/cierra el panel de acciones secundarias.
+    $('#pgMoreBtn').on('click', (e) => {
+        e.stopPropagation();
+        const open = $('#pgMoreMenu').hasClass('hidden');
+        $('#pgMoreMenu').toggleClass('hidden', !open);
+        $('#pgMoreBtn').attr('aria-expanded', open ? 'true' : 'false');
+    });
+    // Elegir una acción cierra el menú (su handler propio sigue corriendo por id).
+    $('#pgMoreMenu').on('click', '.pg-more-item', () => {
+        $('#pgMoreMenu').addClass('hidden');
+        $('#pgMoreBtn').attr('aria-expanded', 'false');
+    });
+    // Clic fuera del menú lo cierra.
+    $(document).on('click', (e) => {
+        if (!$(e.target).closest('#pgMoreWrap').length) {
+            $('#pgMoreMenu').addClass('hidden');
+            $('#pgMoreBtn').attr('aria-expanded', 'false');
+        }
+    });
+
     // Zoom del preview
     $('#pgZoomIn').on('click', () => pgSetZoom((pg.zoom || 100) + 10));
     $('#pgZoomOut').on('click', () => pgSetZoom((pg.zoom || 100) - 10));
     $('#pgZoomLabel').on('click', () => pgSetZoom(100));   // clic en el % restablece a 100%
     $('#pgZoomLabel').text((pg.zoom || 100) + '%');
+
+    // Viewport (móvil/laptop/desktop): fija el ancho de la vista.
+    $('.pg-vp-btn').on('click', function () { pgSetViewport($(this).data('vp')); });
 
     // Modal de conocimiento
     $('#pgKnowledgeBtn').on('click', () => pgOpenKnowledge());
@@ -739,6 +810,12 @@ async function pgSend(text, images, docs) {
     pg.history.push(userMsg);
     pgAppendUser(text, userMsg.imagesPreview, userMsg.docsMeta);
 
+    // Vista Live: foto fresca del módulo renderizado SOLO para este request (no se
+    // guarda en el history para no inflarlo con copias del DOM en cada turno).
+    const liveBlock = fgLiveContextBlock();
+    if (liveBlock) fgTagUserMsgLive();
+    else if (pg.liveContext) pgToast('No pude leer la vista del Live (¿cross-origin o sin módulo?); envío sin ella', 'warn');
+
     const $typing = pgAppendTyping();
     pgScroll();
 
@@ -795,10 +872,17 @@ async function pgSend(text, images, docs) {
             return o;
         }),
         systemOverride: systemOverride,
+    };
+    // Anexa la vista del Live al último mensaje del request (no al history).
+    if (liveBlock && payload.messages.length) {
+        const last = payload.messages[payload.messages.length - 1];
+        last.content = (last.content ? last.content + '\n\n' : '') + liveBlock;
+    }
+    Object.assign(payload, {
         pinnedFiles:    pinned,
         canvasMode:     !!pg.canvasMode,
         model:          pg.model || ''
-    };
+    });
 
     let stream = null, received = '', meta = {}, firstToken = false, streamErr = null;
 
@@ -1179,8 +1263,7 @@ function pgRenderSandbox(htmlBody, isDoc) {
     // El iframe es transparente: si el contenido (sobre todo un documento
     // completo) no pinta su propio fondo, se vería el blanco del contenedor.
     // Pintamos el contenedor con el fondo del tema para que cubra TODO el preview.
-    const t = PG_THEMES[pg.theme] || PG_THEMES[PG_DEFAULT_THEME];
-    $('.pg-sandbox-body').css('background', t.bg || '#fff');
+    pgUpdateSandboxBg();
     const fr = document.getElementById('pgSandboxFrame');
     fr.onload = () => pgApplyZoom();   // el scroll lo hace el iframe interno; reaplicamos el zoom al cargar
     fr.srcdoc = pgWrapHtml(htmlBody, pg.theme, isDoc);
@@ -1198,19 +1281,92 @@ function pgShowSandboxCode(code) {
     $('.pg-tab[data-sbtab="code"]').click();
 }
 
+/* ── Viewport del preview/live (móvil/laptop/desktop) ──
+ * Fija el ancho del iframe para previsualizar diseños/módulos responsive. 'full'
+ * deja el iframe al 100%; 'mobile'/'laptop' centran un ancho concreto (clase
+ * .pg-vp-fixed + var --pg-vp-w en el CSS). Mismo patrón que el Playground. */
+const PG_VIEWPORTS = {
+    mobile: { w: 390 },
+    laptop: { w: 1280 },
+    full:   { w: 0 }
+};
+function pgApplyViewport() {
+    const mode = PG_VIEWPORTS[pg.viewport] ? pg.viewport : 'full';
+    pg.viewport = mode;
+    const $body = $('.pg-sandbox-body');
+    const fixed = mode !== 'full';
+    $body.toggleClass('pg-vp-fixed', fixed);
+    $body.css('--pg-vp-w', fixed ? PG_VIEWPORTS[mode].w + 'px' : '');
+    $('.pg-vp-btn').each(function () { $(this).toggleClass('is-active', $(this).data('vp') === mode); });
+    pgUpdateSandboxBg();
+    pgApplyZoom();   // el ancho cambió: reaplicar el zoom acorde al nuevo modo
+}
+function pgSetViewport(mode) {
+    pg.viewport = PG_VIEWPORTS[mode] ? mode : 'full';
+    pgApplyViewport();
+    pgSaveSettings();
+}
+// Decide el fondo del área del sandbox según el viewport y la vista activa:
+//  - viewport fijo (móvil/laptop): lo deja al CSS (.pg-vp-fixed = fondo escritorio).
+//  - full + Live: blanco (los módulos reales son light).
+//  - full + Preview: el fondo del tema de diseño activo.
+function pgUpdateSandboxBg() {
+    const $body = $('.pg-sandbox-body');
+    if (pg.viewport && pg.viewport !== 'full') { $body.css('background', ''); return; }
+    if (!$('#fgLiveFrame').hasClass('hidden')) { $body.css('background', '#ffffff'); return; }
+    const t = PG_THEMES[pg.theme] || PG_THEMES[PG_DEFAULT_THEME];
+    $body.css('background', t.bg || '#fff');
+}
+
 /* ── Zoom del preview ──
  * Escala el CONTENIDO del iframe (no el tamaño del iframe), que es el único que
  * hace scroll. Usa la propiedad CSS `zoom` (reflowea el layout, a diferencia de
  * transform:scale). Se reaplica en cada render (onload) porque el iframe recarga. */
 function pgApplyZoom() {
+    const z = (pg.zoom || 100) / 100;
     $('#pgZoomLabel').text((pg.zoom || 100) + '%');
     // Aplica el zoom al iframe visible (Preview o Live).
     const id = $('#fgLiveFrame').hasClass('hidden') ? 'pgSandboxFrame' : 'fgLiveFrame';
     const fr = document.getElementById(id);
     if (!fr) return;
-    let doc;
-    try { doc = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document); } catch (e) { return; }
-    if (doc && doc.documentElement) doc.documentElement.style.zoom = (pg.zoom || 100) / 100;
+
+    // Con viewport fijo (móvil/laptop) el ANCHO lo controla el CSS (.pg-vp-fixed);
+    // no debemos sobreescribirlo con escalado externo.
+    const vpFixed = $('.pg-sandbox-body').hasClass('pg-vp-fixed');
+
+    // 1º intento: zoom "interno" (escala el documento del iframe y respeta su
+    // propio scroll). Solo es posible same-origin. Si el módulo Live vive en otro
+    // dominio, el navegador prohíbe tocar su documento → lanza excepción y caemos
+    // a escalar el ELEMENTO iframe desde fuera (transform), que sí funciona
+    // cross-origin. Sin esto, el zoom fallaba en silencio y el módulo no se
+    // ajustaba al panel (síntoma "no se visualiza correctamente").
+    let innerOk = false;
+    try {
+        const doc = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+        if (doc && doc.documentElement) { doc.documentElement.style.zoom = z; innerOk = true; }
+    } catch (e) { innerOk = false; }
+
+    if (innerOk || vpFixed) {
+        // Zoom interno OK (o ancho fijo por CSS): limpiar cualquier escalado
+        // externo previo y volver al iframe normal (el width lo da CSS).
+        fr.style.position = fr.style.top = fr.style.left = '';
+        fr.style.transform = fr.style.width = fr.style.height = '';
+    } else {
+        // Escalado externo (cross-origin): posicionamos el iframe en ABSOLUTO
+        // dentro de .pg-sandbox-body (position:relative) y lo dimensionamos en
+        // PÍXELES reales del contenedor divididos por el zoom; al escalarlo ocupa
+        // EXACTAMENTE el contenedor sin huecos. Usamos px (no %) porque el height
+        // en % no siempre resuelve y dejaba el panel recortado mostrando el fondo.
+        const host = fr.parentElement;                       // .pg-sandbox-body
+        const r = host ? host.getBoundingClientRect() : { width: 0, height: 0 };
+        fr.style.position = 'absolute';
+        fr.style.top = '0';
+        fr.style.left = '0';
+        fr.style.transformOrigin = 'top left';
+        fr.style.transform = 'scale(' + z + ')';
+        fr.style.width  = (r.width  / z) + 'px';
+        fr.style.height = (r.height / z) + 'px';
+    }
 }
 function pgSetZoom(z) {
     pg.zoom = Math.max(25, Math.min(200, Math.round(z / 5) * 5));   // 25%–200%, pasos de 5
@@ -1658,11 +1814,11 @@ function pgExtractHtml(text) {
 function pgEscape(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-function pgToast(msg, type) {
+function pgToast(msg, type, ms) {
     const $t = $('#pgToast');
     $t.text(msg).attr('data-tone', type || 'info').addClass('visible');
     clearTimeout(pg._toast);
-    pg._toast = setTimeout(() => $t.removeClass('visible'), 2800);
+    pg._toast = setTimeout(() => $t.removeClass('visible'), ms || 2800);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1959,13 +2115,14 @@ function fgOpenManualUrl() {
 // módulo): no roba el foco del tab ni grita en el toast.
 function fgLoadUrlInSandbox(url, restore) {
     const fr = document.getElementById('fgLiveFrame');
-    $('.pg-sandbox-body').css('background', '#0d1320');
+    pgUpdateSandboxBg();   // fondo neutro claro en full (módulos reales son light); en viewport fijo lo da el CSS
     // Para "Recrear" hay que leer el DOM del iframe → solo si es mismo origen.
     let sameOrigin = false;
     try { sameOrigin = new URL(url, location.href).origin === location.origin; } catch (e) { sameOrigin = false; }
     fr.onload = () => pgApplyZoom();
     fr.src = url;
     pg._liveModule = { url, sameOrigin };
+    fgReflectRecreate();
     $('#fgLiveDot').show();
     // Recordar el último módulo abierto para reabrirlo en la próxima sesión.
     try {
@@ -1996,30 +2153,259 @@ function fgRestoreLastModule() {
     fgLoadUrlInSandbox(m.url, true);
 }
 
-/* ── Recrear un componente del Live como template en Preview ──
- * El Live es same-origin, así que leemos su DOM ya renderizado (con datos). El
- * usuario hace clic en un componente y se "calca" al Preview como HTML estático
- * editable + se importa al contexto del agente para iterarlo. */
+/* ── Copiar el módulo del Live al chat del agente ──
+ * El Live es same-origin, así que leemos su DOM ya renderizado (con datos) y
+ * copiamos el módulo COMPLETO tal cual al contexto del agente para iterarlo. */
 function fgLiveDoc() {
     const fr = document.getElementById('fgLiveFrame');
     try { return fr.contentDocument || (fr.contentWindow && fr.contentWindow.document); } catch (e) { return null; }
 }
-function fgToggleRecreate() {
-    if (pg._recActive) { fgStopRecreate(); return; }
+// Para que "Recrear" funcione, Forge y el módulo deben compartir ORIGEN. El host
+// `localhost` sirve TODA www, así que abrir Forge por localhost hace que cualquier
+// proyecto de www (erp-gv, etc.) se cargue como localhost/<proyecto>/… → mismo
+// origen → se puede leer su DOM. Devuelve esa URL recomendada de Forge.
+function fgLocalhostForgeUrl() {
+    const p = location.pathname;
+    const i = p.indexOf('/coffee/app/visor/');
+    const rest = i >= 0 ? p.slice(i + 1) : 'coffee/app/visor/forge.php';   // coffee/app/visor/forge.php
+    return location.protocol + '//localhost/' + (pg._container || 'huubie') + '/' + rest;
+}
+// Refleja en los botones de recrear si el Live es alcanzable (same-origin) o no.
+// Ambas opciones (módulo completo y selección) leen el DOM del iframe, así que en
+// cross-origin las atenuamos y guiamos a abrir Forge por localhost o usar Importar.
+function fgReflectRecreate() {
+    const cross = !!(pg._liveModule && pg._liveModule.sameOrigin === false);
+    $('#fgRecFab, #fgRecSelectFab').toggleClass('fg-disabled', cross);
+    if (cross) {
+        const origin = pg._liveModule.url ? (new URL(pg._liveModule.url, location.href)).origin : 'otro dominio';
+        const msg = 'No disponible: el módulo está en ' + origin + ' (otro dominio que Forge). Para recrearlo, abre Forge por ' + fgLocalhostForgeUrl() + ' (mismo origen). Alternativa: "Abrir módulo existente" (📂) → Importar trae el fuente al contexto.';
+        $('#fgRecFab, #fgRecSelectFab').attr('title', msg);
+    } else {
+        $('#fgRecFab').attr('title', 'Copiar el módulo completo (HTML renderizado) al chat del agente');
+        $('#fgRecSelectFab').attr('title', 'Seleccionar un componente del Live y recrearlo');
+    }
+    // La "Vista Live" del chat lee el DOM del iframe: si el nuevo módulo es
+    // cross-origin no se puede leer, así que la apagamos para no engañar.
+    if (cross && pg.liveContext) {
+        pg.liveContext = false;
+        pgSaveSettings();
+        pgToast('Vista Live desactivada: el módulo abierto está en otro dominio que Forge', 'warn');
+    }
+    pgApplyLiveUI();
+}
+
+/* ── Vista Live en el chat ──
+ * Toggle de la barra de input: con él ENCENDIDO, cada mensaje que mandes lleva
+ * adjunto el HTML renderizado del Live (foto fresca en cada envío). Así puedes
+ * preguntar "viendo este layout, ¿qué mejorarías?" sin copiar nada a mano. */
+function fgToggleLiveContext() {
+    if (!pg.liveContext) {
+        // Activar exige un Live legible (same-origin). Sin módulo → guiamos a abrirlo.
+        if (!pg._liveModule) {
+            pgToast('Primero abre un módulo en Live (📂) para que el agente lo vea', 'warn');
+            fgOpenBrowser();
+            return;
+        }
+        if (pg._liveModule.sameOrigin === false || !fgLiveDoc()) {
+            const origin = pg._liveModule.url ? (new URL(pg._liveModule.url, location.href)).origin : 'otro dominio';
+            pgToast('El Live está en ' + origin + ' (otro dominio que Forge): no puedo leer su vista. Abre Forge por ' + fgLocalhostForgeUrl() + ', o usa 📂 → Importar para traer el fuente.', 'error', 9000);
+            return;
+        }
+        pg.liveContext = true;
+        pgToast('Vista Live activada: el agente verá el módulo en cada mensaje', 'success');
+    } else {
+        pg.liveContext = false;
+        pgToast('Vista Live desactivada', 'info');
+    }
+    pgApplyLiveUI();
+    pgSaveSettings();
+}
+
+function pgApplyLiveUI() {
+    const $btn = $('#pgLiveToggle');
+    if (!$btn.length) return;
+    const hasLive = !!pg._liveModule;
+    $btn.toggleClass('is-active', !!pg.liveContext);
+    $btn.attr('title', pg.liveContext
+        ? 'Vista Live ACTIVA — el agente recibe el módulo renderizado en cada mensaje'
+        : (hasLive ? 'Adjuntar la vista del Live al chat (el agente verá el módulo)'
+                   : 'Abre un módulo en Live (📂) y actívalo para que el agente lo vea'));
+}
+
+// Bloque de contexto con la foto fresca del Live para el request actual. Vacío
+// si la Vista Live está apagada o el Live no se puede leer (cross-origin).
+function fgLiveContextBlock() {
+    if (!pg.liveContext) return '';
+    const cap = fgCaptureLiveHtml();
+    if (!cap) return '';
+    const url = (pg._liveModule && pg._liveModule.url) || '';
+    return '=== VISTA ACTUAL DEL MÓDULO EN VIVO (Live) ===\n'
+        + 'Esto es el HTML YA RENDERIZADO (con datos reales) del módulo que el usuario está viendo'
+        + (url ? ' en ' + url : '') + '. Tómalo como referencia visual y estructural para responder; '
+        + 'no lo repitas en tu respuesta.\n'
+        + '--- INICIO VISTA LIVE ---\n' + cap.html + '\n--- FIN VISTA LIVE ---';
+}
+
+// Marca la última burbuja del usuario con un chip que indica que el agente
+// recibió la vista del Live (para que quede claro en el historial del chat).
+function fgTagUserMsgLive() {
+    const url = (pg._liveModule && pg._liveModule.url) || '';
+    const $text = $('#pgChatBody .ia-msg.user').last().find('.ia-msg-text');
+    if (!$text.length) return;
+    $text.prepend(
+        '<div class="ia-msg-docs"><span class="ia-msg-doc-chip fg-live-chip" title="El agente recibió la vista renderizada del Live'
+        + (url ? ': ' + pgEscape(url) : '') + '"><i data-lucide="radio"></i><span>Vista Live</span></span></div>'
+    );
+    if (window.lucide) lucide.createIcons();
+}
+
+/* ── Capturar el Live como IMAGEN (para modelos con visión) ──
+ * Alternativa barata a la "Vista Live" en HTML: rasteriza el DOM del Live con
+ * html2canvas y lo adjunta como imagen al chat (pipeline de visión existente).
+ * Para preguntas de layout una foto cuesta muchísimos menos tokens que el HTML.
+ * Requiere same-origin (leer el DOM del iframe), igual que "Recrear". */
+let _fgH2CPromise = null;
+function fgLoadHtml2Canvas() {
+    if (window.html2canvas) return Promise.resolve(window.html2canvas);
+    if (_fgH2CPromise) return _fgH2CPromise;
+    _fgH2CPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload  = () => resolve(window.html2canvas);
+        s.onerror = () => { _fgH2CPromise = null; reject(new Error('no se pudo cargar html2canvas')); };
+        document.head.appendChild(s);
+    });
+    return _fgH2CPromise;
+}
+// Reescala un canvas a un ancho máximo y lo exporta como JPEG (limita el peso de
+// la captura). Si ya cabe, exporta directo.
+function fgCanvasToScaledJpeg(canvas, maxW, quality) {
+    if (canvas.width <= maxW) return canvas.toDataURL('image/jpeg', quality);
+    const ratio = maxW / canvas.width;
+    const c2 = document.createElement('canvas');
+    c2.width = maxW; c2.height = Math.max(1, Math.round(canvas.height * ratio));
+    const ctx = c2.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c2.width, c2.height);
+    ctx.drawImage(canvas, 0, 0, c2.width, c2.height);
+    return c2.toDataURL('image/jpeg', quality);
+}
+async function fgCaptureLiveImage() {
+    if (!pg._liveModule) { pgToast('Primero abre un módulo en Live (📂) para capturarlo', 'warn'); fgOpenBrowser(); return; }
+    const doc = fgLiveDoc();
+    if (!doc || !doc.body) {
+        const origin = pg._liveModule.url ? (new URL(pg._liveModule.url, location.href)).origin : 'otro dominio';
+        pgToast('No puedo capturar: el Live está en ' + origin + ' (otro dominio que Forge). Abre Forge por ' + fgLocalhostForgeUrl() + ' y reabre el módulo.', 'error', 9000);
+        return;
+    }
+    const $btn = $('#pgLiveShotBtn');
+    if ($btn.hasClass('is-busy')) return;
+    const prevHtml = $btn.html();
+    $btn.addClass('is-busy').html('<i data-lucide="loader-2" class="w-3 h-3 fg-spin"></i>');
+    if (window.lucide) lucide.createIcons();
+    pgToast('Capturando la vista del Live…', 'info');
+    try {
+        const h2c = await fgLoadHtml2Canvas();
+        const el  = doc.body;
+        const canvas = await h2c(el, {
+            useCORS: true, allowTaint: false, backgroundColor: '#ffffff', logging: false,
+            scale: Math.min(window.devicePixelRatio || 1, 1.5),
+            width: el.scrollWidth, height: el.scrollHeight,
+            windowWidth: el.scrollWidth, windowHeight: el.scrollHeight
+        });
+        const dataUrl = fgCanvasToScaledJpeg(canvas, 1600, 0.85);
+        pg.pendingImages.push({
+            dataUrl, base64: dataUrl.replace(/^data:[^;]+;base64,/, ''),
+            mime: 'image/jpeg', name: 'vista-live.jpg'
+        });
+        pgRenderImageStrip();
+        const kb = Math.round((dataUrl.length * 0.75) / 1024);
+        pgToast('Captura del Live adjunta (' + kb + ' KB). Escríbele tu pregunta sobre el diseño.', 'success', 5000);
+        if (pg.model && !PG_VISION_MODELS.has(pg.model)) {
+            pgToast('Ojo: el modelo activo quizá no procesa imágenes. Para que "vea" la captura usa uno con visión (MiniMax, Gemini, Gemma o Kimi).', 'warn', 8000);
+        }
+    } catch (e) {
+        pgToast('No se pudo capturar el Live: ' + (e && e.message ? e.message : e), 'error', 8000);
+    } finally {
+        $btn.removeClass('is-busy').html(prevHtml);
+        if (window.lucide) lucide.createIcons();
+    }
+}
+// Copia el MÓDULO COMPLETO (su HTML ya renderizado, con datos) al chat del
+// agente — "tal cual". Clona el documento del Live, inyecta <base> para que las
+// rutas relativas (CSS/imágenes) resuelvan, lo serializa y lo adjunta como
+// contexto (pendingDocs) para pedirle cambios. También lo refleja en Preview y
+// Código. Requiere same-origin (leer el DOM del iframe): cross-origin no se puede.
+// Serializa el DOM YA RENDERIZADO del Live (con datos reales) a un HTML completo,
+// inyectando <base> para que las rutas relativas resuelvan. Devuelve { html,
+// baseHref } o null si no se puede leer (sin módulo / cross-origin). Sin toasts:
+// el llamador decide el mensaje. Lo comparten "Recrear" y la "Vista Live".
+function fgCaptureLiveHtml() {
+    if (!pg._liveModule) return null;
+    const doc = fgLiveDoc();
+    if (!doc || !doc.body) return null;   // cross-origin o aún sin contenido
+    const fr = document.getElementById('fgLiveFrame');
+    let baseHref = '';
+    try { baseHref = fr.contentWindow.location.href; } catch (e) { baseHref = pg._liveModule.url || ''; }
+    const root = doc.documentElement.cloneNode(true);
+    const head = root.querySelector('head');
+    if (head && baseHref && !head.querySelector('base')) {
+        const base = doc.createElement('base');
+        base.setAttribute('href', baseHref);
+        head.insertBefore(base, head.firstChild);
+    }
+    return { html: '<!DOCTYPE html>\n' + root.outerHTML, baseHref };
+}
+
+function fgCopyModuleToAgent() {
+    if (!pg._liveModule) { pgToast('Primero abre un módulo en Live (📂)', 'warn'); return; }
+    $('.pg-tab[data-sbtab="live"]').click();   // asegurar que el Live esté visible
+    const cap = fgCaptureLiveHtml();
+    if (!cap) {
+        // Cross-origin: el navegador prohíbe leer el iframe → no se puede copiar
+        // su HTML. Forge y el módulo deben compartir origen (abrir Forge por
+        // localhost). Alternativa entre dominios: Importar el fuente desde disco.
+        const liveOrigin = pg._liveModule && pg._liveModule.url ? (new URL(pg._liveModule.url, location.href)).origin : '?';
+        pgToast('No puedo copiar el módulo: el Live está en ' + liveOrigin + ', distinto al de Forge (' + location.origin + '). Abre Forge por ' + fgLocalhostForgeUrl() + ' y reabre el módulo. O usa "Abrir módulo existente" (📂) → Importar para traer el fuente.', 'error', 9000);
+        return;
+    }
+    const fullHtml = cap.html;
+
+    // Copia al chat del agente (adjunto de contexto).
+    const name = 'modulo-live.html';
+    pg.pendingDocs = pg.pendingDocs.filter(d => d.name !== name);
+    pg.pendingDocs.push({ name, content: fullHtml, size: fullHtml.length });
+    pgRenderImageStrip();
+
+    // Reflejo en Preview (estático) y en la pestaña Código.
+    $('#pgSandboxEmpty').hide();
+    const pf = document.getElementById('pgSandboxFrame');
+    pf.removeAttribute('src');
+    pf.onload = () => pgApplyZoom();
+    pf.srcdoc = fullHtml;
+    pg.lastHtml = fullHtml; pg.lastTheme = pg.theme; pg._lastIsDoc = true;
+    const $code = $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text(fullHtml);
+    if (window.hljs) hljs.highlightElement($code[0]);
+
+    pgToast('Módulo copiado al chat del agente (' + Math.round(fullHtml.length / 1024) + ' KB). Escríbele los cambios que quieras.', 'success', 5000);
+}
+
+/* ── Modo selección: recrear un COMPONENTE concreto del Live ──
+ * Alternativa a "Recrear template" (módulo completo): el usuario activa el modo,
+ * el cursor resalta los elementos y al hacer clic en uno, ese nodo se calca al
+ * Preview como HTML estático y se copia al chat del agente. Requiere same-origin. */
+function fgToggleSelectRecreate() {
+    if (pg._recActive) { fgStopSelectRecreate(); return; }
     if (!pg._liveModule) { pgToast('Primero abre un módulo en Live (📂)', 'warn'); return; }
     $('.pg-tab[data-sbtab="live"]').click();   // asegurar que el Live esté visible
     const doc = fgLiveDoc();
     if (!doc || !doc.body) {
-        // Cross-origin: el navegador prohíbe leer el iframe. Hay que abrir Forge
-        // en el MISMO dominio que el módulo.
         const liveOrigin = pg._liveModule && pg._liveModule.url ? (new URL(pg._liveModule.url, location.href)).origin : '?';
-        pgToast('No puedo copiar el Live: está en otro dominio (' + liveOrigin + '). Abre Forge en ese mismo dominio.', 'error');
+        pgToast('No puedo leer el Live: está en ' + liveOrigin + ', distinto al de Forge (' + location.origin + '). Abre Forge por ' + fgLocalhostForgeUrl() + ' y reabre el módulo. O usa "Abrir módulo existente" (📂) → Importar.', 'error', 9000);
         return;
     }
     pg._recActive = true;
     pg._recDoc = doc;
-    $('#fgRecreateBtn').addClass('is-on');
-    $('#fgRecFab').addClass('is-on').html('<i data-lucide="x" class="w-4 h-4"></i> Cancelar');
+    $('#fgRecSelectFab').addClass('is-on').html('<i data-lucide="x" class="w-4 h-4"></i> Cancelar');
     $('#fgRecBanner').removeClass('hidden');
     if (window.lucide) lucide.createIcons();
     if (!doc.getElementById('fgRecStyle')) {
@@ -2033,10 +2419,9 @@ function fgToggleRecreate() {
     doc.addEventListener('click', fgRecClick, true);
     pgToast('Clic en el componente del Live que quieres recrear (Esc para cancelar)', 'info');
 }
-function fgStopRecreate() {
+function fgStopSelectRecreate() {
     pg._recActive = false;
-    $('#fgRecreateBtn').removeClass('is-on');
-    $('#fgRecFab').removeClass('is-on').html('<i data-lucide="copy-plus" class="w-4 h-4"></i> Recrear componente');
+    $('#fgRecSelectFab').removeClass('is-on').html('<i data-lucide="mouse-pointer-click" class="w-4 h-4"></i> Seleccionar');
     $('#fgRecBanner').addClass('hidden');
     if (window.lucide) lucide.createIcons();
     const doc = pg._recDoc;
@@ -2056,11 +2441,10 @@ function fgRecClick(e) {
     e.preventDefault(); e.stopPropagation();
     const el = e.target;
     if (el && el.tagName) fgRecreateFromNode(el);
-    fgStopRecreate();
+    fgStopSelectRecreate();
 }
-
-// Calca un nodo del Live al Preview: HTML del nodo + los assets de estilo del
-// Live (con <base> para que rutas/imágenes resuelvan) → render fiel y estático.
+// Calca un nodo del Live → Preview (HTML estático con los estilos del Live +
+// <base> para resolver rutas) y lo copia al chat del agente como 'componente-live.html'.
 function fgRecreateFromNode(el) {
     const liveDoc = el.ownerDocument;
     const fr = document.getElementById('fgLiveFrame');
@@ -2071,35 +2455,33 @@ function fgRecreateFromNode(el) {
     if (clone.classList) clone.classList.remove('fg-rec-hover');
     const nodeHtml = clone.outerHTML;
 
-    const headBits = Array.from(liveDoc.querySelectorAll('link[rel="stylesheet"], style'))
-        .map(n => n.outerHTML).join('\n');
+    const headBits = Array.from(liveDoc.querySelectorAll('link[rel="stylesheet"], style')).map(n => n.outerHTML).join('\n');
     const tw = liveDoc.querySelector('script[src*="tailwindcss"]') ? '<script src="https://cdn.tailwindcss.com"><\/script>' : '';
     const bodyClass = liveDoc.body.getAttribute('class') || '';
     const bodyStyle = liveDoc.body.getAttribute('style') || '';
-    const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><base href="${pgEscape(baseHref)}">`
+    const docHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><base href="${pgEscape(baseHref)}">`
         + `${tw}\n${headBits}\n<style>body{padding:16px;}</style></head>`
         + `<body class="${pgEscape(bodyClass)}" style="${pgEscape(bodyStyle)}">${nodeHtml}</body></html>`;
 
-    // Preview (estático, sin JS del módulo): srcdoc con los estilos reales.
+    // Preview (estático, con los estilos reales del Live).
     $('#pgSandboxEmpty').hide();
     const pf = document.getElementById('pgSandboxFrame');
     pf.removeAttribute('src');
     pf.onload = () => pgApplyZoom();
-    pf.srcdoc = doc;
+    pf.srcdoc = docHtml;
     pg.lastHtml = nodeHtml; pg.lastTheme = pg.theme; pg._lastIsDoc = false;
 
-    // Pestaña Código refleja el HTML del componente.
     const $code = $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text(nodeHtml);
     if (window.hljs) hljs.highlightElement($code[0]);
 
-    // Importar al contexto del agente para iterarlo ("mejora este componente").
+    // Copia al chat del agente para iterarlo.
     const name = 'componente-live.html';
     pg.pendingDocs = pg.pendingDocs.filter(d => d.name !== name);
     pg.pendingDocs.push({ name, content: nodeHtml, size: nodeHtml.length });
     pgRenderImageStrip();
 
     $('.pg-tab[data-sbtab="preview"]').click();
-    pgToast('Componente recreado en Preview e importado al contexto', 'success');
+    pgToast('Componente recreado y copiado al chat del agente', 'success');
 }
 
 // Lee un archivo del proyecto y lo añade como contexto del agente (pendingDocs).
@@ -2256,9 +2638,9 @@ function fgBind() {
     $('#fgProjectBase').on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fgSaveProjectBase(); } });
     $('#fgOpenUrl').on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fgOpenManualUrl(); } });
 
-    // Recrear componente del Live → Preview.
-    $('#fgRecreateBtn').on('click', () => fgToggleRecreate());
-    $(document).on('keydown', e => { if (e.key === 'Escape' && pg._recActive) fgStopRecreate(); });
+    // Recrear: el botón del header copia el módulo completo; Esc cancela el modo selección.
+    $('#fgRecreateBtn').on('click', () => fgCopyModuleToAgent());
+    $(document).on('keydown', e => { if (e.key === 'Escape' && pg._recActive) fgStopSelectRecreate(); });
 
     // Hilos paralelos.
     $('#fgNewThreadBtn').on('click', () => fgNewThread());

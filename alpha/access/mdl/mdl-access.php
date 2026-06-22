@@ -84,5 +84,32 @@
             ";
             return $this->_Read($query, null);
         }
+
+        function getSubsidiariesByCompany($array){
+            $query = "SELECT
+                id,
+                name as valor
+            FROM
+                fayxzvov_alpha.subsidiaries
+            WHERE
+                companies_id = ?
+            ORDER BY name";
+            return $this->_Read($query, $array);
+        }
+
+        function getSubsidiaryForCompany($array){
+            $query = "SELECT
+                id,
+                name as valor
+            FROM
+                fayxzvov_alpha.subsidiaries
+            WHERE
+                id = ?
+                AND companies_id = ?
+            LIMIT 1";
+            $success = $this->_Read($query, $array);
+
+            return (isset($success) && count($success) > 0) ? $success[0] : null;
+        }
     }
 ?>

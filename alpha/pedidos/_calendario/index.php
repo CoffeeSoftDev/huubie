@@ -185,9 +185,6 @@
     <!-- Pedidos catalogo (ticketPasteleria) -->
     <script src="<?=PATH_PEDIDOS?>src/js/pedidos-catalogo.js?t=<?php echo time(); ?>"></script>
 
-    <!-- Lucide icons helper -->
-    <script src="<?=PATH_PEDIDOS?>src/js/lucide-icons.js?t=<?php echo time(); ?>"></script>
-
     <!-- Init -->
     <script src="src/js/calendario-pedidos.js?t=<?php echo time(); ?>"></script>
 

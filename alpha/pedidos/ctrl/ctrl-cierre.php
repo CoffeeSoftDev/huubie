@@ -211,6 +211,8 @@ class Cierre extends MCierre {
 
         $shifts   = $this->listShiftsDetail([$date, $subsidiaries_id]);
         $statuses = $this->getConsolidatedStatuses([$date, $subsidiaries_id]);
+        $paymentTx = $this->getPaymentTransactions([$date, $subsidiaries_id]);
+        $ordersRaw = $this->getOrdersBreakdown([$date, $subsidiaries_id]);
 
         $sub = $this->getSubsidiaryName([$subsidiaries_id]);
         $subsidiary_name = $sub ? $sub['sucursal'] : 'Sucursal';
@@ -229,6 +231,27 @@ class Cierre extends MCierre {
                     case 4: $cancelled_count = intval($st['count']); break;
                 }
             }
+        }
+
+        $countCash = 0; $countCard = 0; $countTransfer = 0;
+        foreach ($paymentTx as $tx) {
+            switch (intval($tx['method_pay_id'])) {
+                case 1: $countCash     = intval($tx['transactions']); break;
+                case 2: $countCard     = intval($tx['transactions']); break;
+                case 3: $countTransfer = intval($tx['transactions']); break;
+            }
+        }
+
+        $orders = [];
+        foreach ($ordersRaw as $o) {
+            $orders[] = [
+                'folio'  => $o['folio'],
+                'date'   => $o['date_creation'],
+                'client' => $o['client_name'],
+                'status' => intval($o['status']),
+                'total'  => floatval($o['total_pay']),
+                'method' => $o['method']
+            ];
         }
 
         return [
@@ -255,7 +278,13 @@ class Cierre extends MCierre {
                 'pending'    => $pending_count,
                 'delivered'  => $delivered_count,
                 'cancelled'  => $cancelled_count
-            ]
+            ],
+            'payments'          => [
+                'cash'     => ['amount' => floatval($closure['total_cash']),     'count' => $countCash],
+                'card'     => ['amount' => floatval($closure['total_card']),     'count' => $countCard],
+                'transfer' => ['amount' => floatval($closure['total_transfer']), 'count' => $countTransfer]
+            ],
+            'orders'            => $orders
         ];
     }
 

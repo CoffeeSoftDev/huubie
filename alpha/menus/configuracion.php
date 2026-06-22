@@ -33,6 +33,8 @@
         <div id="grid-card" class="w-full grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"></div>
     </div>
     <script src="<?= PATH_BASE ?>access/src/js/session.js?t=<?= time(); ?>"></script>
+    <!-- Hub de menus: la navbar no debe mostrar el selector de sucursal -->
+    <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>
     <script src="<?=PATH_MENU?>src/js/navbar.js"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
     <script src="<?=PATH_MENU?>src/js/cards.js?t=<?= time() ?>"></script>

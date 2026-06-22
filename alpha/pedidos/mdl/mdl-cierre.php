@@ -175,6 +175,48 @@ class MCierre extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    function getPaymentTransactions($array) {
+        $query = "
+            SELECT
+                pp.method_pay_id,
+                COUNT(*) AS transactions,
+                COALESCE(SUM(pp.pay), 0) AS total
+            FROM {$this->bd}order_payments pp
+            INNER JOIN {$this->bd}`order` o ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY pp.method_pay_id
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
+    function getOrdersBreakdown($array) {
+        $query = "
+            SELECT
+                o.id AS folio,
+                o.date_creation,
+                oc.name AS client_name,
+                o.status,
+                o.total_pay,
+                (
+                    SELECT mp.method_pay
+                    FROM {$this->bd}order_payments pp
+                    INNER JOIN {$this->bd}method_pay mp ON pp.method_pay_id = mp.id
+                    WHERE pp.order_id = o.id
+                    ORDER BY pp.pay DESC
+                    LIMIT 1
+                ) AS method
+            FROM {$this->bd}`order` o
+            INNER JOIN {$this->bd}order_clients oc ON o.client_id = oc.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND o.is_legacy = 0
+            ORDER BY o.date_creation ASC
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
     function listShiftsDetail($array) {
         $query = "
             SELECT

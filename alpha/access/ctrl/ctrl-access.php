@@ -71,16 +71,54 @@ class Access extends MAccess {
             $routes = $this->getRoutes();
         }
 
+        // Todo usuario habilitado puede cambiar de sucursal (switch de sesion):
+        // se listan todas las sucursales de su empresa. El admin (ROLID == 1)
+        // usa el selector como filtro de vista; el resto hace switch de sesion.
+        $isAdmin      = ($_SESSION['ROLID'] == 1);
+        $subsidiaries = $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']]);
+
         return [
-            "company" => $_SESSION['COMPANY'],
-            "photo"   => $photo,
-            "user"    => $sql['fullname'],
-            'level'   => $_SESSION['ROLID'],
-            'rol'     =>  $_SESSION['ROL'],
-            'routes'  => $routes,
+            "company"       => $_SESSION['COMPANY'],
+            "subsidiary"    => $_SESSION['SUBSIDIARIE_NAME'],
+            "subsidiary_id" => $_SESSION['SUB'],
+            "is_admin"      => $isAdmin,
+            "subsidiaries"  => $subsidiaries,
+            "photo"         => $photo,
+            "user"          => $sql['fullname'],
+            'level'         => $_SESSION['ROLID'],
+            'rol'           =>  $_SESSION['ROL'],
+            'routes'        => $routes,
         ];
     }
 
+
+    // Cambia la sucursal activa reescribiendo la sesion. Equivale a re-loguear
+    // con otro usuario de la misma empresa, pero sin teclear credenciales.
+    function switchSubsidiary(){
+        $subId = $_POST['subsidiaries_id'] ?? null;
+
+        if (empty($subId)) {
+            return ["status" => 400, "message" => "Sucursal no especificada."];
+        }
+
+        // Validar que la sucursal pertenece a la empresa del usuario en sesion.
+        $sub = $this->getSubsidiaryForCompany([$subId, $_SESSION['COMPANY_ID']]);
+
+        if (!$sub) {
+            return ["status" => 403, "message" => "La sucursal no pertenece a tu empresa."];
+        }
+
+        $_SESSION['SUB']              = $sub['id'];
+        $_SESSION['SUBSIDIARIE_NAME'] = $sub['valor'];
+        $_SESSION['last_activity']    = time();
+
+        return [
+            "status"        => 200,
+            "message"       => "Sucursal actualizada.",
+            "subsidiary"    => $sub['valor'],
+            "subsidiary_id" => $sub['id']
+        ];
+    }
 
     function sidebar(){
         $routes = [];

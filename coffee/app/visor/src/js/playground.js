@@ -175,6 +175,7 @@ $(async () => {
     pgApplyAgent(pg.agentKey, true);
     pgApplyCanvasUI();
     pgApplyViewport();
+    pgRestoreSession();   // retoma la última sesión (chat + render) si la había
     if (window.lucide) lucide.createIcons();
 });
 
@@ -478,6 +479,7 @@ function pgBind() {
     $('#pgSaveTplClose, #pgSaveTplCancel').on('click', () => pgCloseSaveTemplate());
     $('#pgSaveTplModal .pg-modal-backdrop').on('click', () => pgCloseSaveTemplate());
     $('#pgSaveTplConfirm').on('click', () => pgConfirmSaveTemplate());
+    $('#pgSaveTplUpdate').on('click', () => pgConfirmSaveTemplate(pg._loadedSlug));
     $('#pgSaveTplName').on('input', function () {
         $('#pgSaveTplSlug').text(this.value.trim() ? 'Carpeta: documents/template/' + pgSlugify(this.value) + '/' : '');
     }).on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pgConfirmSaveTemplate(); } });
@@ -717,7 +719,10 @@ function pgClearChat() {
     pg.pinnedTplId = null;
     pg.threadUid = null;
     pg.threadTitle = '';
+    pg._loadedSlug = null;
+    pg._loadedName = '';
     clearTimeout(pg._threadSaveTimer);
+    pgClearSession();      // al limpiar el chat, no hay sesión que retomar
     pgUpdateThreadChip();
     pgRenderPinBanner();   // quita el chip "Modificando…" si quedaba
     $('#pgChatBody').html(`
@@ -727,6 +732,105 @@ function pgClearChat() {
             <div class="pg-empty-sub">Escríbele una instrucción y observa el resultado en el sandbox.</div>
         </div>`);
     if (window.lucide) lucide.createIcons();
+}
+
+/* ── Sesión persistente (retomar al recargar) ──
+ * El Lab guarda en localStorage la conversación + el último render + las
+ * miniaturas de la sesión, y los restaura al abrir, igual que Forge retoma su
+ * hilo. Se autoguarda al terminar cada respuesta, al renderizar y al cargar una
+ * plantilla; se borra al limpiar el chat. */
+const PG_SESSION_KEY = 'playground:session:v1';
+
+function pgSnapshotSession() {
+    return {
+        history:      pg.history,
+        templates:    pg.templates,
+        activeTplId:  pg._activeTplId,
+        pinnedTplId:  pg.pinnedTplId,
+        lastUserText: pg._lastUserText,
+        lastIsDoc:    pg._lastIsDoc,
+        lastHtml:     pg.lastHtml,
+        lastTheme:    pg.lastTheme,
+        loadedSlug:   pg._loadedSlug || null,
+        loadedName:   pg._loadedName || '',
+        agentKey:     pg.agentKey,
+        theme:        pg.theme,
+        ts:           Date.now()
+    };
+}
+function pgSaveSession() {
+    try {
+        localStorage.setItem(PG_SESSION_KEY, JSON.stringify(pgSnapshotSession()));
+    } catch (e) {
+        // Sesión muy grande para localStorage: reintenta sin las miniaturas
+        // (conserva la conversación y el último render, que es lo esencial).
+        try {
+            const snap = pgSnapshotSession();
+            snap.templates = [];
+            localStorage.setItem(PG_SESSION_KEY, JSON.stringify(snap));
+        } catch (e2) { /* sin espacio: no se persiste */ }
+    }
+}
+function pgClearSession() {
+    try { localStorage.removeItem(PG_SESSION_KEY); } catch (e) {}
+}
+// Reconstruye el chat (texto) desde pg.history y re-asocia las miniaturas.
+function pgRebuildChat() {
+    const $b = $('#pgChatBody').empty();
+    if (!pg.history.length) {
+        $b.html(`
+            <div class="pg-empty">
+                <i data-lucide="sparkles"></i>
+                <div class="pg-empty-title">Pon a prueba a tu agente</div>
+                <div class="pg-empty-sub">Escríbele una instrucción y observa el resultado en el sandbox.</div>
+            </div>`);
+        if (window.lucide) lucide.createIcons();
+        return;
+    }
+    pg.history.forEach(m => {
+        if (m.role === 'user') {
+            pgAppendUser(
+                (m.content || '').replace(/\n\n=== DOCUMENTOS ADJUNTOS[\s\S]*$/, '').trim(),
+                m.imagesPreview, m.docsMeta
+            );
+        } else if (m.role === 'assistant') {
+            pgAppendAI(m.content || '');
+        }
+    });
+    // Re-pintar las miniaturas de la sesión sobre el último mensaje de IA.
+    if (Array.isArray(pg.templates) && pg.templates.length) {
+        const $lastAI = $('#pgChatBody .ia-msg.ai').last();
+        const $target = $lastAI.length ? $lastAI : $('#pgChatBody');
+        pg.templates.forEach(tpl => pgAppendTemplateCard($target, tpl));
+    }
+    pgScroll();
+}
+// Restaura la última sesión guardada. Devuelve true si había algo que retomar.
+function pgRestoreSession() {
+    let s;
+    try { s = JSON.parse(localStorage.getItem(PG_SESSION_KEY) || 'null'); } catch (e) { s = null; }
+    if (!s || !Array.isArray(s.history) || !s.history.length) return false;
+
+    if (s.theme && PG_THEMES[s.theme]) {
+        pg.theme = s.theme;
+        $('#pgThemeSelect').val(s.theme);
+        $('#pgSandboxTheme').text((PG_THEMES[s.theme] || {}).label || s.theme);
+    }
+    pg.history       = s.history || [];
+    pg.templates     = s.templates || [];
+    pg._activeTplId  = s.activeTplId || null;
+    pg.pinnedTplId   = s.pinnedTplId || null;
+    pg._lastUserText = s.lastUserText || '';
+    pg._lastIsDoc    = !!s.lastIsDoc;
+    pg.lastHtml      = s.lastHtml || '';
+    pg.lastTheme     = s.lastTheme || s.theme;
+    pg._loadedSlug   = s.loadedSlug || null;
+    pg._loadedName   = s.loadedName || '';
+
+    pgRebuildChat();
+    if (pg.lastHtml) pgRenderSandbox(pg.lastHtml, pg._lastIsDoc);
+    pgRefreshPinUI();
+    return true;
 }
 
 function pgSubmit() {
@@ -1282,6 +1386,7 @@ function pgFinish() {
     pgSetBusy(false);
     pg._abort = null;
     pgScroll();
+    pgSaveSession();   // autoguarda la sesión para poder retomarla al recargar
 }
 
 /* ── Estado ocupado ──
@@ -1581,6 +1686,7 @@ function pgRestoreTemplate(id) {
     // Resalta en el chat la tarjeta activa.
     $('.pg-chat-tpl').removeClass('is-active');
     $(`.pg-chat-tpl[data-tpl-id="${id}"]`).addClass('is-active');
+    pgSaveSession();
     pgToast('Template cargado en el sandbox', 'success');
 }
 
@@ -2368,9 +2474,20 @@ function pgSlugify(name) {
 
 function pgOpenSaveTemplate() {
     if (!pg.lastHtml) { pgToast('Aún no hay render para guardar', 'warn'); return; }
-    const suggested = (pg._lastUserText || '').trim().slice(0, 46);
+    // Si vienes iterando una plantilla cargada, ofrecemos "Actualizar" además de
+    // "Guardar como nueva", y proponemos su mismo nombre.
+    const editing  = !!pg._loadedSlug;
+    const suggested = editing
+        ? (pg._loadedName || '')
+        : (pg._lastUserText || '').trim().slice(0, 46);
     $('#pgSaveTplName').val(suggested);
     $('#pgSaveTplSlug').text(suggested ? 'Carpeta: documents/template/' + pgSlugify(suggested) + '/' : '');
+
+    $('#pgSaveTplActive').toggle(editing);
+    $('#pgSaveTplActiveName').text(pg._loadedName || pg._loadedSlug || '');
+    $('#pgSaveTplUpdate').toggle(editing);
+    $('#pgSaveTplConfirmLabel').text(editing ? 'Guardar como nueva' : 'Guardar');
+
     $('#pgSaveTplModal').removeClass('hidden').attr('aria-hidden', 'false');
     setTimeout(() => $('#pgSaveTplName').trigger('focus'), 30);
     if (window.lucide) lucide.createIcons();
@@ -2379,7 +2496,9 @@ function pgCloseSaveTemplate() {
     $('#pgSaveTplModal').addClass('hidden').attr('aria-hidden', 'true');
 }
 
-async function pgConfirmSaveTemplate() {
+// `updateSlug` presente = sobrescribe esa carpeta (actualizar la plantilla
+// cargada); ausente = crea/usa el slug derivado del nombre (guardar nueva).
+async function pgConfirmSaveTemplate(updateSlug) {
     const name = $('#pgSaveTplName').val().trim();
     if (!name) { pgToast('Escribe un nombre para la plantilla', 'warn'); return; }
     if (!pg.lastHtml) { pgToast('No hay render para guardar', 'warn'); return; }
@@ -2404,18 +2523,24 @@ async function pgConfirmSaveTemplate() {
         history:    cleanHistory
     };
 
-    const $btn = $('#pgSaveTplConfirm').prop('disabled', true);
+    const $btn = $('#pgSaveTplConfirm, #pgSaveTplUpdate').prop('disabled', true);
     try {
         const form = new FormData();
         form.append('action', 'savetemplate');
         form.append('name', name);
         form.append('html', pg.lastHtml);
         form.append('meta', JSON.stringify(meta));
+        if (updateSlug) form.append('slug', updateSlug);   // sobrescribe esa carpeta
         const res  = await fetch(PG_API, { method: 'POST', body: form });
         const data = await res.json();
         if (data.success) {
+            // La plantilla guardada pasa a ser la "activa": el siguiente guardado
+            // ya ofrece actualizarla, y sobrevive al recargar (va en la sesión).
+            pg._loadedSlug = data.slug || updateSlug || pgSlugify(name);
+            pg._loadedName = data.name || name;
+            pgSaveSession();
             pgCloseSaveTemplate();
-            pgToast('Plantilla guardada en ' + data.path, 'success');
+            pgToast(updateSlug ? 'Plantilla actualizada' : 'Plantilla guardada en ' + data.path, 'success');
         } else {
             pgToast(data.message || 'No se pudo guardar', 'error');
         }
@@ -2514,6 +2639,10 @@ function pgLoadSavedTemplate(t) {
     // Arrancamos un chat independiente: limpiamos y, si la plantilla traía
     // conversación, la rehidratamos para que el agente recuerde el contexto.
     pgClearChat();
+    // Recordar de qué plantilla viene para poder ACTUALIZARLA al seguir iterando.
+    // (Tras pgClearChat, que limpia estos campos.)
+    pg._loadedSlug = t.slug || null;
+    pg._loadedName = t.name || t.title || t.slug || '';
     pg._lastUserText = t.userText || t.title || t.name || '';
     if (Array.isArray(t.history) && t.history.length) {
         pg.history = t.history.slice();
@@ -2539,6 +2668,7 @@ function pgLoadSavedTemplate(t) {
         pgAppendTemplateCard($last.length ? $last : $('#pgChatBody'), tpl);
     }
     pgCloseTemplates();
+    pgSaveSession();   // la plantilla cargada pasa a ser la sesión activa
     pgToast('Plantilla "' + (t.name || '') + '" cargada', 'success');
 }
 

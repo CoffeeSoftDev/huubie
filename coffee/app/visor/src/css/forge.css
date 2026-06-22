@@ -144,17 +144,37 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .fg-rec-banner.hidden { display: none; }
 .fg-rec-banner strong { background: rgba(0,0,0,.2); padding: 0 5px; border-radius: 4px; }
 
-/* Botón contextual "Recrear componente" (flotante sobre la vista Live) */
-.fg-rec-fab {
-    position: absolute; right: 14px; bottom: 14px; z-index: 18;
-    display: inline-flex; align-items: center; gap: 7px;
-    padding: 9px 14px; border-radius: 10px; cursor: pointer;
-    font-size: 12.5px; font-weight: 700; color: #fff; border: none;
-    background: var(--vsr-accent); box-shadow: 0 6px 18px rgba(0,0,0,.4);
+/* Acciones contextuales sobre la vista Live: barra flotante con dos acciones
+   (recrear módulo completo · seleccionar componente). Agrupadas en un "dock"
+   cohesivo: principal en acento, secundaria ghost. */
+.fg-rec-fab-wrap {
+    position: absolute; right: 16px; bottom: 16px; z-index: 18;
+    display: flex; align-items: center; gap: 3px;
+    padding: 4px;
+    background: var(--vsr-bg-chrome);
+    border: 1px solid var(--vsr-border);
+    border-radius: 13px;
+    box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.35);
 }
-.fg-rec-fab:hover { filter: brightness(1.08); }
-.fg-rec-fab.is-on { background: #16a34a; }
+.fg-rec-fab-wrap.hidden { display: none; }
+.fg-rec-fab {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 14px; border-radius: 9px; cursor: pointer;
+    font-size: 12.5px; font-weight: 600; line-height: 1; white-space: nowrap;
+    color: #fff; border: none; background: var(--vsr-accent);
+    transition: background .15s ease, color .15s ease, filter .15s ease, transform .06s ease;
+}
+.fg-rec-fab i { width: 15px; height: 15px; }
+.fg-rec-fab:hover { filter: brightness(1.09); }
+.fg-rec-fab:active { transform: translateY(1px); }
+.fg-rec-fab.is-on { background: #16a34a; color: #fff; }
 .fg-rec-fab.hidden { display: none; }
+/* Acción secundaria "Seleccionar": ghost, se ilumina en hover. */
+.fg-rec-fab-alt { background: transparent; color: var(--vsr-text-soft); }
+.fg-rec-fab-alt:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); filter: none; }
+/* Live en otro dominio: no se puede leer el iframe → acciones atenuadas. */
+.fg-rec-fab.fg-disabled { background: transparent; color: var(--vsr-text-muted); opacity: .6; cursor: not-allowed; }
+.fg-rec-fab.fg-disabled:hover { background: transparent; filter: none; }
 
 /* ── Chat ── */
 .pg-chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -214,8 +234,41 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 /* Punto "en vivo" de la pestaña Live cuando hay un módulo cargado */
 .fg-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,.28); animation: fgLivePulse 1.8s ease-in-out infinite; }
 @keyframes fgLivePulse { 0%,100% { box-shadow: 0 0 0 2px rgba(34,197,94,.28); } 50% { box-shadow: 0 0 0 4px rgba(34,197,94,.10); } }
+/* Chip en la burbuja del usuario: indica que el agente recibió la vista del Live */
+.ia-msg-doc-chip.fg-live-chip { border-color: rgba(34,197,94,.45); background: rgba(34,197,94,.10); color: #86efac; }
+.ia-msg-doc-chip.fg-live-chip i { color: #22c55e; }
+/* Toggle "Live" activo: acento verde en vez del azul de "Lienzo" */
+#pgLiveToggle.is-active { border-color: rgba(34,197,94,.55); background: rgba(34,197,94,.12); color: #86efac; }
+#pgLiveToggle.is-active i { color: #22c55e; }
+/* Botón "capturar Live como imagen": spinner mientras rasteriza */
+#pgLiveShotBtn.is-busy { opacity: .8; pointer-events: none; }
+.fg-spin { animation: fgSpin .8s linear infinite; }
+@keyframes fgSpin { to { transform: rotate(360deg); } }
 .pg-sandbox-actions { display: flex; align-items: center; gap: 8px; }
 .pg-theme-chip { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--vsr-bg-hover); color: var(--vsr-text-muted); }
+
+/* Menú "puntitos" (kebab): agrupa las acciones secundarias del sandbox. */
+.pg-more { position: relative; }
+.pg-more-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+    min-width: 220px; padding: 5px;
+    background: var(--vsr-bg-chrome);
+    border: 1px solid var(--vsr-border);
+    border-radius: 10px;
+    box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.35);
+}
+.pg-more-menu.hidden { display: none; }
+.pg-more-item {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    padding: 7px 10px; border-radius: 7px;
+    background: transparent; border: none; cursor: pointer;
+    font-size: 12.5px; font-weight: 500; line-height: 1; text-align: left; white-space: nowrap;
+    color: var(--vsr-text-soft); transition: background .12s ease, color .12s ease;
+}
+.pg-more-item i { flex: 0 0 auto; color: var(--vsr-text-muted); }
+.pg-more-item:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.pg-more-item:hover i { color: var(--vsr-accent-soft); }
+.pg-more-sep { height: 1px; margin: 5px 6px; background: var(--vsr-border); }
 
 /* El fondo real lo pinta pgRenderSandbox() con el color del tema activo; este
    es solo el estado base para que no destelle blanco antes del primer render. */
@@ -223,6 +276,37 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
    iframe, así no aparecen dos barras (panel + iframe). */
 .pg-sandbox-body { flex: 1; position: relative; min-height: 0; overflow: hidden; background: var(--vsr-bg-base); }
 .pg-sandbox-frame { width: 100%; height: 100%; border: none; display: block; }
+
+/* Viewport fijo (móvil/laptop): centra el iframe con un ancho concreto sobre un
+   fondo de "escritorio" para verlo como dispositivo. El ancho lo fija JS en
+   --pg-vp-w. En "full" no se aplica y el iframe ocupa el 100%. */
+.pg-sandbox-body.pg-vp-fixed {
+    overflow: auto;
+    display: flex; justify-content: center; align-items: flex-start;
+    padding: 14px 0;
+    background: var(--vsr-bg-chrome);
+}
+.pg-sandbox-body.pg-vp-fixed .pg-sandbox-frame {
+    flex: 0 0 auto;
+    width: var(--pg-vp-w, 390px);
+    max-width: 100%;
+    height: 100%;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.35);
+}
+
+/* Selector de viewport: grupo de iconos con el activo en acento. */
+.pg-viewport { display: inline-flex; align-items: center; gap: 1px; }
+.pg-vp-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 26px; border-radius: 6px;
+    color: var(--vsr-text-muted);
+    background: transparent; border: none; cursor: pointer;
+    transition: color .12s ease, background .12s ease;
+}
+.pg-vp-btn:hover { color: var(--vsr-text-soft); background: var(--vsr-bg-hover); }
+.pg-vp-btn.is-active { color: var(--vsr-accent-soft); background: var(--vsr-accent-tint); }
 
 /* Control de zoom del preview */
 .pg-zoom { display: flex; align-items: center; gap: 1px; }

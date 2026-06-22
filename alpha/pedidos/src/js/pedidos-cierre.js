@@ -122,8 +122,8 @@ class Cierre {
             </div>
             <div class="space-y-2.5 mb-6">${checksHtml}</div>
             <div class="flex gap-3">
-                <button class="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-gray-600 hover:bg-gray-700 text-white" onclick="cierre.cancelChecklist()">Cancelar</button>
-                <button class="flex-1 py-2.5 rounded-lg text-sm font-semibold ${data.can_close ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 opacity-50 cursor-not-allowed'} text-white" ${data.can_close ? '' : 'disabled'} onclick="cierre.confirmClose('${date}', '${subsidiaries_id}')">Confirmar Cierre</button>
+                <button class="flex-1 py-2 rounded-lg text-sm font-semibold bg-gray-600 hover:bg-gray-700 text-white" onclick="cierre.cancelChecklist()">Cancelar</button>
+                <button class="flex-1 py-2 rounded-lg text-sm font-semibold ${data.can_close ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 opacity-50 cursor-not-allowed'} text-white" ${data.can_close ? '' : 'disabled'} onclick="cierre.confirmClose('${date}', '${subsidiaries_id}')">Confirmar Cierre</button>
             </div>
         `;
 
@@ -210,12 +210,12 @@ class Cierre {
         dateLabel.append(`<p class="closure-badge text-[10px] text-gray-500 mt-1">Por: <strong class="text-gray-300">${res.closure.closed_by || 'Admin'}</strong> — ${moment(res.closure.created_at).format('hh:mm A')}</p>`);
 
         $('#btnOpenShift, #btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
-        $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed').attr('onclick', 'cierre.printExecutiveSummary()');
 
         let btnArea = $('#btnCerrarDia').parent();
         if (rol == 1) {
             btnArea.html(`
-                <button id="btnReabrirDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-2" onclick="cierre.reopenClosure(${res.closure.id})">
+                <button id="btnReabrirDia" class="w-full py-2 rounded-lg text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-2" onclick="cierre.reopenClosure(${res.closure.id})">
                     ${lucideIcon('rotate-cw')} Reabrir Dia
                 </button>
                 <p class="text-[9px] text-gray-600 mt-1 text-center">Solo admin — requiere motivo</p>
@@ -225,7 +225,7 @@ class Cierre {
         }
 
         $('#ticketModeBar').addClass('hidden');
-        this.renderDailyTicket(res);
+        this.renderExecutiveSummary(res);
     }
 
     renderDailyTicket(res) {
@@ -301,9 +301,205 @@ class Cierre {
         $('#ticketContainer').html(html);
     }
 
+    statusBadge(statusId) {
+        const map = {
+            1: { label: 'cotizacion', cls: 'bg-cyan-100 text-cyan-700' },
+            2: { label: 'pendiente',  cls: 'bg-amber-100 text-amber-700' },
+            3: { label: 'pagado',     cls: 'bg-green-100 text-green-700' },
+            4: { label: 'cancelado',  cls: 'bg-red-100 text-red-700' }
+        };
+        const s = map[statusId] || { label: 'desconocido', cls: 'bg-gray-100 text-gray-600' };
+        return `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${s.cls}">${s.label}</span>`;
+    }
+
+    renderExecutiveSummary(res) {
+        const c      = res.closure;
+        const shifts = res.shifts || [];
+        const orders = res.orders || [];
+        const pay    = res.payments || { cash: {}, card: {}, transfer: {} };
+
+        const kpi = (label, value, accent = 'text-gray-900') => `
+            <div class="kpi-box border !border-[#E2E8F0] bg-[#F8FAFC] rounded-lg p-3">
+                <p class="text-[9px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">${label}</p>
+                <p class="text-sm font-bold ${accent}">${value}</p>
+            </div>
+        `;
+
+        const payRow = (label, info) => {
+            const amount = info && info.amount > 0 ? formatPrice(info.amount) : '<span class="text-gray-300">-</span>';
+            const count  = info ? (info.count || 0) : 0;
+            return `
+                <tr class="border-b border-gray-100 last:border-0">
+                    <td class="py-2 text-gray-700">${label}</td>
+                    <td class="py-2 text-right text-gray-900 font-medium">${amount}</td>
+                    <td class="py-2 text-right text-gray-500">${count}</td>
+                </tr>
+            `;
+        };
+
+        let shiftsHtml = '';
+        if (shifts.length > 0) {
+            shiftsHtml = shifts.map((shift, idx) => {
+                const isClosed   = shift.status === 'closed';
+                const badge      = isClosed
+                    ? '<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-700">cerrado</span>'
+                    : '<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">abierto</span>';
+                const apertura   = moment(shift.opened_at).locale('es').format('DD/MMM/YYYY hh:mm a');
+                const cierre     = isClosed && shift.closed_at ? moment(shift.closed_at).locale('es').format('DD/MMM/YYYY hh:mm a') : '—';
+                const openedBy   = shift.employee_name || '—';
+                const closedBy   = isClosed ? (shift.employee_name || '—') : '—';
+                return `
+                    <div class="turno-row border !border-[#E2E8F0] bg-[#F8FAFC] rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-bold text-gray-900">${shift.shift_name || 'Turno ' + (idx + 1)}</span>
+                            ${badge}
+                        </div>
+                        <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+                            <div>
+                                <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">Apertura</p>
+                                <p class="text-gray-700">${apertura}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">Cierre</p>
+                                <p class="text-gray-700">${cierre}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">Abierto por</p>
+                                <p class="text-gray-700 uppercase">${openedBy}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">Cerrado por</p>
+                                <p class="text-gray-700 uppercase">${closedBy}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            shiftsHtml = '<p class="text-xs text-gray-400 text-center py-3">Sin turnos registrados</p>';
+        }
+
+        let ordersHtml = '';
+        if (orders.length > 0) {
+            ordersHtml = orders.map(o => `
+                <tr class="border-b border-gray-100 last:border-0">
+                    <td class="py-2 font-semibold text-gray-900">P-${String(o.folio).padStart(3, '0')}</td>
+                    <td class="py-2 text-gray-500">${o.date ? moment(o.date).format('hh:mm a') : '—'}</td>
+                    <td class="py-2 text-gray-700">${o.client || '—'}</td>
+                    <td class="py-2 text-center">${this.statusBadge(o.status)}</td>
+                    <td class="py-2 text-right text-gray-900 font-medium">${formatPrice(o.total)}</td>
+                    <td class="py-2 text-right text-gray-600">${o.method || '—'}</td>
+                </tr>
+            `).join('');
+        } else {
+            ordersHtml = '<tr><td colspan="6" class="py-4 text-center text-gray-400">Sin pedidos registrados</td></tr>';
+        }
+
+        const sectionTitle = 'text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2';
+
+        const html = `
+            <div class="flex justify-center p-1">
+                <div id="ticketDailyClose" class="bg-white rounded-xl border border-gray-200 p-4 text-gray-900 w-full" style="max-width: 720px;">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-900">Corte Z</h2>
+                            <p class="text-[11px] text-gray-400">Cierre diario</p>
+                        </div>
+                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Moneda local</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                        ${kpi('Ventas', formatPrice(c.total_sales))}
+                        ${kpi('Pedidos', c.total_orders)}
+                        ${kpi('Turnos', c.total_shifts)}
+                        ${kpi('Caja', formatPrice(c.total_cash), 'text-green-600')}
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="${sectionTitle}">Formas de pago</p>
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="text-[10px] font-bold uppercase tracking-wide text-gray-400 border-b border-gray-200">
+                                    <th class="py-2 text-left font-bold">Método</th>
+                                    <th class="py-2 text-right font-bold">Monto</th>
+                                    <th class="py-2 text-right font-bold">Transacciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${payRow('Efectivo', pay.cash)}
+                                ${payRow('Tarjeta', pay.card)}
+                                ${payRow('Transferencia', pay.transfer)}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="${sectionTitle}">Turnos del día</p>
+                        <div class="space-y-2">${shiftsHtml}</div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between cursor-pointer mb-2" onclick="cierre.toggleOrdersBreakdown()">
+                            <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Desglose de pedidos</p>
+                            <svg id="ordersBreakdownArrow" class="w-4 h-4 text-gray-400 transition-transform" style="transform: rotate(180deg);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                        <div id="ordersBreakdownBody" class="overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead>
+                                    <tr class="text-[10px] font-bold uppercase tracking-wide text-gray-400 border-b border-gray-200">
+                                        <th class="py-2 text-left font-bold">Pedido</th>
+                                        <th class="py-2 text-left font-bold">Hora</th>
+                                        <th class="py-2 text-left font-bold">Cliente</th>
+                                        <th class="py-2 text-center font-bold">Estado</th>
+                                        <th class="py-2 text-right font-bold">Total</th>
+                                        <th class="py-2 text-right font-bold">Método</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${ordersHtml}</tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <p class="text-[9px] text-gray-400 text-center mt-4">${res.subsidiary_name || ''} — Cerrado por ${c.closed_by || 'Admin'} · ${moment(c.created_at).format('DD/MM/YYYY hh:mm A')}</p>
+                </div>
+            </div>
+        `;
+
+        $('#ticketContainer').html(html);
+    }
+
+    toggleOrdersBreakdown() {
+        const body  = $('#ordersBreakdownBody');
+        const arrow = $('#ordersBreakdownArrow');
+        body.toggleClass('hidden');
+        arrow.css('transform', body.hasClass('hidden') ? '' : 'rotate(180deg)');
+    }
+
+    printExecutiveSummary() {
+        const report = document.getElementById('ticketDailyClose');
+        if (!report) {
+            Swal.fire({ title: 'Sin reporte', text: 'No hay resumen para imprimir.', icon: 'warning', background: '#1F2A37', color: '#fff', confirmButtonColor: '#ea580c' });
+            return;
+        }
+
+        const printWindow = window.open('', '', 'height=800,width=820');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Resumen ejecutivo</title>
+                    <script src="https://cdn.tailwindcss.com"><\/script>
+                    <style>@media print { body { margin: 0; } #ticketDailyClose { border: none !important; } }</style>
+                </head>
+                <body class="p-4">${report.outerHTML}</body>
+            </html>
+        `);
+        printWindow.document.close();
+        setTimeout(() => { printWindow.focus(); printWindow.print(); }, 600);
+    }
+
     onShiftSelectorChange(value) {
         if (value === 'daily') {
-            this.renderDailyTicket(this._closureResponse);
+            this.renderExecutiveSummary(this._closureResponse);
         } else {
             app._selectedShiftId = value;
             app.viewShiftPreview();

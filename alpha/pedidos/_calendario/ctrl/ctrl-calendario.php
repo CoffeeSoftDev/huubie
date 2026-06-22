@@ -19,10 +19,8 @@ class ctrlCalendario extends MCalendarioPedidos{
         $company = $_SESSION['COMPANY_ID'];
         
         return [
-            'subsidiaries'   => $this->getSubsidiariesByCompany([$company]),
-            'isAdmin'        => $rolId == 1,
-            'subsidiaryName' => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
-            'subsidiaryId'   => $_SESSION['SUB'] ?? null
+            'subsidiaries' => $this->getSubsidiariesByCompany([$company]),
+            'isAdmin' => $rolId == 1
         ];
     }
     
@@ -31,11 +29,13 @@ class ctrlCalendario extends MCalendarioPedidos{
         $rolId      = $_SESSION['ROLID'];
         $sessionSub = $_SESSION['SUB'];
 
-        // El calendario es vista de consulta: cualquier usuario puede filtrar por
-        // una sucursal o por "Todas" (0). Si no llega filtro, usa la de sesion.
-        $subsidiaries_id = isset($_POST['subsidiaries_id']) && $_POST['subsidiaries_id'] !== ''
-            ? $_POST['subsidiaries_id']
-            : $sessionSub;
+        // Si es admin (rol 1), usar la sucursal del POST, sino usar la de sesión
+        // if ($rolId == 1) {
+            // Validar que subsidiaries_id exista y no sea vacío
+            $subsidiaries_id = isset($_POST['subsidiaries_id']) ? $_POST['subsidiaries_id'] : 0;
+        // } else {
+        //     $subsidiaries_id = $sessionSub;
+        // }
 
         $event = [];
         $statuses = isset($_POST['statuses']) ? explode(',', $_POST['statuses']) : ['1', '2', '3', '4'];

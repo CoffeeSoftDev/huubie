@@ -1,0 +1,427 @@
+<div class="flex h-screen w-full bg-[#F8F9FB] text-[#1F2937] font-sans overflow-hidden">
+  <!-- Main -->
+  <div class="flex-1 flex flex-col min-w-0">
+    <header class="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-3 shrink-0">
+      <div class="flex items-center gap-2">
+        <span class="text-[#E85A5A] font-bold text-sm">Visor de Agentes</span>
+        <span class="text-[10px] text-gray-400 uppercase tracking-wide hidden sm:inline">DOCUMENTS</span>
+        <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[11px] font-medium">13 archivos</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btn-refresh" class="h-8 px-3 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium flex items-center gap-1.5 hover:border-gray-300 transition">
+          <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+          Refrescar
+        </button>
+        <div class="flex items-center gap-2 pl-2 border-l border-gray-200">
+          <div class="w-7 h-7 rounded-full bg-[#7C3AED] text-white flex items-center justify-center text-xs font-bold">RV</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="flex-1 flex min-h-0 overflow-hidden">
+      <!-- Sidebar (Mac Finder Style) -->
+      <div class="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0">
+        <div class="p-3 border-b border-gray-200">
+          <select id="project-selector" class="w-full h-8 px-3 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 focus:outline-none focus:border-[#E85A5A]">
+            <option value="all">Todos los proyectos</option>
+            <option value="encuestas">Encuestas</option>
+            <option value="contabilidad">Contabilidad</option>
+            <option value="inventarios">Inventarios</option>
+          </select>
+        </div>
+
+        <!-- Finder Header -->
+        <div class="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-gray-50">
+          <div class="flex items-center gap-1.5">
+            <button id="btn-back" class="w-7 h-7 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-200 transition disabled:opacity-30 disabled:cursor-not-allowed" disabled title="Atrás">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <div class="leading-tight ml-1">
+              <div id="breadcrumb-current" class="text-xs font-semibold text-gray-800">Proyectos</div>
+            </div>
+          </div>
+          <button id="btn-new-folder" class="w-7 h-7 rounded-md flex items-center justify-center bg-[#E85A5A] text-white hover:bg-[#D44A4A] transition shadow-sm" title="Nueva carpeta">
+            <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        
+        <!-- Finder Grid Area -->
+        <div id="finder-grid" class="flex-1 overflow-y-auto bg-[#F8F9FB] p-3 grid grid-cols-3 gap-2 content-start"></div>
+      </div>
+
+      <!-- Document area -->
+      <div class="flex-1 flex flex-col min-w-0 bg-[#F8F9FB]">
+        <div class="h-11 bg-white border-b border-gray-200 flex items-center justify-between px-4">
+          <div class="flex items-center gap-2 text-xs text-gray-500">
+            <span>documents</span><span>/</span><span id="doc-folder">encuestas</span><span>/</span><span id="doc-name" class="text-gray-800 font-medium">features-encuestas.md</span>
+          </div>
+          <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+            <button class="tab-btn px-3 py-1 rounded-md text-xs font-medium bg-[#E85A5A] text-white" data-tab="render">Renderizado</button>
+            <button class="tab-btn px-3 py-1 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700" data-tab="raw">Raw</button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-5">
+          <div class="max-w-3xl mx-auto bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+            <div id="doc-render" class="prose prose-sm max-w-none"></div>
+            <pre id="doc-raw" class="hidden text-xs font-mono text-gray-600 whitespace-pre-wrap"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: New Folder -->
+  <div id="modal-new-folder" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-40">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+        <h3 class="text-sm font-semibold text-gray-800">Nueva carpeta virtual</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+      </div>
+      <div class="p-4 space-y-3">
+        <div>
+          <label class="block text-[11px] font-medium text-gray-500 uppercase mb-1">Nombre</label>
+          <input id="new-folder-name" type="text" class="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#E85A5A]" placeholder="Ej: Evaluación 360">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium text-gray-500 uppercase mb-1">Proyecto</label>
+          <select id="new-folder-project" class="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:border-[#E85A5A]">
+            <option value="encuestas">Encuestas</option>
+            <option value="contabilidad">Contabilidad</option>
+            <option value="inventarios">Inventarios</option>
+          </select>
+        </div>
+      </div>
+      <div class="px-4 py-3 border-t border-gray-200 bg-gray-50 flex justify-end gap-2">
+        <button class="modal-close h-8 px-3 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
+        <button id="btn-create-folder" class="h-8 px-3 rounded-lg bg-[#E85A5A] text-white text-xs font-medium hover:bg-[#D44A4A]">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder Inspector Modal -->
+  <div id="modal-folder-inspector" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-40">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="relative h-24 bg-gradient-to-br from-[#E85A5A] to-[#D44A4A] flex items-end px-5 pb-3">
+        <button class="inspector-close absolute top-3 right-3 text-white/80 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <div class="flex items-center gap-3 text-white">
+          <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+            <i data-lucide="folder-open" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-white/70 font-medium">Carpeta virtual</div>
+            <input id="inspector-name" type="text" class="text-lg font-bold bg-transparent border-b border-transparent hover:border-white/30 focus:border-white focus:outline-none w-full mt-0.5">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-5">
+        <div class="grid grid-cols-3 gap-3 mb-5">
+          <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+            <div class="text-[10px] uppercase text-gray-400 font-medium mb-1">Proyecto</div>
+            <select id="inspector-project" class="text-sm font-medium text-gray-800 bg-transparent border-none p-0 focus:outline-none focus:ring-0 w-full">
+              <option value="encuestas">Encuestas</option>
+              <option value="contabilidad">Contabilidad</option>
+              <option value="inventarios">Inventarios</option>
+            </select>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+            <div class="text-[10px] uppercase text-gray-400 font-medium mb-1">Documentos</div>
+            <div id="inspector-count" class="text-lg font-bold text-gray-800">0</div>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+            <div class="text-[10px] uppercase text-gray-400 font-medium mb-1">Tamaño total</div>
+            <div id="inspector-size" class="text-lg font-bold text-gray-800">0 B</div>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Descripción</label>
+          <textarea id="inspector-description" rows="2" class="w-full text-xs text-gray-700 bg-gray-50 border border-gray-100 rounded-lg p-2 focus:outline-none focus:border-[#E85A5A] resize-none" placeholder="Notas o contexto del agrupamiento..."></textarea>
+        </div>
+
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Documentos relacionados</h4>
+          <button id="btn-inspector-add" class="text-[10px] text-[#E85A5A] font-medium hover:underline flex items-center gap-1">
+            <i data-lucide="plus" class="w-3 h-3"></i> Agregar
+          </button>
+        </div>
+
+        <div id="inspector-docs" class="space-y-1.5"></div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+        <button id="btn-inspector-delete" class="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1">
+          <i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar carpeta
+        </button>
+        <div class="flex gap-2">
+          <button class="inspector-close h-8 px-3 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200">Cerrar</button>
+          <button id="btn-inspector-save" class="h-8 px-3 rounded-lg bg-[#E85A5A] text-white text-xs font-medium hover:bg-[#D44A4A]">Guardar cambios</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    (function() {
+      const $ = (sel) => document.querySelector(sel);
+      const $$ = (sel) => document.querySelectorAll(sel);
+
+      const files = [
+        { id: 'f1', name: 'features-encuestas.md', folder: 'encuestas', project: 'encuestas', size: '867 B', icon: 'file-text', content: '**MODULO - ENCUESTAS REALIZADAS**\n\n- Verificar visor en tablet.\n- Quitar color de calificación.', sections: ['ENCUESTAS REALIZADAS'] },
+        { id: 'f2', name: 'reporte-encuestas.md', folder: 'encuestas', project: 'encuestas', size: '1.2 KB', icon: 'bar-chart-3', content: '**REPORTE DE ENCUESTAS**\n\n- Resumen de calificaciones', sections: ['REPORTE'] },
+        { id: 'f3', name: 'diagrama-encuestas.mmd', folder: 'encuestas', project: 'encuestas', size: '2.4 KB', icon: 'git-branch', content: 'graph TD\n    A[Inicio] --> B{Gerente?}', sections: ['Diagrama'] },
+        { id: 'f4', name: 'notas-sueltas.md', folder: 'encuestas', project: 'encuestas', size: '320 B', icon: 'sticky-note', content: '**Notas sueltas**\n\n- Revisar con cliente', sections: ['Notas'] },
+        { id: 'f5', name: 'features-contabilidad.md', folder: 'contabilidad', project: 'contabilidad', size: '945 B', icon: 'calculator', content: '**MODULO - CONTABILIDAD**\n\n- Libro mayor', sections: ['CONTABILIDAD'] },
+        { id: 'f6', name: 'flujo-contabilidad.mmd', folder: 'contabilidad', project: 'contabilidad', size: '1.8 KB', icon: 'workflow', content: 'graph TD\n    A[Asiento] --> B[Validación]', sections: ['Flujo'] },
+        { id: 'f7', name: 'balance-general.xlsx', folder: 'contabilidad', project: 'contabilidad', size: '14 KB', icon: 'sheet', content: '**Balance General Q3**\n\n- Activo: 150k\n- Pasivo: 80k', sections: ['Balance'] },
+        { id: 'f8', name: 'features-inventarios.md', folder: 'inventarios', project: 'inventarios', size: '1.1 KB', icon: 'package', content: '**MODULO - INVENTARIOS**\n\n- Entradas y salidas', sections: ['INVENTARIOS'] },
+        { id: 'f9', name: 'stock-inicial.csv', folder: 'inventarios', project: 'inventarios', size: '2.2 KB', icon: 'table', content: 'id,producto,stock\n1,Tornillos,500', sections: ['Stock'] }
+      ];
+
+      let folders = [
+        { id: 'v1', name: 'Evaluación 360', project: 'encuestas', icon: 'folder', description: 'Documentos de evaluación 360°.', docs: ['f1', 'f3'] },
+        { id: 'v2', name: 'Reportes Q3', project: 'encuestas', icon: 'folder', description: '', docs: ['f2'] },
+        { id: 'v3', name: 'Libro Mayor', project: 'contabilidad', icon: 'folder', description: '', docs: ['f5', 'f6'] },
+        { id: 'v4', name: 'Kardex y Ajustes', project: 'inventarios', icon: 'folder', description: '', docs: ['f8'] }
+      ];
+
+      let currentFileId = 'f1';
+      let currentProject = 'all';
+      let activeFolderId = null;
+      let historyStack = [];
+      let activeFolderId_for_inspector = null;
+
+      function parseSize(str) { const m = str.match(/^([\d.]+)\s*(B|KB|MB)$/); if (!m) return 0; const n = parseFloat(m[1]); return n * (m[2] === 'MB' ? 1024 * 1024 : m[2] === 'KB' ? 1024 : 1); }
+      function formatSize(b) { if (b < 1024) return b + ' B'; if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB'; return (b / (1024 * 1024)).toFixed(1) + ' MB'; }
+      function simpleMarkdown(t) { return t.replace(/\*\*(.*?)\*\*/g, '<strong class="text-gray-900">$1</strong>').replace(/^-\s+(.*$)/gim, '<li class="ml-4 text-gray-600 text-sm leading-relaxed">$1</li>').replace(/^(?!<li>)(.*$)/gim, '<p class="text-sm text-gray-600 mb-2 leading-relaxed">$1</p>'); }
+      function getProjectColor(val) {
+        const map = { 
+          encuestas: { main: '#E85A5A', light: 'rgba(232,90,90,0.12)' }, 
+          contabilidad: { main: '#3B82F6', light: 'rgba(59,130,246,0.12)' }, 
+          inventarios: { main: '#10B981', light: 'rgba(16,185,129,0.12)' } 
+        };
+        return map[val] || { main: '#6B7280', light: 'rgba(107,114,128,0.12)' };
+      }
+      function getFileColor(name) {
+        if (name.endsWith('.mmd')) return { main: '#8B5CF6', light: 'rgba(139,92,246,0.12)' };
+        if (name.endsWith('.xlsx') || name.endsWith('.csv')) return { main: '#10B981', light: 'rgba(16,185,129,0.12)' };
+        return { main: '#3B82F6', light: 'rgba(59,130,246,0.12)' };
+      }
+
+      function renderDocument() {
+        const f = files.find(x => x.id === currentFileId);
+        if (!f) return;
+        $('#doc-folder').textContent = f.folder;
+        $('#doc-name').textContent = f.name;
+        $('#doc-render').innerHTML = simpleMarkdown(f.content);
+        $('#doc-raw').textContent = f.content;
+      }
+
+      // === MAC FINDER GRID LOGIC ===
+      function renderGrid() {
+        const container = $('#finder-grid');
+        container.innerHTML = '';
+        
+        const currentFolder = activeFolderId ? folders.find(f => f.id === activeFolderId) : null;
+        $('#breadcrumb-current').textContent = currentFolder ? currentFolder.name : 'Proyectos';
+        $('#btn-back').disabled = historyStack.length === 0;
+        
+        let items = [];
+        
+        if (!currentFolder) {
+          // ROOT VIEW: Mixed Folders + Loose Files
+          const projectFolders = currentProject === 'all' ? folders : folders.filter(f => f.project === currentProject);
+          
+          // Get files that are NOT inside any folder
+          const allFolderDocIds = folders.flatMap(f => f.docs);
+          const looseFiles = files.filter(f => (currentProject === 'all' || f.project === currentProject) && !allFolderDocIds.includes(f.id));
+          
+          // Combine and map to generic items
+          items = [
+            ...projectFolders.map(f => ({ ...f, type: 'folder' })),
+            ...looseFiles.map(f => ({ ...f, type: 'file' }))
+          ];
+        } else {
+          // INSIDE FOLDER: Only files
+          items = currentFolder.docs.map(id => {
+            const f = files.find(x => x.id === id);
+            return f ? { ...f, type: 'file' } : null;
+          }).filter(Boolean);
+        }
+
+        if (items.length === 0) {
+          container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400 text-xs">Carpeta vacía.</div>`;
+          if (window.lucide) lucide.createIcons();
+          return;
+        }
+
+        items.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'group relative flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl cursor-pointer transition active:scale-95';
+          
+          if (item.type === 'folder') {
+            const colors = getProjectColor(item.project);
+            div.classList.add('hover:bg-blue-50');
+            div.innerHTML = `
+              <div class="relative w-16 h-14 flex items-center justify-center transition-transform group-hover:scale-105">
+                <!-- Mac-style folder SVG -->
+                <svg viewBox="0 0 64 54" class="w-full h-full drop-shadow-sm" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M 4 8 Q 4 4 8 4 L 22 4 L 26 10 L 56 10 Q 60 10 60 14 L 60 46 Q 60 50 56 50 L 8 50 Q 4 50 4 46 Z" fill="${colors.main}" opacity="0.9"/>
+                  <path d="M 4 16 L 60 16 L 60 46 Q 60 50 56 50 L 8 50 Q 4 50 4 46 Z" fill="${colors.main}"/>
+                  <!-- Highlight -->
+                  <path d="M 6 16 L 58 16 L 58 18 L 6 18 Z" fill="white" opacity="0.3"/>
+                </svg>
+                <!-- Inspect button -->
+                <button class="folder-inspect absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-gray-600 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition" data-folder="${item.id}" title="Inspeccionar">
+                  <i data-lucide="info" class="w-2.5 h-2.5"></i>
+                </button>
+              </div>
+              <div class="text-[11px] text-gray-700 text-center truncate w-full px-1 font-medium">${item.name}</div>
+              <div class="text-[9px] text-gray-400">${item.docs.length} ítems</div>
+            `;
+            div.dataset.folder = item.id;
+          } else {
+            const fc = getFileColor(item.name);
+            const active = item.id === currentFileId;
+            div.classList.add(active ? 'bg-blue-100' : 'hover:bg-gray-100');
+            div.innerHTML = `
+              <div class="relative w-14 h-16 flex items-center justify-center transition-transform group-hover:scale-105">
+                <!-- Mac-style file SVG -->
+                <svg viewBox="0 0 56 64" class="w-full h-full drop-shadow-sm" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M 8 2 L 36 2 L 54 20 L 54 58 Q 54 62 50 62 L 8 62 Q 4 62 4 58 L 4 6 Q 4 2 8 2 Z" fill="white" stroke="#E5E7EB" stroke-width="1"/>
+                  <path d="M 36 2 L 36 18 Q 36 20 38 20 L 54 20 Z" fill="#F3F4F6" stroke="#E5E7EB" stroke-width="1"/>
+                </svg>
+                <!-- Lucide icon centered in file -->
+                <div class="absolute inset-0 flex items-center justify-center mt-2">
+                  <i data-lucide="${item.icon || 'file'}" class="w-6 h-6" style="color: ${fc.main};"></i>
+                </div>
+              </div>
+              <div class="text-[11px] text-gray-700 text-center truncate w-full px-1">${item.name}</div>
+            `;
+            div.dataset.file = item.id;
+          }
+          
+          container.appendChild(div);
+        });
+
+        attachEvents();
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function attachEvents() {
+        $$('#finder-grid [data-folder]').forEach(card => {
+          card.onclick = (e) => {
+            if (e.target.closest('.folder-inspect')) return;
+            historyStack.push(activeFolderId);
+            activeFolderId = card.dataset.folder;
+            renderGrid();
+          };
+        });
+
+        $$('#finder-grid [data-file]').forEach(item => {
+          item.onclick = () => { 
+            currentFileId = item.dataset.file; 
+            renderDocument(); 
+            renderGrid(); 
+          };
+        });
+
+        $$('.folder-inspect').forEach(btn => {
+          btn.onclick = (e) => { e.stopPropagation(); openFolderInspector(btn.dataset.folder); };
+        });
+      }
+
+      function openFolderInspector(folderId) {
+        const folder = folders.find(f => f.id === folderId);
+        if (!folder) return;
+        activeFolderId_for_inspector = folderId;
+        $('#inspector-name').value = folder.name;
+        $('#inspector-project').value = folder.project;
+        $('#inspector-description').value = folder.description || '';
+        $('#inspector-count').textContent = folder.docs.length;
+        $('#inspector-size').textContent = formatSize(folder.docs.reduce((s, id) => s + parseSize(files.find(f => f.id === id)?.size || 0), 0));
+        renderInspectorDocs();
+        $('#modal-folder-inspector').classList.remove('hidden');
+        $('#modal-folder-inspector').classList.add('flex');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function renderInspectorDocs() {
+        const folder = folders.find(f => f.id === activeFolderId_for_inspector);
+        if (!folder) return;
+        const c = $('#inspector-docs');
+        if (folder.docs.length === 0) { c.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs border border-dashed rounded-lg">Sin documentos.</div>`; return; }
+        c.innerHTML = folder.docs.map(id => {
+          const f = files.find(x => x.id === id); if (!f) return '';
+          const fc = getFileColor(f.name);
+          return `<div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-200 transition group">
+            <div class="w-8 h-8 rounded-md flex items-center justify-center shrink-0" style="background: ${fc.light}"><i data-lucide="${f.icon}" class="w-4 h-4" style="color: ${fc.main}"></i></div>
+            <div class="flex-1 min-w-0"><div class="text-xs font-medium text-gray-800 truncate">${f.name}</div><div class="text-[10px] text-gray-400">${f.folder} • ${f.size}</div></div>
+            <button class="remove-doc opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 p-1" data-id="${f.id}"><i data-lucide="x" class="w-3 h-3"></i></button>
+          </div>`;
+        }).join('');
+        c.querySelectorAll('.remove-doc').forEach(btn => {
+          btn.onclick = () => {
+            folder.docs = folder.docs.filter(id => id !== btn.dataset.id);
+            renderInspectorDocs(); renderGrid();
+            $('#inspector-count').textContent = folder.docs.length;
+            $('#inspector-size').textContent = formatSize(folder.docs.reduce((s, id) => s + parseSize(files.find(f => f.id === id)?.size || 0), 0));
+            if (window.lucide) lucide.createIcons();
+          };
+        });
+        if (window.lucide) lucide.createIcons();
+      }
+
+      // Events
+      $('#project-selector').onchange = (e) => { currentProject = e.target.value; activeFolderId = null; historyStack = []; renderGrid(); };
+      $('#btn-back').onclick = () => { if (historyStack.length > 0) { activeFolderId = historyStack.pop(); renderGrid(); } };
+      
+      $$('.tab-btn').forEach(btn => btn.onclick = () => {
+        $$('.tab-btn').forEach(b => { b.classList.toggle('bg-[#E85A5A]', b.dataset.tab === btn.dataset.tab); b.classList.toggle('text-white', b.dataset.tab === btn.dataset.tab); b.classList.toggle('text-gray-500', b.dataset.tab !== btn.dataset.tab); });
+        $('#doc-render').classList.toggle('hidden', btn.dataset.tab !== 'render'); $('#doc-raw').classList.toggle('hidden', btn.dataset.tab !== 'raw');
+      });
+      
+      $('#btn-new-folder').onclick = () => { $('#new-folder-name').value = ''; $('#new-folder-project').value = currentProject === 'all' ? 'encuestas' : currentProject; $('#modal-new-folder').classList.remove('hidden'); $('#modal-new-folder').classList.add('flex'); };
+      $('#btn-create-folder').onclick = () => {
+        const name = $('#new-folder-name').value.trim(); if (!name) return;
+        const project = $('#new-folder-project').value; const newId = 'v' + Date.now();
+        folders.push({ id: newId, name, project, icon: 'folder', description: '', docs: [] });
+        $('#modal-new-folder').classList.add('hidden'); $('#modal-new-folder').classList.remove('flex');
+        if (currentProject !== 'all' && currentProject !== project) { currentProject = project; $('#project-selector').value = project; }
+        renderGrid(); openFolderInspector(newId);
+      };
+      
+      $$('.inspector-close').forEach(btn => btn.onclick = () => { $('#modal-folder-inspector').classList.add('hidden'); $('#modal-folder-inspector').classList.remove('flex'); });
+      $('#btn-inspector-save').onclick = () => {
+        const folder = folders.find(f => f.id === activeFolderId_for_inspector); if (!folder) return;
+        folder.name = $('#inspector-name').value.trim() || folder.name;
+        folder.project = $('#inspector-project').value; folder.description = $('#inspector-description').value;
+        if (currentProject !== 'all' && currentProject !== folder.project) { currentProject = folder.project; $('#project-selector').value = folder.project; }
+        renderGrid(); $('#modal-folder-inspector').classList.add('hidden'); $('#modal-folder-inspector').classList.remove('flex');
+      };
+      $('#btn-inspector-delete').onclick = () => {
+        if (!confirm('¿Eliminar carpeta?')) return;
+        folders = folders.filter(f => f.id !== activeFolderId_for_inspector);
+        if (activeFolderId === activeFolderId_for_inspector) { activeFolderId = null; historyStack = []; }
+        renderGrid(); $('#modal-folder-inspector').classList.add('hidden'); $('#modal-folder-inspector').classList.remove('flex');
+      };
+      $('#btn-inspector-add').onclick = () => {
+        const folder = folders.find(f => f.id === activeFolderId_for_inspector); if (!folder) return;
+        const available = files.filter(f => f.project === folder.project && !folder.docs.includes(f.id));
+        if (available.length === 0) return alert('No hay docs disponibles.');
+        const n = prompt('Agregar doc:\n' + available.map(d => d.name).join(', ')); if (!n) return;
+        const m = available.find(d => d.name.toLowerCase().includes(n.toLowerCase()));
+        if (m) { folder.docs.push(m.id); renderInspectorDocs(); renderGrid(); $('#inspector-count').textContent = folder.docs.length; $('#inspector-size').textContent = formatSize(folder.docs.reduce((s, id) => s + parseSize(files.find(f => f.id === id)?.size || 0), 0)); }
+      };
+      $$('.modal-close').forEach(btn => btn.onclick = () => { $('#modal-new-folder').classList.add('hidden'); $('#modal-new-folder').classList.remove('flex'); });
+
+      // Init
+      renderDocument();
+      renderGrid();
+      if (window.lucide) lucide.createIcons();
+    })();
+  </script>
+</div>

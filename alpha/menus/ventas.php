@@ -32,6 +32,8 @@
         <div id="grid-card" class="w-full grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5  gap-2"></div>
     </div>
     <script src="<?= PATH_BASE ?>access/src/js/session.js?t=<?= time(); ?>"></script>
+    <!-- Hub de menus: la navbar no debe mostrar el selector de sucursal -->
+    <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>
     <script src="<?=PATH_MENU?>src/js/navbar.js"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
     <script src="<?=PATH_MENU?>src/js/cards.js?t=<?= time() ?>"></script>

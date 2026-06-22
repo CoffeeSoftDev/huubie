@@ -21,8 +21,6 @@ class App extends Templates {
         const data = await useFetch({ url: this._link, data: { opc: 'init' } });
         this.subsidiaries = data.subsidiaries;
         this.isAdmin = data.isAdmin;
-        this.subsidiaryName = data.subsidiaryName || '';
-        this.subsidiaryId = data.subsidiaryId || null;
         this.render();
     }
 
@@ -174,17 +172,13 @@ class App extends Templates {
     }
 
     initSubsidiaryFilter() {
-        // Selector disponible para todos: permite ver una sucursal o "Todas".
+        // if (!this.isAdmin) return;
+
         const $select = $('#subsidiaryFilter');
 
         this.subsidiaries.forEach(sub => {
             $select.append(`<option value="${sub.id}">${sub.valor}</option>`);
         });
-
-        // Arranca en la sucursal activa del usuario; puede cambiar a "Todas".
-        if (this.subsidiaryId) {
-            $select.val(this.subsidiaryId);
-        }
 
         $select.on('change', () => {
             this.createCalendar();
@@ -283,8 +277,7 @@ class App extends Templates {
             return;
         }
 
-        // Cualquier usuario filtra por la sucursal elegida en el selector
-        // ("0" = todas las sucursales).
+        // const subsidiaryId = this.isAdmin ? ($('#subsidiaryFilter').val() || 0) : 0;
         const subsidiaryId = $('#subsidiaryFilter').val() || 0;
 
         let data = await useFetch({
@@ -504,14 +497,14 @@ class App extends Templates {
             title: `
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                        ${lucideIcon('cake', 'w-4 h-4 text-white')}
+                        <i class="icon-birthday text-white text-sm"></i>
                     </div>
                     <div>
                         <h2 class="text-lg font-semibold text-white">Detalles del Pedido</h2>
                         <div class="flex items-center gap-2 mt-1">
                             ${badgeTipo}
-                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200 inline-flex items-center gap-1">
-                                ${lucideIcon('house', 'w-3.5 h-3.5')}${subsidiarieName}
+                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200">
+                                <i class="icon-home mr-1"></i>${subsidiarieName}
                             </span>
                         </div>
                     </div>
@@ -546,29 +539,28 @@ class App extends Templates {
             this.layoutManager.applyLayout();
             const orderData = response.data.order || {};
             const products = response.data.products || [];
-            const paymentMethods = response.data.paymentMethods || [];
 
             const container = $('#orderDetailsContainer');
             container.html(`
                 <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
                     <div class="lg:sticky lg:top-4">
-                        ${(orderData.is_delivered != '2') && (orderData.status != '3' && orderData.status != '4') ? `
+                        ${(orderData.is_delivered != '2') && (orderData.status != '3' && orderData.status != '4' && orderData.status != '1') ? `
                             <div class="grid grid-cols-3 gap-2 mb-3">
                                 <button onclick="app.historyPay(${orderId})"
                                     class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                    ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
+                                    <i class="icon-dollar text-xs"></i> Pagar
                                 </button>
                                 <button onclick="app.printOrder(${orderId})"
                                     class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                    ${lucideIcon('printer', 'w-3.5 h-3.5')} Imprimir
+                                    <i class="icon-print text-xs"></i> Imprimir
                                 </button>
                                 <button onclick="app.addDiscount(${orderId})"
                                     class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                    ${lucideIcon('percent', 'w-3.5 h-3.5')} Descuento
+                                    <i class="icon-percent text-xs"></i> Descuento
                                 </button>
                             </div>
                         ` : ''}
-                        ${(orderData.is_delivered == '0' || orderData.is_delivered == null ) && (orderData.status != '4') ? `
+                        ${(orderData.is_delivered == '0' || orderData.is_delivered == null ) && (orderData.status != '4' && orderData.status != '1') ? `
                             <button onclick="app.handleDeliveryClick(${orderId}, ${orderData.is_delivered || 0}, '${orderData.folio || ''}')"
                                     class="w-full mb-3 flex items-center justify-center gap-1.5
                                         text-white text-[11px] font-medium px-2 py-2 rounded-md
@@ -576,7 +568,7 @@ class App extends Templates {
                                 Entregar productos
                             </button>
                         ` : ''}
-                        ${this.detailsCard(orderData, paymentMethods)}
+                        ${this.detailsCard(orderData)}
                     </div>
                 </div>
 
@@ -634,18 +626,18 @@ class App extends Templates {
 
     getBadgeDeliveryType(tipo) {
         if (tipo == 0 || tipo === '0') {
-            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-flex items-center gap-1 w-24 justify-center">${lucideIcon('house', 'w-3.5 h-3.5')} Local</span>`;
+            return '<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-block w-24 text-center"><i class="icon-home"></i> Local</span>';
         } else if (tipo == 1 || tipo === '1') {
-            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-flex items-center gap-1 w-28 justify-center">${lucideIcon('truck', 'w-3.5 h-3.5')} Domicilio</span>`;
+            return '<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-block w-28 text-center"><i class="icon-motorcycle"></i> Domicilio</span>';
         }
         return '<span class="px-3 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-700 inline-block w-24 text-center">Sin especificar</span>';
     }
 
-    detailsCard(orderData, paymentMethods = []) {
+    detailsCard(orderData) {
         return `
             <div class="space-y-3">
                 ${this.infoOrder(orderData)}
-                ${this.infoSales(orderData, paymentMethods)}
+                ${this.infoSales(orderData)}
             </div>
         `;
     }
@@ -723,38 +715,48 @@ class App extends Templates {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
                 <h3 class="text-white font-semibold text-base mb-2 flex items-center">
-                    ${lucideIcon('info', 'w-4 h-4 text-blue-400 mr-2')}
+                    <i class="icon-info text-blue-400 mr-2 text-sm"></i>
                     Información del Pedido
                 </h3>
 
                 <div class="space-y-1.5">
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('file-text', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Folio:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.folio || 'N/A'}</span>
+                    <div class="flex items-start">
+                        <i class="icon-doc-text-1 text-gray-400 text-base mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">Folio:</p>
+                            <p class="text-white font-semibold text-sm">${orderData.folio || 'N/A'}</p>
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('user', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Cliente:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.name || 'N/A'}</span>
+                    <div class="flex items-start">
+                        <i class="icon-user text-gray-400 text-base mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">Cliente:</p>
+                            <p class="text-white font-semibold text-sm">${orderData.name || 'N/A'}</p>
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('calendar', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Fecha de entrega:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</span>
+                    <div class="flex items-start">
+                        <i class="icon-calendar text-gray-400 text-base mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">Fecha de entrega:</p>
+                            <p class="text-white font-semibold text-sm">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</p>
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('clock', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Hora:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.time_order || 'N/A'}</span>
+                    <div class="flex items-start">
+                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">Hora:</p>
+                            <p class="text-white font-semibold text-sm">${orderData.time_order || 'N/A'}</p>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('truck', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Estado de entrega:</span>
-                        <span class="ml-auto">${this.statusDelivery(orderData.is_delivered)}</span>
+                    <div class="flex items-start">
+                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">Estado de entrega:</p>
+                            ${this.statusDelivery(orderData.is_delivered)}
+                        </div>
                     </div>
 
                 </div>
@@ -764,40 +766,26 @@ class App extends Templates {
 
     statusDelivery(is_delivered) {
         if (is_delivered == '1') {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-green-600 text-green-600 inline-flex items-center gap-1">
-                        ${lucideIcon('check', 'w-3.5 h-3.5')} Entregado
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-green-600 text-green-600 inline-block">
+                        <i class="icon-ok mr-1"></i> Entregado
                     </span>`;
         } else if (is_delivered == '2') {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-purple-600 text-purple-600 inline-flex items-center gap-1">
-                        ${lucideIcon('cake', 'w-3.5 h-3.5')} Para Producir
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-purple-600 text-purple-600 inline-block">
+                        <i class="icon-cake mr-1"></i> Para Producir
                     </span>`;
         } else {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-red-600 text-red-600 inline-flex items-center gap-1">
-                        ${lucideIcon('x', 'w-3.5 h-3.5')} No entregado
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-red-600 text-red-600 inline-block">
+                        <i class="icon-cancel mr-1"></i> No entregado
                     </span>`;
         }
     }
 
-    infoSales(orderData, paymentMethods = []) {
+    infoSales(orderData) {
         const totalPay = parseFloat(orderData.total_pay || 0);
         const discount = parseFloat(orderData.discount || 0);
         const totalPaid = parseFloat(orderData.total_paid || 0);
         const balance = parseFloat(orderData.balance || 0);
         const infoDiscount = orderData.info_discount || '';
-
-        const methodsHtml = (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
-                    <div class="pl-2 space-y-1 border-l-2 border-gray-600">
-                        ${paymentMethods.map(m => `
-                        <div class="flex items-center justify-between">
-                            <span class="text-gray-500 text-xs flex items-center gap-1.5">
-                                ${lucideIcon('credit-card', 'w-3.5 h-3.5')}
-                                ${m.method_pay || 'Sin método'}:
-                            </span>
-                            <span class="text-gray-300 text-xs">$${parseFloat(m.pay || 0).toFixed(2)}</span>
-                        </div>
-                        `).join('')}
-                    </div>
-        ` : '';
 
         const discountHtml = discount > 0 ? `
                     <div class="flex items-center justify-between">
@@ -814,7 +802,7 @@ class App extends Templates {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
                 <h3 class="text-white font-semibold text-base mb-2 flex items-center">
-                    ${lucideIcon('dollar-sign', 'w-4 h-4 text-green-400 mr-2')}
+                    <i class="icon-dollar text-green-400 mr-2 text-sm"></i>
                     Resumen de pago
                 </h3>
 
@@ -830,8 +818,6 @@ class App extends Templates {
                         <span class="text-gray-400 text-sm">Pagado:</span>
                         <span class="text-green-400 font-bold text-sm">$${totalPaid.toFixed(2)}</span>
                     </div>
-
-                    ${methodsHtml}
 
                     <div class="border-t border-gray-600 my-1.5"></div>
 
@@ -851,7 +837,7 @@ class App extends Templates {
         if (!products || products.length === 0) {
             return `
                 <div class="bg-[#283341] rounded-lg p-2 text-center h-full flex flex-col items-center justify-center">
-                    ${lucideIcon('shopping-basket', 'w-12 h-12 text-gray-500 mb-4')}
+                    <i class="icon-basket text-gray-500 text-5xl mb-4"></i>
                     <h3 class="text-white text-lg font-semibold mb-2">No hay productos</h3>
                     <p class="text-gray-400">Este pedido no contiene productos.</p>
                 </div>
@@ -865,7 +851,7 @@ class App extends Templates {
                 <div class="bg-[#283341] rounded-lg p-3 mb-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-white font-semibold text-lg flex items-center">
-                            ${lucideIcon('shopping-basket', 'w-5 h-5 mr-2 text-blue-400')}
+                            <i class="icon-basket mr-2 text-blue-400"></i>
                             Productos del Pedido
                         </h3>
                         <span class="text-gray-300 font-medium"> ${totalItems} productos</span>
@@ -1109,23 +1095,22 @@ class App extends Templates {
             data: { opc: 'getOrderDetails', id: orderId }
         });
         const orderData = response.data.order || {};
-        const paymentMethods = response.data.paymentMethods || [];
         $('#orderInfoPanel .lg\\:sticky').html(`
             <div class="grid grid-cols-3 gap-2 mb-3">
                 <button onclick="app.historyPay(${orderId})"
                     class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                    ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
+                    <i class="icon-dollar text-xs"></i> Pagar
                 </button>
                 <button onclick="app.printOrder(${orderId})"
                     class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                    ${lucideIcon('printer', 'w-3.5 h-3.5')} Imprimir
+                    <i class="icon-print text-xs"></i> Imprimir
                 </button>
                 <button onclick="app.addDiscount(${orderId})"
                     class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                    ${lucideIcon('percent', 'w-3.5 h-3.5')} Descuento
+                    <i class="icon-percent text-xs"></i> Descuento
                 </button>
             </div>
-            ${this.detailsCard(orderData, paymentMethods)}
+            ${this.detailsCard(orderData)}
         `);
     }
 

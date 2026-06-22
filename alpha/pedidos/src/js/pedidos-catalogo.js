@@ -1777,9 +1777,15 @@ class CatalogProduct extends Pos {
             }
         });
 
+        const initial = (data.company || data.subsidiarie_name || 'H').charAt(0).toUpperCase();
+        const logoPlaceholder = `<div style="width:96px;height:96px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;" class="mb-1"><span style="color:white;font-size:36px;font-weight:bold;">${initial}</span></div>`;
+        const logoHtml = data.logo
+            ? `<div style="width:96px;height:96px;border-radius:50%;overflow:hidden;" class="mb-1"><img src="https://huubie.com.mx/alpha${data.logo}" alt="Logo" onerror="this.parentElement.outerHTML='<div style=\\'width:96px;height:96px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;\\'><span style=\\'color:white;font-size:36px;font-weight:bold;\\'>${initial}</span></div>'" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
+            : logoPlaceholder;
+
         const header = `
             <div class="flex flex-col items-center mb-4 mt-3">
-                ${data.logo ? `<img src="https://huubie.com.mx/alpha${data.logo}" alt="Logo" class="w-24 h-24 mb-1  " />` : ""}
+                ${logoHtml}
                 ${data.company ? `<div class="text-xs font-semibold uppercase mb-1">${data.company}</div>` : ""}
                 ${data.subsidiarie_name ? `<div class="text-xs uppercase">${data.subsidiarie_name}</div>` : ""}
                 <h1 class="text-lg font-bold">PEDIDOS DE PASTELERÍA</h1>
@@ -1790,7 +1796,7 @@ class CatalogProduct extends Pos {
                 <div class="flex justify-between">
                     <div>
                         <div class="font-semibold">FOLIO:</div>
-                        <div class="uppercase">P-00${data.folio}</div>
+                        <div class="uppercase">${data.folio}</div>
                     </div>
                     <div>
                         <div class="font-semibold">FECHA Y HORA DE ENTREGA:</div>

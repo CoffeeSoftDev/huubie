@@ -326,6 +326,11 @@
             </header>
             <div class="pg-modal-body">
                 <p class="pg-hint">Se guardará el render actual en <code>documents/template/&lt;nombre&gt;/</code> junto con su tema y la conversación, para reutilizarla más adelante en un chat independiente.</p>
+                <!-- Aviso de plantilla activa: visible solo si cargaste una y la estás iterando. -->
+                <div id="pgSaveTplActive" class="pg-savetpl-active" style="display:none;">
+                    <i data-lucide="git-commit-vertical" class="w-3.5 h-3.5"></i>
+                    <span>Estás editando <strong id="pgSaveTplActiveName">—</strong>. Puedes <strong>actualizarla</strong> o guardar una copia con otro nombre.</span>
+                </div>
                 <label class="pg-hint" style="display:block;margin-bottom:6px;font-weight:600;color:var(--vsr-text-soft);">Nombre de la plantilla</label>
                 <input id="pgSaveTplName" type="text" class="pg-prompt-editor" style="height:auto;min-height:0;padding:9px 12px;font-family:inherit;" placeholder="ej. Card de producto" autocomplete="off">
                 <p id="pgSaveTplSlug" class="pg-hint" style="margin-top:8px;"></p>
@@ -334,8 +339,11 @@
                 <span class="pg-hint">El nombre se normaliza para la carpeta.</span>
                 <div class="flex gap-2">
                     <button id="pgSaveTplCancel" class="cs-btn cs-btn-ghost cs-btn-sm">Cancelar</button>
+                    <button id="pgSaveTplUpdate" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" style="display:none;" title="Sobrescribir la plantilla que cargaste con los cambios actuales">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i> Actualizar
+                    </button>
                     <button id="pgSaveTplConfirm" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
-                        <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar
+                        <i data-lucide="copy-plus" class="w-3.5 h-3.5"></i> <span id="pgSaveTplConfirmLabel">Guardar</span>
                     </button>
                 </div>
             </footer>

@@ -164,6 +164,13 @@
                         <i data-lucide="layout-template" class="w-3 h-3"></i>
                         <span>Lienzo</span>
                     </button>
+                    <button id="pgLiveToggle" class="ia-editor-toggle" title="Abre un módulo en Live (📂) y actívalo para que el agente lo vea">
+                        <i data-lucide="radio" class="w-3 h-3"></i>
+                        <span>Live</span>
+                    </button>
+                    <button id="pgLiveShotBtn" class="ia-attach-btn" title="Capturar el Live como imagen y adjuntarlo al chat (para modelos con visión)">
+                        <i data-lucide="camera" class="w-3 h-3"></i>
+                    </button>
                 </div>
             </div>
         </section>
@@ -196,25 +203,44 @@
                         <button id="pgZoomLabel" class="pg-zoom-label" title="Restablecer a 100%">100%</button>
                         <button id="pgZoomIn" class="pg-iconbtn" title="Acercar"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
                     </div>
+
+                    <!-- Viewport del preview/live: ancho fijo móvil/laptop o completo. -->
+                    <div class="pg-viewport" title="Ancho de la vista">
+                        <button class="pg-vp-btn" data-vp="mobile" title="Vista móvil (390 px)"><i data-lucide="smartphone" class="w-3.5 h-3.5"></i></button>
+                        <button class="pg-vp-btn" data-vp="laptop" title="Vista laptop (1280 px)"><i data-lucide="laptop" class="w-3.5 h-3.5"></i></button>
+                        <button class="pg-vp-btn is-active" data-vp="full" title="Ancho completo (desktop)"><i data-lucide="monitor" class="w-3.5 h-3.5"></i></button>
+                    </div>
+
                     <span id="pgSandboxTheme" class="pg-theme-chip">Huubie Dark</span>
-                    <button id="fgOpenModuleBtn" class="pg-iconbtn" title="Abrir un módulo existente (con sus datos reales) para mejorarlo">
-                        <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="fgRecreateBtn" class="pg-iconbtn" title="Recrear un componente del Live como template en Preview (clic en el elemento)">
-                        <i data-lucide="copy-plus" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="pgTemplatesBtn" class="pg-iconbtn" title="Hilos guardados">
-                        <i data-lucide="library" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="pgSaveTplBtn" class="pg-iconbtn" title="Guardar como plantilla reutilizable">
-                        <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="pgSandboxDownload" class="pg-iconbtn" title="Descargar HTML">
-                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="pgSandboxOpen" class="pg-iconbtn" title="Abrir render en pestaña nueva">
-                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                    </button>
+
+                    <!-- Acciones secundarias agrupadas en un menú "puntitos" (kebab) -->
+                    <div id="pgMoreWrap" class="pg-more">
+                        <button id="pgMoreBtn" class="pg-iconbtn" title="Más acciones" aria-haspopup="true" aria-expanded="false">
+                            <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <div id="pgMoreMenu" class="pg-more-menu hidden" role="menu">
+                            <button id="fgOpenModuleBtn" class="pg-more-item" role="menuitem" title="Abrir un módulo existente (con sus datos reales) para mejorarlo">
+                                <i data-lucide="folder-open" class="w-4 h-4"></i> Abrir módulo existente
+                            </button>
+                            <button id="fgRecreateBtn" class="pg-more-item" role="menuitem" title="Copiar el módulo completo del Live al chat del agente">
+                                <i data-lucide="copy-plus" class="w-4 h-4"></i> Recrear módulo (Live → chat)
+                            </button>
+                            <div class="pg-more-sep"></div>
+                            <button id="pgTemplatesBtn" class="pg-more-item" role="menuitem" title="Hilos guardados">
+                                <i data-lucide="library" class="w-4 h-4"></i> Hilos guardados
+                            </button>
+                            <button id="pgSaveTplBtn" class="pg-more-item" role="menuitem" title="Guardar como plantilla reutilizable">
+                                <i data-lucide="bookmark-plus" class="w-4 h-4"></i> Guardar como plantilla
+                            </button>
+                            <div class="pg-more-sep"></div>
+                            <button id="pgSandboxDownload" class="pg-more-item" role="menuitem" title="Descargar HTML">
+                                <i data-lucide="download" class="w-4 h-4"></i> Descargar HTML
+                            </button>
+                            <button id="pgSandboxOpen" class="pg-more-item" role="menuitem" title="Abrir render en pestaña nueva">
+                                <i data-lucide="external-link" class="w-4 h-4"></i> Abrir en pestaña nueva
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -223,15 +249,21 @@
                 <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Preview"></iframe>
                 <!-- Live: el módulo real en línea (src), independiente del preview -->
                 <iframe id="fgLiveFrame" class="pg-sandbox-frame hidden" title="Live"></iframe>
-                <!-- Banner del modo "Recrear": guía visual al hacer clic en un componente -->
+                <!-- Banner del modo selección: guía al hacer clic en un componente -->
                 <div id="fgRecBanner" class="fg-rec-banner hidden">
                     <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i>
                     <span>Haz clic en el componente del Live que quieres recrear · <strong>Esc</strong> cancela</span>
                 </div>
-                <!-- Botón contextual: solo visible en la vista Live -->
-                <button id="fgRecFab" class="fg-rec-fab hidden" title="Copiar un componente del Live a Preview/contexto">
-                    <i data-lucide="copy-plus" class="w-4 h-4"></i> Recrear componente
-                </button>
+                <!-- Acciones contextuales (solo en vista Live): copiar el módulo completo o
+                     entrar al modo selección para recrear un componente concreto. -->
+                <div id="fgRecFabWrap" class="fg-rec-fab-wrap hidden">
+                    <button id="fgRecFab" class="fg-rec-fab" title="Copiar el módulo COMPLETO (HTML renderizado) al chat del agente">
+                        <i data-lucide="copy-plus" class="w-4 h-4"></i> Recrear template
+                    </button>
+                    <button id="fgRecSelectFab" class="fg-rec-fab fg-rec-fab-alt" title="Seleccionar un componente del Live y recrearlo">
+                        <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i> Seleccionar
+                    </button>
+                </div>
                 <div id="fgLiveEmpty" class="pg-empty pg-sandbox-empty hidden">
                     <i data-lucide="radio"></i>
                     <div class="pg-empty-title">Sin módulo en vivo</div>

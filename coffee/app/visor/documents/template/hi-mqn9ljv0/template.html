@@ -1,0 +1,208 @@
+<!-- @file: live-preview.html -->
+<!-- Estado: Lienzo - Menú Evaluación de Calidad (Estilo OpenAI - Iconos grandes) -->
+<div class="w-full p-2" id="Menu">
+  <div class="w-full mb-10" id="headerMenu">
+    <div class="text-center max-w-2xl mx-auto">
+      <div class="inline-flex items-center gap-2 px-3 py-1 mb-4 rounded-full border border-gray-200 bg-white">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        <span class="text-xs font-medium text-gray-700">Sistema activo</span>
+      </div>
+      <h1 class="text-3xl md:text-4xl font-semibold tracking-tight text-gray-900">Evaluacion de Calidad</h1>
+      <p class="text-base mt-3 text-gray-500">Selecciona el modulo al que deseas acceder</p>
+    </div>
+  </div>
+
+  <div class="w-full" id="containerMenu">
+    <div class="w-full">
+      <div class="grid gap-4 md:gap-5 justify-center mx-auto" style="grid-template-columns: repeat(auto-fit, minmax(280px, 300px)); max-width: 1000px;">
+
+        <!-- Tarjeta: Administrador -->
+        <button class="oai-card group" type="button">
+          <div class="oai-card-inner">
+            <div class="oai-icon-wrap">
+              <i data-lucide="sliders-horizontal" class="oai-icon"></i>
+            </div>
+            <div class="flex flex-col gap-2 mt-auto">
+              <h2 class="oai-title">Administrador</h2>
+              <p class="oai-desc">Catalogos, formatos y configuracion del sistema</p>
+            </div>
+            <div class="oai-arrow">
+              <i data-lucide="arrow-up-right" class="oai-arrow-icon"></i>
+            </div>
+          </div>
+        </button>
+
+        <!-- Tarjeta: Encuesta -->
+        <button class="oai-card group" type="button">
+          <div class="oai-card-inner">
+            <div class="oai-icon-wrap">
+              <i data-lucide="clipboard-list" class="oai-icon"></i>
+            </div>
+            <div class="flex flex-col gap-2 mt-auto">
+              <h2 class="oai-title">Encuesta</h2>
+              <p class="oai-desc">Registrar y responder encuestas de evaluacion</p>
+            </div>
+            <div class="oai-arrow">
+              <i data-lucide="arrow-up-right" class="oai-arrow-icon"></i>
+            </div>
+          </div>
+        </button>
+
+        <!-- Tarjeta: Reportes -->
+        <button class="oai-card group" type="button">
+          <div class="oai-card-inner">
+            <div class="oai-icon-wrap">
+              <i data-lucide="bar-chart-2" class="oai-icon"></i>
+            </div>
+            <div class="flex flex-col gap-2 mt-auto">
+              <h2 class="oai-title">Reportes</h2>
+              <p class="oai-desc">Analisis y seguimiento de evaluaciones realizadas</p>
+            </div>
+            <div class="oai-arrow">
+              <i data-lucide="arrow-up-right" class="oai-arrow-icon"></i>
+            </div>
+          </div>
+        </button>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Estilo OpenAI - Iconos grandes -->
+<style>
+  :root {
+    --oai-bg: #ffffff;
+    --oai-fg: #202123;
+    --oai-muted: #6e6e80;
+    --oai-border: rgba(0, 0, 0, 0.08);
+    --oai-border-hover: rgba(0, 0, 0, 0.15);
+    --oai-accent: #10a37f;
+  }
+
+  body {
+    background: #fafafa;
+    margin: 0;
+    padding: 3rem 1.5rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--oai-fg);
+    min-height: 100vh;
+  }
+
+  /* Card base */
+  .oai-card {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    background: var(--oai-bg);
+    border: 1px solid var(--oai-border);
+    border-radius: 14px;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+    overflow: hidden;
+  }
+
+  .oai-card:hover {
+    border-color: var(--oai-border-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  .oai-card-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1.75rem;
+    position: relative;
+  }
+
+  /* Icono más grande - estilo OpenAI hero */
+  .oai-icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: #f4f4f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: auto;
+    transition: background 200ms ease, transform 200ms ease;
+  }
+
+  .oai-card:hover .oai-icon-wrap {
+    background: #ececef;
+    transform: scale(1.05);
+  }
+
+  .oai-icon {
+    width: 28px;
+    height: 28px;
+    color: #202123;
+    stroke: #202123;
+    stroke-width: 2;
+  }
+
+  /* Tipografía */
+  .oai-title {
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--oai-fg);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .oai-desc {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--oai-muted);
+    margin: 0;
+    font-weight: 400;
+  }
+
+  /* Flecha reveal */
+  .oai-arrow {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: translate(-4px, 4px);
+    transition: opacity 200ms ease, transform 200ms ease, background 200ms ease;
+  }
+
+  .oai-card:hover .oai-arrow {
+    opacity: 1;
+    transform: translate(0, 0);
+    background: #f4f4f5;
+  }
+
+  .oai-arrow-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--oai-fg);
+    stroke: var(--oai-fg);
+    stroke-width: 2;
+  }
+
+  .oai-card:focus-visible {
+    outline: 2px solid var(--oai-accent);
+    outline-offset: 2px;
+  }
+</style>
+
+<!-- Lucide Icons init -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+  }
+</script>

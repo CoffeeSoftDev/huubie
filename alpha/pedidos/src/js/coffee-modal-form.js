@@ -63,7 +63,11 @@
             const lbl = `<label class="text-[10px] font-bold ${labelCls} uppercase tracking-wide block mb-1.5">${f.lbl || ''}</label>`;
 
             if (f.opc === 'display') {
-                return `<div>${lbl}<div class="${fieldBox} border rounded-lg px-3 py-2.5 text-sm">${f.value != null ? f.value : ''}</div></div>`;
+                const val = f.value != null ? f.value : '';
+                const inner = f.icon
+                    ? `<div class="${fieldBox} border rounded-lg px-3 py-2.5 text-sm flex items-center gap-2"><span class="flex-shrink-0 ${labelCls}">${f.icon}</span><span>${val}</span></div>`
+                    : `<div class="${fieldBox} border rounded-lg px-3 py-2.5 text-sm">${val}</div>`;
+                return `<div>${lbl}${inner}</div>`;
             }
 
             const isMoney = f.opc === 'money';

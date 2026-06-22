@@ -1,0 +1,21 @@
+[ 2026-06-21 02:43:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO usr_user_subsidiaries (usr_users_id, subsidiaries_id) VALUES (?, ?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`usr_user_subsidiaries`, CONSTRAINT `usr_user_subsidiaries_ibfk_1` FOREIGN KEY (`usr_users_id`) REFERENCES `usr_users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-06-21 02:43:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO usr_user_subsidiaries (usr_users_id, subsidiaries_id) VALUES (?, ?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`usr_user_subsidiaries`, CONSTRAINT `usr_user_subsidiaries_ibfk_1` FOREIGN KEY (`usr_users_id`) REFERENCES `usr_users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+
+[ 2026-06-21 02:43:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  INSERT INTO usr_user_subsidiaries (usr_users_id, subsidiaries_id) VALUES (?, ?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`fayxzvov_alpha`.`usr_user_subsidiaries`, CONSTRAINT `usr_user_subsidiaries_ibfk_1` FOREIGN KEY (`usr_users_id`) REFERENCES `usr_users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+
+

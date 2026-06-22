@@ -192,6 +192,17 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     border-radius: 12px;
 }
 
+/* Aviso de plantilla activa en el modal de guardar (editando una cargada). */
+.pg-savetpl-active {
+    display: flex; align-items: flex-start; gap: 8px;
+    margin: 0 0 12px; padding: 9px 11px; border-radius: 8px;
+    font-size: 12px; line-height: 1.45;
+    color: var(--vsr-text-soft);
+    background: var(--vsr-accent-tint);
+    border: 1px solid var(--vsr-accent-soft);
+}
+.pg-savetpl-active i { flex: 0 0 auto; margin-top: 1px; color: var(--vsr-accent-soft); }
+
 /* Selector de viewport: grupo de iconos con el activo en acento. */
 .pg-viewport { display: inline-flex; align-items: center; gap: 1px; }
 .pg-vp-btn {

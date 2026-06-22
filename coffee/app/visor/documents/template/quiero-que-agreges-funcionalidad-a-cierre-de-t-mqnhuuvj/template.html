@@ -1,0 +1,317 @@
+<!-- Vista previa: Ticket Resumido vs Detallado lado a lado -->
+<div class="bg-[#151d2a] rounded-lg p-4 overflow-y-auto min-h-[500px]">
+
+  <!-- Toggle bar -->
+  <div class="flex items-center justify-between mb-4 gap-3">
+    <p class="text-xs text-gray-500">Comparación de modos de impresión</p>
+    <div class="inline-flex items-center gap-1 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px] flex-shrink-0">
+      <span class="px-3 py-1 rounded-md font-semibold text-gray-400">Resumido</span>
+      <span class="px-3 py-1 rounded-md font-semibold text-gray-400">Detallado</span>
+      <span class="px-3 py-1 rounded-md font-semibold bg-purple-600 text-white shadow-sm">Comparar</span>
+    </div>
+  </div>
+
+  <!-- Grid: dos tickets lado a lado -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 justify-items-center">
+
+    <!-- ============ TICKET RESUMIDO ============ -->
+    <div class="flex flex-col items-center">
+      <div class="mb-2 px-3 py-1 rounded-full bg-slate-700/50 border border-slate-600/50 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        Modo Resumido
+      </div>
+      <div class="bg-white p-4 rounded-lg shadow-lg text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%; font-family: 'Roboto Mono', ui-monospace, 'Courier New', monospace;">
+        <!-- Header -->
+        <div class="flex flex-col items-center mb-3">
+          <div style="width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;">
+            <span style="color:white;font-size:24px;font-weight:bold;">R</span>
+          </div>
+          <h1 class="text-sm font-bold uppercase">Reginas Pastelería</h1>
+          <div class="text-xs font-semibold" style="color:#7c3aed;">Reginas kafeto</div>
+          <div class="text-xs font-semibold">PEDIDOS DE PASTELERÍA</div>
+          <div class="text-xs text-gray-600">Cierre x Turno</div>
+          <div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO</div>
+        </div>
+
+        <!-- Info -->
+        <div class="text-xs space-y-0.5 mb-2">
+          <div class="flex justify-between"><span>Aperturó:</span><span>Coffee</span></div>
+          <div class="flex justify-between"><span>Apertura:</span><span>21/Jun/2026 02:39 am</span></div>
+          <div class="flex justify-between"><span>Cierre:</span><span>21/Jun/2026 02:39 am</span></div>
+          <div class="flex justify-between"><span>Inicio de caja:</span><span>$0.00</span></div>
+        </div>
+
+        <hr class="border-dashed border-t my-1">
+
+        <!-- Formas de pago -->
+        <div class="text-xs space-y-0.5">
+          <div class="flex justify-between items-center font-semibold">
+            <div>EFECTIVO:</div><div>$895.50</div>
+          </div>
+          <div class="flex justify-between items-center font-semibold">
+            <div>TARJETA:</div><div>$970.00</div>
+          </div>
+          <div class="flex justify-between items-center font-semibold">
+            <div>TRANSFERENCIA:</div><div>$2,090.00</div>
+          </div>
+
+          <hr class="border-dashed border-t my-1">
+
+          <div class="flex justify-between items-center font-semibold">
+            <div>TOTAL CAJA:</div><div class="text-sm">$3,955.50</div>
+          </div>
+
+          <hr class="border-dashed border-t my-1">
+
+          <div class="flex justify-between items-center font-semibold">
+            <div>NÚMERO DE PEDIDOS:</div><div>12</div>
+          </div>
+          <div class="mt-1"></div>
+          <div class="flex justify-between items-center" style="font-size:11px;">
+            <div class="text-green-700">PAGADOS:</div><div class="text-green-700 font-bold">8</div>
+          </div>
+          <div class="flex justify-between items-center" style="font-size:11px;">
+            <div class="text-amber-600">PENDIENTES:</div><div class="text-amber-600 font-bold">2</div>
+          </div>
+          <div class="flex justify-between items-center" style="font-size:11px;">
+            <div class="text-blue-700">COTIZACIONES:</div><div class="text-blue-700 font-bold">1</div>
+          </div>
+          <div class="flex justify-between items-center" style="font-size:11px;">
+            <div class="text-red-600">CANCELADOS:</div><div class="text-red-600 font-bold">1</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-4 text-[10px] font-bold text-gray-900 space-y-1">
+          <p>GRACIAS POR SU PREFERENCIA</p>
+          <p class="text-purple-800 text-xs">Huubie</p>
+          <p class="text-gray-500 font-normal text-[9px]">Generado: 21/06/2026 16:35:05</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ TICKET DETALLADO ============ -->
+    <div class="flex flex-col items-center">
+      <div class="mb-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-[10px] font-bold uppercase tracking-wider text-purple-300">
+        Modo Detallado
+      </div>
+      <div class="bg-white p-4 rounded-lg shadow-lg text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%; font-family: 'Roboto Mono', ui-monospace, 'Courier New', monospace;">
+        <!-- Header -->
+        <div class="flex flex-col items-center mb-3">
+          <div style="width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;">
+            <span style="color:white;font-size:24px;font-weight:bold;">R</span>
+          </div>
+          <h1 class="text-sm font-bold uppercase">Reginas Pastelería</h1>
+          <div class="text-xs font-semibold" style="color:#7c3aed;">Reginas kafeto</div>
+          <div class="text-xs font-semibold">PEDIDOS DE PASTELERÍA</div>
+          <div class="text-xs text-gray-600">Cierre x Turno</div>
+          <div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO</div>
+        </div>
+
+        <!-- Info -->
+        <div class="text-xs space-y-0.5 mb-2">
+          <div class="flex justify-between"><span>Aperturó:</span><span>Coffee</span></div>
+          <div class="flex justify-between"><span>Apertura:</span><span>21/Jun/2026 02:39 am</span></div>
+          <div class="flex justify-between"><span>Cierre:</span><span>21/Jun/2026 02:39 am</span></div>
+          <div class="flex justify-between"><span>Inicio de caja:</span><span>$0.00</span></div>
+        </div>
+
+        <hr class="border-dashed border-t my-1">
+
+        <!-- ===== DETALLE DE PEDIDOS ===== -->
+        <div class="text-xs font-bold uppercase mb-1" style="font-size:11px;">Detalle de Pedidos del Turno</div>
+
+        <!-- Pedido 1 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1042</span><span>$485.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">María González · 03:12 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-green-700">EFECTIVO</span>
+            <span class="text-green-700 font-semibold">Pagado</span>
+          </div>
+        </div>
+
+        <!-- Pedido 2 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1043</span><span>$320.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Carlos Ramírez · 03:28 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-blue-700">TARJETA</span>
+            <span class="text-green-700 font-semibold">Pagado</span>
+          </div>
+        </div>
+
+        <!-- Pedido 3 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1044</span><span>$175.50</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Laura Méndez · 04:05 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-green-700">EFECTIVO</span>
+            <span class="text-green-700 font-semibold">Pagado</span>
+          </div>
+        </div>
+
+        <!-- Pedido 4 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1045</span><span>$890.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Jorge Torres · 04:41 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-amber-600">TRANSFERENCIA</span>
+            <span class="text-green-700 font-semibold">Pagado</span>
+          </div>
+        </div>
+
+        <!-- Pedido 5 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1046</span><span>$62.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Ana Ruiz · 05:15 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-green-700">EFECTIVO</span>
+            <span class="text-amber-600 font-semibold">Pendiente</span>
+          </div>
+        </div>
+
+        <!-- Pedido 6 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1047</span><span>$240.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Pedro Castro · 05:33 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-blue-700">TARJETA</span>
+            <span class="text-green-700 font-semibold">Pagado</span>
+          </div>
+        </div>
+
+        <!-- Pedido 7 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1048</span><span>$1,200.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Sofía Herrera · 06:02 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-amber-600">TRANSFERENCIA</span>
+            <span class="text-green-700 font-semibold">Pagado</span>
+          </div>
+        </div>
+
+        <!-- Pedido 8 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1049</span><span>$95.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Consumidor final · 06:28 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-green-700">EFECTIVO</span>
+            <span class="text-amber-600 font-semibold">Pendiente</span>
+          </div>
+        </div>
+
+        <!-- Pedido 9 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1050</span><span>$410.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Diana Vargas · 06:55 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-blue-700">TARJETA</span>
+            <span class="text-green-700 font-semibold">Pagado</span>
+          </div>
+        </div>
+
+        <!-- Pedido 10 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1051</span><span>$350.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Cotización · 07:10 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-gray-500">SIN PAGO</span>
+            <span class="text-blue-700 font-semibold">Cotización</span>
+          </div>
+        </div>
+
+        <!-- Pedido 11 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold">
+            <span>#PED-1052</span><span>$78.00</span>
+          </div>
+          <div class="text-gray-600" style="font-size:10px;">Luis Fernández · 07:25 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-green-700">EFECTIVO</span>
+            <span class="text-green-700 font-semibold">Pagado</span>
+          </div>
+        </div>
+
+        <!-- Pedido 12 -->
+        <div class="text-xs space-y-0.5 mb-1.5">
+          <div class="flex justify-between font-bold text-gray-400">
+            <span>#PED-1053</span><span class="line-through">$210.00</span>
+          </div>
+          <div class="text-gray-400" style="font-size:10px;">Cancelado · 07:40 AM</div>
+          <div class="flex justify-between" style="font-size:10px;">
+            <span class="text-gray-400">CANCELADO</span>
+            <span class="text-red-600 font-semibold">Cancelado</span>
+          </div>
+        </div>
+
+        <hr class="border-dashed border-t my-1">
+
+        <!-- Totales -->
+        <div class="text-xs space-y-0.5">
+          <div class="flex justify-between items-center font-semibold">
+            <div>EFECTIVO:</div><div>$895.50</div>
+          </div>
+          <div class="flex justify-between items-center font-semibold">
+            <div>TARJETA:</div><div>$970.00</div>
+          </div>
+          <div class="flex justify-between items-center font-semibold">
+            <div>TRANSFERENCIA:</div><div>$2,090.00</div>
+          </div>
+
+          <hr class="border-dashed border-t my-1">
+
+          <div class="flex justify-between items-center font-semibold">
+            <div>TOTAL CAJA:</div><div class="text-sm">$3,955.50</div>
+          </div>
+
+          <hr class="border-dashed border-t my-1">
+
+          <div class="flex justify-between items-center font-semibold">
+            <div>NÚMERO DE PEDIDOS:</div><div>12</div>
+          </div>
+          <div class="mt-1"></div>
+          <div class="flex justify-between items-center" style="font-size:11px;">
+            <div class="text-green-700">PAGADOS:</div><div class="text-green-700 font-bold">8</div>
+          </div>
+          <div class="flex justify-between items-center" style="font-size:11px;">
+            <div class="text-amber-600">PENDIENTES:</div><div class="text-amber-600 font-bold">2</div>
+          </div>
+          <div class="flex justify-between items-center" style="font-size:11px;">
+            <div class="text-blue-700">COTIZACIONES:</div><div class="text-blue-700 font-bold">1</div>
+          </div>
+          <div class="flex justify-between items-center" style="font-size:11px;">
+            <div class="text-red-600">CANCELADOS:</div><div class="text-red-600 font-bold">1</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-4 text-[10px] font-bold text-gray-900 space-y-1">
+          <p>GRACIAS POR SU PREFERENCIA</p>
+          <p class="text-purple-800 text-xs">Huubie</p>
+          <p class="text-gray-500 font-normal text-[9px]">Generado: 21/06/2026 16:35:05</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

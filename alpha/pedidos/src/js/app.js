@@ -1,6 +1,6 @@
-let api = 'ctrl/ctrl-pedidos.php';
+let api          = 'ctrl/ctrl-pedidos.php';
 let api_catalogo = 'ctrl/ctrl-pedidos-catalogo.php';
-let api_custom = 'ctrl/ctrl-pedidos-personalizado.php';
+let api_custom   = 'ctrl/ctrl-pedidos-personalizado.php';
 
 let normal, app, custom, cierre; //Clases.
 let idFolio, sub_name, user_name;
@@ -31,7 +31,9 @@ $(async () => {
 
     app.render();
 
-
+    // La navbar es la duena del filtro de sucursal (solo admin). Cuando el
+    // admin cambia de sucursal alli, replicamos el comportamiento del filtro.
+    document.addEventListener('subsidiaryChanged', () => app.onSubsidiaryChange());
 
     setInterval(() => {
         app.actualizarFechaHora({ label: app.getSubsidiaryLabel() });
@@ -53,20 +55,29 @@ class App extends Templates {
     }
 
     layout() {
-        this.primaryLayout({
+        this.createLayout({
             parent: "root",
-            id: this.PROJECT_NAME,
-            class: 'flex mx-2 ',
-            heightPreset: 'full',
-            card: {
-                filterBar: { class: 'w-full ', id: 'filterBar' },
-                container: { class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
+            design: false,
+            data: {
+                id: this.PROJECT_NAME,
+                class: 'flex mx-2 min-h-screen',
+                container: [
+                    {
+                        type: "div",
+                        id: "singleLayout",
+                        class: "flex flex-col col-12",
+                        children: [
+                            { type: "div", class: 'w-full ', id: 'filterBar' },
+                            { type: "div", class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
+                        ]
+                    }
+                ]
             }
         });
 
         // Filter bar.
         $('#filterBar').html(`
-            <div id="filterBar${this.PROJECT_NAME}" class="w-full my-3 " ></div>
+            <div id="filterBar${this.PROJECT_NAME}" class="w-full mb-3 " ></div>
             <div id="containerHours"></div>
         `);
     }
@@ -75,20 +86,8 @@ class App extends Templates {
 
         let filterBar = [];
 
-        // Agregar select de admin solo si rol == 1
-        if (rol == 1) {
-            filterBar.push({
-                opc: "select",
-                id: "subsidiaries_id",
-                lbl: "Filtrar por sucursal:",
-                class: "col-12 col-md-3 col-lg-2",
-                onchange: "app.onSubsidiaryChange()",
-                data: [
-                    { id: "0", valor: "Todas las sucursales" },
-                    ...subsidiaries
-                ]
-            });
-        }
+        // El filtro de sucursal vive ahora en la navbar (solo admin).
+        // Aqui ya no se agrega; se reacciona a su evento 'subsidiaryChanged'.
 
         filterBar.push(
             {
@@ -139,6 +138,7 @@ class App extends Templates {
                 text: "Calendario",
                 icon: "icon-calendar",
                 onClick: () => {
+                    if (!this.requireOpenShift()) return;
                     window.location.href = '../pedidos/calendario/index.php'
                 }
             }
@@ -150,10 +150,8 @@ class App extends Templates {
             data: filterBar
         });
 
-        // Inicializar select con la sucursal activa del usuario
-        if (rol == 1 && dailyClosure.subsidiary_id) {
-            $('#subsidiaries_id').val(dailyClosure.subsidiary_id);
-        }
+        // El #subsidiaries_id lo provee la navbar (admin), ya preseleccionado
+        // con la sucursal del usuario; aqui no se inicializa.
 
         const savedRange = JSON.parse(localStorage.getItem('pedidos3_calendar_range') || 'null');
         const startDate = savedRange ? moment(savedRange.fi) : moment().startOf("month");
@@ -391,10 +389,13 @@ class App extends Templates {
 
     ls() {
         let rangePicker = getDataRangePicker("calendar");
+        // El selector de sucursal vive en la navbar (solo admin); lo enviamos
+        // explicitamente porque ya no forma parte de la filterBar.
+        let subsidiaries_id = rol == 1 ? ($('#subsidiaries_id').val() || '0') : null;
         this.createTable({
             parent: `container${this.PROJECT_NAME}`,
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
-            data: { opc: "listOrders", fi: rangePicker.fi, ff: rangePicker.ff },
+            data: { opc: "listOrders", fi: rangePicker.fi, ff: rangePicker.ff, subsidiaries_id: subsidiaries_id },
             conf: {
                 datatable: true, pag: 10, fn_datatable: 'simple_data_table_filter',
             },
@@ -608,7 +609,12 @@ class App extends Templates {
 
         $('#radioDeliveryType').removeClass('col-12 col-lg-6');
         $('#subsidiaryFilter').removeClass('col-12 offset-10 col-lg-2 mb-1');
-        $('#subsidiaryFilter').prev('label').remove(); $("#date_order").val(new Date().toISOString().split("T")[0]);
+        $('#subsidiaryFilter').prev('label').remove();
+
+        // En edición la sucursal del pedido es fija: mostrar la real y bloquear el cambio.
+        $('#formPedido #subsidiaries_id').val(order.subsidiaries_id).prop('disabled', true);
+
+        $("#date_order").val(new Date().toISOString().split("T")[0]);
         if (!$("#date_birthday").val()) $("#date_birthday").val(new Date().toISOString().split("T")[0]);
 
         const ahora = new Date();
@@ -1847,14 +1853,14 @@ class App extends Templates {
             title: `
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                        <i class="icon-birthday text-white text-sm"></i>
+                        ${lucideIcon('cake', 'w-4 h-4 text-white')}
                     </div>
                     <div>
                         <h2 class="text-lg font-semibold text-white">Detalles del Pedido</h2>
                         <div class="flex items-center gap-2 mt-1">
                             ${badgeTipo}
-                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200">
-                                <i class="icon-home mr-1"></i>${subsidiarieName}
+                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200 inline-flex items-center gap-1">
+                                ${lucideIcon('house', 'w-3.5 h-3.5')}${subsidiarieName}
                             </span>
                         </div>
                     </div>
@@ -1889,12 +1895,13 @@ class App extends Templates {
             this.layoutManager.applyLayout();
             const orderData = response.data.order || {};
             const products = response.data.products || [];
+            const paymentMethods = response.data.paymentMethods || [];
 
             const container = $('#orderDetailsContainer');
             container.html(`
                 <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
                     <div class="lg:sticky lg:top-4">
-                        ${this.detailsCard(orderData)}
+                        ${this.detailsCard(orderData, paymentMethods)}
                     </div>
                 </div>
 
@@ -1952,18 +1959,18 @@ class App extends Templates {
 
     getBadgeDeliveryType(tipo) {
         if (tipo == 0 || tipo === '0') {
-            return '<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-block w-24 text-center"><i class="icon-home"></i> Local</span>';
+            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-flex items-center gap-1 w-24 justify-center">${lucideIcon('house', 'w-3.5 h-3.5')} Local</span>`;
         } else if (tipo == 1 || tipo === '1') {
-            return '<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-block w-28 text-center"><i class="icon-motorcycle"></i> Domicilio</span>';
+            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-flex items-center gap-1 w-28 justify-center">${lucideIcon('truck', 'w-3.5 h-3.5')} Domicilio</span>`;
         }
         return '<span class="px-3 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-700 inline-block w-24 text-center">Sin especificar</span>';
     }
 
-    detailsCard(orderData) {
+    detailsCard(orderData, paymentMethods = []) {
         return `
             <div class="space-y-3">
                 ${this.infoOrder(orderData)}
-                ${this.infoSales(orderData)}
+                ${this.infoSales(orderData, paymentMethods)}
             </div>
         `;
     }
@@ -1972,60 +1979,64 @@ class App extends Templates {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
                 <h3 class="text-white font-semibold text-base mb-2 flex items-center">
-                    <i class="icon-info text-blue-400 mr-2 text-sm"></i>
+                    ${lucideIcon('info', 'w-4 h-4 text-blue-400 mr-2')}
                     Información del Pedido
                 </h3>
 
                 <div class="space-y-1.5">
-                    <div class="flex items-start">
-                        <i class="icon-doc-text-1 text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Folio:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.folio || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('file-text', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Folio:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.folio || 'N/A'}</span>
                     </div>
 
-                    <div class="flex items-start">
-                        <i class="icon-user text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Cliente:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.name || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('user', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Cliente:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.name || 'N/A'}</span>
                     </div>
 
-                    <div class="flex items-start">
-                        <i class="icon-calendar text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Fecha de entrega:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('calendar', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Fecha de entrega:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</span>
                     </div>
 
-                    <div class="flex items-start">
-                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Hora:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.time_order || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('clock', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Hora:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.time_order || 'N/A'}</span>
                     </div>
-                    <div class="flex items-start">
-                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Estado de entrega:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.delivery_status || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('truck', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Estado de entrega:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.delivery_status || 'N/A'}</span>
                     </div>
                 </div>
             </div>
         `;
     }
 
-    infoSales(orderData) {
+    infoSales(orderData, paymentMethods = []) {
         const totalPay = parseFloat(orderData.total_pay || 0);
         const discount = parseFloat(orderData.discount || 0);
         const totalPaid = parseFloat(orderData.total_paid || 0);
         const balance = parseFloat(orderData.balance || 0);
         const infoDiscount = orderData.info_discount || '';
+
+        const methodsHtml = (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
+                    <div class="pl-2 space-y-1 border-l-2 border-gray-600">
+                        ${paymentMethods.map(m => `
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-500 text-xs flex items-center gap-1.5">
+                                ${lucideIcon('credit-card', 'w-3.5 h-3.5')}
+                                ${m.method_pay || 'Sin método'}:
+                            </span>
+                            <span class="text-gray-300 text-xs">$${parseFloat(m.pay || 0).toFixed(2)}</span>
+                        </div>
+                        `).join('')}
+                    </div>
+        ` : '';
 
         const discountHtml = discount > 0 ? `
                     <div class="flex items-center justify-between">
@@ -2042,7 +2053,7 @@ class App extends Templates {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
                 <h3 class="text-white font-semibold text-base mb-2 flex items-center">
-                    <i class="icon-dollar text-green-400 mr-2 text-sm"></i>
+                    ${lucideIcon('dollar-sign', 'w-4 h-4 text-green-400 mr-2')}
                     Resumen de pago
                 </h3>
 
@@ -2058,6 +2069,8 @@ class App extends Templates {
                         <span class="text-gray-400 text-sm">Pagado:</span>
                         <span class="text-green-400 font-bold text-sm">$${totalPaid.toFixed(2)}</span>
                     </div>
+
+                    ${methodsHtml}
 
                     <div class="border-t border-gray-600 my-1.5"></div>
 
@@ -2077,7 +2090,7 @@ class App extends Templates {
         if (!products || products.length === 0) {
             return `
                 <div class="bg-[#283341] rounded-lg p-2 text-center h-full flex flex-col items-center justify-center">
-                    <i class="icon-basket text-gray-500 text-5xl mb-4"></i>
+                    ${lucideIcon('shopping-basket', 'w-12 h-12 text-gray-500 mb-4')}
                     <h3 class="text-white text-lg font-semibold mb-2">No hay productos</h3>
                     <p class="text-gray-400">Este pedido no contiene productos.</p>
                 </div>
@@ -2091,7 +2104,7 @@ class App extends Templates {
                 <div class="bg-[#283341] rounded-lg p-3 mb-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-white font-semibold text-lg flex items-center">
-                            <i class="icon-basket mr-2 text-blue-400"></i>
+                            ${lucideIcon('shopping-basket', 'w-5 h-5 mr-2 text-blue-400')}
                             Productos del Pedido
                         </h3>
                         <span class="text-gray-300 font-medium"> ${totalItems} productos</span>
@@ -2433,26 +2446,36 @@ class App extends Templates {
         this._selectedShiftId = null;
 
         const subsidiarySelect = rol == 1 ? `
-            <div class="mb-3">
+            <div>
                 <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
                 <select id="subsidiariesDailyClose" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg px-3 py-2 text-sm font-normal" onchange="app.onDailyCloseFilterChange()">
                     ${subsidiaries.map(s => `<option value="${s.id}" ${dailyClosure.subsidiary_id == s.id ? 'selected' : ''}>${s.valor}</option>`).join('')}
                 </select>
             </div>
-        ` : '';
+        ` : `
+            <div>
+                <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
+                <div class="flex items-center gap-2 w-full bg-[#1F2A37] border border-purple-500/40 rounded-lg px-3 py-2" title="Abrirás, cerrarás turno y harás el cierre de esta sucursal">
+                    <i class="icon-location-8 text-purple-400"></i>
+                    <span class="text-sm font-semibold text-white truncate">${sub_name || 'Mi sucursal'}</span>
+                </div>
+            </div>
+        `;
 
         const modalContent = `
-            <div class="flex flex-col lg:flex-row gap-4" style="min-height: 480px;">
+            <div class="flex flex-col lg:flex-row gap-4 lg:min-h-[480px]">
                 <!-- Sidebar -->
                 <div class="w-full lg:w-[280px] flex-shrink-0 space-y-4">
-                    ${subsidiarySelect}
-                    <div id="dateFieldWrapper">
-                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar fecha</label>
-                        <div class="relative">
-                            <input type="text" id="calendarDailyClose" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg pl-3 pr-9 py-2 text-sm font-normal cursor-pointer focus:border-purple-500 focus:outline-none" readonly placeholder="Seleccionar fecha" />
-                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-300 pointer-events-none">
-                                ${lucideIcon('calendar', 'w-[18px] h-[18px]')}
-                            </span>
+                    <div class="grid grid-cols-2 md:grid-cols-1 gap-3">
+                        ${subsidiarySelect}
+                        <div id="dateFieldWrapper">
+                            <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Fecha</label>
+                            <div class="relative">
+                                <input type="text" id="calendarDailyClose" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg pl-3 pr-9 py-2 text-sm font-normal cursor-pointer focus:border-purple-500 focus:outline-none" readonly placeholder="Fecha" />
+                                <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-300 pointer-events-none">
+                                    ${lucideIcon('calendar', 'w-[18px] h-[18px]')}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <div id="openShiftsAlert" class="hidden"></div>
@@ -2462,15 +2485,15 @@ class App extends Templates {
                             <option value="">-- Seleccionar --</option>
                         </select>
                     </div>
-                    <div class="space-y-2 mt-2">
-                        <button id="btnOpenShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2" onclick="app.openShift()">
-                            ${lucideIcon('circle-plus')} Abrir Turno
+                    <div class="grid grid-cols-3 md:grid-cols-1 gap-2 mt-2">
+                        <button id="btnOpenShift" class="py-2.5 rounded-lg text-xs md:text-sm font-semibold bg-green-600 hover:bg-green-700 text-white flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2" onclick="app.openShift()">
+                            ${lucideIcon('circle-plus')} <span>Abrir<span class="hidden md:inline"> Turno</span></span>
                         </button>
-                        <button id="btnCloseShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.closeShift()">
-                            ${lucideIcon('lock')} Cerrar Turno
+                        <button id="btnCloseShift" class="py-2.5 rounded-lg text-xs md:text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.closeShift()">
+                            ${lucideIcon('lock')} <span>Cerrar<span class="hidden md:inline"> Turno</span></span>
                         </button>
-                        <button id="btnPrintTicket" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
-                            ${lucideIcon('printer')} Imprimir Ticket
+                        <button id="btnPrintTicket" class="py-2.5 rounded-lg text-xs md:text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
+                            ${lucideIcon('printer')} <span>Imprimir<span class="hidden md:inline"> Ticket</span></span>
                         </button>
                     </div>
                     <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
@@ -2481,7 +2504,7 @@ class App extends Templates {
                 </div>
                 <!-- Ticket Preview -->
                 <div class="flex-1 relative">
-                    <div id="ticketPreview" class="absolute inset-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
+                    <div id="ticketPreview" class="relative lg:absolute lg:inset-0 w-full min-h-[420px] lg:min-h-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
                         <div id="ticketModeBar" class="flex items-center justify-between mb-3 gap-3 hidden">
                             <p class="text-xs text-gray-500">Vista previa de impresión</p>
                             <div class="inline-flex items-center gap-1 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px] flex-shrink-0">
@@ -2735,7 +2758,7 @@ class App extends Templates {
         const isClosed = shift.status === 'closed';
 
         const subsidiaryHeader = (subsidiaryName && subsidiaryName !== companyName)
-            ? `<div class="text-xs font-semibold text-gray-700">${subsidiaryName}</div>`
+            ? `<div class="text-xs font-semibold" style="color:#7c3aed;">${subsidiaryName}</div>`
             : '';
 
         const closedBadge = isClosed
@@ -2754,7 +2777,7 @@ class App extends Templates {
 
                 const orderRows = orders.map(o => `
                     <div class="flex items-center">
-                        <div class="italic truncate flex-1">${o.folio || 'Folio #' + o.id}</div>
+                        <div class="font-bold text-gray-900 truncate flex-1">${o.folio || 'Folio #' + o.id}</div>
                         <div class="text-right" style="width:72px">${formatPrice(o.total_pay)}</div>
                         <div class="text-right text-green-700" style="width:72px">${parseFloat(o.payment_real || 0) ? formatPrice(o.payment_real) : '-'}</div>
                     </div>
@@ -2961,12 +2984,28 @@ class App extends Templates {
             confirmText: 'Confirmar Apertura',
             cancelText: 'Cancelar',
             json: [
-                { opc: 'display', id: 'sucursal',    lbl: 'Sucursal',             value: subName },
-                { opc: 'display', id: 'responsable', lbl: 'Responsable',          value: (typeof user_name !== 'undefined' && user_name) ? user_name : 'Sin asignar' },
+                { opc: 'display', id: 'sucursal',    lbl: 'Sucursal',             icon: lucideIcon('house', 'w-4 h-4'), value: subName },
+                { opc: 'display', id: 'responsable', lbl: 'Responsable',          icon: lucideIcon('user', 'w-4 h-4'),  value: (typeof user_name !== 'undefined' && user_name) ? user_name : 'Sin asignar' },
                 { opc: 'money',   id: 'openingAmount', lbl: 'Fondo inicial de caja', placeholder: '0.00', min: 0, step: 0.01, autofocus: true }
             ],
             onConfirm: async (data, modal) => {
                 const opening_amount = parseFloat(data.openingAmount) || 0;
+
+                const confirm = await Swal.fire({
+                    title: '¿Aperturar turno?',
+                    html: `<p>Se abrirá un nuevo turno de caja en <strong>${subName}</strong> con un fondo inicial de <strong>$${opening_amount.toFixed(2)}</strong>.</p>`,
+                    icon: 'question',
+                    iconColor: '#8b5cf6',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, aperturar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#8b5cf6',
+                    customClass: { popup: 'bg-[#1F2A37] text-white rounded-lg' },
+                    // El modal de apertura usa z-index 100000; subimos el Swal por encima.
+                    didOpen: () => { const c = document.querySelector('.swal2-container'); if (c) c.style.zIndex = 100010; }
+                });
+
+                if (!confirm.isConfirmed) return;
 
                 const response = await useFetch({
                     url: this._link,
@@ -2997,7 +3036,6 @@ class App extends Templates {
         const shiftId = this._selectedShiftId || $('#shiftSelector').val();
         if (!shiftId) return;
 
-        // Obtener conteo de pedidos
         const ordersRes = await useFetch({
             url: this._link,
             data: { opc: "getShiftOrders", shift_id: shiftId }
@@ -3028,7 +3066,6 @@ class App extends Templates {
                     this.loadShifts();
                     this.ls();
 
-                    // Actualizar variable global
                     openShift = { has_open_shift: false };
                     this.updateDailyClosureStatus();
                     this.actualizarFechaHora({ label: sub_name });
