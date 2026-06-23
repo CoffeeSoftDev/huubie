@@ -58,28 +58,6 @@
                 <span id="pgKnowledgeCount" class="pg-count">0</span>
             </button>
 
-            <select id="pgModelSelect" class="ia-model-pill" title="Modelo activo">
-                <optgroup label="Ollama Cloud">
-                    <option value="glm-5.2:cloud">GLM 5.2 (código)</option>
-                    <option value="glm-5.1:cloud">GLM 5.1 (código)</option>
-                    <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
-                    <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>
-                    <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
-                    <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
-                    <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
-                    <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código, vision)</option>
-                </optgroup>
-                <optgroup label="OpenRouter (free)">
-                    <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
-                    <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (free)</option>
-                    <option value="google/gemma-4-31b-it:free">Gemma 4 31B (free)</option>
-                </optgroup>
-                <optgroup label="OpenRouter (de pago)">
-                    <option value="qwen/qwen3.7-max">Qwen3.7 Max (pago)</option>
-                    <option value="qwen/qwen3.6-27b">Qwen3.6 27B (pago)</option>
-                </optgroup>
-            </select>
-
             <button id="pgThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">
                 <i data-lucide="sun" class="w-4 h-4"></i>
             </button>
@@ -177,6 +155,28 @@
                         <i data-lucide="layout-template" class="w-3 h-3"></i>
                         <span>Lienzo</span>
                     </button>
+
+                    <select id="pgModelSelect" class="ia-model-pill" title="Modelo activo">
+                        <optgroup label="Ollama Cloud">
+                            <option value="glm-5.2:cloud">GLM 5.2 (código)</option>
+                            <option value="glm-5.1:cloud">GLM 5.1 (código)</option>
+                            <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
+                            <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>
+                            <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
+                            <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
+                            <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
+                            <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código, vision)</option>
+                        </optgroup>
+                        <optgroup label="OpenRouter (free)">
+                            <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
+                            <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (free)</option>
+                            <option value="google/gemma-4-31b-it:free">Gemma 4 31B (free)</option>
+                        </optgroup>
+                        <optgroup label="OpenRouter (de pago)">
+                            <option value="qwen/qwen3.7-max">Qwen3.7 Max (pago)</option>
+                            <option value="qwen/qwen3.6-27b">Qwen3.6 27B (pago)</option>
+                        </optgroup>
+                    </select>
                 </div>
             </div>
         </section>

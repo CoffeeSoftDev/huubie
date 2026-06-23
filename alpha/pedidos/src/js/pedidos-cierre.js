@@ -5,6 +5,7 @@ class Cierre {
         this.api = api;
         this._closureData = null;
         this._closureResponse = null;
+        this._dailyView = 'reporte';
     }
 
     async initCierre() {
@@ -210,7 +211,7 @@ class Cierre {
         dateLabel.append(`<p class="closure-badge text-[10px] text-gray-500 mt-1">Por: <strong class="text-gray-300">${res.closure.closed_by || 'Admin'}</strong> — ${moment(res.closure.created_at).format('hh:mm A')}</p>`);
 
         $('#btnOpenShift, #btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
-        $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed').attr('onclick', 'cierre.printExecutiveSummary()');
+        $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed').attr('onclick', 'cierre.printDaily()');
 
         let btnArea = $('#btnCerrarDia').parent();
         if (rol == 1) {
@@ -225,7 +226,35 @@ class Cierre {
         }
 
         $('#ticketModeBar').addClass('hidden');
-        this.renderExecutiveSummary(res);
+        this._dailyView = 'reporte';
+        this.renderDaily();
+    }
+
+    renderDaily() {
+        if (this._dailyView === 'ticket') {
+            this.renderDailyTicket(this._closureResponse);
+        } else {
+            this.renderExecutiveSummary(this._closureResponse);
+        }
+    }
+
+    setDailyView(mode) {
+        this._dailyView = mode;
+        this.renderDaily();
+    }
+
+    dailyViewToggle() {
+        const active   = 'bg-purple-600 text-white shadow-sm';
+        const inactive = 'text-gray-400 hover:text-gray-200';
+        const isReport = this._dailyView !== 'ticket';
+        return `
+            <div class="flex justify-center mb-3">
+                <div class="inline-flex items-center gap-1 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px]">
+                    <button class="px-4 py-1 rounded-md font-semibold transition-all ${isReport ? active : inactive}" onclick="cierre.setDailyView('reporte')">Reporte</button>
+                    <button class="px-4 py-1 rounded-md font-semibold transition-all ${!isReport ? active : inactive}" onclick="cierre.setDailyView('ticket')">Ticket</button>
+                </div>
+            </div>
+        `;
     }
 
     renderDailyTicket(res) {
@@ -243,6 +272,7 @@ class Cierre {
         }
 
         const html = `
+            ${this.dailyViewToggle()}
             <div class="flex justify-center p-4">
                 <div id="ticketPasteleria" class="bg-white p-5 rounded-lg shadow-lg text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%; font-family: 'Courier New', monospace; font-size: 12px;">
                     <div class="flex flex-col items-center mb-3">
@@ -398,6 +428,7 @@ class Cierre {
         const sectionTitle = 'text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2';
 
         const html = `
+            ${this.dailyViewToggle()}
             <div class="flex justify-center p-1">
                 <div id="ticketDailyClose" class="bg-white rounded-xl border border-gray-200 p-4 text-gray-900 w-full" style="max-width: 720px;">
                     <div class="flex items-center justify-between mb-4">
@@ -475,22 +506,23 @@ class Cierre {
         arrow.css('transform', body.hasClass('hidden') ? '' : 'rotate(180deg)');
     }
 
-    printExecutiveSummary() {
-        const report = document.getElementById('ticketDailyClose');
+    printDaily() {
+        const report = document.getElementById('ticketDailyClose') || document.getElementById('ticketPasteleria');
         if (!report) {
-            Swal.fire({ title: 'Sin reporte', text: 'No hay resumen para imprimir.', icon: 'warning', background: '#1F2A37', color: '#fff', confirmButtonColor: '#ea580c' });
+            Swal.fire({ title: 'Sin contenido', text: 'No hay nada para imprimir.', icon: 'warning', background: '#1F2A37', color: '#fff', confirmButtonColor: '#ea580c' });
             return;
         }
 
-        const printWindow = window.open('', '', 'height=800,width=820');
+        const isTicket = report.id === 'ticketPasteleria';
+        const printWindow = window.open('', '', isTicket ? 'height=700,width=420' : 'height=800,width=820');
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Resumen ejecutivo</title>
+                    <title>${isTicket ? 'Ticket de cierre' : 'Corte Z'}</title>
                     <script src="https://cdn.tailwindcss.com"><\/script>
-                    <style>@media print { body { margin: 0; } #ticketDailyClose { border: none !important; } }</style>
+                    <style>@media print { body { margin: 0; } #ticketDailyClose, #ticketPasteleria { border: none !important; box-shadow: none !important; } }</style>
                 </head>
-                <body class="p-4">${report.outerHTML}</body>
+                <body class="${isTicket ? 'p-2' : 'p-4'}">${report.outerHTML}</body>
             </html>
         `);
         printWindow.document.close();
@@ -499,7 +531,7 @@ class Cierre {
 
     onShiftSelectorChange(value) {
         if (value === 'daily') {
-            this.renderExecutiveSummary(this._closureResponse);
+            this.renderDaily();
         } else {
             app._selectedShiftId = value;
             app.viewShiftPreview();
