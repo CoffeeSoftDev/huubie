@@ -717,8 +717,7 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     .pg-header-right.is-open { display: flex; }
     /* Cada control a lo ancho del panel, fácil de tocar. */
     .pg-header-right .pg-select-wrap,
-    .pg-header-right #pgKnowledgeBtn,
-    .pg-header-right .ia-model-pill { width: 100%; justify-content: flex-start; }
+    .pg-header-right #pgKnowledgeBtn { width: 100%; justify-content: flex-start; }
     .pg-header-right .pg-select { max-width: none; flex: 1; }
 
     /* Conmutador de vista visible. */
