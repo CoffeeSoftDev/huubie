@@ -1,0 +1,343 @@
+<div class="min-h-screen bg-slate-100 font-sans text-slate-800">
+  <!-- Header institucional -->
+  <header class="bg-slate-900 text-white px-6 h-12 flex items-center justify-between shadow-md">
+    <div class="flex items-center gap-3">
+      <i data-lucide="menu" class="w-5 h-5 text-slate-300"></i>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full border-2 border-amber-400 flex items-center justify-center text-amber-400 font-serif text-lg italic">V</div>
+        <div class="leading-tight">
+          <div class="text-[11px] tracking-widest text-slate-400">GRUPO</div>
+          <div class="text-sm font-bold tracking-wider">VAROCH</div>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 text-sm">
+      <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-300">
+        <i data-lucide="user" class="w-4 h-4"></i>
+      </div>
+      <span>Rosa Angelica</span>
+    </div>
+  </header>
+
+  <!-- Breadcrumb -->
+  <div class="px-6 py-2 text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
+    <span class="text-slate-700 font-semibold tracking-wider">CALIDAD</span>
+    <span class="mx-2">/</span>
+    <span class="text-slate-700 font-semibold">Evaluacion</span>
+  </div>
+
+  <!-- Main content -->
+  <div class="p-4">
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+      <div class="grid grid-cols-12 gap-4">
+
+        <!-- LEFT PANEL: Encuestas realizadas -->
+        <div class="col-span-7">
+          <div class="flex items-center gap-3 mb-4">
+            <button class="w-8 h-8 rounded border border-slate-300 flex items-center justify-center hover:bg-slate-50">
+              <i data-lucide="chevron-left" class="w-4 h-4 text-slate-500"></i>
+            </button>
+            <div class="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center">
+              <i data-lucide="clipboard-list" class="w-5 h-5 text-blue-700"></i>
+            </div>
+            <div>
+              <h2 class="text-base font-semibold text-slate-800">Encuestas realizadas</h2>
+              <p class="text-[11px] text-slate-500">Evaluaciones aplicadas en el periodo seleccionado</p>
+            </div>
+          </div>
+
+          <!-- Filtros -->
+          <div class="grid grid-cols-4 gap-3 mb-3">
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1">Periodo:</label>
+              <div class="flex items-center border border-slate-300 rounded px-2 h-8 text-xs">
+                <span class="flex-1">15-06-2026 - 21-06-2026</span>
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-400"></i>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1">Turno:</label>
+              <div class="border border-slate-300 rounded px-2 h-8 flex items-center text-xs">Todos los turnos</div>
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1">Estado:</label>
+              <select class="w-full border border-slate-300 rounded px-2 h-8 text-xs bg-white">
+                <option>Todos</option>
+                <option>Completada</option>
+                <option>Pendiente</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1">Tipo de reporte:</label>
+              <input type="text" value="Supervisión de" class="w-full border border-slate-300 rounded px-2 h-8 text-xs" />
+            </div>
+          </div>
+
+          <div class="flex justify-end mb-3">
+            <button class="bg-blue-900 hover:bg-blue-800 text-white text-xs font-semibold px-4 h-8 rounded flex items-center gap-2">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva Encuesta
+            </button>
+          </div>
+
+          <!-- Controles tabla -->
+          <div class="flex items-center justify-between mb-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span>Mostrar</span>
+              <select id="pageSize" class="border border-slate-300 rounded px-2 h-7 text-xs bg-white">
+                <option>10</option><option>25</option><option>50</option>
+              </select>
+              <span>registros</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span>Buscar:</span>
+              <input id="searchInput" type="text" class="border border-slate-300 rounded px-2 h-7 text-xs w-44" />
+            </div>
+          </div>
+
+          <!-- Tabla -->
+          <div class="overflow-hidden rounded border border-slate-200">
+            <table class="w-full text-[11px]">
+              <thead class="bg-blue-900 text-white">
+                <tr>
+                  <th class="px-2 py-2 text-left font-semibold cursor-pointer" data-sort="fecha">Fecha <span class="text-blue-300">↕</span></th>
+                  <th class="px-2 py-2 text-left font-semibold cursor-pointer" data-sort="turno">Turno <span class="text-blue-300">↕</span></th>
+                  <th class="px-2 py-2 text-left font-semibold cursor-pointer" data-sort="supervisor">Supervisor <span class="text-blue-300">↕</span></th>
+                  <th class="px-2 py-2 text-left font-semibold cursor-pointer" data-sort="persona">Persona Evaluada <span class="text-blue-300">↕</span></th>
+                  <th class="px-2 py-2 text-left font-semibold cursor-pointer" data-sort="tipo">Tipo <span class="text-blue-300">↕</span></th>
+                  <th class="px-2 py-2 text-left font-semibold cursor-pointer" data-sort="puntaje">Puntaje <span class="text-blue-300">↕</span></th>
+                  <th class="px-2 py-2 text-left font-semibold cursor-pointer" data-sort="estado">Estado <span class="text-blue-300">↕</span></th>
+                  <th class="px-2 py-2 text-left font-semibold">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="encuestasBody" class="divide-y divide-slate-200"></tbody>
+            </table>
+          </div>
+
+          <!-- Paginación -->
+          <div class="flex items-center justify-between mt-3 text-xs text-slate-600">
+            <div>Mostrando del <span id="rangeStart">1</span> al <span id="rangeEnd">8</span>) de un total de <span id="totalRows">8</span> registros</div>
+            <div class="flex items-center gap-1">
+              <button id="prevBtn" class="border border-slate-300 px-3 h-7 rounded text-slate-400 cursor-not-allowed">Anterior</button>
+              <button id="pageBtn" class="bg-blue-900 text-white w-7 h-7 rounded font-semibold">1</button>
+              <button id="nextBtn" class="border border-slate-300 px-3 h-7 rounded text-slate-400 cursor-not-allowed">Siguiente</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT PANEL: Detalle encuesta -->
+        <div class="col-span-5 border-l border-slate-200 pl-4" id="detailPanel">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded bg-blue-50 flex items-center justify-center">
+                <i data-lucide="file-text" class="w-4 h-4 text-blue-700"></i>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-500">Encuesta #26</div>
+                <div class="text-sm font-bold text-blue-900">ANA GABRIELA MONTERROSA</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button class="w-7 h-7 rounded border border-slate-300 flex items-center justify-center hover:bg-slate-50" title="Imprimir">
+                <i data-lucide="printer" class="w-3.5 h-3.5 text-slate-600"></i>
+              </button>
+              <button id="closeDetail" class="w-7 h-7 rounded border border-slate-300 flex items-center justify-center hover:bg-slate-50" title="Cerrar">
+                <i data-lucide="x" class="w-3.5 h-3.5 text-slate-600"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-2 mb-4 text-xs">
+            <div class="flex justify-between border-b border-slate-100 pb-1.5">
+              <span class="text-slate-500">Fecha</span><span class="font-semibold">19/jun/2026 09:00 am</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-100 pb-1.5">
+              <span class="text-slate-500">Turno</span><span class="font-semibold">Dia</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-100 pb-1.5">
+              <span class="text-slate-500">Tipo</span><span class="font-semibold">Camarista</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Puntaje global</span><span class="font-bold text-blue-900">60.52%</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 mb-2">
+            <i data-lucide="users" class="w-4 h-4 text-slate-600"></i>
+            <h3 class="text-[11px] font-bold tracking-wider text-slate-700">DESGLOSE POR RESPONSABLE</h3>
+          </div>
+
+          <div class="overflow-hidden rounded border border-slate-200">
+            <table class="w-full text-[11px]">
+              <thead class="bg-slate-100 text-slate-600">
+                <tr>
+                  <th class="px-2 py-1.5 text-left font-semibold">RESPONSABLE</th>
+                  <th class="px-2 py-1.5 text-right font-semibold">TOTAL DE PUNTOS</th>
+                  <th class="px-2 py-1.5 text-right font-semibold">PUNTOS OBTENIDOS</th>
+                  <th class="px-2 py-1.5 text-right font-semibold">CALIFICACION</th>
+                </tr>
+              </thead>
+              <tbody id="desgloseBody" class="divide-y divide-slate-200"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+(function () {
+  // Data
+  const data = [
+    { id: 26, fecha: '19/jun/2026 09:00 am', turno: 'Dia', supervisor: 'SERGIO OSORIO', persona: 'ANA GABRIELA MONTERROSA', tipo: 'Camarista', puntaje: 60.52, estado: 'Completada' },
+    { id: 25, fecha: '19/jun/2026 08:00 am', turno: 'Dia', supervisor: 'SERGIO OSORIO', persona: 'EVELIN ESPINA', tipo: 'Camarista', puntaje: 85.98, estado: 'Completada' },
+    { id: 24, fecha: '18/jun/2026 10:00 am', turno: 'Dia', supervisor: 'SERGIO OSORIO', persona: 'JANETH AMORES', tipo: 'Camarista', puntaje: 85.98, estado: 'Completada' },
+    { id: 23, fecha: '18/jun/2026 09:00 am', turno: 'Dia', supervisor: 'SERGIO OSORIO', persona: 'NANCY MARISOL RAMIREZ', tipo: 'Camarista', puntaje: 90.41, estado: 'Completada' },
+    { id: 22, fecha: '17/jun/2026 01:00 pm', turno: 'Dia', supervisor: 'SERGIO OSORIO', persona: 'ANA GABRIELA MONTERROSA', tipo: 'Camarista', puntaje: 65.98, estado: 'Completada' },
+    { id: 21, fecha: '16/jun/2026 02:00 pm', turno: 'Dia', supervisor: 'SERGIO OSORIO', persona: 'JANETH AMORES', tipo: 'Camarista', puntaje: 84.23, estado: 'Completada' },
+    { id: 20, fecha: '16/jun/2026 11:00 am', turno: 'Dia', supervisor: 'SERGIO OSORIO', persona: 'EVELIN ESPINA', tipo: 'Camarista', puntaje: 90.41, estado: 'Completada' },
+    { id: 19, fecha: '15/jun/2026 12:00 pm', turno: 'Noche', supervisor: 'SERGIO OSORIO', persona: 'NANCY MARISOL RAMIREZ', tipo: 'Camarista', puntaje: 96.19, estado: 'Completada' }
+  ];
+
+  const desglose = [
+    { responsable: 'Gerente', total: 140, obtenidos: 82, calif: 58.57 },
+    { responsable: 'Jefe(a) de Turno', total: 40, obtenidos: 25, calif: 62.50 },
+    { responsable: 'Coordinador de Mantenimiento', total: 141, obtenidos: 85, calif: 60.28 },
+    { responsable: 'Jardinero', total: 40, obtenidos: 26, calif: 65.00 },
+    { responsable: 'Camarista', total: 483, obtenidos: 290, calif: 60.04 },
+    { responsable: 'Técnico en mantenimiento', total: 121, obtenidos: 74, calif: 61.16 },
+    { responsable: 'Sin asignar', total: 5, obtenidos: 5, calif: 100 }
+  ];
+
+  const totalGlobal = { total: 970, obtenidos: 587, calif: 60.52 };
+
+  // State
+  let currentData = [...data];
+  let selectedId = 26;
+
+  // Render table
+  const tbody = document.getElementById('encuestasBody');
+  const rangeStart = document.getElementById('rangeStart');
+  const rangeEnd = document.getElementById('rangeEnd');
+  const totalRows = document.getElementById('totalRows');
+
+  function renderTable() {
+    tbody.innerHTML = '';
+    currentData.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.className = `hover:bg-blue-50/40 cursor-pointer ${row.id === selectedId ? 'bg-blue-50/60' : ''}`;
+      tr.innerHTML = `
+        <td class="px-2 py-2 text-slate-700">${row.fecha}</td>
+        <td class="px-2 py-2 text-slate-700">${row.turno}</td>
+        <td class="px-2 py-2 text-slate-700">${row.supervisor}</td>
+        <td class="px-2 py-2 text-slate-700">${row.persona}</td>
+        <td class="px-2 py-2 text-slate-700">${row.tipo}</td>
+        <td class="px-2 py-2 text-slate-700">${row.puntaje.toFixed(2)}%</td>
+        <td class="px-2 py-2"><span class="inline-block bg-emerald-100 text-emerald-700 text-[10px] font-semibold px-2 py-0.5 rounded">${row.estado}</span></td>
+        <td class="px-2 py-2">
+          <div class="flex items-center gap-1">
+            <button data-act="view" data-id="${row.id}" class="w-6 h-6 rounded bg-blue-50 hover:bg-blue-100 flex items-center justify-center" title="Ver"><i data-lucide="eye" class="w-3 h-3 text-blue-700"></i></button>
+            <button data-act="edit" data-id="${row.id}" class="w-6 h-6 rounded bg-amber-50 hover:bg-amber-100 flex items-center justify-center" title="Editar"><i data-lucide="pencil" class="w-3 h-3 text-amber-700"></i></button>
+            <button data-act="del" data-id="${row.id}" class="w-6 h-6 rounded bg-red-50 hover:bg-red-100 flex items-center justify-center" title="Eliminar"><i data-lucide="trash-2" class="w-3 h-3 text-red-700"></i></button>
+          </div>
+        </td>`;
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        selectedId = row.id;
+        renderTable();
+        flashDetail();
+      });
+      tbody.appendChild(tr);
+    });
+    rangeStart.textContent = '1';
+    rangeEnd.textContent = `(${currentData.length}`;
+    totalRows.textContent = currentData.length;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // Render desglose
+  const dbody = document.getElementById('desgloseBody');
+  function renderDesglose() {
+    dbody.innerHTML = '';
+    desglose.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50';
+      tr.innerHTML = `
+        <td class="px-2 py-1.5 text-slate-700 flex items-center gap-1">
+          <i data-lucide="chevron-right" class="w-3 h-3 text-slate-400"></i>${d.responsable}
+        </td>
+        <td class="px-2 py-1.5 text-right text-slate-700">${d.total}</td>
+        <td class="px-2 py-1.5 text-right text-slate-700">${d.obtenidos}</td>
+        <td class="px-2 py-1.5 text-right font-bold text-slate-800">${d.calif.toFixed(2)}%</td>`;
+      dbody.appendChild(tr);
+    });
+    const tot = document.createElement('tr');
+    tot.className = 'bg-slate-100 font-bold';
+    tot.innerHTML = `
+      <td class="px-2 py-1.5 text-slate-800">Total global</td>
+      <td class="px-2 py-1.5 text-right text-slate-800">${totalGlobal.total}</td>
+      <td class="px-2 py-1.5 text-right text-slate-800">${totalGlobal.obtenidos}</td>
+      <td class="px-2 py-1.5 text-right text-blue-900">${totalGlobal.calif.toFixed(2)}%</td>`;
+    dbody.appendChild(tot);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function flashDetail() {
+    const p = document.getElementById('detailPanel');
+    p.style.transition = 'background 0.3s';
+    p.style.background = '#eff6ff';
+    setTimeout(() => p.style.background = 'transparent', 350);
+  }
+
+  // Search
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    currentData = data.filter(r =>
+      r.persona.toLowerCase().includes(q) ||
+      r.supervisor.toLowerCase().includes(q) ||
+      r.tipo.toLowerCase().includes(q) ||
+      r.estado.toLowerCase().includes(q)
+    );
+    renderTable();
+  });
+
+  // Sort
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      currentData.sort((a, b) => (a[key] > b[key] ? 1 : -1));
+      renderTable();
+    });
+  });
+
+  // Action delegation
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const act = btn.dataset.act;
+    const row = data.find(r => String(r.id) === id);
+    if (act === 'view') { selectedId = row.id; renderTable(); flashDetail(); }
+    if (act === 'edit') alert('Editar encuesta #' + id + ' de ' + row.persona);
+    if (act === 'del') {
+      if (confirm('¿Eliminar encuesta #' + id + '?')) {
+        const idx = data.findIndex(r => r.id === row.id);
+        if (idx > -1) { data.splice(idx, 1); currentData = [...data]; renderTable(); }
+      }
+    }
+  });
+
+  document.getElementById('closeDetail').addEventListener('click', () => {
+    const p = document.getElementById('detailPanel');
+    p.style.transition = 'opacity 0.3s';
+    p.style.opacity = '0.3';
+    setTimeout(() => p.style.opacity = '1', 600);
+  });
+
+  // Init
+  renderTable();
+  renderDesglose();
+  if (window.lucide) lucide.createIcons();
+})();
+</script>

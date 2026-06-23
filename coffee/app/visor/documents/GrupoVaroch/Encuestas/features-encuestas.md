@@ -18,7 +18,7 @@ date: 2026-06-20
 
 ~\- Cambiar el diseño del contenedor de datos~
 
-\*\*\* Cuando se le da clic al responsable y te muestra las preguntas, debe mostrarse en el mismo contenedor debe limpiarze el desglozr y mostrarse en ese espacio y debe tener la opcion de regresar hacia atras 
+~\*\*\* Cuando se le da clic al responsable y te muestra las preguntas, debe mostrarse en el mismo contenedor debe limpiarze el desglozr y mostrarse en ese espacio y debe tener la opcion de regresar hacia atras~ 
 
 debe ser facil de acceder a la informacion y revisar que preguntas de esa persona se contestaron y porque tuvo esa calificacion
 
@@ -34,14 +34,20 @@ debe ser facil de acceder a la informacion y revisar que preguntas de esa person
 
 **\*\*General\*\***
 
-**\-** Agregar una opcion para poder regresar hacia atras en reportes
+~**\-** Agregar una opcion para poder regresar hacia atras en reportes~
 
-\- Quitar de la filterBar el de buscar por supervisor
+~\- Quitar de la filterBar el de buscar por supervisor~
 
-\- Agregar a la filterBar el filtro por puesto 
+\- Agregar a la filterBar el filtro por formato 
 
-\- El formato de la columna de fecha debe ser 17/jun/2026 07:40 am 
+\- Al seleccionar el tipo general , debe mostrar un filtro por area de evaluación 
 
-\- cambiar las cards por las cards de coffee y agregar filtro
+  
+
+  
+
+~\- El formato de la columna de fecha debe ser 17/jun/2026 07:40 am~ 
+
+~\- cambiar las cards por las cards de coffee y agregar filtro~
 
 \- Quitar el border de la filterBar
