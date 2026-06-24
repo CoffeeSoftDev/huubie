@@ -1373,6 +1373,11 @@ class App extends Templates {
         const saldoRestante = order.total_pay - discount - order.total_paid;
         const isPaidInFull = saldoRestante <= 0;
 
+        // Sucursal de cobro (cobro cruzado): solo el admin la elige. Default = la
+        // sucursal activa del filtro de la navbar; si esta en "Todas" (0), la del pedido.
+        const navbarSub = (rol == 1) ? ($('#subsidiaries_id').val() || '') : '';
+        const defaultCobroSub = (navbarSub && navbarSub !== '0') ? navbarSub : (order.subsidiaries_id ?? '');
+
         // Contenedor del formulario centrado y reducido
         $("#container-payment").html(`
             <div class="flex justify-center items-start">
@@ -1436,6 +1441,16 @@ class App extends Templates {
                     required: true,
                     disabled: isPaidInFull
                 },
+                ...(rol == 1 ? [{
+                    opc: "select",
+                    id: "payment_subsidiaries_id",
+                    lbl: "Sucursal de cobro",
+                    class: "col-12 mb-3",
+                    data: (subsidiaries || []).map(s => ({ id: String(s.id), valor: s.valor })),
+                    value: String(defaultCobroSub),
+                    required: true,
+                    disabled: isPaidInFull
+                }] : []),
                 {
                     opc: "textarea",
                     id: "description",

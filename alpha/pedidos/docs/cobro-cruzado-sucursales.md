@@ -1,7 +1,19 @@
 # Cobro cruzado entre sucursales (abono en sucursal distinta a la del pedido)
 
-> Estado: **diagnóstico / pendiente de decidir parche y corrección de fondo**
+> Estado: **Opción B implementada** (Fases 1 y 2). Quedan 2 decisiones abiertas (ver abajo).
 > Caso disparador: pedido **664** (folio `P664-22`), abono de **$430** cobrado en gpe pero atribuido a cuarta.
+>
+> **Implementado (Fase 1 — esquema + registro):**
+> - Columna `order_payments.subsidiaries_id` creada; backfill a 785 pagos (sucursal del pedido) y corrección del abono #800 → gpe (4).
+> - Modal de pago: selector **"Sucursal de cobro"** (solo admin), default = sucursal activa del filtro de la navbar; si está en "Todas" (0), la del pedido. Ver `addPayment()` en [app.js](../src/js/app.js).
+> - Registro: `addPayment()` en [ctrl-pedidos.php](../ctrl/ctrl-pedidos.php) guarda la sucursal del selector; si no llega (cajero), usa `$_SESSION['SUB']`.
+>
+> **Implementado (Fase 2 — reportes de cobranza):**
+> - `getDailySalesMetrics` y `getShiftSalesMetrics` en [mdl-pedidos.php](../mdl/mdl-pedidos.php): el filtro de cobranza pasó de `po.subsidiaries_id` a `COALESCE(pp.subsidiaries_id, po.subsidiaries_id)`. La cobranza cuenta donde entró el dinero; la venta sigue por sucursal del pedido.
+> - `getDailySalesMetrics`: el bloque de **pagos** ahora agrupa por `DATE(pp.date_pay)` (día del cobro), no por `date_creation`. Las **ventas** del mismo método siguen por `date_creation`. Así el #800 cuenta en gpe el **23‑jun** (día real del cobro).
+>
+> **Decisión abierta:**
+> 1. **Distinción visual:** el detalle del turno (grupo 2 de `getShiftOrders`) lista abonos por `o.subsidiaries_id`, así que un cobro cruzado entra en el TOTAL de gpe pero no en su listado. Falta la columna "cobrado de otras sucursales" (ver §5).
 
 ---
 

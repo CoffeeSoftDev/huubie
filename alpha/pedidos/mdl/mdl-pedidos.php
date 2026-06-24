@@ -1186,17 +1186,18 @@ class MPedidos extends CRUD {
                 SUM(pp.pay) as total_paid
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
-            WHERE DATE_FORMAT(date_creation, '%Y-%m-%d') = ?
+            WHERE DATE(pp.date_pay) = ?
         ";
-        
+
         $paramsPayments = [$date];
         
         
         if ($subsidiaries_id != 0 || $subsidiaries_id != "0" ) {
-            $queryPayments .= " AND po.subsidiaries_id = ?";
+            // Cobranza: cuenta donde ENTRO el dinero (sucursal del pago), no la del pedido.
+            $queryPayments .= " AND COALESCE(pp.subsidiaries_id, po.subsidiaries_id) = ?";
             $paramsPayments[] = $subsidiaries_id;
         }
-        
+
         $queryPayments .= " AND po.status != 4 GROUP BY pp.method_pay_id";
         $payments       = $this->_Read($queryPayments, $paramsPayments);
       
@@ -1477,7 +1478,7 @@ class MPedidos extends CRUD {
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
             WHERE pp.date_pay >= ? AND pp.date_pay <= ?
-            AND po.subsidiaries_id = ?
+            AND COALESCE(pp.subsidiaries_id, po.subsidiaries_id) = ?
             AND po.status != 4
             GROUP BY pp.method_pay_id
         ";

@@ -534,13 +534,22 @@ class Pedidos extends MPedidos{
         // Agregar registro de pago. 
 
         if ($pay > 0) {
+
+            // Sucursal donde se cobra el pago (cobro cruzado): selector del modal
+            // para admin; si no llega (cajero), se usa la sucursal de su sesion.
+            $sucursalCobro = $_POST['payment_subsidiaries_id'] ?? null;
+            if (empty($sucursalCobro)) {
+                $sucursalCobro = $_SESSION['SUB'] ?? null;
+            }
+
             $values_pay = [
-                'pay'           => $pay,
-                'date_pay'      => date('Y-m-d H:i:s'),
-                'type'          => 2,
-                'method_pay_id' => $_POST['method_pay_id'],
-                'description'   => $_POST['description'],
-                'order_id'      => $id,
+                'pay'             => $pay,
+                'date_pay'        => date('Y-m-d H:i:s'),
+                'type'            => 2,
+                'method_pay_id'   => $_POST['method_pay_id'],
+                'description'     => $_POST['description'],
+                'order_id'        => $id,
+                'subsidiaries_id' => $sucursalCobro,
             ];
 
             $addPay = $this->addMethodPay($this->util->sql($values_pay));
