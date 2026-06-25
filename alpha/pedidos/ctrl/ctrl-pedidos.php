@@ -24,6 +24,9 @@ class Pedidos extends MPedidos{
             'clients'           => $this->getAllClients([$_SESSION['SUB']]),
             'status'            => $this->lsStatus(),
             'sucursales'        => $subsidiaries['data'],
+            // Sucursales de la empresa para el selector "Sucursal de cobro" (todos los roles,
+            // sin la restriccion admin de lsSubsidiaries que alimenta el filtro de navbar).
+            'sucursales_cobro'  => $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']]),
             'access'            => $_SESSION['ROLID'],
             'subsidiaries_name' => $_SESSION['SUBSIDIARIE_NAME'],
             'user_name'         => $_SESSION['USER'] ?? '',
@@ -675,6 +678,13 @@ class Pedidos extends MPedidos{
                 ];
             }
 
+            // Sucursal donde se cobro el pago. Si difiere de la del pedido es cobro cruzado.
+            $subName   = $key['subsidiary_name'] ?? '—';
+            $esCruzado = !empty($key['subsidiaries_id']) && $key['subsidiaries_id'] != $key['order_subsidiary_id'];
+            $subBadge  = $esCruzado
+                ? '<span class="px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 text-xs" title="Cobrado en sucursal distinta a la del pedido"><i class="icon-exchange"></i> ' . $subName . '</span>'
+                : '<span class="px-2 py-0.5 rounded bg-slate-700 text-gray-200 text-xs">' . $subName . '</span>';
+
             $__row[] = [
                 'id'            => $key['id'],
                 'Fecha de Pago' => [
@@ -687,9 +697,13 @@ class Pedidos extends MPedidos{
                     'html' => '$ ' . number_format($key['pay'], 2),
                 ],
 
+                'Sucursal' => [
+                    'html' => $subBadge,
+                ],
+
                 'Observación' =>  $key['description'],
 
-                
+
                 'a' => $a
             ];
         }

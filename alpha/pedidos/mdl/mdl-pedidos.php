@@ -348,11 +348,18 @@ class MPedidos extends CRUD {
         method_pay.method_pay,
         order_payments.method_pay_id,
         order_payments.type,
-        order_payments.description
+        order_payments.description,
+        order_payments.subsidiaries_id,
+        sub.name AS subsidiary_name,
+        po.subsidiaries_id AS order_subsidiary_id
         FROM
             {$this->bd}order_payments
         INNER JOIN
             {$this->bd}method_pay ON order_payments.method_pay_id = method_pay.id
+        LEFT JOIN
+            {$this->bd}`order` po ON po.id = order_payments.order_id
+        LEFT JOIN
+            fayxzvov_alpha.subsidiaries sub ON sub.id = order_payments.subsidiaries_id
         WHERE
             order_id = ?
         ORDER BY

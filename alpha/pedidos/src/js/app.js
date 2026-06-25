@@ -7,6 +7,7 @@ let idFolio, sub_name, user_name;
 let categories, estado, clients;
 
 let rol, subsidiaries, udn;
+let subsidiariesCobro = []; // Sucursales para el selector "Sucursal de cobro" (todos los roles).
 let dailyClosure = { is_closed: false };
 let openShift = { has_open_shift: false };
 
@@ -21,6 +22,7 @@ $(async () => {
           sub_name     = req.subsidiaries_name;
           user_name    = req.user_name;
           subsidiaries = req.sucursales;
+          subsidiariesCobro = req.sucursales_cobro || [];
           dailyClosure = req.daily_closure || { is_closed: false };
           udn          = dailyClosure.subsidiary_id;
           openShift    = req.open_shift || { has_open_shift: false };
@@ -1373,10 +1375,17 @@ class App extends Templates {
         const saldoRestante = order.total_pay - discount - order.total_paid;
         const isPaidInFull = saldoRestante <= 0;
 
-        // Sucursal de cobro (cobro cruzado): solo el admin la elige. Default = la
-        // sucursal activa del filtro de la navbar; si esta en "Todas" (0), la del pedido.
+        // Sucursal de cobro (cobro cruzado): la eligen admin y cajero. Default = sucursal
+        // activa: admin -> filtro de la navbar (si "Todas"/0, la del pedido); cajero -> su
+        // sucursal de sesion (udn). Fallback final: la sucursal del pedido.
         const navbarSub = (rol == 1) ? ($('#subsidiaries_id').val() || '') : '';
-        const defaultCobroSub = (navbarSub && navbarSub !== '0') ? navbarSub : (order.subsidiaries_id ?? '');
+        const defaultCobroSub = (navbarSub && navbarSub !== '0')
+            ? navbarSub
+            : ((rol != 1 && udn) ? udn : (order.subsidiaries_id ?? ''));
+
+        // Sucursal de origen del pedido (referencia para el cobro cruzado).
+        const origenSub    = (subsidiariesCobro || []).find(s => String(s.id) === String(order.subsidiaries_id));
+        const origenNombre = origenSub ? origenSub.valor : '—';
 
         // Contenedor del formulario centrado y reducido
         $("#container-payment").html(`
@@ -1441,16 +1450,25 @@ class App extends Templates {
                     required: true,
                     disabled: isPaidInFull
                 },
-                ...(rol == 1 ? [{
+                {
+                    opc: "div",
+                    id: "origenPedido",
+                    class: "col-12 mb-2",
+                    html: `<div class="flex items-center justify-between bg-[#1E293B] border border-slate-700 rounded-lg px-3 py-2">
+                        <span class="text-xs text-gray-400">Origen del pedido</span>
+                        <span class="text-sm text-white font-semibold">${origenNombre}</span>
+                    </div>`
+                },
+                {
                     opc: "select",
                     id: "payment_subsidiaries_id",
                     lbl: "Sucursal de cobro",
                     class: "col-12 mb-3",
-                    data: (subsidiaries || []).map(s => ({ id: String(s.id), valor: s.valor })),
+                    data: (subsidiariesCobro || []).map(s => ({ id: String(s.id), valor: s.valor })),
                     value: String(defaultCobroSub),
                     required: true,
                     disabled: isPaidInFull
-                }] : []),
+                },
                 {
                     opc: "textarea",
                     id: "description",

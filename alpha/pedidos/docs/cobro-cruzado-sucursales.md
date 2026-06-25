@@ -5,7 +5,7 @@
 >
 > **Implementado (Fase 1 — esquema + registro):**
 > - Columna `order_payments.subsidiaries_id` creada; backfill a 785 pagos (sucursal del pedido) y corrección del abono #800 → gpe (4).
-> - Modal de pago: selector **"Sucursal de cobro"** (solo admin), default = sucursal activa del filtro de la navbar; si está en "Todas" (0), la del pedido. Ver `addPayment()` en [app.js](../src/js/app.js).
+> - Modal de pago: selector **"Sucursal de cobro"** (admin y cajero). Default = sucursal activa: admin → filtro de la navbar (si "Todas"/0, la del pedido); cajero → su sucursal de sesión (`udn`). Ver `addPayment()` en [app.js](../src/js/app.js).
 > - Registro: `addPayment()` en [ctrl-pedidos.php](../ctrl/ctrl-pedidos.php) guarda la sucursal del selector; si no llega (cajero), usa `$_SESSION['SUB']`.
 >
 > **Implementado (Fase 2 — reportes de cobranza):**
