@@ -233,12 +233,25 @@ class App extends Templates {
     }
 
     getSubsidiaryLabel() {
-        if (rol != 1) return sub_name;
         const selected = $('#subsidiaries_id');
-        if (!selected.length || selected.val() === '0') return sub_name;
+        // "Todas" aplica a cualquier rol (admin o cajero en modo consulta).
+        if (selected.length && selected.val() === '0') return 'Todas las sucursales';
+        if (rol != 1) return sub_name;
+        if (!selected.length) return sub_name;
         const selectedName = selected.find('option:selected').text();
         const isOwnSubsidiary = selected.val() == udn;
         return isOwnSubsidiary ? `${selectedName} (Mi sucursal)` : selectedName;
+    }
+
+    // Sucursal con la que se FILTRA la lista (solo consulta). Admin filtra por el
+    // selector de navbar (incluye "0" = todas). Operadores solo usan "0" como
+    // consulta de todas; en cualquier otro caso null => el backend usa su sesion.
+    getListFilterSubsidiary() {
+        const $sel = $('#subsidiaries_id');
+        if (!$sel.length) return null;
+        const v = $sel.val();
+        if (v === '0') return '0';
+        return rol == 1 ? (v || '0') : null;
     }
 
     async onSubsidiaryChange() {
@@ -247,7 +260,7 @@ class App extends Templates {
     }
 
     async checkAndUpdateDailyClosure() {
-        let subsidiaries_id = rol == 1 ? $('#subsidiaries_id').val() : null;
+        let subsidiaries_id = this.getListFilterSubsidiary();
 
         if (subsidiaries_id === '0') {
             openShift = { has_open_shift: true };
@@ -391,9 +404,10 @@ class App extends Templates {
 
     ls() {
         let rangePicker = getDataRangePicker("calendar");
-        // El selector de sucursal vive en la navbar (solo admin); lo enviamos
-        // explicitamente porque ya no forma parte de la filterBar.
-        let subsidiaries_id = rol == 1 ? ($('#subsidiaries_id').val() || '0') : null;
+        // El selector de sucursal vive en la navbar; lo enviamos explicitamente
+        // porque ya no forma parte de la filterBar. "0" = todas (admin y, en modo
+        // consulta, tambien el operador via selector hibrido).
+        let subsidiaries_id = this.getListFilterSubsidiary();
         this.createTable({
             parent: `container${this.PROJECT_NAME}`,
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
@@ -1476,18 +1490,6 @@ class App extends Templates {
                     </div>`
                 },
                 {
-                    opc: "input",
-                    type: "number",
-                    id: "advanced_pay",
-                    lbl: "Importe",
-                    class: "col-12 mb-2",
-                    placeholder: "0.00",
-                    required: true,
-                    min: 0,
-                    onkeyup: "app.updateTotal()",
-                    disabled: isPaidInFull
-                },
-                {
                     opc: "div",
                     id: "cardMethodPay",
                     class: "col-12 mb-2",
@@ -1516,7 +1518,7 @@ class App extends Templates {
                     class: "col-12 mb-3",
                     html: `<div class="relative">
                         <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
-                            <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                            <div id="cobroCardIcon" class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 ${cobroEsMismaSuc ? 'text-blue-400' : 'text-amber-400'} shrink-0">
                                 ${lucideIcon('landmark', 'w-4 h-4')}
                             </div>
                             <div class="flex flex-col leading-tight flex-1 min-w-0">
@@ -1531,6 +1533,18 @@ class App extends Templates {
                             ${cobroOptionsHtml}
                         </select>
                     </div>`
+                },
+                {
+                    opc: "input",
+                    type: "number",
+                    id: "advanced_pay",
+                    lbl: "Importe",
+                    class: "col-12 mb-2",
+                    placeholder: "0.00",
+                    required: true,
+                    min: 0,
+                    onkeyup: "app.updateTotal()",
+                    disabled: isPaidInFull
                 },
                 {
                     opc: "textarea",
@@ -1727,6 +1741,9 @@ class App extends Templates {
         $('#cobroCard')
             .toggleClass('border-slate-700', same)
             .toggleClass('border-amber-500/60', !same);
+        $('#cobroCardIcon')
+            .toggleClass('text-blue-400', same)
+            .toggleClass('text-amber-400', !same);
     }
 
     deletePay(id, idFolio) {
@@ -2935,6 +2952,7 @@ class App extends Templates {
         // Obtener órdenes si modo detallado
         let orders = [];
         let externalPayments = [];
+        let crossPayments = [];
         if (this.reportMode === 'detailed') {
             const ordersRes = await useFetch({
                 url: this._link,
@@ -2942,6 +2960,7 @@ class App extends Templates {
             });
             orders            = ordersRes.orders || [];
             externalPayments  = ordersRes.external_payments || [];
+            crossPayments     = ordersRes.cross_payments || [];
         }
 
         this.ticketShiftClose({
@@ -2951,7 +2970,8 @@ class App extends Templates {
             company_name: metricsRes.company_name,
             logo: metricsRes.logo,
             orders: orders,
-            externalPayments: externalPayments
+            externalPayments: externalPayments,
+            crossPayments: crossPayments
         });
 
         // Habilitar botón imprimir
@@ -2989,6 +3009,7 @@ class App extends Templates {
 
         // Desglose de ventas (modo detallado)
         const externalPayments = options.externalPayments || [];
+        const crossPayments    = options.crossPayments || [];
         let detailedSection = '';
 
         if (isDetailed) {
@@ -3042,11 +3063,11 @@ class App extends Templates {
                     const liquidado = quedoRaw <= 0.005;
                     const badge = liquidado
                         ? `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-bold">LIQUIDADO</span>`
-                        : `<span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[9px] font-bold">PENDIENTE</span>`;
+                        : `<span class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[9px] font-bold">PENDIENTE</span>`;
                     // Cobro cruzado: el pedido es de otra sucursal distinta a la del cierre.
                     const origin = o.origin_subsidiary || '';
                     const originLine = (origin && origin !== subsidiaryName)
-                        ? `<div class="text-[10px] text-amber-600 mb-0.5">${lucideIcon('store', 'w-3 h-3 inline-block align-[-1px]')} Origen: ${origin}</div>`
+                        ? `<div class="text-[10px] text-gray-500 mb-0.5">Origen: ${origin}</div>`
                         : '';
                     return `
                         <div class="flex justify-between items-center mt-3 pt-2 border-t border-dashed border-gray-200">
@@ -3069,6 +3090,33 @@ class App extends Templates {
                         <div>${formatPrice(extTotal)}</div>
                     </div>
                     <hr class="border-dashed border-t my-1" />
+                `;
+            }
+
+            // Grupo 3: pedidos de este turno cuyo abono se cobró en otra sucursal.
+            // Es informativo: NO entra a tu caja, por eso va aparte y no suma al total.
+            if (crossPayments.length > 0) {
+                const crossTotal = crossPayments.reduce((sum, o) => sum + parseFloat(o.payment_cross || 0), 0);
+
+                const crossRows = crossPayments.map(o => `
+                    <div class="flex items-center mt-2">
+                        <div class="font-bold text-gray-900 truncate flex-1">${o.folio || 'Folio #' + o.id}</div>
+                        <div class="text-right text-gray-900" style="width:72px">${formatPrice(o.payment_cross)}</div>
+                    </div>
+                    <div class="text-[10px] text-purple-400">${o.client_name || 'Sin cliente'}</div>
+                    <div class="text-[10px] text-purple-500"><i class="icon-shop"></i> Cobrado en: ${o.charged_subsidiary || 'Otra sucursal'}</div>
+                `).join('');
+
+                detailedSection += `
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-2">
+                        <div class="font-semibold text-purple-700"><i class="icon-bank"></i> COBRADO EN OTRA SUCURSAL</div>
+                        <div class="text-[10px] text-purple-400 mb-1">No entra a tu caja (informativo).</div>
+                        ${crossRows}
+                        <div class="flex justify-between items-center font-semibold border-t border-dashed border-purple-200 pt-1 mt-2">
+                            <div class="text-gray-900">Total en otra sucursal</div>
+                            <div class="text-gray-900">${formatPrice(crossTotal)}</div>
+                        </div>
+                    </div>
                 `;
             }
         }
@@ -3312,8 +3360,17 @@ class App extends Templates {
             return;
         }
 
+        // Reutiliza el CSS de Fontello ya cargado en la pagina (href absoluto) para que
+        // los iconos (icon-shop, icon-bank) se rendericen tambien en la ventana de impresion.
+        const fontelloHref = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+            .map(l => l.href)
+            .find(h => /fontello/i.test(h)) || '';
+
         const printWindow = window.open('', '', 'height=600,width=400');
         printWindow.document.write('<html><head><title>Cierre de Turno</title>');
+        if (fontelloHref) {
+            printWindow.document.write(`<link rel="stylesheet" href="${fontelloHref}">`);
+        }
         printWindow.document.write(`
             <style>
                 body { font-family: 'Courier New', monospace; padding: 10px; max-width: 320px; margin: 0 auto; }
@@ -3359,7 +3416,13 @@ class App extends Templates {
         printWindow.document.write('</body></html>');
         printWindow.document.close();
 
-        setTimeout(() => { printWindow.print(); }, 250);
+        // Espera a que cargue la fuente de iconos antes de imprimir; si no, fallback por tiempo.
+        const triggerPrint = () => printWindow.print();
+        if (printWindow.document.fonts && printWindow.document.fonts.ready) {
+            printWindow.document.fonts.ready.then(() => setTimeout(triggerPrint, 100));
+        } else {
+            setTimeout(triggerPrint, 400);
+        }
     }
 
 }

@@ -131,14 +131,16 @@ class Pedidos extends MPedidos{
         // Validar variables de sesión con valores por defecto
         $rolId      = $_SESSION['ROLID'] ;
         $sessionSub = $_SESSION['SUB'];
-        
-        // Si es admin (rol 1), usar la sucursal del POST, sino usar la de sesión
-        if ($rolId == 1) {
-            // Validar que subsidiaries_id exista y no sea vacío
-            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $sessionSub;
-        } else {
-            $subsidiaries_id = $sessionSub;
-        }
+
+        // La lista es solo consulta: cualquier rol puede filtrar por el selector
+        // de navbar (incluye "0" = todas las sucursales). Si no llega un valor
+        // util (URLSearchParams envia null/undefined como texto), se usa la
+        // sucursal de sesion. Las operaciones (cobro, cierre) NO usan esto: siguen
+        // atadas a $_SESSION['SUB'].
+        $postSub = $_POST['subsidiaries_id'] ?? null;
+        $subsidiaries_id = ($postSub === null || $postSub === '' || $postSub === 'null' || $postSub === 'undefined')
+            ? $sessionSub
+            : $postSub;
       
         $currentSubForShift = ($subsidiaries_id && $subsidiaries_id != '0') ? $subsidiaries_id : $sessionSub;
         $currentShift = $this->getOpenShiftBySubsidiary([$currentSubForShift]);
@@ -1814,11 +1816,15 @@ class Pedidos extends MPedidos{
 
         $shiftOrders      = array_map($addFolio, $result['shift_orders']);
         $externalPayments = array_map($addFolioOrigin, $result['external_payments']);
+        // Grupo 3: pedidos de este turno cobrados en otra sucursal. El pedido es de esta
+        // sucursal (su folio usa $subsidiary_id), lo que cambia es dónde se cobró.
+        $crossPayments    = array_map($addFolio, $result['cross_payments']);
 
         return [
             'status'            => 200,
             'orders'            => $shiftOrders,
-            'external_payments' => $externalPayments
+            'external_payments' => $externalPayments,
+            'cross_payments'    => $crossPayments
         ];
     }
 

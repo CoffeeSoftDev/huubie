@@ -2523,7 +2523,7 @@ class VisorView {
 
 
 const COFFEEIA_EDITOR_KEY = 'visor:coffeeia:editorMode';
-const COFFEEIA_CANVAS_KEY = 'visor:coffeeia:canvasMode';
+const COFFEEIA_LAYOUT_KEY = 'visor:coffeeia:layoutMode';
 const COFFEEIA_GRAPH_KEY  = 'visor:coffeeia:graphMode';
 const COFFEEIA_MODEL_KEY  = 'visor:coffeeia:model';
 
@@ -2596,7 +2596,7 @@ class CoffeeIA {
         this._abort   = null;   // AbortController de la consulta en curso (botón Detener)
         this._chipsRendered = false;
         this.editorMode    = this._loadEditorMode();
-        this.canvasMode    = this._loadCanvasMode();
+        this.layoutMode    = this._loadLayoutMode();
         this.graphMode     = this._loadGraphMode();   // '' | 'mermaid' | 'drawio' | 'excalidraw'
         this.pendingEdits  = null;   // [{ find, with, status }]
         this.pendingImages = [];     // [{ dataUrl, base64, mime, name }]
@@ -2606,7 +2606,7 @@ class CoffeeIA {
         this.bind();
         this._syncContext();
         this._applyEditorModeUI();
-        this._applyCanvasModeUI();
+        this._applyLayoutModeUI();
         this._applyGraphModeUI();
         this._applyModelUI();
     }
@@ -2644,9 +2644,9 @@ class CoffeeIA {
 
     _toggleEditorMode() {
         this.editorMode = !this.editorMode;
-        // Editor, lienzo y grafica son mutuamente excluyentes: activar uno apaga los otros.
+        // Editor, layout y grafica son mutuamente excluyentes: activar uno apaga los otros.
         if (this.editorMode) {
-            if (this.canvasMode) { this.canvasMode = false; this._saveCanvasMode(); this._applyCanvasModeUI(); }
+            if (this.layoutMode) { this.layoutMode = false; this._saveLayoutMode(); this._applyLayoutModeUI(); }
             if (this.graphMode)  { this.graphMode  = '';    this._saveGraphMode();  this._applyGraphModeUI();  }
         }
         this._saveEditorMode();
@@ -2662,33 +2662,33 @@ class CoffeeIA {
         this._applyInputPlaceholder();
     }
 
-    _loadCanvasMode() {
-        try { return localStorage.getItem(COFFEEIA_CANVAS_KEY) === '1'; }
+    _loadLayoutMode() {
+        try { return localStorage.getItem(COFFEEIA_LAYOUT_KEY) === '1'; }
         catch (e) { return false; }
     }
 
-    _saveCanvasMode() {
-        try { localStorage.setItem(COFFEEIA_CANVAS_KEY, this.canvasMode ? '1' : '0'); }
+    _saveLayoutMode() {
+        try { localStorage.setItem(COFFEEIA_LAYOUT_KEY, this.layoutMode ? '1' : '0'); }
         catch (e) {}
     }
 
-    _toggleCanvasMode() {
-        this.canvasMode = !this.canvasMode;
-        // Editor, lienzo y grafica son mutuamente excluyentes: activar uno apaga los otros.
-        if (this.canvasMode) {
+    _toggleLayoutMode() {
+        this.layoutMode = !this.layoutMode;
+        // Editor, layout y grafica son mutuamente excluyentes: activar uno apaga los otros.
+        if (this.layoutMode) {
             if (this.editorMode) { this.editorMode = false; this._saveEditorMode(); this._applyEditorModeUI(); }
             if (this.graphMode)  { this.graphMode  = '';    this._saveGraphMode();  this._applyGraphModeUI();  }
         }
-        this._saveCanvasMode();
-        this._applyCanvasModeUI();
+        this._saveLayoutMode();
+        this._applyLayoutModeUI();
     }
 
-    _applyCanvasModeUI() {
+    _applyLayoutModeUI() {
         const $btn = $('#iaCanvasToggle');
-        $btn.toggleClass('is-active', this.canvasMode);
-        $btn.attr('title', this.canvasMode
-            ? 'Modo lienzo ACTIVO — la IA generara componentes HTML renderizables'
-            : 'Activar modo lienzo (la IA generara componentes HTML renderizables)');
+        $btn.toggleClass('is-active', this.layoutMode);
+        $btn.attr('title', this.layoutMode
+            ? 'Modo Layout ACTIVO — la respuesta se mostrara como documento en el panel de lectura'
+            : 'Activar modo Layout (la respuesta se mostrara como documento en el panel de lectura)');
         this._applyInputPlaceholder();
     }
 
@@ -2706,10 +2706,10 @@ class CoffeeIA {
         catch (e) {}
     }
 
-    // Abre/cierra el menu de graficas posicionandolo FIXED sobre el boton (abre
-    // hacia arriba). Fixed evita que el overflow:hidden del drawer lo recorte.
-    _toggleGraphMenu(btnEl) {
-        const $menu = $('#iaGraphMenu');
+    // Abre/cierra el menu de herramientas posicionandolo FIXED sobre el boton
+    // (abre hacia arriba). Fixed evita que el overflow:hidden del drawer lo recorte.
+    _toggleToolsMenu(btnEl) {
+        const $menu = $('#iaToolsMenu');
         if ($menu.is(':visible')) { $menu.hide(); return; }
 
         // Medir con el menu visible pero invisible para no parpadear.
@@ -2748,10 +2748,10 @@ class CoffeeIA {
     _setGraphMode(type) {
         if (COFFEEIA_GRAPH_TYPES.indexOf(type) === -1) return;
         this.graphMode = (this.graphMode === type) ? '' : type;
-        // Grafica es excluyente con editor y lienzo: al activarla, apaga los otros.
+        // Grafica es excluyente con editor y layout: al activarla, apaga los otros.
         if (this.graphMode) {
             if (this.editorMode) { this.editorMode = false; this._saveEditorMode(); this._applyEditorModeUI(); }
-            if (this.canvasMode) { this.canvasMode = false; this._saveCanvasMode(); this._applyCanvasModeUI(); }
+            if (this.layoutMode) { this.layoutMode = false; this._saveLayoutMode(); this._applyLayoutModeUI(); }
         }
         this._saveGraphMode();
         this._applyGraphModeUI();
@@ -2759,24 +2759,27 @@ class CoffeeIA {
 
     _applyGraphModeUI() {
         const mode = this.graphMode || '';
-        const $btn = $('#iaGraphBtn');
-        $btn.toggleClass('is-active', !!mode);
-        $btn.attr('title', mode
-            ? 'Modo grafica ACTIVO (' + (COFFEEIA_GRAPH_LABELS[mode] || mode) + ') — la IA generara diagramas de este tipo'
-            : 'Lienzos de graficas (Mermaid / draw.io / Excalidraw)');
-        // Marca el tipo activo dentro del menu.
-        $('#iaGraphMenu .graph-menu-item').each(function () {
+        // Marca el tipo activo dentro del menu de herramientas.
+        $('#iaToolsMenu .graph-menu-item[data-graph]').each(function () {
             $(this).toggleClass('is-active', $(this).data('graph') === mode);
         });
+        this._applyToolsActive();
         this._applyInputPlaceholder();
+    }
+
+    // El boton de herramientas se marca activo cuando el modo grafica esta
+    // encendido (su unico toggle), para que el estado se vea con el menu cerrado.
+    // Editor y lienzo son botones sueltos con su propio estado activo.
+    _applyToolsActive() {
+        $('#iaToolsBtn').toggleClass('is-active', !!this.graphMode);
     }
 
     _applyInputPlaceholder() {
         const $ta = $('#iaInputTextarea');
         if (this.editorMode) {
             $ta.attr('placeholder', 'Pide un cambio al archivo abierto (ej: "renombra la seccion 1 a Vista panoramica")...');
-        } else if (this.canvasMode) {
-            $ta.attr('placeholder', 'Pide un componente UI (ej: "una card de producto con precio y boton")...');
+        } else if (this.layoutMode) {
+            $ta.attr('placeholder', 'Pide un documento y se mostrara como Layout en el panel de lectura...');
         } else if (this.graphMode) {
             const label = COFFEEIA_GRAPH_LABELS[this.graphMode] || this.graphMode;
             $ta.attr('placeholder', 'Describe el diagrama y la IA lo genera en ' + label + '...');
@@ -2819,30 +2822,32 @@ class CoffeeIA {
         $('#btnToggleCoffeeIA').on('click', () => this.toggle());
         $('#btnCloseIA').on('click', () => this.close());
 
-        $('#iaClearBtn').on('click', () => this.clearConversation());
-
-        $('#iaSaveChatBtn').on('click', () => this.saveConversation());
-
-        $('#iaSavedChatsBtn').on('click', () => this.openSavedChatsModal());
-
+        // Modo editor y modo layout: botones sueltos (acceso directo) en la barra.
         $('#iaEditorToggle').on('click', () => this._toggleEditorMode());
+        $('#iaCanvasToggle').on('click', () => this._toggleLayoutMode());
 
-        $('#iaCanvasToggle').on('click', () => this._toggleCanvasMode());
-
-        // Menu de graficas: elegir un tipo activa el "modo grafica" (como editor/lienzo).
-        $('#iaGraphBtn').on('click', (e) => {
+        // Resto de herramientas agrupadas en un menu desplegable (#iaToolsBtn):
+        // guardar, chats guardados, limpiar y graficas. Las acciones de una sola
+        // vez cierran el menu; las graficas (toggle) lo dejan abierto para ver el
+        // tipo activo.
+        $('#iaToolsBtn').on('click', (e) => {
             e.stopPropagation();
-            this._toggleGraphMenu(e.currentTarget);
+            this._toggleToolsMenu(e.currentTarget);
         });
-        $(document).on('click.iaGraphMenu', (e) => {
-            if (!$(e.target).closest('#iaGraphMenu, #iaGraphBtn').length) $('#iaGraphMenu').hide();
+        $(document).on('click.iaToolsMenu', (e) => {
+            if (!$(e.target).closest('#iaToolsMenu, #iaToolsBtn').length) $('#iaToolsMenu').hide();
         });
         // Reposicionar/cerrar si cambia el viewport mientras esta abierto.
-        $(window).on('resize.iaGraphMenu scroll.iaGraphMenu', () => $('#iaGraphMenu').hide());
-        $('#iaGraphMenu').on('click', '.graph-menu-item', (e) => {
-            const type = $(e.currentTarget).data('graph');
-            $('#iaGraphMenu').hide();
-            this._setGraphMode(type);
+        $(window).on('resize.iaToolsMenu scroll.iaToolsMenu', () => $('#iaToolsMenu').hide());
+        $('#iaToolsMenu').on('click', '.graph-menu-item', (e) => {
+            const $it  = $(e.currentTarget);
+            const tool = $it.data('tool');
+            switch (tool) {
+                case 'save':   $('#iaToolsMenu').hide(); this.saveConversation();    break;
+                case 'saved':  $('#iaToolsMenu').hide(); this.openSavedChatsModal(); break;
+                case 'clear':  $('#iaToolsMenu').hide(); this.clearConversation();   break;
+                case 'graph':  this._setGraphMode($it.data('graph')); break;
+            }
         });
 
         $('#iaModelSelect').on('change', (e) => {
@@ -3167,6 +3172,13 @@ class CoffeeIA {
         const $typing = this._appendTyping();
         this._scrollBottom();
 
+        // Modo Layout: muestra en el panel de lectura la animacion "IA generando"
+        // (puntitos + shimmer estilo Grok/ChatGPT) mientras llega la respuesta.
+        // _layoutPending sigue en true hasta que se renderiza el resultado; si la
+        // consulta falla/aborta, finish() restaura el documento abierto.
+        this._layoutPending = this.layoutMode && !(this._app && this._app.isEditing);
+        if (this._layoutPending) this._showLayoutLoading();
+
         const currentFileObj = this._app.currentFile
             ? (this._app.allFiles || []).find(f => f.file === this._app.currentFile)
             : null;
@@ -3182,7 +3194,6 @@ class CoffeeIA {
             currentFileContent: currentFileObj?.raw || '',
             pinnedFiles:        (this._app.getPinnedFilesPayload ? this._app.getPinnedFilesPayload() : []),
             editorMode:         !!this.editorMode,
-            canvasMode:         !!this.canvasMode,
             graphMode:          this.graphMode || '',
             customPath:         (this._app.settings && this._app.settings.customPath) ? this._app.settings.customPath : '',
             model:              this.model || ''
@@ -3191,6 +3202,12 @@ class CoffeeIA {
         // --- Streaming SSE + typewriter por palabras (estilo Claude) ---
         const provider = (this.model && this.model.indexOf('/') !== -1) ? 'OpenRouter' : 'Ollama';
         const finish = () => {
+            // Layout: si quedo loading sin resultado (error/abort/sin respuesta),
+            // restaura el documento abierto para no dejar el panel en "generando".
+            if (this._layoutPending) {
+                this._layoutPending = false;
+                this._exitLayoutPreview();
+            }
             this._scrollBottom();
             this._setBusy(false);
             this._abort = null;
@@ -3274,6 +3291,8 @@ class CoffeeIA {
                 await stream.drain();
                 this.history.push({ role: 'assistant', content: received });
                 stream.complete(received, null, received);
+                // Layout: vuelca el parcial al panel en vez de descartarlo.
+                if (this.layoutMode && received.trim()) this._renderLayoutPreview(received);
                 finish();
                 return;
             }
@@ -3337,6 +3356,13 @@ class CoffeeIA {
             this._showEditProposalPanel(proposals);
         }
 
+        // Modo Layout: ademas de la burbuja del chat, renderiza la respuesta como
+        // documento en el panel de lectura (#md-rendered) SIN tocar el archivo
+        // abierto (no se guarda). Un boton "Volver al documento" restaura la vista.
+        if (this.layoutMode && received.trim()) {
+            this._renderLayoutPreview(received);
+        }
+
         // Sonido al terminar de responder (solo en respuestas exitosas).
         this._playPopSound();
 
@@ -3372,17 +3398,15 @@ class CoffeeIA {
         const HTML_FENCE       = /```[ \t]*html/i;
         const DRAWIO_FENCE     = /```[ \t]*drawio/i;
         const EXCALIDRAW_FENCE = /```[ \t]*excalidraw/i;
-        // Codigo crudo sin fence: en modo lienzo la IA suele devolver el componente
-        // directo (sin ```). En cuanto aparece un tag estructural entramos a
-        // "Conjurando…" para NO teclear el código en el chat (se ve en el tab Código).
-        const RAW_HTML       = /<(!doctype html|html|head|body|section|main|header|nav|article|aside|footer|form|table|ul|ol|div|button|h[1-6])[\s>]/i;
+        // Codigo crudo sin fence (solo diagramas: draw.io/excalidraw). El HTML solo
+        // se "conjura" cuando viene en un fence ```html (ver conjureKindFor).
         const RAW_DRAWIO     = /<(mxGraphModel|mxfile)[\s>]/i;
         const RAW_EXCALIDRAW = /"type"\s*:\s*"excalidraw/i;
         // Tipo de conjuro segun lo que asoma en el stream (o null si es texto normal).
         const conjureKindFor = (buf) => {
             if (DRAWIO_FENCE.test(buf) || RAW_DRAWIO.test(buf)) return 'drawio';
             if (EXCALIDRAW_FENCE.test(buf) || RAW_EXCALIDRAW.test(buf)) return 'excalidraw';
-            if (HTML_FENCE.test(buf) || (self.canvasMode && RAW_HTML.test(buf))) return 'html';
+            if (HTML_FENCE.test(buf)) return 'html';
             // Modo grafica activo: en cuanto se abre CUALQUIER bloque de codigo
             // (```excalidraw, ```json, ```mermaid, ```xml…) asumimos ese tipo y
             // mostramos la animacion en vez de teclear el codigo crudo.
@@ -3475,10 +3499,6 @@ class CoffeeIA {
             },
             complete(displayedText, meta, copyText) {
                 if (conjuring) { $msg.find('.ia-conjuring').remove(); $text.show(); }
-                // Modo lienzo: si la IA devolvió HTML crudo (sin fence), lo envolvemos
-                // en ```html para que se renderice como bloque de Vista previa (con su
-                // tab Código) y NO se pinte el markup suelto en la burbuja.
-                displayedText = self._normalizeCanvasHtml(displayedText);
                 displayedText = self._normalizeDrawioXml(displayedText);
                 displayedText = self._normalizeExcalidrawJson(displayedText);
                 let metaHtml = '';
@@ -3801,6 +3821,98 @@ class CoffeeIA {
         $('#editProposalPanel').hide();
         $('.doc-layout').show();
         this.pendingEdits = null;
+    }
+
+    /* ── Modo Layout: respuesta como documento en el panel de lectura ── */
+
+    // Animacion "IA generando" (puntitos + shimmer estilo Grok/ChatGPT) en el
+    // panel de lectura mientras llega la respuesta. Sustituye temporalmente la
+    // vista; _renderLayoutPreview o _exitLayoutPreview la reemplazan al terminar.
+    _showLayoutLoading() {
+        const $doc = $('#md-rendered');
+        if (!$doc.length) return;
+        if (this._app && this._app.isEditing) return;
+
+        $('.cs-tab[data-tab="rendered"]').addClass('active');
+        $('.cs-tab[data-tab="raw"]').removeClass('active');
+        $('#md-raw, #md-edit').addClass('hidden');
+        $doc.removeClass('hidden');
+
+        // Anchos variados para que el esqueleto parezca un documento escribiendose.
+        // Un '' inserta un espacio (separacion entre parrafos).
+        const widths = ['94%', '88%', '97%', '70%', '', '92%', '85%', '96%', '61%', '', '90%', '78%'];
+        const lines = widths.map(w => w
+            ? `<div class="ia-sk-line" style="width:${w}"></div>`
+            : '<div class="ia-sk-gap"></div>').join('');
+
+        $doc.html(`
+            <div class="ia-layout-loading" contenteditable="false">
+                <div class="ia-layout-loading-head">
+                    <span class="ia-gen-orb"></span>
+                    <span class="ia-gen-label">CoffeeIA esta generando<span class="ia-gen-dots"><i></i><i></i><i></i></span></span>
+                </div>
+                <div class="ia-sk-line ia-sk-title" style="width:46%"></div>
+                <div class="ia-skeleton">${lines}</div>
+            </div>
+        `);
+
+        const $main = $('.main-content');
+        if ($main.length) $main.scrollTop(0);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Pinta el markdown de la respuesta en #md-rendered, reemplazando la vista
+    // actual SIN tocar file.raw ni guardar a disco. Antepone un banner con un
+    // boton "Volver al documento" que restaura el archivo abierto.
+    _renderLayoutPreview(markdownText) {
+        // La respuesta se rendea: el loading deja de estar pendiente.
+        this._layoutPending = false;
+        const $doc = $('#md-rendered');
+        if (!$doc.length) return;
+        // No interferir si el usuario esta editando el documento.
+        if (this._app && this._app.isEditing) return;
+
+        // Asegura que el panel de lectura este visible (no en Raw ni en diagrama).
+        $('.cs-tab[data-tab="rendered"]').addClass('active');
+        $('.cs-tab[data-tab="raw"]').removeClass('active');
+        $('#md-raw, #md-edit').addClass('hidden');
+        $doc.removeClass('hidden');
+
+        const banner = `
+            <div class="ia-layout-banner" id="iaLayoutBanner" contenteditable="false">
+                <span class="ia-layout-banner-label">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                    Vista generada por CoffeeIA — sin guardar
+                </span>
+                <button type="button" id="iaLayoutBack" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5">
+                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                    Volver al documento
+                </button>
+            </div>`;
+        $doc.html(banner + '<div class="ia-layout-doc">' + this._markdownToHtml(markdownText) + '</div>');
+
+        // Resalta el codigo igual que renderContent.
+        if (typeof hljs !== 'undefined') {
+            $doc.find('.ia-layout-doc pre code').each(function (i, b) { hljs.highlightElement(b); });
+        }
+
+        $('#iaLayoutBack').off('click').on('click', () => this._exitLayoutPreview());
+
+        const $main = $('.main-content');
+        if ($main.length) $main.scrollTop(0);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Restaura el documento abierto re-renderizando desde file.raw (intacto).
+    _exitLayoutPreview() {
+        const file = this._app && this._app.currentFile
+            ? (this._app.allFiles || []).find(f => f.file === this._app.currentFile)
+            : null;
+        if (file && typeof visorView !== 'undefined' && visorView) {
+            visorView.renderContent(file);
+        } else if (typeof visorView !== 'undefined' && visorView) {
+            visorView.renderEmptyMain();
+        }
     }
 
     /* ── DOM helpers ── */
@@ -4763,23 +4875,6 @@ class CoffeeIA {
         } catch (e) {
             this._toast('Error de red al eliminar', 'error');
         }
-    }
-
-    /* ── Normalización de HTML del modo lienzo ── */
-
-    _looksLikeHtml(t) {
-        return /<!doctype html|<html[\s>]|<head[\s>]|<body[\s>]|<(div|section|main|header|nav|table|article|ul|ol|form|button|span|img|svg|h[1-6]|p)[\s>]/i.test(t || '');
-    }
-
-    // En modo lienzo, si el texto trae HTML crudo SIN fence lo envolvemos en
-    // ```html para que _postProcessMessage lo convierta en bloque de Vista previa.
-    // Si ya viene con fence ```html, se deja tal cual (ya lo maneja el post-proceso).
-    _normalizeCanvasHtml(text) {
-        if (!this.canvasMode || !text) return text;
-        if (/```[ \t]*html/i.test(text)) return text;
-        const body = text.replace(/```[a-z0-9+-]*[ \t]*/gi, '').trim();
-        if (this._looksLikeHtml(body)) return '```html\n' + body + '\n```';
-        return text;
     }
 
     // Si la respuesta trae XML de draw.io crudo SIN fence, lo envolvemos en

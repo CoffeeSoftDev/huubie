@@ -518,7 +518,7 @@ html, body { height: 100%; }
 
 /* ── Menu de Graficas (composer del chat) ──────────────────── */
 
-.doc-graph-wrap, .ia-graph-wrap { display: inline-flex; }
+.doc-graph-wrap, .ia-graph-wrap, .ia-tools-wrap { display: inline-flex; }
 .graph-menu {
     position: absolute;
     top: calc(100% + 8px);
@@ -555,12 +555,14 @@ html, body { height: 100%; }
 .graph-menu-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
 .graph-menu-name { font-size: 12.5px; font-weight: 600; color: var(--vsr-text); }
 .graph-menu-desc { font-size: 10.5px; color: var(--vsr-text-mute2); }
+/* Separador entre grupos dentro del menu de herramientas */
+.graph-menu-sep { height: 1px; margin: 4px 6px; background: var(--vsr-border); }
 
 /* Variante que abre hacia arriba: el composer vive al fondo del chat. */
 .graph-menu.graph-menu-up { top: auto; bottom: calc(100% + 8px); }
 /* En el composer el menu se posiciona FIXED (top/left por JS) para escapar del
    overflow:hidden del drawer, que recortaba el menu al abrir hacia arriba. */
-.ia-graph-wrap .graph-menu { position: fixed; z-index: 1000; left: auto; right: auto; bottom: auto; }
+.ia-graph-wrap .graph-menu, .ia-tools-wrap .graph-menu { position: fixed; z-index: 1000; left: auto; right: auto; bottom: auto; }
 
 /* ── Sections / items ──────────────────────────────────────── */
 
@@ -3159,6 +3161,78 @@ body.ia-drawer-resizing * {
     padding: 18px 22px;
     display: flex; flex-direction: column;
     gap: 14px;
+}
+
+/* ── Modo Layout: banner sobre la vista generada por CoffeeIA dentro de #md-rendered ── */
+.md-rendered .ia-layout-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: -6px 0 22px;
+    padding: 10px 14px;
+    background: var(--vsr-accent-tint);
+    border: 1px solid var(--vsr-accent);
+    border-radius: 8px;
+}
+.md-rendered .ia-layout-banner-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--vsr-accent);
+    text-align: left;
+}
+.md-rendered .ia-layout-banner-label i { color: var(--vsr-accent); }
+
+/* ── Modo Layout: animacion "IA generando" (puntitos + shimmer estilo Grok/ChatGPT) ── */
+.md-rendered .ia-layout-loading-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 26px;
+}
+.md-rendered .ia-gen-orb {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    background: radial-gradient(circle at 30% 28%, var(--vsr-accent-soft), var(--vsr-accent));
+    animation: iaGenPulse 1.5s ease-in-out infinite;
+}
+.md-rendered .ia-gen-label {
+    display: inline-flex; align-items: center;
+    font-size: 13px; font-weight: 600; color: var(--vsr-accent);
+}
+.md-rendered .ia-gen-dots { display: inline-flex; gap: 3px; margin-left: 5px; }
+.md-rendered .ia-gen-dots i {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--vsr-accent); display: inline-block;
+    animation: iaGenDot 1.2s infinite ease-in-out;
+}
+.md-rendered .ia-gen-dots i:nth-child(2) { animation-delay: .18s; }
+.md-rendered .ia-gen-dots i:nth-child(3) { animation-delay: .36s; }
+
+.md-rendered .ia-skeleton { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+.md-rendered .ia-sk-gap { height: 12px; }
+.md-rendered .ia-sk-title { height: 22px; margin-bottom: 10px; }
+.md-rendered .ia-sk-line {
+    height: 12px; border-radius: 6px;
+    background: linear-gradient(90deg,
+        var(--vsr-border-soft) 25%,
+        var(--vsr-accent-tint) 37%,
+        var(--vsr-border-soft) 63%);
+    background-size: 400% 100%;
+    animation: iaShimmer 1.4s ease infinite;
+}
+
+@keyframes iaShimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+}
+@keyframes iaGenPulse {
+    0%, 100% { transform: scale(.88); box-shadow: 0 0 0 0 var(--vsr-accent-tint); }
+    50%      { transform: scale(1.06); box-shadow: 0 0 0 9px transparent; }
+}
+@keyframes iaGenDot {
+    0%, 100% { opacity: .25; transform: translateY(0); }
+    50%      { opacity: 1;   transform: translateY(-3px); }
 }
 
 /* Card por propuesta */

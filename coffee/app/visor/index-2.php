@@ -393,41 +393,55 @@
                         <button id="iaAttachBtn" class="ia-attach-btn" title="Adjuntar imagen o documento de texto (tambien Ctrl+V para pegar)">
                             <i data-lucide="paperclip" class="w-3 h-3"></i>
                         </button>
-                        <button id="iaSaveChatBtn" class="ia-attach-btn" title="Guardar conversacion">
-                            <i data-lucide="save" class="w-3 h-3"></i>
-                        </button>
-                        <button id="iaSavedChatsBtn" class="ia-attach-btn" title="Chats guardados">
-                            <i data-lucide="messages-square" class="w-3 h-3"></i>
-                        </button>
-                        <button id="iaClearBtn" class="ia-attach-btn" title="Limpiar conversacion">
-                            <i data-lucide="trash-2" class="w-3 h-3"></i>
-                        </button>
                         <button id="iaEditorToggle" class="ia-editor-toggle is-icon-only" title="Activar modo editor">
                             <i data-lucide="pencil-line" class="w-3 h-3"></i>
                         </button>
                         <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo lienzo">
                             <i data-lucide="layout-template" class="w-3 h-3"></i>
                         </button>
-                        <div class="ia-graph-wrap" style="position:relative;">
-                            <button id="iaGraphBtn" class="ia-attach-btn" title="Lienzos de gr&aacute;ficas (Mermaid / draw.io / Excalidraw)">
-                                <i data-lucide="feather" class="w-3 h-3"></i>
+                        <!-- Resto de herramientas del chat agrupadas en un menu desplegable -->
+                        <div class="ia-tools-wrap" style="position:relative;">
+                            <button id="iaToolsBtn" class="ia-attach-btn" title="Herramientas del chat">
+                                <i data-lucide="wrench" class="w-3 h-3"></i>
                             </button>
-                            <div id="iaGraphMenu" class="graph-menu graph-menu-up" style="display:none;">
-                                <button type="button" class="graph-menu-item" data-graph="mermaid">
+                            <div id="iaToolsMenu" class="graph-menu graph-menu-up" style="display:none;">
+                                <button type="button" class="graph-menu-item" data-tool="save">
+                                    <i data-lucide="save" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Guardar conversaci&oacute;n</span>
+                                        <span class="graph-menu-desc">Guarda el chat actual</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="graph-menu-item" data-tool="saved">
+                                    <i data-lucide="messages-square" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Chats guardados</span>
+                                        <span class="graph-menu-desc">Abre conversaciones previas</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="graph-menu-item" data-tool="clear">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Limpiar conversaci&oacute;n</span>
+                                        <span class="graph-menu-desc">Borra los mensajes actuales</span>
+                                    </span>
+                                </button>
+                                <div class="graph-menu-sep"></div>
+                                <button type="button" class="graph-menu-item" data-tool="graph" data-graph="mermaid">
                                     <i data-lucide="git-graph" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
                                         <span class="graph-menu-name">Mermaid</span>
                                         <span class="graph-menu-desc">Diagrama desde texto</span>
                                     </span>
                                 </button>
-                                <button type="button" class="graph-menu-item" data-graph="drawio">
+                                <button type="button" class="graph-menu-item" data-tool="graph" data-graph="drawio">
                                     <i data-lucide="pen-tool" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
                                         <span class="graph-menu-name">draw.io</span>
                                         <span class="graph-menu-desc">Lienzo de diagramas</span>
                                     </span>
                                 </button>
-                                <button type="button" class="graph-menu-item" data-graph="excalidraw">
+                                <button type="button" class="graph-menu-item" data-tool="graph" data-graph="excalidraw">
                                     <i data-lucide="pencil-ruler" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
                                         <span class="graph-menu-name">Excalidraw</span>

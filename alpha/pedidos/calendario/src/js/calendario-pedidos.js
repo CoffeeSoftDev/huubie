@@ -20,6 +20,7 @@ class App extends Templates {
     async init() {
         const data = await useFetch({ url: this._link, data: { opc: 'init' } });
         this.subsidiaries = data.subsidiaries;
+        this.subsidiariesCobro = data.subsidiariesCobro || [];
         this.isAdmin = data.isAdmin;
         this.subsidiaryName = data.subsidiaryName || '';
         this.subsidiaryId = data.subsidiaryId || null;
@@ -1550,6 +1551,29 @@ class App extends Templates {
         const saldoRestante = order.total_pay - discount - order.total_paid;
         const isPaidInFull = saldoRestante <= 0;
 
+        // Sucursal de cobro (cobro cruzado): default = sucursal activa del usuario.
+        // Admin -> sucursal de sesión; cajero -> su sucursal de sesión.
+        // Fallback final: la sucursal del pedido.
+        const defaultCobroSub = this.subsidiaryId
+            ? String(this.subsidiaryId)
+            : String(order.subsidiaries_id ?? '');
+
+        const subsidiariesCobro = this.subsidiariesCobro || [];
+
+        // Sucursal de origen del pedido (referencia para el cobro cruzado).
+        const origenSub    = subsidiariesCobro.find(s => String(s.id) === String(order.subsidiaries_id));
+        const origenNombre = origenSub ? origenSub.valor : '—';
+
+        // Estado inicial de la tarjeta "Sucursal que cobrará".
+        const origenSubId     = String(order.subsidiaries_id ?? '');
+        const cobroSubSel     = subsidiariesCobro.find(s => String(s.id) === String(defaultCobroSub));
+        const cobroNombre     = cobroSubSel ? cobroSubSel.valor : origenNombre;
+        const cobroEsMismaSuc = String(defaultCobroSub) === origenSubId;
+        const cobroSubtitulo  = cobroEsMismaSuc ? 'Misma sucursal de origen' : 'Cobro en otra sucursal';
+        const cobroOptionsHtml = subsidiariesCobro
+            .map(s => `<option value="${s.id}" ${String(s.id) === String(defaultCobroSub) ? 'selected' : ''}>${s.valor}</option>`)
+            .join('');
+
         $("#container-payment").html(`
             <div class="flex justify-center items-start">
                 <div class="w-full">
@@ -1613,6 +1637,44 @@ class App extends Templates {
                     disabled: isPaidInFull
                 },
                 {
+                    opc: "div",
+                    id: "origenPedido",
+                    lbl: "Origen del pedido",
+                    class: "col-12 mb-2",
+                    html: `<div class="flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5">
+                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                            <i class="icon-shop text-sm"></i>
+                        </div>
+                        <div class="flex flex-col leading-tight min-w-0">
+                            <span class="text-sm text-white font-semibold truncate">${origenNombre}</span>
+                            <span class="text-[11px] text-gray-400">Sucursal donde se generó la venta</span>
+                        </div>
+                    </div>`
+                },
+                {
+                    opc: "div",
+                    id: "cobroWrapper",
+                    lbl: "Sucursal que cobrará",
+                    class: "col-12 mb-3",
+                    html: `<div class="relative">
+                        <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
+                            <div id="cobroCardIcon" class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 ${cobroEsMismaSuc ? 'text-blue-400' : 'text-amber-400'} shrink-0">
+                                <i class="icon-bank text-sm"></i>
+                            </div>
+                            <div class="flex flex-col leading-tight flex-1 min-w-0">
+                                <span id="cobroCardName" class="text-sm text-white font-semibold truncate">${cobroNombre}</span>
+                                <span id="cobroCardSub" class="text-[11px] text-gray-400">${cobroSubtitulo}</span>
+                            </div>
+                            <i class="icon-down-open text-gray-400 text-xs shrink-0"></i>
+                        </div>
+                        <select id="payment_subsidiaries_id" name="payment_subsidiaries_id" data-origen="${origenSubId}" required
+                            class="absolute inset-0 w-full h-full opacity-0 ${isPaidInFull ? 'cursor-not-allowed' : 'cursor-pointer'}"
+                            ${isPaidInFull ? 'disabled' : ''} onchange="app.onCobroChange(this)">
+                            ${cobroOptionsHtml}
+                        </select>
+                    </div>`
+                },
+                {
                     opc: "textarea",
                     id: "description",
                     lbl: "Observación",
@@ -1668,11 +1730,92 @@ class App extends Templates {
             }
         });
 
+        // Confirmación antes de registrar el pago.
+        const formEl = document.getElementById('form-payment');
+        if (formEl) {
+            formEl.addEventListener('submit', async (e) => {
+                if (formEl.dataset.payConfirmed === '1') {
+                    formEl.dataset.payConfirmed = '';
+                    return;
+                }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                const importe = parseFloat($('#advanced_pay').val()) || 0;
+                if (importe <= 0) {
+                    alert({ icon: 'error', text: 'Ingresa un importe válido para registrar el pago.', btn1: true, btn1Text: 'Ok' });
+                    return;
+                }
+
+                const metodos = { '1': 'Efectivo', '2': 'Tarjeta', '3': 'Transferencia' };
+                const metodoTxt = metodos[String($('#method_pay_id').val())] || '—';
+                const subCobroId = String($('#payment_subsidiaries_id').val() || '');
+                const subCobroObj = subsidiariesCobro.find(s => String(s.id) === subCobroId);
+                const subCobroNombre = subCobroObj ? subCobroObj.valor : origenNombre;
+                const esCruzado = subCobroId !== '' && String(order.subsidiaries_id ?? '') !== subCobroId;
+
+                const row = (lbl, val, color = '#fff') => `
+                    <div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0;">
+                        <span style="color:#9ca3af;">${lbl}</span><b style="color:${color};">${val}</b>
+                    </div>`;
+
+                const htmlConfirm = `
+                    <div style="text-align:left;font-size:14px;line-height:1.5;">
+                        ${row('Importe', formatPrice(importe))}
+                        ${row('Método de pago', metodoTxt)}
+                        ${row('Sucursal que cobra', subCobroNombre, '#A78BFA')}
+                        ${esCruzado ? `
+                        <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fcd34d;font-size:12.5px;line-height:1.45;">
+                            Cobro cruzado: el pedido es de <b>${origenNombre}</b>, pero el cobro se registrará en <b>${subCobroNombre}</b>.
+                        </div>` : ''}
+                    </div>`;
+
+                const res = await Swal.fire({
+                    icon: 'question',
+                    title: '¿Registrar pago?',
+                    html: htmlConfirm,
+                    confirmButtonText: 'Sí, registrar',
+                    cancelButtonText: 'Cancelar',
+                    showCancelButton: true,
+                    background: '#1F2A37',
+                    color: '#fff',
+                    customClass: {
+                        popup: 'rounded-lg shadow-lg',
+                        title: 'text-white',
+                        confirmButton: 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white py-2 px-4 rounded',
+                        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded'
+                    }
+                });
+
+                if (res && res.isConfirmed) {
+                    formEl.dataset.payConfirmed = '1';
+                    formEl.requestSubmit();
+                }
+            }, true);
+        }
+
         if (isPaidInFull) {
             setTimeout(() => {
                 $("#advanced_pay, #method_pay_id, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             }, 100);
         }
+    }
+
+    onCobroChange(sel) {
+        const $sel   = $(sel);
+        const id     = String($sel.val() || '');
+        const nombre = $sel.find('option:selected').text().trim();
+        const origen = String($sel.data('origen') || '');
+        const same   = id === origen;
+
+        $('#cobroCardName').text(nombre);
+        $('#cobroCardSub').text(same ? 'Misma sucursal de origen' : 'Cobro en otra sucursal');
+        $('#cobroCard')
+            .toggleClass('border-slate-700', same)
+            .toggleClass('border-amber-500/60', !same);
+        $('#cobroCardIcon')
+            .toggleClass('text-blue-400', same)
+            .toggleClass('text-amber-400', !same);
     }
 
     deletePay(id, idFolio) {

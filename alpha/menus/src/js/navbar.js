@@ -78,8 +78,12 @@ class Navbar {
                     </select>
                     ${selectWrapClose}`;
         } else if (canSwitch) {
+            // Hibrido: "Todas" filtra la vista (no toca la sesion, como el admin);
+            // elegir una sucursal concreta hace switch de sesion. Decide
+            // onSubsidiarySelect segun el valor.
             subsidiaryControl = `${selectWrapOpen}
-                    <select id="subsidiaries_id" onchange="navbar.switchSubsidiary(this.value)" class="${selectCls}">
+                    <select id="subsidiaries_id" onchange="navbar.onSubsidiarySelect(this.value)" class="${selectCls}">
+                        <option value="0" class="bg-[#1F2A37] text-white">Todas las sucursales</option>
                         ${optionsHtml}
                     </select>
                     ${selectWrapClose}`;
@@ -220,6 +224,18 @@ class Navbar {
     // Cada modulo decide como reaccionar escuchando el evento 'subsidiaryChanged'.
     onSubsidiaryChange(value) {
         document.dispatchEvent(new CustomEvent('subsidiaryChanged', { detail: { id: value } }));
+    }
+
+    // Selector hibrido (operadores con 2+ sucursales): "Todas" (0) filtra la
+    // vista como el admin (sin tocar la sesion); volver a "mi sucursal" tambien
+    // re-filtra sin recargar; cualquier OTRA sucursal hace switch de sesion.
+    onSubsidiarySelect(value) {
+        const current = String(this.settings.subsidiaryId ?? '');
+        if (value === '0' || value == 0 || String(value) === current) {
+            this.onSubsidiaryChange(value);
+        } else {
+            this.switchSubsidiary(value);
+        }
     }
 
     // Switch de sucursal con persistencia en sesion (operadores no-admin):
