@@ -12,6 +12,7 @@
 const PG_API        = 'ctrl/ctrl-visor.php';
 const PG_API_STREAM = 'ctrl/ctrl-coffeeia-stream.php';
 const FG_API        = 'ctrl/ctrl-forge.php';   // backend de la fábrica (projects/preview/materialize)
+const FG_NAV_H      = 40;   // altura (px) de la barra de navegación del Live (debe coincidir con forge.css)
 
 // Extensiones tratadas como TEXTO plano (gemelo del Visor): se leen con readAsText
 // y se embeben al contexto del chat. Los binarios (pdf/docx/xlsx) no entran aqui.
@@ -451,7 +452,7 @@ function pgBind() {
         // El "empty" del preview solo aplica a la pestaña Preview sin render.
         if (tab === 'preview' && !pg.lastHtml) $('#pgSandboxEmpty').show();
         else $('#pgSandboxEmpty').hide();
-        pgApplyZoom();
+        fgUpdateLiveNav();   // muestra/oculta el mini-navegador del Live (ajusta el iframe + zoom)
     });
     $('#fgRecFab').on('click', () => fgCopyModuleToAgent());
     $('#fgRecSelectFab').on('click', () => fgToggleSelectRecreate());
@@ -1299,7 +1300,7 @@ function pgApplyViewport() {
     $body.css('--pg-vp-w', fixed ? PG_VIEWPORTS[mode].w + 'px' : '');
     $('.pg-vp-btn').each(function () { $(this).toggleClass('is-active', $(this).data('vp') === mode); });
     pgUpdateSandboxBg();
-    pgApplyZoom();   // el ancho cambió: reaplicar el zoom acorde al nuevo modo
+    fgUpdateLiveNav();   // en móvil/laptop se oculta el navegador del Live (también reaplica el zoom)
 }
 function pgSetViewport(mode) {
     pg.viewport = PG_VIEWPORTS[mode] ? mode : 'full';
@@ -1359,13 +1360,16 @@ function pgApplyZoom() {
         // en % no siempre resuelve y dejaba el panel recortado mostrando el fondo.
         const host = fr.parentElement;                       // .pg-sandbox-body
         const r = host ? host.getBoundingClientRect() : { width: 0, height: 0 };
+        // Si la barra del Live está activa, el iframe arranca FG_NAV_H más abajo
+        // y dispone de esa altura menos (igual que el margin-top del caso same-origin).
+        const navOff = (id === 'fgLiveFrame' && $('.pg-sandbox-body').hasClass('fg-live-nav-on')) ? FG_NAV_H : 0;
         fr.style.position = 'absolute';
-        fr.style.top = '0';
+        fr.style.top = navOff + 'px';
         fr.style.left = '0';
         fr.style.transformOrigin = 'top left';
         fr.style.transform = 'scale(' + z + ')';
         fr.style.width  = (r.width  / z) + 'px';
-        fr.style.height = (r.height / z) + 'px';
+        fr.style.height = ((r.height - navOff) / z) + 'px';
     }
 }
 function pgSetZoom(z) {
@@ -2119,10 +2123,13 @@ function fgLoadUrlInSandbox(url, restore) {
     // Para "Recrear" hay que leer el DOM del iframe → solo si es mismo origen.
     let sameOrigin = false;
     try { sameOrigin = new URL(url, location.href).origin === location.origin; } catch (e) { sameOrigin = false; }
-    fr.onload = () => pgApplyZoom();
+    fr.onload = fgOnLiveLoad;
     fr.src = url;
-    pg._liveModule = { url, sameOrigin };
+    // homeUrl = módulo que se ABRIÓ (el botón "inicio" del navegador vuelve aquí);
+    // url = sección actual, que cambia al navegar por sus enlaces.
+    pg._liveModule = { url, homeUrl: url, sameOrigin };
     fgReflectRecreate();
+    fgUpdateLiveNav();
     $('#fgLiveDot').show();
     // Recordar el último módulo abierto para reabrirlo en la próxima sesión.
     try {
@@ -2151,6 +2158,87 @@ function fgRestoreLastModule() {
     pg._openRel     = m.rel || '';
     $('#fgOpenUrl').val(m.url);
     fgLoadUrlInSandbox(m.url, true);
+}
+
+/* ── Mini-navegador del Live ──
+ * Convierte el iframe del módulo real en un navegador embebido: barra de
+ * direcciones + atrás/adelante/recargar/inicio para moverse entre las secciones
+ * del módulo. Solo se muestra en la vista Live, con un módulo cargado y a ancho
+ * completo (en móvil/laptop el "device frame" no lleva chrome de navegador). */
+function fgUpdateLiveNav() {
+    const liveTab = $('.pg-tab[data-sbtab="live"]').hasClass('active');
+    const show = liveTab && !!pg._liveModule && pg.viewport === 'full';
+    $('#fgLiveNav').toggleClass('hidden', !show);
+    $('.pg-sandbox-body').toggleClass('fg-live-nav-on', show);
+    if (show) fgSyncLiveAddr();
+    pgApplyZoom();   // cambió la altura disponible del iframe (cede/recupera FG_NAV_H)
+    if (window.lucide) lucide.createIcons();
+}
+
+// Refleja en la barra la URL y el host actuales del Live. Si es same-origin lee
+// la URL REAL alcanzada por el iframe (puede haber navegado por sus enlaces);
+// si es cross-origin usamos la última URL conocida.
+function fgSyncLiveAddr() {
+    const fr = document.getElementById('fgLiveFrame');
+    let href = (pg._liveModule && pg._liveModule.url) || '';
+    try { if (fr && fr.contentWindow && fr.contentWindow.location.href !== 'about:blank') href = fr.contentWindow.location.href; } catch (e) {}
+    const $u = $('#fgNavUrl');
+    if (!$u.is(':focus')) $u.val(href);   // no pisar lo que el usuario está tecleando
+    let host = '';
+    try { host = href ? new URL(href, location.href).host : ''; } catch (e) {}
+    $('#fgNavOrigin').text(host);
+}
+
+function fgLiveWin() {
+    const fr = document.getElementById('fgLiveFrame');
+    try { return fr && fr.contentWindow; } catch (e) { return null; }
+}
+function fgNavBack()    { const w = fgLiveWin(); try { if (w) w.history.back();    } catch (e) {} }
+function fgNavForward() { const w = fgLiveWin(); try { if (w) w.history.forward(); } catch (e) {} }
+function fgNavReload()  {
+    const fr = document.getElementById('fgLiveFrame');
+    try { const w = fgLiveWin(); if (w) { w.location.reload(); return; } } catch (e) {}
+    if (fr && fr.src) fr.src = fr.src;   // cross-origin: no se puede tocar location → recarga por src
+}
+function fgNavHome() {
+    const home = pg._liveModule && (pg._liveModule.homeUrl || pg._liveModule.url);
+    if (!home) { pgToast('No hay módulo abierto', 'warn'); return; }
+    fgNavGoTo(home);
+}
+// Navega el iframe del Live a una URL (barra de direcciones o botón "inicio").
+function fgNavGoTo(url) {
+    url = String(url || '').trim();
+    if (!url) return;
+    const fr = document.getElementById('fgLiveFrame');
+    let sameOrigin = false;
+    try { sameOrigin = new URL(url, location.href).origin === location.origin; } catch (e) {}
+    fr.onload = fgOnLiveLoad;
+    fr.src = url;
+    if (pg._liveModule) { pg._liveModule.url = url; pg._liveModule.sameOrigin = sameOrigin; }
+    else pg._liveModule = { url, homeUrl: url, sameOrigin };
+    fgReflectRecreate();
+    fgSyncLiveAddr();
+}
+function fgNavGoFromBar() {
+    let url = ($('#fgNavUrl').val() || '').trim();
+    if (!url) return;
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url) && !url.startsWith('/')) url = 'http://' + url;
+    fgNavGoTo(url);
+}
+// onload del iframe Live: recalcula same-origin contra la URL realmente alcanzada
+// (pudo redirigir o navegar a otra sección), reaplica el zoom y sincroniza la barra.
+function fgOnLiveLoad() {
+    const fr = document.getElementById('fgLiveFrame');
+    try {
+        const href = fr.contentWindow.location.href;
+        if (href && href !== 'about:blank' && pg._liveModule) {
+            pg._liveModule.url = href;
+            pg._liveModule.sameOrigin = new URL(href, location.href).origin === location.origin;
+            fgReflectRecreate();
+        }
+    } catch (e) { /* cross-origin: no se puede leer la URL alcanzada */ }
+    pgApplyZoom();
+    fgSyncLiveAddr();
 }
 
 /* ── Copiar el módulo del Live al chat del agente ──
@@ -2638,6 +2726,17 @@ function fgBind() {
     $('#fgProjectBase').on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fgSaveProjectBase(); } });
     $('#fgOpenUrl').on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fgOpenManualUrl(); } });
 
+    // Mini-navegador del Live: moverse entre secciones del módulo real.
+    $('#fgNavBack').on('click', () => fgNavBack());
+    $('#fgNavFwd').on('click', () => fgNavForward());
+    $('#fgNavReload').on('click', () => fgNavReload());
+    $('#fgNavHome').on('click', () => fgNavHome());
+    $('#fgNavOpenTab').on('click', () => {
+        const u = (pg._liveModule && pg._liveModule.url) || ($('#fgNavUrl').val() || '').trim();
+        if (u) window.open(u, '_blank'); else pgToast('No hay módulo abierto', 'warn');
+    });
+    $('#fgNavUrl').on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fgNavGoFromBar(); } });
+
     // Recrear: el botón del header copia el módulo completo; Esc cancela el modo selección.
     $('#fgRecreateBtn').on('click', () => fgCopyModuleToAgent());
     $(document).on('keydown', e => { if (e.key === 'Escape' && pg._recActive) fgStopSelectRecreate(); });
@@ -2724,7 +2823,7 @@ function fgRebuildChat() {
 // Restaura Live (src) y Preview (lastHtml) del hilo, eligiendo la pestaña visible.
 function fgRestoreSandbox() {
     const lf = document.getElementById('fgLiveFrame');
-    if (pg._liveModule && pg._liveModule.url) { lf.src = pg._liveModule.url; $('#fgLiveDot').show(); }
+    if (pg._liveModule && pg._liveModule.url) { lf.onload = fgOnLiveLoad; lf.src = pg._liveModule.url; $('#fgLiveDot').show(); }
     else { lf.removeAttribute('src'); $('#fgLiveDot').hide(); }
 
     const pf = document.getElementById('pgSandboxFrame');

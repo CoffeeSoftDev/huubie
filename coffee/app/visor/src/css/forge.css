@@ -296,6 +296,43 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     box-shadow: 0 8px 28px rgba(0,0,0,.35);
 }
 
+/* ── Mini-navegador del Live ──
+   Chrome tipo navegador sobre el iframe del módulo real: navega entre secciones
+   (atrás/adelante/recargar/inicio) y muestra/edita la URL. Va en ABSOLUTO arriba
+   del .pg-sandbox-body; cuando está activo, el iframe cede 40px (clase
+   .fg-live-nav-on). Solo aparece en la vista Live a ancho completo. */
+.fg-live-nav {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 16; height: 40px;
+    display: flex; align-items: center; gap: 8px; padding: 0 8px;
+    background: var(--vsr-bg-chrome); border-bottom: 1px solid var(--vsr-border);
+}
+.fg-live-nav.hidden { display: none; }
+.fg-nav-actions { display: inline-flex; align-items: center; gap: 1px; flex: 0 0 auto; }
+.fg-nav-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 26px; border-radius: 6px; flex: 0 0 auto;
+    background: transparent; border: 1px solid transparent;
+    color: var(--vsr-text-muted); cursor: pointer; transition: all .15s;
+}
+.fg-nav-btn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border-color: var(--vsr-border); }
+.fg-nav-btn:active { transform: translateY(1px); }
+.fg-nav-addr {
+    flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 10px; border-radius: 8px;
+    background: var(--vsr-bg-input); border: 1px solid var(--vsr-border-input);
+}
+.fg-nav-addr:focus-within { border-color: var(--vsr-accent); }
+.fg-nav-addr-ic { color: var(--vsr-text-mute2); flex: 0 0 auto; }
+.fg-nav-url {
+    flex: 1 1 auto; min-width: 0; background: transparent; border: none; outline: none;
+    color: var(--vsr-text-soft); font-size: 12px; font-family: 'JetBrains Mono', monospace;
+}
+.fg-nav-origin { flex: 0 0 auto; max-width: 32%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--vsr-text-mute2); font-weight: 600; }
+
+/* Con la barra activa, el iframe del Live arranca 40px más abajo. */
+.pg-sandbox-body.fg-live-nav-on #fgLiveFrame { height: calc(100% - 40px); margin-top: 40px; }
+.pg-sandbox-body.fg-live-nav-on .fg-rec-banner { top: 50px; }
+
 /* Selector de viewport: grupo de iconos con el activo en acento. */
 .pg-viewport { display: inline-flex; align-items: center; gap: 1px; }
 .pg-vp-btn {

@@ -1387,6 +1387,16 @@ class App extends Templates {
         const origenSub    = (subsidiariesCobro || []).find(s => String(s.id) === String(order.subsidiaries_id));
         const origenNombre = origenSub ? origenSub.valor : '—';
 
+        // Estado inicial de la tarjeta "Sucursal que cobrará".
+        const origenSubId      = String(order.subsidiaries_id ?? '');
+        const cobroSubSel      = (subsidiariesCobro || []).find(s => String(s.id) === String(defaultCobroSub));
+        const cobroNombre      = cobroSubSel ? cobroSubSel.valor : origenNombre;
+        const cobroEsMismaSuc  = String(defaultCobroSub) === origenSubId;
+        const cobroSubtitulo   = cobroEsMismaSuc ? 'Misma sucursal de origen' : 'Cobro en otra sucursal';
+        const cobroOptionsHtml = (subsidiariesCobro || [])
+            .map(s => `<option value="${s.id}" ${String(s.id) === String(defaultCobroSub) ? 'selected' : ''}>${s.valor}</option>`)
+            .join('');
+
         // Contenedor del formulario centrado y reducido
         $("#container-payment").html(`
             <div class="flex justify-center items-start">
@@ -1453,21 +1463,40 @@ class App extends Templates {
                 {
                     opc: "div",
                     id: "origenPedido",
+                    lbl: "Origen del pedido",
                     class: "col-12 mb-2",
-                    html: `<div class="flex items-center justify-between bg-[#1E293B] border border-slate-700 rounded-lg px-3 py-2">
-                        <span class="text-xs text-gray-400">Origen del pedido</span>
-                        <span class="text-sm text-white font-semibold">${origenNombre}</span>
+                    html: `<div class="flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5">
+                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                            <i class="icon-home text-sm"></i>
+                        </div>
+                        <div class="flex flex-col leading-tight min-w-0">
+                            <span class="text-sm text-white font-semibold truncate">${origenNombre}</span>
+                            <span class="text-[11px] text-gray-400">Sucursal donde se generó la venta</span>
+                        </div>
                     </div>`
                 },
                 {
-                    opc: "select",
-                    id: "payment_subsidiaries_id",
-                    lbl: "Sucursal de cobro",
+                    opc: "div",
+                    id: "cobroWrapper",
+                    lbl: "Sucursal que cobrará",
                     class: "col-12 mb-3",
-                    data: (subsidiariesCobro || []).map(s => ({ id: String(s.id), valor: s.valor })),
-                    value: String(defaultCobroSub),
-                    required: true,
-                    disabled: isPaidInFull
+                    html: `<div class="relative">
+                        <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
+                            <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                                <i class="icon-bank text-sm"></i>
+                            </div>
+                            <div class="flex flex-col leading-tight flex-1 min-w-0">
+                                <span id="cobroCardName" class="text-sm text-white font-semibold truncate">${cobroNombre}</span>
+                                <span id="cobroCardSub" class="text-[11px] text-gray-400">${cobroSubtitulo}</span>
+                            </div>
+                            <i class="icon-down-open text-gray-400 text-xs shrink-0"></i>
+                        </div>
+                        <select id="payment_subsidiaries_id" name="payment_subsidiaries_id" data-origen="${origenSubId}" required
+                            class="absolute inset-0 w-full h-full opacity-0 ${isPaidInFull ? 'cursor-not-allowed' : 'cursor-pointer'}"
+                            ${isPaidInFull ? 'disabled' : ''} onchange="app.onCobroChange(this)">
+                            ${cobroOptionsHtml}
+                        </select>
+                    </div>`
                 },
                 {
                     opc: "textarea",
@@ -1538,6 +1567,20 @@ class App extends Templates {
                 $("#advanced_pay, #method_pay_id, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             }, 100);
         }
+    }
+
+    onCobroChange(sel) {
+        const $sel   = $(sel);
+        const id     = String($sel.val() || '');
+        const nombre = $sel.find('option:selected').text().trim();
+        const origen = String($sel.data('origen') || '');
+        const same   = id === origen;
+
+        $('#cobroCardName').text(nombre);
+        $('#cobroCardSub').text(same ? 'Misma sucursal de origen' : 'Cobro en otra sucursal');
+        $('#cobroCard')
+            .toggleClass('border-slate-700', same)
+            .toggleClass('border-amber-500/60', !same);
     }
 
     deletePay(id, idFolio) {
