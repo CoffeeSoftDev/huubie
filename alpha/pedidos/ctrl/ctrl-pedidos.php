@@ -1802,8 +1802,18 @@ class Pedidos extends MPedidos{
             return $order;
         };
 
+        // El sufijo del folio identifica la sucursal de origen del pedido. En un cobro
+        // cruzado el pedido es de otra sucursal, asi que conserva su origen y no la del cierre.
+        $addFolioOrigin = function ($order) use ($subsidiary_id) {
+            $originSub = isset($order['origin_subsidiary_id']) && $order['origin_subsidiary_id'] !== null
+                ? $order['origin_subsidiary_id']
+                : $subsidiary_id;
+            $order['folio'] = formatSucursal($originSub, $order['id']);
+            return $order;
+        };
+
         $shiftOrders      = array_map($addFolio, $result['shift_orders']);
-        $externalPayments = array_map($addFolio, $result['external_payments']);
+        $externalPayments = array_map($addFolioOrigin, $result['external_payments']);
 
         return [
             'status'            => 200,

@@ -1397,6 +1397,46 @@ class App extends Templates {
             .map(s => `<option value="${s.id}" ${String(s.id) === String(defaultCobroSub) ? 'selected' : ''}>${s.valor}</option>`)
             .join('');
 
+        // Metodos de pago del dropdown custom (.js-dd). El value es el id que espera
+        // el backend (1=Efectivo, 2=Tarjeta, 3=Transferencia) y vive en el input
+        // hidden #method_pay_id que lee el form al registrar el pago.
+        const metodosPago = [
+            { id: '1', label: 'Efectivo',      sub: 'Pago en efectivo', icon: 'banknote' },
+            { id: '2', label: 'Tarjeta',       sub: 'Débito o crédito', icon: 'credit-card' },
+            { id: '3', label: 'Transferencia', sub: 'Depósito o SPEI',  icon: 'arrow-right-left' }
+        ];
+        const metodoDefault = metodosPago[0];
+        const methodPayOptionsHtml = metodosPago.map((m, i) => `
+            <div class="js-dd-option flex items-center gap-2.5 px-2.5 py-2 cursor-pointer hover:bg-slate-700/50"
+                data-value="${m.id}" data-label="${m.label}" data-sub="${m.sub}" data-icon="${m.icon}">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                    ${window.lucideIcon(m.icon, 'w-4 h-4')}
+                </div>
+                <div class="flex flex-col leading-tight flex-1 min-w-0">
+                    <span class="text-sm text-white font-semibold truncate">${m.label}</span>
+                    <span class="text-[11px] text-gray-400">${m.sub}</span>
+                </div>
+                <span class="js-dd-check text-emerald-400 shrink-0 ${i === 0 ? '' : 'opacity-0'}">${window.lucideIcon('check', 'w-4 h-4')}</span>
+            </div>`).join('');
+
+        const methodPayCardHtml = `
+            <input type="hidden" id="method_pay_id" name="method_pay_id" value="${metodoDefault.id}" required>
+            <div class="js-dd relative">
+                <div class="js-dd-trigger flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5 ${isPaidInFull ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}" ${isPaidInFull ? 'disabled' : ''}>
+                    <div class="js-dd-trigger-icon flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                        ${window.lucideIcon(metodoDefault.icon, 'w-4 h-4')}
+                    </div>
+                    <div class="flex flex-col leading-tight flex-1 min-w-0">
+                        <span class="js-dd-trigger-label text-sm text-white font-semibold truncate">${metodoDefault.label}</span>
+                        <span class="js-dd-trigger-sub text-[11px] text-gray-400">${metodoDefault.sub}</span>
+                    </div>
+                    <span class="js-dd-chevron text-gray-400 shrink-0 transition-transform">${window.lucideIcon('chevron-down', 'w-4 h-4')}</span>
+                </div>
+                <div class="js-dd-menu hidden absolute left-0 right-0 mt-1 z-20 bg-[#1E293B] border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+                    ${methodPayOptionsHtml}
+                </div>
+            </div>`;
+
         // Contenedor del formulario centrado y reducido
         $("#container-payment").html(`
             <div class="flex justify-center items-start">
@@ -1429,10 +1469,10 @@ class App extends Templates {
                         ${discount > 0 ? `
                             <div class="mt-2 pt-2 border-t border-gray-600">
                                 <p class="text-xs text-gray-400">Total original: <span class="line-through">${formatPrice(saldoOriginal)}</span></p>
-                                <p class="text-xs text-green-400"><i class="icon-tag"></i> Descuento aplicado: -${formatPrice(discount)}</p>
+                                <p class="text-xs text-green-400 flex items-center justify-center gap-1">${lucideIcon('tag', 'w-3 h-3')} Descuento aplicado: -${formatPrice(discount)}</p>
                             </div>
                         ` : ''}
-                        ${isPaidInFull ? '<i class="icon-ok-circled text-green-400 text-2xl mt-2"></i>' : ''}
+                        ${isPaidInFull ? lucideIcon('circle-check', 'w-7 h-7 text-green-400 mt-2 inline-block') : ''}
                     </div>`
                 },
                 {
@@ -1451,7 +1491,7 @@ class App extends Templates {
                     opc: "div",
                     id: "cardMethodPay",
                     class: "col-12 mb-2",
-                    lbl: ddLabel("Método de pago"),
+                    lbl: "Método de pago",
                     html: methodPayCardHtml
                 },
                 {
@@ -1461,7 +1501,7 @@ class App extends Templates {
                     class: "col-12 mb-2",
                     html: `<div class="flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5">
                         <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
-                            <i class="icon-home text-sm"></i>
+                            ${lucideIcon('house', 'w-4 h-4')}
                         </div>
                         <div class="flex flex-col leading-tight min-w-0">
                             <span class="text-sm text-white font-semibold truncate">${origenNombre}</span>
@@ -1477,13 +1517,13 @@ class App extends Templates {
                     html: `<div class="relative">
                         <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
                             <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
-                                <i class="icon-bank text-sm"></i>
+                                ${lucideIcon('landmark', 'w-4 h-4')}
                             </div>
                             <div class="flex flex-col leading-tight flex-1 min-w-0">
                                 <span id="cobroCardName" class="text-sm text-white font-semibold truncate">${cobroNombre}</span>
                                 <span id="cobroCardSub" class="text-[11px] text-gray-400">${cobroSubtitulo}</span>
                             </div>
-                            <i class="icon-down-open text-gray-400 text-xs shrink-0"></i>
+                            ${lucideIcon('chevron-down', 'w-4 h-4 text-gray-400 shrink-0')}
                         </div>
                         <select id="payment_subsidiaries_id" name="payment_subsidiaries_id" data-origen="${origenSubId}" required
                             class="absolute inset-0 w-full h-full opacity-0 ${isPaidInFull ? 'cursor-not-allowed' : 'cursor-pointer'}"
@@ -1636,16 +1676,16 @@ class App extends Templates {
                 // Cobro cruzado: la sucursal que cobra es distinta a la de origen del pedido.
                 const esCruzado = subCobroId !== '' && String(order.subsidiaries_id ?? '') !== subCobroId;
 
-                const row = (lbl, val) => `
+                const row = (lbl, val, color = '#fff') => `
                     <div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0;">
-                        <span style="color:#9ca3af;">${lbl}</span><b style="color:#fff;">${val}</b>
+                        <span style="color:#9ca3af;">${lbl}</span><b style="color:${color};">${val}</b>
                     </div>`;
 
                 const htmlConfirm = `
                     <div style="text-align:left;font-size:14px;line-height:1.5;">
                         ${row('Importe', formatPrice(importe))}
                         ${row('Método de pago', metodoTxt)}
-                        ${row('Sucursal que cobra', subCobroNombre)}
+                        ${row('Sucursal que cobra', subCobroNombre, '#A78BFA')}
                         ${esCruzado ? `
                         <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fcd34d;font-size:12.5px;line-height:1.45;">
                             Cobro cruzado: el pedido es de <b>${origenNombre}</b>, pero el cobro se registrará en <b>${subCobroNombre}</b>.
@@ -3003,12 +3043,18 @@ class App extends Templates {
                     const badge = liquidado
                         ? `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-bold">LIQUIDADO</span>`
                         : `<span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[9px] font-bold">PENDIENTE</span>`;
+                    // Cobro cruzado: el pedido es de otra sucursal distinta a la del cierre.
+                    const origin = o.origin_subsidiary || '';
+                    const originLine = (origin && origin !== subsidiaryName)
+                        ? `<div class="text-[10px] text-amber-600 mb-0.5">${lucideIcon('store', 'w-3 h-3 inline-block align-[-1px]')} Origen: ${origin}</div>`
+                        : '';
                     return `
                         <div class="flex justify-between items-center mt-3 pt-2 border-t border-dashed border-gray-200">
                             <div class="italic truncate" style="max-width:150px">${o.folio || 'Folio #' + o.id}</div>
                             ${badge}
                         </div>
                         <div class="text-[10px] text-gray-500 mb-0.5">${o.client_name || 'Sin cliente'}</div>
+                        ${originLine}
                         <div class="flex justify-between text-[11px]"><span class="text-gray-600">Debía</span><span>${money(debia)} <span class="text-gray-400">de ${money(total)}</span></span></div>
                         <div class="flex justify-between text-[11px] text-green-700"><span>Abonó</span><span>${money(abono)}</span></div>
                         <div class="flex justify-between text-[11px] font-semibold border-t border-dashed pt-0.5 mt-0.5"><span>Quedó</span><span>${money(quedo)}</span></div>

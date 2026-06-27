@@ -12,8 +12,8 @@
 > - `getDailySalesMetrics` y `getShiftSalesMetrics` en [mdl-pedidos.php](../mdl/mdl-pedidos.php): el filtro de cobranza pasó de `po.subsidiaries_id` a `COALESCE(pp.subsidiaries_id, po.subsidiaries_id)`. La cobranza cuenta donde entró el dinero; la venta sigue por sucursal del pedido.
 > - `getDailySalesMetrics`: el bloque de **pagos** ahora agrupa por `DATE(pp.date_pay)` (día del cobro), no por `date_creation`. Las **ventas** del mismo método siguen por `date_creation`. Así el #800 cuenta en gpe el **23‑jun** (día real del cobro).
 >
-> **Decisión abierta:**
-> 1. **Distinción visual:** el detalle del turno (grupo 2 de `getShiftOrders`) lista abonos por `o.subsidiaries_id`, así que un cobro cruzado entra en el TOTAL de gpe pero no en su listado. Falta la columna "cobrado de otras sucursales" (ver §5).
+> **Implementado (Fase 3 — listado del turno coherente con el total):**
+> - `getShiftDetailedOrders` (grupo 2, "ABONOS DE PEDIDOS ANTERIORES") y `getShiftPrevPaymentsSummary` pasaron de `o.subsidiaries_id` a `COALESCE(op.subsidiaries_id, o.subsidiaries_id)`. El abono cruzado ahora se **lista y se cuenta en la sucursal que cobró**, igual que el total. Resuelve la antigua decisión abierta #1: se eligió "listarlo donde se cobró" (no la distinción visual de §5).
 
 ---
 

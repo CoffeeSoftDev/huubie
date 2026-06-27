@@ -1585,16 +1585,19 @@ class MPedidos extends CRUD {
                     AND op2.date_pay <= ?) AS total_paid_upto,
                 o.status,
                 o.date_creation,
+                o.subsidiaries_id AS origin_subsidiary_id,
+                os.name AS origin_subsidiary,
                 c.name AS client_name
             FROM {$this->bd}order_payments op
             JOIN {$this->bd}`order` o ON o.id = op.order_id
             LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries os ON os.id = o.subsidiaries_id
             WHERE op.date_pay >= ? AND op.date_pay <= ?
             AND o.cash_shift_id IS NOT NULL
             AND o.cash_shift_id != ?
-            AND o.subsidiaries_id = ?
+            AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) = ?
             AND o.status != 4
-            GROUP BY o.id, o.total_pay, o.discount, o.status, o.date_creation, c.name
+            GROUP BY o.id, o.total_pay, o.discount, o.status, o.date_creation, o.subsidiaries_id, os.name, c.name
             ORDER BY o.date_creation ASC
         ";
         $externalPayments = $this->_Read($query2, [
@@ -1638,7 +1641,7 @@ class MPedidos extends CRUD {
                 WHERE op.date_pay >= ? AND op.date_pay <= ?
                   AND o.cash_shift_id IS NOT NULL
                   AND o.cash_shift_id != ?
-                  AND o.subsidiaries_id = ?
+                  AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) = ?
                   AND o.status != 4
                 GROUP BY o.id, o.total_pay, o.discount
             ) AS sub
