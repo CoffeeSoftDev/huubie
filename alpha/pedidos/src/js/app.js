@@ -1440,7 +1440,7 @@ class App extends Templates {
                     type: "number",
                     id: "advanced_pay",
                     lbl: "Importe",
-                    class: "col-12 mb-3",
+                    class: "col-12 mb-2",
                     placeholder: "0.00",
                     required: true,
                     min: 0,
@@ -1448,17 +1448,11 @@ class App extends Templates {
                     disabled: isPaidInFull
                 },
                 {
-                    opc: "select",
-                    id: "method_pay_id",
-                    lbl: "Método de pago",
-                    class: "col-12 mb-3",
-                    data: [
-                        { id: "1", valor: "Efectivo" },
-                        { id: "2", valor: "Tarjeta" },
-                        { id: "3", valor: "Transferencia" }
-                    ],
-                    required: true,
-                    disabled: isPaidInFull
+                    opc: "div",
+                    id: "cardMethodPay",
+                    class: "col-12 mb-2",
+                    lbl: ddLabel("Método de pago"),
+                    html: methodPayCardHtml
                 },
                 {
                     opc: "div",
@@ -1502,7 +1496,7 @@ class App extends Templates {
                     opc: "textarea",
                     id: "description",
                     lbl: "Observación",
-                    class: "col-12 mb-3",
+                    class: "col-12 mb-2",
                     disabled: isPaidInFull
                 },
                 {
@@ -1561,10 +1555,122 @@ class App extends Templates {
             }
         });
 
+        // ── Interacción de los dropdowns (abrir/cerrar, seleccionar) ───────────
+        const $payRoot = $('#container-payment');
+        $payRoot.off('click.dd');
+
+        // Abrir / cerrar al pulsar el trigger.
+        $payRoot.on('click.dd', '.js-dd-trigger:not([disabled])', function (e) {
+            e.stopPropagation();
+            const $menu = $(this).siblings('.js-dd-menu');
+            const willOpen = $menu.hasClass('hidden');
+            // Cerrar cualquier otro menú abierto.
+            $payRoot.find('.js-dd-menu').addClass('hidden');
+            $payRoot.find('.js-dd-chevron').removeClass('rotate-180');
+            if (willOpen) {
+                $menu.removeClass('hidden');
+                $(this).find('.js-dd-chevron').addClass('rotate-180');
+            }
+        });
+
+        // Seleccionar una opción: actualiza hidden + trigger + check y cierra.
+        $payRoot.on('click.dd', '.js-dd-option', function (e) {
+            e.stopPropagation();
+            const $opt = $(this);
+            const $dd = $opt.closest('.js-dd');
+            const value = $opt.attr('data-value');
+            const label = $opt.attr('data-label');
+            const sub = $opt.attr('data-sub') || '';
+            const icon = $opt.attr('data-icon');
+
+            // Valor real (id) para el envío del formulario.
+            $dd.prevAll('input[type="hidden"]').first().val(value);
+
+            // Reflejar la selección en el trigger.
+            const $trigger = $dd.find('.js-dd-trigger');
+            $trigger.find('.js-dd-trigger-icon').html(window.lucideIcon(icon, 'w-4 h-4'));
+            $trigger.find('.js-dd-trigger-label').text(label);
+            $trigger.find('.js-dd-trigger-sub').text(sub);
+
+            // Mover el check a la opción elegida.
+            $dd.find('.js-dd-check').addClass('opacity-0');
+            $opt.find('.js-dd-check').removeClass('opacity-0');
+
+            // Cerrar.
+            $dd.find('.js-dd-menu').addClass('hidden');
+            $trigger.find('.js-dd-chevron').removeClass('rotate-180');
+        });
+
+        // Cerrar al hacer click fuera de cualquier dropdown.
+        $(document).off('click.payDD').on('click.payDD', function () {
+            $('#container-payment .js-dd-menu').addClass('hidden');
+            $('#container-payment .js-dd-chevron').removeClass('rotate-180');
+        });
+
+        // Confirmación antes de registrar el pago. Se intercepta el submit en fase
+        // de captura (antes de validation_form): si no está confirmado, se bloquea,
+        // se valida el importe y se pregunta; al confirmar se reenvía con bandera
+        // para que el flujo normal (validación + AJAX) continúe.
+        const formEl = document.getElementById('form-payment');
+        if (formEl) {
+            formEl.addEventListener('submit', async (e) => {
+                if (formEl.dataset.payConfirmed === '1') {
+                    formEl.dataset.payConfirmed = '';
+                    return; // ya confirmado: dejar pasar a validation_form
+                }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                const importe = parseFloat($('#advanced_pay').val()) || 0;
+                if (importe <= 0) {
+                    alert({ icon: 'error', text: 'Ingresa un importe válido para registrar el pago.', btn1: true, btn1Text: 'Ok' });
+                    return;
+                }
+
+                // Datos legibles para que el usuario entienda cómo se registrará el pago.
+                const metodos = { '1': 'Efectivo', '2': 'Tarjeta', '3': 'Transferencia' };
+                const metodoTxt = metodos[String($('#method_pay_id').val())] || '—';
+                const subCobroId = String($('#payment_subsidiaries_id').val() || '');
+                const subCobroObj = (subsidiariesCobro || []).find(s => String(s.id) === subCobroId);
+                const subCobroNombre = subCobroObj ? subCobroObj.valor : origenNombre;
+                // Cobro cruzado: la sucursal que cobra es distinta a la de origen del pedido.
+                const esCruzado = subCobroId !== '' && String(order.subsidiaries_id ?? '') !== subCobroId;
+
+                const row = (lbl, val) => `
+                    <div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0;">
+                        <span style="color:#9ca3af;">${lbl}</span><b style="color:#fff;">${val}</b>
+                    </div>`;
+
+                const htmlConfirm = `
+                    <div style="text-align:left;font-size:14px;line-height:1.5;">
+                        ${row('Importe', formatPrice(importe))}
+                        ${row('Método de pago', metodoTxt)}
+                        ${row('Sucursal que cobra', subCobroNombre)}
+                        ${esCruzado ? `
+                        <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fcd34d;font-size:12.5px;line-height:1.45;">
+                            Cobro cruzado: el pedido es de <b>${origenNombre}</b>, pero el cobro se registrará en <b>${subCobroNombre}</b>.
+                        </div>` : ''}
+                    </div>`;
+
+                const res = await alert({
+                    icon: 'question',
+                    title: '¿Registrar pago?',
+                    html: htmlConfirm,
+                    btn1Text: 'Sí, registrar',
+                    btn2Text: 'Cancelar'
+                });
+
+                if (res && res.isConfirmed) {
+                    formEl.dataset.payConfirmed = '1';
+                    formEl.requestSubmit();
+                }
+            }, true);
+        }
+
         // Aplicar estilos disabled si está pagado
         if (isPaidInFull) {
             setTimeout(() => {
-                $("#advanced_pay, #method_pay_id, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+                $("#advanced_pay, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             }, 100);
         }
     }
