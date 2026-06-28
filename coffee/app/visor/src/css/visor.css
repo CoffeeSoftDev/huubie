@@ -536,6 +536,8 @@ html, body { height: 100%; }
 }
 .graph-menu-item {
     display: flex; align-items: center; gap: 9px;
+    width: 100%;
+    box-sizing: border-box;
     padding: 7px 14px 7px 9px;
     border-radius: 7px;
     background: transparent;
@@ -549,9 +551,13 @@ html, body { height: 100%; }
 }
 .graph-menu-item:hover { background: var(--vsr-bg-hover); }
 .graph-menu-item.is-active { background: var(--vsr-accent-tint); }
+/* El item activo (mermaid/draw.io/excalidraw seleccionado) tambien debe responder
+   al hover, igual que el resto; sin esta regla is-active "tapa" el :hover. */
+.graph-menu-item.is-active:hover { background: var(--vsr-accent-tint-hover, var(--vsr-bg-hover)); }
 .graph-menu-item.is-active > i,
 .graph-menu-item.is-active .graph-menu-name { color: var(--vsr-accent-soft); }
-.graph-menu-item > i { flex-shrink: 0; color: var(--vsr-text-mute2); }
+.graph-menu-item > i,
+.graph-menu-item > svg { flex-shrink: 0; width: 16px; height: 16px; color: var(--vsr-text-mute2); }
 .graph-menu-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
 .graph-menu-name { font-size: 12.5px; font-weight: 600; color: var(--vsr-text); }
 .graph-menu-desc { font-size: 10.5px; color: var(--vsr-text-mute2); }
@@ -2678,6 +2684,127 @@ body.ia-drawer-resizing * {
     max-width: 85%;
 }
 
+/* ── GitHub Projects: card del tablero dentro del chat ───────────────── */
+.ia-gh-card {
+    margin-left: 12px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 10px;
+    background: var(--vsr-bg-card);
+    overflow: hidden;
+    font-size: 12.5px;
+}
+.ia-gh-loading {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px; color: var(--vsr-text-mute2);
+}
+.ia-gh-spin {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid currentColor; border-top-color: transparent;
+    display: inline-block; animation: excSpin .8s linear infinite;
+}
+.ia-gh-error {
+    display: flex; gap: 9px; padding: 14px; color: var(--vsr-text-soft);
+}
+.ia-gh-error > i { color: #f59e0b; flex-shrink: 0; width: 18px; height: 18px; }
+.ia-gh-error-body p { margin: 0 0 8px; }
+.ia-gh-retry {
+    background: var(--vsr-bg-hover); border: 1px solid var(--vsr-border);
+    color: var(--vsr-text-soft); border-radius: 6px; padding: 4px 12px;
+    cursor: pointer; font-family: inherit; font-size: 12px;
+}
+.ia-gh-retry:hover { color: var(--vsr-accent-soft); border-color: var(--vsr-accent); }
+
+.ia-gh-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-bottom: 1px solid var(--vsr-border-soft);
+}
+.ia-gh-head > i { width: 16px; height: 16px; color: var(--vsr-text-soft); flex-shrink: 0; }
+.ia-gh-title {
+    font-weight: 600; color: var(--vsr-text); flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ia-gh-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.ia-gh-iconbtn {
+    width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 1px solid transparent; border-radius: 6px;
+    color: var(--vsr-text-mute2); cursor: pointer; text-decoration: none;
+}
+.ia-gh-iconbtn:hover { color: var(--vsr-accent-soft); background: var(--vsr-bg-hover); border-color: var(--vsr-border-input); }
+.ia-gh-iconbtn i { width: 13px; height: 13px; }
+
+.ia-gh-sub { padding: 9px 12px; border-bottom: 1px solid var(--vsr-border-soft); }
+.ia-gh-progress {
+    height: 6px; border-radius: 99px; background: var(--vsr-bg-input);
+    overflow: hidden; margin-bottom: 6px;
+}
+.ia-gh-progress > span { display: block; height: 100%; background: #22c55e; border-radius: 99px; transition: width .3s ease; }
+.ia-gh-metaline { font-size: 11px; color: var(--vsr-text-mute2); }
+
+.ia-gh-groups { padding: 4px; }
+.ia-gh-group { border-radius: 7px; }
+.ia-gh-group-head {
+    width: 100%; display: flex; align-items: center; gap: 8px;
+    padding: 7px 8px; background: transparent; border: none; cursor: pointer;
+    color: var(--vsr-text-soft); font-family: inherit; font-size: 12px; text-align: left;
+    border-radius: 7px;
+}
+.ia-gh-group-head:hover { background: var(--vsr-bg-hover); }
+.ia-gh-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.ia-gh-group-name { font-weight: 600; color: var(--vsr-text); flex: 1; min-width: 0; }
+.ia-gh-group-count {
+    font-size: 11px; color: var(--vsr-text-mute2);
+    background: var(--vsr-bg-input); border-radius: 99px; padding: 1px 8px;
+}
+.ia-gh-chev { width: 14px; height: 14px; color: var(--vsr-text-mute2); transition: transform .15s ease; }
+.ia-gh-group.collapsed .ia-gh-chev { transform: rotate(-90deg); }
+.ia-gh-group.collapsed .ia-gh-items { display: none; }
+
+.ia-gh-items { padding: 2px 8px 8px 25px; display: flex; flex-direction: column; gap: 3px; }
+.ia-gh-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 8px; border-radius: 6px;
+}
+.ia-gh-item:hover { background: var(--vsr-bg-hover); }
+.ia-gh-item-title {
+    flex: 1; min-width: 0; color: var(--vsr-text-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px;
+}
+.ia-gh-extra { display: none; }
+.ia-gh-group.expanded .ia-gh-extra { display: flex; }
+.ia-gh-size {
+    flex-shrink: 0; font-size: 9.5px; font-weight: 700; letter-spacing: .3px;
+    padding: 1px 6px; border-radius: 99px;
+    background: var(--vsr-bg-input); color: var(--vsr-text-mute2);
+    border: 1px solid var(--vsr-border-soft);
+}
+.ia-gh-size-s  { color: #38bdf8; border-color: rgba(56,189,248,.4); }
+.ia-gh-size-m  { color: #a78bfa; border-color: rgba(167,139,250,.4); }
+.ia-gh-size-l  { color: #fb923c; border-color: rgba(251,146,60,.4); }
+.ia-gh-size-xl { color: #f87171; border-color: rgba(248,113,113,.4); }
+.ia-gh-more {
+    align-self: flex-start; margin: 2px 0 0 8px;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--vsr-accent-soft); font-family: inherit; font-size: 11px; padding: 2px 0;
+}
+.ia-gh-more:hover { text-decoration: underline; }
+
+.ia-gh-picklist { padding: 5px; display: flex; flex-direction: column; gap: 2px; }
+.ia-gh-pick {
+    display: flex; align-items: center; gap: 9px; padding: 8px 9px;
+    background: transparent; border: none; border-radius: 7px; cursor: pointer;
+    color: var(--vsr-text-soft); font-family: inherit; text-align: left;
+}
+.ia-gh-pick:hover { background: var(--vsr-bg-hover); }
+.ia-gh-pick > i { width: 16px; height: 16px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+.ia-gh-pick-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ia-gh-pick-title { font-weight: 600; color: var(--vsr-text); font-size: 12.5px; }
+.ia-gh-pick-sub { font-size: 10.5px; color: var(--vsr-text-mute2); }
+
+.ia-gh-note {
+    padding: 8px 12px; border-top: 1px solid var(--vsr-border-soft);
+    font-size: 10.5px; color: var(--vsr-text-mute2);
+}
+
 /* Cluster de chips de contexto */
 .ia-context-chips {
     background: var(--vsr-bg-card);
@@ -3408,6 +3535,13 @@ body.ia-drawer-resizing * {
 
 .ia-render-chart .ia-render-view { padding: 6px; }
 .ia-render-chart canvas { max-width: 100%; max-height: 240px; }
+
+/* Estado de carga mientras Mermaid genera el SVG + boton Actualizar girando */
+.ia-render-loading {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 24px 16px; color: var(--vsr-text-mute2); font-size: 12px;
+}
+.ia-render-refresh.is-spinning i { animation: excSpin .6s linear infinite; }
 
 .ia-render-html .ia-render-view { padding: 0; background: transparent; }
 .ia-render-iframe {

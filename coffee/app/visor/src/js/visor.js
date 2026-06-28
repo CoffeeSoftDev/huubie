@@ -2588,6 +2588,8 @@ class CoffeeIA {
         this._apiStream = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-coffeeia-stream.php');
         // Endpoint de persistencia de conversaciones (SQLite).
         this._apiChats  = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-chats.php');
+        // Endpoint de GitHub Projects (GraphQL via token en credentials/.env).
+        this._apiGithub = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-github.php');
         this._app     = appRef;
         this.history  = [];
         this._currentChatUid = null;   // uid de la conversacion guardada activa (para re-guardar/actualizar)
@@ -2846,6 +2848,7 @@ class CoffeeIA {
                 case 'save':   $('#iaToolsMenu').hide(); this.saveConversation();    break;
                 case 'saved':  $('#iaToolsMenu').hide(); this.openSavedChatsModal(); break;
                 case 'clear':  $('#iaToolsMenu').hide(); this.clearConversation();   break;
+                case 'github': $('#iaToolsMenu').hide(); this._openGithubProjects();  break;
                 case 'graph':  this._setGraphMode($it.data('graph')); break;
             }
         });
@@ -3940,6 +3943,208 @@ class CoffeeIA {
         }
     }
 
+    /* ── GitHub Projects: tablero como "card" dentro del chat ──────────────
+       Entrada: menu Herramientas -> "GitHub Projects". Consulta ctrl-github.php
+       (GraphQL con el token de credentials/.env) y pinta una tarjeta con los
+       items agrupados por Status y badges de Size. */
+
+    async _openGithubProjects() {
+        this._switchToChat();
+        const $card = this._ghCardShell('Cargando GitHub Projects…');
+        $('#iaBodyChat').append($card);
+        this._ghScroll();
+        try {
+            const data = await this._ghFetch('list');
+            if (!data || !data.ok) { this._ghError($card, (data && data.error) || 'No se pudieron leer los Projects.'); return; }
+            const projects = data.projects || [];
+            if (projects.length === 0) {
+                const extra = data.inaccessible ? ` (${data.inaccessible} sin acceso con este token)` : '';
+                this._ghError($card, 'No se encontraron Projects accesibles.' + extra);
+                return;
+            }
+            if (projects.length === 1) {
+                await this._loadProjectBoard(projects[0].number, $card, data.inaccessible);
+            } else {
+                this._ghRenderPicker($card, projects, data.inaccessible);
+            }
+        } catch (e) {
+            this._ghError($card, 'Error de red al consultar GitHub.');
+        }
+    }
+
+    async _loadProjectBoard(number, $card, inaccessible) {
+        if (!$card || !$card.length) $card = this._ghCardShell('Cargando tablero…');
+        if (!$card.parent().length) $('#iaBodyChat').append($card);
+        this._ghSetLoading($card, 'Cargando tablero…');
+        this._ghScroll();
+        try {
+            const data = await this._ghFetch('items', { number });
+            if (!data || !data.ok) { this._ghError($card, (data && data.error) || 'No se pudo cargar el tablero.'); return; }
+            this._ghRenderBoard($card, data.project, data.items || [], inaccessible);
+        } catch (e) {
+            this._ghError($card, 'Error de red al cargar el tablero.');
+        }
+    }
+
+    async _ghFetch(opc, extra) {
+        const form = new FormData();
+        form.append('opc', opc);
+        if (extra) Object.keys(extra).forEach(k => form.append(k, extra[k]));
+        const res = await fetch(this._apiGithub, { method: 'POST', body: form });
+        return res.json();
+    }
+
+    _ghCardShell(loadingText) {
+        return $(`
+            <div class="ia-msg ai">
+                <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA · GitHub</span></div>
+                <div class="ia-gh-card">
+                    <div class="ia-gh-loading"><span class="ia-gh-spin"></span>${this._escape(loadingText || 'Cargando…')}</div>
+                </div>
+            </div>
+        `);
+    }
+
+    _ghSetLoading($card, text) {
+        $card.find('.ia-gh-card').html(`<div class="ia-gh-loading"><span class="ia-gh-spin"></span>${this._escape(text)}</div>`);
+    }
+
+    _ghError($card, msg) {
+        $card.find('.ia-gh-card').html(`
+            <div class="ia-gh-error">
+                <i data-lucide="alert-triangle"></i>
+                <div class="ia-gh-error-body">
+                    <p>${this._escape(msg)}</p>
+                    <button type="button" class="ia-gh-retry">Reintentar</button>
+                </div>
+            </div>
+        `);
+        $card.find('.ia-gh-retry').on('click', () => this._openGithubProjects());
+        if (window.lucide) lucide.createIcons();
+        this._ghScroll();
+    }
+
+    _ghRenderPicker($card, projects, inaccessible) {
+        const rows = projects.map(p => `
+            <button type="button" class="ia-gh-pick" data-number="${p.number}">
+                <i data-lucide="layout-list"></i>
+                <span class="ia-gh-pick-info">
+                    <span class="ia-gh-pick-title">${this._escape(p.title)}</span>
+                    <span class="ia-gh-pick-sub">${p.itemsCount} items · ${this._ghDate(p.updatedAt)}</span>
+                </span>
+            </button>
+        `).join('');
+        const note = inaccessible ? `<div class="ia-gh-note">${inaccessible} project(s) sin acceso con este token.</div>` : '';
+        $card.find('.ia-gh-card').html(`
+            <div class="ia-gh-head"><i data-lucide="github"></i><span class="ia-gh-title">Elige un project</span></div>
+            <div class="ia-gh-picklist">${rows}</div>
+            ${note}
+        `);
+        $card.find('.ia-gh-pick').on('click', (e) => {
+            this._loadProjectBoard($(e.currentTarget).data('number'), $card, inaccessible);
+        });
+        if (window.lucide) lucide.createIcons();
+        this._ghScroll();
+    }
+
+    _ghRenderBoard($card, project, items, inaccessible) {
+        const STATUS_ORDER = ['todo', 'to do', 'in progress', 'done'];
+        const groups = {};
+        items.forEach(it => {
+            const s = it.status || 'Sin estado';
+            (groups[s] = groups[s] || []).push(it);
+        });
+        const keys = Object.keys(groups).sort((a, b) => {
+            const ia = STATUS_ORDER.indexOf(a.toLowerCase());
+            const ib = STATUS_ORDER.indexOf(b.toLowerCase());
+            const va = ia === -1 ? 98 : ia, vb = ib === -1 ? 98 : ib;
+            return va - vb || a.localeCompare(b);
+        });
+
+        const total     = items.length;
+        const doneCount = (groups['Done'] || []).length;
+        const pct       = total ? Math.round(doneCount / total * 100) : 0;
+
+        const sizeCount = items.reduce((m, it) => { if (it.size) m[it.size] = (m[it.size] || 0) + 1; return m; }, {});
+        const sizeChips = ['XS', 'S', 'M', 'L', 'XL'].filter(s => sizeCount[s]).map(s => `${sizeCount[s]} ${s}`).join(' · ');
+
+        const groupsHtml = keys.map(k => this._ghGroupHtml(k, groups[k])).join('');
+        const note = inaccessible ? `<div class="ia-gh-note">${inaccessible} project(s) sin acceso con este token.</div>` : '';
+
+        $card.find('.ia-gh-card').html(`
+            <div class="ia-gh-head">
+                <i data-lucide="github"></i>
+                <span class="ia-gh-title" title="${this._escape(project.title)}">${this._escape(project.title)}</span>
+                <span class="ia-gh-actions">
+                    <button type="button" class="ia-gh-iconbtn ia-gh-refresh" title="Refrescar"><i data-lucide="refresh-cw"></i></button>
+                    ${project.url ? `<a class="ia-gh-iconbtn" href="${project.url}" target="_blank" rel="noopener" title="Abrir en GitHub"><i data-lucide="external-link"></i></a>` : ''}
+                </span>
+            </div>
+            <div class="ia-gh-sub">
+                <div class="ia-gh-progress"><span style="width:${pct}%"></span></div>
+                <span class="ia-gh-metaline">${doneCount}/${total} Done · ${pct}%${sizeChips ? ' · ' + sizeChips : ''}</span>
+            </div>
+            <div class="ia-gh-groups">${groupsHtml}</div>
+            ${note}
+        `);
+
+        $card.find('.ia-gh-refresh').on('click', () => this._loadProjectBoard(project.number, $card, inaccessible));
+        $card.find('.ia-gh-group-head').on('click', (e) => {
+            $(e.currentTarget).closest('.ia-gh-group').toggleClass('collapsed');
+        });
+        $card.find('.ia-gh-more').on('click', (e) => {
+            $(e.currentTarget).closest('.ia-gh-group').addClass('expanded');
+            $(e.currentTarget).remove();
+        });
+        if (window.lucide) lucide.createIcons();
+        this._ghScroll();
+    }
+
+    _ghGroupHtml(status, list) {
+        const meta  = this._ghStatusMeta(status);
+        const LIMIT = 5;
+        const rows = list.map((it, i) => `
+            <div class="ia-gh-item${i >= LIMIT ? ' ia-gh-extra' : ''}">
+                <span class="ia-gh-item-title" title="${this._escape(it.title)}">${this._escape(it.title)}</span>
+                ${it.size ? `<span class="ia-gh-size ia-gh-size-${this._escape((it.size || '').toLowerCase())}">${this._escape(it.size)}</span>` : ''}
+            </div>
+        `).join('');
+        const more = list.length > LIMIT
+            ? `<button type="button" class="ia-gh-more">ver ${list.length - LIMIT} más</button>`
+            : '';
+        return `
+            <div class="ia-gh-group" data-status="${this._escape(status)}">
+                <button type="button" class="ia-gh-group-head">
+                    <span class="ia-gh-dot" style="background:${meta.color}"></span>
+                    <span class="ia-gh-group-name">${this._escape(status)}</span>
+                    <span class="ia-gh-group-count">${list.length}</span>
+                    <i data-lucide="chevron-down" class="ia-gh-chev"></i>
+                </button>
+                <div class="ia-gh-items">${rows}${more}</div>
+            </div>
+        `;
+    }
+
+    _ghStatusMeta(status) {
+        const s = (status || '').toLowerCase();
+        if (s === 'done')                 return { color: '#22c55e' };
+        if (s.indexOf('progress') !== -1) return { color: '#eab308' };
+        if (s === 'todo' || s === 'to do')return { color: '#94a3b8' };
+        return { color: '#64748b' };
+    }
+
+    _ghDate(iso) {
+        if (!iso) return '';
+        try {
+            return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch (e) { return ''; }
+    }
+
+    _ghScroll() {
+        const el = $('#iaBodyChat')[0];
+        if (el) el.scrollTop = el.scrollHeight;
+    }
+
     // Reproduce el "pop" al crear un nuevo chat. La instancia de Audio se crea
     // una sola vez y se reinicia en cada uso para permitir reproducciones seguidas.
     _playPopSound() {
@@ -4064,6 +4269,9 @@ class CoffeeIA {
                 <div class="ia-render-toolbar">
                     <span><i data-lucide="git-graph" class="w-3 h-3"></i>Diagrama Mermaid</span>
                     <span class="ia-render-tabs">
+                        <button class="ia-render-btn is-icon ia-render-refresh" title="Actualizar (volver a generar el diagrama)">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                        </button>
                         <button class="ia-render-btn is-icon ia-render-toggle" data-target="${id}-code" title="Ver codigo">
                             <i data-lucide="code-2" class="w-3 h-3"></i>
                         </button>
@@ -4082,38 +4290,62 @@ class CoffeeIA {
 
         // Limpia los elementos temporales que Mermaid v10 deja en <body> tras
         // un render fallido (las "bombas" de syntax error que quedan flotando).
-        const cleanupOrphans = () => {
-            $('body > [id^="d' + id + '"], body > [id="' + id + '-svg"]').remove();
+        const cleanupOrphans = (rid) => {
+            $('body > [id^="d' + rid + '"], body > [id="' + rid + '-svg"]').remove();
             $('body > .mermaidTooltip').remove();
         };
 
-        try {
-            mermaid.initialize({
-                startOnLoad: false,
-                theme: this._getTheme() === 'light' ? 'default' : 'dark',
-                securityLevel: 'strict'
-            });
-            mermaid.render(id + '-svg', code).then(({ svg }) => {
-                $wrap.find('.ia-render-view').html(svg);
-                $wrap.data('mermaid-svg', svg);
-                $wrap.find('.ia-render-expand').show();
-                cleanupOrphans();
-            }).catch((err) => {
-                cleanupOrphans();
-                const msg = this._escape(err.message || err);
-                $wrap.find('.ia-render-view').html(
-                    `<div class="ia-render-error">
-                        <strong>Error Mermaid:</strong> ${msg}
-                        <div style="margin-top:6px;font-size:11px;color:var(--vsr-text-mute2);">El diagrama tiene sintaxis invalida. Pulsa "Codigo" para revisar la fuente.</div>
-                    </div>`
+        // Dibuja (o vuelve a dibujar) el diagrama. Cada intento usa un id nuevo para
+        // que Mermaid no choque con un render previo del mismo bloque. Lo reusan el
+        // render inicial y el boton "Actualizar" (util cuando el diagrama sale en
+        // blanco la primera vez por timing/visibilidad del drawer).
+        const draw = () => {
+            const $view = $wrap.find('.ia-render-view').show();
+            $wrap.find('.ia-render-source').hide();
+            $wrap.find('.ia-render-toggle')
+                .html('<i data-lucide="code-2" class="w-3 h-3"></i>')
+                .attr('title', 'Ver codigo');
+            $view.html('<div class="ia-render-loading"><span class="ia-gh-spin"></span>Generando diagrama&hellip;</div>');
+            const rid = 'mer-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+            try {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: this._getTheme() === 'light' ? 'default' : 'dark',
+                    securityLevel: 'strict'
+                });
+                mermaid.render(rid + '-svg', $wrap.data('mermaid-code')).then(({ svg }) => {
+                    $view.html(svg);
+                    $wrap.data('mermaid-svg', svg);
+                    $wrap.find('.ia-render-expand').show();
+                    cleanupOrphans(rid);
+                    if (window.lucide) lucide.createIcons();
+                }).catch((err) => {
+                    cleanupOrphans(rid);
+                    const msg = this._escape(err.message || err);
+                    $view.html(
+                        `<div class="ia-render-error">
+                            <strong>Error Mermaid:</strong> ${msg}
+                            <div style="margin-top:6px;font-size:11px;color:var(--vsr-text-mute2);">El diagrama tiene sintaxis invalida. Pulsa "Codigo" para revisar la fuente y luego "Actualizar".</div>
+                        </div>`
+                    );
+                    if (window.lucide) lucide.createIcons();
+                });
+            } catch (e) {
+                cleanupOrphans(rid);
+                $view.html(
+                    `<div class="ia-render-error">Error Mermaid: ${this._escape(e.message || e)}</div>`
                 );
-            });
-        } catch (e) {
-            cleanupOrphans();
-            $wrap.find('.ia-render-view').html(
-                `<div class="ia-render-error">Error Mermaid: ${this._escape(e.message || e)}</div>`
-            );
-        }
+            }
+        };
+
+        draw();
+
+        // Actualizar: re-genera el diagrama on-demand.
+        $wrap.find('.ia-render-refresh').on('click', (e) => {
+            const $btn = $(e.currentTarget).addClass('is-spinning');
+            draw();
+            setTimeout(() => $btn.removeClass('is-spinning'), 600);
+        });
 
         $wrap.find('.ia-render-toggle').on('click', (e) => {
             const $btn = $(e.currentTarget);

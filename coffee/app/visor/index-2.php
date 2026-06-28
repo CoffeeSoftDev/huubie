@@ -422,8 +422,16 @@
                                 <button type="button" class="graph-menu-item" data-tool="clear">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
-                                        <span class="graph-menu-name">Limpiar conversaci&oacute;n</span>
+                                        <span class="graph-menu-name">Limpiar</span>
                                         <span class="graph-menu-desc">Borra los mensajes actuales</span>
+                                    </span>
+                                </button>
+                                <div class="graph-menu-sep"></div>
+                                <button type="button" class="graph-menu-item" data-tool="github">
+                                    <i data-lucide="folder-git-2" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">GitHub Projects</span>
+                                        <span class="graph-menu-desc">Ver tus tableros en el chat</span>
                                     </span>
                                 </button>
                                 <div class="graph-menu-sep"></div>
