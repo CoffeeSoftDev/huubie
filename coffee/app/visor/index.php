@@ -329,6 +329,9 @@
 
                 <!-- Lienzo de bocetos (Excalidraw). Oculto salvo modo boceto. -->
                 <div id="excalidrawStage" class="excalidraw-stage hidden"></div>
+
+                <!-- Tablero de GitHub Projects (panel derecho). Oculto salvo modo github. -->
+                <div id="githubStage" class="github-stage hidden"></div>
             </div>
 
             </div><!-- /.visor-main-col -->

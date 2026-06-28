@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-visor.php';
 let apiIA = 'ctrl/ctrl-coffeeia.php';
-let visor, visorView, app, coffeeIA, drawioBoard;
+let visor, visorView, app, coffeeIA, drawioBoard, githubBoard;
 
 const VISOR_STORAGE_KEY = 'visor:settings:v1';
 const VISOR_PINNED_KEY  = 'visor:pinned:v1';
@@ -24,6 +24,7 @@ $(async () => {
     drawioBoard = new DrawioBoard(app, api);
     await app.init();
     coffeeIA = new CoffeeIA(apiIA, app);
+    githubBoard = new GithubBoard(app, apiIA.replace('ctrl-coffeeia.php', 'ctrl-github.php'));
 });
 
 // Divisor arrastrable entre el documento (izq) y el lienzo (der) en modo split.
@@ -2848,7 +2849,7 @@ class CoffeeIA {
                 case 'save':   $('#iaToolsMenu').hide(); this.saveConversation();    break;
                 case 'saved':  $('#iaToolsMenu').hide(); this.openSavedChatsModal(); break;
                 case 'clear':  $('#iaToolsMenu').hide(); this.clearConversation();   break;
-                case 'github': $('#iaToolsMenu').hide(); this._openGithubProjects();  break;
+                case 'github': $('#iaToolsMenu').hide(); if (typeof githubBoard !== 'undefined' && githubBoard) githubBoard.open(); break;
                 case 'graph':  this._setGraphMode($it.data('graph')); break;
             }
         });
@@ -5165,5 +5166,191 @@ class CoffeeIA {
             slug = `respuesta-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
         }
         return slug + '.md';
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * GithubBoard — tablero de GitHub Projects (v2) en el panel derecho (split).
+ *
+ * Se abre desde el menu Herramientas de CoffeeIA ("GitHub Projects") y monta un
+ * tablero estilo GitHub en #githubStage, en split con el documento (igual que el
+ * lienzo draw.io/Excalidraw, via body.github-mode). Columnas = Status; filtro
+ * por Sprint (Iteration). Datos: ctrl/ctrl-github.php (GraphQL, token en .env).
+ * ───────────────────────────────────────────────────────────────────────── */
+class GithubBoard {
+
+    constructor(app, link) {
+        this.app     = app;
+        this._link   = link;          // ctrl/ctrl-github.php
+        this.stageId = 'githubStage';
+        this.active  = false;
+        this.number  = null;
+        this.data    = null;          // { project, items, statusOptions, iterations }
+        this.sprintFilter = '';       // '' = todos los sprints
+    }
+
+    async open(number) {
+        this.active = true;
+        this._showStage(true);
+        const host = document.getElementById(this.stageId);
+        if (host) host.innerHTML = '<div class="ghb-state"><span class="ia-gh-spin"></span> Cargando tablero&hellip;</div>';
+
+        try {
+            // Sin number: listar y abrir el primer project accesible.
+            if (!number) {
+                const list = await this._fetch('list');
+                if (!list || !list.ok) return this._renderError((list && list.error) || 'No se pudieron leer los Projects.');
+                const projs = list.projects || [];
+                if (!projs.length) {
+                    const extra = list.inaccessible ? ` (${list.inaccessible} sin acceso con este token)` : '';
+                    return this._renderError('No hay Projects accesibles.' + extra);
+                }
+                number = projs[0].number;
+            }
+            this.number = number;
+            const data = await this._fetch('items', { number });
+            if (!data || !data.ok) return this._renderError((data && data.error) || 'No se pudo cargar el tablero.');
+            this.data = data;
+            this.sprintFilter = '';
+            this._render();
+        } catch (e) {
+            this._renderError('Error de red al consultar GitHub.');
+        }
+    }
+
+    close() {
+        this.active = false;
+        const host = document.getElementById(this.stageId);
+        if (host) host.innerHTML = '';
+        this._showStage(false);
+    }
+
+    async _fetch(opc, extra) {
+        const form = new FormData();
+        form.append('opc', opc);
+        if (extra) Object.keys(extra).forEach(k => form.append(k, extra[k]));
+        const res = await fetch(this._link, { method: 'POST', body: form });
+        return res.json();
+    }
+
+    // Split: documento a la izquierda, tablero a la derecha (como el lienzo).
+    _showStage(show) {
+        $('body').toggleClass('github-mode', show);
+        $('#' + this.stageId).toggleClass('hidden', !show);
+        $('.cs-tabs-inline, #btnEdit, #btnCopyPath, #docStyleSelect, .doc-zoom, .doc-toolbar-sep')
+            .toggleClass('hidden', show);
+        if (typeof visorMountStageResizer === 'function') visorMountStageResizer(show);
+    }
+
+    _render() {
+        const host = document.getElementById(this.stageId);
+        if (!host) return;
+        const p = this.data.project || {};
+        const sprints = this.data.iterations || [];
+
+        const pills = [{ title: '', label: 'Todos' }]
+            .concat(sprints.map(s => ({ title: s.title, label: s.title, active: s.active })))
+            .map(s => `<button type="button" class="ghb-pill${this.sprintFilter === s.title ? ' is-active' : ''}" data-sprint="${this._esc(s.title)}">${this._esc(s.label)}${s.active ? ' <span class="ghb-live">&#9679;</span>' : ''}</button>`)
+            .join('');
+
+        host.innerHTML = `
+            <div class="ghb">
+                <div class="ghb-bar">
+                    <div class="ghb-bar-left">
+                        <i data-lucide="folder-git-2"></i>
+                        <span class="ghb-title" title="${this._esc(p.title)}">${this._esc(p.title)}</span>
+                        <span class="ghb-sub">${p.total || (this.data.items || []).length} items</span>
+                    </div>
+                    <div class="ghb-bar-right">
+                        <button type="button" class="ghb-iconbtn ghb-refresh" title="Refrescar"><i data-lucide="refresh-cw"></i></button>
+                        ${p.url ? `<a class="ghb-iconbtn" href="${p.url}" target="_blank" rel="noopener" title="Abrir en GitHub"><i data-lucide="external-link"></i></a>` : ''}
+                        <button type="button" class="ghb-iconbtn ghb-close" title="Cerrar tablero"><i data-lucide="x"></i></button>
+                    </div>
+                </div>
+                <div class="ghb-sprints">${pills}</div>
+                <div class="ghb-cols">${this._columnsHtml()}</div>
+            </div>
+        `;
+
+        $(host).find('.ghb-close').on('click', () => this.close());
+        $(host).find('.ghb-refresh').on('click', () => this.open(this.number));
+        $(host).find('.ghb-pill').on('click', (e) => {
+            this.sprintFilter = $(e.currentTarget).attr('data-sprint') || '';
+            this._render();
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _columnsHtml() {
+        const items = this._filteredItems();
+        const cols  = (this.data.statusOptions || []).slice();
+        // Estados presentes en items pero no en las opciones (p. ej. "Sin estado").
+        items.forEach(it => { const s = it.status || 'Sin estado'; if (cols.indexOf(s) === -1) cols.push(s); });
+        if (!cols.length) cols.push('Sin estado');
+
+        return cols.map(st => {
+            const list  = items.filter(it => (it.status || 'Sin estado') === st);
+            const color = this._statusColor(st);
+            const cards = list.length ? list.map(it => this._cardHtml(it)).join('') : '<div class="ghb-empty">Sin items</div>';
+            return `
+                <div class="ghb-col">
+                    <div class="ghb-col-head">
+                        <span class="ghb-dot" style="background:${color}"></span>
+                        <span class="ghb-col-name">${this._esc(st)}</span>
+                        <span class="ghb-col-count">${list.length}</span>
+                    </div>
+                    <div class="ghb-col-body">${cards}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    _cardHtml(it) {
+        const typeIcon = it.type === 'PullRequest' ? 'git-pull-request'
+                       : (it.type === 'Issue' ? 'circle-dot' : 'square-dashed');
+        const sprintChip = it.sprint ? `<span class="ghb-chip"><i data-lucide="calendar-clock"></i>${this._esc(it.sprint)}</span>` : '';
+        const sizeChip   = it.size   ? `<span class="ghb-size ghb-size-${this._esc((it.size || '').toLowerCase())}">${this._esc(it.size)}</span>` : '';
+        return `
+            <div class="ghb-card">
+                <div class="ghb-card-title"><i data-lucide="${typeIcon}"></i><span>${this._esc(it.title)}</span></div>
+                ${(sprintChip || sizeChip) ? `<div class="ghb-card-foot">${sprintChip}${sizeChip}</div>` : ''}
+            </div>
+        `;
+    }
+
+    _filteredItems() {
+        const items = this.data.items || [];
+        if (!this.sprintFilter) return items;
+        return items.filter(it => (it.sprint || '') === this.sprintFilter);
+    }
+
+    _statusColor(status) {
+        const s = (status || '').toLowerCase();
+        if (s === 'done') return '#22c55e';
+        if (s.indexOf('progress') !== -1) return '#eab308';
+        if (s === 'backlog' || s === 'todo' || s === 'to do') return '#94a3b8';
+        return '#64748b';
+    }
+
+    _renderError(msg) {
+        const host = document.getElementById(this.stageId);
+        if (host) host.innerHTML = `
+            <div class="ghb-state ghb-error">
+                <i data-lucide="alert-triangle"></i>
+                <div>
+                    <p>${this._esc(msg)}</p>
+                    <button type="button" class="ghb-retry">Reintentar</button>
+                    <button type="button" class="ghb-close2">Cerrar</button>
+                </div>
+            </div>`;
+        $(host).find('.ghb-retry').on('click', () => this.open(this.number));
+        $(host).find('.ghb-close2').on('click', () => this.close());
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 }

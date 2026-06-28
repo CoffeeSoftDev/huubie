@@ -90,6 +90,19 @@ try {
                             url
                             shortDescription
                             updatedAt
+                            fields(first: 40) {
+                                nodes {
+                                    __typename
+                                    ... on ProjectV2SingleSelectField { name options { name } }
+                                    ... on ProjectV2IterationField {
+                                        name
+                                        configuration {
+                                            iterations { title startDate }
+                                            completedIterations { title startDate }
+                                        }
+                                    }
+                                }
+                            }
                             items(first: 100) {
                                 totalCount
                                 nodes {
@@ -105,6 +118,10 @@ try {
                                             __typename
                                             ... on ProjectV2ItemFieldSingleSelectValue {
                                                 name
+                                                field { ... on ProjectV2FieldCommon { name } }
+                                            }
+                                            ... on ProjectV2ItemFieldIterationValue {
+                                                title
                                                 field { ... on ProjectV2FieldCommon { name } }
                                             }
                                         }
@@ -126,12 +143,17 @@ try {
                 $content = $node['content'] ?? [];
                 $status  = null;
                 $size    = null;
+                $sprint  = null;
 
                 foreach (($node['fieldValues']['nodes'] ?? []) as $fv) {
-                    if (($fv['__typename'] ?? '') !== 'ProjectV2ItemFieldSingleSelectValue') continue;
+                    $tn    = $fv['__typename'] ?? '';
                     $fname = $fv['field']['name'] ?? '';
-                    if ($fname === 'Status') $status = $fv['name'] ?? null;
-                    elseif ($fname === 'Size') $size = $fv['name'] ?? null;
+                    if ($tn === 'ProjectV2ItemFieldSingleSelectValue') {
+                        if ($fname === 'Status')      $status = $fv['name'] ?? null;
+                        elseif ($fname === 'Size')    $size   = $fv['name'] ?? null;
+                    } elseif ($tn === 'ProjectV2ItemFieldIterationValue') {
+                        $sprint = $fv['title'] ?? null;
+                    }
                 }
 
                 $items[] = [
@@ -142,12 +164,32 @@ try {
                     'state'  => $content['state'] ?? '',
                     'status' => $status ?: 'Sin estado',
                     'size'   => $size ?: '',
+                    'sprint' => $sprint ?: '',
                 ];
             }
 
+            // Opciones de Status (define el orden de columnas) e iteraciones (sprints).
+            $statusOptions = [];
+            $iterations    = [];
+            foreach (($project['fields']['nodes'] ?? []) as $f) {
+                $tn = $f['__typename'] ?? '';
+                if ($tn === 'ProjectV2SingleSelectField' && ($f['name'] ?? '') === 'Status') {
+                    foreach (($f['options'] ?? []) as $o) {
+                        if (isset($o['name'])) $statusOptions[] = $o['name'];
+                    }
+                } elseif ($tn === 'ProjectV2IterationField') {
+                    foreach (($f['configuration']['iterations'] ?? []) as $it) {
+                        $iterations[] = ['title' => $it['title'] ?? '', 'startDate' => $it['startDate'] ?? '', 'active' => true];
+                    }
+                    foreach (($f['configuration']['completedIterations'] ?? []) as $it) {
+                        $iterations[] = ['title' => $it['title'] ?? '', 'startDate' => $it['startDate'] ?? '', 'active' => false];
+                    }
+                }
+            }
+
             echo json_encode([
-                'ok'      => true,
-                'project' => [
+                'ok'            => true,
+                'project'       => [
                     'number'           => $number,
                     'title'            => $project['title'] ?? '(sin titulo)',
                     'url'              => $project['url'] ?? '',
@@ -155,7 +197,9 @@ try {
                     'updatedAt'        => $project['updatedAt'] ?? '',
                     'total'            => $project['items']['totalCount'] ?? count($items),
                 ],
-                'items'   => $items,
+                'statusOptions' => $statusOptions,
+                'iterations'    => $iterations,
+                'items'         => $items,
             ], JSON_UNESCAPED_UNICODE);
             break;
 
