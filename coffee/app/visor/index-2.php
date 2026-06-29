@@ -144,26 +144,30 @@
         </nav>
 
         <aside class="visor-sidebar">
-            <div class="sidebar-search-wrap">
-                <div class="cs-input-group">
-                    <span class="cs-input-group-icon">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
-                        </svg>
-                    </span>
-                    <input id="sidebarSearch" type="text" placeholder="Filtrar archivos..." class="cs-input pl-9 w-full">
+            <div class="visor-sidebar-inner">
+                <div class="sidebar-search-wrap">
+                    <div class="cs-input-group">
+                        <span class="cs-input-group-icon">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+                            </svg>
+                        </span>
+                        <input id="sidebarSearch" type="text" placeholder="Filtrar archivos..." class="cs-input pl-9 w-full">
+                    </div>
                 </div>
-                <button id="btnToggleSidebar" class="sidebar-toggle-btn" title="Ocultar lista de archivos">
-                    <i data-lucide="panel-left-close" class="w-4 h-4"></i>
-                </button>
+
+                <div id="sidebarList" class="sidebar-list"></div>
+
+                <div class="sidebar-footer">
+                    <span id="footerSource">Local</span>
+                    <span id="footerPath">.claude/agents</span>
+                </div>
             </div>
 
-            <div id="sidebarList" class="sidebar-list"></div>
-
-            <div class="sidebar-footer">
-                <span id="footerSource">Local</span>
-                <span id="footerPath">.claude/agents</span>
-            </div>
+            <!-- Handle flotante: colapsa/expande el panel desde el borde derecho. -->
+            <button id="btnToggleSidebar" class="visor-collapse-handle" title="Ocultar lista de archivos" aria-label="Colapsar panel">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
         </aside>
 
         <main id="root" class="visor-main">

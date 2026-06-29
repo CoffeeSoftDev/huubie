@@ -1200,10 +1200,12 @@ async function pgSend(text, images, docs) {
     images = Array.isArray(images) ? images : [];
     docs   = Array.isArray(docs)   ? docs   : [];
 
-    // Aviso: si se adjuntó imagen pero el modelo activo no tiene visión, no la
-    // procesará (de ahí que el render no respete la imagen). Sugerir cambiarlo.
-    if (images.length && pg.model && !pgModelHasVision(pg.model)) {
-        pgToast('Este modelo no analiza imágenes. Elige uno con visión (los marcados con “vision”).', 'warn');
+    // Si el modelo activo NO tiene visión, las imágenes no viajan al modelo: se
+    // OMITEN del payload (las seguimos mostrando en el chat y conservando en el
+    // history por si luego se cambia a un modelo con visión). Avisar al usuario.
+    const dropImages = !!pg.model && !pgModelHasVision(pg.model);
+    if (images.length && dropImages) {
+        pgToast('Este modelo no tiene visión: la imagen no se enviará. Elige uno con visión (los marcados con “vision”).', 'warn');
     }
 
     // Template fijado como referencia: su HTML se inyecta al content para que el
@@ -1284,7 +1286,7 @@ async function pgSend(text, images, docs) {
     // Si el usuario adjuntó imagen(es), exigir fidelidad visual: el render debe
     // reproducir colores, tono (claro/oscuro), tipografía y composición de la
     // imagen, no una interpretación libre del agente.
-    if (images.length && usesDesignSystem) {
+    if (images.length && usesDesignSystem && !dropImages) {
         systemOverride += `\n\n## Fidelidad a la imagen de referencia\n`
             + `El usuario adjuntó imagen(es). Analízalas y REPRODUCE fielmente su estilo visual: `
             + `paleta de colores exacta, tono (si la imagen es CLARA, el componente va claro; si es OSCURA, oscuro), `
@@ -1300,7 +1302,8 @@ async function pgSend(text, images, docs) {
     const payload = {
         messages: pg.history.map(m => {
             const o = { role: m.role, content: m.content };
-            if (m.images && m.images.length) o.images = m.images;
+            // Solo adjuntar imágenes si el modelo activo tiene visión.
+            if (!dropImages && m.images && m.images.length) o.images = m.images;
             return o;
         }),
         systemOverride: systemOverride,

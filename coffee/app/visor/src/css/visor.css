@@ -99,33 +99,56 @@ html, body { height: 100%; }
 .visor-sidebar {
     width: 320px;
     flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
+    position: relative;            /* contexto de posicion para el handle flotante */
     background-color: var(--vsr-bg-chrome);
     border-right: 1px solid var(--vsr-border);
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;             /* deja sobresalir el handle del borde derecho */
     transition: width .22s cubic-bezier(.4, 0, .2, 1);
 }
-/* Modo rail: solo iconos de archivos visibles */
-.visor-sidebar.is-collapsed { width: 56px; }
+/* Wrapper interno: aplica el layout en columna y recorta el contenido al ancho
+   del panel (el handle vive fuera de este wrapper para poder sobresalir). */
+.visor-sidebar-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+/* Panel oculto: el ancho colapsa a 0 y el contenido se recorta por completo;
+   solo queda visible el handle flotante para volver a abrirlo. */
+.visor-sidebar.is-collapsed { width: 0; }
+/* Colapsado: el handle sobresale entero hacia el documento (no se monta sobre
+   el rail de navegacion, que queda inmediatamente a su izquierda). */
+.visor-sidebar.is-collapsed .visor-collapse-handle { right: -22px; }
 
-/* Toggle del sidebar (vive dentro de .sidebar-search-wrap) */
-.sidebar-toggle-btn {
-    width: 30px; height: 30px;
+/* Handle flotante de colapso, anclado al borde derecho del panel.
+   Sobresale unos px para seguir siendo clickeable cuando el panel se colapsa. */
+.visor-collapse-handle {
+    position: absolute;
+    top: 50%;
+    right: -11px;
+    transform: translateY(-50%);
+    z-index: 30;
+    width: 22px; height: 46px;
     display: inline-flex; align-items: center; justify-content: center;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 6px;
+    padding: 0;
+    background: var(--vsr-bg-chrome);
+    border: 1px solid var(--vsr-border);
+    border-radius: 7px;
     color: var(--vsr-text-mute2);
     cursor: pointer;
-    transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+    transition: background-color .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease;
 }
-.sidebar-toggle-btn:hover {
+.visor-collapse-handle:hover {
     color: var(--vsr-text);
     background: var(--vsr-bg-hover);
     border-color: var(--vsr-border-soft);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, .28);
 }
+.visor-collapse-handle i,
+.visor-collapse-handle svg { width: 16px; height: 16px; }
 
 /* Boton "Nuevo archivo" (icono, junto al toggle del sidebar) */
 .sidebar-new-btn {
@@ -153,12 +176,9 @@ html, body { height: 100%; }
 }
 
 /* === Estado colapsado: oculta texto y badges, solo iconos === */
-.visor-sidebar.is-collapsed .sidebar-search-wrap {
-    padding: 6px 0;
-    justify-content: center;
-    gap: 0;
-    border-bottom: none;
-}
+/* El header de busqueda queda vacio al colapsar (input oculto, toggle movido al
+   handle flotante), asi que se oculta para dejar un rail limpio. */
+.visor-sidebar.is-collapsed .sidebar-search-wrap { display: none; }
 .visor-sidebar.is-collapsed .sidebar-search-wrap .cs-input-group,
 .visor-sidebar.is-collapsed .sidebar-search-wrap .sidebar-new-btn { display: none; }
 .visor-sidebar.is-collapsed .sidebar-list { padding: 0; }
@@ -256,7 +276,6 @@ html, body { height: 100%; }
     gap: 8px;
 }
 .sidebar-search-wrap .cs-input-group { flex: 1 1 auto; min-width: 0; }
-.sidebar-search-wrap .sidebar-toggle-btn { flex-shrink: 0; }
 
 .sidebar-list {
     flex: 1 1 auto;
@@ -4247,10 +4266,11 @@ body.ia-drawer-resizing * {
     }
     .visor-main   { width: 100%; flex: 1 1 auto; }
     .main-content { padding: 14px 12px; }
-    .sidebar-toggle-btn { display: none; }   /* colapsar a rail no aplica en móvil */
+    .visor-collapse-handle { display: none; }   /* colapsar a rail no aplica en móvil */
 
     /* El sidebar siempre expandido en móvil (anula el modo rail colapsado). */
     .visor-sidebar.is-collapsed { width: 100% !important; }
+    .visor-sidebar.is-collapsed .sidebar-search-wrap { display: flex; }
     .visor-sidebar.is-collapsed .sidebar-search-wrap .cs-input-group,
     .visor-sidebar.is-collapsed .sidebar-footer,
     .visor-sidebar.is-collapsed .section-header,
