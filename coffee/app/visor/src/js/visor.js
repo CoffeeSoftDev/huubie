@@ -7,9 +7,9 @@ const VISOR_PINNED_KEY  = 'visor:pinned:v1';
 const VISOR_USER_KEY    = 'visor:user:v1';
 
 const VISOR_USERS = [
-    { id: 'rosy',     name: 'Rosy V.',  role: 'Guardiana',     initials: 'RV', color: '#6366f1', canUseIA: false },
-    { id: 'somx',     name: 'Somx',     role: 'Desarrollador', initials: 'SO', color: '#22c55e', canUseIA: false },
-    { id: 'invitado', name: 'Invitado', role: 'Visitante',     initials: 'IN', color: '#94a3b8', canUseIA: true  }
+    { id: 'rosy',     name: 'Rosy V.',  role: 'Guardiana',     initials: 'RV', color: '#6366f1' },
+    { id: 'somx',     name: 'Somx',     role: 'Desarrollador', initials: 'SO', color: '#22c55e' },
+    { id: 'invitado', name: 'Invitado', role: 'Visitante',     initials: 'IN', color: '#94a3b8' }
 ];
 const EDITABLE_EXTS = [
     'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
@@ -112,17 +112,6 @@ class App {
         $('#userInitials').text(user.initials).css('background', user.color);
         $('#userName').text(user.name);
         $('#userRole').text(user.role);
-
-        // Permiso para usar CoffeeIA
-        const $btnIA = $('#btnToggleCoffeeIA');
-        if (user.canUseIA) {
-            $btnIA.show();
-        } else {
-            $btnIA.hide();
-            if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA.isOpen) {
-                coffeeIA.close();
-            }
-        }
     }
 
     renderUserMenu() {
@@ -133,7 +122,6 @@ class App {
                     <span class="user-menu-name">${u.name}</span>
                     <span class="user-menu-role">${u.role}</span>
                 </span>
-                ${u.canUseIA ? '<span class="user-menu-badge"><i data-lucide="sparkles" class="w-3 h-3"></i>IA</span>' : ''}
                 ${u.id === this.currentUser.id ? '<i data-lucide="check" class="w-3.5 h-3.5 user-menu-check"></i>' : ''}
             </button>
         `).join('');
@@ -392,9 +380,53 @@ class App {
         this.bindDocStyle();
         this.bindToc();
         this.bindSidebarToggle();
+        this.bindMobileSidebar();
         this.bindIaDrawerResize();
         this.bindUserMenu();
         this.bindNewFileModal();
+    }
+
+    bindMobileSidebar() {
+        const isMobile = () => window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
+
+        // Conmutador Archivos/Documento (solo visible en móvil vía CSS).
+        $('.vsr-mswitch').off('click').on('click', function () {
+            const view = $(this).data('mview');
+            $('.vsr-mswitch').removeClass('active');
+            $(this).addClass('active');
+            $('.visor-body-row').attr('data-mview', view);
+        });
+
+        // Al elegir un ARCHIVO en móvil, saltar a la vista Documento. Las carpetas
+        // (.docs-folder-row / .tree-folder-toggle, sin data-file) NO conmutan: deben
+        // dejar el sidebar visible para mostrar su contenido al expandir/entrar.
+        $('#sidebarList').off('click.mobileSwitch').on('click.mobileSwitch', '.sidebar-item', function () {
+            if (isMobile() && $(this).attr('data-file')) {
+                $('.vsr-mswitch').removeClass('active');
+                $('.vsr-mswitch[data-mview="doc"]').addClass('active');
+                $('.visor-body-row').attr('data-mview', 'doc');
+            }
+        });
+
+        // Botón Ajustes (solo móvil): despliega/colapsa los controles del header.
+        const closeHeader = () => {
+            $('#vsrHeaderRight').removeClass('is-open');
+            $('#vsrHeaderToggle').attr('aria-expanded', 'false').removeClass('is-active');
+        };
+        $('#vsrHeaderToggle').off('click').on('click', function (e) {
+            e.stopPropagation();
+            const open = !$('#vsrHeaderRight').hasClass('is-open');
+            $('#vsrHeaderRight').toggleClass('is-open', open);
+            $(this).attr('aria-expanded', open ? 'true' : 'false').toggleClass('is-active', open);
+        });
+        $('#vsrHeaderRight').off('change.mobileHeader').on('change.mobileHeader', 'select', () => {
+            if (isMobile()) closeHeader();
+        });
+        $(document).off('click.vsrHeader').on('click.vsrHeader', (e) => {
+            if (!$('#vsrHeaderRight').hasClass('is-open')) return;
+            if ($(e.target).closest('#vsrHeaderRight, #vsrHeaderToggle').length) return;
+            closeHeader();
+        });
     }
 
     applySidebarCollapsed(collapsed, withTransition) {
@@ -1529,7 +1561,18 @@ class App {
 
         $('#sidebarList .sidebar-item').off('click').on('click', (e) => {
             const $el = $(e.currentTarget);
-            if ($el.hasClass('tree-folder-toggle')) return; // las carpetas las maneja toggleFolderNode
+            if ($el.hasClass('tree-folder-toggle')) return; // las carpetas lazy las maneja toggleFolderNode
+            // Carpeta de la vista de documentos: entrar a ella (navegacion tipo explorador).
+            // Se maneja aqui porque .docs-folder-row es .sidebar-item y este .off('click')
+            // borraria el handler que pone renderSidebarTree.
+            if ($el.hasClass('docs-folder-row')) {
+                const proj = $el.data('project');
+                try { localStorage.setItem('visor:docs:folder', proj); } catch (er) {}
+                visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
+                this.bindSidebarClicks();
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
             const fileName = $el.data('file');
             if (fileName) this.loadFile(fileName);
         });
@@ -2105,20 +2148,9 @@ class VisorView {
         // Crear archivos solo en origenes locales validos (Drive no usa 'save').
         // El unico boton "+" vive en la cabecera raiz; el destino se elige en el modal.
         const canCreate = !!(header && header.source !== 'Drive' && header.currentPath && header.valid !== false);
-        // Convencion: todo arranca COLAPSADO; localStorage guarda solo lo
-        // que el usuario ha expandido manualmente.
-        let expanded = [];
         let expandedTypes = [];
-        try {
-            expanded      = JSON.parse(localStorage.getItem('visor:tree:expanded') || '[]');
-            expandedTypes = JSON.parse(localStorage.getItem('visor:tree:expandedTypes') || '[]');
-        } catch (e) { expanded = []; expandedTypes = []; }
-        // Acordeon: a lo sumo UNA carpeta raiz puede quedar abierta. Si un estado
-        // previo guardo varias, conservamos solo la primera (tambien al iniciar).
-        if (Array.isArray(expanded) && expanded.length > 1) {
-            expanded = [expanded[0]];
-            try { localStorage.setItem('visor:tree:expanded', JSON.stringify(expanded)); } catch (e) {}
-        }
+        try { expandedTypes = JSON.parse(localStorage.getItem('visor:tree:expandedTypes') || '[]'); }
+        catch (e) { expandedTypes = []; }
         // Cuando hay filtro activo, abrimos todo para que se vean los resultados.
         const forceOpen = f !== '';
 
@@ -2128,42 +2160,37 @@ class VisorView {
             return hay.includes(f);
         };
 
-        let hasAny = false;
-        let html = '';
+        const typeSort = (a, b) => {
+            if (a === '(sin clasificar)') return 1;
+            if (b === '(sin clasificar)') return -1;
+            return a.localeCompare(b);
+        };
 
-        for (const proj of Object.keys(documents).sort((a, b) => a.localeCompare(b))) {
+        const fileRow = (item) => {
+            const fmt = visor.fileFormat(item);
+            return `
+                <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" title="${item.file}">
+                    <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
+                    <span class="file-name">${item.file}</span>
+                    ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
+                    <span class="file-size">${item.size}</span>
+                    ${this.delBtnHtml(item)}
+                    ${this.pinBtnHtml(item.file)}
+                </div>`;
+        };
+
+        // Contenido interno (tipos + archivos) de UN proyecto. openTypes = true abre los
+        // tipos de entrada (vista de carpeta) para ver el contenido sin un clic extra.
+        const buildProjectInner = (proj, openTypes) => {
             const types = documents[proj];
-            let projTotal = 0;
-            let projHtml = '';
-
-            for (const tipo of Object.keys(types).sort((a, b) => {
-                if (a === '(sin clasificar)') return 1;
-                if (b === '(sin clasificar)') return -1;
-                return a.localeCompare(b);
-            })) {
-                const items = types[tipo];
-                const matched = f ? items.filter(filterMatch) : items;
+            let total = 0, inner = '';
+            for (const tipo of Object.keys(types).sort(typeSort)) {
+                const matched = f ? types[tipo].filter(filterMatch) : types[tipo];
                 if (!matched.length) continue;
-                projTotal += matched.length;
-
+                total += matched.length;
                 const typeKey = `${proj}::${tipo}`;
-                const typeCollapsed = forceOpen ? false : !expandedTypes.includes(typeKey);
-
-                const typeRows = matched.map(item => {
-                    const fmt = visor.fileFormat(item);
-                    return `
-                    <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" title="${item.file}">
-                        <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
-                        <span class="file-name">${item.file}</span>
-                        ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
-                        <span class="file-size">${item.size}</span>
-                        ${this.delBtnHtml(item)}
-                        ${this.pinBtnHtml(item.file)}
-                    </div>
-                `;
-                }).join('');
-
-                projHtml += `
+                const typeCollapsed = (forceOpen || openTypes) ? false : !expandedTypes.includes(typeKey);
+                inner += `
                     <div class="tree-type-header ${typeCollapsed ? 'collapsed' : ''}" data-type-key="${typeKey}">
                         <span class="tree-type-label">
                             <i data-lucide="chevron-right" class="tree-chevron tree-chevron-sm"></i>
@@ -2173,26 +2200,67 @@ class VisorView {
                         </span>
                         <span class="badge-count">${matched.length}</span>
                     </div>
-                    <div class="tree-files-wrap ${typeCollapsed ? 'collapsed' : ''}" data-type-body="${typeKey}">${typeRows}</div>
-                `;
+                    <div class="tree-files-wrap ${typeCollapsed ? 'collapsed' : ''}" data-type-body="${typeKey}">${matched.map(fileRow).join('')}</div>`;
             }
+            return { total, inner };
+        };
 
-            if (!projTotal) continue;
-            hasAny = true;
-            const isCollapsed = forceOpen ? false : !expanded.includes(proj);
+        const projNames = Object.keys(documents).sort((a, b) => a.localeCompare(b));
 
-            html += `
-                <div class="tree-project-header ${isCollapsed ? 'collapsed' : ''}" data-project="${proj}">
-                    <span class="tree-type-label">
-                        <i data-lucide="chevron-right" class="tree-chevron"></i>
-                        <i data-lucide="folder" class="tree-folder-icon tree-folder-closed"></i>
-                        <i data-lucide="folder-open" class="tree-folder-icon tree-folder-open"></i>
-                        <span class="font-semibold tree-project-name">${proj}</span>
-                    </span>
-                    <span class="badge-count">${projTotal}</span>
+        // Carpeta abierta (navegacion tipo explorador). Solo aplica SIN filtro; si la
+        // carpeta ya no existe (cambio de origen) se cae a la vista raiz.
+        let docFolder = '';
+        try { docFolder = localStorage.getItem('visor:docs:folder') || ''; } catch (e) {}
+        if (docFolder && !documents[docFolder]) docFolder = '';
+
+        let hasAny = false;
+        let body = '';
+
+        if (f) {
+            // BUSQUEDA: acordeon de todas las carpetas con coincidencias (abierto).
+            for (const proj of projNames) {
+                const { total, inner } = buildProjectInner(proj, false);
+                if (!total) continue;
+                hasAny = true;
+                body += `
+                    <div class="tree-project-header" data-project="${proj}">
+                        <span class="tree-type-label">
+                            <i data-lucide="chevron-right" class="tree-chevron"></i>
+                            <i data-lucide="folder" class="tree-folder-icon tree-folder-closed"></i>
+                            <i data-lucide="folder-open" class="tree-folder-icon tree-folder-open"></i>
+                            <span class="font-semibold tree-project-name">${proj}</span>
+                        </span>
+                        <span class="badge-count">${total}</span>
+                    </div>
+                    <div class="tree-project-body">${inner}</div>`;
+            }
+        } else if (docFolder) {
+            // VISTA DE CARPETA: solo el contenido de la carpeta abierta + boton "volver".
+            // openTypes=false -> los sub-grupos aparecen COLAPSADOS (se expanden al clic).
+            const { total, inner } = buildProjectInner(docFolder, false);
+            hasAny = total > 0;
+            body = `
+                <div class="docs-folder-back" title="Volver a las carpetas">
+                    <i data-lucide="chevron-left" class="tree-chevron tree-chevron-sm"></i>
+                    <i data-lucide="folder-open" class="tree-folder-icon"></i>
+                    <span class="docs-folder-current">${docFolder}</span>
+                    <span class="badge-count">${total}</span>
                 </div>
-                <div class="tree-project-body ${isCollapsed ? 'collapsed' : ''}">${projHtml}</div>
-            `;
+                <div class="docs-folder-content">${inner || '<div class="tree-loading">Carpeta vacia</div>'}</div>`;
+        } else {
+            // VISTA RAIZ: lista de carpetas navegables (un clic entra a la carpeta).
+            for (const proj of projNames) {
+                const { total } = buildProjectInner(proj, false);
+                if (!total) continue;
+                hasAny = true;
+                body += `
+                    <div class="sidebar-item is-folder docs-folder-row" data-project="${proj}" title="Abrir ${proj}">
+                        <i data-lucide="folder" class="file-icon fmt-folder"></i>
+                        <span class="file-name">${proj}</span>
+                        <span class="badge-count">${total}</span>
+                        <i data-lucide="chevron-right" class="docs-folder-arrow"></i>
+                    </div>`;
+            }
         }
 
         const empty = !hasAny ? `
@@ -2212,32 +2280,32 @@ class VisorView {
                 </button>
             </div>` : '';
 
-        $('#sidebarList').html(rootHeader + html + empty).addClass('is-doc-tree');
+        $('#sidebarList').html(rootHeader + body + empty).addClass('is-doc-tree');
 
-        // Bind collapse toggle de proyecto (nivel 1) — comportamiento acordeon:
-        // al abrir una carpeta se colapsan automaticamente las demas del mismo
-        // nivel, de modo que solo una carpeta raiz queda expandida a la vez.
+        const reRender = () => {
+            visorView.renderSidebar(app.dataInit, app.currentFile, '');
+            app.bindSidebarClicks();
+            if (window.lucide) lucide.createIcons();
+        };
+
+        // Entrar a una carpeta (vista raiz -> vista de carpeta).
+        $('#sidebarList .docs-folder-row').off('click').on('click', (e) => {
+            const proj = $(e.currentTarget).data('project');
+            try { localStorage.setItem('visor:docs:folder', proj); } catch (er) {}
+            reRender();
+        });
+
+        // Volver a la lista de carpetas (vista de carpeta -> vista raiz).
+        $('#sidebarList .docs-folder-back').off('click').on('click', () => {
+            try { localStorage.removeItem('visor:docs:folder'); } catch (er) {}
+            reRender();
+        });
+
+        // Acordeon de proyecto (solo en vista de busqueda).
         $('#sidebarList .tree-project-header').off('click').on('click', (e) => {
             const $header = $(e.currentTarget);
-            const proj = $header.data('project');
-            const willExpand = $header.hasClass('collapsed');
-
-            if (willExpand) {
-                // Colapsar el resto de carpetas raiz (acordeon)...
-                const $all = $('#sidebarList .tree-project-header');
-                $all.not($header).addClass('collapsed')
-                    .next('.tree-project-body').addClass('collapsed');
-                // ...y abrir esta.
-                $header.removeClass('collapsed');
-                $header.next('.tree-project-body').removeClass('collapsed');
-                // Solo esta carpeta queda expandida en el estado persistido.
-                localStorage.setItem('visor:tree:expanded', JSON.stringify([proj]));
-            } else {
-                // Estaba abierta -> colapsar (no queda ninguna abierta).
-                $header.addClass('collapsed');
-                $header.next('.tree-project-body').addClass('collapsed');
-                localStorage.setItem('visor:tree:expanded', JSON.stringify([]));
-            }
+            $header.toggleClass('collapsed');
+            $header.next('.tree-project-body').toggleClass('collapsed');
             if (window.lucide) lucide.createIcons();
         });
 
@@ -2526,11 +2594,14 @@ class VisorView {
 const COFFEEIA_EDITOR_KEY = 'visor:coffeeia:editorMode';
 const COFFEEIA_LAYOUT_KEY = 'visor:coffeeia:layoutMode';
 const COFFEEIA_GRAPH_KEY  = 'visor:coffeeia:graphMode';
+const COFFEEIA_EXCALI_KEY = 'visor:coffeeia:excaliMode';
 const COFFEEIA_MODEL_KEY  = 'visor:coffeeia:model';
 
 // Tipos de grafica que el modo grafica puede instruir a la IA a generar.
 const COFFEEIA_GRAPH_TYPES = ['mermaid', 'drawio', 'excalidraw'];
 const COFFEEIA_GRAPH_LABELS = { mermaid: 'Mermaid', drawio: 'draw.io', excalidraw: 'Excalidraw' };
+// Sub-modos de Excalidraw: 'libre' (boceto libre) o 'template' (maestros + tabla).
+const COFFEEIA_EXCALI_MODES = ['libre', 'template'];
 
 // Extensiones de archivo que tratamos como TEXTO plano: se leen con readAsText y
 // se inyectan al contexto del chat (no como imagen). Cubre texto, codigo, marcado
@@ -2601,6 +2672,8 @@ class CoffeeIA {
         this.editorMode    = this._loadEditorMode();
         this.layoutMode    = this._loadLayoutMode();
         this.graphMode     = this._loadGraphMode();   // '' | 'mermaid' | 'drawio' | 'excalidraw'
+        this.excaliMode    = this._loadExcaliMode();  // 'libre' | 'template' (sub-modo de excalidraw)
+        this.activeDb      = null;   // base MySQL conectada en la conversacion (persistente entre turnos)
         this.pendingEdits  = null;   // [{ find, with, status }]
         this.pendingImages = [];     // [{ dataUrl, base64, mime, name }]
         this.pendingDocs   = [];     // [{ name, content, size }] archivos de texto adjuntos al mensaje
@@ -2709,10 +2782,68 @@ class CoffeeIA {
         catch (e) {}
     }
 
+    _loadExcaliMode() {
+        try {
+            const v = localStorage.getItem(COFFEEIA_EXCALI_KEY) || '';
+            return COFFEEIA_EXCALI_MODES.indexOf(v) !== -1 ? v : 'libre';
+        } catch (e) { return 'libre'; }
+    }
+
+    _saveExcaliMode() {
+        try { localStorage.setItem(COFFEEIA_EXCALI_KEY, this.excaliMode || 'libre'); }
+        catch (e) {}
+    }
+
+    // Despliega/oculta el submenu de Excalidraw (Template / Libre) anclado al item
+    // del menu de herramientas. FIXED para escapar del overflow del drawer.
+    _toggleExcaliSubmenu(anchorEl) {
+        const $sub = $('#iaExcaliSubmenu');
+        if ($sub.is(':visible')) { $sub.hide(); return; }
+
+        $sub.css({ display: 'block', visibility: 'hidden', top: '0px', left: '0px' });
+        const rect = anchorEl.getBoundingClientRect();
+        const sw   = $sub.outerWidth();
+        const sh   = $sub.outerHeight();
+        const gap  = 6;
+
+        // Abre a la DERECHA del item; si no cabe, a la izquierda. Alinea por arriba.
+        let left = rect.right + gap;
+        if (left + sw > window.innerWidth - 8) left = rect.left - sw - gap;
+        left = Math.max(8, left);
+        let top = rect.top;
+        top = Math.max(8, Math.min(top, window.innerHeight - sh - 8));
+
+        $sub.css({ left: left + 'px', top: top + 'px', visibility: 'visible' });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Selecciona el sub-modo de Excalidraw (template/libre) y activa el modo grafica
+    // excalidraw. Re-elegir el sub-modo ya activo apaga el modo grafica (toggle off).
+    _setExcaliMode(sub) {
+        sub = (sub === 'template') ? 'template' : 'libre';
+        const sameActive = this.graphMode === 'excalidraw' && this.excaliMode === sub;
+        this.excaliMode = sub;
+        this._saveExcaliMode();
+
+        if (sameActive) {
+            this.graphMode = '';
+        } else {
+            this.graphMode = 'excalidraw';
+            // Grafica es excluyente con editor y layout.
+            if (this.editorMode) { this.editorMode = false; this._saveEditorMode(); this._applyEditorModeUI(); }
+            if (this.layoutMode) { this.layoutMode = false; this._saveLayoutMode(); this._applyLayoutModeUI(); }
+        }
+        this._saveGraphMode();
+        this._applyGraphModeUI();
+        $('#iaExcaliSubmenu').hide();
+        $('#iaToolsMenu').hide();
+    }
+
     // Abre/cierra el menu de herramientas posicionandolo FIXED sobre el boton
     // (abre hacia arriba). Fixed evita que el overflow:hidden del drawer lo recorte.
     _toggleToolsMenu(btnEl) {
         const $menu = $('#iaToolsMenu');
+        $('#iaExcaliSubmenu').hide();   // el submenu nunca sobrevive a abrir/cerrar el menu padre
         if ($menu.is(':visible')) { $menu.hide(); return; }
 
         // Medir con el menu visible pero invisible para no parpadear.
@@ -2766,6 +2897,11 @@ class CoffeeIA {
         $('#iaToolsMenu .graph-menu-item[data-graph]').each(function () {
             $(this).toggleClass('is-active', $(this).data('graph') === mode);
         });
+        // Marca el sub-modo activo de Excalidraw (solo cuando excalidraw esta activo).
+        $('#iaExcaliSubmenu .graph-menu-item[data-excali]').each((_, el) => {
+            const $el = $(el);
+            $el.toggleClass('is-active', mode === 'excalidraw' && $el.data('excali') === this.excaliMode);
+        });
         this._applyToolsActive();
         this._applyInputPlaceholder();
     }
@@ -2784,7 +2920,10 @@ class CoffeeIA {
         } else if (this.layoutMode) {
             $ta.attr('placeholder', 'Pide un documento y se mostrara como Layout en el panel de lectura...');
         } else if (this.graphMode) {
-            const label = COFFEEIA_GRAPH_LABELS[this.graphMode] || this.graphMode;
+            let label = COFFEEIA_GRAPH_LABELS[this.graphMode] || this.graphMode;
+            if (this.graphMode === 'excalidraw' && this.excaliMode === 'template') {
+                label += ' (template: maestros + tabla)';
+            }
             $ta.attr('placeholder', 'Describe el diagrama y la IA lo genera en ' + label + '...');
         } else {
             $ta.attr('placeholder', 'Pregunta algo sobre el documento...');
@@ -2793,12 +2932,7 @@ class CoffeeIA {
 
     /* ── Public: open / close / toggle ── */
 
-    _canUse() {
-        return !!(this._app && this._app.currentUser && this._app.currentUser.canUseIA);
-    }
-
     open() {
-        if (!this._canUse()) return;
         $('#iaDrawer').addClass('is-open');
         $('#btnToggleCoffeeIA').addClass('is-active');
         // Colapsa el sidebar meta (Frontmatter + TOC) para liberar ancho al documento.
@@ -2815,7 +2949,6 @@ class CoffeeIA {
     }
 
     toggle() {
-        if (!this._canUse()) return;
         this.isOpen ? this.close() : this.open();
     }
 
@@ -2838,20 +2971,35 @@ class CoffeeIA {
             this._toggleToolsMenu(e.currentTarget);
         });
         $(document).on('click.iaToolsMenu', (e) => {
-            if (!$(e.target).closest('#iaToolsMenu, #iaToolsBtn').length) $('#iaToolsMenu').hide();
+            if (!$(e.target).closest('#iaToolsMenu, #iaToolsBtn, #iaExcaliSubmenu').length) {
+                $('#iaToolsMenu, #iaExcaliSubmenu').hide();
+            }
         });
         // Reposicionar/cerrar si cambia el viewport mientras esta abierto.
-        $(window).on('resize.iaToolsMenu scroll.iaToolsMenu', () => $('#iaToolsMenu').hide());
+        $(window).on('resize.iaToolsMenu scroll.iaToolsMenu', () => $('#iaToolsMenu, #iaExcaliSubmenu').hide());
         $('#iaToolsMenu').on('click', '.graph-menu-item', (e) => {
             const $it  = $(e.currentTarget);
             const tool = $it.data('tool');
             switch (tool) {
-                case 'save':   $('#iaToolsMenu').hide(); this.saveConversation();    break;
-                case 'saved':  $('#iaToolsMenu').hide(); this.openSavedChatsModal(); break;
-                case 'clear':  $('#iaToolsMenu').hide(); this.clearConversation();   break;
-                case 'github': $('#iaToolsMenu').hide(); if (typeof githubBoard !== 'undefined' && githubBoard) githubBoard.open(); break;
-                case 'graph':  this._setGraphMode($it.data('graph')); break;
+                case 'save':   $('#iaToolsMenu, #iaExcaliSubmenu').hide(); this.saveConversation();    break;
+                case 'saved':  $('#iaToolsMenu, #iaExcaliSubmenu').hide(); this.openSavedChatsModal(); break;
+                case 'github': $('#iaToolsMenu, #iaExcaliSubmenu').hide(); if (typeof githubBoard !== 'undefined' && githubBoard) githubBoard.open(); break;
+                case 'graph':
+                    // Excalidraw despliega un submenu (Template / Libre); el resto togglea directo.
+                    if ($it.data('graph') === 'excalidraw') {
+                        e.stopPropagation();
+                        this._toggleExcaliSubmenu(e.currentTarget);
+                    } else {
+                        $('#iaExcaliSubmenu').hide();
+                        this._setGraphMode($it.data('graph'));
+                    }
+                    break;
             }
+        });
+        // Submenu de Excalidraw: elige plantilla o modo libre.
+        $('#iaExcaliSubmenu').on('click', '.graph-menu-item', (e) => {
+            e.stopPropagation();
+            this._setExcaliMode($(e.currentTarget).data('excali'));
         });
 
         $('#iaModelSelect').on('change', (e) => {
@@ -2878,6 +3026,7 @@ class CoffeeIA {
         // Adjuntar archivos: boton, file input, paste y drag&drop.
         // Imagenes -> vision; texto/codigo/html/md/csv/json -> contexto del chat.
         $('#iaAttachBtn').on('click', () => $('#iaImageInput').trigger('click'));
+        $('#iaClearBtn').on('click', () => this.clearConversation());
         $('#iaImageInput').on('change', (e) => {
             const files = Array.from(e.target.files || []);
             files.forEach(f => this._addFile(f));
@@ -2919,7 +3068,6 @@ class CoffeeIA {
                 return;
             }
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
-                if (!this._canUse()) return;
                 e.preventDefault();
                 this.toggle();
             }
@@ -3199,6 +3347,8 @@ class CoffeeIA {
             pinnedFiles:        (this._app.getPinnedFilesPayload ? this._app.getPinnedFilesPayload() : []),
             editorMode:         !!this.editorMode,
             graphMode:          this.graphMode || '',
+            graphTemplate:      this.graphMode === 'excalidraw' ? (this.excaliMode || 'libre') : '',
+            dbConnect:          this.activeDb || '',   // base conectada (conexion pegajosa)
             customPath:         (this._app.settings && this._app.settings.customPath) ? this._app.settings.customPath : '',
             model:              this.model || ''
         };
@@ -3330,6 +3480,10 @@ class CoffeeIA {
 
         // Espera a que el typewriter termine de pintar todo lo recibido.
         await stream.drain();
+
+        // Conexion pegajosa: si el backend resolvio una base, la recordamos para que
+        // los siguientes turnos sigan consultandola sin tener que volver a nombrarla.
+        if (meta && meta.db) this._setActiveDb(meta.db);
 
         this.history.push({ role: 'assistant', content: received });
 
@@ -3871,6 +4025,8 @@ class CoffeeIA {
     _renderLayoutPreview(markdownText) {
         // La respuesta se rendea: el loading deja de estar pendiente.
         this._layoutPending = false;
+        // Guarda el markdown crudo para exportarlo / guardarlo desde el banner.
+        this._layoutMarkdown = markdownText || '';
         const $doc = $('#md-rendered');
         if (!$doc.length) return;
         // No interferir si el usuario esta editando el documento.
@@ -3886,12 +4042,22 @@ class CoffeeIA {
             <div class="ia-layout-banner" id="iaLayoutBanner" contenteditable="false">
                 <span class="ia-layout-banner-label">
                     <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-                    Vista generada por CoffeeIA — sin guardar
+                    Borrador generado por CoffeeIA · sin guardar
                 </span>
-                <button type="button" id="iaLayoutBack" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5">
-                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
-                    Volver al documento
-                </button>
+                <span class="ia-layout-banner-actions">
+                    <button type="button" id="iaLayoutExport" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5" title="Descargar el contenido como archivo .md">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        Exportar .md
+                    </button>
+                    <button type="button" id="iaLayoutSave" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" title="Guardar como documento en el árbol">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                        Guardar
+                    </button>
+                    <button type="button" id="iaLayoutBack" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5">
+                        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                        Volver al documento
+                    </button>
+                </span>
             </div>`;
         $doc.html(banner + '<div class="ia-layout-doc">' + this._markdownToHtml(markdownText) + '</div>');
 
@@ -3901,10 +4067,37 @@ class CoffeeIA {
         }
 
         $('#iaLayoutBack').off('click').on('click', () => this._exitLayoutPreview());
+        $('#iaLayoutExport').off('click').on('click', () => {
+            const md = this._layoutMarkdown || '';
+            this._exportMarkdownFile(md, this._suggestFileName(md));
+        });
+        $('#iaLayoutSave').off('click').on('click', () => {
+            const md = this._layoutMarkdown || '';
+            if (this._app && this._app.openNewFileModal) {
+                this._app.openNewFileModal({ name: this._suggestFileName(md), content: md });
+            } else if (typeof visorView !== 'undefined' && visorView) {
+                visorView.toast('No se puede guardar en este origen', 'error');
+            }
+        });
 
         const $main = $('.main-content');
         if ($main.length) $main.scrollTop(0);
         if (window.lucide) lucide.createIcons();
+    }
+
+    // Descarga un texto markdown como archivo .md (client-side, sin servidor).
+    _exportMarkdownFile(text, name) {
+        const fname = (name || 'documento').replace(/\.md$/i, '') + '.md';
+        const blob  = new Blob([text || ''], { type: 'text/markdown;charset=utf-8' });
+        const url   = URL.createObjectURL(blob);
+        const a     = document.createElement('a');
+        a.href = url;
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (typeof visorView !== 'undefined' && visorView) visorView.toast('Markdown exportado: ' + fname, 'success');
     }
 
     // Restaura el documento abierto re-renderizando desde file.raw (intacto).
@@ -4262,6 +4455,23 @@ class CoffeeIA {
         return t === 'light' ? 'light' : 'dark';
     }
 
+    // Tamano natural de un <svg>: prioriza el viewBox (Mermaid emite width="100%",
+    // que no sirve como tamano intrinseco). Devuelve { w, h } en unidades de usuario.
+    _svgNaturalSize(svgEl) {
+        let w = 0, h = 0;
+        const vb = svgEl.getAttribute('viewBox');
+        if (vb) {
+            const p = vb.split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
+            if (p.length === 4) { w = p[2]; h = p[3]; }
+        }
+        if (!w) w = parseFloat(svgEl.getAttribute('width')) || 0;
+        if (!h) h = parseFloat(svgEl.getAttribute('height')) || 0;
+        if ((!w || !h) && svgEl.getBBox) {
+            try { const b = svgEl.getBBox(); w = w || b.width; h = h || b.height; } catch (e) {}
+        }
+        return { w, h };
+    }
+
     _renderMermaid($pre, code) {
         if (typeof mermaid === 'undefined') return;
         const id = 'mer-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
@@ -4275,6 +4485,13 @@ class CoffeeIA {
                         </button>
                         <button class="ia-render-btn is-icon ia-render-toggle" data-target="${id}-code" title="Ver codigo">
                             <i data-lucide="code-2" class="w-3 h-3"></i>
+                        </button>
+                        <button class="ia-render-btn is-icon ia-render-zoom-out" style="display:none;" title="Alejar (zoom -)">
+                            <i data-lucide="zoom-out" class="w-3 h-3"></i>
+                        </button>
+                        <button class="ia-render-btn ia-render-zoom-val" style="display:none;" title="Restablecer zoom">100%</button>
+                        <button class="ia-render-btn is-icon ia-render-zoom-in" style="display:none;" title="Acercar (zoom +)">
+                            <i data-lucide="zoom-in" class="w-3 h-3"></i>
                         </button>
                         <button class="ia-render-btn is-icon ia-render-expand" style="display:none;" title="Expandir a pantalla completa">
                             <i data-lucide="maximize-2" class="w-3 h-3"></i>
@@ -4294,6 +4511,25 @@ class CoffeeIA {
         const cleanupOrphans = (rid) => {
             $('body > [id^="d' + rid + '"], body > [id="' + rid + '-svg"]').remove();
             $('body > .mermaidTooltip').remove();
+        };
+
+        // Zoom inline (dentro del chat, sin abrir el modal): escala el SVG segun su
+        // ancho natural (viewBox) para que pueda crecer y hacer scroll en el bloque.
+        let inlineScale = 1;
+        const $zoomVal = $wrap.find('.ia-render-zoom-val');
+        const applyInlineZoom = () => {
+            const $svg  = $wrap.find('.ia-render-view svg').first();
+            const $view = $wrap.find('.ia-render-view');
+            $zoomVal.text(Math.round(inlineScale * 100) + '%');
+            if (!$svg.length) return;
+            const baseW = parseFloat($svg.attr('data-base-w')) || 0;
+            if (!baseW || Math.abs(inlineScale - 1) < 0.001) {
+                $svg.css({ width: '', height: '', 'max-width': '' });
+                $view.removeClass('is-zoomed');
+            } else {
+                $svg.css({ width: (baseW * inlineScale) + 'px', height: 'auto', 'max-width': 'none' });
+                $view.addClass('is-zoomed');
+            }
         };
 
         // Dibuja (o vuelve a dibujar) el diagrama. Cada intento usa un id nuevo para
@@ -4317,7 +4553,15 @@ class CoffeeIA {
                 mermaid.render(rid + '-svg', $wrap.data('mermaid-code')).then(({ svg }) => {
                     $view.html(svg);
                     $wrap.data('mermaid-svg', svg);
-                    $wrap.find('.ia-render-expand').show();
+                    const svgEl = $view.find('svg')[0];
+                    if (svgEl) {
+                        const { w, h } = this._svgNaturalSize(svgEl);
+                        if (w) svgEl.setAttribute('data-base-w', w);
+                        if (h) svgEl.setAttribute('data-base-h', h);
+                    }
+                    inlineScale = 1;
+                    applyInlineZoom();
+                    $wrap.find('.ia-render-expand, .ia-render-zoom-in, .ia-render-zoom-out, .ia-render-zoom-val').show();
                     cleanupOrphans(rid);
                     if (window.lucide) lucide.createIcons();
                 }).catch((err) => {
@@ -4360,6 +4604,22 @@ class CoffeeIA {
                 : '<i data-lucide="code-2" class="w-3 h-3"></i>');
             $btn.attr('title', showCode ? 'Ver diagrama' : 'Ver codigo');
             if (window.lucide) lucide.createIcons();
+        });
+
+        // Zoom inline: botones -, valor (reset) y +, mas Ctrl + rueda sobre el diagrama.
+        const stepZoom = (dir) => {
+            inlineScale = dir === 0 ? 1 : Math.max(0.4, Math.min(3, +(inlineScale + dir * 0.2).toFixed(2)));
+            applyInlineZoom();
+        };
+        $wrap.find('.ia-render-zoom-in').on('click', () => stepZoom(1));
+        $wrap.find('.ia-render-zoom-out').on('click', () => stepZoom(-1));
+        $wrap.find('.ia-render-zoom-val').on('click', () => stepZoom(0));
+        $wrap.find('.ia-render-view').on('wheel', (e) => {
+            const oe = e.originalEvent;
+            if (!oe.ctrlKey) return;
+            oe.preventDefault();
+            inlineScale = Math.max(0.4, Math.min(3, +(inlineScale + (oe.deltaY < 0 ? 0.15 : -0.15)).toFixed(2)));
+            applyInlineZoom();
         });
 
         $wrap.find('.ia-render-expand').on('click', () => {
@@ -4653,12 +4913,30 @@ class CoffeeIA {
         `);
         $('body').append($modal);
 
-        // Zoom + pan
-        let scale = 1;
         const $canvas = $modal.find('.ia-mermaid-modal-canvas');
         const $val    = $modal.find('.ia-mermaid-zoom-val');
+
+        // Normaliza el SVG: Mermaid v10 lo emite con width="100%", que dentro de un
+        // contenedor shrink-to-fit (inline-block) colapsa a 0 -> "no se ve nada".
+        // Le fijamos un ancho/alto explicito desde el viewBox para que tenga tamano
+        // intrinseco real; a partir de ahi el zoom/pan opera sobre el canvas.
+        const svgEl = $canvas.find('svg')[0];
+        if (svgEl) {
+            const { w, h } = this._svgNaturalSize(svgEl);
+            if (w && h) {
+                svgEl.setAttribute('width', w);
+                svgEl.setAttribute('height', h);
+                svgEl.style.width     = w + 'px';
+                svgEl.style.height    = h + 'px';
+                svgEl.style.maxWidth  = 'none';
+                svgEl.style.maxHeight = 'none';
+            }
+        }
+
+        // Zoom + pan (arrastre con el raton).
+        let scale = 1, panX = 0, panY = 0;
         const applyZoom = () => {
-            $canvas.css('transform', `scale(${scale})`);
+            $canvas.css('transform', `translate(${panX}px, ${panY}px) scale(${scale})`);
             $val.text(Math.round(scale * 100) + '%');
         };
         $modal.find('.ia-mermaid-zoom-in').on('click', () => {
@@ -4668,7 +4946,7 @@ class CoffeeIA {
             scale = Math.max(scale - 0.2, 0.2); applyZoom();
         });
         $modal.find('.ia-mermaid-zoom-reset').on('click', () => {
-            scale = 1; applyZoom();
+            scale = 1; panX = 0; panY = 0; applyZoom();
         });
         $modal.find('.ia-mermaid-modal-body').on('wheel', (e) => {
             const oe = e.originalEvent;
@@ -4677,6 +4955,18 @@ class CoffeeIA {
             scale = Math.max(0.2, Math.min(4, scale + (oe.deltaY < 0 ? 0.1 : -0.1)));
             applyZoom();
         });
+
+        // Pan: arrastrar el lienzo para desplazar el diagrama cuando esta ampliado.
+        let dragging = false, startX = 0, startY = 0;
+        $canvas.on('mousedown', (e) => {
+            dragging = true; startX = e.clientX - panX; startY = e.clientY - panY;
+            e.preventDefault();
+        });
+        $(document).on('mousemove.iaMermaidPan', (e) => {
+            if (!dragging) return;
+            panX = e.clientX - startX; panY = e.clientY - startY; applyZoom();
+        });
+        $(document).on('mouseup.iaMermaidPan', () => { dragging = false; });
 
         $modal.find('.ia-mermaid-download').on('click', () => {
             const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
@@ -4690,7 +4980,10 @@ class CoffeeIA {
             URL.revokeObjectURL(url);
         });
 
-        const close = () => { $modal.remove(); $(document).off('keydown.iaMermaidModal'); };
+        const close = () => {
+            $modal.remove();
+            $(document).off('keydown.iaMermaidModal mousemove.iaMermaidPan mouseup.iaMermaidPan');
+        };
         $modal.find('.ia-mermaid-modal-close').on('click', close);
         $modal.on('click', (e) => { if (e.target === $modal[0]) close(); });
         $(document).on('keydown.iaMermaidModal', (e) => { if (e.key === 'Escape') close(); });
@@ -4921,9 +5214,37 @@ class CoffeeIA {
         this._currentChatUid = null;
         this._currentChatTitle = null;
         this._chipsRendered = false;
+        this._setActiveDb(null);   // al limpiar, se suelta la conexion a la base
         $('#iaBodyChat').empty().hide();
         $('#iaBodyEmpty').show();
         this._syncContext();
+    }
+
+    /* ── Conexion a base de datos (pegajosa por conversacion) ── */
+
+    // Fija (o suelta, con null) la base conectada y refresca el chip indicador.
+    _setActiveDb(schema) {
+        this.activeDb = schema || null;
+        this._renderDbIndicator();
+    }
+
+    // Chip "conectado a <base> ✕" sobre el input. La ✕ desconecta (sin borrar el chat).
+    _renderDbIndicator() {
+        const $chip = $('#iaDbChip');
+        if (!$chip.length) return;
+        if (!this.activeDb) { $chip.hide().empty(); return; }
+        $chip.html(`
+            <i data-lucide="database" class="w-3 h-3"></i>
+            <span class="ia-db-chip-name">${this._escape(this.activeDb)}</span>
+            <button type="button" class="ia-db-chip-x" title="Desconectar de la base">
+                <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+        `).show();
+        $chip.find('.ia-db-chip-x').off('click').on('click', () => {
+            this._setActiveDb(null);
+            this._toast('Desconectado de la base', 'info');
+        });
+        if (window.lucide) lucide.createIcons();
     }
 
     /* ── Persistencia de conversaciones (SQLite via ctrl-chats.php) ── */

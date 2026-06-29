@@ -35,7 +35,7 @@ $(async () => {
 
     // La navbar es la duena del filtro de sucursal (solo admin). Cuando el
     // admin cambia de sucursal alli, replicamos el comportamiento del filtro.
-    document.addEventListener('subsidiaryChanged', () => app.onSubsidiaryChange());
+    document.addEventListener('branchChanged', () => app.onSubsidiaryChange());
 
     setInterval(() => {
         app.actualizarFechaHora({ label: app.getSubsidiaryLabel() });

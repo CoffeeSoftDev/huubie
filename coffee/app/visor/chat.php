@@ -38,7 +38,11 @@
             </div>
         </div>
 
-        <div class="chat-header-right">
+        <button id="chatHeaderToggle" class="chat-header-toggle" title="Ajustes" aria-expanded="false">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+        </button>
+
+        <div class="chat-header-right" id="chatHeaderRight">
             <div class="chat-select-wrap" title="Agente activo">
                 <i data-lucide="bot" class="w-4 h-4"></i>
                 <select id="chatAgentSelect" class="chat-select"></select>
@@ -79,7 +83,17 @@
         </div>
     </header>
 
-    <div class="chat-workspace">
+    <!-- Conmutador Conversaciones/Chat (solo movil): ambos paneles no caben apilados. -->
+    <div class="chat-mobile-switch" role="tablist" aria-label="Vista">
+        <button class="chat-mswitch" data-mview="list" role="tab">
+            <i data-lucide="messages-square" class="w-4 h-4"></i> Conversaciones
+        </button>
+        <button class="chat-mswitch active" data-mview="chat" role="tab">
+            <i data-lucide="message-circle" class="w-4 h-4"></i> Chat
+        </button>
+    </div>
+
+    <div class="chat-workspace" data-mview="chat">
 
         <nav class="app-rail" aria-label="Modulos">
             <div class="app-rail-nav">

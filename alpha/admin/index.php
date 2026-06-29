@@ -54,6 +54,8 @@
 
     <!-- PRINCIPAL -->
     <script src="<?=PATH_BASE?>access/src/js/session.js"></script>
+    <!-- Admin es una vista global: la navbar no muestra el selector de sucursal. -->
+    <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>
     <script src="<?=PATH_MENU?>src/js/navbar.js"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
 

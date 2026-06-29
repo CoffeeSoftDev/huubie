@@ -11,5 +11,6 @@
     define('PATH_ACCESS', '/app/access/');
     define('PATH_MENU', '/app/');
     define('PATH_ADMIN', '/app/admin/');
+    define('PATH_PEDIDOS', '/app/pedidos/');
 
 ?>

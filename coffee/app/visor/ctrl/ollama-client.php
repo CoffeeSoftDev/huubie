@@ -33,13 +33,57 @@ class OllamaClient {
     public function chat(array $messages, $model = null, array $opts = []) {
         $payload = [
             'model'    => $model ?: $this->defaultModel,
-            'messages' => $messages,
+            'messages' => $this->adaptMessages($messages),
             'stream'   => false,
         ];
-        if (!empty($opts)) {
-            $payload['options'] = $opts;
+        // Tool-calling: en Ollama 'tools' va en la RAIZ del payload (no dentro de
+        // 'options', que es solo para sampling). tool_choice no aplica en Ollama.
+        if (!empty($opts['tools'])) { $payload['tools'] = $opts['tools']; }
+        unset($opts['tools'], $opts['tool_choice']);
+        if (!empty($opts)) { $payload['options'] = $opts; }
+
+        $data = $this->request('POST', '/api/chat', $payload);
+
+        // Normaliza al mismo contrato que OpenRouterClient para que el loop de
+        // herramientas lea content/tool_calls en la raiz (Ollama los trae en message).
+        $msg = isset($data['message']) && is_array($data['message']) ? $data['message'] : [];
+        if (!isset($msg['content']) || $msg['content'] === null) $msg['content'] = '';
+        $data['content']    = $msg['content'];
+        $data['tool_calls'] = $msg['tool_calls'] ?? [];
+        return $data;
+    }
+
+    /**
+     * Adapta los mensajes del formato interno al de Ollama /api/chat. Pasa-through
+     * para los normales (con images base64) y traduce los turnos de tool-calling:
+     *  - assistant con tool_calls -> {role, content, tool_calls}
+     *  - resultado de herramienta  -> {role:'tool', content, tool_name}
+     */
+    private function adaptMessages(array $messages) {
+        $out = [];
+        foreach ($messages as $m) {
+            $role = $m['role'] ?? 'user';
+            if ($role === 'tool') {
+                $out[] = [
+                    'role'      => 'tool',
+                    'content'   => isset($m['content']) ? (string) $m['content'] : '',
+                    'tool_name' => $m['name'] ?? ($m['tool_name'] ?? ''),
+                ];
+                continue;
+            }
+            if ($role === 'assistant' && !empty($m['tool_calls'])) {
+                $out[] = [
+                    'role'       => 'assistant',
+                    'content'    => isset($m['content']) ? (string) $m['content'] : '',
+                    'tool_calls' => $m['tool_calls'],
+                ];
+                continue;
+            }
+            $msg = ['role' => $role, 'content' => isset($m['content']) ? (string) $m['content'] : ''];
+            if (!empty($m['images']) && is_array($m['images'])) $msg['images'] = $m['images'];
+            $out[] = $msg;
         }
-        return $this->request('POST', '/api/chat', $payload);
+        return $out;
     }
 
     /**

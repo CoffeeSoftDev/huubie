@@ -171,7 +171,7 @@
             <div class="visor-main-col">
 
             <div class="main-breadcrumb">
-                <button id="btnToggleCoffeeIA" class="cs-btn cs-btn-sm btn-coffeeia flex items-center gap-1.5" title="CoffeeIA (Ctrl+I)" style="display:none;">
+                <button id="btnToggleCoffeeIA" class="cs-btn cs-btn-sm btn-coffeeia flex items-center gap-1.5" title="CoffeeIA (Ctrl+I)">
                     <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
                     CoffeeIA
                     <span class="dot-indicator"></span>
@@ -384,6 +384,7 @@
                 <div class="ia-drawer-body" id="iaBodyChat" style="display:none;"></div>
 
                 <div class="ia-drawer-input">
+                    <div id="iaDbChip" class="ia-db-chip" style="display:none;"></div>
                     <div id="iaImageStrip" class="ia-image-strip" style="display:none;"></div>
                     <div class="ia-input-wrap">
                         <textarea id="iaInputTextarea" class="ia-input-textarea" rows="1" placeholder="Pregunta algo sobre el documento..."></textarea>
@@ -401,6 +402,9 @@
                         </button>
                         <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo lienzo">
                             <i data-lucide="layout-template" class="w-3 h-3"></i>
+                        </button>
+                        <button id="iaClearBtn" class="ia-attach-btn" title="Limpiar conversaci&oacute;n (borra los mensajes actuales)">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
                         </button>
                         <!-- Resto de herramientas del chat agrupadas en un menu desplegable -->
                         <div class="ia-tools-wrap" style="position:relative;">
@@ -420,13 +424,6 @@
                                     <span class="graph-menu-info">
                                         <span class="graph-menu-name">Chats guardados</span>
                                         <span class="graph-menu-desc">Abre conversaciones previas</span>
-                                    </span>
-                                </button>
-                                <button type="button" class="graph-menu-item" data-tool="clear">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    <span class="graph-menu-info">
-                                        <span class="graph-menu-name">Limpiar</span>
-                                        <span class="graph-menu-desc">Borra los mensajes actuales</span>
                                     </span>
                                 </button>
                                 <div class="graph-menu-sep"></div>
@@ -452,10 +449,29 @@
                                         <span class="graph-menu-desc">Lienzo de diagramas</span>
                                     </span>
                                 </button>
-                                <button type="button" class="graph-menu-item" data-tool="graph" data-graph="excalidraw">
+                                <button type="button" class="graph-menu-item has-submenu" data-tool="graph" data-graph="excalidraw">
                                     <i data-lucide="pencil-ruler" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
                                         <span class="graph-menu-name">Excalidraw</span>
+                                        <span class="graph-menu-desc">Boceto a mano alzada</span>
+                                    </span>
+                                    <i data-lucide="chevron-right" class="graph-menu-caret w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <!-- Submenu de Excalidraw: elige plantilla o modo libre -->
+                            <div id="iaExcaliSubmenu" class="graph-menu graph-submenu" style="display:none;">
+                                <div class="graph-submenu-title">Excalidraw</div>
+                                <button type="button" class="graph-menu-item" data-excali="template">
+                                    <i data-lucide="layout-template" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Template</span>
+                                        <span class="graph-menu-desc">Maestros corporativos + tabla</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="graph-menu-item" data-excali="libre">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Libre</span>
                                         <span class="graph-menu-desc">Boceto a mano alzada</span>
                                     </span>
                                 </button>

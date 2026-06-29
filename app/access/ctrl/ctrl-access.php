@@ -83,6 +83,8 @@ class Access extends MAccess {
 
 
     function branches(){
+        // Superadmin (ROLID 5) ve TODAS las sucursales de su empresa; el resto
+        // (incluido el admin) solo las que tenga asignadas en usr_user_subsidiaries.
         if ((int) ($_SESSION['ROLID'] ?? 0) === 5) {
             $list = $this->getBranchesByCompany([$_SESSION['COMPANY_ID']]);
         } else {

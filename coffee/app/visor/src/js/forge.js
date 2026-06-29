@@ -2904,3 +2904,33 @@ function fgRenderThreadBar() {
     });
     if (window.lucide) lucide.createIcons();
 }
+
+/* Responsive móvil (mismo patrón que el Lab): conmutador Chat/Sandbox +
+   dropdown de los controles del header. En desktop están ocultos por CSS. */
+$(function () {
+    $('.pg-mswitch').on('click', function () {
+        const view = $(this).data('mview');
+        $('.pg-mswitch').removeClass('active');
+        $(this).addClass('active');
+        $('.pg-workspace').attr('data-mview', view);
+    });
+
+    const closeHeader = () => {
+        $('#pgHeaderRight').removeClass('is-open');
+        $('#pgHeaderToggle').attr('aria-expanded', 'false').removeClass('is-active');
+    };
+    $('#pgHeaderToggle').on('click', function (e) {
+        e.stopPropagation();
+        const open = !$('#pgHeaderRight').hasClass('is-open');
+        $('#pgHeaderRight').toggleClass('is-open', open);
+        $(this).attr('aria-expanded', open ? 'true' : 'false').toggleClass('is-active', open);
+    });
+    $('#pgHeaderRight').on('change', 'select', () => {
+        if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) closeHeader();
+    });
+    $(document).on('click.fgHeader', e => {
+        if (!$('#pgHeaderRight').hasClass('is-open')) return;
+        if ($(e.target).closest('#pgHeaderRight, #pgHeaderToggle').length) return;
+        closeHeader();
+    });
+});

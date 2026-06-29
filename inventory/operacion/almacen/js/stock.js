@@ -522,7 +522,7 @@ class StockView extends Templates {
                 success: 'var(--cs-success,#3FC189)',
                 warning: 'var(--cs-warning,#FBBF24)',
                 danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#1C64F2)',
+                info:    'var(--cs-info,#C05A40)',
                 purple:  'var(--cs-accent-purple,#7C3AED)'
             },
             classes: {
@@ -1012,7 +1012,7 @@ class StockView extends Templates {
         }).join('');
 
         const almTone = {
-            info:   { bg: 'rgba(28,100,242,0.15)',  fg: '#60A5FA' },
+            info:   { bg: 'rgba(192,90,64,0.15)',  fg: '#C05A40' },
             purple: { bg: 'rgba(124,58,237,0.15)',  fg: '#A78BFA' }
         };
         const almacenesHtml = (p.almacenes || []).map(a => {

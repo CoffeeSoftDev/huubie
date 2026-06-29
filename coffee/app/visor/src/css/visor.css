@@ -570,6 +570,19 @@ html, body { height: 100%; }
    overflow:hidden del drawer, que recortaba el menu al abrir hacia arriba. */
 .ia-graph-wrap .graph-menu, .ia-tools-wrap .graph-menu { position: fixed; z-index: 1000; left: auto; right: auto; bottom: auto; }
 
+/* Caret del item que despliega submenu (Excalidraw -> Template / Libre) */
+.graph-menu-caret { margin-left: 6px; color: var(--vsr-text-mute2); }
+.graph-menu-item.is-active .graph-menu-caret { color: var(--vsr-accent-soft); }
+
+/* Submenu flotante de Excalidraw (se posiciona FIXED por JS, va sobre el menu) */
+#iaExcaliSubmenu { z-index: 1001; min-width: 210px; }
+.graph-submenu-title {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--vsr-text-mute2);
+    padding: 4px 10px 5px; margin-bottom: 2px;
+    border-bottom: 1px solid var(--vsr-border);
+}
+
 /* ── Sections / items ──────────────────────────────────────── */
 
 .section-header {
@@ -770,8 +783,12 @@ html, body { height: 100%; }
 }
 
 @media (max-width: 1100px) {
-    .doc-layout { flex-direction: column; }
+    .doc-layout { flex-direction: column; align-items: stretch; }
     .doc-meta   { width: 100%; position: static; }
+    /* En columna, align-items:flex-start dejaba que .doc-main se dimensionara al
+       contenido (hasta max-width:1000px) y desbordara el viewport. Forzarlo al
+       100% mantiene el documento dentro del ancho de la pantalla. */
+    .doc-main   { width: 100%; min-width: 0; }
 }
 
 /* Cuando el drawer de CoffeeIA esta abierto, ocultamos el sidebar meta
@@ -2443,6 +2460,36 @@ body.stage-resizing * { cursor: ew-resize !important; user-select: none !importa
 .tree-new-btn:hover,
 .tree-new-btn:focus-visible { opacity: 1; color: var(--vsr-accent); }
 
+/* Explorador navegable de Documents: vista raiz = carpetas; clic entra a la carpeta. */
+.docs-folder-row { cursor: pointer; }
+.docs-folder-row .file-icon.fmt-folder { color: var(--vsr-accent); }
+.docs-folder-row .badge-count { flex-shrink: 0; }
+.docs-folder-arrow {
+    width: 14px; height: 14px; flex-shrink: 0;
+    color: var(--vsr-text-mute2);
+    transition: transform .12s ease, color .12s ease;
+}
+.docs-folder-row:hover .docs-folder-arrow { color: var(--vsr-accent); transform: translateX(2px); }
+
+/* Cabecera "volver" de la vista de carpeta */
+.docs-folder-back {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 12px;
+    margin: 2px 6px 4px;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 600;
+    color: var(--vsr-text-soft);
+    cursor: pointer; user-select: none;
+    background: var(--vsr-accent-tint);
+    border: 1px solid var(--vsr-border-soft);
+    transition: background-color .12s ease;
+}
+.docs-folder-back:hover { background: var(--vsr-bg-hover); }
+.docs-folder-back .tree-chevron { color: var(--vsr-accent); }
+.docs-folder-back .tree-folder-icon { color: var(--vsr-accent); width: 14px; height: 14px; }
+.docs-folder-current { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-folder-back .badge-count { flex-shrink: 0; }
+
 /* Selector de carpeta destino del modal "Nuevo archivo". */
 select.new-file-input {
     height: 52px;
@@ -2777,6 +2824,43 @@ body.ia-drawer-resizing * {
     line-height: 1.5;
 }
 .ia-msg-text pre code { background: transparent; color: var(--vsr-text-soft); padding: 0; }
+
+/* Tablas markdown dentro del chat (p.ej. resultados de SELECT). Sin esto las
+   columnas se amontonan sin bordes ni padding y se ven "desordenadas". */
+.ia-msg-text table {
+    display: block;                 /* permite scroll horizontal en tablas anchas */
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 11.5px;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 6px;
+}
+.ia-msg-text thead th {
+    background: var(--vsr-bg-input);
+    color: var(--vsr-text);
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 2px solid var(--vsr-border);
+}
+.ia-msg-text th,
+.ia-msg-text td {
+    padding: 6px 12px;
+    white-space: nowrap;            /* cada celda en una sola linea */
+    border-right: 1px solid var(--vsr-border-soft);
+    vertical-align: top;
+}
+.ia-msg-text th:last-child,
+.ia-msg-text td:last-child { border-right: none; }
+.ia-msg-text tbody td {
+    color: var(--vsr-text-soft);
+    border-top: 1px solid var(--vsr-border-soft);
+}
+.ia-msg-text tbody tr:nth-child(even) td { background: rgba(127, 127, 127, 0.06); }
+.ia-msg-text tbody tr:hover td { background: var(--vsr-accent-tint); }
 
 /* Usuario: burbuja gris a la derecha */
 .ia-msg.user { align-items: flex-end; }
@@ -3225,6 +3309,30 @@ body.ia-drawer-resizing * {
     display: flex; flex-wrap: wrap; gap: 6px;
     margin-bottom: 8px;
 }
+
+/* Chip de conexion a base de datos (conexion pegajosa de la conversacion). */
+.ia-db-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    width: max-content; max-width: 100%;
+    margin-bottom: 8px;
+    padding: 3px 6px 3px 9px;
+    border-radius: 999px;
+    background: var(--vsr-accent-tint);
+    border: 1px solid var(--vsr-accent);
+    color: var(--vsr-accent-soft);
+    font-size: 11px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+}
+.ia-db-chip > i { color: var(--vsr-accent); }
+.ia-db-chip-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.ia-db-chip-x {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; padding: 0;
+    border: none; border-radius: 50%;
+    background: transparent; color: var(--vsr-accent-soft);
+    cursor: pointer; transition: background-color .12s ease;
+}
+.ia-db-chip-x:hover { background: rgba(0,0,0,.25); }
 .ia-img-chip {
     position: relative;
     width: 54px; height: 54px;
@@ -3419,6 +3527,14 @@ body.ia-drawer-resizing * {
     text-align: left;
 }
 .md-rendered .ia-layout-banner-label i { color: var(--vsr-accent); }
+.md-rendered .ia-layout-banner-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
 
 /* ── Modo Layout: animacion "IA generando" (puntitos + shimmer estilo Grok/ChatGPT) ── */
 .md-rendered .ia-layout-loading-head {
@@ -3632,6 +3748,24 @@ body.ia-drawer-resizing * {
     display: flex; align-items: center; justify-content: center;
 }
 .ia-render-mermaid svg { max-width: 100%; height: auto; }
+
+/* Zoom inline: al ampliar, el diagrama crece y el bloque hace scroll desde la
+   esquina superior izquierda (centrarlo cortaria la parte que se desborda). */
+.ia-render-mermaid .ia-render-view.is-zoomed {
+    align-items: flex-start; justify-content: flex-start;
+    overflow: auto; max-height: 520px;
+}
+.ia-render-mermaid .ia-render-view.is-zoomed svg { max-width: none; }
+
+/* Indicador de porcentaje de zoom (boton que ademas restablece al hacer clic). */
+.ia-render-zoom-val {
+    min-width: 40px;
+    padding: 3px 6px;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: none;
+    letter-spacing: 0;
+}
 
 /* Graphviz dibuja en negro: lienzo blanco para que sea legible en cualquier tema. */
 .ia-render-graphviz .ia-render-view {
@@ -4000,3 +4134,175 @@ body.ia-drawer-resizing * {
     display: flex;
 }
 .ia-saved-del:hover { background: rgba(220,38,38,0.12); color: #ef4444; }
+
+/* ════════════════════════════════════════════════════════════════
+   Responsive — mismo patrón que el Lab (Playground): rail abajo,
+   paneles apilados con conmutador (Archivos/Documento) y los
+   controles del header recogidos en un dropdown (⚙️).
+   ════════════════════════════════════════════════════════════════ */
+
+/* Piezas solo-móvil: ocultas en escritorio. */
+.vsr-mobile-switch { display: none; }
+.vsr-header-toggle {
+    display: none;
+    width: 34px; height: 34px; border-radius: 8px;
+    place-items: center;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border-input);
+    color: var(--vsr-text-muted); cursor: pointer; transition: all .15s;
+    flex-shrink: 0;
+}
+.vsr-header-toggle.is-active { color: #fff; background: var(--vsr-accent); border-color: var(--vsr-accent); }
+
+/* ── Tablet / laptop chico ── */
+@media (max-width: 1100px) {
+    .visor-header     { padding: 0 14px; }
+    .vsr-header-left  { gap: 8px; }
+    .vsr-header-right { gap: 8px; }
+    #headerSubtitle   { display: none; }
+    .visor-sidebar    { width: 260px; }
+    .main-content     { padding: 18px 18px; }
+    .main-breadcrumb  { padding: 10px 16px; gap: 10px; }
+    .folder-select    { min-width: 95px; }
+
+    /* CoffeeIA: al abrirse en pantallas no anchas, cubre el área del documento
+       (overlay sobre .visor-main) en vez de exprimirlo en una 4ª columna que
+       deja el documento en una franja ilegible. */
+    .visor-main { position: relative; }
+    .ia-drawer.is-open {
+        position: absolute;
+        inset: 0;
+        width: 100% !important;
+        z-index: 45;
+    }
+    .ia-drawer-inner { min-width: 0; border-right: none; }
+    .ia-drawer-resize-handle { display: none; }
+
+    /* Composer: la fila de herramientas + selector de modelo no se corta;
+       el selector baja a su propia línea si no cabe. */
+    .ia-input-hint { flex-wrap: wrap; row-gap: 6px; }
+    .ia-input-hint .ia-model-pill { flex-shrink: 0; max-width: 100%; }
+
+    /* Documento: menos padding lateral y media que no desborda. */
+    .md-rendered { padding: 36px 30px 44px; }
+    .md-rendered img, .md-rendered video, .md-rendered iframe { max-width: 100%; height: auto; }
+    /* Tablas anchas: scroll horizontal propio en vez de desbordar la página. */
+    .md-rendered table { display: block; overflow-x: auto; max-width: 100%; }
+}
+
+/* ── Móvil (≤ 900px): se apila todo, igual que el Lab ── */
+@media (max-width: 900px) {
+    /* Header en una fila; los controles bajan a un panel desplegable (⚙️). */
+    .visor-header     { height: 54px; padding: 9px 12px; position: relative; }
+    .vsr-header-left  { flex: 1 1 auto; min-width: 0; gap: 10px; }
+    .visor-logo       { display: none; }
+    #headerTitle      { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .vsr-chip         { display: none; }
+    .vsr-header-toggle { display: grid; }
+
+    .vsr-header-right {
+        display: none;
+        position: absolute; top: calc(100% + 1px); right: 8px; left: 8px; z-index: 60;
+        flex-direction: column; align-items: stretch; gap: 10px;
+        padding: 12px; width: auto;
+        background: var(--vsr-bg-chrome);
+        border: 1px solid var(--vsr-border);
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, .4);
+    }
+    .vsr-header-right.is-open { display: flex; }
+    .vsr-header-right .folder-picker { width: 100%; height: auto; }
+    .vsr-header-right .folder-select { flex: 1; min-width: 0; }
+    .vsr-header-right #btnRefresh    { width: 100%; justify-content: center; }
+    .vsr-header-right .btn-label     { display: inline; }
+    .vsr-header-right .vsr-user-block-wrap { width: 100%; }
+    .vsr-header-right .vsr-user-block { width: 100%; justify-content: flex-start; }
+
+    /* Conmutador Archivos/Documento visible. */
+    .vsr-mobile-switch {
+        display: flex; gap: 6px; flex-shrink: 0;
+        padding: 8px 12px;
+        background: var(--vsr-bg-chrome);
+        border-bottom: 1px solid var(--vsr-border);
+    }
+    .vsr-mswitch {
+        flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 9px 10px; border-radius: 9px;
+        font-size: 13px; font-weight: 600;
+        color: var(--vsr-text-mute2);
+        background: var(--vsr-bg-input);
+        border: 1px solid var(--vsr-border-input);
+        cursor: pointer; transition: all .15s;
+    }
+    .vsr-mswitch.active { color: #fff; background: var(--vsr-accent); border-color: var(--vsr-accent); }
+
+    /* Body-row apilado; solo se ve el panel del data-mview activo. */
+    .visor-body-row { flex-direction: column; position: relative; }
+    .visor-body-row[data-mview="doc"]   .visor-sidebar { display: none; }
+    .visor-body-row[data-mview="files"] .visor-main    { display: none; }
+
+    .visor-sidebar {
+        width: 100% !important; flex: 1 1 auto;
+        border-right: none; border-bottom: 1px solid var(--vsr-border);
+    }
+    .visor-main   { width: 100%; flex: 1 1 auto; }
+    .main-content { padding: 14px 12px; }
+    .sidebar-toggle-btn { display: none; }   /* colapsar a rail no aplica en móvil */
+
+    /* El sidebar siempre expandido en móvil (anula el modo rail colapsado). */
+    .visor-sidebar.is-collapsed { width: 100% !important; }
+    .visor-sidebar.is-collapsed .sidebar-search-wrap .cs-input-group,
+    .visor-sidebar.is-collapsed .sidebar-footer,
+    .visor-sidebar.is-collapsed .section-header,
+    .visor-sidebar.is-collapsed .tree-type-header,
+    .visor-sidebar.is-collapsed .tree-project-header,
+    .visor-sidebar.is-collapsed .sidebar-item .file-name,
+    .visor-sidebar.is-collapsed .sidebar-item .file-size { display: flex; }
+    .visor-sidebar.is-collapsed .sidebar-item { justify-content: flex-start; gap: 10px; padding: 9px 14px !important; }
+
+    /* Rail → barra horizontal al fondo (idéntico al Lab). */
+    .app-rail {
+        order: 99;
+        width: 100%; flex-direction: row;
+        border-right: none; border-top: 1px solid var(--vsr-border);
+        padding: 6px 8px; gap: 4px;
+    }
+    .app-rail-nav { flex-direction: row; justify-content: space-around; width: 100%; }
+    .app-rail-item { flex: 1 1 0; min-height: 44px; padding: 6px 2px; }
+    .app-rail-item .app-rail-label { font-size: 8.5px; }
+    .app-rail-item.active::before { display: none; }
+
+    /* Toolbar del documento: scroll horizontal en vez de romper el layout. */
+    .main-breadcrumb { gap: 8px; padding: 8px 10px; }
+    .doc-toolbar {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
+    }
+    .doc-toolbar::-webkit-scrollbar { display: none; }
+
+    /* Documento: padding compacto, texto a la izquierda (justificado se ve mal
+       en columnas angostas) y el banner de "Vista generada" apilado para que
+       sus 3 botones no fuercen scroll horizontal. */
+    .md-rendered { padding: 22px 16px 30px; }
+    .md-rendered p { text-align: left; }
+    .md-rendered .ia-layout-banner { flex-direction: column; align-items: stretch; gap: 10px; }
+    .md-rendered .ia-layout-banner-actions { justify-content: flex-start; }
+
+    /* Footer: no exprimir todo en una fila; la franja de stats hace scroll
+       horizontal y se oculta el bloque "Seleccionado" (redundante en móvil). */
+    .visor-footer { padding: 7px 12px; gap: 10px; font-size: 10.5px; }
+    .visor-footer > div:first-child {
+        min-width: 0; flex-wrap: nowrap; overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .visor-footer > div:first-child::-webkit-scrollbar { display: none; }
+    .visor-footer > div:first-child > * { flex-shrink: 0; }
+    .visor-footer > div:last-child { display: none; }
+}
+
+/* ── Móvil estrecho (≤ 560px) ── */
+@media (max-width: 560px) {
+    #headerTitle { font-size: 13px; }
+    .doc-meta    { width: 100%; }
+}

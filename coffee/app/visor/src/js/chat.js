@@ -1166,3 +1166,41 @@ function chatRelativeTime(ts) {
     if (d < 7) return d + 'd';
     return new Date(t).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
 }
+
+/* Responsive móvil (mismo patrón que el Lab): conmutador Conversaciones/Chat +
+   dropdown de los controles del header. En desktop están ocultos por CSS. */
+$(function () {
+    const isMobile = () => window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
+    const showChatView = () => {
+        $('.chat-mswitch').removeClass('active');
+        $('.chat-mswitch[data-mview="chat"]').addClass('active');
+        $('.chat-workspace').attr('data-mview', 'chat');
+    };
+
+    $('.chat-mswitch').on('click', function () {
+        const view = $(this).data('mview');
+        $('.chat-mswitch').removeClass('active');
+        $(this).addClass('active');
+        $('.chat-workspace').attr('data-mview', view);
+    });
+
+    // Al abrir una conversación en móvil, saltar a la vista Chat.
+    $(document).on('click', '.chat-sidebar-item', () => { if (isMobile()) showChatView(); });
+
+    const closeHeader = () => {
+        $('#chatHeaderRight').removeClass('is-open');
+        $('#chatHeaderToggle').attr('aria-expanded', 'false').removeClass('is-active');
+    };
+    $('#chatHeaderToggle').on('click', function (e) {
+        e.stopPropagation();
+        const open = !$('#chatHeaderRight').hasClass('is-open');
+        $('#chatHeaderRight').toggleClass('is-open', open);
+        $(this).attr('aria-expanded', open ? 'true' : 'false').toggleClass('is-active', open);
+    });
+    $('#chatHeaderRight').on('change', 'select', () => { if (isMobile()) closeHeader(); });
+    $(document).on('click.chatHeader', e => {
+        if (!$('#chatHeaderRight').hasClass('is-open')) return;
+        if ($(e.target).closest('#chatHeaderRight, #chatHeaderToggle').length) return;
+        closeHeader();
+    });
+});

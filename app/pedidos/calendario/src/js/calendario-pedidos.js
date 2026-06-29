@@ -20,7 +20,10 @@ class App extends Templates {
     async init() {
         const data = await useFetch({ url: this._link, data: { opc: 'init' } });
         this.subsidiaries = data.subsidiaries;
+        this.subsidiariesCobro = data.subsidiariesCobro || [];
         this.isAdmin = data.isAdmin;
+        this.subsidiaryName = data.subsidiaryName || '';
+        this.subsidiaryId = data.subsidiaryId || null;
         this.render();
     }
 
@@ -46,7 +49,7 @@ class App extends Templates {
             <div class="p-2 flex flex-wrap items-center justify-between gap-3">
                 <button title="Regresar" type="button"
                     class="btn bg-gray-700 hover:bg-purple-950 text-white px-4 py-2 rounded w-full sm:w-auto"
-                    onclick="window.location.href = '/alpha/pedidos/'">
+                    onclick="window.location.href = '/app/pedidos/'">
                     <small><i class="icon-reply"></i> Volver a Lista</small>
                 </button>
 
@@ -172,13 +175,17 @@ class App extends Templates {
     }
 
     initSubsidiaryFilter() {
-        // if (!this.isAdmin) return;
-
+        // Selector disponible para todos: permite ver una sucursal o "Todas".
         const $select = $('#subsidiaryFilter');
 
         this.subsidiaries.forEach(sub => {
             $select.append(`<option value="${sub.id}">${sub.valor}</option>`);
         });
+
+        // Arranca en la sucursal activa del usuario; puede cambiar a "Todas".
+        if (this.subsidiaryId) {
+            $select.val(this.subsidiaryId);
+        }
 
         $select.on('change', () => {
             this.createCalendar();
@@ -277,7 +284,8 @@ class App extends Templates {
             return;
         }
 
-        // const subsidiaryId = this.isAdmin ? ($('#subsidiaryFilter').val() || 0) : 0;
+        // Cualquier usuario filtra por la sucursal elegida en el selector
+        // ("0" = todas las sucursales).
         const subsidiaryId = $('#subsidiaryFilter').val() || 0;
 
         let data = await useFetch({
@@ -497,14 +505,14 @@ class App extends Templates {
             title: `
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                        <i class="icon-birthday text-white text-sm"></i>
+                        ${lucideIcon('cake', 'w-4 h-4 text-white')}
                     </div>
                     <div>
                         <h2 class="text-lg font-semibold text-white">Detalles del Pedido</h2>
                         <div class="flex items-center gap-2 mt-1">
                             ${badgeTipo}
-                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200">
-                                <i class="icon-home mr-1"></i>${subsidiarieName}
+                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200 inline-flex items-center gap-1">
+                                ${lucideIcon('house', 'w-3.5 h-3.5')}${subsidiarieName}
                             </span>
                         </div>
                     </div>
@@ -539,28 +547,29 @@ class App extends Templates {
             this.layoutManager.applyLayout();
             const orderData = response.data.order || {};
             const products = response.data.products || [];
+            const paymentMethods = response.data.paymentMethods || [];
 
             const container = $('#orderDetailsContainer');
             container.html(`
                 <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
                     <div class="lg:sticky lg:top-4">
-                        ${(orderData.is_delivered != '2') && (orderData.status != '3' && orderData.status != '4' && orderData.status != '1') ? `
+                        ${(orderData.is_delivered != '2') && (orderData.status != '3' && orderData.status != '4') ? `
                             <div class="grid grid-cols-3 gap-2 mb-3">
                                 <button onclick="app.historyPay(${orderId})"
                                     class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                    <i class="icon-dollar text-xs"></i> Pagar
+                                    ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
                                 </button>
                                 <button onclick="app.printOrder(${orderId})"
                                     class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                    <i class="icon-print text-xs"></i> Imprimir
+                                    ${lucideIcon('printer', 'w-3.5 h-3.5')} Imprimir
                                 </button>
                                 <button onclick="app.addDiscount(${orderId})"
                                     class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                    <i class="icon-percent text-xs"></i> Descuento
+                                    ${lucideIcon('percent', 'w-3.5 h-3.5')} Descuento
                                 </button>
                             </div>
                         ` : ''}
-                        ${(orderData.is_delivered == '0' || orderData.is_delivered == null ) && (orderData.status != '4' && orderData.status != '1') ? `
+                        ${(orderData.is_delivered == '0' || orderData.is_delivered == null ) && (orderData.status != '4') ? `
                             <button onclick="app.handleDeliveryClick(${orderId}, ${orderData.is_delivered || 0}, '${orderData.folio || ''}')"
                                     class="w-full mb-3 flex items-center justify-center gap-1.5
                                         text-white text-[11px] font-medium px-2 py-2 rounded-md
@@ -568,7 +577,7 @@ class App extends Templates {
                                 Entregar productos
                             </button>
                         ` : ''}
-                        ${this.detailsCard(orderData)}
+                        ${this.detailsCard(orderData, paymentMethods)}
                     </div>
                 </div>
 
@@ -626,18 +635,18 @@ class App extends Templates {
 
     getBadgeDeliveryType(tipo) {
         if (tipo == 0 || tipo === '0') {
-            return '<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-block w-24 text-center"><i class="icon-home"></i> Local</span>';
+            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-flex items-center gap-1 w-24 justify-center">${lucideIcon('house', 'w-3.5 h-3.5')} Local</span>`;
         } else if (tipo == 1 || tipo === '1') {
-            return '<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-block w-28 text-center"><i class="icon-motorcycle"></i> Domicilio</span>';
+            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-flex items-center gap-1 w-28 justify-center">${lucideIcon('truck', 'w-3.5 h-3.5')} Domicilio</span>`;
         }
         return '<span class="px-3 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-700 inline-block w-24 text-center">Sin especificar</span>';
     }
 
-    detailsCard(orderData) {
+    detailsCard(orderData, paymentMethods = []) {
         return `
             <div class="space-y-3">
                 ${this.infoOrder(orderData)}
-                ${this.infoSales(orderData)}
+                ${this.infoSales(orderData, paymentMethods)}
             </div>
         `;
     }
@@ -715,48 +724,38 @@ class App extends Templates {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
                 <h3 class="text-white font-semibold text-base mb-2 flex items-center">
-                    <i class="icon-info text-blue-400 mr-2 text-sm"></i>
+                    ${lucideIcon('info', 'w-4 h-4 text-blue-400 mr-2')}
                     Información del Pedido
                 </h3>
 
                 <div class="space-y-1.5">
-                    <div class="flex items-start">
-                        <i class="icon-doc-text-1 text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Folio:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.folio || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('file-text', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Folio:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.folio || 'N/A'}</span>
                     </div>
 
-                    <div class="flex items-start">
-                        <i class="icon-user text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Cliente:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.name || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('user', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Cliente:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.name || 'N/A'}</span>
                     </div>
 
-                    <div class="flex items-start">
-                        <i class="icon-calendar text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Fecha de entrega:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('calendar', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Fecha de entrega:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</span>
                     </div>
 
-                    <div class="flex items-start">
-                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Hora:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.time_order || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('clock', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Hora:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.time_order || 'N/A'}</span>
                     </div>
-                    <div class="flex items-start">
-                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Estado de entrega:</p>
-                            ${this.statusDelivery(orderData.is_delivered)}
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('truck', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Estado de entrega:</span>
+                        <span class="ml-auto">${this.statusDelivery(orderData.is_delivered)}</span>
                     </div>
 
                 </div>
@@ -766,26 +765,40 @@ class App extends Templates {
 
     statusDelivery(is_delivered) {
         if (is_delivered == '1') {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-green-600 text-green-600 inline-block">
-                        <i class="icon-ok mr-1"></i> Entregado
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-green-600 text-green-600 inline-flex items-center gap-1">
+                        ${lucideIcon('check', 'w-3.5 h-3.5')} Entregado
                     </span>`;
         } else if (is_delivered == '2') {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-purple-600 text-purple-600 inline-block">
-                        <i class="icon-cake mr-1"></i> Para Producir
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-purple-600 text-purple-600 inline-flex items-center gap-1">
+                        ${lucideIcon('cake', 'w-3.5 h-3.5')} Para Producir
                     </span>`;
         } else {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-red-600 text-red-600 inline-block">
-                        <i class="icon-cancel mr-1"></i> No entregado
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-red-600 text-red-600 inline-flex items-center gap-1">
+                        ${lucideIcon('x', 'w-3.5 h-3.5')} No entregado
                     </span>`;
         }
     }
 
-    infoSales(orderData) {
+    infoSales(orderData, paymentMethods = []) {
         const totalPay = parseFloat(orderData.total_pay || 0);
         const discount = parseFloat(orderData.discount || 0);
         const totalPaid = parseFloat(orderData.total_paid || 0);
         const balance = parseFloat(orderData.balance || 0);
         const infoDiscount = orderData.info_discount || '';
+
+        const methodsHtml = (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
+                    <div class="pl-2 space-y-1 border-l-2 border-gray-600">
+                        ${paymentMethods.map(m => `
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-500 text-xs flex items-center gap-1.5">
+                                ${lucideIcon('credit-card', 'w-3.5 h-3.5')}
+                                ${m.method_pay || 'Sin método'}:
+                            </span>
+                            <span class="text-gray-300 text-xs">$${parseFloat(m.pay || 0).toFixed(2)}</span>
+                        </div>
+                        `).join('')}
+                    </div>
+        ` : '';
 
         const discountHtml = discount > 0 ? `
                     <div class="flex items-center justify-between">
@@ -802,7 +815,7 @@ class App extends Templates {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
                 <h3 class="text-white font-semibold text-base mb-2 flex items-center">
-                    <i class="icon-dollar text-green-400 mr-2 text-sm"></i>
+                    ${lucideIcon('dollar-sign', 'w-4 h-4 text-green-400 mr-2')}
                     Resumen de pago
                 </h3>
 
@@ -818,6 +831,8 @@ class App extends Templates {
                         <span class="text-gray-400 text-sm">Pagado:</span>
                         <span class="text-green-400 font-bold text-sm">$${totalPaid.toFixed(2)}</span>
                     </div>
+
+                    ${methodsHtml}
 
                     <div class="border-t border-gray-600 my-1.5"></div>
 
@@ -837,7 +852,7 @@ class App extends Templates {
         if (!products || products.length === 0) {
             return `
                 <div class="bg-[#283341] rounded-lg p-2 text-center h-full flex flex-col items-center justify-center">
-                    <i class="icon-basket text-gray-500 text-5xl mb-4"></i>
+                    ${lucideIcon('shopping-basket', 'w-12 h-12 text-gray-500 mb-4')}
                     <h3 class="text-white text-lg font-semibold mb-2">No hay productos</h3>
                     <p class="text-gray-400">Este pedido no contiene productos.</p>
                 </div>
@@ -851,7 +866,7 @@ class App extends Templates {
                 <div class="bg-[#283341] rounded-lg p-3 mb-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-white font-semibold text-lg flex items-center">
-                            <i class="icon-basket mr-2 text-blue-400"></i>
+                            ${lucideIcon('shopping-basket', 'w-5 h-5 mr-2 text-blue-400')}
                             Productos del Pedido
                         </h3>
                         <span class="text-gray-300 font-medium"> ${totalItems} productos</span>
@@ -1095,22 +1110,23 @@ class App extends Templates {
             data: { opc: 'getOrderDetails', id: orderId }
         });
         const orderData = response.data.order || {};
+        const paymentMethods = response.data.paymentMethods || [];
         $('#orderInfoPanel .lg\\:sticky').html(`
             <div class="grid grid-cols-3 gap-2 mb-3">
                 <button onclick="app.historyPay(${orderId})"
                     class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                    <i class="icon-dollar text-xs"></i> Pagar
+                    ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
                 </button>
                 <button onclick="app.printOrder(${orderId})"
                     class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                    <i class="icon-print text-xs"></i> Imprimir
+                    ${lucideIcon('printer', 'w-3.5 h-3.5')} Imprimir
                 </button>
                 <button onclick="app.addDiscount(${orderId})"
                     class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                    <i class="icon-percent text-xs"></i> Descuento
+                    ${lucideIcon('percent', 'w-3.5 h-3.5')} Descuento
                 </button>
             </div>
-            ${this.detailsCard(orderData)}
+            ${this.detailsCard(orderData, paymentMethods)}
         `);
     }
 
@@ -1535,6 +1551,29 @@ class App extends Templates {
         const saldoRestante = order.total_pay - discount - order.total_paid;
         const isPaidInFull = saldoRestante <= 0;
 
+        // Sucursal de cobro (cobro cruzado): default = sucursal activa del usuario.
+        // Admin -> sucursal de sesión; cajero -> su sucursal de sesión.
+        // Fallback final: la sucursal del pedido.
+        const defaultCobroSub = this.subsidiaryId
+            ? String(this.subsidiaryId)
+            : String(order.subsidiaries_id ?? '');
+
+        const subsidiariesCobro = this.subsidiariesCobro || [];
+
+        // Sucursal de origen del pedido (referencia para el cobro cruzado).
+        const origenSub    = subsidiariesCobro.find(s => String(s.id) === String(order.subsidiaries_id));
+        const origenNombre = origenSub ? origenSub.valor : '—';
+
+        // Estado inicial de la tarjeta "Sucursal que cobrará".
+        const origenSubId     = String(order.subsidiaries_id ?? '');
+        const cobroSubSel     = subsidiariesCobro.find(s => String(s.id) === String(defaultCobroSub));
+        const cobroNombre     = cobroSubSel ? cobroSubSel.valor : origenNombre;
+        const cobroEsMismaSuc = String(defaultCobroSub) === origenSubId;
+        const cobroSubtitulo  = cobroEsMismaSuc ? 'Misma sucursal de origen' : 'Cobro en otra sucursal';
+        const cobroOptionsHtml = subsidiariesCobro
+            .map(s => `<option value="${s.id}" ${String(s.id) === String(defaultCobroSub) ? 'selected' : ''}>${s.valor}</option>`)
+            .join('');
+
         $("#container-payment").html(`
             <div class="flex justify-center items-start">
                 <div class="w-full">
@@ -1598,6 +1637,44 @@ class App extends Templates {
                     disabled: isPaidInFull
                 },
                 {
+                    opc: "div",
+                    id: "origenPedido",
+                    lbl: "Origen del pedido",
+                    class: "col-12 mb-2",
+                    html: `<div class="flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5">
+                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                            <i class="icon-shop text-sm"></i>
+                        </div>
+                        <div class="flex flex-col leading-tight min-w-0">
+                            <span class="text-sm text-white font-semibold truncate">${origenNombre}</span>
+                            <span class="text-[11px] text-gray-400">Sucursal donde se generó la venta</span>
+                        </div>
+                    </div>`
+                },
+                {
+                    opc: "div",
+                    id: "cobroWrapper",
+                    lbl: "Sucursal que cobrará",
+                    class: "col-12 mb-3",
+                    html: `<div class="relative">
+                        <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
+                            <div id="cobroCardIcon" class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 ${cobroEsMismaSuc ? 'text-blue-400' : 'text-amber-400'} shrink-0">
+                                <i class="icon-bank text-sm"></i>
+                            </div>
+                            <div class="flex flex-col leading-tight flex-1 min-w-0">
+                                <span id="cobroCardName" class="text-sm text-white font-semibold truncate">${cobroNombre}</span>
+                                <span id="cobroCardSub" class="text-[11px] text-gray-400">${cobroSubtitulo}</span>
+                            </div>
+                            <i class="icon-down-open text-gray-400 text-xs shrink-0"></i>
+                        </div>
+                        <select id="payment_subsidiaries_id" name="payment_subsidiaries_id" data-origen="${origenSubId}" required
+                            class="absolute inset-0 w-full h-full opacity-0 ${isPaidInFull ? 'cursor-not-allowed' : 'cursor-pointer'}"
+                            ${isPaidInFull ? 'disabled' : ''} onchange="app.onCobroChange(this)">
+                            ${cobroOptionsHtml}
+                        </select>
+                    </div>`
+                },
+                {
                     opc: "textarea",
                     id: "description",
                     lbl: "Observación",
@@ -1653,11 +1730,92 @@ class App extends Templates {
             }
         });
 
+        // Confirmación antes de registrar el pago.
+        const formEl = document.getElementById('form-payment');
+        if (formEl) {
+            formEl.addEventListener('submit', async (e) => {
+                if (formEl.dataset.payConfirmed === '1') {
+                    formEl.dataset.payConfirmed = '';
+                    return;
+                }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                const importe = parseFloat($('#advanced_pay').val()) || 0;
+                if (importe <= 0) {
+                    alert({ icon: 'error', text: 'Ingresa un importe válido para registrar el pago.', btn1: true, btn1Text: 'Ok' });
+                    return;
+                }
+
+                const metodos = { '1': 'Efectivo', '2': 'Tarjeta', '3': 'Transferencia' };
+                const metodoTxt = metodos[String($('#method_pay_id').val())] || '—';
+                const subCobroId = String($('#payment_subsidiaries_id').val() || '');
+                const subCobroObj = subsidiariesCobro.find(s => String(s.id) === subCobroId);
+                const subCobroNombre = subCobroObj ? subCobroObj.valor : origenNombre;
+                const esCruzado = subCobroId !== '' && String(order.subsidiaries_id ?? '') !== subCobroId;
+
+                const row = (lbl, val, color = '#fff') => `
+                    <div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0;">
+                        <span style="color:#9ca3af;">${lbl}</span><b style="color:${color};">${val}</b>
+                    </div>`;
+
+                const htmlConfirm = `
+                    <div style="text-align:left;font-size:14px;line-height:1.5;">
+                        ${row('Importe', formatPrice(importe))}
+                        ${row('Método de pago', metodoTxt)}
+                        ${row('Sucursal que cobra', subCobroNombre, '#A78BFA')}
+                        ${esCruzado ? `
+                        <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fcd34d;font-size:12.5px;line-height:1.45;">
+                            Cobro cruzado: el pedido es de <b>${origenNombre}</b>, pero el cobro se registrará en <b>${subCobroNombre}</b>.
+                        </div>` : ''}
+                    </div>`;
+
+                const res = await Swal.fire({
+                    icon: 'question',
+                    title: '¿Registrar pago?',
+                    html: htmlConfirm,
+                    confirmButtonText: 'Sí, registrar',
+                    cancelButtonText: 'Cancelar',
+                    showCancelButton: true,
+                    background: '#1F2A37',
+                    color: '#fff',
+                    customClass: {
+                        popup: 'rounded-lg shadow-lg',
+                        title: 'text-white',
+                        confirmButton: 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white py-2 px-4 rounded',
+                        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded'
+                    }
+                });
+
+                if (res && res.isConfirmed) {
+                    formEl.dataset.payConfirmed = '1';
+                    formEl.requestSubmit();
+                }
+            }, true);
+        }
+
         if (isPaidInFull) {
             setTimeout(() => {
                 $("#advanced_pay, #method_pay_id, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             }, 100);
         }
+    }
+
+    onCobroChange(sel) {
+        const $sel   = $(sel);
+        const id     = String($sel.val() || '');
+        const nombre = $sel.find('option:selected').text().trim();
+        const origen = String($sel.data('origen') || '');
+        const same   = id === origen;
+
+        $('#cobroCardName').text(nombre);
+        $('#cobroCardSub').text(same ? 'Misma sucursal de origen' : 'Cobro en otra sucursal');
+        $('#cobroCard')
+            .toggleClass('border-slate-700', same)
+            .toggleClass('border-amber-500/60', !same);
+        $('#cobroCardIcon')
+            .toggleClass('text-blue-400', same)
+            .toggleClass('text-amber-400', !same);
     }
 
     deletePay(id, idFolio) {

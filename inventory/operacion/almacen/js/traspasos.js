@@ -829,7 +829,7 @@ class TraspasosView extends Templates {
             },
             estadoPalettes: {
                 'Solicitado':  { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
-                'Enviado':     { bg: 'rgba(59,130,246,0.15)',  fg: '#3B82F6' },
+                'Enviado':     { bg: 'rgba(192,90,64,0.15)',  fg: '#C05A40' },
                 'Pendiente':   { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
                 'Autorizado':  { bg: 'rgba(167,139,250,0.15)', fg: '#A78BFA' },
                 'En Transito': { bg: 'rgba(251,146,60,0.15)',  fg: '#FB923C' },
@@ -838,7 +838,7 @@ class TraspasosView extends Templates {
                 'Rechazado':   { bg: 'rgba(244,63,94,0.15)',   fg: '#F43F5E' }
             },
             routePalette: [
-                { icon: 'text-blue-600',   bgHex: 'rgba(59,130,246,0.12)',  borderHex: 'rgba(59,130,246,0.35)' },
+                { icon: 'text-blue-600',   bgHex: 'rgba(192,90,64,0.12)',  borderHex: 'rgba(192,90,64,0.35)' },
                 { icon: 'text-green-600',  bgHex: 'rgba(63,193,137,0.12)',  borderHex: 'rgba(63,193,137,0.35)' },
                 { icon: 'text-purple-600', bgHex: 'rgba(168,85,247,0.12)',  borderHex: 'rgba(168,85,247,0.35)' },
                 { icon: 'text-pink-600',   bgHex: 'rgba(244,114,182,0.12)', borderHex: 'rgba(244,114,182,0.35)' },

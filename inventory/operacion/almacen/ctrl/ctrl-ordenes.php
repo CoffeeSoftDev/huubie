@@ -679,7 +679,7 @@ class ctrl extends mdl {
 
     private function sucChipCell($branchId, $branchName, $whName) {
         $palette = [
-            ['icon' => 'text-blue-400',   'bg' => 'rgba(59,130,246,0.15)',  'border' => 'rgba(59,130,246,0.35)'],
+            ['icon' => 'text-blue-400',   'bg' => 'rgba(192,90,64,0.15)',  'border' => 'rgba(192,90,64,0.35)'],
             ['icon' => 'text-green-400',  'bg' => 'rgba(63,193,137,0.15)',  'border' => 'rgba(63,193,137,0.35)'],
             ['icon' => 'text-purple-400', 'bg' => 'rgba(168,85,247,0.15)',  'border' => 'rgba(168,85,247,0.35)'],
             ['icon' => 'text-pink-400',   'bg' => 'rgba(244,114,182,0.15)', 'border' => 'rgba(244,114,182,0.35)'],

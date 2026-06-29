@@ -91,6 +91,12 @@ class ExcalidrawBoard {
                 const looksSkeleton = elements.length > 0 &&
                     elements.some(el => el && el.seed == null && el.versionNonce == null);
                 if (looksSkeleton) {
+                    // 0) Plantilla "maestros corporativos" (source coffeeia-template): ajusta
+                    //    cada caja EXACTAMENTE a su texto antes de calcular las flechas, para
+                    //    que las puntas caigan en el borde real de la card ya dimensionada.
+                    if (parsed.source === 'coffeeia-template') {
+                        elements = this._autoSizeNodes(elements);
+                    }
                     // 1) Resolvemos NOSOTROS los enlaces (flechas/lineas con start/end por
                     //    id) calculando puntos de borde a borde. No dependemos del binding
                     //    de Excalidraw (inestable entre versiones) -> el enlace siempre cae
@@ -143,6 +149,42 @@ class ExcalidrawBoard {
 
         $('#exSaveBtn').off('click').on('click', () => this._save());
         if (window.lucide) lucide.createIcons();
+    }
+
+    // Ajusta cada caja (rectangle/ellipse/diamond con label) EXACTAMENTE al tamano de
+    // su texto: mide el ancho real de cada linea con canvas y fija width/height con un
+    // padding minimo. Soporta labels multilinea (`\n`). Asi las cards quedan "justas al
+    // texto" (no infladas) sin depender de lo que estimo la IA.
+    _autoSizeNodes(elements) {
+        if (!Array.isArray(elements)) return elements;
+        const PAD_X = 14, PAD_Y = 10, LINE_H = 1.28;
+        if (!this._measureCtx) {
+            const c = document.createElement('canvas');
+            this._measureCtx = c.getContext('2d');
+        }
+        const ctx = this._measureCtx;
+        const SHAPES = { rectangle: 1, ellipse: 1, diamond: 1 };
+
+        elements.forEach(el => {
+            if (!el || !SHAPES[el.type]) return;
+            const label = (el.label && typeof el.label === 'object') ? el.label : null;
+            const text  = label ? String(label.text || '') : '';
+            if (!text) return;
+            const fs = Number(label.fontSize) || Number(el.fontSize) || 13;
+            // Fuente comparable a la manuscrita de Excalidraw (ancho parecido).
+            ctx.font = '400 ' + fs + 'px "Comic Sans MS", "Segoe Print", "Bradley Hand", cursive';
+            const lines = text.split('\n');
+            let maxW = 0;
+            for (const ln of lines) {
+                const w = ctx.measureText(ln.length ? ln : ' ').width;
+                if (w > maxW) maxW = w;
+            }
+            // Elipse/diamante necesitan algo mas de holgura para no recortar el texto.
+            const extra = (el.type === 'rectangle') ? 1 : 1.3;
+            el.width  = Math.max(24, Math.ceil(maxW * extra + PAD_X * 2));
+            el.height = Math.max(fs + PAD_Y, Math.ceil(lines.length * fs * LINE_H + PAD_Y * 2));
+        });
+        return elements;
     }
 
     // Resuelve las conexiones de una escena skeleton SIN depender del binding de

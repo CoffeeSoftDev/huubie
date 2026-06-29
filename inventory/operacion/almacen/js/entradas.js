@@ -820,7 +820,7 @@ class EntradasView extends Templates {
             origenPalettes: {
                 'Produccion':    { bg: 'rgba(124,58,237,0.15)', fg: '#A78BFA' },
                 'Proveedor':     { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24' },
-                'Transferencia': { bg: 'rgba(28,100,242,0.15)', fg: '#60A5FA' },
+                'Transferencia': { bg: 'rgba(192,90,64,0.15)', fg: '#C05A40' },
                 'Devolucion':    { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' }
             },
             estadoPalettes: {

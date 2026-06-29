@@ -48,9 +48,54 @@ if (!is_array($body)) {
 $ctx         = coffeeia_build_context($body);
 $model       = $ctx['model'];
 $allMessages = $ctx['messages'];
+$dbSchema    = $ctx['db'] ?? null;
 
 $t0       = microtime(true);
 $provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
+
+// SELECT en vivo: si hay una base conectada, corremos las rondas de tool-calling de
+// forma sincrona (sirve para OpenRouter y para modelos Ollama tool-capable como GLM o
+// qwen3-coder) y luego emitimos la respuesta final. Si el modelo no soporta tools o
+// falla, caemos al streaming normal (el esquema ya esta inyectado -> el grafico sale).
+if ($dbSchema) {
+    try {
+        $client = llm_client_for($model);
+        $onStatus = function ($sql) use ($send) {
+            $send('thinking', ['t' => "\n[consultando {$sql}]\n"]);
+        };
+        $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, $onStatus, 4);
+
+        // "Streaming" del texto final: lo troceamos por palabras para que el UI lo
+        // pinte progresivamente (la consulta a la base ya se hizo arriba).
+        $final = (string) $r['final'];
+        foreach (preg_split('/(\s+)/u', $final, -1, PREG_SPLIT_DELIM_CAPTURE) as $piece) {
+            if ($piece !== '') $send('chunk', ['t' => $piece]);
+        }
+
+        $u          = $r['usage'];
+        $inTokens   = (int)($u['prompt_tokens']     ?? 0);
+        $outTokens  = (int)($u['completion_tokens'] ?? 0);
+        $costUsd    = isset($u['cost']) ? (float) $u['cost'] : null;
+        $credits    = $outTokens > 0 ? round($outTokens / 1000, 4) : 0;
+
+        $send('done', [
+            'ok'                => true,
+            'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
+            'tokens_used'       => $outTokens,
+            'prompt_tokens'     => $inTokens,
+            'completion_tokens' => $outTokens,
+            'cost_usd'          => $costUsd,
+            'credits_estimate'  => $credits,
+            'model'             => $model ?: '',
+            'db'                => $dbSchema,
+            'tool_rounds'       => $r['rounds'],
+        ]);
+        exit;
+    } catch (Throwable $e) {
+        // Modelo sin tools o consulta fallida: aun NO emitimos chunks, asi que es
+        // seguro continuar al streaming normal de abajo (con el esquema ya inyectado).
+    }
+}
 
 try {
     $client = llm_client_for($model);
@@ -84,6 +129,7 @@ try {
         'cost_usd'          => $costUsd,
         'credits_estimate'  => $credits,
         'model'             => $meta['model'] ?? ($model ?: ''),
+        'db'                => $dbSchema,
     ]);
 } catch (Throwable $e) {
     $send('error', ['error' => "Error al conectar con $provider: " . $e->getMessage()]);

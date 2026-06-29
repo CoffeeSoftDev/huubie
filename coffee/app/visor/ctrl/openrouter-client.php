@@ -50,15 +50,23 @@ class OpenRouterClient {
         if (isset($opts['top_p']))       $payload['top_p']       = $opts['top_p'];
         if (isset($opts['num_predict'])) $payload['max_tokens']  = (int) $opts['num_predict'];
         if (isset($opts['max_tokens']))  $payload['max_tokens']  = (int) $opts['max_tokens'];
+        // Tool-calling (function calling): el modelo puede pedir ejecutar herramientas.
+        if (!empty($opts['tools']))      $payload['tools']       = $opts['tools'];
+        if (isset($opts['tool_choice'])) $payload['tool_choice'] = $opts['tool_choice'];
 
         $data = $this->request('POST', '/chat/completions', $payload);
 
-        // Normalizamos al contrato que espera el controlador (estilo Ollama).
-        $content = $data['choices'][0]['message']['content'] ?? '';
+        // Normalizamos al contrato que espera el controlador (estilo Ollama). El
+        // 'message' completo puede traer tool_calls; lo exponemos aparte para el loop.
+        $msg = $data['choices'][0]['message'] ?? [];
+        if (!isset($msg['content']) || $msg['content'] === null) $msg['content'] = '';
         return [
-            'model'   => $data['model'] ?? ($model ?: $this->defaultModel),
-            'message' => ['content' => $content],
-            'usage'   => $data['usage'] ?? [],
+            'model'         => $data['model'] ?? ($model ?: $this->defaultModel),
+            'message'       => $msg,
+            'content'       => $msg['content'],
+            'tool_calls'    => $msg['tool_calls'] ?? [],
+            'finish_reason' => $data['choices'][0]['finish_reason'] ?? '',
+            'usage'         => $data['usage'] ?? [],
         ];
     }
 
@@ -102,6 +110,25 @@ class OpenRouterClient {
             $role    = isset($m['role']) ? $m['role'] : 'user';
             $content = isset($m['content']) ? (string) $m['content'] : '';
             $images  = (isset($m['images']) && is_array($m['images'])) ? $m['images'] : [];
+
+            // Resultado de una herramienta (tool-calling): conserva tool_call_id.
+            if ($role === 'tool') {
+                $out[] = [
+                    'role'         => 'tool',
+                    'tool_call_id' => $m['tool_call_id'] ?? '',
+                    'content'      => $content,
+                ];
+                continue;
+            }
+            // Turno del asistente que INVOCA herramientas: conserva tool_calls.
+            if ($role === 'assistant' && !empty($m['tool_calls'])) {
+                $out[] = [
+                    'role'       => 'assistant',
+                    'content'    => $content,
+                    'tool_calls' => $m['tool_calls'],
+                ];
+                continue;
+            }
 
             if (empty($images)) {
                 $out[] = ['role' => $role, 'content' => $content];

@@ -1,235 +1,330 @@
-# Base de Datos - Sistema de Pedidos
+# Pedidos — Base de datos (esquema vivo)
 
-## Conexion
-
-- **Host:** `localhost`
-- **Usuario:** `root`
-- **Base por defecto:** `fayxzvov_alpha`
-- **Charset:** `utf8mb4`
-- **Timezone:** `America/Mexico_City`
-- **Driver:** PDO MySQL
-- **Config:** `alpha/conf/_Conect.php`
+> **Inspeccionado vía PDO contra MySQL 8.0.31 el 2026-06-18.** Columnas, tipos, llaves,
+> FKs declaradas y conteo de filas son los **reales** de la instancia local.
+> Formato de tabla en cajas: `PK` · campos de negocio · montos · fechas · estado/FK.
+> Convención de flechas: `──▶` FK dentro de `fayxzvov_reginas` · `┄▷` FK cross-schema (tenant/admin).
 
 ---
 
-## Bases de Datos
+## 1. Conexión
 
-El sistema utiliza 3 bases de datos con JOINs cruzados:
-
-| Base de datos | Uso |
+| Parámetro | Valor |
 |---|---|
-| `fayxzvov_reginas` | Pedidos, catalogo, turnos, eventos, inventario |
-| `fayxzvov_alpha` | Framework: usuarios, sucursales, roles |
-| `fayxzvov_admin` | Administracion global: empresas y modulos |
+| Host / Driver | `localhost` · PDO MySQL |
+| Usuario / Pass | `root` / *(vacío en WAMP local)* |
+| DB por defecto | `fayxzvov_alpha` (las queries califican el esquema explícitamente) |
+| Charset | `SET NAMES utf8` |
+| Config | [conf/_Conect.php](../../../conf/_Conect.php) · CRUD base [conf/_CRUD.php](../../../conf/_CRUD.php) |
+| `$this->bd` | `'fayxzvov_reginas.'` (definido en [mdl-pedidos.php](../../mdl/mdl-pedidos.php)) |
+
+Los tres esquemas se combinan con **JOINs cross-schema** calificados (`fayxzvov_alpha.subsidiaries`, `fayxzvov_admin.companies`).
 
 ---
 
-## fayxzvov_reginas (57 tablas)
+## 2. Mapa de esquemas
 
-### Pedidos
+```
+fayxzvov_admin            fayxzvov_alpha                fayxzvov_reginas
+┌──────────────┐          ┌──────────────────┐         ┌───────────────────────────────┐
+│ companies    │◀─────────│ subsidiaries     │◀────────│ order  (transacción raíz)     │
+│ (empresa)    │          │ usr_users        │◀────────│ order_clients, order_products │
+└──────────────┘          │ usr_rols         │         │ cash_shift, daily_closure ... │
+   ADMINISTRACIÓN          └──────────────────┘         └───────────────────────────────┘
+                                TENANT                         MÓDULO (POS)
+```
 
-| Tabla | Descripcion |
-|---|---|
-| `order` | Pedidos principales |
-| `order_payments` | Pagos asociados a pedidos |
-| `order_clients` | Clientes de pedidos |
-| `order_histories` | Historial/auditoria de pedidos |
-| `order_images` | Imagenes adjuntas a pedidos |
-| `order_custom` | Pedidos personalizados |
-| `order_custom_products` | Productos de pedidos personalizados |
-| `order_package` | Paquetes de pedido |
-
-### Catalogo de Productos
-
-| Tabla | Descripcion |
-|---|---|
-| `order_products` | Productos del catalogo |
-| `order_category` | Categorias de productos |
-| `order_modifier` | Modificadores (extras, opciones) |
-| `order_modifier_products` | Items individuales de modificadores |
-
-### Turnos y Cierres
-
-| Tabla | Descripcion |
-|---|---|
-| `cash_shift` | Turnos de caja |
-| `cash_shift_movements` | Movimientos de caja (entradas/salidas) |
-| `shift_payment` | Desglose de pagos por turno |
-| `shift_status_process` | Conteo de estados de pedidos por turno |
-| `daily_closure` | Cierres diarios |
-| `closure_payment` | Pagos registrados en cierre |
-| `closure_status_proccess` | Estados de pedidos en cierre |
-| `corte_x_log` | Log de cortes X |
-
-### Eventos
-
-| Tabla | Descripcion |
-|---|---|
-| `evt_events` | Eventos (cumpleanos, ocasiones especiales) |
-| `evt_subevents` | Sub-eventos de sucursal |
-| `evt_payments` | Pagos de eventos |
-| `evt_histories` | Historial de eventos |
-| `evt_package` | Paquetes de evento |
-| `evt_package_products` | Productos dentro de paquetes |
-| `evt_events_package` | Relacion evento-paquete |
-| `evt_menu` | Menus de evento |
-| `evt_dishes` | Platillos de evento |
-| `evt_products` | Productos de evento |
-| `evt_category` | Categorias de evento |
-| `evt_classification` | Clasificaciones de evento |
-| `event_item` | Items de evento |
-
-### Reservaciones
-
-| Tabla | Descripcion |
-|---|---|
-| `reservation` | Reservaciones |
-| `reservation_histories` | Historial de reservaciones |
-| `reservation_status` | Estados de reservacion |
-
-### Inventario
-
-| Tabla | Descripcion |
-|---|---|
-| `inv_supplies` | Insumos/materias primas |
-| `inv_kardex` | Kardex de movimientos |
-| `inv_adjustments` | Ajustes de inventario |
-| `inv_recipes` | Recetas (relacion producto-insumo) |
-| `inv_suppliers` | Proveedores |
-| `inv_units` | Unidades de medida |
-| `inv_purchase_orders` | Ordenes de compra |
-| `inv_purchase_order_items` | Detalle de ordenes de compra |
-
-### Tickets y Facturacion
-
-| Tabla | Descripcion |
-|---|---|
-| `ticket_config` | Configuracion de tickets |
-| `ticket_log` | Log de tickets impresos |
-| `cfdi_invoices` | Facturas CFDI |
-
-### Fidelizacion (Loyalty)
-
-| Tabla | Descripcion |
-|---|---|
-| `loyalty_config` | Configuracion del programa |
-| `loyalty_points` | Puntos acumulados por cliente |
-| `loyalty_transactions` | Transacciones de puntos |
-
-### KDS (Kitchen Display System)
-
-| Tabla | Descripcion |
-|---|---|
-| `kds_order_items` | Items enviados a pantalla de cocina |
-
-### Tablas de Referencia
-
-| Tabla | Descripcion |
-|---|---|
-| `status_process` | Estados de pedido (Pendiente, En proceso, Listo, Entregado, etc.) |
-| `method_pay` | Metodos de pago (Efectivo, Tarjeta, Transferencia) |
-| `customers` | Clientes generales |
-| `cancellation_reasons` | Razones de cancelacion |
-| `role_permissions` | Permisos por rol |
-| `tables_config` | Configuracion de mesas |
-| `tips` | Propinas |
+`fayxzvov_reginas` es un esquema legacy de ~57 tablas (eventos, reservaciones, inventario,
+loyalty, kds…). **El módulo Pedidos solo usa el subconjunto** documentado abajo.
 
 ---
 
-## fayxzvov_alpha (22 tablas)
+## 3. Núcleo del pedido — `fayxzvov_reginas`
 
-Tablas usadas por el modulo de pedidos:
+### 3.1 `order` — transacción raíz
 
-| Tabla | Descripcion |
-|---|---|
-| `subsidiaries` | Sucursales/branches |
-| `usr_users` | Usuarios del sistema |
-| `usr_rols` | Roles de usuario |
-| `status_process` | Estados (compartida) |
-| `method_pay` | Metodos de pago (compartida) |
-| `customers` | Clientes (compartida) |
+```
+┌─ order ──────────────────────────────── raíz · 372 filas ─┐
+│ id                int            PK · auto_increment        │
+│ ── negocio ──                                              │
+│ note              text           notas del pedido           │
+│ location          varchar(255)   ubicación (default '')     │
+│ delivery_type     int            0=local · 1=domicilio      │
+│ is_delivered      int            0/1 entregado              │
+│ order_type        enum('pedido','mostrador')                │
+│ is_pos            tinyint        creado desde POS           │
+│ ── montos (DOUBLE) ──                                       │
+│ total_pay         double         total del pedido           │
+│ discount          double         monto de descuento         │
+│ info_discount     text           motivo del descuento       │
+│ tip_amount        double         propina (default 0)        │
+│ ── fechas ──                                               │
+│ date_order        date           fecha de ENTREGA           │
+│ time_order        time           hora de entrega            │
+│ date_birthday     datetime       cumpleaños del cliente     │
+│ date_creation     datetime       alta del registro          │
+│ cancelled_at      datetime       fecha de cancelación       │
+│ ── estado / FK ──                                          │
+│ status            int       ──▶ status_process.id           │
+│ type_id           int            avance de pago (1/2/3) *   │
+│ client_id         int       ──▶ order_clients.id            │
+│ subsidiaries_id   int       ┄▷ alpha.subsidiaries.id        │
+│ cash_shift_id     int       ──▶ cash_shift.id               │
+│ daily_closure_id  int       ──▶ daily_closure.id            │
+│ cancelled_by      int            usuario que canceló        │
+│ ── legacy ──   is_delivery · delivery_tipe(typo) · is_legacy│
+└────────────────────────────────────────────────────────────┘
+* type_id duplica la información de status (redundante).
+```
 
-### Relacion con pedidos
+### 3.2 `order_clients` — catálogo de clientes
 
-Las queries en los modelos hacen JOINs cruzados:
-```sql
--- Ejemplo tipico
-SELECT o.*, s.name AS subsidiary_name, u.name AS user_name
-FROM fayxzvov_reginas.order o
-INNER JOIN fayxzvov_alpha.subsidiaries s ON o.subsidiary_id = s.id
-INNER JOIN fayxzvov_alpha.usr_users u ON o.user_id = u.id
+```
+┌─ order_clients ─────────────────────── catálogo · 321 filas ─┐
+│ id                int            PK · auto_increment           │
+│ name              varchar(255)                                 │
+│ phone             double   ⚠ debería ser VARCHAR (pierde 0s)   │
+│ email             varchar(255)   default ''                    │
+│ active            int            soft-delete                   │
+│ date_create       datetime                                     │
+│ subsidiaries_id   int       ┄▷ alpha.subsidiaries.id           │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 3.3 `order_payments` — abonos del pedido
+
+```
+┌─ order_payments ────────────────────── movimiento · 416 filas ─┐
+│ id                int            PK · auto_increment             │
+│ pay               double         importe del abono               │
+│ type              int            tipo de movimiento              │
+│ description        text           observación                    │
+│ date_pay          datetime                                       │
+│ order_id          int       ──▶ order.id                         │
+│ method_pay_id     int       ──▶ method_pay.id                    │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 3.4 `order_package` — renglones del pedido (líneas)
+
+```
+┌─ order_package ─────────────────────── detalle · 311 filas ─┐
+│ id                int            PK · auto_increment          │
+│ quantity          int            cantidad                     │
+│ price             double         precio de línea              │
+│ order_details     varchar(255)   detalle libre (default '')   │
+│ dedication        varchar(255)   dedicatoria (default '')     │
+│ status            int                                         │
+│ date_creation     datetime                                   │
+│ pedidos_id        int       ──▶ order.id        (cabecera)    │
+│ product_id        int       ──▶ order_products.id (catálogo)  │
+│ custom_id         int       ──▶ order_custom.id   (pastel)    │
+│ modifier_id       int       ──▶ order_modifier_products.id    │
+└───────────────────────────────────────────────────────────────┘
+Cada renglón es un producto de catálogo (product_id) o un pastel
+personalizado (custom_id), opcionalmente con un modificador.
+```
+
+### 3.5 `order_images` — imágenes de referencia
+
+```
+┌─ order_images ──────────────────────── adjuntos · 14 filas ─┐
+│ id                int            PK · auto_increment          │
+│ path / name / original_name   text   archivo subido          │
+│ date_created      datetime                                   │
+│ package_id        int       ──▶ order_package.id              │
+└───────────────────────────────────────────────────────────────┘
+```
+
+### 3.6 `order_histories` — bitácora del pedido
+
+```
+┌─ order_histories ───────────────────── auditoría · 145 filas ─┐
+│ id                int            PK · auto_increment            │
+│ title             varchar(50)                                  │
+│ action / comment  text           qué pasó                      │
+│ type              varchar(255)   payment / general …           │
+│ date_action       datetime                                     │
+│ order_id          int       ──▶ order.id                       │
+│ usr_users_id      int       ┄▷ alpha.usr_users.id (sin FK decl)│
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## fayxzvov_admin (5 tablas)
+## 4. Catálogo de productos — `fayxzvov_reginas`
 
-| Tabla | Descripcion |
-|---|---|
-| `companies` | Empresas registradas |
-| `customers` | Clientes globales |
-| `modules` | Modulos del sistema |
-| `module_company` | Relacion modulo-empresa |
-| `users` | Usuarios administrativos |
+### 4.1 `order_products` · `order_category`
 
-### Relacion con pedidos
+```
+┌─ order_products ────────────────────── catálogo · 333 filas ─┐   ┌─ order_category ──────── catálogo · 13 filas ─┐
+│ id              int     PK · auto_increment                   │   │ id              int   PK · auto_increment      │
+│ name            varchar(255)                                  │   │ classification  varchar(255)  nombre categoría │
+│ description     text                                          │   │ description     text                           │
+│ image           text                                         │   │ active          varchar(255) ⚠ debería ser int │
+│ price           double                                       │   │ date_creation   datetime                       │
+│ active          int     default 1                            │   │ subsidiaries_id int   ┄▷ alpha.subsidiaries.id │
+│ date_creation   datetime                                     │   └────────────────────────────────────────────────┘
+│ category_id     int  ──▶ order_category.id                   │
+│ subsidiaries_id int  ┄▷ alpha.subsidiaries.id                │
+│ companies_id    int  ┄▷ admin.companies.id                   │
+└───────────────────────────────────────────────────────────────┘
+```
 
-```sql
--- Se usa para obtener datos de la empresa
-SELECT c.* FROM fayxzvov_admin.companies c WHERE c.id = :company_id
+### 4.2 `order_modifier` · `order_modifier_products`
+
+```
+┌─ order_modifier ──────────── catálogo · 11 filas ─┐   ┌─ order_modifier_products ──── sub-catálogo · 216 filas ─┐
+│ id            int   PK · auto_increment            │   │ id            int   PK · auto_increment                  │
+│ name          text  grupo de modificador           │   │ name          varchar(255)                              │
+│ isExtra       smallint  0=opción · 1=extra cobrado  │   │ price         double                                    │
+│ active        int   default 1                       │   │ cant          double  default 1                         │
+│ date_creation datetime                              │   │ description    varchar(255)                              │
+└─────────────────────────────────────────────────────┘   │ active        int   default 1                            │
+                                                           │ date_creation datetime                                  │
+                                                           │ modifier_id   int   ──▶ order_modifier.id               │
+                                                           └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Diagrama de Relaciones
+## 5. Pasteles personalizados — `fayxzvov_reginas`
 
 ```
-fayxzvov_admin.companies
-        |
-        v
-fayxzvov_alpha.subsidiaries --> usr_users, usr_rols
-        |
-        v
-fayxzvov_reginas.order
-    |-- order_payments
-    |-- order_clients
-    |-- order_histories
-    |-- order_images
-    |-- order_custom --> order_custom_products
-    |-- order_package
-    |-- order_products --> order_category
-    |                  --> order_modifier --> order_modifier_products
-    |-- cash_shift --> shift_payment, shift_status_process
-    |              --> daily_closure --> closure_payment, closure_status_proccess
-    |-- evt_events --> evt_subevents, evt_payments, evt_package
-    |-- inv_supplies --> inv_kardex, inv_recipes, inv_adjustments
-    |-- kds_order_items
-    |-- ticket_log
-    |-- loyalty_points --> loyalty_transactions
+┌─ order_custom ──────────────────────── 303 filas ─┐   ┌─ order_custom_products ─────────── 1 644 filas ─┐
+│ id            int   PK · auto_increment            │   │ id            int   PK · auto_increment          │
+│ name          varchar(255)                         │   │ price         double                            │
+│ description   varchar(255)                         │   │ quantity      double                            │
+│ image         varchar(255)                         │   │ details       varchar(255)  default ''          │
+│ price         double   precio de venta             │   │ date_created  datetime                          │
+│ price_real    double   costo real                  │   │ custom_id     int  ──▶ order_custom.id           │
+│ portion_qty   int      porciones                   │   │ modifier_id   int  ──▶ order_modifier_products.id│
+│ date_created  datetime                             │   └───────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────┘
+Un pastel (order_custom) se compone de N order_custom_products (capas/rellenos/extras).
 ```
 
 ---
 
-## Variables de Sesion
+## 6. Catálogos de referencia — `fayxzvov_reginas`
 
-El sistema usa variables de sesion para determinar el contexto:
-
-| Variable | Uso |
-|---|---|
-| `$_SESSION['SUB']` | ID de sucursal activa |
-| `$_SESSION['ROLID']` | ID del rol del usuario |
-| `$_SESSION['COMPANY']` | ID de la empresa |
-| `$_SESSION['DB']` | Base de datos activa |
+```
+┌─ status_process ── 4 filas ─┐     ┌─ method_pay ──────── 3 filas ─┐
+│ id   int  PK                │     │ id          int  PK            │
+│ status varchar(50)          │     │ method_pay  varchar(20)        │
+│                             │     │ code        text               │
+│ 1 Cotización  2 Pendiente   │     │ 1 Efectivo(EFE) 2 Tarjeta(TDC) │
+│ 3 Pagado      4 Cancelado   │     │ 3 Transferencia (TRANSF)       │
+└─────────────────────────────┘     └─────────────────────────────────┘
+```
 
 ---
 
-## Archivos Clave
+## 7. Turnos de caja — `fayxzvov_reginas`
 
-| Archivo | Funcion |
-|---|---|
-| `alpha/conf/_Conect.php` | Conexion PDO |
-| `alpha/conf/_CRUD.php` | Operaciones CRUD base |
-| `pedidos/mdl/mdl-pedidos.php` | Modelo principal de pedidos |
-| `pedidos/mdl/mdl-admin.php` | Modelo de productos/categorias |
-| `pedidos/mdl/mdl-pedidos-personalizado.php` | Modelo de pedidos custom |
-| `pedidos/mdl/mdl-projects.php` | Modelo de proyectos |
+### 7.1 `cash_shift` — turno
+
+```
+┌─ cash_shift ──────────────────────────── transacción · 47 filas ─┐
+│ id                int            PK · auto_increment               │
+│ shift_name        varchar(255)   nombre del turno                  │
+│ status            enum('open','closed')                            │
+│ ── montos (DOUBLE) ──                                              │
+│ opening_amount    double         fondo de apertura                 │
+│ total_sales       double         venta total del turno             │
+│ cash / card / transfer  double    desglose por método              │
+│ total_orders      int            pedidos del turno                 │
+│ ── fechas ──   opened_at · closed_at   datetime                    │
+│ ── FK ──                                                           │
+│ subsidiary_id     int       ┄▷ alpha.subsidiaries.id  (singular!)  │
+│ employee_id       int       ┄▷ alpha.usr_users.id                  │
+│ daily_closure_id  int       ──▶ daily_closure.id                   │
+│ active            int                                              │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 7.2 `shift_payment` · `shift_status_process` — desglose del turno
+
+```
+┌─ shift_payment ──────────── 126 filas ─┐   ┌─ shift_status_process ─────── 126 filas ─┐
+│ id                int  PK               │   │ id                int  PK                 │
+│ amount            double                │   │ amount            double  conteo           │
+│ cash_shift_id     int ──▶ cash_shift.id │   │ cash_shift_id     int ──▶ cash_shift.id    │
+│ payment_method_id int ──▶ method_pay.id │   │ status_process_id int ──▶ status_process.id│
+└──────────────────────────────────────────┘   └─────────────────────────────────────────────┘
+```
+
+---
+
+## 8. Cierre del día — `fayxzvov_reginas`
+
+### 8.1 `daily_closure` — cierre
+
+```
+┌─ daily_closure ─────────────────────────── transacción · 5 filas ─┐
+│ id                int            PK · auto_increment                │
+│ status            double         estado del cierre                  │
+│ ── montos (DOUBLE) ──                                               │
+│ total / subtotal / tax           double                             │
+│ total_cash / total_card / total_transfer  double                    │
+│ total_discount / total_shifts    double                             │
+│ total_orders      int                                               │
+│ ── fechas ──   created_at · closure_date · reopened_at  datetime    │
+│ ── FK / reapertura ──                                               │
+│ subsidiary_id     int       ┄▷ alpha.subsidiaries.id                │
+│ employee_id       int       ┄▷ alpha.usr_users.id                   │
+│ reopened_by       int       ┄▷ alpha.usr_users.id                   │
+│ reopen_reason     text                                              │
+│ active            int     ·   is_legacy int                         │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 `closure_payment` · `closure_status_proccess` — desglose del cierre
+
+```
+┌─ closure_payment ─────────── 15 filas ─┐   ┌─ closure_status_proccess ⚠typo · 7 filas ─┐
+│ id                int  PK               │   │ id                int  PK                  │
+│ amount            double                │   │ amount            double  conteo            │
+│ daily_closure_id  int ──▶ daily_closure │   │ daily_closure_id  int ──▶ daily_closure.id  │
+│ payment_method_id int ──▶ method_pay.id │   │ status_process_id int ──▶ status_process.id │
+└──────────────────────────────────────────┘   └──────────────────────────────────────────────┘
+```
+
+---
+
+## 9. Maestros del tenant — `fayxzvov_alpha` / `fayxzvov_admin`
+
+```
+┌─ alpha.subsidiaries ── 8 filas ─┐   ┌─ alpha.usr_users ──── 41 filas ─┐   ┌─ admin.companies ── 4 filas ─┐
+│ id            int  PK            │   │ id            int  PK            │   │ id           int  PK          │
+│ name          varchar(200)      │   │ fullname / user / key  text     │   │ social_name  varchar(255)     │
+│ logo / ubication text           │   │ photo         text              │   │ rfc          varchar(20)      │
+│ enabled / active                │   │ phone         varchar(255)      │   │ logo/address/ubication text   │
+│ date_creation datetime          │   │ birthday      date              │   │ phone        double           │
+│ companies_id  int ┄▷ companies  │   │ enabled/active/owner            │   │ name_bd      varchar(255)     │
+└───────────────────────────────────┘   │ usr_rols_id   int ──▶ usr_rols  │   │ customers_id int ┄▷ customers │
+                                        │ subsidiaries_id int ──▶ subsid. │   └────────────────────────────────┘
+┌─ alpha.usr_rols ── 5 filas ─┐         └───────────────────────────────────┘
+│ id int PK · rols varchar(50)│           rol 1 = admin (todas las sucursales)
+│ active · superadmin         │
+└─────────────────────────────┘
+```
+
+---
+
+## 10. Hallazgos de la inspección (auto-revisión)
+
+| # | Hallazgo | Detalle / riesgo |
+|---|---|---|
+| 1 | **Tablas inexistentes referenciadas** | `projects`, `order_details`, `cash_shift_movements` viven en el código (ctrl/mdl-projects, getOrderById, getShiftMovements) pero **no existen** → rutas muertas o errores en runtime. |
+| 2 | **Inconsistencia `subsidiaries_id` vs `subsidiary_id`** | `order`/`order_clients`/`order_products` usan plural; `cash_shift`/`daily_closure` usan singular. Dificulta JOINs genéricos. |
+| 3 | **Typos en nombres de objeto** | tabla `closure_status_proccess` (doble c) · columna `order.delivery_tipe`. Quedan congelados por compatibilidad. |
+| 4 | **`phone` como `DOUBLE`** | en `order_clients` y `companies`. Pierde ceros a la izquierda y `+`/espacios → debería ser `VARCHAR`. |
+| 5 | **`order_category.active` como `VARCHAR(255)`** | bandera de soft-delete en texto; debería ser `TINYINT`. |
+| 6 | **Columnas legacy duplicadas en `order`** | `is_delivery` + `delivery_tipe` + `delivery_type` conviven; solo `delivery_type` se usa hoy. `type_id` duplica `status`. |
+| 7 | **FKs declaradas pero sin `created_at/updated_at` estándar** | varias tablas usan `date_creation`/`date_created` en vez de los `created_at`/`updated_at` canónicos. |
+| 8 | **Sin prefijo `detail_`** | `order_package` y `order_custom_products` son renglones de transacción; en el estándar de la casa serían `detail_*`. Es esquema heredado, se documenta, no se renombra. |
+
+> Estos puntos son **observaciones sobre el esquema existente**, no un rediseño. Cualquier
+> corrección (p. ej. unificar `subsidiary(ies)_id` o tipar `phone`) requiere migración + ajuste
+> de las queries en `mdl/*.php`.
