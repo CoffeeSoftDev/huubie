@@ -30,10 +30,33 @@ Cuando el usuario introduce un precio propuesto ej 19 antes 18 , 
 
 el modelo recalcula los indicadores aplicando
 
-las formulas pero sustituyendo el precio manteniendo el costo y desplazamiento
-
-, esos no se tocan.
+las formulas pero sustituyendo el precio manteniendo el costo y desplazamiento, esos no se tocan.
 
 las formulas serian: 
 
-pventaSinIvaPropuesto = precio\_propuesto / ( 1 + (iva + ieps) /100;
+1.- Formula base:
+
+*pVentaSinIVApropuesto = precio\_propuesto / ( 1 + (iva + ieps) /100*
+
+2.- Indicadores que recalcula:
+
+\* **Margen de contribución:** *pVentaSinIVAPropuesto - costo* 
+
+*\* **% costo :** (costo /* *pVentaSinIVAPropuesto**) \* 100*
+
+***\* Costo estimado:**  costo \* desplazamiento*
+
+***\* MC estimado :** MCpropuesto \* desplazamiento  
+  
+\*\* Comportamiento de la tabla:*
+
+*\- Solo cambia el precio, el costo y el desplazamiento no se tocan*
+
+*\- si el filtro fue modificado , la celda se pinta de amartillo y el tablero puede mostrar los indicadores propuestos en lugar del actual.*
+
+Al agregar un precio propuesto se puede activar un semaforo de color
+
+-   Indicado de costo Amarillo
+-   Indicador Porcentaje Costo Verde/Rojo
+-   Incador MC verde rojo
+-   indicador desplazamiento verde/rojo

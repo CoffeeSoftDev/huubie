@@ -163,7 +163,8 @@ const pg = {
     _varochCss: '',          // CSS embebido extraido del grimorio Coffee-Varoch
     threadUid:   null,       // uid del hilo activo (null = aún no persistido)
     threadTitle: '',         // título del hilo activo
-    _threadSaveTimer: null   // debounce del autosave del hilo
+    _threadSaveTimer: null,  // debounce del autosave del hilo
+    activeDb:    null        // base MySQL conectada (conexión pegajosa de la conversación)
 };
 
 $(async () => {
@@ -721,6 +722,8 @@ function pgClearChat() {
     pg.threadTitle = '';
     pg._loadedSlug = null;
     pg._loadedName = '';
+    pg.activeDb = null;    // limpiar el chat suelta la conexión a la base (como el Visor)
+    pgRenderDbChip();
     clearTimeout(pg._threadSaveTimer);
     pgClearSession();      // al limpiar el chat, no hay sesión que retomar
     pgUpdateThreadChip();
@@ -731,6 +734,39 @@ function pgClearChat() {
             <div class="pg-empty-title">Pon a prueba a tu agente</div>
             <div class="pg-empty-sub">Escríbele una instrucción y observa el resultado en el sandbox.</div>
         </div>`);
+    if (window.lucide) lucide.createIcons();
+}
+
+/* ── Conexión a base de datos (conexión pegajosa por conversación) ──
+ * Gemelo del patrón del Visor: la base se reenvía como `dbConnect` en cada turno
+ * y el agente la consulta con run_select (solo lectura) para poblar el template
+ * del sandbox con datos reales. La resolución y las credenciales son server-side. */
+
+// Fija (o suelta, con null) la base conectada y refresca el chip indicador.
+function pgSetActiveDb(schema) {
+    const next = schema || null;
+    const changed = next !== pg.activeDb;
+    pg.activeDb = next;
+    pgRenderDbChip();
+    if (changed && next) pgToast('🛢 Conectado a la base ' + next, 'success');
+}
+
+// Chip "🛢 <base> ✕" sobre el input. La ✕ desconecta (sin borrar el chat).
+// La base se conecta nombrándola en el chat ("conéctate a reginas…"); el backend
+// la resuelve y la devuelve en el evento `done`, igual que el Visor.
+function pgRenderDbChip() {
+    const $chip = $('#pgDbChip');
+    if (!$chip.length) return;
+    if (!pg.activeDb) { $chip.hide().empty(); return; }
+    $chip.html(`
+        <i data-lucide="database" class="w-3 h-3"></i>
+        <span class="ia-db-chip-name" title="Base conectada: ${pgEscape(pg.activeDb)}">${pgEscape(pg.activeDb)}</span>
+        <button type="button" class="ia-db-chip-x" title="Desconectar de la base"><i data-lucide="x" class="w-3 h-3"></i></button>
+    `).show();
+    $chip.find('.ia-db-chip-x').off('click').on('click', () => {
+        pgSetActiveDb(null);
+        pgToast('Desconectado de la base', 'info');
+    });
     if (window.lucide) lucide.createIcons();
 }
 
@@ -755,6 +791,7 @@ function pgSnapshotSession() {
         loadedName:   pg._loadedName || '',
         agentKey:     pg.agentKey,
         theme:        pg.theme,
+        activeDb:     pg.activeDb || null,
         ts:           Date.now()
     };
 }
@@ -826,6 +863,8 @@ function pgRestoreSession() {
     pg.lastTheme     = s.lastTheme || s.theme;
     pg._loadedSlug   = s.loadedSlug || null;
     pg._loadedName   = s.loadedName || '';
+    pg.activeDb      = s.activeDb || null;
+    pgRenderDbChip();
 
     pgRebuildChat();
     if (pg.lastHtml) pgRenderSandbox(pg.lastHtml, pg._lastIsDoc);
@@ -921,7 +960,8 @@ async function pgSaveThread(silent) {
     if (!pg.history.length) return;
     const meta = {
         theme: pg.theme, agentKey: pg.agentKey,
-        canvasMode: !!pg.canvasMode, lastUserText: pg._lastUserText || ''
+        canvasMode: !!pg.canvasMode, lastUserText: pg._lastUserText || '',
+        activeDb: pg.activeDb || ''
     };
     try {
         const form = new FormData();
@@ -1068,6 +1108,7 @@ async function pgLoadThread(uid) {
             pgApplyAgent(meta.agentKey, true);   // keepHistory: no borra lo recién cargado
         }
         if (typeof meta.canvasMode === 'boolean') { pg.canvasMode = meta.canvasMode; pgApplyCanvasUI(); }
+        pgSetActiveDb(meta.activeDb || null);   // reconecta la base que tenía el hilo (o suelta)
         pg._lastUserText = meta.lastUserText || '';
         if (th.model) { pg.model = th.model; $('#pgModelSelect').val(th.model); }
         pgSaveSettings();
@@ -1169,6 +1210,17 @@ function pgAppendTyping() {
     return $t;
 }
 function pgStopTyping() { clearInterval(pg._typingTimer); }   // sin temporizador activo: no-op seguro
+
+/* Cambia el texto del indicador "Analizando…" para reflejar el estado de las
+ * rondas de tool-calling de la base (p.ej. la consulta SELECT en curso). Solo se
+ * usa mientras aún no llega ningún token (el indicador sigue montado). */
+function pgTypingStatus($typing, text) {
+    if (!$typing || !$typing.length) return;
+    let t = String(text || '').replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim();
+    if (/^consultando/i.test(t)) t = 'Consultando: ' + t.replace(/^consultando\s*/i, '');
+    if (t.length > 70) t = t.slice(0, 70) + '…';
+    $typing.find('.ia-typing-loader').html(pgQuantumLoader(t || 'Consultando la base…'));
+}
 // Loader "quantum" replicado de Templates.loader() (coffeeSoft.js) para no cargar
 // todo el framework en el Playground: un orbe que muta forma y color. visor.css
 // le añade el texto atenuado y los puntos "…" animados, idéntico al Visor.
@@ -1299,6 +1351,19 @@ async function pgSend(text, images, docs) {
         systemOverride += PG_INTERACTIVITY_NOTE;
     }
 
+    // Base de datos conectada + agente que produce UI: el template del sandbox
+    // debe poblarse con datos REALES (no de muestra). El backend ya inyecta el
+    // esquema y expone run_select; aquí solo se lo exigimos de forma explícita.
+    if (pg.activeDb && (usesDesignSystem || pg.canvasMode)) {
+        systemOverride += `\n\n## Datos reales de la base conectada\n`
+            + `Hay una base de datos MySQL conectada ("${pg.activeDb}") y su esquema está en el contexto. `
+            + `Si el componente muestra datos (tablas, listas, tarjetas, KPIs, gráficas, selects…), DEBES poblarlo con datos REALES: `
+            + `ejecuta consultas \`SELECT\` de SOLO LECTURA con la herramienta \`run_select\` usando los nombres reales de tablas y columnas del esquema, `
+            + `y escribe esos valores directamente en el HTML que devuelves. `
+            + `NO inventes datos de muestra cuando hay una base conectada. `
+            + `Si una consulta no devuelve filas, refléjalo con un estado vacío en el componente.`;
+    }
+
     const payload = {
         messages: pg.history.map(m => {
             const o = { role: m.role, content: m.content };
@@ -1309,6 +1374,13 @@ async function pgSend(text, images, docs) {
         systemOverride: systemOverride,
         pinnedFiles:    pinned,
         canvasMode:     !!pg.canvasMode,
+        dbConnect:      pg.activeDb || '',   // base conectada (conexión pegajosa)
+        // 'data': el agente construye una UI poblada con datos reales (run_select), sin
+        // el formato de cajas ASCII del Visor. Depende del TIPO de agente (produce UI),
+        // NO de si ya hay base conectada: así el PRIMER mensaje que nombra la base —el
+        // que establece la conexión— también evita el conflicto de cajas. Inocuo cuando
+        // no hay base (el backend solo lo usa si resuelve un esquema).
+        dbMode:         (usesDesignSystem || pg.canvasMode) ? 'data' : '',
         model:          pg.model || ''
     };
 
@@ -1346,6 +1418,10 @@ async function pgSend(text, images, docs) {
                     if (!firstToken) { firstToken = true; pgStopTyping(); $typing.remove(); stream = pgCreateAIStream(); }
                     received += obj.t || '';
                     stream.push(obj.t || '');
+                } else if (ev === 'thinking') {
+                    // Estado de las rondas de tool-calling (p.ej. "[consultando SELECT …]").
+                    // Llega ANTES de cualquier chunk, mientras el indicador sigue visible.
+                    if (!firstToken) pgTypingStatus($typing, obj.t || '');
                 } else if (ev === 'done') {
                     meta = obj;
                 } else if (ev === 'error') {
@@ -1375,6 +1451,9 @@ async function pgSend(text, images, docs) {
     if (!firstToken) { $typing.remove(); pgAppendAI('⚠️ El agente no devolvió respuesta.'); pgFinish(); return; }
 
     await stream.drain();
+    // Conexión pegajosa: si el backend resolvió una base (la nombrada en el mensaje o
+    // la reenviada en dbConnect), la recordamos para los siguientes turnos.
+    if (meta && meta.db) pgSetActiveDb(meta.db);
     pg.history.push({ role: 'assistant', content: received });
     pgFinalizeResponse(stream, received, {
         credits:          meta.credits_estimate,

@@ -181,6 +181,11 @@ function coffeeia_build_context(array $body) {
     // backend resuelve X contra las bases locales reales, lee su esquema y lo inyecta
     // como FUENTE DE VERDAD. Las credenciales viven en db-config (server-side).
     $dbConnect = isset($body['dbConnect']) ? trim((string) $body['dbConnect']) : '';
+    // Modo de uso de la base. 'data' (Playground): el modelo CONSTRUYE una UI poblada
+    // con datos reales (run_select), por eso NO se inyecta el formato de cajas ASCII ni
+    // se le pide describir el esquema. Vacio (Visor): comportamiento clasico (describir/
+    // diagramar el esquema, filas como tabla markdown).
+    $dbMode    = isset($body['dbMode']) ? trim((string) $body['dbMode']) : '';
     $dbSchema  = null;
 
     $lastUser = '';
@@ -220,15 +225,27 @@ function coffeeia_build_context(array $body) {
             }
             if ($dbSchema) {
                 $digest = db_schema_digest($dbSchema);
-                $systemBlock .= "\n\n=== ESQUEMA DE BASE DE DATOS (FUENTE DE VERDAD) ===\n"
-                    . "Te conectaste a la base '{$dbSchema}'. Usa EXCLUSIVAMENTE estos nombres reales de\n"
-                    . "tablas y columnas (no inventes). Para diagramas, dibuja las tablas y relaciones\n"
-                    . "reales que aparecen aqui.\n"
-                    . "Si necesitas datos reales (conteos, ejemplos, agregados), ejecuta consultas SELECT\n"
-                    . "de SOLO LECTURA con la herramienta run_select; nunca inventes numeros.\n"
-                    . "Cuando muestres registros/filas, formatealos SIEMPRE como TABLA markdown\n"
-                    . "(| columna | columna |\\n| --- | --- |\\n| valor | valor |), nunca como lista ni texto corrido.\n"
-                    . "\n" . $digest;
+                if ($dbMode === 'data') {
+                    // Playground: construir un componente/template poblado con datos REALES.
+                    $systemBlock .= "\n\n=== ESQUEMA DE BASE DE DATOS (FUENTE DE VERDAD) ===\n"
+                        . "Te conectaste a la base '{$dbSchema}'. Usa EXCLUSIVAMENTE estos nombres reales de\n"
+                        . "tablas y columnas (no inventes). Para obtener los datos que mostrara el componente,\n"
+                        . "ejecuta consultas SELECT de SOLO LECTURA con la herramienta run_select y escribe esos\n"
+                        . "valores REALES dentro del HTML que devuelves; nunca inventes datos ni numeros.\n"
+                        . "NO describas el esquema ni dibujes diagramas/cajas: entrega el componente solicitado\n"
+                        . "como UN bloque ```html, ya poblado con las filas obtenidas.\n"
+                        . "\n" . $digest;
+                } else {
+                    $systemBlock .= "\n\n=== ESQUEMA DE BASE DE DATOS (FUENTE DE VERDAD) ===\n"
+                        . "Te conectaste a la base '{$dbSchema}'. Usa EXCLUSIVAMENTE estos nombres reales de\n"
+                        . "tablas y columnas (no inventes). Para diagramas, dibuja las tablas y relaciones\n"
+                        . "reales que aparecen aqui.\n"
+                        . "Si necesitas datos reales (conteos, ejemplos, agregados), ejecuta consultas SELECT\n"
+                        . "de SOLO LECTURA con la herramienta run_select; nunca inventes numeros.\n"
+                        . "Cuando muestres registros/filas, formatealos SIEMPRE como TABLA markdown\n"
+                        . "(| columna | columna |\\n| --- | --- |\\n| valor | valor |), nunca como lista ni texto corrido.\n"
+                        . "\n" . $digest;
+                }
             }
         } catch (Throwable $e) {
             $systemBlock .= "\n\n=== BASE DE DATOS ===\n"
@@ -238,8 +255,10 @@ function coffeeia_build_context(array $body) {
         // Formato de salida para ESTRUCTURA de tablas: cajas monoespaciadas + diagrama
         // ASCII + Cardinalidades (db-rules.md §3.1) en vez de mermaid erDiagram/CREATE
         // TABLE. Solo cuando se trabaja con BD y NO hay un modo grafica explicito activo
-        // (mermaid/excalidraw/drawio se respetan tal cual los eligio el usuario).
-        if ($graphMode === '') {
+        // (mermaid/excalidraw/drawio se respetan tal cual los eligio el usuario). En modo
+        // 'data' (Playground) NO se inyecta: ahi el modelo construye una UI con datos
+        // reales, no describe la estructura como cajas de texto.
+        if ($graphMode === '' && $dbMode !== 'data') {
             $fmtPath = COFFEEIA_PROMPTS_DIR . '/formato-tablas-caja.md';
             if (is_file($fmtPath)) {
                 $fmt = trim((string) @file_get_contents($fmtPath));
