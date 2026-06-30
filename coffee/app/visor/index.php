@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Visor de Agentes — CoffeeSoft</title>
+    <title>CoffeeDocs — CoffeeSoft</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
@@ -70,8 +70,11 @@
     <header class="visor-header">
         <div class="vsr-header-left">
             <div class="visor-logo">VS</div>
+            <button id="btnToggleSidebar" class="vsr-sidebar-toggle" title="Ocultar lista de archivos" aria-label="Colapsar panel de archivos">
+                <i data-lucide="panel-left" class="w-4 h-4"></i>
+            </button>
             <div class="flex flex-col leading-tight">
-                <span id="headerTitle">Visor de Agentes</span>
+                <span id="headerTitle">CoffeeDocs</span>
                 <span id="headerSubtitle">CoffeeSoft Library</span>
             </div>
             <span class="vsr-chip hidden md:inline-block">
@@ -135,7 +138,7 @@
         <!-- Rail de navegacion entre modulos (Visor / Playground / Admin) -->
         <nav class="app-rail" aria-label="Modulos">
             <div class="app-rail-nav">
-                <a href="index.php" class="app-rail-item active" title="Visor de Agentes">
+                <a href="index.php" class="app-rail-item active" title="CoffeeDocs">
                     <i data-lucide="layout-dashboard"></i>
                     <span class="app-rail-label">Visor</span>
                 </a>
@@ -178,11 +181,6 @@
                     <span id="footerPath">.claude/agents</span>
                 </div>
             </div>
-
-            <!-- Handle flotante: colapsa/expande el panel desde el borde derecho. -->
-            <button id="btnToggleSidebar" class="visor-collapse-handle" title="Ocultar lista de archivos" aria-label="Colapsar panel">
-                <i data-lucide="chevron-left" class="w-4 h-4"></i>
-            </button>
         </aside>
 
         <main id="root" class="visor-main">

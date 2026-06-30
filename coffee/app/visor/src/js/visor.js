@@ -434,12 +434,10 @@ class App {
         const $btn = $('#btnToggleSidebar');
         if (!withTransition) $sb.css('transition', 'none');
         $sb.toggleClass('is-collapsed', !!collapsed);
+        // El toggle vive en el header con icono fijo (panel-left); solo refleja el
+        // estado con la clase is-collapsed y actualiza el title.
+        $btn.toggleClass('is-collapsed', !!collapsed);
         $btn.attr('title', collapsed ? 'Mostrar lista de archivos' : 'Ocultar lista de archivos');
-        // Re-inyectar el <i> porque lucide ya lo convirtio a <svg> en la carga inicial.
-        // El chevron apunta hacia la accion: colapsado -> derecha (abrir), expandido -> izquierda (cerrar).
-        const iconName = collapsed ? 'chevron-right' : 'chevron-left';
-        $btn.html(`<i data-lucide="${iconName}" class="w-4 h-4"></i>`);
-        if (window.lucide) lucide.createIcons();
         if (!withTransition) {
             $sb[0] && $sb[0].offsetHeight;
             $sb.css('transition', '');

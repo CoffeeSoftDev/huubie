@@ -446,6 +446,32 @@ html, body { height: 100%; }
 .vsr-header-left  { display: flex; align-items: center; gap: 14px; }
 .vsr-header-right { display: flex; align-items: center; gap: 12px; }
 
+/* Toggle de la lista de archivos, anclado junto al titulo en el header. */
+.vsr-sidebar-toggle {
+    flex-shrink: 0;
+    width: 34px; height: 34px;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--vsr-text-mute2);
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+}
+.vsr-sidebar-toggle:hover {
+    color: var(--vsr-text);
+    background: var(--vsr-bg-hover);
+    border-color: var(--vsr-border-soft);
+}
+.vsr-sidebar-toggle.is-collapsed {
+    color: var(--vsr-accent-soft);
+    background: var(--vsr-accent-tint);
+    border-color: var(--vsr-accent-soft);
+}
+.vsr-sidebar-toggle i,
+.vsr-sidebar-toggle svg { width: 18px; height: 18px; }
+
 #headerTitle    { font-size: 13.5px; font-weight: 700; color: var(--vsr-text); }
 #headerSubtitle { font-size: 10px; color: var(--vsr-text-mute2); letter-spacing: .12em; text-transform: uppercase; }
 
@@ -4214,9 +4240,10 @@ body.ia-drawer-resizing * {
     /* Header en una fila; los controles bajan a un panel desplegable (⚙️). */
     .visor-header     { height: 54px; padding: 9px 12px; position: relative; }
     .vsr-header-left  { flex: 1 1 auto; min-width: 0; gap: 10px; }
-    .visor-logo       { display: none; }
-    #headerTitle      { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .vsr-chip         { display: none; }
+    .visor-logo        { display: none; }
+    .vsr-sidebar-toggle { display: none; }   /* en movil se usa el conmutador Archivos/Documento */
+    #headerTitle       { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .vsr-chip          { display: none; }
     .vsr-header-toggle { display: grid; }
 
     .vsr-header-right {
