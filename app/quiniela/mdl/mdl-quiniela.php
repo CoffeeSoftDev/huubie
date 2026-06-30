@@ -24,19 +24,28 @@ class MQuiniela
         $this->cfg = require(__DIR__ . '/../conf/config.php');
     }
 
-    /** Id del modelo configurado para un rol ('minimax' | 'ollama'). */
+    /** Id del modelo configurado para un rol ('minimax' | 'glm' | 'kimi'). */
     public function modelId($which)
     {
         return $this->cfg['models'][$which] ?? '';
     }
 
+    /** Mapa rol => id de todos los modelos configurados. */
+    public function models()
+    {
+        return $this->cfg['models'] ?? [];
+    }
+
     /** Etiquetas visibles de cada modelo (para la UI). */
     public function labels()
     {
-        return $this->cfg['labels'] ?? [
-            'minimax' => $this->modelId('minimax'),
-            'ollama'  => $this->modelId('ollama'),
-        ];
+        if (!empty($this->cfg['labels'])) return $this->cfg['labels'];
+
+        $labels = [];
+        foreach ($this->models() as $role => $id) {
+            $labels[$role] = $id;
+        }
+        return $labels;
     }
 
     /** Mensajes (system + user) compartidos por ambos modelos. */
@@ -113,11 +122,12 @@ class MQuiniela
     }
 
     /** Consenso: promedia los modelos que respondieron correctamente. */
-    public function consensus($a, $b)
+    public function consensus($preds)
     {
         $models = [];
-        if (empty($a['error'])) $models[] = $a;
-        if (empty($b['error'])) $models[] = $b;
+        foreach ($preds as $pred) {
+            if (empty($pred['error'])) $models[] = $pred;
+        }
         if (count($models) === 0) return ['error' => 'Ningun modelo pudo responder'];
 
         $n  = count($models);

@@ -1,17 +1,19 @@
 <?php
-// Test temporal: predicción completa de punta a punta (ambos modelos + consenso).
+// Test temporal: predicción completa de punta a punta (todos los modelos + consenso).
 require __DIR__ . '/mdl/mdl-quiniela.php';
 
 $mdl = new MQuiniela();
 $messages = $mdl->buildMessages('Corea del Sur', 'Republica Checa');
+$labels   = $mdl->labels();
 
-$t0 = microtime(true);
-$minimax = $mdl->predictWith($mdl->modelId('minimax'), $messages);
-$t1 = microtime(true);
-$ollama  = $mdl->predictWith($mdl->modelId('ollama'), $messages);
-$t2 = microtime(true);
-$consenso = $mdl->consensus($minimax, $ollama);
+$predictions = [];
+foreach ($mdl->models() as $role => $modelId) {
+    $t0 = microtime(true);
+    $predictions[$role] = $mdl->predictWith($modelId, $messages);
+    $t1 = microtime(true);
+    $name = $labels[$role] ?? $role;
+    echo "{$name} (" . round($t1 - $t0, 1) . "s):\n" . json_encode($predictions[$role], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n\n";
+}
 
-echo "MiniMax (" . round($t1 - $t0, 1) . "s):\n" . json_encode($minimax, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n\n";
-echo "GPT-OSS (" . round($t2 - $t1, 1) . "s):\n" . json_encode($ollama, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n\n";
+$consenso = $mdl->consensus(array_values($predictions));
 echo "Consenso:\n" . json_encode($consenso, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";

@@ -42,18 +42,19 @@ class ctrlQuiniela
             return ['status' => 400, 'message' => 'Elige dos equipos distintos'];
         }
 
-        $messages = $this->mdl->buildMessages($teamA, $teamB);
-        $minimax  = $this->mdl->predictWith($this->mdl->modelId('minimax'), $messages);
-        $ollama   = $this->mdl->predictWith($this->mdl->modelId('ollama'), $messages);
-        $consenso = $this->mdl->consensus($minimax, $ollama);
+        $messages    = $this->mdl->buildMessages($teamA, $teamB);
+        $predictions = [];
+        foreach ($this->mdl->models() as $role => $modelId) {
+            $predictions[$role] = $this->mdl->predictWith($modelId, $messages);
+        }
+        $consenso = $this->mdl->consensus(array_values($predictions));
 
         return [
-            'status'   => 200,
-            'teamA'    => $teamA,
-            'teamB'    => $teamB,
-            'minimax'  => $minimax,
-            'ollama'   => $ollama,
-            'consenso' => $consenso,
+            'status'      => 200,
+            'teamA'       => $teamA,
+            'teamB'       => $teamB,
+            'predictions' => $predictions,
+            'consenso'    => $consenso,
         ];
     }
 

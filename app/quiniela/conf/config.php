@@ -8,21 +8,23 @@
  *   - con '/'  -> OpenRouter   (necesita OPENROUTER_API_KEY)
  *   - sin '/'  -> Ollama Cloud (necesita OLLAMA_API_KEY)  <- usamos esta via
  *
- * Ambos modelos van por Ollama Cloud (la OLLAMA_API_KEY ya esta configurada).
- * MiniMax y GPT-OSS estan disponibles como tags de Ollama (ver "ollama list" cloud).
+ * Los tres modelos van por Ollama Cloud (la OLLAMA_API_KEY ya esta configurada).
+ * MiniMax, GLM y Kimi estan disponibles como tags de Ollama (ver "ollama list" cloud).
  */
 return [
     'models' => [
-        'minimax' => 'minimax-m3',   // MiniMax 3.0
-        'ollama'  => 'gemma4:31b-cloud', // modelo abierto de OpenAI
+        'minimax' => 'minimax-m3:cloud',     // MiniMax 3.0
+        'glm'     => 'glm-5.2:cloud',        // GLM 5.2
+        'kimi'    => 'kimi-k2.7-code:cloud', // Kimi K2.7
     ],
 
     // Etiqueta visible de cada columna en la UI.
     'labels' => [
         'minimax' => 'MiniMax 3.0',
-        'ollama'  => 'Gemma',
+        'glm'     => 'GLM 5.2',
+        'kimi'    => 'Kimi K2.7',
     ],
 
-    // Opciones de muestreo comunes a ambos proveedores.
+    // Opciones de muestreo comunes a todos los proveedores.
     'options' => ['temperature' => 0.7],
 ];

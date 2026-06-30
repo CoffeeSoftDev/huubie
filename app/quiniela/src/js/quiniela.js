@@ -11,7 +11,7 @@ class App extends Templates {
         super(link, div_modulo);
         this.PROJECT_NAME = "Quiniela";
         this.teams = [];
-        this.labels = { minimax: 'MiniMax 3.0', ollama: 'GPT-OSS (OpenAI)' };
+        this.labels = { minimax: 'MiniMax 3.0', glm: 'GLM 5.2', kimi: 'Kimi K2.7' };
     }
 
     async init() {
@@ -49,6 +49,7 @@ class App extends Templates {
     // Barra superior: seleccion de equipos + boton pronosticar.
     renderForm() {
         const options = this.teams.map(t => `<option value="${t}"></option>`).join('');
+        const modelNames = Object.values(this.labels).join(' · ');
 
         $(`#filterBar${this.PROJECT_NAME}`).html(`
             <div class="w-full bg-[#1F2A37] rounded-lg p-4">
@@ -56,7 +57,7 @@ class App extends Templates {
                     <span class="text-3xl">⚽</span>
                     <div>
                         <h2 class="text-white text-lg font-semibold">Quiniela IA · Mundial 2026</h2>
-                        <p class="text-gray-400 text-xs">Elige dos selecciones; <b>MiniMax 3.0</b> y <b>Ollama</b> las analizan por su historia mundialista.</p>
+                        <p class="text-gray-400 text-xs">Elige dos selecciones; <b>${modelNames}</b> las analizan por su historia mundialista.</p>
                     </div>
                 </div>
 
@@ -95,18 +96,20 @@ class App extends Templates {
             <div class="flex flex-col items-center justify-center py-16 text-center">
                 <span class="text-5xl mb-3">🔮</span>
                 <p class="text-white font-medium">Elige dos selecciones y pulsa Pronosticar</p>
-                <p class="text-gray-400 text-sm mt-1">Dos modelos analizaran el duelo por su historia mundialista.</p>
+                <p class="text-gray-400 text-sm mt-1">${Object.keys(this.labels).length} modelos analizaran el duelo por su historia mundialista.</p>
             </div>
         `);
     }
 
     renderLoading(teamA, teamB) {
+        const modelNames = Object.values(this.labels).join(', ');
+
         $(`#container${this.PROJECT_NAME}`).html(`
             <div class="flex flex-col items-center justify-center py-16 text-center">
                 <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-blue-500 mb-4"></div>
                 <p class="text-white font-medium">${teamA} <span class="text-gray-500">vs</span> ${teamB}</p>
-                <p class="text-gray-400 text-sm mt-1">Analizando con MiniMax 3.0 y Ollama…</p>
-                <p class="text-gray-500 text-xs mt-1">Ollama corre en local, puede tardar unos segundos.</p>
+                <p class="text-gray-400 text-sm mt-1">Analizando con ${modelNames}…</p>
+                <p class="text-gray-500 text-xs mt-1">Consultando Ollama Cloud, puede tardar unos segundos.</p>
             </div>
         `);
     }
@@ -141,7 +144,21 @@ class App extends Templates {
     }
 
     renderResults(data) {
-        const { teamA, teamB, minimax, ollama, consenso } = data;
+        const { teamA, teamB, predictions, consenso } = data;
+        const roles = Object.keys(predictions || {});
+
+        const palette = [
+            'bg-purple-500/20 text-purple-300 border-purple-500/40',
+            'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+            'bg-amber-500/20 text-amber-300 border-amber-500/40',
+            'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+        ];
+
+        const modelCards = roles.map((role, i) => this.predictionCard({
+            title: this.labels[role] || role,
+            badge: `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${palette[i % palette.length]}">OLLAMA CLOUD</span>`,
+            pred: predictions[role], teamA, teamB, featured: false
+        })).join('');
 
         $(`#container${this.PROJECT_NAME}`).html(`
             <div class="mb-5 text-center">
@@ -152,22 +169,16 @@ class App extends Templates {
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-                ${this.predictionCard({
-                    title: this.labels.minimax || 'MiniMax 3.0',
-                    badge: '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/40">OLLAMA CLOUD</span>',
-                    pred: minimax, teamA, teamB, featured: false
-                })}
+            <div class="max-w-md mx-auto mb-4">
                 ${this.predictionCard({
                     title: 'Consenso',
                     badge: '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/40">VEREDICTO</span>',
                     pred: consenso, teamA, teamB, featured: true
                 })}
-                ${this.predictionCard({
-                    title: this.labels.ollama || 'GPT-OSS (OpenAI)',
-                    badge: '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">OLLAMA CLOUD</span>',
-                    pred: ollama, teamA, teamB, featured: false
-                })}
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+                ${modelCards}
             </div>
 
             <p class="text-gray-500 text-xs text-center mt-5">
