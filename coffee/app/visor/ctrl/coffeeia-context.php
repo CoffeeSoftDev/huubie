@@ -14,6 +14,7 @@
 require_once __DIR__ . '/llm-client.php';
 require_once __DIR__ . '/path-helper.php';
 require_once __DIR__ . '/db-introspect.php';
+require_once __DIR__ . '/fs-introspect.php';
 
 if (!defined('COFFEEIA_MAX_FILE_BYTES')) define('COFFEEIA_MAX_FILE_BYTES', 65536);
 if (!defined('COFFEEIA_PROMPTS_DIR'))    define('COFFEEIA_PROMPTS_DIR', __DIR__ . '/../prompts');
@@ -186,11 +187,20 @@ function coffeeia_build_context(array $body) {
     for ($i = count($messages) - 1; $i >= 0; $i--) {
         if (($messages[$i]['role'] ?? '') === 'user') { $lastUser = (string)($messages[$i]['content'] ?? ''); break; }
     }
+
+    // Desambiguacion BD vs CARPETA: la palabra calificadora manda. "tabla/base/esquema X"
+    // -> base de datos; "carpeta/proyecto/directorio X" -> filesystem. Asi un nombre que
+    // existe como ambas (p.ej. una tabla y una carpeta homonimas) no se confunde. Si el
+    // usuario no califica y el nombre resuelve a ambas, mas abajo se pide que aclare.
+    $dbExplicit = (bool) preg_match('/(base\s+de\s+datos|\bbases?\b|\besquema\b|\bschema\b|\bbd\b|\btablas?\b|modelo\s+de\s+datos)/iu', $lastUser);
+    $fsExplicit = (bool) preg_match('/(\bcarpeta\b|\bproyecto\b|\bdirectorio\b|\bfolder\b|\brepositorio\b|\brepo\b|c[oó]digo\b|\barchivos?\b)/iu', $lastUser);
+
     // Gate barato: solo intentamos tocar MySQL si el mensaje huele a "base de datos".
     // El guard REAL es que ademas aparezca el alias de una base existente (db_detect_request),
-    // asi que podemos ser amplios aqui sin inyectar de mas.
+    // asi que podemos ser amplios aqui sin inyectar de mas. Si el turno califica
+    // explicitamente "carpeta/proyecto" (y NO "base/tabla"), no resolvemos como base.
     $dbIntentRe = '/(con[eé]ct\w*|\bbase\b|\besquema\b|\bschema\b|\bbd\b|\btablas?\b|modelo\s+de\s+datos)/iu';
-    $wantDb = ($dbConnect !== '') || (bool) preg_match($dbIntentRe, $lastUser);
+    $wantDb = (($dbConnect !== '') || (bool) preg_match($dbIntentRe, $lastUser)) && !($fsExplicit && !$dbExplicit);
 
     if ($wantDb) {
         try {
@@ -238,8 +248,66 @@ function coffeeia_build_context(array $body) {
         }
     }
 
+    // ── Conexion a una CARPETA local por lenguaje natural ───────────────────────
+    // "conectate a la carpeta costsys y dime como se calcula el costo" -> el backend
+    // resuelve costsys contra la whitelist (FS_ALLOWED_ROOTS), inyecta su arbol como
+    // FUENTE DE VERDAD y deja que el modelo lea archivos bajo demanda (list_dir/
+    // read_file/grep_files). El acceso esta sandbox-eado a esa carpeta.
+    $folderConnect = isset($body['folderConnect']) ? trim((string) $body['folderConnect']) : '';
+    $fsRoot = null;
+
+    // Si el turno califica explicitamente "base/tabla/esquema" (y NO "carpeta/proyecto"),
+    // no resolvemos como carpeta: es una consulta de BD.
+    $fsIntentRe = '/(con[eé]ct\w*|\bcarpeta\b|\bproyecto\b|\bdirectorio\b|\bfolder\b|\brepositorio\b|\brepo\b|c[oó]digo\s+de)/iu';
+    $wantFs = (($folderConnect !== '') || (bool) preg_match($fsIntentRe, $lastUser)) && !($dbExplicit && !$fsExplicit);
+
+    if ($wantFs) {
+        try {
+            // El mensaje ACTUAL manda: si nombra una carpeta, cambia/define la conexion.
+            // Solo escaneamos el indice de carpetas si el mensaje tiene intencion
+            // explicita; si ya hay conexion pegajosa y el turno no habla de carpetas,
+            // reusamos la ruta sin reindexar.
+            $det = preg_match($fsIntentRe, $lastUser) ? fs_detect_request($lastUser, true) : null;
+            if ($det && $det['path']) {
+                $fsRoot = $det['path'];
+            } elseif ($det && !empty($det['candidates'])) {
+                $systemBlock .= "\n\n=== CARPETA ===\n"
+                    . "El usuario menciono una carpeta ambigua. Candidatos: "
+                    . implode(', ', array_map('basename', $det['candidates']))
+                    . ". Pide que elija una (por nombre exacto) antes de continuar.\n";
+            } elseif ($folderConnect !== '') {
+                // Sin carpeta nombrada en este mensaje: mantiene la conexion pegajosa.
+                $fsRoot = fs_canonical_folder($folderConnect);
+            }
+            if ($fsRoot) {
+                $tree = fs_tree_digest($fsRoot);
+                $systemBlock .= "\n\n=== CARPETA CONECTADA (FUENTE DE VERDAD) ===\n"
+                    . "Te conectaste a la carpeta '" . basename($fsRoot) . "'. Para responder usa\n"
+                    . "EXCLUSIVAMENTE su contenido real: explora con list_dir, localiza con grep_files y\n"
+                    . "lee con read_file (todas SOLO LECTURA). Nunca inventes rutas ni codigo: si no estas\n"
+                    . "seguro, abre el archivo. Cita las rutas relativas de los archivos que uses.\n"
+                    . "\n" . $tree;
+            }
+        } catch (Throwable $e) {
+            $systemBlock .= "\n\n=== CARPETA ===\n"
+                . "No se pudo conectar a la carpeta solicitada: " . $e->getMessage() . "\n";
+        }
+    }
+
+    // Ambiguedad real: el nombre resolvio a la vez una BASE y una CARPETA homonimas y el
+    // usuario no califico cual. No adivinamos: pedimos que aclare y no activamos ninguna
+    // herramienta (el esquema/arbol ya inyectados le dan contexto para preguntar bien).
+    if ($dbSchema && $fsRoot) {
+        $systemBlock .= "\n\n=== ACLARAR: BASE DE DATOS vs CARPETA ===\n"
+            . "El nombre solicitado coincide a la vez con una BASE DE DATOS ('{$dbSchema}') y con\n"
+            . "una CARPETA ('" . basename($fsRoot) . "'). NO asumas cual: pregunta al usuario si se\n"
+            . "refiere a la base de datos o a la carpeta de archivos antes de continuar.\n";
+        $dbSchema = null;
+        $fsRoot   = null;
+    }
+
     $prepend = [['role' => 'system', 'content' => $systemBlock]];
-    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'db' => $dbSchema];
+    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'db' => $dbSchema, 'fs' => $fsRoot];
 }
 
 /**
@@ -319,6 +387,67 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
     }
 
     // Si agoto las rondas pidiendo herramientas sin cerrar, fuerza una respuesta final.
+    if ($final === '') {
+        $res = $client->chat($messages, $model, []);
+        $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
+        $final = (string)($res['content'] ?? '');
+    }
+
+    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds];
+}
+
+/**
+ * Loop agentico de SOLO LECTURA sobre una CARPETA conectada: deja que el modelo
+ * invoque list_dir/read_file/grep_files para navegar el proyecto, ejecuta cada
+ * herramienta (sandbox a $root) y le devuelve el resultado, hasta su respuesta final
+ * (o el tope de rondas). Gemelo de coffeeia_run_db_tools pero para el filesystem.
+ *
+ * @param object   $client    cliente LLM con chat() que soporte 'tools'.
+ * @param array    $messages  mensajes ya armados (incluye el system con el arbol).
+ * @param string   $model
+ * @param string   $root      carpeta conectada (ruta absoluta ya resuelta).
+ * @param callable $onStatus  fn(string) opcional para avisar "leyendo ..." al UI.
+ * @return array{final: string, usage: array, rounds: int}
+ */
+function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable $onStatus = null, $maxRounds = 6) {
+    $tools = fs_tool_specs();
+    $usage = [];
+    $final = '';
+    $rounds = 0;
+
+    for ($round = 0; $round < $maxRounds; $round++) {
+        $rounds = $round + 1;
+        $res = $client->chat($messages, $model, ['tools' => $tools]);
+        $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
+
+        $toolCalls = $res['tool_calls'] ?? [];
+        if (empty($toolCalls)) {                       // el modelo ya respondio
+            $final = (string)($res['content'] ?? '');
+            break;
+        }
+
+        $messages[] = [
+            'role'       => 'assistant',
+            'content'    => (string)($res['content'] ?? ''),
+            'tool_calls' => $toolCalls,
+        ];
+        foreach ($toolCalls as $tc) {
+            $fn  = $tc['function']['name'] ?? '';
+            // OpenRouter manda arguments como STRING JSON; Ollama como OBJETO ya parseado.
+            $raw = $tc['function']['arguments'] ?? '{}';
+            $args = is_array($raw) ? $raw : json_decode((string) $raw, true);
+            if (!is_array($args)) $args = [];
+            if ($onStatus) $onStatus(fs_tool_label($fn, $args));
+            $result = fs_run_tool($fn, $args, $root);
+            $messages[] = [
+                'role'         => 'tool',
+                'tool_call_id' => $tc['id'] ?? '',
+                'name'         => $fn,
+                'content'      => $result,
+            ];
+        }
+    }
+
     if ($final === '') {
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));

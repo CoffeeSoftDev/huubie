@@ -2450,6 +2450,17 @@ body.stage-resizing * { cursor: ew-resize !important; user-select: none !importa
 .tree-project-header.collapsed .tree-folder-icon { color: var(--vsr-text-muted); }
 .tree-project-header .badge-count { flex-shrink: 0; }
 
+/* El chevron es su propia zona de clic (expandir/colapsar) dentro de la cabecera,
+   que por lo demas abre la carpeta. Area un poco mayor para acertarle facil. */
+.tree-project-header .tree-chevron {
+    margin: -4px -2px -4px -4px;
+    padding: 4px;
+    box-sizing: content-box;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.tree-project-header .tree-chevron:hover { background: var(--vsr-bg-hover); color: var(--vsr-accent); }
+
 /* Nivel 2: tipo (sub-carpeta dentro del proyecto) */
 .tree-type-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -2505,18 +2516,7 @@ body.stage-resizing * { cursor: ew-resize !important; user-select: none !importa
 .tree-new-btn:hover,
 .tree-new-btn:focus-visible { opacity: 1; color: var(--vsr-accent); }
 
-/* Explorador navegable de Documents: vista raiz = carpetas; clic entra a la carpeta. */
-.docs-folder-row { cursor: pointer; }
-.docs-folder-row .file-icon.fmt-folder { color: var(--vsr-accent); }
-.docs-folder-row .badge-count { flex-shrink: 0; }
-.docs-folder-arrow {
-    width: 14px; height: 14px; flex-shrink: 0;
-    color: var(--vsr-text-mute2);
-    transition: transform .12s ease, color .12s ease;
-}
-.docs-folder-row:hover .docs-folder-arrow { color: var(--vsr-accent); transform: translateX(2px); }
-
-/* Cabecera "volver" de la vista de carpeta */
+/* Cabecera "volver" de la vista enfocada (cuando entras a una sola carpeta). */
 .docs-folder-back {
     display: flex; align-items: center; gap: 7px;
     padding: 8px 12px;
@@ -2566,7 +2566,7 @@ select.new-file-input {
 .tree-project-body { display: block; padding: 4px 0 8px; }
 .tree-project-body.collapsed { display: none; }
 
-/* ── Arbol de DOCUMENTOS: filas redondeadas y contenidas (diseño imagen),
+/* ── Arbol de DOCUMENTOS: filas redondeadas + lineas guia (estilo explorador),
    con los COLORES NORMALES del visor. Scope para no tocar Agentes/Grimorios. */
 #sidebarList.is-doc-tree .sidebar-item {
     margin: 1px 6px;
@@ -2580,11 +2580,29 @@ select.new-file-input {
     border-left-color: var(--vsr-accent);
     color: var(--vsr-text);
 }
-/* Sin lineas guia: con filas redondeadas la barra vertical rompe el arbol. */
-#sidebarList.is-doc-tree .tree-files-wrap::before,
+
+/* Cuerpo de la carpeta: los archivos cuelgan sangrados y una linea guia
+   vertical los conecta con la carpeta padre (como un explorador de archivos). */
+#sidebarList.is-doc-tree .tree-project-body { position: relative; }
+#sidebarList.is-doc-tree .tree-files-wrap {
+    position: relative;
+    margin-left: 21px;
+    padding-left: 9px;
+}
+#sidebarList.is-doc-tree .tree-files-wrap::before {
+    content: '';
+    display: block;
+    position: absolute;
+    left: 0; top: 0; bottom: 8px;
+    width: 1px;
+    background: var(--vsr-border);
+}
+/* Sub-carpetas (tipo) tambien sangradas bajo su proyecto; su linea guia la
+   aporta el .tree-files-wrap interno. */
+#sidebarList.is-doc-tree .tree-type-header {
+    margin-left: 21px;
+}
 #sidebarList.is-doc-tree .tree-type-header::before { display: none; }
-/* Archivos mas a la derecha: sangrados bajo su carpeta. */
-#sidebarList.is-doc-tree .tree-files-wrap { padding-left: 30px; }
 
 /* ── Arbol lazy de carpetas (modo carpeta local, estilo VS Code) ── */
 .tree-folder-node { display: block; }
@@ -3378,6 +3396,11 @@ body.ia-drawer-resizing * {
     cursor: pointer; transition: background-color .12s ease;
 }
 .ia-db-chip-x:hover { background: rgba(0,0,0,.25); }
+
+/* Variante "carpeta conectada": mismo chip, acento azul para diferenciarlo de la BD. */
+.ia-folder-chip { background: rgba(96,165,250,.12); border-color: rgba(96,165,250,.55); color: #93c5fd; }
+.ia-folder-chip > i { color: #60a5fa; }
+.ia-folder-chip .ia-db-chip-x { color: #93c5fd; }
 .ia-img-chip {
     position: relative;
     width: 54px; height: 54px;

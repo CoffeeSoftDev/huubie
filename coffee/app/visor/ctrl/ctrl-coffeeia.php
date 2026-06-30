@@ -16,6 +16,7 @@ $ctx         = coffeeia_build_context($body);
 $model       = $ctx['model'];
 $allMessages = $ctx['messages'];
 $dbSchema    = $ctx['db'] ?? null;
+$fsRoot      = $ctx['fs'] ?? null;
 
 $t0 = microtime(true);
 
@@ -42,6 +43,31 @@ if ($dbSchema) {
         exit;
     } catch (Throwable $e) {
         // Modelo sin tools o consulta fallida: seguimos al chat normal de abajo.
+    }
+}
+
+// Carpeta conectada: navegacion por tool-calling (list_dir/read_file/grep_files).
+// Si el modelo no soporta tools o falla, caemos al chat normal (arbol ya inyectado).
+if ($fsRoot && !$dbSchema) {
+    try {
+        $client = llm_client_for($model);
+        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, null, 6);
+        $usage = $r['usage'];
+        echo json_encode([
+            'ok'                => true,
+            'reply'             => $r['final'],
+            'model'             => $model,
+            'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
+            'tokens_used'       => (int)($usage['completion_tokens'] ?? 0),
+            'prompt_tokens'     => (int)($usage['prompt_tokens'] ?? 0),
+            'completion_tokens' => (int)($usage['completion_tokens'] ?? 0),
+            'cost_usd'          => isset($usage['cost']) ? (float) $usage['cost'] : null,
+            'credits_estimate'  => isset($usage['completion_tokens']) ? round($usage['completion_tokens'] / 1000, 4) : 0,
+            'fs'                => $fsRoot,
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    } catch (Throwable $e) {
+        // Modelo sin tools o error: seguimos al chat normal de abajo.
     }
 }
 

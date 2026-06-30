@@ -49,6 +49,7 @@ $ctx         = coffeeia_build_context($body);
 $model       = $ctx['model'];
 $allMessages = $ctx['messages'];
 $dbSchema    = $ctx['db'] ?? null;
+$fsRoot      = $ctx['fs'] ?? null;
 
 $t0       = microtime(true);
 $provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
@@ -97,6 +98,46 @@ if ($dbSchema) {
     }
 }
 
+// Carpeta conectada: navegacion de archivos por tool-calling (list_dir/read_file/
+// grep_files), igual patron que la base de datos. Si el modelo no soporta tools o
+// falla, caemos al streaming normal (el arbol ya esta inyectado en el contexto).
+if ($fsRoot && !$dbSchema) {
+    try {
+        $client = llm_client_for($model);
+        $onStatus = function ($label) use ($send) {
+            $send('thinking', ['t' => "\n[{$label}]\n"]);
+        };
+        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, $onStatus, 6);
+
+        $final = (string) $r['final'];
+        foreach (preg_split('/(\s+)/u', $final, -1, PREG_SPLIT_DELIM_CAPTURE) as $piece) {
+            if ($piece !== '') $send('chunk', ['t' => $piece]);
+        }
+
+        $u         = $r['usage'];
+        $inTokens  = (int)($u['prompt_tokens']     ?? 0);
+        $outTokens = (int)($u['completion_tokens'] ?? 0);
+        $costUsd   = isset($u['cost']) ? (float) $u['cost'] : null;
+        $credits   = $outTokens > 0 ? round($outTokens / 1000, 4) : 0;
+
+        $send('done', [
+            'ok'                => true,
+            'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
+            'tokens_used'       => $outTokens,
+            'prompt_tokens'     => $inTokens,
+            'completion_tokens' => $outTokens,
+            'cost_usd'          => $costUsd,
+            'credits_estimate'  => $credits,
+            'model'             => $model ?: '',
+            'fs'                => $fsRoot,
+            'tool_rounds'       => $r['rounds'],
+        ]);
+        exit;
+    } catch (Throwable $e) {
+        // Modelo sin tools o error: seguimos al streaming normal (arbol ya inyectado).
+    }
+}
+
 try {
     $client = llm_client_for($model);
     if (!method_exists($client, 'chatStream')) {
@@ -130,6 +171,7 @@ try {
         'credits_estimate'  => $credits,
         'model'             => $meta['model'] ?? ($model ?: ''),
         'db'                => $dbSchema,
+        'fs'                => $fsRoot,
     ]);
 } catch (Throwable $e) {
     $send('error', ['error' => "Error al conectar con $provider: " . $e->getMessage()]);

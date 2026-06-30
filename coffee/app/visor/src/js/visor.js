@@ -1561,17 +1561,6 @@ class App {
         $('#sidebarList .sidebar-item').off('click').on('click', (e) => {
             const $el = $(e.currentTarget);
             if ($el.hasClass('tree-folder-toggle')) return; // las carpetas lazy las maneja toggleFolderNode
-            // Carpeta de la vista de documentos: entrar a ella (navegacion tipo explorador).
-            // Se maneja aqui porque .docs-folder-row es .sidebar-item y este .off('click')
-            // borraria el handler que pone renderSidebarTree.
-            if ($el.hasClass('docs-folder-row')) {
-                const proj = $el.data('project');
-                try { localStorage.setItem('visor:docs:folder', proj); } catch (er) {}
-                visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
-                this.bindSidebarClicks();
-                if (window.lucide) lucide.createIcons();
-                return;
-            }
             const fileName = $el.data('file');
             if (fileName) this.loadFile(fileName);
         });
@@ -2187,6 +2176,14 @@ class VisorView {
                 const matched = f ? types[tipo].filter(filterMatch) : types[tipo];
                 if (!matched.length) continue;
                 total += matched.length;
+
+                // Archivos sueltos del proyecto: cuelgan directo de la carpeta,
+                // sin nivel "tipo" intermedio (como un explorador de archivos).
+                if (tipo === '(sin clasificar)') {
+                    inner += `<div class="tree-files-wrap tree-files-loose">${matched.map(fileRow).join('')}</div>`;
+                    continue;
+                }
+
                 const typeKey = `${proj}::${tipo}`;
                 const typeCollapsed = (forceOpen || openTypes) ? false : !expandedTypes.includes(typeKey);
                 inner += `
@@ -2206,8 +2203,14 @@ class VisorView {
 
         const projNames = Object.keys(documents).sort((a, b) => a.localeCompare(b));
 
-        // Carpeta abierta (navegacion tipo explorador). Solo aplica SIN filtro; si la
-        // carpeta ya no existe (cambio de origen) se cae a la vista raiz.
+        // Estado de carpetas colapsadas. Por defecto TODO esta expandido (como un
+        // explorador de archivos); solo se recuerda lo que el usuario colapsa.
+        let collapsedProjects = [];
+        try { collapsedProjects = JSON.parse(localStorage.getItem('visor:tree:collapsedProjects') || '[]'); }
+        catch (e) { collapsedProjects = []; }
+
+        // Carpeta enfocada: el boton "entrar" de una carpeta muestra SOLO su
+        // contenido + un boton "volver". No aplica con filtro activo (manda la busqueda).
         let docFolder = '';
         try { docFolder = localStorage.getItem('visor:docs:folder') || ''; } catch (e) {}
         if (docFolder && !documents[docFolder]) docFolder = '';
@@ -2215,31 +2218,26 @@ class VisorView {
         let hasAny = false;
         let body = '';
 
-        if (f) {
-            // BUSQUEDA: acordeon de todas las carpetas con coincidencias (abierto).
-            for (const proj of projNames) {
-                const { total, inner } = buildProjectInner(proj, false);
-                if (!total) continue;
-                hasAny = true;
-                body += `
-                    <div class="tree-project-header" data-project="${proj}">
-                        <span class="tree-type-label">
-                            <i data-lucide="chevron-right" class="tree-chevron"></i>
-                            <i data-lucide="folder" class="tree-folder-icon tree-folder-closed"></i>
-                            <i data-lucide="folder-open" class="tree-folder-icon tree-folder-open"></i>
-                            <span class="font-semibold tree-project-name">${proj}</span>
-                        </span>
-                        <span class="badge-count">${total}</span>
-                    </div>
-                    <div class="tree-project-body">${inner}</div>`;
-            }
-        } else if (docFolder) {
-            // VISTA DE CARPETA: solo el contenido de la carpeta abierta + boton "volver".
-            // openTypes=false -> los sub-grupos aparecen COLAPSADOS (se expanden al clic).
-            const { total, inner } = buildProjectInner(docFolder, false);
+        // Nodo de carpeta (proyecto): clic en la cabecera abre la vista enfocada de
+        // solo esa carpeta; clic en el chevron la expande/colapsa in-place.
+        const projectNode = (proj, total, inner, collapsed) => `
+            <div class="tree-project-header ${collapsed ? 'collapsed' : ''}" data-project="${proj}" title="Abrir ${proj}">
+                <span class="tree-type-label">
+                    <i data-lucide="chevron-right" class="tree-chevron" title="Expandir / contraer"></i>
+                    <i data-lucide="folder" class="tree-folder-icon tree-folder-closed"></i>
+                    <i data-lucide="folder-open" class="tree-folder-icon tree-folder-open"></i>
+                    <span class="font-semibold tree-project-name">${proj}</span>
+                </span>
+                <span class="badge-count">${total}</span>
+            </div>
+            <div class="tree-project-body ${collapsed ? 'collapsed' : ''}">${inner}</div>`;
+
+        if (docFolder && !f) {
+            // VISTA ENFOCADA: solo el contenido de la carpeta abierta + "volver".
+            const { total, inner } = buildProjectInner(docFolder, true);
             hasAny = total > 0;
             body = `
-                <div class="docs-folder-back" title="Volver a las carpetas">
+                <div class="docs-folder-back" title="Volver a todas las carpetas">
                     <i data-lucide="chevron-left" class="tree-chevron tree-chevron-sm"></i>
                     <i data-lucide="folder-open" class="tree-folder-icon"></i>
                     <span class="docs-folder-current">${docFolder}</span>
@@ -2247,18 +2245,14 @@ class VisorView {
                 </div>
                 <div class="docs-folder-content">${inner || '<div class="tree-loading">Carpeta vacia</div>'}</div>`;
         } else {
-            // VISTA RAIZ: lista de carpetas navegables (un clic entra a la carpeta).
+            // ARBOL COMPLETO de carpetas expandibles. Con filtro activo todo queda
+            // abierto; sin filtro se respeta lo que el usuario haya colapsado.
             for (const proj of projNames) {
-                const { total } = buildProjectInner(proj, false);
+                const { total, inner } = buildProjectInner(proj, false);
                 if (!total) continue;
                 hasAny = true;
-                body += `
-                    <div class="sidebar-item is-folder docs-folder-row" data-project="${proj}" title="Abrir ${proj}">
-                        <i data-lucide="folder" class="file-icon fmt-folder"></i>
-                        <span class="file-name">${proj}</span>
-                        <span class="badge-count">${total}</span>
-                        <i data-lucide="chevron-right" class="docs-folder-arrow"></i>
-                    </div>`;
+                const collapsed = f ? false : collapsedProjects.includes(proj);
+                body += projectNode(proj, total, inner, collapsed);
             }
         }
 
@@ -2282,30 +2276,41 @@ class VisorView {
         $('#sidebarList').html(rootHeader + body + empty).addClass('is-doc-tree');
 
         const reRender = () => {
-            visorView.renderSidebar(app.dataInit, app.currentFile, '');
+            visorView.renderSidebar(app.dataInit, app.currentFile, $('#sidebarSearch').val() || '');
             app.bindSidebarClicks();
             if (window.lucide) lucide.createIcons();
         };
 
-        // Entrar a una carpeta (vista raiz -> vista de carpeta).
-        $('#sidebarList .docs-folder-row').off('click').on('click', (e) => {
-            const proj = $(e.currentTarget).data('project');
-            try { localStorage.setItem('visor:docs:folder', proj); } catch (er) {}
-            reRender();
-        });
-
-        // Volver a la lista de carpetas (vista de carpeta -> vista raiz).
+        // Volver del modo enfocado al arbol completo.
         $('#sidebarList .docs-folder-back').off('click').on('click', () => {
             try { localStorage.removeItem('visor:docs:folder'); } catch (er) {}
             reRender();
         });
 
-        // Acordeon de proyecto (solo en vista de busqueda).
+        // Carpeta (proyecto): clic en el chevron -> expandir/colapsar in-place;
+        // clic en el resto de la cabecera -> entrar a la vista enfocada.
         $('#sidebarList .tree-project-header').off('click').on('click', (e) => {
             const $header = $(e.currentTarget);
-            $header.toggleClass('collapsed');
-            $header.next('.tree-project-body').toggleClass('collapsed');
-            if (window.lucide) lucide.createIcons();
+            const proj = $header.data('project');
+
+            if ($(e.target).closest('.tree-chevron').length) {
+                $header.toggleClass('collapsed');
+                $header.next('.tree-project-body').toggleClass('collapsed');
+                let state = [];
+                try { state = JSON.parse(localStorage.getItem('visor:tree:collapsedProjects') || '[]'); }
+                catch (er) { state = []; }
+                if ($header.hasClass('collapsed')) {
+                    if (!state.includes(proj)) state.push(proj);
+                } else {
+                    state = state.filter(p => p !== proj);
+                }
+                localStorage.setItem('visor:tree:collapsedProjects', JSON.stringify(state));
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            try { localStorage.setItem('visor:docs:folder', proj); } catch (er) {}
+            reRender();
         });
 
         // Bind collapse toggle de tipo (nivel 2) — sub-carpeta
@@ -2673,6 +2678,7 @@ class CoffeeIA {
         this.graphMode     = this._loadGraphMode();   // '' | 'mermaid' | 'drawio' | 'excalidraw'
         this.excaliMode    = this._loadExcaliMode();  // 'libre' | 'template' (sub-modo de excalidraw)
         this.activeDb      = null;   // base MySQL conectada en la conversacion (persistente entre turnos)
+        this.activeFolder  = null;   // carpeta local conectada en la conversacion (persistente entre turnos)
         this.pendingEdits  = null;   // [{ find, with, status }]
         this.pendingImages = [];     // [{ dataUrl, base64, mime, name }]
         this.pendingDocs   = [];     // [{ name, content, size }] archivos de texto adjuntos al mensaje
@@ -3347,7 +3353,8 @@ class CoffeeIA {
             editorMode:         !!this.editorMode,
             graphMode:          this.graphMode || '',
             graphTemplate:      this.graphMode === 'excalidraw' ? (this.excaliMode || 'libre') : '',
-            dbConnect:          this.activeDb || '',   // base conectada (conexion pegajosa)
+            dbConnect:          this.activeDb || '',       // base conectada (conexion pegajosa)
+            folderConnect:      this.activeFolder || '',   // carpeta conectada (conexion pegajosa)
             customPath:         (this._app.settings && this._app.settings.customPath) ? this._app.settings.customPath : '',
             model:              this.model || ''
         };
@@ -3483,6 +3490,7 @@ class CoffeeIA {
         // Conexion pegajosa: si el backend resolvio una base, la recordamos para que
         // los siguientes turnos sigan consultandola sin tener que volver a nombrarla.
         if (meta && meta.db) this._setActiveDb(meta.db);
+        if (meta && meta.fs) this._setActiveFolder(meta.fs);
 
         this.history.push({ role: 'assistant', content: received });
 
@@ -5242,6 +5250,34 @@ class CoffeeIA {
         $chip.find('.ia-db-chip-x').off('click').on('click', () => {
             this._setActiveDb(null);
             this._toast('Desconectado de la base', 'info');
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    /* ── Conexion a una carpeta local (pegajosa por conversacion) ── */
+
+    // Fija (o suelta, con null) la carpeta conectada y refresca el chip indicador.
+    _setActiveFolder(path) {
+        this.activeFolder = path || null;
+        this._renderFolderIndicator();
+    }
+
+    // Chip "carpeta: <nombre> ✕" sobre el input. La ✕ desconecta (sin borrar el chat).
+    _renderFolderIndicator() {
+        const $chip = $('#iaFolderChip');
+        if (!$chip.length) return;
+        if (!this.activeFolder) { $chip.hide().empty(); return; }
+        const name = String(this.activeFolder).replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
+        $chip.html(`
+            <i data-lucide="folder-open" class="w-3 h-3"></i>
+            <span class="ia-db-chip-name" title="${this._escape(this.activeFolder)}">${this._escape(name)}</span>
+            <button type="button" class="ia-db-chip-x" title="Desconectar de la carpeta">
+                <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+        `).show();
+        $chip.find('.ia-db-chip-x').off('click').on('click', () => {
+            this._setActiveFolder(null);
+            this._toast('Desconectado de la carpeta', 'info');
         });
         if (window.lucide) lucide.createIcons();
     }

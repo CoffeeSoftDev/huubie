@@ -402,6 +402,7 @@
 
                 <div class="ia-drawer-input">
                     <div id="iaDbChip" class="ia-db-chip" style="display:none;"></div>
+                    <div id="iaFolderChip" class="ia-db-chip ia-folder-chip" style="display:none;"></div>
                     <div id="iaImageStrip" class="ia-image-strip" style="display:none;"></div>
                     <div class="ia-input-wrap">
                         <textarea id="iaInputTextarea" class="ia-input-textarea" rows="1" placeholder="Pregunta algo sobre el documento..."></textarea>

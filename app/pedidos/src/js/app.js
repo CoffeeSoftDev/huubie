@@ -545,17 +545,31 @@ class App extends Templates {
     }
 
     requireOpenShift() {
-        if (typeof openShift !== 'undefined' && openShift && openShift.has_open_shift) return true;
-        Swal.fire({
-            icon: 'warning',
-            title: 'No hay turno abierto',
-            text: 'Debes abrir un turno antes de continuar.',
-            confirmButtonText: 'Entendido',
-            confirmButtonColor: '#7c3aed',
-            background: '#1F2A37',
-            color: '#fff'
-        });
-        return false;
+        if (typeof openShift === 'undefined' || !openShift || !openShift.has_open_shift) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'No hay turno abierto',
+                text: 'Debes abrir un turno antes de continuar.',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#7c3aed',
+                background: '#1F2A37',
+                color: '#fff'
+            });
+            return false;
+        }
+        if (openShift.opened_at && !moment(openShift.opened_at).isSame(moment(), 'day')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Turno pendiente de otro día',
+                text: 'Existe un turno abierto que no corresponde al día de hoy. Debes cerrarlo antes de continuar.',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#7c3aed',
+                background: '#1F2A37',
+                color: '#fff'
+            });
+            return false;
+        }
+        return true;
     }
 
     async editOrder(id) {
@@ -2851,23 +2865,23 @@ class App extends Templates {
                 const time = moment(s.opened_at).format('hh:mm A');
                 const name = s.shift_name || time;
                 return `
-                    <div class="flex items-center justify-between py-1.5 px-2 bg-[#1a2332] rounded-md cursor-pointer hover:bg-[#243044] transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
-                        <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-between gap-3 py-2.5 pl-3 pr-3.5 bg-slate-800/40 border-l-2 border-orange-500 rounded-md cursor-pointer hover:bg-slate-800/70 transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
+                        <div class="flex items-center gap-2.5">
                             <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
-                            <span class="text-xs text-gray-300">${name}</span>
+                            <span class="text-sm font-medium text-slate-100">${name}</span>
                         </div>
-                        <span class="text-[10px] text-gray-500">${date}</span>
+                        <span class="text-xs text-slate-400">${date}</span>
                     </div>
                 `;
             }).join('');
 
             alertContainer.html(`
-                <div class="bg-orange-900/30 rounded-lg p-3">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="icon-attention text-orange-400 text-sm"></i>
-                        <span class="text-xs font-bold text-orange-400 uppercase">Turnos sin cerrar (${openShifts.length})</span>
+                <div class="rounded-lg border border-slate-600/50 bg-slate-900/40 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Turnos sin cerrar (${openShifts.length})</span>
                     </div>
-                    <div class="space-y-1">${shiftItems}</div>
+                    <div class="space-y-2">${shiftItems}</div>
                 </div>
             `).removeClass('hidden');
 

@@ -4,11 +4,21 @@ description:
 date: 2026-06-28
 ---
 
+**\*\* Tabla de pedidos\*\***
+
+~\- Agregar al toogle la opcion de que no pueda realizar ningun movimiento si no se ha cerrado turno.~
+
+~\- Cambiar el diseño de la tabla y el toogle.~
+
 ---
 
 **\*\* Cierre del día \*\***
 
 \- Si tienes un turno pendiente el usuario no debe realizar ninguna acción y el sistema te invita a que cierres el turno 
+
+el sistema debe tener la opción de poder decirle al usuario que no ha cerrado turno ni ha hecho el corte diario 
+
+  
 
 \- Cambiar el botón de cerrar día a  *Corte Z*
 
@@ -84,14 +94,12 @@ date: 2026-06-28
 
 \- 
 
-  
-
 **\*\* NAVBAR \*\***
 
-\- Cambiar el diseño de la navbar por el que tiene app de huubie
+~\- Cambiar el diseño de la navbar por el que tiene app de huubie~
 
-\*\* Menu \*\*
+**\*\* Menu \*\***
 
-\- Mejorar el diseño que tienen las cards de app de huubie
+~\- Mejorar el diseño que tienen las cards de app de huubie~
 
 \- Replicar el menu y sus clases
