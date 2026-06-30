@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisis Actual - Cierre de Turno</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+        pre { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+        .sql-block { background: #1a1a2e; border-left: 3px solid #7c3aed; }
+        table { border-collapse: collapse; width: 100%; }
+        th { background: #1e293b; text-align: left; padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; border-bottom: 2px solid #334155; }
+        td { padding: 10px 14px; border-bottom: 1px solid #1e293b; font-size: 13px; }
+        tr:hover td { background: #1e293b44; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+        .badge-green { background: #065f46; color: #6ee7b7; }
+        .badge-yellow { background: #78350f; color: #fcd34d; }
+        .badge-red { background: #7f1d1d; color: #fca5a5; }
+        .badge-blue { background: #1e3a5f; color: #93c5fd; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; }
+        h1 { font-size: 2rem; font-weight: 800; }
+        h2 { font-size: 1.4rem; font-weight: 700; border-bottom: 2px solid #334155; padding-bottom: 8px; margin-top: 2rem; }
+        h3 { font-size: 1.1rem; font-weight: 600; color: #a78bfa; margin-top: 1.5rem; }
+        .nav-link { color: #94a3b8; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+        .nav-link:hover { background: #1e293b; color: #e2e8f0; }
+        .nav-link.active { background: #7c3aed; color: white; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-[#0f172a]/95 backdrop-blur border-b border-gray-800 px-6 py-3">
+        <div class="max-w-5xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">H</div>
+                <span class="text-sm font-semibold text-gray-400">Pedidos / Docs / Plan Cierre</span>
+            </div>
+            <div class="flex gap-1">
+                <a href="analisis-actual.html" class="nav-link active">Analisis</a>
+                <a href="estrategia-cierre-diario.html" class="nav-link">Estrategia</a>
+                <a href="roadmap-propuesta-1.html" class="nav-link">MVP</a>
+                <a href="roadmap-propuesta-2.html" class="nav-link">Validaciones</a>
+                <a href="roadmap-propuesta-3.html" class="nav-link">Dashboard</a>
+                <a href="roadmap-propuesta-4.html" class="nav-link">Automatizado</a>
+                <a href="comparativa-propuestas.html" class="nav-link">Comparativa</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-6 py-10">
+
+        <!-- Header -->
+        <div class="mb-10">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="badge badge-blue">DOCUMENTO</span>
+                <span class="text-sm text-gray-500">Ultima revision: 29/03/2026</span>
+            </div>
+            <h1 class="text-white mb-2">Analisis de la Estrategia Actual</h1>
+            <p class="text-gray-400 text-lg">Cierre de Turno - Sistema de Pedidos</p>
+        </div>
+
+        <!-- Estado Actual -->
+        <section class="mb-10">
+            <h2 class="text-white">Estado Actual del Sistema</h2>
+            <p class="mt-4 text-gray-300 leading-relaxed">
+                El sistema de pedidos opera con un modelo de <strong class="text-purple-300">turnos de caja</strong> (<code class="text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded">cash_shift</code>) que funciona como unidad operativa para agrupar ventas por sesion de trabajo.
+            </p>
+        </section>
+
+        <!-- Flujo Operativo -->
+        <section class="mb-10">
+            <h2 class="text-white">Arquitectura de Turnos (Implementado)</h2>
+
+            <h3>Flujo Operativo</h3>
+            <div class="card mt-4">
+                <pre class="!bg-[#0f172a] !border-purple-900/50"><code>Usuario abre la app
+    |
+    v
+init() --> checkDailyClosure() + checkOpenShift()
+    |
+    v
++--------------------------+
+| dailyClosure.is_closed?  |--SI--> Bloquea "Nuevo Pedido"
++--------------------------+        Muestra alerta amarilla
+    | NO
+    v
++--------------------------+
+| openShift.has_open_shift?|--NO--> Bloquea "Nuevo Pedido"
++--------------------------+        Muestra alerta ambar
+    | SI
+    v
++--------------------------+
+| Turno de otro dia?       |--SI--> Bloquea "Nuevo Pedido"
++--------------------------+        "Turno pendiente de otro dia"
+    | NO
+    v
+Permite crear pedidos</code></pre>
+            </div>
+
+            <h3>Ciclo de Vida del Turno</h3>
+            <div class="card mt-4">
+                <pre class="!bg-[#0f172a] !border-purple-900/50"><code>[Sin turno] --openShift()--> [ABIERTO] --closeShift()--> [CERRADO]
+                                |                            |
+                                |  Pedidos se vinculan       |  Se calculan metricas
+                                |  via cash_shift_id         |  Se guardan totales
+                                |                            |  Se generan registros
+                                v                            |  en shift_payment y
+                           order.cash_shift_id = X           |  shift_status_process
+                                                             v
+                                                        Ticket de cierre</code></pre>
+            </div>
+        </section>
+
+        <!-- Componentes -->
+        <section class="mb-10">
+            <h2 class="text-white">Componentes del Sistema de Turnos</h2>
+
+            <!-- Frontend -->
+            <h3>1. Frontend (app.js)</h3>
+            <div class="card mt-4 overflow-x-auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metodo</th>
+                            <th>Linea</th>
+                            <th>Funcion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code class="text-cyan-400">printDailyClose()</code></td><td class="text-gray-400">2334</td><td>Abre modal principal de cierre</td></tr>
+                        <tr><td><code class="text-cyan-400">loadShifts()</code></td><td class="text-gray-400">2428</td><td>Carga turnos por fecha/sucursal</td></tr>
+                        <tr><td><code class="text-cyan-400">openShift()</code></td><td class="text-gray-400">2700</td><td>Dialogo para abrir turno nuevo</td></tr>
+                        <tr><td><code class="text-cyan-400">closeShift()</code></td><td class="text-gray-400">2755</td><td>Confirmacion y cierre de turno</td></tr>
+                        <tr><td><code class="text-cyan-400">viewShiftPreview()</code></td><td class="text-gray-400">2520</td><td>Preview del ticket de turno</td></tr>
+                        <tr><td><code class="text-cyan-400">ticketShiftClose()</code></td><td class="text-gray-400">2566</td><td>Renderiza HTML del ticket</td></tr>
+                        <tr><td><code class="text-cyan-400">toggleReportMode()</code></td><td class="text-gray-400">2730</td><td>Alterna detallado/resumido</td></tr>
+                        <tr><td><code class="text-cyan-400">printDailyCloseTicket()</code></td><td class="text-gray-400">2801</td><td>Imprime ticket en ventana nueva</td></tr>
+                        <tr><td><code class="text-cyan-400">updateDailyClosureStatus()</code></td><td class="text-gray-400">256</td><td>Evalua estado y habilita/deshabilita UI</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Backend Controller -->
+            <h3>2. Backend - Controlador (ctrl-pedidos.php)</h3>
+            <div class="card mt-4 overflow-x-auto">
+                <table>
+                    <thead><tr><th>opc</th><th>Funcion</th></tr></thead>
+                    <tbody>
+                        <tr><td><code class="text-green-400">checkDailyClosure</code></td><td>Verifica si existe cierre para fecha+sucursal</td></tr>
+                        <tr><td><code class="text-green-400">openShift</code></td><td>Crea turno validando que no exista otro abierto</td></tr>
+                        <tr><td><code class="text-green-400">closeShift</code></td><td>Cierra turno, calcula metricas, vincula ordenes</td></tr>
+                        <tr><td><code class="text-green-400">getShiftsByDate</code></td><td>Lista turnos de una fecha</td></tr>
+                        <tr><td><code class="text-green-400">getOpenShifts</code></td><td>Obtiene turnos abiertos pendientes</td></tr>
+                        <tr><td><code class="text-green-400">getShiftMetrics</code></td><td>Metricas de un turno (real-time si abierto, stored si cerrado)</td></tr>
+                        <tr><td><code class="text-green-400">getShiftOrders</code></td><td>Ordenes detalladas de un turno</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Modelo -->
+            <h3>3. Backend - Modelo (mdl-pedidos.php)</h3>
+            <div class="card mt-4 overflow-x-auto">
+                <table>
+                    <thead><tr><th>Metodo</th><th>Descripcion</th></tr></thead>
+                    <tbody>
+                        <tr><td><code class="text-yellow-400">createCashShift()</code></td><td>INSERT en cash_shift</td></tr>
+                        <tr><td><code class="text-yellow-400">closeCashShift()</code></td><td>UPDATE status='closed', guarda totales</td></tr>
+                        <tr><td><code class="text-yellow-400">getCashShiftById()</code></td><td>SELECT con JOIN a usr_users</td></tr>
+                        <tr><td><code class="text-yellow-400">getShiftSalesMetrics()</code></td><td>Query complejo de metricas por turno</td></tr>
+                        <tr><td><code class="text-yellow-400">getShiftsBySubsidiaryDate()</code></td><td>Turnos de una fecha+sucursal</td></tr>
+                        <tr><td><code class="text-yellow-400">getOpenShiftBySubsidiary()</code></td><td>Turno abierto actual</td></tr>
+                        <tr><td><code class="text-yellow-400">getAllOpenShiftsBySubsidiary()</code></td><td>Todos los turnos abiertos</td></tr>
+                        <tr><td><code class="text-yellow-400">createShiftPayment()</code></td><td>INSERT desglose de pagos del turno</td></tr>
+                        <tr><td><code class="text-yellow-400">createShiftStatusProcess()</code></td><td>INSERT conteo de estados del turno</td></tr>
+                        <tr><td><code class="text-yellow-400">updateOrdersCashShift()</code></td><td>Vincula ordenes huerfanas al turno</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tablas BD -->
+            <h3>4. Tablas de BD</h3>
+            <div class="card mt-4 overflow-x-auto">
+                <table>
+                    <thead><tr><th>Tabla</th><th>Registros</th><th>Estado</th></tr></thead>
+                    <tbody>
+                        <tr><td><code class="text-purple-400">cash_shift</code></td><td>Turno de caja</td><td><span class="badge badge-green">Funcional</span></td></tr>
+                        <tr><td><code class="text-purple-400">shift_payment</code></td><td>Pagos por metodo del turno</td><td><span class="badge badge-green">Funcional</span></td></tr>
+                        <tr><td><code class="text-purple-400">shift_status_process</code></td><td>Conteo de estados del turno</td><td><span class="badge badge-green">Funcional</span></td></tr>
+                        <tr><td><code class="text-purple-400">daily_closure</code></td><td>Cierre diario</td><td><span class="badge badge-yellow">Parcial</span></td></tr>
+                        <tr><td><code class="text-purple-400">closure_payment</code></td><td>Pagos del cierre diario</td><td><span class="badge badge-red">Sin uso</span></td></tr>
+                        <tr><td><code class="text-purple-400">closure_status_proccess</code></td><td>Estados del cierre diario</td><td><span class="badge badge-red">Sin uso</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Metricas -->
+        <section class="mb-10">
+            <h2 class="text-white">Metricas que Calcula el Cierre de Turno</h2>
+            <p class="mt-4 text-gray-300">Al cerrar un turno (<code class="text-purple-400">closeShift</code>), el sistema calcula:</p>
+
+            <div class="card mt-4">
+                <pre class="sql-block"><code class="text-gray-300"><span class="text-gray-500">-- Ventas totales (excluyendo cancelados)</span>
+<span class="text-blue-400">SELECT</span> <span class="text-cyan-400">COUNT</span>(*) <span class="text-blue-400">as</span> total_orders, <span class="text-cyan-400">SUM</span>(total_pay) <span class="text-blue-400">as</span> total_sales
+<span class="text-blue-400">FROM</span> <span class="text-yellow-400">`order`</span>
+<span class="text-blue-400">WHERE</span> cash_shift_id = <span class="text-green-400">:shift_id</span> <span class="text-blue-400">AND</span> status != <span class="text-orange-400">4</span>
+
+<span class="text-gray-500">-- Pagos agrupados por metodo</span>
+<span class="text-blue-400">SELECT</span> pp.method_pay_id, <span class="text-cyan-400">SUM</span>(pp.pay) <span class="text-blue-400">as</span> total_paid
+<span class="text-blue-400">FROM</span> order_payments pp
+<span class="text-blue-400">INNER JOIN</span> <span class="text-yellow-400">`order`</span> po <span class="text-blue-400">ON</span> pp.order_id = po.id
+<span class="text-blue-400">WHERE</span> po.cash_shift_id = <span class="text-green-400">:shift_id</span> <span class="text-blue-400">AND</span> po.status != <span class="text-orange-400">4</span>
+<span class="text-blue-400">GROUP BY</span> pp.method_pay_id</code></pre>
+            </div>
+
+            <h3>Datos almacenados en cash_shift al cerrar</h3>
+            <div class="card mt-4 overflow-x-auto">
+                <table>
+                    <thead><tr><th>Campo</th><th>Contenido</th></tr></thead>
+                    <tbody>
+                        <tr><td><code class="text-cyan-400">total_sales</code></td><td>Suma de total_pay de ordenes activas</td></tr>
+                        <tr><td><code class="text-cyan-400">total_cash</code></td><td>Total pagado en efectivo (method_pay_id=1)</td></tr>
+                        <tr><td><code class="text-cyan-400">total_card</code></td><td>Total pagado con tarjeta (method_pay_id=2)</td></tr>
+                        <tr><td><code class="text-cyan-400">total_transfer</code></td><td>Total por transferencia (method_pay_id=3)</td></tr>
+                        <tr><td><code class="text-cyan-400">total_orders</code></td><td>Conteo de ordenes activas</td></tr>
+                        <tr><td><code class="text-cyan-400">closed_at</code></td><td>Timestamp del cierre</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Lo que falta -->
+        <section class="mb-10">
+            <h2 class="text-white">Lo que FALTA: Cierre Diario</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <!-- Existente -->
+                <div class="card border-green-900/50">
+                    <h3 class="!text-green-400 !mt-0 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        Funcionalidad existente (parcial)
+                    </h3>
+                    <ul class="space-y-3 text-sm text-gray-300">
+                        <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5">1.</span><span><strong>Deteccion:</strong> <code class="text-green-400">checkDailyClosure()</code> puede verificar si ya existe un cierre</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5">2.</span><span><strong>Bloqueo UI:</strong> <code class="text-green-400">updateDailyClosureStatus()</code> deshabilita "Nuevo Pedido" si existe cierre</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5">3.</span><span><strong>Tablas:</strong> <code class="text-green-400">daily_closure</code>, <code class="text-green-400">closure_payment</code>, <code class="text-green-400">closure_status_proccess</code> ya existen</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5">4.</span><span><strong>Modelo:</strong> <code class="text-green-400">createDailyClosure()</code>, <code class="text-green-400">getDailyClosureByDate()</code>, <code class="text-green-400">updateOrdersDailyClosure()</code></span></li>
+                    </ul>
+                </div>
+
+                <!-- Faltante -->
+                <div class="card border-red-900/50">
+                    <h3 class="!text-red-400 !mt-0 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                        Funcionalidad faltante
+                    </h3>
+                    <ul class="space-y-3 text-sm text-gray-300">
+                        <li class="flex items-start gap-2"><span class="text-red-500 mt-0.5">1.</span><span><strong>Boton en UI:</strong> No existe un boton "Cierre Diario" separado del cierre de turno</span></li>
+                        <li class="flex items-start gap-2"><span class="text-red-500 mt-0.5">2.</span><span><strong>Consolidacion:</strong> No hay funcion que sume metricas de TODOS los turnos del dia</span></li>
+                        <li class="flex items-start gap-2"><span class="text-red-500 mt-0.5">3.</span><span><strong>Validacion pre-cierre:</strong> No valida que todos los turnos esten cerrados</span></li>
+                        <li class="flex items-start gap-2"><span class="text-red-500 mt-0.5">4.</span><span><strong>Ticket diario:</strong> No existe formato de ticket que consolide el dia completo</span></li>
+                        <li class="flex items-start gap-2"><span class="text-red-500 mt-0.5">5.</span><span><strong>Reapertura:</strong> No hay mecanismo para reabrir un cierre diario</span></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mensajes -->
+        <section class="mb-10">
+            <h2 class="text-white">Mensajes Actuales del Sistema</h2>
+            <div class="card mt-4 overflow-x-auto">
+                <table>
+                    <thead><tr><th>Contexto</th><th>Mensaje</th><th>Icono</th></tr></thead>
+                    <tbody>
+                        <tr><td class="whitespace-nowrap">Dia cerrado (alerta)</td><td class="text-yellow-300">"Cierre del dia realizado. No se pueden crear nuevos pedidos para hoy."</td><td><code>icon-lock</code></td></tr>
+                        <tr><td class="whitespace-nowrap">Dia cerrado (alert)</td><td class="text-yellow-300">"No se pueden crear nuevos pedidos porque ya se realizo el cierre del dia para esta sucursal."</td><td><code>warning</code></td></tr>
+                        <tr><td class="whitespace-nowrap">Sin turno (alerta)</td><td class="text-amber-300">"Sin turno abierto - abrir turno en Cierre del dia para crear pedidos"</td><td><code>amber pulse</code></td></tr>
+                        <tr><td class="whitespace-nowrap">Sin turno (alert)</td><td class="text-amber-300">"Debes abrir un turno de caja antes de crear pedidos."</td><td><code>warning</code></td></tr>
+                        <tr><td class="whitespace-nowrap">Turno viejo (alerta)</td><td class="text-amber-300">"Turno del DD/MMM/YYYY sin cerrar - cerrar turno para crear nuevos pedidos"</td><td><code>amber pulse</code></td></tr>
+                        <tr><td class="whitespace-nowrap">Turno viejo (alert)</td><td class="text-amber-300">"Existe un turno abierto que no corresponde al dia de hoy."</td><td><code>warning</code></td></tr>
+                        <tr><td class="whitespace-nowrap">Turno abierto</td><td class="text-green-300">"Turno abierto"</td><td><code>success</code></td></tr>
+                        <tr><td class="whitespace-nowrap">Turno cerrado</td><td class="text-green-300">"Turno cerrado"</td><td><code>success</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Conclusion -->
+        <section class="mb-10">
+            <h2 class="text-white">Conclusion</h2>
+            <div class="card mt-4 border-purple-900/50 bg-purple-900/10">
+                <p class="text-gray-300 leading-relaxed">
+                    El sistema tiene una base solida para turnos individuales. La pieza faltante es el <strong class="text-purple-300">cierre diario</strong> que actue como consolidador de todos los turnos de un dia, generando un registro unico en <code class="text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded">daily_closure</code> con sus respectivos desgloses en <code class="text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded">closure_payment</code> y <code class="text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded">closure_status_proccess</code>, y vinculando todas las ordenes del dia via <code class="text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded">daily_closure_id</code>.
+                </p>
+            </div>
+        </section>
+
+        <!-- Footer Nav -->
+        <div class="flex justify-end mt-12 pb-8">
+            <a href="estrategia-cierre-diario.html" class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                Siguiente: Estrategia
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+    </main>
+</body>
+</html>

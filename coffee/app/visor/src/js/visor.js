@@ -1,15 +1,15 @@
 let api = 'ctrl/ctrl-visor.php';
 let apiIA = 'ctrl/ctrl-coffeeia.php';
-let visor, visorView, app, coffeeIA, drawioBoard;
+let visor, visorView, app, coffeeIA, drawioBoard, githubBoard;
 
 const VISOR_STORAGE_KEY = 'visor:settings:v1';
 const VISOR_PINNED_KEY  = 'visor:pinned:v1';
 const VISOR_USER_KEY    = 'visor:user:v1';
 
 const VISOR_USERS = [
-    { id: 'rosy',     name: 'Rosy V.',  role: 'Guardiana',     initials: 'RV', color: '#6366f1', canUseIA: false },
-    { id: 'somx',     name: 'Somx',     role: 'Desarrollador', initials: 'SO', color: '#22c55e', canUseIA: false },
-    { id: 'invitado', name: 'Invitado', role: 'Visitante',     initials: 'IN', color: '#94a3b8', canUseIA: true  }
+    { id: 'rosy',     name: 'Rosy V.',  role: 'Guardiana',     initials: 'RV', color: '#6366f1' },
+    { id: 'somx',     name: 'Somx',     role: 'Desarrollador', initials: 'SO', color: '#22c55e' },
+    { id: 'invitado', name: 'Invitado', role: 'Visitante',     initials: 'IN', color: '#94a3b8' }
 ];
 const EDITABLE_EXTS = [
     'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
@@ -24,6 +24,7 @@ $(async () => {
     drawioBoard = new DrawioBoard(app, api);
     await app.init();
     coffeeIA = new CoffeeIA(apiIA, app);
+    githubBoard = new GithubBoard(app, apiIA.replace('ctrl-coffeeia.php', 'ctrl-github.php'));
 });
 
 // Divisor arrastrable entre el documento (izq) y el lienzo (der) en modo split.
@@ -111,17 +112,6 @@ class App {
         $('#userInitials').text(user.initials).css('background', user.color);
         $('#userName').text(user.name);
         $('#userRole').text(user.role);
-
-        // Permiso para usar CoffeeIA
-        const $btnIA = $('#btnToggleCoffeeIA');
-        if (user.canUseIA) {
-            $btnIA.show();
-        } else {
-            $btnIA.hide();
-            if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA.isOpen) {
-                coffeeIA.close();
-            }
-        }
     }
 
     renderUserMenu() {
@@ -132,7 +122,6 @@ class App {
                     <span class="user-menu-name">${u.name}</span>
                     <span class="user-menu-role">${u.role}</span>
                 </span>
-                ${u.canUseIA ? '<span class="user-menu-badge"><i data-lucide="sparkles" class="w-3 h-3"></i>IA</span>' : ''}
                 ${u.id === this.currentUser.id ? '<i data-lucide="check" class="w-3.5 h-3.5 user-menu-check"></i>' : ''}
             </button>
         `).join('');
@@ -391,9 +380,53 @@ class App {
         this.bindDocStyle();
         this.bindToc();
         this.bindSidebarToggle();
+        this.bindMobileSidebar();
         this.bindIaDrawerResize();
         this.bindUserMenu();
         this.bindNewFileModal();
+    }
+
+    bindMobileSidebar() {
+        const isMobile = () => window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
+
+        // Conmutador Archivos/Documento (solo visible en móvil vía CSS).
+        $('.vsr-mswitch').off('click').on('click', function () {
+            const view = $(this).data('mview');
+            $('.vsr-mswitch').removeClass('active');
+            $(this).addClass('active');
+            $('.visor-body-row').attr('data-mview', view);
+        });
+
+        // Al elegir un ARCHIVO en móvil, saltar a la vista Documento. Las carpetas
+        // (.docs-folder-row / .tree-folder-toggle, sin data-file) NO conmutan: deben
+        // dejar el sidebar visible para mostrar su contenido al expandir/entrar.
+        $('#sidebarList').off('click.mobileSwitch').on('click.mobileSwitch', '.sidebar-item', function () {
+            if (isMobile() && $(this).attr('data-file')) {
+                $('.vsr-mswitch').removeClass('active');
+                $('.vsr-mswitch[data-mview="doc"]').addClass('active');
+                $('.visor-body-row').attr('data-mview', 'doc');
+            }
+        });
+
+        // Botón Ajustes (solo móvil): despliega/colapsa los controles del header.
+        const closeHeader = () => {
+            $('#vsrHeaderRight').removeClass('is-open');
+            $('#vsrHeaderToggle').attr('aria-expanded', 'false').removeClass('is-active');
+        };
+        $('#vsrHeaderToggle').off('click').on('click', function (e) {
+            e.stopPropagation();
+            const open = !$('#vsrHeaderRight').hasClass('is-open');
+            $('#vsrHeaderRight').toggleClass('is-open', open);
+            $(this).attr('aria-expanded', open ? 'true' : 'false').toggleClass('is-active', open);
+        });
+        $('#vsrHeaderRight').off('change.mobileHeader').on('change.mobileHeader', 'select', () => {
+            if (isMobile()) closeHeader();
+        });
+        $(document).off('click.vsrHeader').on('click.vsrHeader', (e) => {
+            if (!$('#vsrHeaderRight').hasClass('is-open')) return;
+            if ($(e.target).closest('#vsrHeaderRight, #vsrHeaderToggle').length) return;
+            closeHeader();
+        });
     }
 
     applySidebarCollapsed(collapsed, withTransition) {
@@ -401,11 +434,10 @@ class App {
         const $btn = $('#btnToggleSidebar');
         if (!withTransition) $sb.css('transition', 'none');
         $sb.toggleClass('is-collapsed', !!collapsed);
-        $btn.attr('title', collapsed ? 'Mostrar nombres' : 'Ocultar nombres');
-        // Re-inyectar el <i> porque lucide ya lo convirtio a <svg> en la carga inicial.
-        const iconName = collapsed ? 'panel-left-open' : 'panel-left-close';
-        $btn.html(`<i data-lucide="${iconName}" class="w-4 h-4"></i>`);
-        if (window.lucide) lucide.createIcons();
+        // El toggle vive en el header con icono fijo (panel-left); solo refleja el
+        // estado con la clase is-collapsed y actualiza el title.
+        $btn.toggleClass('is-collapsed', !!collapsed);
+        $btn.attr('title', collapsed ? 'Mostrar lista de archivos' : 'Ocultar lista de archivos');
         if (!withTransition) {
             $sb[0] && $sb[0].offsetHeight;
             $sb.css('transition', '');
@@ -1528,7 +1560,7 @@ class App {
 
         $('#sidebarList .sidebar-item').off('click').on('click', (e) => {
             const $el = $(e.currentTarget);
-            if ($el.hasClass('tree-folder-toggle')) return; // las carpetas las maneja toggleFolderNode
+            if ($el.hasClass('tree-folder-toggle')) return; // las carpetas lazy las maneja toggleFolderNode
             const fileName = $el.data('file');
             if (fileName) this.loadFile(fileName);
         });
@@ -2104,20 +2136,9 @@ class VisorView {
         // Crear archivos solo en origenes locales validos (Drive no usa 'save').
         // El unico boton "+" vive en la cabecera raiz; el destino se elige en el modal.
         const canCreate = !!(header && header.source !== 'Drive' && header.currentPath && header.valid !== false);
-        // Convencion: todo arranca COLAPSADO; localStorage guarda solo lo
-        // que el usuario ha expandido manualmente.
-        let expanded = [];
         let expandedTypes = [];
-        try {
-            expanded      = JSON.parse(localStorage.getItem('visor:tree:expanded') || '[]');
-            expandedTypes = JSON.parse(localStorage.getItem('visor:tree:expandedTypes') || '[]');
-        } catch (e) { expanded = []; expandedTypes = []; }
-        // Acordeon: a lo sumo UNA carpeta raiz puede quedar abierta. Si un estado
-        // previo guardo varias, conservamos solo la primera (tambien al iniciar).
-        if (Array.isArray(expanded) && expanded.length > 1) {
-            expanded = [expanded[0]];
-            try { localStorage.setItem('visor:tree:expanded', JSON.stringify(expanded)); } catch (e) {}
-        }
+        try { expandedTypes = JSON.parse(localStorage.getItem('visor:tree:expandedTypes') || '[]'); }
+        catch (e) { expandedTypes = []; }
         // Cuando hay filtro activo, abrimos todo para que se vean los resultados.
         const forceOpen = f !== '';
 
@@ -2127,42 +2148,45 @@ class VisorView {
             return hay.includes(f);
         };
 
-        let hasAny = false;
-        let html = '';
+        const typeSort = (a, b) => {
+            if (a === '(sin clasificar)') return 1;
+            if (b === '(sin clasificar)') return -1;
+            return a.localeCompare(b);
+        };
 
-        for (const proj of Object.keys(documents).sort((a, b) => a.localeCompare(b))) {
+        const fileRow = (item) => {
+            const fmt = visor.fileFormat(item);
+            return `
+                <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" title="${item.file}">
+                    <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
+                    <span class="file-name">${item.file}</span>
+                    ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
+                    <span class="file-size">${item.size}</span>
+                    ${this.delBtnHtml(item)}
+                    ${this.pinBtnHtml(item.file)}
+                </div>`;
+        };
+
+        // Contenido interno (tipos + archivos) de UN proyecto. openTypes = true abre los
+        // tipos de entrada (vista de carpeta) para ver el contenido sin un clic extra.
+        const buildProjectInner = (proj, openTypes) => {
             const types = documents[proj];
-            let projTotal = 0;
-            let projHtml = '';
-
-            for (const tipo of Object.keys(types).sort((a, b) => {
-                if (a === '(sin clasificar)') return 1;
-                if (b === '(sin clasificar)') return -1;
-                return a.localeCompare(b);
-            })) {
-                const items = types[tipo];
-                const matched = f ? items.filter(filterMatch) : items;
+            let total = 0, inner = '';
+            for (const tipo of Object.keys(types).sort(typeSort)) {
+                const matched = f ? types[tipo].filter(filterMatch) : types[tipo];
                 if (!matched.length) continue;
-                projTotal += matched.length;
+                total += matched.length;
+
+                // Archivos sueltos del proyecto: cuelgan directo de la carpeta,
+                // sin nivel "tipo" intermedio (como un explorador de archivos).
+                if (tipo === '(sin clasificar)') {
+                    inner += `<div class="tree-files-wrap tree-files-loose">${matched.map(fileRow).join('')}</div>`;
+                    continue;
+                }
 
                 const typeKey = `${proj}::${tipo}`;
-                const typeCollapsed = forceOpen ? false : !expandedTypes.includes(typeKey);
-
-                const typeRows = matched.map(item => {
-                    const fmt = visor.fileFormat(item);
-                    return `
-                    <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" title="${item.file}">
-                        <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
-                        <span class="file-name">${item.file}</span>
-                        ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
-                        <span class="file-size">${item.size}</span>
-                        ${this.delBtnHtml(item)}
-                        ${this.pinBtnHtml(item.file)}
-                    </div>
-                `;
-                }).join('');
-
-                projHtml += `
+                const typeCollapsed = (forceOpen || openTypes) ? false : !expandedTypes.includes(typeKey);
+                inner += `
                     <div class="tree-type-header ${typeCollapsed ? 'collapsed' : ''}" data-type-key="${typeKey}">
                         <span class="tree-type-label">
                             <i data-lucide="chevron-right" class="tree-chevron tree-chevron-sm"></i>
@@ -2172,26 +2196,64 @@ class VisorView {
                         </span>
                         <span class="badge-count">${matched.length}</span>
                     </div>
-                    <div class="tree-files-wrap ${typeCollapsed ? 'collapsed' : ''}" data-type-body="${typeKey}">${typeRows}</div>
-                `;
+                    <div class="tree-files-wrap ${typeCollapsed ? 'collapsed' : ''}" data-type-body="${typeKey}">${matched.map(fileRow).join('')}</div>`;
             }
+            return { total, inner };
+        };
 
-            if (!projTotal) continue;
-            hasAny = true;
-            const isCollapsed = forceOpen ? false : !expanded.includes(proj);
+        const projNames = Object.keys(documents).sort((a, b) => a.localeCompare(b));
 
-            html += `
-                <div class="tree-project-header ${isCollapsed ? 'collapsed' : ''}" data-project="${proj}">
-                    <span class="tree-type-label">
-                        <i data-lucide="chevron-right" class="tree-chevron"></i>
-                        <i data-lucide="folder" class="tree-folder-icon tree-folder-closed"></i>
-                        <i data-lucide="folder-open" class="tree-folder-icon tree-folder-open"></i>
-                        <span class="font-semibold tree-project-name">${proj}</span>
-                    </span>
-                    <span class="badge-count">${projTotal}</span>
+        // Estado de carpetas colapsadas. Por defecto TODO esta expandido (como un
+        // explorador de archivos); solo se recuerda lo que el usuario colapsa.
+        let collapsedProjects = [];
+        try { collapsedProjects = JSON.parse(localStorage.getItem('visor:tree:collapsedProjects') || '[]'); }
+        catch (e) { collapsedProjects = []; }
+
+        // Carpeta enfocada: el boton "entrar" de una carpeta muestra SOLO su
+        // contenido + un boton "volver". No aplica con filtro activo (manda la busqueda).
+        let docFolder = '';
+        try { docFolder = localStorage.getItem('visor:docs:folder') || ''; } catch (e) {}
+        if (docFolder && !documents[docFolder]) docFolder = '';
+
+        let hasAny = false;
+        let body = '';
+
+        // Nodo de carpeta (proyecto): clic en la cabecera abre la vista enfocada de
+        // solo esa carpeta; clic en el chevron la expande/colapsa in-place.
+        const projectNode = (proj, total, inner, collapsed) => `
+            <div class="tree-project-header ${collapsed ? 'collapsed' : ''}" data-project="${proj}" title="Abrir ${proj}">
+                <span class="tree-type-label">
+                    <i data-lucide="chevron-right" class="tree-chevron" title="Expandir / contraer"></i>
+                    <i data-lucide="folder" class="tree-folder-icon tree-folder-closed"></i>
+                    <i data-lucide="folder-open" class="tree-folder-icon tree-folder-open"></i>
+                    <span class="font-semibold tree-project-name">${proj}</span>
+                </span>
+                <span class="badge-count">${total}</span>
+            </div>
+            <div class="tree-project-body ${collapsed ? 'collapsed' : ''}">${inner}</div>`;
+
+        if (docFolder && !f) {
+            // VISTA ENFOCADA: solo el contenido de la carpeta abierta + "volver".
+            const { total, inner } = buildProjectInner(docFolder, true);
+            hasAny = total > 0;
+            body = `
+                <div class="docs-folder-back" title="Volver a todas las carpetas">
+                    <i data-lucide="chevron-left" class="tree-chevron tree-chevron-sm"></i>
+                    <i data-lucide="folder-open" class="tree-folder-icon"></i>
+                    <span class="docs-folder-current">${docFolder}</span>
+                    <span class="badge-count">${total}</span>
                 </div>
-                <div class="tree-project-body ${isCollapsed ? 'collapsed' : ''}">${projHtml}</div>
-            `;
+                <div class="docs-folder-content">${inner || '<div class="tree-loading">Carpeta vacia</div>'}</div>`;
+        } else {
+            // ARBOL COMPLETO de carpetas expandibles. Con filtro activo todo queda
+            // abierto; sin filtro se respeta lo que el usuario haya colapsado.
+            for (const proj of projNames) {
+                const { total, inner } = buildProjectInner(proj, false);
+                if (!total) continue;
+                hasAny = true;
+                const collapsed = f ? false : collapsedProjects.includes(proj);
+                body += projectNode(proj, total, inner, collapsed);
+            }
         }
 
         const empty = !hasAny ? `
@@ -2211,33 +2273,44 @@ class VisorView {
                 </button>
             </div>` : '';
 
-        $('#sidebarList').html(rootHeader + html + empty).addClass('is-doc-tree');
+        $('#sidebarList').html(rootHeader + body + empty).addClass('is-doc-tree');
 
-        // Bind collapse toggle de proyecto (nivel 1) — comportamiento acordeon:
-        // al abrir una carpeta se colapsan automaticamente las demas del mismo
-        // nivel, de modo que solo una carpeta raiz queda expandida a la vez.
+        const reRender = () => {
+            visorView.renderSidebar(app.dataInit, app.currentFile, $('#sidebarSearch').val() || '');
+            app.bindSidebarClicks();
+            if (window.lucide) lucide.createIcons();
+        };
+
+        // Volver del modo enfocado al arbol completo.
+        $('#sidebarList .docs-folder-back').off('click').on('click', () => {
+            try { localStorage.removeItem('visor:docs:folder'); } catch (er) {}
+            reRender();
+        });
+
+        // Carpeta (proyecto): clic en el chevron -> expandir/colapsar in-place;
+        // clic en el resto de la cabecera -> entrar a la vista enfocada.
         $('#sidebarList .tree-project-header').off('click').on('click', (e) => {
             const $header = $(e.currentTarget);
             const proj = $header.data('project');
-            const willExpand = $header.hasClass('collapsed');
 
-            if (willExpand) {
-                // Colapsar el resto de carpetas raiz (acordeon)...
-                const $all = $('#sidebarList .tree-project-header');
-                $all.not($header).addClass('collapsed')
-                    .next('.tree-project-body').addClass('collapsed');
-                // ...y abrir esta.
-                $header.removeClass('collapsed');
-                $header.next('.tree-project-body').removeClass('collapsed');
-                // Solo esta carpeta queda expandida en el estado persistido.
-                localStorage.setItem('visor:tree:expanded', JSON.stringify([proj]));
-            } else {
-                // Estaba abierta -> colapsar (no queda ninguna abierta).
-                $header.addClass('collapsed');
-                $header.next('.tree-project-body').addClass('collapsed');
-                localStorage.setItem('visor:tree:expanded', JSON.stringify([]));
+            if ($(e.target).closest('.tree-chevron').length) {
+                $header.toggleClass('collapsed');
+                $header.next('.tree-project-body').toggleClass('collapsed');
+                let state = [];
+                try { state = JSON.parse(localStorage.getItem('visor:tree:collapsedProjects') || '[]'); }
+                catch (er) { state = []; }
+                if ($header.hasClass('collapsed')) {
+                    if (!state.includes(proj)) state.push(proj);
+                } else {
+                    state = state.filter(p => p !== proj);
+                }
+                localStorage.setItem('visor:tree:collapsedProjects', JSON.stringify(state));
+                if (window.lucide) lucide.createIcons();
+                return;
             }
-            if (window.lucide) lucide.createIcons();
+
+            try { localStorage.setItem('visor:docs:folder', proj); } catch (er) {}
+            reRender();
         });
 
         // Bind collapse toggle de tipo (nivel 2) — sub-carpeta
@@ -2523,13 +2596,16 @@ class VisorView {
 
 
 const COFFEEIA_EDITOR_KEY = 'visor:coffeeia:editorMode';
-const COFFEEIA_CANVAS_KEY = 'visor:coffeeia:canvasMode';
+const COFFEEIA_LAYOUT_KEY = 'visor:coffeeia:layoutMode';
 const COFFEEIA_GRAPH_KEY  = 'visor:coffeeia:graphMode';
+const COFFEEIA_EXCALI_KEY = 'visor:coffeeia:excaliMode';
 const COFFEEIA_MODEL_KEY  = 'visor:coffeeia:model';
 
 // Tipos de grafica que el modo grafica puede instruir a la IA a generar.
 const COFFEEIA_GRAPH_TYPES = ['mermaid', 'drawio', 'excalidraw'];
 const COFFEEIA_GRAPH_LABELS = { mermaid: 'Mermaid', drawio: 'draw.io', excalidraw: 'Excalidraw' };
+// Sub-modos de Excalidraw: 'libre' (boceto libre) o 'template' (maestros + tabla).
+const COFFEEIA_EXCALI_MODES = ['libre', 'template'];
 
 // Extensiones de archivo que tratamos como TEXTO plano: se leen con readAsText y
 // se inyectan al contexto del chat (no como imagen). Cubre texto, codigo, marcado
@@ -2588,6 +2664,8 @@ class CoffeeIA {
         this._apiStream = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-coffeeia-stream.php');
         // Endpoint de persistencia de conversaciones (SQLite).
         this._apiChats  = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-chats.php');
+        // Endpoint de GitHub Projects (GraphQL via token en credentials/.env).
+        this._apiGithub = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-github.php');
         this._app     = appRef;
         this.history  = [];
         this._currentChatUid = null;   // uid de la conversacion guardada activa (para re-guardar/actualizar)
@@ -2596,8 +2674,11 @@ class CoffeeIA {
         this._abort   = null;   // AbortController de la consulta en curso (botón Detener)
         this._chipsRendered = false;
         this.editorMode    = this._loadEditorMode();
-        this.canvasMode    = this._loadCanvasMode();
+        this.layoutMode    = this._loadLayoutMode();
         this.graphMode     = this._loadGraphMode();   // '' | 'mermaid' | 'drawio' | 'excalidraw'
+        this.excaliMode    = this._loadExcaliMode();  // 'libre' | 'template' (sub-modo de excalidraw)
+        this.activeDb      = null;   // base MySQL conectada en la conversacion (persistente entre turnos)
+        this.activeFolder  = null;   // carpeta local conectada en la conversacion (persistente entre turnos)
         this.pendingEdits  = null;   // [{ find, with, status }]
         this.pendingImages = [];     // [{ dataUrl, base64, mime, name }]
         this.pendingDocs   = [];     // [{ name, content, size }] archivos de texto adjuntos al mensaje
@@ -2606,7 +2687,7 @@ class CoffeeIA {
         this.bind();
         this._syncContext();
         this._applyEditorModeUI();
-        this._applyCanvasModeUI();
+        this._applyLayoutModeUI();
         this._applyGraphModeUI();
         this._applyModelUI();
     }
@@ -2644,9 +2725,9 @@ class CoffeeIA {
 
     _toggleEditorMode() {
         this.editorMode = !this.editorMode;
-        // Editor, lienzo y grafica son mutuamente excluyentes: activar uno apaga los otros.
+        // Editor, layout y grafica son mutuamente excluyentes: activar uno apaga los otros.
         if (this.editorMode) {
-            if (this.canvasMode) { this.canvasMode = false; this._saveCanvasMode(); this._applyCanvasModeUI(); }
+            if (this.layoutMode) { this.layoutMode = false; this._saveLayoutMode(); this._applyLayoutModeUI(); }
             if (this.graphMode)  { this.graphMode  = '';    this._saveGraphMode();  this._applyGraphModeUI();  }
         }
         this._saveEditorMode();
@@ -2662,33 +2743,33 @@ class CoffeeIA {
         this._applyInputPlaceholder();
     }
 
-    _loadCanvasMode() {
-        try { return localStorage.getItem(COFFEEIA_CANVAS_KEY) === '1'; }
+    _loadLayoutMode() {
+        try { return localStorage.getItem(COFFEEIA_LAYOUT_KEY) === '1'; }
         catch (e) { return false; }
     }
 
-    _saveCanvasMode() {
-        try { localStorage.setItem(COFFEEIA_CANVAS_KEY, this.canvasMode ? '1' : '0'); }
+    _saveLayoutMode() {
+        try { localStorage.setItem(COFFEEIA_LAYOUT_KEY, this.layoutMode ? '1' : '0'); }
         catch (e) {}
     }
 
-    _toggleCanvasMode() {
-        this.canvasMode = !this.canvasMode;
-        // Editor, lienzo y grafica son mutuamente excluyentes: activar uno apaga los otros.
-        if (this.canvasMode) {
+    _toggleLayoutMode() {
+        this.layoutMode = !this.layoutMode;
+        // Editor, layout y grafica son mutuamente excluyentes: activar uno apaga los otros.
+        if (this.layoutMode) {
             if (this.editorMode) { this.editorMode = false; this._saveEditorMode(); this._applyEditorModeUI(); }
             if (this.graphMode)  { this.graphMode  = '';    this._saveGraphMode();  this._applyGraphModeUI();  }
         }
-        this._saveCanvasMode();
-        this._applyCanvasModeUI();
+        this._saveLayoutMode();
+        this._applyLayoutModeUI();
     }
 
-    _applyCanvasModeUI() {
+    _applyLayoutModeUI() {
         const $btn = $('#iaCanvasToggle');
-        $btn.toggleClass('is-active', this.canvasMode);
-        $btn.attr('title', this.canvasMode
-            ? 'Modo lienzo ACTIVO — la IA generara componentes HTML renderizables'
-            : 'Activar modo lienzo (la IA generara componentes HTML renderizables)');
+        $btn.toggleClass('is-active', this.layoutMode);
+        $btn.attr('title', this.layoutMode
+            ? 'Modo Layout ACTIVO — la respuesta se mostrara como documento en el panel de lectura'
+            : 'Activar modo Layout (la respuesta se mostrara como documento en el panel de lectura)');
         this._applyInputPlaceholder();
     }
 
@@ -2706,10 +2787,68 @@ class CoffeeIA {
         catch (e) {}
     }
 
-    // Abre/cierra el menu de graficas posicionandolo FIXED sobre el boton (abre
-    // hacia arriba). Fixed evita que el overflow:hidden del drawer lo recorte.
-    _toggleGraphMenu(btnEl) {
-        const $menu = $('#iaGraphMenu');
+    _loadExcaliMode() {
+        try {
+            const v = localStorage.getItem(COFFEEIA_EXCALI_KEY) || '';
+            return COFFEEIA_EXCALI_MODES.indexOf(v) !== -1 ? v : 'libre';
+        } catch (e) { return 'libre'; }
+    }
+
+    _saveExcaliMode() {
+        try { localStorage.setItem(COFFEEIA_EXCALI_KEY, this.excaliMode || 'libre'); }
+        catch (e) {}
+    }
+
+    // Despliega/oculta el submenu de Excalidraw (Template / Libre) anclado al item
+    // del menu de herramientas. FIXED para escapar del overflow del drawer.
+    _toggleExcaliSubmenu(anchorEl) {
+        const $sub = $('#iaExcaliSubmenu');
+        if ($sub.is(':visible')) { $sub.hide(); return; }
+
+        $sub.css({ display: 'block', visibility: 'hidden', top: '0px', left: '0px' });
+        const rect = anchorEl.getBoundingClientRect();
+        const sw   = $sub.outerWidth();
+        const sh   = $sub.outerHeight();
+        const gap  = 6;
+
+        // Abre a la DERECHA del item; si no cabe, a la izquierda. Alinea por arriba.
+        let left = rect.right + gap;
+        if (left + sw > window.innerWidth - 8) left = rect.left - sw - gap;
+        left = Math.max(8, left);
+        let top = rect.top;
+        top = Math.max(8, Math.min(top, window.innerHeight - sh - 8));
+
+        $sub.css({ left: left + 'px', top: top + 'px', visibility: 'visible' });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Selecciona el sub-modo de Excalidraw (template/libre) y activa el modo grafica
+    // excalidraw. Re-elegir el sub-modo ya activo apaga el modo grafica (toggle off).
+    _setExcaliMode(sub) {
+        sub = (sub === 'template') ? 'template' : 'libre';
+        const sameActive = this.graphMode === 'excalidraw' && this.excaliMode === sub;
+        this.excaliMode = sub;
+        this._saveExcaliMode();
+
+        if (sameActive) {
+            this.graphMode = '';
+        } else {
+            this.graphMode = 'excalidraw';
+            // Grafica es excluyente con editor y layout.
+            if (this.editorMode) { this.editorMode = false; this._saveEditorMode(); this._applyEditorModeUI(); }
+            if (this.layoutMode) { this.layoutMode = false; this._saveLayoutMode(); this._applyLayoutModeUI(); }
+        }
+        this._saveGraphMode();
+        this._applyGraphModeUI();
+        $('#iaExcaliSubmenu').hide();
+        $('#iaToolsMenu').hide();
+    }
+
+    // Abre/cierra el menu de herramientas posicionandolo FIXED sobre el boton
+    // (abre hacia arriba). Fixed evita que el overflow:hidden del drawer lo recorte.
+    _toggleToolsMenu(btnEl) {
+        const $menu = $('#iaToolsMenu');
+        $('#iaExcaliSubmenu').hide();   // el submenu nunca sobrevive a abrir/cerrar el menu padre
         if ($menu.is(':visible')) { $menu.hide(); return; }
 
         // Medir con el menu visible pero invisible para no parpadear.
@@ -2748,10 +2887,10 @@ class CoffeeIA {
     _setGraphMode(type) {
         if (COFFEEIA_GRAPH_TYPES.indexOf(type) === -1) return;
         this.graphMode = (this.graphMode === type) ? '' : type;
-        // Grafica es excluyente con editor y lienzo: al activarla, apaga los otros.
+        // Grafica es excluyente con editor y layout: al activarla, apaga los otros.
         if (this.graphMode) {
             if (this.editorMode) { this.editorMode = false; this._saveEditorMode(); this._applyEditorModeUI(); }
-            if (this.canvasMode) { this.canvasMode = false; this._saveCanvasMode(); this._applyCanvasModeUI(); }
+            if (this.layoutMode) { this.layoutMode = false; this._saveLayoutMode(); this._applyLayoutModeUI(); }
         }
         this._saveGraphMode();
         this._applyGraphModeUI();
@@ -2759,26 +2898,37 @@ class CoffeeIA {
 
     _applyGraphModeUI() {
         const mode = this.graphMode || '';
-        const $btn = $('#iaGraphBtn');
-        $btn.toggleClass('is-active', !!mode);
-        $btn.attr('title', mode
-            ? 'Modo grafica ACTIVO (' + (COFFEEIA_GRAPH_LABELS[mode] || mode) + ') — la IA generara diagramas de este tipo'
-            : 'Lienzos de graficas (Mermaid / draw.io / Excalidraw)');
-        // Marca el tipo activo dentro del menu.
-        $('#iaGraphMenu .graph-menu-item').each(function () {
+        // Marca el tipo activo dentro del menu de herramientas.
+        $('#iaToolsMenu .graph-menu-item[data-graph]').each(function () {
             $(this).toggleClass('is-active', $(this).data('graph') === mode);
         });
+        // Marca el sub-modo activo de Excalidraw (solo cuando excalidraw esta activo).
+        $('#iaExcaliSubmenu .graph-menu-item[data-excali]').each((_, el) => {
+            const $el = $(el);
+            $el.toggleClass('is-active', mode === 'excalidraw' && $el.data('excali') === this.excaliMode);
+        });
+        this._applyToolsActive();
         this._applyInputPlaceholder();
+    }
+
+    // El boton de herramientas se marca activo cuando el modo grafica esta
+    // encendido (su unico toggle), para que el estado se vea con el menu cerrado.
+    // Editor y lienzo son botones sueltos con su propio estado activo.
+    _applyToolsActive() {
+        $('#iaToolsBtn').toggleClass('is-active', !!this.graphMode);
     }
 
     _applyInputPlaceholder() {
         const $ta = $('#iaInputTextarea');
         if (this.editorMode) {
             $ta.attr('placeholder', 'Pide un cambio al archivo abierto (ej: "renombra la seccion 1 a Vista panoramica")...');
-        } else if (this.canvasMode) {
-            $ta.attr('placeholder', 'Pide un componente UI (ej: "una card de producto con precio y boton")...');
+        } else if (this.layoutMode) {
+            $ta.attr('placeholder', 'Pide un documento y se mostrara como Layout en el panel de lectura...');
         } else if (this.graphMode) {
-            const label = COFFEEIA_GRAPH_LABELS[this.graphMode] || this.graphMode;
+            let label = COFFEEIA_GRAPH_LABELS[this.graphMode] || this.graphMode;
+            if (this.graphMode === 'excalidraw' && this.excaliMode === 'template') {
+                label += ' (template: maestros + tabla)';
+            }
             $ta.attr('placeholder', 'Describe el diagrama y la IA lo genera en ' + label + '...');
         } else {
             $ta.attr('placeholder', 'Pregunta algo sobre el documento...');
@@ -2787,12 +2937,7 @@ class CoffeeIA {
 
     /* ── Public: open / close / toggle ── */
 
-    _canUse() {
-        return !!(this._app && this._app.currentUser && this._app.currentUser.canUseIA);
-    }
-
     open() {
-        if (!this._canUse()) return;
         $('#iaDrawer').addClass('is-open');
         $('#btnToggleCoffeeIA').addClass('is-active');
         // Colapsa el sidebar meta (Frontmatter + TOC) para liberar ancho al documento.
@@ -2809,7 +2954,6 @@ class CoffeeIA {
     }
 
     toggle() {
-        if (!this._canUse()) return;
         this.isOpen ? this.close() : this.open();
     }
 
@@ -2819,30 +2963,48 @@ class CoffeeIA {
         $('#btnToggleCoffeeIA').on('click', () => this.toggle());
         $('#btnCloseIA').on('click', () => this.close());
 
-        $('#iaClearBtn').on('click', () => this.clearConversation());
-
-        $('#iaSaveChatBtn').on('click', () => this.saveConversation());
-
-        $('#iaSavedChatsBtn').on('click', () => this.openSavedChatsModal());
-
+        // Modo editor y modo layout: botones sueltos (acceso directo) en la barra.
         $('#iaEditorToggle').on('click', () => this._toggleEditorMode());
+        $('#iaCanvasToggle').on('click', () => this._toggleLayoutMode());
 
-        $('#iaCanvasToggle').on('click', () => this._toggleCanvasMode());
-
-        // Menu de graficas: elegir un tipo activa el "modo grafica" (como editor/lienzo).
-        $('#iaGraphBtn').on('click', (e) => {
+        // Resto de herramientas agrupadas en un menu desplegable (#iaToolsBtn):
+        // guardar, chats guardados, limpiar y graficas. Las acciones de una sola
+        // vez cierran el menu; las graficas (toggle) lo dejan abierto para ver el
+        // tipo activo.
+        $('#iaToolsBtn').on('click', (e) => {
             e.stopPropagation();
-            this._toggleGraphMenu(e.currentTarget);
+            this._toggleToolsMenu(e.currentTarget);
         });
-        $(document).on('click.iaGraphMenu', (e) => {
-            if (!$(e.target).closest('#iaGraphMenu, #iaGraphBtn').length) $('#iaGraphMenu').hide();
+        $(document).on('click.iaToolsMenu', (e) => {
+            if (!$(e.target).closest('#iaToolsMenu, #iaToolsBtn, #iaExcaliSubmenu').length) {
+                $('#iaToolsMenu, #iaExcaliSubmenu').hide();
+            }
         });
         // Reposicionar/cerrar si cambia el viewport mientras esta abierto.
-        $(window).on('resize.iaGraphMenu scroll.iaGraphMenu', () => $('#iaGraphMenu').hide());
-        $('#iaGraphMenu').on('click', '.graph-menu-item', (e) => {
-            const type = $(e.currentTarget).data('graph');
-            $('#iaGraphMenu').hide();
-            this._setGraphMode(type);
+        $(window).on('resize.iaToolsMenu scroll.iaToolsMenu', () => $('#iaToolsMenu, #iaExcaliSubmenu').hide());
+        $('#iaToolsMenu').on('click', '.graph-menu-item', (e) => {
+            const $it  = $(e.currentTarget);
+            const tool = $it.data('tool');
+            switch (tool) {
+                case 'save':   $('#iaToolsMenu, #iaExcaliSubmenu').hide(); this.saveConversation();    break;
+                case 'saved':  $('#iaToolsMenu, #iaExcaliSubmenu').hide(); this.openSavedChatsModal(); break;
+                case 'github': $('#iaToolsMenu, #iaExcaliSubmenu').hide(); if (typeof githubBoard !== 'undefined' && githubBoard) githubBoard.open(); break;
+                case 'graph':
+                    // Excalidraw despliega un submenu (Template / Libre); el resto togglea directo.
+                    if ($it.data('graph') === 'excalidraw') {
+                        e.stopPropagation();
+                        this._toggleExcaliSubmenu(e.currentTarget);
+                    } else {
+                        $('#iaExcaliSubmenu').hide();
+                        this._setGraphMode($it.data('graph'));
+                    }
+                    break;
+            }
+        });
+        // Submenu de Excalidraw: elige plantilla o modo libre.
+        $('#iaExcaliSubmenu').on('click', '.graph-menu-item', (e) => {
+            e.stopPropagation();
+            this._setExcaliMode($(e.currentTarget).data('excali'));
         });
 
         $('#iaModelSelect').on('change', (e) => {
@@ -2869,6 +3031,7 @@ class CoffeeIA {
         // Adjuntar archivos: boton, file input, paste y drag&drop.
         // Imagenes -> vision; texto/codigo/html/md/csv/json -> contexto del chat.
         $('#iaAttachBtn').on('click', () => $('#iaImageInput').trigger('click'));
+        $('#iaClearBtn').on('click', () => this.clearConversation());
         $('#iaImageInput').on('change', (e) => {
             const files = Array.from(e.target.files || []);
             files.forEach(f => this._addFile(f));
@@ -2910,7 +3073,6 @@ class CoffeeIA {
                 return;
             }
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
-                if (!this._canUse()) return;
                 e.preventDefault();
                 this.toggle();
             }
@@ -3167,6 +3329,13 @@ class CoffeeIA {
         const $typing = this._appendTyping();
         this._scrollBottom();
 
+        // Modo Layout: muestra en el panel de lectura la animacion "IA generando"
+        // (puntitos + shimmer estilo Grok/ChatGPT) mientras llega la respuesta.
+        // _layoutPending sigue en true hasta que se renderiza el resultado; si la
+        // consulta falla/aborta, finish() restaura el documento abierto.
+        this._layoutPending = this.layoutMode && !(this._app && this._app.isEditing);
+        if (this._layoutPending) this._showLayoutLoading();
+
         const currentFileObj = this._app.currentFile
             ? (this._app.allFiles || []).find(f => f.file === this._app.currentFile)
             : null;
@@ -3182,8 +3351,10 @@ class CoffeeIA {
             currentFileContent: currentFileObj?.raw || '',
             pinnedFiles:        (this._app.getPinnedFilesPayload ? this._app.getPinnedFilesPayload() : []),
             editorMode:         !!this.editorMode,
-            canvasMode:         !!this.canvasMode,
             graphMode:          this.graphMode || '',
+            graphTemplate:      this.graphMode === 'excalidraw' ? (this.excaliMode || 'libre') : '',
+            dbConnect:          this.activeDb || '',       // base conectada (conexion pegajosa)
+            folderConnect:      this.activeFolder || '',   // carpeta conectada (conexion pegajosa)
             customPath:         (this._app.settings && this._app.settings.customPath) ? this._app.settings.customPath : '',
             model:              this.model || ''
         };
@@ -3191,6 +3362,12 @@ class CoffeeIA {
         // --- Streaming SSE + typewriter por palabras (estilo Claude) ---
         const provider = (this.model && this.model.indexOf('/') !== -1) ? 'OpenRouter' : 'Ollama';
         const finish = () => {
+            // Layout: si quedo loading sin resultado (error/abort/sin respuesta),
+            // restaura el documento abierto para no dejar el panel en "generando".
+            if (this._layoutPending) {
+                this._layoutPending = false;
+                this._exitLayoutPreview();
+            }
             this._scrollBottom();
             this._setBusy(false);
             this._abort = null;
@@ -3274,6 +3451,8 @@ class CoffeeIA {
                 await stream.drain();
                 this.history.push({ role: 'assistant', content: received });
                 stream.complete(received, null, received);
+                // Layout: vuelca el parcial al panel en vez de descartarlo.
+                if (this.layoutMode && received.trim()) this._renderLayoutPreview(received);
                 finish();
                 return;
             }
@@ -3308,6 +3487,11 @@ class CoffeeIA {
         // Espera a que el typewriter termine de pintar todo lo recibido.
         await stream.drain();
 
+        // Conexion pegajosa: si el backend resolvio una base, la recordamos para que
+        // los siguientes turnos sigan consultandola sin tener que volver a nombrarla.
+        if (meta && meta.db) this._setActiveDb(meta.db);
+        if (meta && meta.fs) this._setActiveFolder(meta.fs);
+
         this.history.push({ role: 'assistant', content: received });
 
         // Modo editor: extraer propuestas <edit-replace> del texto completo.
@@ -3335,6 +3519,13 @@ class CoffeeIA {
         if (proposals.length > 0) {
             this.pendingEdits = proposals;
             this._showEditProposalPanel(proposals);
+        }
+
+        // Modo Layout: ademas de la burbuja del chat, renderiza la respuesta como
+        // documento en el panel de lectura (#md-rendered) SIN tocar el archivo
+        // abierto (no se guarda). Un boton "Volver al documento" restaura la vista.
+        if (this.layoutMode && received.trim()) {
+            this._renderLayoutPreview(received);
         }
 
         // Sonido al terminar de responder (solo en respuestas exitosas).
@@ -3372,17 +3563,15 @@ class CoffeeIA {
         const HTML_FENCE       = /```[ \t]*html/i;
         const DRAWIO_FENCE     = /```[ \t]*drawio/i;
         const EXCALIDRAW_FENCE = /```[ \t]*excalidraw/i;
-        // Codigo crudo sin fence: en modo lienzo la IA suele devolver el componente
-        // directo (sin ```). En cuanto aparece un tag estructural entramos a
-        // "Conjurando…" para NO teclear el código en el chat (se ve en el tab Código).
-        const RAW_HTML       = /<(!doctype html|html|head|body|section|main|header|nav|article|aside|footer|form|table|ul|ol|div|button|h[1-6])[\s>]/i;
+        // Codigo crudo sin fence (solo diagramas: draw.io/excalidraw). El HTML solo
+        // se "conjura" cuando viene en un fence ```html (ver conjureKindFor).
         const RAW_DRAWIO     = /<(mxGraphModel|mxfile)[\s>]/i;
         const RAW_EXCALIDRAW = /"type"\s*:\s*"excalidraw/i;
         // Tipo de conjuro segun lo que asoma en el stream (o null si es texto normal).
         const conjureKindFor = (buf) => {
             if (DRAWIO_FENCE.test(buf) || RAW_DRAWIO.test(buf)) return 'drawio';
             if (EXCALIDRAW_FENCE.test(buf) || RAW_EXCALIDRAW.test(buf)) return 'excalidraw';
-            if (HTML_FENCE.test(buf) || (self.canvasMode && RAW_HTML.test(buf))) return 'html';
+            if (HTML_FENCE.test(buf)) return 'html';
             // Modo grafica activo: en cuanto se abre CUALQUIER bloque de codigo
             // (```excalidraw, ```json, ```mermaid, ```xml…) asumimos ese tipo y
             // mostramos la animacion en vez de teclear el codigo crudo.
@@ -3475,10 +3664,6 @@ class CoffeeIA {
             },
             complete(displayedText, meta, copyText) {
                 if (conjuring) { $msg.find('.ia-conjuring').remove(); $text.show(); }
-                // Modo lienzo: si la IA devolvió HTML crudo (sin fence), lo envolvemos
-                // en ```html para que se renderice como bloque de Vista previa (con su
-                // tab Código) y NO se pinte el markup suelto en la burbuja.
-                displayedText = self._normalizeCanvasHtml(displayedText);
                 displayedText = self._normalizeDrawioXml(displayedText);
                 displayedText = self._normalizeExcalidrawJson(displayedText);
                 let metaHtml = '';
@@ -3803,6 +3988,137 @@ class CoffeeIA {
         this.pendingEdits = null;
     }
 
+    /* ── Modo Layout: respuesta como documento en el panel de lectura ── */
+
+    // Animacion "IA generando" (puntitos + shimmer estilo Grok/ChatGPT) en el
+    // panel de lectura mientras llega la respuesta. Sustituye temporalmente la
+    // vista; _renderLayoutPreview o _exitLayoutPreview la reemplazan al terminar.
+    _showLayoutLoading() {
+        const $doc = $('#md-rendered');
+        if (!$doc.length) return;
+        if (this._app && this._app.isEditing) return;
+
+        $('.cs-tab[data-tab="rendered"]').addClass('active');
+        $('.cs-tab[data-tab="raw"]').removeClass('active');
+        $('#md-raw, #md-edit').addClass('hidden');
+        $doc.removeClass('hidden');
+
+        // Anchos variados para que el esqueleto parezca un documento escribiendose.
+        // Un '' inserta un espacio (separacion entre parrafos).
+        const widths = ['94%', '88%', '97%', '70%', '', '92%', '85%', '96%', '61%', '', '90%', '78%'];
+        const lines = widths.map(w => w
+            ? `<div class="ia-sk-line" style="width:${w}"></div>`
+            : '<div class="ia-sk-gap"></div>').join('');
+
+        $doc.html(`
+            <div class="ia-layout-loading" contenteditable="false">
+                <div class="ia-layout-loading-head">
+                    <span class="ia-gen-orb"></span>
+                    <span class="ia-gen-label">CoffeeIA esta generando<span class="ia-gen-dots"><i></i><i></i><i></i></span></span>
+                </div>
+                <div class="ia-sk-line ia-sk-title" style="width:46%"></div>
+                <div class="ia-skeleton">${lines}</div>
+            </div>
+        `);
+
+        const $main = $('.main-content');
+        if ($main.length) $main.scrollTop(0);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Pinta el markdown de la respuesta en #md-rendered, reemplazando la vista
+    // actual SIN tocar file.raw ni guardar a disco. Antepone un banner con un
+    // boton "Volver al documento" que restaura el archivo abierto.
+    _renderLayoutPreview(markdownText) {
+        // La respuesta se rendea: el loading deja de estar pendiente.
+        this._layoutPending = false;
+        // Guarda el markdown crudo para exportarlo / guardarlo desde el banner.
+        this._layoutMarkdown = markdownText || '';
+        const $doc = $('#md-rendered');
+        if (!$doc.length) return;
+        // No interferir si el usuario esta editando el documento.
+        if (this._app && this._app.isEditing) return;
+
+        // Asegura que el panel de lectura este visible (no en Raw ni en diagrama).
+        $('.cs-tab[data-tab="rendered"]').addClass('active');
+        $('.cs-tab[data-tab="raw"]').removeClass('active');
+        $('#md-raw, #md-edit').addClass('hidden');
+        $doc.removeClass('hidden');
+
+        const banner = `
+            <div class="ia-layout-banner" id="iaLayoutBanner" contenteditable="false">
+                <span class="ia-layout-banner-label">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                    Borrador generado por CoffeeIA · sin guardar
+                </span>
+                <span class="ia-layout-banner-actions">
+                    <button type="button" id="iaLayoutExport" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5" title="Descargar el contenido como archivo .md">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        Exportar .md
+                    </button>
+                    <button type="button" id="iaLayoutSave" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" title="Guardar como documento en el árbol">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                        Guardar
+                    </button>
+                    <button type="button" id="iaLayoutBack" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5">
+                        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                        Volver al documento
+                    </button>
+                </span>
+            </div>`;
+        $doc.html(banner + '<div class="ia-layout-doc">' + this._markdownToHtml(markdownText) + '</div>');
+
+        // Resalta el codigo igual que renderContent.
+        if (typeof hljs !== 'undefined') {
+            $doc.find('.ia-layout-doc pre code').each(function (i, b) { hljs.highlightElement(b); });
+        }
+
+        $('#iaLayoutBack').off('click').on('click', () => this._exitLayoutPreview());
+        $('#iaLayoutExport').off('click').on('click', () => {
+            const md = this._layoutMarkdown || '';
+            this._exportMarkdownFile(md, this._suggestFileName(md));
+        });
+        $('#iaLayoutSave').off('click').on('click', () => {
+            const md = this._layoutMarkdown || '';
+            if (this._app && this._app.openNewFileModal) {
+                this._app.openNewFileModal({ name: this._suggestFileName(md), content: md });
+            } else if (typeof visorView !== 'undefined' && visorView) {
+                visorView.toast('No se puede guardar en este origen', 'error');
+            }
+        });
+
+        const $main = $('.main-content');
+        if ($main.length) $main.scrollTop(0);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Descarga un texto markdown como archivo .md (client-side, sin servidor).
+    _exportMarkdownFile(text, name) {
+        const fname = (name || 'documento').replace(/\.md$/i, '') + '.md';
+        const blob  = new Blob([text || ''], { type: 'text/markdown;charset=utf-8' });
+        const url   = URL.createObjectURL(blob);
+        const a     = document.createElement('a');
+        a.href = url;
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (typeof visorView !== 'undefined' && visorView) visorView.toast('Markdown exportado: ' + fname, 'success');
+    }
+
+    // Restaura el documento abierto re-renderizando desde file.raw (intacto).
+    _exitLayoutPreview() {
+        const file = this._app && this._app.currentFile
+            ? (this._app.allFiles || []).find(f => f.file === this._app.currentFile)
+            : null;
+        if (file && typeof visorView !== 'undefined' && visorView) {
+            visorView.renderContent(file);
+        } else if (typeof visorView !== 'undefined' && visorView) {
+            visorView.renderEmptyMain();
+        }
+    }
+
     /* ── DOM helpers ── */
 
     _inChatMode() {
@@ -3826,6 +4142,208 @@ class CoffeeIA {
             $('#iaBodyChat').append($greet);
             if (window.lucide) lucide.createIcons();
         }
+    }
+
+    /* ── GitHub Projects: tablero como "card" dentro del chat ──────────────
+       Entrada: menu Herramientas -> "GitHub Projects". Consulta ctrl-github.php
+       (GraphQL con el token de credentials/.env) y pinta una tarjeta con los
+       items agrupados por Status y badges de Size. */
+
+    async _openGithubProjects() {
+        this._switchToChat();
+        const $card = this._ghCardShell('Cargando GitHub Projects…');
+        $('#iaBodyChat').append($card);
+        this._ghScroll();
+        try {
+            const data = await this._ghFetch('list');
+            if (!data || !data.ok) { this._ghError($card, (data && data.error) || 'No se pudieron leer los Projects.'); return; }
+            const projects = data.projects || [];
+            if (projects.length === 0) {
+                const extra = data.inaccessible ? ` (${data.inaccessible} sin acceso con este token)` : '';
+                this._ghError($card, 'No se encontraron Projects accesibles.' + extra);
+                return;
+            }
+            if (projects.length === 1) {
+                await this._loadProjectBoard(projects[0].number, $card, data.inaccessible);
+            } else {
+                this._ghRenderPicker($card, projects, data.inaccessible);
+            }
+        } catch (e) {
+            this._ghError($card, 'Error de red al consultar GitHub.');
+        }
+    }
+
+    async _loadProjectBoard(number, $card, inaccessible) {
+        if (!$card || !$card.length) $card = this._ghCardShell('Cargando tablero…');
+        if (!$card.parent().length) $('#iaBodyChat').append($card);
+        this._ghSetLoading($card, 'Cargando tablero…');
+        this._ghScroll();
+        try {
+            const data = await this._ghFetch('items', { number });
+            if (!data || !data.ok) { this._ghError($card, (data && data.error) || 'No se pudo cargar el tablero.'); return; }
+            this._ghRenderBoard($card, data.project, data.items || [], inaccessible);
+        } catch (e) {
+            this._ghError($card, 'Error de red al cargar el tablero.');
+        }
+    }
+
+    async _ghFetch(opc, extra) {
+        const form = new FormData();
+        form.append('opc', opc);
+        if (extra) Object.keys(extra).forEach(k => form.append(k, extra[k]));
+        const res = await fetch(this._apiGithub, { method: 'POST', body: form });
+        return res.json();
+    }
+
+    _ghCardShell(loadingText) {
+        return $(`
+            <div class="ia-msg ai">
+                <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA · GitHub</span></div>
+                <div class="ia-gh-card">
+                    <div class="ia-gh-loading"><span class="ia-gh-spin"></span>${this._escape(loadingText || 'Cargando…')}</div>
+                </div>
+            </div>
+        `);
+    }
+
+    _ghSetLoading($card, text) {
+        $card.find('.ia-gh-card').html(`<div class="ia-gh-loading"><span class="ia-gh-spin"></span>${this._escape(text)}</div>`);
+    }
+
+    _ghError($card, msg) {
+        $card.find('.ia-gh-card').html(`
+            <div class="ia-gh-error">
+                <i data-lucide="alert-triangle"></i>
+                <div class="ia-gh-error-body">
+                    <p>${this._escape(msg)}</p>
+                    <button type="button" class="ia-gh-retry">Reintentar</button>
+                </div>
+            </div>
+        `);
+        $card.find('.ia-gh-retry').on('click', () => this._openGithubProjects());
+        if (window.lucide) lucide.createIcons();
+        this._ghScroll();
+    }
+
+    _ghRenderPicker($card, projects, inaccessible) {
+        const rows = projects.map(p => `
+            <button type="button" class="ia-gh-pick" data-number="${p.number}">
+                <i data-lucide="layout-list"></i>
+                <span class="ia-gh-pick-info">
+                    <span class="ia-gh-pick-title">${this._escape(p.title)}</span>
+                    <span class="ia-gh-pick-sub">${p.itemsCount} items · ${this._ghDate(p.updatedAt)}</span>
+                </span>
+            </button>
+        `).join('');
+        const note = inaccessible ? `<div class="ia-gh-note">${inaccessible} project(s) sin acceso con este token.</div>` : '';
+        $card.find('.ia-gh-card').html(`
+            <div class="ia-gh-head"><i data-lucide="github"></i><span class="ia-gh-title">Elige un project</span></div>
+            <div class="ia-gh-picklist">${rows}</div>
+            ${note}
+        `);
+        $card.find('.ia-gh-pick').on('click', (e) => {
+            this._loadProjectBoard($(e.currentTarget).data('number'), $card, inaccessible);
+        });
+        if (window.lucide) lucide.createIcons();
+        this._ghScroll();
+    }
+
+    _ghRenderBoard($card, project, items, inaccessible) {
+        const STATUS_ORDER = ['todo', 'to do', 'in progress', 'done'];
+        const groups = {};
+        items.forEach(it => {
+            const s = it.status || 'Sin estado';
+            (groups[s] = groups[s] || []).push(it);
+        });
+        const keys = Object.keys(groups).sort((a, b) => {
+            const ia = STATUS_ORDER.indexOf(a.toLowerCase());
+            const ib = STATUS_ORDER.indexOf(b.toLowerCase());
+            const va = ia === -1 ? 98 : ia, vb = ib === -1 ? 98 : ib;
+            return va - vb || a.localeCompare(b);
+        });
+
+        const total     = items.length;
+        const doneCount = (groups['Done'] || []).length;
+        const pct       = total ? Math.round(doneCount / total * 100) : 0;
+
+        const sizeCount = items.reduce((m, it) => { if (it.size) m[it.size] = (m[it.size] || 0) + 1; return m; }, {});
+        const sizeChips = ['XS', 'S', 'M', 'L', 'XL'].filter(s => sizeCount[s]).map(s => `${sizeCount[s]} ${s}`).join(' · ');
+
+        const groupsHtml = keys.map(k => this._ghGroupHtml(k, groups[k])).join('');
+        const note = inaccessible ? `<div class="ia-gh-note">${inaccessible} project(s) sin acceso con este token.</div>` : '';
+
+        $card.find('.ia-gh-card').html(`
+            <div class="ia-gh-head">
+                <i data-lucide="github"></i>
+                <span class="ia-gh-title" title="${this._escape(project.title)}">${this._escape(project.title)}</span>
+                <span class="ia-gh-actions">
+                    <button type="button" class="ia-gh-iconbtn ia-gh-refresh" title="Refrescar"><i data-lucide="refresh-cw"></i></button>
+                    ${project.url ? `<a class="ia-gh-iconbtn" href="${project.url}" target="_blank" rel="noopener" title="Abrir en GitHub"><i data-lucide="external-link"></i></a>` : ''}
+                </span>
+            </div>
+            <div class="ia-gh-sub">
+                <div class="ia-gh-progress"><span style="width:${pct}%"></span></div>
+                <span class="ia-gh-metaline">${doneCount}/${total} Done · ${pct}%${sizeChips ? ' · ' + sizeChips : ''}</span>
+            </div>
+            <div class="ia-gh-groups">${groupsHtml}</div>
+            ${note}
+        `);
+
+        $card.find('.ia-gh-refresh').on('click', () => this._loadProjectBoard(project.number, $card, inaccessible));
+        $card.find('.ia-gh-group-head').on('click', (e) => {
+            $(e.currentTarget).closest('.ia-gh-group').toggleClass('collapsed');
+        });
+        $card.find('.ia-gh-more').on('click', (e) => {
+            $(e.currentTarget).closest('.ia-gh-group').addClass('expanded');
+            $(e.currentTarget).remove();
+        });
+        if (window.lucide) lucide.createIcons();
+        this._ghScroll();
+    }
+
+    _ghGroupHtml(status, list) {
+        const meta  = this._ghStatusMeta(status);
+        const LIMIT = 5;
+        const rows = list.map((it, i) => `
+            <div class="ia-gh-item${i >= LIMIT ? ' ia-gh-extra' : ''}">
+                <span class="ia-gh-item-title" title="${this._escape(it.title)}">${this._escape(it.title)}</span>
+                ${it.size ? `<span class="ia-gh-size ia-gh-size-${this._escape((it.size || '').toLowerCase())}">${this._escape(it.size)}</span>` : ''}
+            </div>
+        `).join('');
+        const more = list.length > LIMIT
+            ? `<button type="button" class="ia-gh-more">ver ${list.length - LIMIT} más</button>`
+            : '';
+        return `
+            <div class="ia-gh-group" data-status="${this._escape(status)}">
+                <button type="button" class="ia-gh-group-head">
+                    <span class="ia-gh-dot" style="background:${meta.color}"></span>
+                    <span class="ia-gh-group-name">${this._escape(status)}</span>
+                    <span class="ia-gh-group-count">${list.length}</span>
+                    <i data-lucide="chevron-down" class="ia-gh-chev"></i>
+                </button>
+                <div class="ia-gh-items">${rows}${more}</div>
+            </div>
+        `;
+    }
+
+    _ghStatusMeta(status) {
+        const s = (status || '').toLowerCase();
+        if (s === 'done')                 return { color: '#22c55e' };
+        if (s.indexOf('progress') !== -1) return { color: '#eab308' };
+        if (s === 'todo' || s === 'to do')return { color: '#94a3b8' };
+        return { color: '#64748b' };
+    }
+
+    _ghDate(iso) {
+        if (!iso) return '';
+        try {
+            return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch (e) { return ''; }
+    }
+
+    _ghScroll() {
+        const el = $('#iaBodyChat')[0];
+        if (el) el.scrollTop = el.scrollHeight;
     }
 
     // Reproduce el "pop" al crear un nuevo chat. La instancia de Audio se crea
@@ -3944,6 +4462,23 @@ class CoffeeIA {
         return t === 'light' ? 'light' : 'dark';
     }
 
+    // Tamano natural de un <svg>: prioriza el viewBox (Mermaid emite width="100%",
+    // que no sirve como tamano intrinseco). Devuelve { w, h } en unidades de usuario.
+    _svgNaturalSize(svgEl) {
+        let w = 0, h = 0;
+        const vb = svgEl.getAttribute('viewBox');
+        if (vb) {
+            const p = vb.split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
+            if (p.length === 4) { w = p[2]; h = p[3]; }
+        }
+        if (!w) w = parseFloat(svgEl.getAttribute('width')) || 0;
+        if (!h) h = parseFloat(svgEl.getAttribute('height')) || 0;
+        if ((!w || !h) && svgEl.getBBox) {
+            try { const b = svgEl.getBBox(); w = w || b.width; h = h || b.height; } catch (e) {}
+        }
+        return { w, h };
+    }
+
     _renderMermaid($pre, code) {
         if (typeof mermaid === 'undefined') return;
         const id = 'mer-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
@@ -3952,8 +4487,18 @@ class CoffeeIA {
                 <div class="ia-render-toolbar">
                     <span><i data-lucide="git-graph" class="w-3 h-3"></i>Diagrama Mermaid</span>
                     <span class="ia-render-tabs">
+                        <button class="ia-render-btn is-icon ia-render-refresh" title="Actualizar (volver a generar el diagrama)">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                        </button>
                         <button class="ia-render-btn is-icon ia-render-toggle" data-target="${id}-code" title="Ver codigo">
                             <i data-lucide="code-2" class="w-3 h-3"></i>
+                        </button>
+                        <button class="ia-render-btn is-icon ia-render-zoom-out" style="display:none;" title="Alejar (zoom -)">
+                            <i data-lucide="zoom-out" class="w-3 h-3"></i>
+                        </button>
+                        <button class="ia-render-btn ia-render-zoom-val" style="display:none;" title="Restablecer zoom">100%</button>
+                        <button class="ia-render-btn is-icon ia-render-zoom-in" style="display:none;" title="Acercar (zoom +)">
+                            <i data-lucide="zoom-in" class="w-3 h-3"></i>
                         </button>
                         <button class="ia-render-btn is-icon ia-render-expand" style="display:none;" title="Expandir a pantalla completa">
                             <i data-lucide="maximize-2" class="w-3 h-3"></i>
@@ -3970,38 +4515,89 @@ class CoffeeIA {
 
         // Limpia los elementos temporales que Mermaid v10 deja en <body> tras
         // un render fallido (las "bombas" de syntax error que quedan flotando).
-        const cleanupOrphans = () => {
-            $('body > [id^="d' + id + '"], body > [id="' + id + '-svg"]').remove();
+        const cleanupOrphans = (rid) => {
+            $('body > [id^="d' + rid + '"], body > [id="' + rid + '-svg"]').remove();
             $('body > .mermaidTooltip').remove();
         };
 
-        try {
-            mermaid.initialize({
-                startOnLoad: false,
-                theme: this._getTheme() === 'light' ? 'default' : 'dark',
-                securityLevel: 'strict'
-            });
-            mermaid.render(id + '-svg', code).then(({ svg }) => {
-                $wrap.find('.ia-render-view').html(svg);
-                $wrap.data('mermaid-svg', svg);
-                $wrap.find('.ia-render-expand').show();
-                cleanupOrphans();
-            }).catch((err) => {
-                cleanupOrphans();
-                const msg = this._escape(err.message || err);
-                $wrap.find('.ia-render-view').html(
-                    `<div class="ia-render-error">
-                        <strong>Error Mermaid:</strong> ${msg}
-                        <div style="margin-top:6px;font-size:11px;color:var(--vsr-text-mute2);">El diagrama tiene sintaxis invalida. Pulsa "Codigo" para revisar la fuente.</div>
-                    </div>`
+        // Zoom inline (dentro del chat, sin abrir el modal): escala el SVG segun su
+        // ancho natural (viewBox) para que pueda crecer y hacer scroll en el bloque.
+        let inlineScale = 1;
+        const $zoomVal = $wrap.find('.ia-render-zoom-val');
+        const applyInlineZoom = () => {
+            const $svg  = $wrap.find('.ia-render-view svg').first();
+            const $view = $wrap.find('.ia-render-view');
+            $zoomVal.text(Math.round(inlineScale * 100) + '%');
+            if (!$svg.length) return;
+            const baseW = parseFloat($svg.attr('data-base-w')) || 0;
+            if (!baseW || Math.abs(inlineScale - 1) < 0.001) {
+                $svg.css({ width: '', height: '', 'max-width': '' });
+                $view.removeClass('is-zoomed');
+            } else {
+                $svg.css({ width: (baseW * inlineScale) + 'px', height: 'auto', 'max-width': 'none' });
+                $view.addClass('is-zoomed');
+            }
+        };
+
+        // Dibuja (o vuelve a dibujar) el diagrama. Cada intento usa un id nuevo para
+        // que Mermaid no choque con un render previo del mismo bloque. Lo reusan el
+        // render inicial y el boton "Actualizar" (util cuando el diagrama sale en
+        // blanco la primera vez por timing/visibilidad del drawer).
+        const draw = () => {
+            const $view = $wrap.find('.ia-render-view').show();
+            $wrap.find('.ia-render-source').hide();
+            $wrap.find('.ia-render-toggle')
+                .html('<i data-lucide="code-2" class="w-3 h-3"></i>')
+                .attr('title', 'Ver codigo');
+            $view.html('<div class="ia-render-loading"><span class="ia-gh-spin"></span>Generando diagrama&hellip;</div>');
+            const rid = 'mer-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+            try {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: this._getTheme() === 'light' ? 'default' : 'dark',
+                    securityLevel: 'strict'
+                });
+                mermaid.render(rid + '-svg', $wrap.data('mermaid-code')).then(({ svg }) => {
+                    $view.html(svg);
+                    $wrap.data('mermaid-svg', svg);
+                    const svgEl = $view.find('svg')[0];
+                    if (svgEl) {
+                        const { w, h } = this._svgNaturalSize(svgEl);
+                        if (w) svgEl.setAttribute('data-base-w', w);
+                        if (h) svgEl.setAttribute('data-base-h', h);
+                    }
+                    inlineScale = 1;
+                    applyInlineZoom();
+                    $wrap.find('.ia-render-expand, .ia-render-zoom-in, .ia-render-zoom-out, .ia-render-zoom-val').show();
+                    cleanupOrphans(rid);
+                    if (window.lucide) lucide.createIcons();
+                }).catch((err) => {
+                    cleanupOrphans(rid);
+                    const msg = this._escape(err.message || err);
+                    $view.html(
+                        `<div class="ia-render-error">
+                            <strong>Error Mermaid:</strong> ${msg}
+                            <div style="margin-top:6px;font-size:11px;color:var(--vsr-text-mute2);">El diagrama tiene sintaxis invalida. Pulsa "Codigo" para revisar la fuente y luego "Actualizar".</div>
+                        </div>`
+                    );
+                    if (window.lucide) lucide.createIcons();
+                });
+            } catch (e) {
+                cleanupOrphans(rid);
+                $view.html(
+                    `<div class="ia-render-error">Error Mermaid: ${this._escape(e.message || e)}</div>`
                 );
-            });
-        } catch (e) {
-            cleanupOrphans();
-            $wrap.find('.ia-render-view').html(
-                `<div class="ia-render-error">Error Mermaid: ${this._escape(e.message || e)}</div>`
-            );
-        }
+            }
+        };
+
+        draw();
+
+        // Actualizar: re-genera el diagrama on-demand.
+        $wrap.find('.ia-render-refresh').on('click', (e) => {
+            const $btn = $(e.currentTarget).addClass('is-spinning');
+            draw();
+            setTimeout(() => $btn.removeClass('is-spinning'), 600);
+        });
 
         $wrap.find('.ia-render-toggle').on('click', (e) => {
             const $btn = $(e.currentTarget);
@@ -4015,6 +4611,22 @@ class CoffeeIA {
                 : '<i data-lucide="code-2" class="w-3 h-3"></i>');
             $btn.attr('title', showCode ? 'Ver diagrama' : 'Ver codigo');
             if (window.lucide) lucide.createIcons();
+        });
+
+        // Zoom inline: botones -, valor (reset) y +, mas Ctrl + rueda sobre el diagrama.
+        const stepZoom = (dir) => {
+            inlineScale = dir === 0 ? 1 : Math.max(0.4, Math.min(3, +(inlineScale + dir * 0.2).toFixed(2)));
+            applyInlineZoom();
+        };
+        $wrap.find('.ia-render-zoom-in').on('click', () => stepZoom(1));
+        $wrap.find('.ia-render-zoom-out').on('click', () => stepZoom(-1));
+        $wrap.find('.ia-render-zoom-val').on('click', () => stepZoom(0));
+        $wrap.find('.ia-render-view').on('wheel', (e) => {
+            const oe = e.originalEvent;
+            if (!oe.ctrlKey) return;
+            oe.preventDefault();
+            inlineScale = Math.max(0.4, Math.min(3, +(inlineScale + (oe.deltaY < 0 ? 0.15 : -0.15)).toFixed(2)));
+            applyInlineZoom();
         });
 
         $wrap.find('.ia-render-expand').on('click', () => {
@@ -4308,12 +4920,30 @@ class CoffeeIA {
         `);
         $('body').append($modal);
 
-        // Zoom + pan
-        let scale = 1;
         const $canvas = $modal.find('.ia-mermaid-modal-canvas');
         const $val    = $modal.find('.ia-mermaid-zoom-val');
+
+        // Normaliza el SVG: Mermaid v10 lo emite con width="100%", que dentro de un
+        // contenedor shrink-to-fit (inline-block) colapsa a 0 -> "no se ve nada".
+        // Le fijamos un ancho/alto explicito desde el viewBox para que tenga tamano
+        // intrinseco real; a partir de ahi el zoom/pan opera sobre el canvas.
+        const svgEl = $canvas.find('svg')[0];
+        if (svgEl) {
+            const { w, h } = this._svgNaturalSize(svgEl);
+            if (w && h) {
+                svgEl.setAttribute('width', w);
+                svgEl.setAttribute('height', h);
+                svgEl.style.width     = w + 'px';
+                svgEl.style.height    = h + 'px';
+                svgEl.style.maxWidth  = 'none';
+                svgEl.style.maxHeight = 'none';
+            }
+        }
+
+        // Zoom + pan (arrastre con el raton).
+        let scale = 1, panX = 0, panY = 0;
         const applyZoom = () => {
-            $canvas.css('transform', `scale(${scale})`);
+            $canvas.css('transform', `translate(${panX}px, ${panY}px) scale(${scale})`);
             $val.text(Math.round(scale * 100) + '%');
         };
         $modal.find('.ia-mermaid-zoom-in').on('click', () => {
@@ -4323,7 +4953,7 @@ class CoffeeIA {
             scale = Math.max(scale - 0.2, 0.2); applyZoom();
         });
         $modal.find('.ia-mermaid-zoom-reset').on('click', () => {
-            scale = 1; applyZoom();
+            scale = 1; panX = 0; panY = 0; applyZoom();
         });
         $modal.find('.ia-mermaid-modal-body').on('wheel', (e) => {
             const oe = e.originalEvent;
@@ -4332,6 +4962,18 @@ class CoffeeIA {
             scale = Math.max(0.2, Math.min(4, scale + (oe.deltaY < 0 ? 0.1 : -0.1)));
             applyZoom();
         });
+
+        // Pan: arrastrar el lienzo para desplazar el diagrama cuando esta ampliado.
+        let dragging = false, startX = 0, startY = 0;
+        $canvas.on('mousedown', (e) => {
+            dragging = true; startX = e.clientX - panX; startY = e.clientY - panY;
+            e.preventDefault();
+        });
+        $(document).on('mousemove.iaMermaidPan', (e) => {
+            if (!dragging) return;
+            panX = e.clientX - startX; panY = e.clientY - startY; applyZoom();
+        });
+        $(document).on('mouseup.iaMermaidPan', () => { dragging = false; });
 
         $modal.find('.ia-mermaid-download').on('click', () => {
             const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
@@ -4345,7 +4987,10 @@ class CoffeeIA {
             URL.revokeObjectURL(url);
         });
 
-        const close = () => { $modal.remove(); $(document).off('keydown.iaMermaidModal'); };
+        const close = () => {
+            $modal.remove();
+            $(document).off('keydown.iaMermaidModal mousemove.iaMermaidPan mouseup.iaMermaidPan');
+        };
         $modal.find('.ia-mermaid-modal-close').on('click', close);
         $modal.on('click', (e) => { if (e.target === $modal[0]) close(); });
         $(document).on('keydown.iaMermaidModal', (e) => { if (e.key === 'Escape') close(); });
@@ -4576,9 +5221,65 @@ class CoffeeIA {
         this._currentChatUid = null;
         this._currentChatTitle = null;
         this._chipsRendered = false;
+        this._setActiveDb(null);   // al limpiar, se suelta la conexion a la base
         $('#iaBodyChat').empty().hide();
         $('#iaBodyEmpty').show();
         this._syncContext();
+    }
+
+    /* ── Conexion a base de datos (pegajosa por conversacion) ── */
+
+    // Fija (o suelta, con null) la base conectada y refresca el chip indicador.
+    _setActiveDb(schema) {
+        this.activeDb = schema || null;
+        this._renderDbIndicator();
+    }
+
+    // Chip "conectado a <base> ✕" sobre el input. La ✕ desconecta (sin borrar el chat).
+    _renderDbIndicator() {
+        const $chip = $('#iaDbChip');
+        if (!$chip.length) return;
+        if (!this.activeDb) { $chip.hide().empty(); return; }
+        $chip.html(`
+            <i data-lucide="database" class="w-3 h-3"></i>
+            <span class="ia-db-chip-name">${this._escape(this.activeDb)}</span>
+            <button type="button" class="ia-db-chip-x" title="Desconectar de la base">
+                <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+        `).show();
+        $chip.find('.ia-db-chip-x').off('click').on('click', () => {
+            this._setActiveDb(null);
+            this._toast('Desconectado de la base', 'info');
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    /* ── Conexion a una carpeta local (pegajosa por conversacion) ── */
+
+    // Fija (o suelta, con null) la carpeta conectada y refresca el chip indicador.
+    _setActiveFolder(path) {
+        this.activeFolder = path || null;
+        this._renderFolderIndicator();
+    }
+
+    // Chip "carpeta: <nombre> ✕" sobre el input. La ✕ desconecta (sin borrar el chat).
+    _renderFolderIndicator() {
+        const $chip = $('#iaFolderChip');
+        if (!$chip.length) return;
+        if (!this.activeFolder) { $chip.hide().empty(); return; }
+        const name = String(this.activeFolder).replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
+        $chip.html(`
+            <i data-lucide="folder-open" class="w-3 h-3"></i>
+            <span class="ia-db-chip-name" title="${this._escape(this.activeFolder)}">${this._escape(name)}</span>
+            <button type="button" class="ia-db-chip-x" title="Desconectar de la carpeta">
+                <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+        `).show();
+        $chip.find('.ia-db-chip-x').off('click').on('click', () => {
+            this._setActiveFolder(null);
+            this._toast('Desconectado de la carpeta', 'info');
+        });
+        if (window.lucide) lucide.createIcons();
     }
 
     /* ── Persistencia de conversaciones (SQLite via ctrl-chats.php) ── */
@@ -4765,23 +5466,6 @@ class CoffeeIA {
         }
     }
 
-    /* ── Normalización de HTML del modo lienzo ── */
-
-    _looksLikeHtml(t) {
-        return /<!doctype html|<html[\s>]|<head[\s>]|<body[\s>]|<(div|section|main|header|nav|table|article|ul|ol|form|button|span|img|svg|h[1-6]|p)[\s>]/i.test(t || '');
-    }
-
-    // En modo lienzo, si el texto trae HTML crudo SIN fence lo envolvemos en
-    // ```html para que _postProcessMessage lo convierta en bloque de Vista previa.
-    // Si ya viene con fence ```html, se deja tal cual (ya lo maneja el post-proceso).
-    _normalizeCanvasHtml(text) {
-        if (!this.canvasMode || !text) return text;
-        if (/```[ \t]*html/i.test(text)) return text;
-        const body = text.replace(/```[a-z0-9+-]*[ \t]*/gi, '').trim();
-        if (this._looksLikeHtml(body)) return '```html\n' + body + '\n```';
-        return text;
-    }
-
     // Si la respuesta trae XML de draw.io crudo SIN fence, lo envolvemos en
     // ```drawio para que _postProcessMessage lo convierta en la tarjeta del lienzo.
     _normalizeDrawioXml(text) {
@@ -4838,5 +5522,191 @@ class CoffeeIA {
             slug = `respuesta-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
         }
         return slug + '.md';
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * GithubBoard — tablero de GitHub Projects (v2) en el panel derecho (split).
+ *
+ * Se abre desde el menu Herramientas de CoffeeIA ("GitHub Projects") y monta un
+ * tablero estilo GitHub en #githubStage, en split con el documento (igual que el
+ * lienzo draw.io/Excalidraw, via body.github-mode). Columnas = Status; filtro
+ * por Sprint (Iteration). Datos: ctrl/ctrl-github.php (GraphQL, token en .env).
+ * ───────────────────────────────────────────────────────────────────────── */
+class GithubBoard {
+
+    constructor(app, link) {
+        this.app     = app;
+        this._link   = link;          // ctrl/ctrl-github.php
+        this.stageId = 'githubStage';
+        this.active  = false;
+        this.number  = null;
+        this.data    = null;          // { project, items, statusOptions, iterations }
+        this.sprintFilter = '';       // '' = todos los sprints
+    }
+
+    async open(number) {
+        this.active = true;
+        this._showStage(true);
+        const host = document.getElementById(this.stageId);
+        if (host) host.innerHTML = '<div class="ghb-state"><span class="ia-gh-spin"></span> Cargando tablero&hellip;</div>';
+
+        try {
+            // Sin number: listar y abrir el primer project accesible.
+            if (!number) {
+                const list = await this._fetch('list');
+                if (!list || !list.ok) return this._renderError((list && list.error) || 'No se pudieron leer los Projects.');
+                const projs = list.projects || [];
+                if (!projs.length) {
+                    const extra = list.inaccessible ? ` (${list.inaccessible} sin acceso con este token)` : '';
+                    return this._renderError('No hay Projects accesibles.' + extra);
+                }
+                number = projs[0].number;
+            }
+            this.number = number;
+            const data = await this._fetch('items', { number });
+            if (!data || !data.ok) return this._renderError((data && data.error) || 'No se pudo cargar el tablero.');
+            this.data = data;
+            this.sprintFilter = '';
+            this._render();
+        } catch (e) {
+            this._renderError('Error de red al consultar GitHub.');
+        }
+    }
+
+    close() {
+        this.active = false;
+        const host = document.getElementById(this.stageId);
+        if (host) host.innerHTML = '';
+        this._showStage(false);
+    }
+
+    async _fetch(opc, extra) {
+        const form = new FormData();
+        form.append('opc', opc);
+        if (extra) Object.keys(extra).forEach(k => form.append(k, extra[k]));
+        const res = await fetch(this._link, { method: 'POST', body: form });
+        return res.json();
+    }
+
+    // Split: documento a la izquierda, tablero a la derecha (como el lienzo).
+    _showStage(show) {
+        $('body').toggleClass('github-mode', show);
+        $('#' + this.stageId).toggleClass('hidden', !show);
+        $('.cs-tabs-inline, #btnEdit, #btnCopyPath, #docStyleSelect, .doc-zoom, .doc-toolbar-sep')
+            .toggleClass('hidden', show);
+        if (typeof visorMountStageResizer === 'function') visorMountStageResizer(show);
+    }
+
+    _render() {
+        const host = document.getElementById(this.stageId);
+        if (!host) return;
+        const p = this.data.project || {};
+        const sprints = this.data.iterations || [];
+
+        const pills = [{ title: '', label: 'Todos' }]
+            .concat(sprints.map(s => ({ title: s.title, label: s.title, active: s.active })))
+            .map(s => `<button type="button" class="ghb-pill${this.sprintFilter === s.title ? ' is-active' : ''}" data-sprint="${this._esc(s.title)}">${this._esc(s.label)}${s.active ? ' <span class="ghb-live">&#9679;</span>' : ''}</button>`)
+            .join('');
+
+        host.innerHTML = `
+            <div class="ghb">
+                <div class="ghb-bar">
+                    <div class="ghb-bar-left">
+                        <i data-lucide="folder-git-2"></i>
+                        <span class="ghb-title" title="${this._esc(p.title)}">${this._esc(p.title)}</span>
+                        <span class="ghb-sub">${p.total || (this.data.items || []).length} items</span>
+                    </div>
+                    <div class="ghb-bar-right">
+                        <button type="button" class="ghb-iconbtn ghb-refresh" title="Refrescar"><i data-lucide="refresh-cw"></i></button>
+                        ${p.url ? `<a class="ghb-iconbtn" href="${p.url}" target="_blank" rel="noopener" title="Abrir en GitHub"><i data-lucide="external-link"></i></a>` : ''}
+                        <button type="button" class="ghb-iconbtn ghb-close" title="Cerrar tablero"><i data-lucide="x"></i></button>
+                    </div>
+                </div>
+                <div class="ghb-sprints">${pills}</div>
+                <div class="ghb-cols">${this._columnsHtml()}</div>
+            </div>
+        `;
+
+        $(host).find('.ghb-close').on('click', () => this.close());
+        $(host).find('.ghb-refresh').on('click', () => this.open(this.number));
+        $(host).find('.ghb-pill').on('click', (e) => {
+            this.sprintFilter = $(e.currentTarget).attr('data-sprint') || '';
+            this._render();
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _columnsHtml() {
+        const items = this._filteredItems();
+        const cols  = (this.data.statusOptions || []).slice();
+        // Estados presentes en items pero no en las opciones (p. ej. "Sin estado").
+        items.forEach(it => { const s = it.status || 'Sin estado'; if (cols.indexOf(s) === -1) cols.push(s); });
+        if (!cols.length) cols.push('Sin estado');
+
+        return cols.map(st => {
+            const list  = items.filter(it => (it.status || 'Sin estado') === st);
+            const color = this._statusColor(st);
+            const cards = list.length ? list.map(it => this._cardHtml(it)).join('') : '<div class="ghb-empty">Sin items</div>';
+            return `
+                <div class="ghb-col">
+                    <div class="ghb-col-head">
+                        <span class="ghb-dot" style="background:${color}"></span>
+                        <span class="ghb-col-name">${this._esc(st)}</span>
+                        <span class="ghb-col-count">${list.length}</span>
+                    </div>
+                    <div class="ghb-col-body">${cards}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    _cardHtml(it) {
+        const typeIcon = it.type === 'PullRequest' ? 'git-pull-request'
+                       : (it.type === 'Issue' ? 'circle-dot' : 'square-dashed');
+        const sprintChip = it.sprint ? `<span class="ghb-chip"><i data-lucide="calendar-clock"></i>${this._esc(it.sprint)}</span>` : '';
+        const sizeChip   = it.size   ? `<span class="ghb-size ghb-size-${this._esc((it.size || '').toLowerCase())}">${this._esc(it.size)}</span>` : '';
+        return `
+            <div class="ghb-card">
+                <div class="ghb-card-title"><i data-lucide="${typeIcon}"></i><span>${this._esc(it.title)}</span></div>
+                ${(sprintChip || sizeChip) ? `<div class="ghb-card-foot">${sprintChip}${sizeChip}</div>` : ''}
+            </div>
+        `;
+    }
+
+    _filteredItems() {
+        const items = this.data.items || [];
+        if (!this.sprintFilter) return items;
+        return items.filter(it => (it.sprint || '') === this.sprintFilter);
+    }
+
+    _statusColor(status) {
+        const s = (status || '').toLowerCase();
+        if (s === 'done') return '#22c55e';
+        if (s.indexOf('progress') !== -1) return '#eab308';
+        if (s === 'backlog' || s === 'todo' || s === 'to do') return '#94a3b8';
+        return '#64748b';
+    }
+
+    _renderError(msg) {
+        const host = document.getElementById(this.stageId);
+        if (host) host.innerHTML = `
+            <div class="ghb-state ghb-error">
+                <i data-lucide="alert-triangle"></i>
+                <div>
+                    <p>${this._esc(msg)}</p>
+                    <button type="button" class="ghb-retry">Reintentar</button>
+                    <button type="button" class="ghb-close2">Cerrar</button>
+                </div>
+            </div>`;
+        $(host).find('.ghb-retry').on('click', () => this.open(this.number));
+        $(host).find('.ghb-close2').on('click', () => this.close());
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 }

@@ -979,12 +979,68 @@ function pgRenderThreadsList(rows) {
                     · ${pgEscape(r.updated_at || '')}
                 </span>
             </div>
+            <button class="pg-thread-edit" data-thread-edit="${r.uid}" title="Renombrar hilo"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
             <button class="pg-thread-del" data-thread-del="${r.uid}" title="Eliminar hilo"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
         </div>`).join('');
     $('#pgThreadsList').html(html);
     $('#pgThreadsList .pg-thread-item').on('click', function () { pgLoadThread($(this).data('thread')); });
-    $('#pgThreadsList .pg-thread-del').on('click', function (e) { e.stopPropagation(); pgDeleteThread($(this).data('thread-del'), $(this)); });
+    $('#pgThreadsList .pg-thread-edit').on('click', function (e) { e.stopPropagation(); pgRenameThreadInline($(this).closest('.pg-thread-item')); });
+    $('#pgThreadsList .pg-thread-del').on('click', function (e) { e.stopPropagation(); pgDeleteThread($(this).data('thread-del')); });
     if (window.lucide) lucide.createIcons();
+}
+
+// Edición inline del título: convierte el <span> del título en un <input>.
+// Enter o blur confirma; Escape cancela. stopPropagation evita que el clic/teclas
+// abran el hilo o cierren el modal (handler global de Escape).
+function pgRenameThreadInline($item) {
+    if (!$item || !$item.length) return;
+    if ($item.find('.pg-thread-rename-input').length) return;   // ya en edición
+    const uid      = $item.data('thread');
+    const $titleEl = $item.find('.pg-thread-title');
+    const current  = $titleEl.text();
+    const $input   = $('<input type="text" class="pg-thread-rename-input" maxlength="160">').val(current);
+    $titleEl.replaceWith($input);
+    $input.trigger('focus').trigger('select');
+
+    let done = false;
+    const finish = async (save) => {
+        if (done) return; done = true;
+        const val = ($input.val() || '').trim();
+        let title = current;
+        if (save && val && val !== current) {
+            const ok = await pgRenameThread(uid, val);
+            if (ok) title = val;
+        }
+        $input.replaceWith($('<span class="pg-thread-title"></span>').text(title));
+    };
+    $input
+        .on('click', e => e.stopPropagation())
+        .on('keydown', e => {
+            e.stopPropagation();   // no disparar handlers globales (Escape cierra modal)
+            if (e.key === 'Enter')      { e.preventDefault(); finish(true); }
+            else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+        })
+        .on('blur', () => finish(true));
+}
+
+// Renombra un hilo en el backend (solo título). Si es el hilo activo, refresca el
+// chip y pg.threadTitle para que el autosave conserve el nombre.
+async function pgRenameThread(uid, title) {
+    try {
+        const form = new FormData();
+        form.append('action', 'rename');
+        form.append('uid', uid);
+        form.append('title', title);
+        const res  = await fetch(PG_API_THREADS, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { pgToast(data.message || 'No se pudo renombrar el hilo', 'error'); return false; }
+        if (pg.threadUid === uid) { pg.threadTitle = data.title; pgUpdateThreadChip(); }
+        pgToast('Hilo renombrado', 'success');
+        return true;
+    } catch (e) {
+        pgToast('Error de red al renombrar el hilo', 'error');
+        return false;
+    }
 }
 
 async function pgLoadThread(uid) {
@@ -1056,15 +1112,9 @@ function pgRebuildChat() {
     pgScroll();
 }
 
-// Eliminación en dos pasos sobre el propio botón (primer clic arma, segundo borra).
-async function pgDeleteThread(uid, $btn) {
-    if ($btn && !$btn.hasClass('is-armed')) {
-        $btn.addClass('is-armed').attr('title', 'Pulsa otra vez para eliminar');
-        clearTimeout($btn.data('armTimer'));
-        $btn.data('armTimer', setTimeout(() => $btn.removeClass('is-armed').attr('title', 'Eliminar hilo'), 3000));
-        return;
-    }
-    if ($btn) clearTimeout($btn.data('armTimer'));
+// Eliminación con confirmación de un solo clic.
+async function pgDeleteThread(uid) {
+    if (!window.confirm('¿Eliminar este hilo? Esta acción no se puede deshacer.')) return;
     try {
         const form = new FormData();
         form.append('action', 'delete');
@@ -1150,10 +1200,12 @@ async function pgSend(text, images, docs) {
     images = Array.isArray(images) ? images : [];
     docs   = Array.isArray(docs)   ? docs   : [];
 
-    // Aviso: si se adjuntó imagen pero el modelo activo no tiene visión, no la
-    // procesará (de ahí que el render no respete la imagen). Sugerir cambiarlo.
-    if (images.length && pg.model && !pgModelHasVision(pg.model)) {
-        pgToast('Este modelo no analiza imágenes. Elige uno con visión (los marcados con “vision”).', 'warn');
+    // Si el modelo activo NO tiene visión, las imágenes no viajan al modelo: se
+    // OMITEN del payload (las seguimos mostrando en el chat y conservando en el
+    // history por si luego se cambia a un modelo con visión). Avisar al usuario.
+    const dropImages = !!pg.model && !pgModelHasVision(pg.model);
+    if (images.length && dropImages) {
+        pgToast('Este modelo no tiene visión: la imagen no se enviará. Elige uno con visión (los marcados con “vision”).', 'warn');
     }
 
     // Template fijado como referencia: su HTML se inyecta al content para que el
@@ -1234,7 +1286,7 @@ async function pgSend(text, images, docs) {
     // Si el usuario adjuntó imagen(es), exigir fidelidad visual: el render debe
     // reproducir colores, tono (claro/oscuro), tipografía y composición de la
     // imagen, no una interpretación libre del agente.
-    if (images.length && usesDesignSystem) {
+    if (images.length && usesDesignSystem && !dropImages) {
         systemOverride += `\n\n## Fidelidad a la imagen de referencia\n`
             + `El usuario adjuntó imagen(es). Analízalas y REPRODUCE fielmente su estilo visual: `
             + `paleta de colores exacta, tono (si la imagen es CLARA, el componente va claro; si es OSCURA, oscuro), `
@@ -1250,7 +1302,8 @@ async function pgSend(text, images, docs) {
     const payload = {
         messages: pg.history.map(m => {
             const o = { role: m.role, content: m.content };
-            if (m.images && m.images.length) o.images = m.images;
+            // Solo adjuntar imágenes si el modelo activo tiene visión.
+            if (!dropImages && m.images && m.images.length) o.images = m.images;
             return o;
         }),
         systemOverride: systemOverride,

@@ -31,7 +31,11 @@
             </div>
         </div>
 
-        <div class="pg-header-right">
+        <button id="pgHeaderToggle" class="pg-header-toggle" title="Ajustes" aria-expanded="false">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+        </button>
+
+        <div class="pg-header-right" id="pgHeaderRight">
             <div class="pg-select-wrap" title="Agente activo">
                 <i data-lucide="bot" class="w-4 h-4"></i>
                 <select id="pgAgentSelect" class="pg-select"></select>
@@ -90,7 +94,17 @@
         </button>
     </div>
 
-    <div class="pg-workspace">
+    <!-- Conmutador Chat/Sandbox (solo movil): ambos paneles no caben apilados. -->
+    <div class="pg-mobile-switch" role="tablist" aria-label="Vista">
+        <button class="pg-mswitch active" data-mview="chat" role="tab">
+            <i data-lucide="message-square" class="w-4 h-4"></i> Chat
+        </button>
+        <button class="pg-mswitch" data-mview="sandbox" role="tab">
+            <i data-lucide="layout-template" class="w-4 h-4"></i> Sandbox
+        </button>
+    </div>
+
+    <div class="pg-workspace" data-mview="chat">
 
         <!-- Rail de navegacion entre modulos (Visor / Playground / Admin) -->
         <nav class="app-rail" aria-label="Modulos">
@@ -245,6 +259,23 @@
             </header>
 
             <div class="pg-sandbox-body">
+                <!-- Mini-navegador del Live: atrás/adelante/recargar/inicio + barra de
+                     direcciones para moverte entre secciones del módulo real. Solo se
+                     muestra en la vista Live y a ancho completo. -->
+                <div id="fgLiveNav" class="fg-live-nav hidden">
+                    <div class="fg-nav-actions">
+                        <button id="fgNavBack" class="fg-nav-btn" title="Atrás"><i data-lucide="arrow-left" class="w-3.5 h-3.5"></i></button>
+                        <button id="fgNavFwd" class="fg-nav-btn" title="Adelante"><i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>
+                        <button id="fgNavReload" class="fg-nav-btn" title="Recargar"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
+                        <button id="fgNavHome" class="fg-nav-btn" title="Volver al módulo abierto"><i data-lucide="home" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                    <div class="fg-nav-addr">
+                        <i data-lucide="globe" class="w-3.5 h-3.5 fg-nav-addr-ic"></i>
+                        <input id="fgNavUrl" class="fg-nav-url" spellcheck="false" autocomplete="off" placeholder="URL del módulo…">
+                        <span id="fgNavOrigin" class="fg-nav-origin" title="Origen del módulo cargado"></span>
+                    </div>
+                    <button id="fgNavOpenTab" class="fg-nav-btn" title="Abrir en una pestaña nueva del navegador"><i data-lucide="external-link" class="w-3.5 h-3.5"></i></button>
+                </div>
                 <!-- Preview: los diseños que genera el agente (srcdoc) -->
                 <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Preview"></iframe>
                 <!-- Live: el módulo real en línea (src), independiente del preview -->

@@ -8,7 +8,7 @@
 const SAMPLE_CLAUDE_HOME = 'C:/Users/SomxDev/.claude';
 
 const SAMPLE_VISOR_HEADER = {
-    title:        'Visor de Agentes',
+    title:        'CoffeeDocs',
     subtitle:     'CoffeeSoft Library',
     user:         { initials: 'RV', name: 'Rosy V.', role: 'Guardiana' },
     pathLabel:    '.claude/agents',

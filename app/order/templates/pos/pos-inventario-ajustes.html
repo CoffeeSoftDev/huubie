@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS — Inventario > Ajustes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f1723; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .tab-btn.active { color: #7c3aed; border-bottom: 2px solid #7c3aed; }
+    </style>
+</head>
+<body class="flex">
+
+    <!-- NAV -->
+    <div class="w-[56px] bg-[#111928] border-r border-gray-800 flex flex-col items-center py-3 gap-1 flex-shrink-0">
+        <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-[10px] mb-3">RK</div>
+        <button class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4"/></svg></button>
+        <button class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></button>
+        <button class="w-10 h-10 rounded-lg flex flex-col items-center justify-center gap-0.5 text-purple-400 border border-purple-500/30">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            <div class="w-1 h-1 rounded-full bg-purple-400"></div>
+        </button>
+        <button class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></button>
+        <button class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg></button>
+    </div>
+
+    <!-- CONTENIDO -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div>
+                <h1 class="text-lg font-bold">Inventario</h1>
+                <p class="text-[11px] text-gray-500">Control de stock por sucursal</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <select class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300"><option>Reginas Kafeto (Sucursal 4)</option></select>
+                <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-xs font-semibold text-white hover:bg-purple-500">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    Entrada de Stock
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs — AJUSTES activa -->
+        <div class="flex border-b border-gray-800 px-6 flex-shrink-0">
+            <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent">Stock Actual</button>
+            <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent">Movimientos</button>
+            <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent">Entradas</button>
+            <button class="tab-btn active px-4 py-2.5 text-xs font-semibold border-b-2">Ajustes</button>
+        </div>
+
+        <!-- Explicacion del tab -->
+        <div class="px-6 py-3 flex-shrink-0">
+            <div class="bg-purple-900/10 border border-purple-700/30 rounded-lg px-4 py-3 flex items-start gap-3">
+                <svg class="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div>
+                    <p class="text-xs font-bold text-purple-300">Ajustes de Inventario</p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Los ajustes corrigen diferencias entre el stock del sistema y el conteo fisico real. Se usan despues de un inventario fisico, para corregir errores de registro, o cuando se detectan faltantes/sobrantes. Cada ajuste requiere motivo y queda registrado en la auditoria.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs Ajustes -->
+        <div class="grid grid-cols-4 gap-3 px-6 pb-3 flex-shrink-0">
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-purple-700/30">
+                <p class="text-[10px] text-purple-500 uppercase tracking-wider">Ajustes Este Mes</p>
+                <p class="text-xl font-extrabold text-purple-400 mt-1">14</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">7 positivos / 7 negativos</p>
+            </div>
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Diferencia Neta</p>
+                <p class="text-xl font-extrabold text-red-400 mt-1">-$480</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">Perdida por diferencias</p>
+            </div>
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Ultimo Inventario</p>
+                <p class="text-lg font-extrabold mt-1">01 Abr</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">Hace 3 dias</p>
+            </div>
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Precision Inv.</p>
+                <p class="text-xl font-extrabold text-green-400 mt-1">96.8%</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">Meta: 98%</p>
+            </div>
+        </div>
+
+        <!-- Tabla de ajustes -->
+        <div class="flex-1 overflow-y-auto px-6 scrollbar-thin">
+            <table class="w-full">
+                <thead class="sticky top-0 bg-[#111928] z-10">
+                    <tr class="text-[10px] text-gray-500 uppercase tracking-wider">
+                        <th class="text-left py-2 px-3 font-medium w-20">Folio</th>
+                        <th class="text-left py-2 px-3 font-medium">Producto</th>
+                        <th class="text-center py-2 px-3 font-medium w-20">Sistema</th>
+                        <th class="text-center py-2 px-3 font-medium w-20">Fisico</th>
+                        <th class="text-center py-2 px-3 font-medium w-20">Diferencia</th>
+                        <th class="text-right py-2 px-3 font-medium w-24">Costo Dif</th>
+                        <th class="text-left py-2 px-3 font-medium w-36">Motivo</th>
+                        <th class="text-left py-2 px-3 font-medium w-24">Autorizo</th>
+                        <th class="text-left py-2 px-3 font-medium w-32">Fecha</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/50">
+
+                    <!-- Ajuste negativo: faltante -->
+                    <tr class="hover:bg-[#1a2332] transition-colors cursor-pointer">
+                        <td class="py-2.5 px-3"><span class="text-xs font-bold text-purple-400">AJU-042</span></td>
+                        <td class="py-2.5 px-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded bg-teal-900/30 flex items-center justify-center text-xs">🍪</div>
+                                <p class="text-[11px] font-medium">Galleta Chocolate</p>
+                            </div>
+                        </td>
+                        <td class="py-2.5 px-3 text-center text-xs text-gray-400">18</td>
+                        <td class="py-2.5 px-3 text-center text-xs font-bold">15</td>
+                        <td class="py-2.5 px-3 text-center text-xs font-bold text-red-400">-3</td>
+                        <td class="py-2.5 px-3 text-right text-xs text-red-400 font-semibold">-$60</td>
+                        <td class="py-2.5 px-3"><span class="text-[10px] text-gray-300">Conteo fisico — faltante sin explicar</span></td>
+                        <td class="py-2.5 px-3 text-[10px] text-gray-400">Andrea M.</td>
+                        <td class="py-2.5 px-3 text-[10px] text-gray-500">03 Abr 21:00</td>
+                    </tr>
+
+                    <!-- Ajuste positivo: sobrante -->
+                    <tr class="hover:bg-[#1a2332] transition-colors cursor-pointer">
+                        <td class="py-2.5 px-3"><span class="text-xs font-bold text-purple-400">AJU-041</span></td>
+                        <td class="py-2.5 px-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded bg-red-900/30 flex items-center justify-center text-xs">🍓</div>
+                                <p class="text-[11px] font-medium">Pay de Fresas</p>
+                            </div>
+                        </td>
+                        <td class="py-2.5 px-3 text-center text-xs text-gray-400">10</td>
+                        <td class="py-2.5 px-3 text-center text-xs font-bold">12</td>
+                        <td class="py-2.5 px-3 text-center text-xs font-bold text-green-400">+2</td>
+                        <td class="py-2.5 px-3 text-right text-xs text-green-400 font-semibold">+$280</td>
+                        <td class="py-2.5 px-3"><span class="text-[10px] text-gray-300">Entrada no registrada encontrada en conteo</span></td>
+                        <td class="py-2.5 px-3 text-[10px] text-gray-400">Admin</td>
+                        <td class="py-2.5 px-3 text-[10px] text-gray-500">01 Abr 20:30</td>
+                    </tr>
+
+                    <!-- Ajuste negativo: error de registro -->
+                    <tr class="hover:bg-[#1a2332] transition-colors cursor-pointer">
+                        <td class="py-2.5 px-3"><span class="text-xs font-bold text-purple-400">AJU-040</span></td>
+                        <td class="py-2.5 px-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded bg-amber-900/30 flex items-center justify-center text-xs">🎂</div>
+                                <p class="text-[11px] font-medium">Pastel 3 Leches</p>
+                            </div>
+                        </td>
+                        <td class="py-2.5 px-3 text-center text-xs text-gray-400">12</td>
+                        <td class="py-2.5 px-3 text-center text-xs font-bold">10</td>
+                        <td class="py-2.5 px-3 text-center text-xs font-bold text-red-400">-2</td>
+                        <td class="py-2.5 px-3 text-right text-xs text-red-400 font-semibold">-$560</td>
+                        <td class="py-2.5 px-3"><span class="text-[10px] text-gray-300">Se entregaron 2 sin registrar en sistema</span></td>
+                        <td class="py-2.5 px-3 text-[10px] text-gray-400">Andrea M.</td>
+                        <td class="py-2.5 px-3 text-[10px] text-gray-500">01 Abr 20:30</td>
+                    </tr>
+
+                    <!-- Ajuste por inventario fisico completo -->
+                    <tr class="hover:bg-[#1a2332] transition-colors cursor-pointer bg-purple-900/5">
+                        <td class="py-2.5 px-3"><span class="text-xs font-bold text-yellow-400">AJU-039</span></td>
+                        <td class="py-2.5 px-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded bg-purple-900/30 flex items-center justify-center">
+                                    <svg class="w-3 h-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                                </div>
+                                <div>
+                                    <p class="text-[11px] font-bold text-yellow-400">INVENTARIO FISICO COMPLETO</p>
+                                    <p class="text-[9px] text-gray-500">48 productos verificados</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-2.5 px-3 text-center text-[10px] text-gray-500">—</td>
+                        <td class="py-2.5 px-3 text-center text-[10px] text-gray-500">—</td>
+                        <td class="py-2.5 px-3 text-center text-xs font-bold text-red-400">-5 neto</td>
+                        <td class="py-2.5 px-3 text-right text-xs text-red-400 font-semibold">-$340</td>
+                        <td class="py-2.5 px-3"><span class="text-[10px] text-yellow-400">Cierre de inventario mensual</span></td>
+                        <td class="py-2.5 px-3 text-[10px] text-gray-400">Admin</td>
+                        <td class="py-2.5 px-3 text-[10px] text-gray-500">01 Abr 20:30</td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- PANEL — Nuevo Ajuste de Inventario -->
+    <div class="w-[360px] bg-[#141d2b] border-l border-gray-800 flex flex-col flex-shrink-0">
+        <div class="px-4 py-3 border-b border-gray-800">
+            <h3 class="text-sm font-bold text-purple-400">Nuevo Ajuste</h3>
+            <p class="text-[10px] text-gray-500">Corregir stock del sistema vs conteo fisico</p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3 scrollbar-thin">
+
+            <!-- Tipo de ajuste -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Tipo de ajuste</label>
+                <div class="grid grid-cols-2 gap-1.5">
+                    <button class="py-2.5 rounded-lg text-[10px] font-bold bg-purple-600 text-white text-center border border-purple-600">
+                        Producto individual
+                    </button>
+                    <button class="py-2.5 rounded-lg text-[10px] font-bold bg-[#1a2332] text-gray-400 text-center border border-gray-700 hover:border-purple-500/40">
+                        Inventario fisico completo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Producto -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Producto</label>
+                <select class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-purple-500">
+                    <option>Seleccionar producto...</option>
+                    <option selected>Galleta Chocolate (Stock sistema: 18)</option>
+                    <option>Pastel 3 Leches (Stock sistema: 4)</option>
+                    <option>Pay de Fresas (Stock sistema: 12)</option>
+                </select>
+            </div>
+
+            <!-- Stock sistema vs fisico -->
+            <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700/50">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded bg-teal-900/30 flex items-center justify-center text-sm">🍪</div>
+                    <div>
+                        <p class="text-xs font-bold">Galleta Chocolate</p>
+                        <p class="text-[9px] text-gray-500">SKU: GAL-CHO-001</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Stock en Sistema</label>
+                    <div class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-400 font-bold">18</div>
+                    <p class="text-[8px] text-gray-600 mt-0.5">Solo lectura</p>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1 block">Conteo Fisico Real</label>
+                    <input type="number" value="15" class="w-full bg-[#1a2332] border-2 border-purple-500/50 rounded-lg px-3 py-2 text-sm text-white font-bold focus:outline-none focus:border-purple-500">
+                </div>
+            </div>
+
+            <!-- Diferencia calculada -->
+            <div class="bg-red-900/10 border border-red-700/30 rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] text-red-400 font-bold uppercase">Diferencia detectada</p>
+                        <p class="text-[9px] text-gray-500 mt-0.5">Faltante de 3 unidades</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-extrabold text-red-400">-3</p>
+                        <p class="text-xs text-red-400">-$60.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Motivo -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Motivo del ajuste</label>
+                <select class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-purple-500">
+                    <option>Conteo fisico / Inventario</option>
+                    <option>Error de registro previo</option>
+                    <option>Producto encontrado (sobrante)</option>
+                    <option>Faltante sin explicar</option>
+                    <option>Correccion administrativa</option>
+                </select>
+            </div>
+
+            <!-- Nota -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Observaciones (requerido)</label>
+                <textarea rows="3" placeholder="Explica el motivo del ajuste..." class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none">Se encontraron 3 galletas menos durante el conteo de cierre. Posible consumo interno no registrado.</textarea>
+            </div>
+
+            <!-- Autorizacion -->
+            <div class="bg-yellow-900/10 border border-yellow-700/30 rounded-lg p-3 flex items-start gap-2">
+                <svg class="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                <div>
+                    <p class="text-[10px] text-yellow-400 font-bold">Requiere autorizacion</p>
+                    <p class="text-[9px] text-gray-500">Los ajustes negativos mayores a 2 unidades requieren aprobacion de un administrador</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-4 py-3 border-t border-gray-800 space-y-2">
+            <button class="w-full py-2.5 rounded-lg text-xs font-bold bg-purple-600 text-white hover:bg-purple-500 active:scale-[0.98] transition-all">
+                Aplicar Ajuste (-3 uds)
+            </button>
+            <p class="text-[8px] text-gray-600 text-center">Este movimiento quedara registrado en el historial de auditoria</p>
+        </div>
+    </div>
+
+</body>
+</html>

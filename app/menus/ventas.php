@@ -12,6 +12,12 @@
     <?php require_once(__DIR__ . '/../layout/core-libraries.php'); ?>
 
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <!-- El launcher no abre modales bootbox/Bootstrap, asi que no necesita el gutter
+         reservado de head.php. Se desactiva localmente para quitar la franja derecha. -->
+    <style>
+        html { scrollbar-gutter: auto !important; }
+    </style>
 </head>
 
 <body class="bg-[#111928] h-screen" data-bs-theme="dark">

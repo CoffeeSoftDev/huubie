@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuestas Indicador Cierre</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f1724; font-family: 'Inter', system-ui, sans-serif; }
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-5xl mx-auto space-y-10">
+
+        <div class="text-center mb-6">
+            <h1 class="text-lg font-bold text-white mb-1">Indicador de estado — Discreto</h1>
+            <p class="text-xs text-gray-500">3 propuestas sutiles para reemplazar el badge amarillo</p>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PROPUESTA 1: Línea inline con dot          -->
+        <!-- ========================================== -->
+        <section>
+            <h2 class="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-4">Propuesta 1 — Dot + línea de texto</h2>
+
+            <div class="space-y-4 bg-[#131b2a] rounded-lg p-4 border border-gray-800">
+                <!-- Día cerrado -->
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-red-400 rounded-full flex-shrink-0"></span>
+                    <p class="text-[11px] text-gray-400">
+                        Día cerrado <span class="text-gray-600">—</span> <span class="text-gray-500">ANDREA MORALES, 09:15 PM</span>
+                    </p>
+                </div>
+
+                <!-- Turno abierto -->
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-green-400 rounded-full flex-shrink-0 animate-pulse"></span>
+                    <p class="text-[11px] text-gray-400">
+                        Turno activo <span class="text-gray-600">—</span> <span class="text-gray-500">ANDREA MORALES, desde 08:00 AM</span>
+                    </p>
+                </div>
+
+                <!-- Sin turno -->
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-amber-400 rounded-full flex-shrink-0 animate-pulse"></span>
+                    <p class="text-[11px] text-gray-500">
+                        Sin turno <span class="text-gray-600">—</span>
+                        <span class="text-amber-400/70 cursor-pointer hover:text-amber-300 underline underline-offset-2">abrir turno</span>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PROPUESTA 2: Barra inferior mínima         -->
+        <!-- ========================================== -->
+        <section>
+            <h2 class="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-4">Propuesta 2 — Barra de color + texto mínimo</h2>
+
+            <div class="space-y-4 bg-[#131b2a] rounded-lg p-4 border border-gray-800">
+                <!-- Día cerrado -->
+                <div class="relative pl-3">
+                    <div class="absolute left-0 top-0 bottom-0 w-[3px] rounded-full bg-red-500"></div>
+                    <p class="text-[11px] text-gray-400">
+                        <span class="text-red-400 font-medium">Cerrado</span>
+                        <span class="text-gray-600 mx-1">·</span>
+                        por ANDREA MORALES
+                        <span class="text-gray-600 mx-1">·</span>
+                        <span class="text-gray-600">09:15 PM</span>
+                    </p>
+                </div>
+
+                <!-- Turno abierto -->
+                <div class="relative pl-3">
+                    <div class="absolute left-0 top-0 bottom-0 w-[3px] rounded-full bg-green-500"></div>
+                    <p class="text-[11px] text-gray-400">
+                        <span class="text-green-400 font-medium">Turno activo</span>
+                        <span class="text-gray-600 mx-1">·</span>
+                        ANDREA MORALES
+                        <span class="text-gray-600 mx-1">·</span>
+                        <span class="text-gray-600">desde 08:00 AM</span>
+                    </p>
+                </div>
+
+                <!-- Sin turno -->
+                <div class="relative pl-3">
+                    <div class="absolute left-0 top-0 bottom-0 w-[3px] rounded-full bg-amber-500 animate-pulse"></div>
+                    <p class="text-[11px] text-gray-400">
+                        <span class="text-amber-400 font-medium">Sin turno</span>
+                        <span class="text-gray-600 mx-1">·</span>
+                        <span class="text-amber-400/70 cursor-pointer hover:text-amber-300 underline underline-offset-2">abrir turno</span> para operar
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PROPUESTA 3: Pill/chip integrado           -->
+        <!-- ========================================== -->
+        <section>
+            <h2 class="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-4">Propuesta 3 — Pill / chip compacto</h2>
+
+            <div class="space-y-4 bg-[#131b2a] rounded-lg p-4 border border-gray-800">
+                <!-- Día cerrado -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-semibold px-2.5 py-1 rounded-full">
+                        <span class="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
+                        Día cerrado
+                    </span>
+                    <span class="text-[10px] text-gray-600">ANDREA MORALES · 09:15 PM</span>
+                </div>
+
+                <!-- Turno abierto -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-semibold px-2.5 py-1 rounded-full">
+                        <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                        Turno activo
+                    </span>
+                    <span class="text-[10px] text-gray-600">ANDREA MORALES · desde 08:00 AM</span>
+                </div>
+
+                <!-- Sin turno -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold px-2.5 py-1 rounded-full">
+                        <span class="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></span>
+                        Sin turno
+                    </span>
+                    <span class="text-amber-400/60 text-[10px] cursor-pointer hover:text-amber-300 underline underline-offset-2">abrir turno</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SIMULACIÓN EN CONTEXTO                     -->
+        <!-- ========================================== -->
+        <section>
+            <h2 class="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-4">Simulación en contexto (debajo del filterBar)</h2>
+
+            <!-- Mock del filterBar -->
+            <div class="bg-[#131b2a] rounded-lg border border-gray-800 overflow-hidden">
+                <!-- FilterBar simulado -->
+                <div class="flex items-end gap-4 p-4 border-b border-gray-800 flex-wrap">
+                    <div>
+                        <label class="text-[10px] text-gray-500 block mb-1">Filtrar por sucursal:</label>
+                        <div class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300 w-40">Reginas kafeto</div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 block mb-1">Consultar fecha:</label>
+                        <div class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300 w-52">03/04/2026 - 03/04/2026</div>
+                    </div>
+                    <div class="flex gap-2 ml-auto">
+                        <button class="bg-blue-600 text-white text-xs px-4 py-1.5 rounded-lg">+ Nuevo Pedido</button>
+                        <button class="bg-green-600 text-white text-xs px-4 py-1.5 rounded-lg">Cierre del día</button>
+                        <button class="bg-purple-600 text-white text-xs px-4 py-1.5 rounded-lg">Calendario</button>
+                    </div>
+                </div>
+
+                <!-- Sub-barra info -->
+                <div class="flex items-center justify-between px-4 py-1.5 border-b border-gray-800/50">
+                    <p class="text-[10px] text-gray-600">Reginas kafeto (Mi sucursal)</p>
+                    <p class="text-[10px] text-gray-500">3 DE ABRIL DE 2026, 9:34 P. M.</p>
+                </div>
+
+                <!-- AQUÍ: Propuesta 1 aplicada -->
+                <div class="px-4 py-2 border-b border-gray-800/30">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 bg-red-400 rounded-full flex-shrink-0"></span>
+                        <p class="text-[11px] text-gray-400">
+                            Día cerrado <span class="text-gray-600">—</span> <span class="text-gray-500">ANDREA MORALES, 09:15 PM</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- AQUÍ: Propuesta 2 aplicada -->
+                <div class="px-4 py-2 border-b border-gray-800/30">
+                    <div class="relative pl-3">
+                        <div class="absolute left-0 top-0 bottom-0 w-[3px] rounded-full bg-red-500"></div>
+                        <p class="text-[11px] text-gray-400">
+                            <span class="text-red-400 font-medium">Cerrado</span>
+                            <span class="text-gray-600 mx-1">·</span>
+                            por ANDREA MORALES
+                            <span class="text-gray-600 mx-1">·</span>
+                            <span class="text-gray-600">09:15 PM</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- AQUÍ: Propuesta 3 aplicada -->
+                <div class="px-4 py-2 border-b border-gray-800/30">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-semibold px-2.5 py-1 rounded-full">
+                            <span class="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
+                            Día cerrado
+                        </span>
+                        <span class="text-[10px] text-gray-600">ANDREA MORALES · 09:15 PM</span>
+                    </div>
+                </div>
+
+                <!-- Tabla simulada -->
+                <div class="p-4">
+                    <div class="text-[10px] text-gray-600 text-center py-6">[ tabla de pedidos ]</div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</body>
+</html>

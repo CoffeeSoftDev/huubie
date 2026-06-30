@@ -19,10 +19,11 @@ class ctrlCalendario extends MCalendarioPedidos{
         $company = $_SESSION['COMPANY_ID'];
         
         return [
-            'subsidiaries'   => $this->getSubsidiariesByCompany([$company]),
-            'isAdmin'        => $rolId == 1,
-            'subsidiaryName' => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
-            'subsidiaryId'   => $_SESSION['SUB'] ?? null
+            'subsidiaries'    => $this->getSubsidiariesByCompany([$company]),
+            'subsidiariesCobro' => $this->getSubsidiariesByCompany([$company]),
+            'isAdmin'         => $rolId == 1,
+            'subsidiaryName'  => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
+            'subsidiaryId'    => $_SESSION['SUB'] ?? null
         ];
     }
     

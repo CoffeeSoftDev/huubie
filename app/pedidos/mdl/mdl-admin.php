@@ -9,7 +9,8 @@ class mdl extends CRUD {
 
     public function __construct() {
         $this->util = new Utileria;
-        $this->bd   = "{$_SESSION['DB']}.";
+        // $this->bd = "{$_SESSION['DB']}.";
+        $this->bd = "fayxzvov_reginas.";
     }
 
     // 🛍️ Product.
@@ -19,11 +20,8 @@ class mdl extends CRUD {
             $this->bd . 'order_category' => 'order_products.category_id = order_category.id'
         ];
 
-        // Filtro de sucursal temporalmente deshabilitado: muestra productos de todas las UDN
-        // $where = 'order_products.active = ? AND order_products.subsidiaries_id = ?';
-        // $data  = [$array[0], $array[1]];
-        $where = 'order_products.active = ?';
-        $data  = [$array[0]];
+        $where = 'order_products.active = ? AND order_products.subsidiaries_id = ?';
+        $data  = [$array[0], $array[1]];
 
         if (isset($array[2]) && $array[2] != 0) {
             $where .= ' AND order_products.category_id = ?';
@@ -167,7 +165,6 @@ class mdl extends CRUD {
                 name,
                 phone,
                 email,
-                active,
                 DATE_FORMAT(date_create, '%Y-%m-%d') as date_create",
             'where'  => 'active = ? AND subsidiaries_id = ?',
             'order'  => ['DESC' => 'id'],
@@ -362,67 +359,6 @@ class mdl extends CRUD {
     function updateProductModifier($array) {
         return $this->_Update([
             'table'  => "{$this->bd}order_modifier_products",
-            'values' => $array['values'],
-            'where'  => 'id = ?',
-            'data'   => $array['data']
-        ]);
-    }
-
-    // pos_payment_type.
-
-    function lsPaymentType($array) {
-        return $this->_Select([
-            'table'  => "{$this->bd}pos_payment_type",
-            'values' => 'id, code, name, is_cash, is_visible, active, DATE_FORMAT(created_at, \'%Y-%m-%d\') as created_at',
-            'where'  => 'active = ?',
-            'order'  => ['DESC' => 'id'],
-            'data'   => $array
-        ]);
-    }
-
-    function getPaymentTypeById($array) {
-        return $this->_Select([
-            'table'  => "{$this->bd}pos_payment_type",
-            'values' => '*',
-            'where'  => 'id = ?',
-            'data'   => $array
-        ])[0];
-    }
-
-    function existsPaymentTypeByCode($array) {
-        $query = "
-            SELECT id
-            FROM {$this->bd}pos_payment_type
-            WHERE LOWER(code) = LOWER(?)
-            AND active = 1
-        ";
-        $result = $this->_Read($query, $array);
-        return count($result) > 0;
-    }
-
-    function existsOtherPaymentTypeByCode($array) {
-        $query = "
-            SELECT id
-            FROM {$this->bd}pos_payment_type
-            WHERE LOWER(code) = LOWER(?)
-            AND id != ?
-            AND active = 1
-        ";
-        $result = $this->_Read($query, $array);
-        return count($result) > 0;
-    }
-
-    function createPaymentType($array) {
-        return $this->_Insert([
-            'table'  => "{$this->bd}pos_payment_type",
-            'values' => $array['values'],
-            'data'   => $array['data']
-        ]);
-    }
-
-    function updatePaymentType($array) {
-        return $this->_Update([
-            'table'  => "{$this->bd}pos_payment_type",
             'values' => $array['values'],
             'where'  => 'id = ?',
             'data'   => $array['data']

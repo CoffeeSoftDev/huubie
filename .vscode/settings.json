@@ -26,7 +26,11 @@
 
 
 {
+<<<<<<< HEAD
   // "workbench.colorTheme": "Kiro Dark",
+=======
+  "workbench.colorTheme": "Omni",
+>>>>>>> 23f3c50b6c9bbfced9110c7e808da32c914afaa9
   // "editor.fontFamily": "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
   "editor.fontSize": 14,
   "editor.lineHeight": 1.6,
@@ -35,5 +39,6 @@
   "editor.cursorSmoothCaretAnimation": "on",
   // "workbench.tree.indent": 20,
   "workbench.tree.renderIndentGuides": "always",
+  "folder-color.pathColors": [],
  
 }

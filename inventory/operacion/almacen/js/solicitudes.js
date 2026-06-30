@@ -1193,7 +1193,7 @@ class SolicitudesView extends Templates {
             estadoPalettes: {
                 'Borrador':   { bg: 'rgba(156,163,175,0.15)', fg: '#9CA3AF' },
                 'Solicitada': { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
-                'Aprobada':   { bg: 'rgba(59,130,246,0.15)',  fg: '#3B82F6' },
+                'Aprobada':   { bg: 'rgba(192,90,64,0.15)',  fg: '#C05A40' },
                 'Parcial':    { bg: 'rgba(251,146,60,0.15)',  fg: '#FB923C' },
                 'Recibida':   { bg: 'rgba(63,193,137,0.15)', fg: '#3FC189' },
                 'Rechazada':  { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' },

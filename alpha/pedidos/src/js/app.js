@@ -7,6 +7,7 @@ let idFolio, sub_name, user_name;
 let categories, estado, clients;
 
 let rol, subsidiaries, udn;
+let subsidiariesCobro = []; // Sucursales para el selector "Sucursal de cobro" (todos los roles).
 let dailyClosure = { is_closed: false };
 let openShift = { has_open_shift: false };
 
@@ -21,6 +22,7 @@ $(async () => {
           sub_name     = req.subsidiaries_name;
           user_name    = req.user_name;
           subsidiaries = req.sucursales;
+          subsidiariesCobro = req.sucursales_cobro || [];
           dailyClosure = req.daily_closure || { is_closed: false };
           udn          = dailyClosure.subsidiary_id;
           openShift    = req.open_shift || { has_open_shift: false };
@@ -33,7 +35,7 @@ $(async () => {
 
     // La navbar es la duena del filtro de sucursal (solo admin). Cuando el
     // admin cambia de sucursal alli, replicamos el comportamiento del filtro.
-    document.addEventListener('subsidiaryChanged', () => app.onSubsidiaryChange());
+    document.addEventListener('branchChanged', () => app.onSubsidiaryChange());
 
     setInterval(() => {
         app.actualizarFechaHora({ label: app.getSubsidiaryLabel() });
@@ -231,12 +233,25 @@ class App extends Templates {
     }
 
     getSubsidiaryLabel() {
-        if (rol != 1) return sub_name;
         const selected = $('#subsidiaries_id');
-        if (!selected.length || selected.val() === '0') return sub_name;
+        // "Todas" aplica a cualquier rol (admin o cajero en modo consulta).
+        if (selected.length && selected.val() === '0') return 'Todas las sucursales';
+        if (rol != 1) return sub_name;
+        if (!selected.length) return sub_name;
         const selectedName = selected.find('option:selected').text();
         const isOwnSubsidiary = selected.val() == udn;
         return isOwnSubsidiary ? `${selectedName} (Mi sucursal)` : selectedName;
+    }
+
+    // Sucursal con la que se FILTRA la lista (solo consulta). Admin filtra por el
+    // selector de navbar (incluye "0" = todas). Operadores solo usan "0" como
+    // consulta de todas; en cualquier otro caso null => el backend usa su sesion.
+    getListFilterSubsidiary() {
+        const $sel = $('#subsidiaries_id');
+        if (!$sel.length) return null;
+        const v = $sel.val();
+        if (v === '0') return '0';
+        return rol == 1 ? (v || '0') : null;
     }
 
     async onSubsidiaryChange() {
@@ -245,7 +260,7 @@ class App extends Templates {
     }
 
     async checkAndUpdateDailyClosure() {
-        let subsidiaries_id = rol == 1 ? $('#subsidiaries_id').val() : null;
+        let subsidiaries_id = this.getListFilterSubsidiary();
 
         if (subsidiaries_id === '0') {
             openShift = { has_open_shift: true };
@@ -389,9 +404,10 @@ class App extends Templates {
 
     ls() {
         let rangePicker = getDataRangePicker("calendar");
-        // El selector de sucursal vive en la navbar (solo admin); lo enviamos
-        // explicitamente porque ya no forma parte de la filterBar.
-        let subsidiaries_id = rol == 1 ? ($('#subsidiaries_id').val() || '0') : null;
+        // El selector de sucursal vive en la navbar; lo enviamos explicitamente
+        // porque ya no forma parte de la filterBar. "0" = todas (admin y, en modo
+        // consulta, tambien el operador via selector hibrido).
+        let subsidiaries_id = this.getListFilterSubsidiary();
         this.createTable({
             parent: `container${this.PROJECT_NAME}`,
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
@@ -1373,6 +1389,68 @@ class App extends Templates {
         const saldoRestante = order.total_pay - discount - order.total_paid;
         const isPaidInFull = saldoRestante <= 0;
 
+        // Sucursal de cobro (cobro cruzado): la eligen admin y cajero. Default = sucursal
+        // activa: admin -> filtro de la navbar (si "Todas"/0, la del pedido); cajero -> su
+        // sucursal de sesion (udn). Fallback final: la sucursal del pedido.
+        const navbarSub = (rol == 1) ? ($('#subsidiaries_id').val() || '') : '';
+        const defaultCobroSub = (navbarSub && navbarSub !== '0')
+            ? navbarSub
+            : ((rol != 1 && udn) ? udn : (order.subsidiaries_id ?? ''));
+
+        // Sucursal de origen del pedido (referencia para el cobro cruzado).
+        const origenSub    = (subsidiariesCobro || []).find(s => String(s.id) === String(order.subsidiaries_id));
+        const origenNombre = origenSub ? origenSub.valor : '—';
+
+        // Estado inicial de la tarjeta "Sucursal que cobrará".
+        const origenSubId      = String(order.subsidiaries_id ?? '');
+        const cobroSubSel      = (subsidiariesCobro || []).find(s => String(s.id) === String(defaultCobroSub));
+        const cobroNombre      = cobroSubSel ? cobroSubSel.valor : origenNombre;
+        const cobroEsMismaSuc  = String(defaultCobroSub) === origenSubId;
+        const cobroSubtitulo   = cobroEsMismaSuc ? 'Misma sucursal de origen' : 'Cobro en otra sucursal';
+        const cobroOptionsHtml = (subsidiariesCobro || [])
+            .map(s => `<option value="${s.id}" ${String(s.id) === String(defaultCobroSub) ? 'selected' : ''}>${s.valor}</option>`)
+            .join('');
+
+        // Metodos de pago del dropdown custom (.js-dd). El value es el id que espera
+        // el backend (1=Efectivo, 2=Tarjeta, 3=Transferencia) y vive en el input
+        // hidden #method_pay_id que lee el form al registrar el pago.
+        const metodosPago = [
+            { id: '1', label: 'Efectivo',      sub: 'Pago en efectivo', icon: 'banknote' },
+            { id: '2', label: 'Tarjeta',       sub: 'Débito o crédito', icon: 'credit-card' },
+            { id: '3', label: 'Transferencia', sub: 'Depósito o SPEI',  icon: 'arrow-right-left' }
+        ];
+        const metodoDefault = metodosPago[0];
+        const methodPayOptionsHtml = metodosPago.map((m, i) => `
+            <div class="js-dd-option flex items-center gap-2.5 px-2.5 py-2 cursor-pointer hover:bg-slate-700/50"
+                data-value="${m.id}" data-label="${m.label}" data-sub="${m.sub}" data-icon="${m.icon}">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                    ${window.lucideIcon(m.icon, 'w-4 h-4')}
+                </div>
+                <div class="flex flex-col leading-tight flex-1 min-w-0">
+                    <span class="text-sm text-white font-semibold truncate">${m.label}</span>
+                    <span class="text-[11px] text-gray-400">${m.sub}</span>
+                </div>
+                <span class="js-dd-check text-emerald-400 shrink-0 ${i === 0 ? '' : 'opacity-0'}">${window.lucideIcon('check', 'w-4 h-4')}</span>
+            </div>`).join('');
+
+        const methodPayCardHtml = `
+            <input type="hidden" id="method_pay_id" name="method_pay_id" value="${metodoDefault.id}" required>
+            <div class="js-dd relative">
+                <div class="js-dd-trigger flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5 ${isPaidInFull ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}" ${isPaidInFull ? 'disabled' : ''}>
+                    <div class="js-dd-trigger-icon flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                        ${window.lucideIcon(metodoDefault.icon, 'w-4 h-4')}
+                    </div>
+                    <div class="flex flex-col leading-tight flex-1 min-w-0">
+                        <span class="js-dd-trigger-label text-sm text-white font-semibold truncate">${metodoDefault.label}</span>
+                        <span class="js-dd-trigger-sub text-[11px] text-gray-400">${metodoDefault.sub}</span>
+                    </div>
+                    <span class="js-dd-chevron text-gray-400 shrink-0 transition-transform">${window.lucideIcon('chevron-down', 'w-4 h-4')}</span>
+                </div>
+                <div class="js-dd-menu hidden absolute left-0 right-0 mt-1 z-20 bg-[#1E293B] border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+                    ${methodPayOptionsHtml}
+                </div>
+            </div>`;
+
         // Contenedor del formulario centrado y reducido
         $("#container-payment").html(`
             <div class="flex justify-center items-start">
@@ -1405,10 +1483,55 @@ class App extends Templates {
                         ${discount > 0 ? `
                             <div class="mt-2 pt-2 border-t border-gray-600">
                                 <p class="text-xs text-gray-400">Total original: <span class="line-through">${formatPrice(saldoOriginal)}</span></p>
-                                <p class="text-xs text-green-400"><i class="icon-tag"></i> Descuento aplicado: -${formatPrice(discount)}</p>
+                                <p class="text-xs text-green-400 flex items-center justify-center gap-1">${lucideIcon('tag', 'w-3 h-3')} Descuento aplicado: -${formatPrice(discount)}</p>
                             </div>
                         ` : ''}
-                        ${isPaidInFull ? '<i class="icon-ok-circled text-green-400 text-2xl mt-2"></i>' : ''}
+                        ${isPaidInFull ? lucideIcon('circle-check', 'w-7 h-7 text-green-400 mt-2 inline-block') : ''}
+                    </div>`
+                },
+                {
+                    opc: "div",
+                    id: "cardMethodPay",
+                    class: "col-12 mb-2",
+                    lbl: "Método de pago",
+                    html: methodPayCardHtml
+                },
+                {
+                    opc: "div",
+                    id: "origenPedido",
+                    lbl: "Origen del pedido",
+                    class: "col-12 mb-2",
+                    html: `<div class="flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5">
+                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                            ${lucideIcon('house', 'w-4 h-4')}
+                        </div>
+                        <div class="flex flex-col leading-tight min-w-0">
+                            <span class="text-sm text-white font-semibold truncate">${origenNombre}</span>
+                            <span class="text-[11px] text-gray-400">Sucursal donde se generó la venta</span>
+                        </div>
+                    </div>`
+                },
+                {
+                    opc: "div",
+                    id: "cobroWrapper",
+                    lbl: "Sucursal que cobrará",
+                    class: "col-12 mb-3",
+                    html: `<div class="relative">
+                        <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
+                            <div id="cobroCardIcon" class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 ${cobroEsMismaSuc ? 'text-blue-400' : 'text-amber-400'} shrink-0">
+                                ${lucideIcon('landmark', 'w-4 h-4')}
+                            </div>
+                            <div class="flex flex-col leading-tight flex-1 min-w-0">
+                                <span id="cobroCardName" class="text-sm text-white font-semibold truncate">${cobroNombre}</span>
+                                <span id="cobroCardSub" class="text-[11px] text-gray-400">${cobroSubtitulo}</span>
+                            </div>
+                            ${lucideIcon('chevron-down', 'w-4 h-4 text-gray-400 shrink-0')}
+                        </div>
+                        <select id="payment_subsidiaries_id" name="payment_subsidiaries_id" data-origen="${origenSubId}" required
+                            class="absolute inset-0 w-full h-full opacity-0 ${isPaidInFull ? 'cursor-not-allowed' : 'cursor-pointer'}"
+                            ${isPaidInFull ? 'disabled' : ''} onchange="app.onCobroChange(this)">
+                            ${cobroOptionsHtml}
+                        </select>
                     </div>`
                 },
                 {
@@ -1416,7 +1539,7 @@ class App extends Templates {
                     type: "number",
                     id: "advanced_pay",
                     lbl: "Importe",
-                    class: "col-12 mb-3",
+                    class: "col-12 mb-2",
                     placeholder: "0.00",
                     required: true,
                     min: 0,
@@ -1424,23 +1547,10 @@ class App extends Templates {
                     disabled: isPaidInFull
                 },
                 {
-                    opc: "select",
-                    id: "method_pay_id",
-                    lbl: "Método de pago",
-                    class: "col-12 mb-3",
-                    data: [
-                        { id: "1", valor: "Efectivo" },
-                        { id: "2", valor: "Tarjeta" },
-                        { id: "3", valor: "Transferencia" }
-                    ],
-                    required: true,
-                    disabled: isPaidInFull
-                },
-                {
                     opc: "textarea",
                     id: "description",
                     lbl: "Observación",
-                    class: "col-12 mb-3",
+                    class: "col-12 mb-2",
                     disabled: isPaidInFull
                 },
                 {
@@ -1499,12 +1609,141 @@ class App extends Templates {
             }
         });
 
+        // ── Interacción de los dropdowns (abrir/cerrar, seleccionar) ───────────
+        const $payRoot = $('#container-payment');
+        $payRoot.off('click.dd');
+
+        // Abrir / cerrar al pulsar el trigger.
+        $payRoot.on('click.dd', '.js-dd-trigger:not([disabled])', function (e) {
+            e.stopPropagation();
+            const $menu = $(this).siblings('.js-dd-menu');
+            const willOpen = $menu.hasClass('hidden');
+            // Cerrar cualquier otro menú abierto.
+            $payRoot.find('.js-dd-menu').addClass('hidden');
+            $payRoot.find('.js-dd-chevron').removeClass('rotate-180');
+            if (willOpen) {
+                $menu.removeClass('hidden');
+                $(this).find('.js-dd-chevron').addClass('rotate-180');
+            }
+        });
+
+        // Seleccionar una opción: actualiza hidden + trigger + check y cierra.
+        $payRoot.on('click.dd', '.js-dd-option', function (e) {
+            e.stopPropagation();
+            const $opt = $(this);
+            const $dd = $opt.closest('.js-dd');
+            const value = $opt.attr('data-value');
+            const label = $opt.attr('data-label');
+            const sub = $opt.attr('data-sub') || '';
+            const icon = $opt.attr('data-icon');
+
+            // Valor real (id) para el envío del formulario.
+            $dd.prevAll('input[type="hidden"]').first().val(value);
+
+            // Reflejar la selección en el trigger.
+            const $trigger = $dd.find('.js-dd-trigger');
+            $trigger.find('.js-dd-trigger-icon').html(window.lucideIcon(icon, 'w-4 h-4'));
+            $trigger.find('.js-dd-trigger-label').text(label);
+            $trigger.find('.js-dd-trigger-sub').text(sub);
+
+            // Mover el check a la opción elegida.
+            $dd.find('.js-dd-check').addClass('opacity-0');
+            $opt.find('.js-dd-check').removeClass('opacity-0');
+
+            // Cerrar.
+            $dd.find('.js-dd-menu').addClass('hidden');
+            $trigger.find('.js-dd-chevron').removeClass('rotate-180');
+        });
+
+        // Cerrar al hacer click fuera de cualquier dropdown.
+        $(document).off('click.payDD').on('click.payDD', function () {
+            $('#container-payment .js-dd-menu').addClass('hidden');
+            $('#container-payment .js-dd-chevron').removeClass('rotate-180');
+        });
+
+        // Confirmación antes de registrar el pago. Se intercepta el submit en fase
+        // de captura (antes de validation_form): si no está confirmado, se bloquea,
+        // se valida el importe y se pregunta; al confirmar se reenvía con bandera
+        // para que el flujo normal (validación + AJAX) continúe.
+        const formEl = document.getElementById('form-payment');
+        if (formEl) {
+            formEl.addEventListener('submit', async (e) => {
+                if (formEl.dataset.payConfirmed === '1') {
+                    formEl.dataset.payConfirmed = '';
+                    return; // ya confirmado: dejar pasar a validation_form
+                }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                const importe = parseFloat($('#advanced_pay').val()) || 0;
+                if (importe <= 0) {
+                    alert({ icon: 'error', text: 'Ingresa un importe válido para registrar el pago.', btn1: true, btn1Text: 'Ok' });
+                    return;
+                }
+
+                // Datos legibles para que el usuario entienda cómo se registrará el pago.
+                const metodos = { '1': 'Efectivo', '2': 'Tarjeta', '3': 'Transferencia' };
+                const metodoTxt = metodos[String($('#method_pay_id').val())] || '—';
+                const subCobroId = String($('#payment_subsidiaries_id').val() || '');
+                const subCobroObj = (subsidiariesCobro || []).find(s => String(s.id) === subCobroId);
+                const subCobroNombre = subCobroObj ? subCobroObj.valor : origenNombre;
+                // Cobro cruzado: la sucursal que cobra es distinta a la de origen del pedido.
+                const esCruzado = subCobroId !== '' && String(order.subsidiaries_id ?? '') !== subCobroId;
+
+                const row = (lbl, val, color = '#fff') => `
+                    <div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0;">
+                        <span style="color:#9ca3af;">${lbl}</span><b style="color:${color};">${val}</b>
+                    </div>`;
+
+                const htmlConfirm = `
+                    <div style="text-align:left;font-size:14px;line-height:1.5;">
+                        ${row('Importe', formatPrice(importe))}
+                        ${row('Método de pago', metodoTxt)}
+                        ${row('Sucursal que cobra', subCobroNombre, '#A78BFA')}
+                        ${esCruzado ? `
+                        <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fcd34d;font-size:12.5px;line-height:1.45;">
+                            Cobro cruzado: el pedido es de <b>${origenNombre}</b>, pero el cobro se registrará en <b>${subCobroNombre}</b>.
+                        </div>` : ''}
+                    </div>`;
+
+                const res = await alert({
+                    icon: 'question',
+                    title: '¿Registrar pago?',
+                    html: htmlConfirm,
+                    btn1Text: 'Sí, registrar',
+                    btn2Text: 'Cancelar'
+                });
+
+                if (res && res.isConfirmed) {
+                    formEl.dataset.payConfirmed = '1';
+                    formEl.requestSubmit();
+                }
+            }, true);
+        }
+
         // Aplicar estilos disabled si está pagado
         if (isPaidInFull) {
             setTimeout(() => {
-                $("#advanced_pay, #method_pay_id, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+                $("#advanced_pay, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             }, 100);
         }
+    }
+
+    onCobroChange(sel) {
+        const $sel   = $(sel);
+        const id     = String($sel.val() || '');
+        const nombre = $sel.find('option:selected').text().trim();
+        const origen = String($sel.data('origen') || '');
+        const same   = id === origen;
+
+        $('#cobroCardName').text(nombre);
+        $('#cobroCardSub').text(same ? 'Misma sucursal de origen' : 'Cobro en otra sucursal');
+        $('#cobroCard')
+            .toggleClass('border-slate-700', same)
+            .toggleClass('border-amber-500/60', !same);
+        $('#cobroCardIcon')
+            .toggleClass('text-blue-400', same)
+            .toggleClass('text-amber-400', !same);
     }
 
     deletePay(id, idFolio) {
@@ -2713,6 +2952,7 @@ class App extends Templates {
         // Obtener órdenes si modo detallado
         let orders = [];
         let externalPayments = [];
+        let crossPayments = [];
         if (this.reportMode === 'detailed') {
             const ordersRes = await useFetch({
                 url: this._link,
@@ -2720,6 +2960,7 @@ class App extends Templates {
             });
             orders            = ordersRes.orders || [];
             externalPayments  = ordersRes.external_payments || [];
+            crossPayments     = ordersRes.cross_payments || [];
         }
 
         this.ticketShiftClose({
@@ -2729,7 +2970,8 @@ class App extends Templates {
             company_name: metricsRes.company_name,
             logo: metricsRes.logo,
             orders: orders,
-            externalPayments: externalPayments
+            externalPayments: externalPayments,
+            crossPayments: crossPayments
         });
 
         // Habilitar botón imprimir
@@ -2767,6 +3009,7 @@ class App extends Templates {
 
         // Desglose de ventas (modo detallado)
         const externalPayments = options.externalPayments || [];
+        const crossPayments    = options.crossPayments || [];
         let detailedSection = '';
 
         if (isDetailed) {
@@ -2820,13 +3063,19 @@ class App extends Templates {
                     const liquidado = quedoRaw <= 0.005;
                     const badge = liquidado
                         ? `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-bold">LIQUIDADO</span>`
-                        : `<span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[9px] font-bold">PENDIENTE</span>`;
+                        : `<span class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[9px] font-bold">PENDIENTE</span>`;
+                    // Cobro cruzado: el pedido es de otra sucursal distinta a la del cierre.
+                    const origin = o.origin_subsidiary || '';
+                    const originLine = (origin && origin !== subsidiaryName)
+                        ? `<div class="text-[10px] text-gray-500 mb-0.5">Origen: ${origin}</div>`
+                        : '';
                     return `
                         <div class="flex justify-between items-center mt-3 pt-2 border-t border-dashed border-gray-200">
                             <div class="italic truncate" style="max-width:150px">${o.folio || 'Folio #' + o.id}</div>
                             ${badge}
                         </div>
                         <div class="text-[10px] text-gray-500 mb-0.5">${o.client_name || 'Sin cliente'}</div>
+                        ${originLine}
                         <div class="flex justify-between text-[11px]"><span class="text-gray-600">Debía</span><span>${money(debia)} <span class="text-gray-400">de ${money(total)}</span></span></div>
                         <div class="flex justify-between text-[11px] text-green-700"><span>Abonó</span><span>${money(abono)}</span></div>
                         <div class="flex justify-between text-[11px] font-semibold border-t border-dashed pt-0.5 mt-0.5"><span>Quedó</span><span>${money(quedo)}</span></div>
@@ -2841,6 +3090,33 @@ class App extends Templates {
                         <div>${formatPrice(extTotal)}</div>
                     </div>
                     <hr class="border-dashed border-t my-1" />
+                `;
+            }
+
+            // Grupo 3: pedidos de este turno cuyo abono se cobró en otra sucursal.
+            // Es informativo: NO entra a tu caja, por eso va aparte y no suma al total.
+            if (crossPayments.length > 0) {
+                const crossTotal = crossPayments.reduce((sum, o) => sum + parseFloat(o.payment_cross || 0), 0);
+
+                const crossRows = crossPayments.map(o => `
+                    <div class="flex items-center mt-2">
+                        <div class="font-bold text-gray-900 truncate flex-1">${o.folio || 'Folio #' + o.id}</div>
+                        <div class="text-right text-gray-900" style="width:72px">${formatPrice(o.payment_cross)}</div>
+                    </div>
+                    <div class="text-[10px] text-purple-400">${o.client_name || 'Sin cliente'}</div>
+                    <div class="text-[10px] text-purple-500"><i class="icon-shop"></i> Cobrado en: ${o.charged_subsidiary || 'Otra sucursal'}</div>
+                `).join('');
+
+                detailedSection += `
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-2">
+                        <div class="font-semibold text-purple-700"><i class="icon-bank"></i> COBRADO EN OTRA SUCURSAL</div>
+                        <div class="text-[10px] text-purple-400 mb-1">No entra a tu caja (informativo).</div>
+                        ${crossRows}
+                        <div class="flex justify-between items-center font-semibold border-t border-dashed border-purple-200 pt-1 mt-2">
+                            <div class="text-gray-900">Total en otra sucursal</div>
+                            <div class="text-gray-900">${formatPrice(crossTotal)}</div>
+                        </div>
+                    </div>
                 `;
             }
         }
@@ -3084,8 +3360,17 @@ class App extends Templates {
             return;
         }
 
+        // Reutiliza el CSS de Fontello ya cargado en la pagina (href absoluto) para que
+        // los iconos (icon-shop, icon-bank) se rendericen tambien en la ventana de impresion.
+        const fontelloHref = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+            .map(l => l.href)
+            .find(h => /fontello/i.test(h)) || '';
+
         const printWindow = window.open('', '', 'height=600,width=400');
         printWindow.document.write('<html><head><title>Cierre de Turno</title>');
+        if (fontelloHref) {
+            printWindow.document.write(`<link rel="stylesheet" href="${fontelloHref}">`);
+        }
         printWindow.document.write(`
             <style>
                 body { font-family: 'Courier New', monospace; padding: 10px; max-width: 320px; margin: 0 auto; }
@@ -3131,7 +3416,13 @@ class App extends Templates {
         printWindow.document.write('</body></html>');
         printWindow.document.close();
 
-        setTimeout(() => { printWindow.print(); }, 250);
+        // Espera a que cargue la fuente de iconos antes de imprimir; si no, fallback por tiempo.
+        const triggerPrint = () => printWindow.print();
+        if (printWindow.document.fonts && printWindow.document.fonts.ready) {
+            printWindow.document.fonts.ready.then(() => setTimeout(triggerPrint, 100));
+        } else {
+            setTimeout(triggerPrint, 400);
+        }
     }
 
 }

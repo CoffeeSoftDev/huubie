@@ -3159,24 +3159,36 @@ class Components extends Complements {
                     class: "relative"
                 });
 
+                const btnClass = opts.dark
+                    ? "icon-dot-3 text-gray-400 hover:text-blue-400"
+                    : "icon-dot-3 text-gray-600 hover:text-blue-600";
+
+                const menuBg = opts.dark
+                    ? "bg-[#1F2A37] text-gray-100 border border-[#374151]"
+                    : "bg-white text-gray-800 border border-gray-200";
+
+                const menuHover = opts.dark
+                    ? "hover:bg-[#374151]"
+                    : "hover:bg-gray-100";
+
                 const btn = $("<button>", {
-                    class: "icon-dot-3 text-gray-600 hover:text-blue-600",
+                    class: btnClass,
                     click: function (e) {
                         e.stopPropagation();
-                        $("ul.dropdown-menu").hide(); // cerrar todos los menús antes
+                        $("ul.cs-row-menu").hide(); // cerrar todos los menús antes
 
                         $(this).next("ul").toggle();
                     }
                 });
 
                 const menu = $("<ul>", {
-                    class: "dropdown-menu absolute top-full right-0 mt-2 w-44 z-10 bg-white border rounded-md shadow-md hidden"
+                    class: `cs-row-menu absolute top-full right-0 mt-2 w-44 z-10 rounded-lg py-1 overflow-hidden hidden ${menuBg}`
                 });
 
                 data.dropdown.forEach((item) =>
                     menu.append(`
-                    <li><a onclick="${item.onclick}"text-left class="block px-4 py-2 text-sm hover:bg-gray-100 text-gray-800">
-                    <i class="${item.icon} "></i> ${item.text}</a></li>`)
+                    <li><a onclick="${item.onclick}" class="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer ${menuHover}">
+                    <i class="${item.icon}"></i> ${item.text}</a></li>`)
                 );
 
 
@@ -3188,7 +3200,7 @@ class Components extends Complements {
 
                 // Cerrar todos los dropdowns al hacer clic fuera
                 $(document).on("click", () => {
-                    $("ul.dropdown-menu").hide();
+                    $("ul.cs-row-menu").hide();
                 });
             }
 

@@ -24,6 +24,9 @@ class Pedidos extends MPedidos{
             'clients'           => $this->getAllClients([$_SESSION['SUB']]),
             'status'            => $this->lsStatus(),
             'sucursales'        => $subsidiaries['data'],
+            // Sucursales de la empresa para el selector "Sucursal de cobro" (todos los roles,
+            // sin la restriccion admin de lsSubsidiaries que alimenta el filtro de navbar).
+            'sucursales_cobro'  => $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']]),
             'access'            => $_SESSION['ROLID'],
             'subsidiaries_name' => $_SESSION['SUBSIDIARIE_NAME'],
             'user_name'         => $_SESSION['USER'] ?? '',
@@ -128,14 +131,16 @@ class Pedidos extends MPedidos{
         // Validar variables de sesión con valores por defecto
         $rolId      = $_SESSION['ROLID'] ;
         $sessionSub = $_SESSION['SUB'];
-        
-        // Si es admin (rol 1), usar la sucursal del POST, sino usar la de sesión
-        if ($rolId == 1) {
-            // Validar que subsidiaries_id exista y no sea vacío
-            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $sessionSub;
-        } else {
-            $subsidiaries_id = $sessionSub;
-        }
+
+        // La lista es solo consulta: cualquier rol puede filtrar por el selector
+        // de navbar (incluye "0" = todas las sucursales). Si no llega un valor
+        // util (URLSearchParams envia null/undefined como texto), se usa la
+        // sucursal de sesion. Las operaciones (cobro, cierre) NO usan esto: siguen
+        // atadas a $_SESSION['SUB'].
+        $postSub = $_POST['subsidiaries_id'] ?? null;
+        $subsidiaries_id = ($postSub === null || $postSub === '' || $postSub === 'null' || $postSub === 'undefined')
+            ? $sessionSub
+            : $postSub;
       
         $currentSubForShift = ($subsidiaries_id && $subsidiaries_id != '0') ? $subsidiaries_id : $sessionSub;
         $currentShift = $this->getOpenShiftBySubsidiary([$currentSubForShift]);
@@ -534,13 +539,22 @@ class Pedidos extends MPedidos{
         // Agregar registro de pago. 
 
         if ($pay > 0) {
+
+            // Sucursal donde se cobra el pago (cobro cruzado): selector del modal
+            // para admin; si no llega (cajero), se usa la sucursal de su sesion.
+            $sucursalCobro = $_POST['payment_subsidiaries_id'] ?? null;
+            if (empty($sucursalCobro)) {
+                $sucursalCobro = $_SESSION['SUB'] ?? null;
+            }
+
             $values_pay = [
-                'pay'           => $pay,
-                'date_pay'      => date('Y-m-d H:i:s'),
-                'type'          => 2,
-                'method_pay_id' => $_POST['method_pay_id'],
-                'description'   => $_POST['description'],
-                'order_id'      => $id,
+                'pay'             => $pay,
+                'date_pay'        => date('Y-m-d H:i:s'),
+                'type'            => 2,
+                'method_pay_id'   => $_POST['method_pay_id'],
+                'description'     => $_POST['description'],
+                'order_id'        => $id,
+                'subsidiaries_id' => $sucursalCobro,
             ];
 
             $addPay = $this->addMethodPay($this->util->sql($values_pay));
@@ -666,6 +680,13 @@ class Pedidos extends MPedidos{
                 ];
             }
 
+            // Sucursal donde se cobro el pago. Si difiere de la del pedido es cobro cruzado.
+            $subName   = $key['subsidiary_name'] ?? '—';
+            $esCruzado = !empty($key['subsidiaries_id']) && $key['subsidiaries_id'] != $key['order_subsidiary_id'];
+            $subBadge  = $esCruzado
+                ? '<span class="px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 text-xs" title="Cobrado en sucursal distinta a la del pedido"><i class="icon-exchange"></i> ' . $subName . '</span>'
+                : '<span class="px-2 py-0.5 rounded bg-slate-700 text-gray-200 text-xs">' . $subName . '</span>';
+
             $__row[] = [
                 'id'            => $key['id'],
                 'Fecha de Pago' => [
@@ -678,9 +699,13 @@ class Pedidos extends MPedidos{
                     'html' => '$ ' . number_format($key['pay'], 2),
                 ],
 
+                'Sucursal' => [
+                    'html' => $subBadge,
+                ],
+
                 'Observación' =>  $key['description'],
 
-                
+
                 'a' => $a
             ];
         }
@@ -1779,13 +1804,27 @@ class Pedidos extends MPedidos{
             return $order;
         };
 
+        // El sufijo del folio identifica la sucursal de origen del pedido. En un cobro
+        // cruzado el pedido es de otra sucursal, asi que conserva su origen y no la del cierre.
+        $addFolioOrigin = function ($order) use ($subsidiary_id) {
+            $originSub = isset($order['origin_subsidiary_id']) && $order['origin_subsidiary_id'] !== null
+                ? $order['origin_subsidiary_id']
+                : $subsidiary_id;
+            $order['folio'] = formatSucursal($originSub, $order['id']);
+            return $order;
+        };
+
         $shiftOrders      = array_map($addFolio, $result['shift_orders']);
-        $externalPayments = array_map($addFolio, $result['external_payments']);
+        $externalPayments = array_map($addFolioOrigin, $result['external_payments']);
+        // Grupo 3: pedidos de este turno cobrados en otra sucursal. El pedido es de esta
+        // sucursal (su folio usa $subsidiary_id), lo que cambia es dónde se cobró.
+        $crossPayments    = array_map($addFolio, $result['cross_payments']);
 
         return [
             'status'            => 200,
             'orders'            => $shiftOrders,
-            'external_payments' => $externalPayments
+            'external_payments' => $externalPayments,
+            'cross_payments'    => $crossPayments
         ];
     }
 

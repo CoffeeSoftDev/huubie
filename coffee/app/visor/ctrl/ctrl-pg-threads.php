@@ -9,6 +9,7 @@
 //   save   -> inserta o actualiza un hilo (upsert por uid)
 //   list   -> lista los hilos (resumen, SIN messages/templates pesados)
 //   get    -> devuelve un hilo completo por uid
+//   rename -> cambia SOLO el titulo de un hilo por uid (no toca messages/templates)
 //   delete -> elimina un hilo por uid
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -155,6 +156,25 @@ try {
             $row['templates'] = json_decode($row['templates'], true) ?: [];
             $row['meta']      = json_decode($row['meta'], true)      ?: [];
             echo json_encode(['success' => true, 'thread' => $row], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        case 'rename': {
+            $uid   = trim($_POST['uid'] ?? '');
+            $title = trim($_POST['title'] ?? '');
+            if ($uid === '')   pgt_fail('Falta el uid');
+            if ($title === '') pgt_fail('El título no puede estar vacío');
+            $title = mb_substr($title, 0, 160);
+            $now   = date('Y-m-d H:i:s');
+            $st = $pdo->prepare('UPDATE threads SET title = ?, updated_at = ? WHERE uid = ?');
+            $st->execute([$title, $now, $uid]);
+            if ($st->rowCount() === 0) pgt_fail('Hilo no encontrado', 404);
+            echo json_encode([
+                'success'    => true,
+                'uid'        => $uid,
+                'title'      => $title,
+                'updated_at' => $now
+            ], JSON_UNESCAPED_UNICODE);
             break;
         }
 

@@ -961,7 +961,7 @@ if ($mode === 'drive') {
     }
     $payload = [
         'header' => [
-            'title'        => 'Visor de Agentes',
+            'title'        => 'CoffeeDocs',
             'subtitle'     => 'CoffeeSoft Library',
             'user'         => ['initials' => 'RV', 'name' => 'Rosy V.', 'role' => 'Guardiana'],
             'pathLabel'    => $pathLabel,
@@ -982,7 +982,7 @@ if ($mode === 'drive') {
     $documents = readDocumentsTree($rootDir, $relPrefix);
     $payload = [
         'header' => [
-            'title'        => 'Visor de Agentes',
+            'title'        => 'CoffeeDocs',
             'subtitle'     => 'CoffeeSoft Library',
             'user'         => ['initials' => 'RV', 'name' => 'Rosy V.', 'role' => 'Guardiana'],
             'pathLabel'    => $pathLabel,
@@ -1036,7 +1036,7 @@ if ($mode === 'drive') {
     }
     $payload = [
         'header' => [
-            'title'        => 'Visor de Agentes',
+            'title'        => 'CoffeeDocs',
             'subtitle'     => 'CoffeeSoft Library',
             'user'         => ['initials' => 'RV', 'name' => 'Rosy V.', 'role' => 'Guardiana'],
             'pathLabel'    => $pathLabel,

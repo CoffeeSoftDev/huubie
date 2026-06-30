@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS — Reportes y Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f1723; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .chart-bar { transition: height 0.5s ease; }
+    </style>
+</head>
+<body class="flex">
+
+    <!-- NAV -->
+    <div class="w-[56px] bg-[#111928] border-r border-gray-800 flex flex-col items-center py-3 gap-1 flex-shrink-0">
+        <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-[10px] mb-3">RK</div>
+        <button class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4"/></svg></button>
+        <button class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></button>
+        <button class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></button>
+        <!-- Reportes activo -->
+        <button class="w-10 h-10 rounded-lg flex flex-col items-center justify-center gap-0.5 text-purple-400 border border-purple-500/30">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <div class="w-1 h-1 rounded-full bg-purple-400"></div>
+        </button>
+        <button class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg></button>
+    </div>
+
+    <!-- CONTENIDO -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-y-auto scrollbar-thin">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+            <div>
+                <h1 class="text-lg font-bold">Reportes</h1>
+                <p class="text-[11px] text-gray-500">Dashboard de ventas y rendimiento</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <select class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300">
+                    <option>Todas las sucursales</option>
+                    <option>Reginas Kafeto</option>
+                </select>
+                <input type="date" value="2026-04-04" class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300">
+                <span class="text-gray-600">—</span>
+                <input type="date" value="2026-04-04" class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300">
+                <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-xs text-gray-400 hover:text-green-400">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Exportar
+                </button>
+            </div>
+        </div>
+
+        <!-- KPIs principales -->
+        <div class="grid grid-cols-5 gap-3 px-6 py-4 flex-shrink-0">
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-green-700/30">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Ventas Totales</p>
+                <p class="text-xl font-extrabold text-green-400 mt-1">$48,520</p>
+                <p class="text-[10px] text-green-500 mt-0.5">+8% vs ayer</p>
+            </div>
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Ordenes</p>
+                <p class="text-xl font-extrabold mt-1">67</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">Ticket promedio: $724</p>
+            </div>
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Pedidos Programados</p>
+                <p class="text-xl font-extrabold text-blue-400 mt-1">12</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">Para entrega futura</p>
+            </div>
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Descuentos</p>
+                <p class="text-xl font-extrabold text-orange-400 mt-1">$2,340</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">4.8% sobre venta</p>
+            </div>
+            <div class="bg-[#1a2332] rounded-xl p-3 border border-red-700/30">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Merma</p>
+                <p class="text-xl font-extrabold text-red-400 mt-1">$1,240</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">2.5% sobre venta</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 px-6 flex-shrink-0">
+
+            <!-- Ventas por metodo de pago -->
+            <div class="bg-[#1a2332] rounded-xl p-4 border border-gray-700/50">
+                <h3 class="text-xs font-bold mb-3">Ventas por Metodo de Pago</h3>
+                <div class="space-y-2.5">
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-1">
+                            <span class="text-gray-400">Efectivo</span>
+                            <span class="font-bold text-green-400">$28,200 (58%)</span>
+                        </div>
+                        <div class="w-full h-2 rounded-full bg-gray-700"><div class="h-2 rounded-full bg-green-500" style="width: 58%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-1">
+                            <span class="text-gray-400">Tarjeta</span>
+                            <span class="font-bold text-blue-400">$14,100 (29%)</span>
+                        </div>
+                        <div class="w-full h-2 rounded-full bg-gray-700"><div class="h-2 rounded-full bg-blue-500" style="width: 29%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-1">
+                            <span class="text-gray-400">Transferencia</span>
+                            <span class="font-bold text-purple-400">$6,220 (13%)</span>
+                        </div>
+                        <div class="w-full h-2 rounded-full bg-gray-700"><div class="h-2 rounded-full bg-purple-500" style="width: 13%"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ventas por hora (barras) -->
+            <div class="bg-[#1a2332] rounded-xl p-4 border border-gray-700/50">
+                <h3 class="text-xs font-bold mb-3">Ventas por Hora</h3>
+                <div class="flex items-end gap-1.5 h-28">
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600/60" style="height: 20%"></div>
+                        <span class="text-[8px] text-gray-500">8</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600/60" style="height: 35%"></div>
+                        <span class="text-[8px] text-gray-500">9</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600" style="height: 80%"></div>
+                        <span class="text-[8px] text-gray-500">10</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600" style="height: 95%"></div>
+                        <span class="text-[8px] text-gray-500">11</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600" style="height: 100%"></div>
+                        <span class="text-[8px] text-gray-500">12</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600" style="height: 70%"></div>
+                        <span class="text-[8px] text-gray-500">13</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600/60" style="height: 45%"></div>
+                        <span class="text-[8px] text-gray-500">14</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600/60" style="height: 55%"></div>
+                        <span class="text-[8px] text-gray-500">15</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600" style="height: 75%"></div>
+                        <span class="text-[8px] text-gray-500">16</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="chart-bar w-full rounded-t bg-purple-600/60" style="height: 40%"></div>
+                        <span class="text-[8px] text-gray-500">17</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top productos -->
+            <div class="bg-[#1a2332] rounded-xl p-4 border border-gray-700/50">
+                <h3 class="text-xs font-bold mb-3">Top Productos</h3>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded bg-yellow-600/30 flex items-center justify-center text-[9px] font-bold text-yellow-400">1</span>
+                        <p class="text-[11px] flex-1 truncate">Pastel 3 Leches</p>
+                        <span class="text-[10px] font-bold">18 uds</span>
+                        <span class="text-[10px] text-green-400 font-bold">$12,600</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded bg-gray-600/30 flex items-center justify-center text-[9px] font-bold text-gray-300">2</span>
+                        <p class="text-[11px] flex-1 truncate">Pay de Fresas</p>
+                        <span class="text-[10px] font-bold">14 uds</span>
+                        <span class="text-[10px] text-green-400 font-bold">$4,900</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded bg-amber-800/30 flex items-center justify-center text-[9px] font-bold text-amber-400">3</span>
+                        <p class="text-[11px] flex-1 truncate">Choco Aleman</p>
+                        <span class="text-[10px] font-bold">11 uds</span>
+                        <span class="text-[10px] text-green-400 font-bold">$6,600</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded bg-gray-700/30 flex items-center justify-center text-[9px] font-bold text-gray-500">4</span>
+                        <p class="text-[11px] flex-1 truncate">Cupcake Decorado</p>
+                        <span class="text-[10px] font-bold">32 uds</span>
+                        <span class="text-[10px] text-green-400 font-bold">$1,760</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded bg-gray-700/30 flex items-center justify-center text-[9px] font-bold text-gray-500">5</span>
+                        <p class="text-[11px] flex-1 truncate">Tres Leches Fresa</p>
+                        <span class="text-[10px] font-bold">9 uds</span>
+                        <span class="text-[10px] text-green-400 font-bold">$5,850</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de ventas/pedidos detalle -->
+        <div class="px-6 py-4 flex-shrink-0">
+            <div class="bg-[#1a2332] rounded-xl border border-gray-700/50 overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
+                    <h3 class="text-xs font-bold">Detalle de Ventas y Pedidos</h3>
+                    <div class="flex gap-1.5">
+                        <button class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-purple-600 text-white">Todas</button>
+                        <button class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[#111928] text-gray-400 border border-gray-700">Ventas POS</button>
+                        <button class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[#111928] text-gray-400 border border-gray-700">Pedidos</button>
+                        <button class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[#111928] text-gray-400 border border-gray-700">Cotizaciones</button>
+                    </div>
+                </div>
+                <table class="w-full">
+                    <thead class="bg-[#111928]">
+                        <tr class="text-[10px] text-gray-500 uppercase tracking-wider">
+                            <th class="text-left py-2 px-4 font-medium">Folio</th>
+                            <th class="text-left py-2 px-3 font-medium">Tipo</th>
+                            <th class="text-left py-2 px-3 font-medium">Cliente</th>
+                            <th class="text-center py-2 px-3 font-medium">Items</th>
+                            <th class="text-right py-2 px-3 font-medium">Total</th>
+                            <th class="text-right py-2 px-3 font-medium">Pagado</th>
+                            <th class="text-left py-2 px-3 font-medium">Metodo</th>
+                            <th class="text-left py-2 px-3 font-medium">Status</th>
+                            <th class="text-left py-2 px-3 font-medium">Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800/50">
+                        <tr class="hover:bg-[#111928]/50">
+                            <td class="py-2 px-4 text-xs font-medium">#1043</td>
+                            <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-900/30 text-green-400">POS</span></td>
+                            <td class="py-2 px-3 text-xs text-gray-300">Maria Lopez</td>
+                            <td class="py-2 px-3 text-center text-xs">4</td>
+                            <td class="py-2 px-3 text-right text-xs font-bold">$2,626</td>
+                            <td class="py-2 px-3 text-right text-xs text-green-400">$2,626</td>
+                            <td class="py-2 px-3 text-[10px] text-gray-400">Efectivo</td>
+                            <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-green-900/30 text-green-400">Pagado</span></td>
+                            <td class="py-2 px-3 text-[10px] text-gray-500">10:45</td>
+                        </tr>
+                        <tr class="hover:bg-[#111928]/50">
+                            <td class="py-2 px-4 text-xs font-medium">#1042</td>
+                            <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-900/30 text-blue-400">PEDIDO</span></td>
+                            <td class="py-2 px-3 text-xs text-gray-300">Juan Perez</td>
+                            <td class="py-2 px-3 text-center text-xs">2</td>
+                            <td class="py-2 px-3 text-right text-xs font-bold">$1,400</td>
+                            <td class="py-2 px-3 text-right text-xs text-orange-400">$700</td>
+                            <td class="py-2 px-3 text-[10px] text-gray-400">Tarjeta</td>
+                            <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-orange-900/30 text-orange-400">Pendiente</span></td>
+                            <td class="py-2 px-3 text-[10px] text-gray-500">10:20</td>
+                        </tr>
+                        <tr class="hover:bg-[#111928]/50">
+                            <td class="py-2 px-4 text-xs font-medium">#1041</td>
+                            <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-900/30 text-green-400">POS</span></td>
+                            <td class="py-2 px-3 text-xs text-gray-500">Sin cliente</td>
+                            <td class="py-2 px-3 text-center text-xs">1</td>
+                            <td class="py-2 px-3 text-right text-xs font-bold">$55</td>
+                            <td class="py-2 px-3 text-right text-xs text-green-400">$55</td>
+                            <td class="py-2 px-3 text-[10px] text-gray-400">Efectivo</td>
+                            <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-green-900/30 text-green-400">Pagado</span></td>
+                            <td class="py-2 px-3 text-[10px] text-gray-500">09:50</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

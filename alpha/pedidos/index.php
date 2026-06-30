@@ -80,7 +80,7 @@
     <script src="<?=PATH_BASE?>src/plugins/select2/bootstrap/select2.min.js"></script>
     <!-- PRINCIPAL -->
     <script src="<?=PATH_BASE?>access/src/js/session.js"></script>
-    <script src="<?=PATH_MENU?>src/js/navbar.js"></script>
+    <script src="<?=PATH_PEDIDOS?>src/js/navbar.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
 
     <!-- Estilos para impresión -->

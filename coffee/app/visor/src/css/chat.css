@@ -872,9 +872,90 @@
 }
 
 /* Tarjeta de usuario más compacta en pantallas chicas */
-@media (max-width: 720px) {
-    .chat-sidebar { display: none; }
-    .chat-body-inner { padding: 0 16px; }
+/* ════════════════════════════════════════════════════════════════
+   Responsive — mismo patrón que el Lab: rail abajo, paneles apilados
+   con conmutador (Conversaciones/Chat) y controles del header en ⚙️.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Piezas solo-móvil: ocultas en escritorio. */
+.chat-mobile-switch { display: none; }
+.chat-header-toggle {
+    display: none;
+    width: 34px; height: 34px; border-radius: 8px;
+    place-items: center;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border);
+    color: var(--vsr-text-muted); cursor: pointer; transition: all .15s;
+    flex-shrink: 0;
+}
+.chat-header-toggle.is-active { color: #fff; background: var(--vsr-accent); border-color: var(--vsr-accent); }
+
+@media (max-width: 900px) {
+    /* Header compacto; los controles bajan a un panel desplegable (⚙️). */
+    .chat-header { gap: 10px; padding: 9px 12px; position: relative; }
+    .chat-header-left { flex: 1 1 auto; min-width: 0; }
+    .chat-logo { display: none; }
+    .chat-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-subtitle { display: none; }
+    .chat-header-toggle { display: grid; }
+
+    .chat-header-right {
+        display: none;
+        position: absolute; top: calc(100% + 1px); right: 8px; left: 8px; z-index: 60;
+        flex-direction: column; align-items: stretch; gap: 10px;
+        padding: 12px; width: auto;
+        background: var(--vsr-bg-chrome);
+        border: 1px solid var(--vsr-border);
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, .4);
+    }
+    .chat-header-right.is-open { display: flex; }
+    .chat-header-right .chat-select-wrap,
+    .chat-header-right .ia-model-pill,
+    .chat-header-right #chatNewBtn { width: 100%; }
+    .chat-header-right .ia-model-pill { max-width: 100%; justify-content: flex-start; }
+    .chat-header-right #chatNewBtn { justify-content: center; }
+
+    /* Conmutador Conversaciones/Chat visible. */
+    .chat-mobile-switch {
+        display: flex; gap: 6px; flex-shrink: 0;
+        padding: 8px 12px;
+        background: var(--vsr-bg-chrome);
+        border-bottom: 1px solid var(--vsr-border);
+    }
+    .chat-mswitch {
+        flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 9px 10px; border-radius: 9px;
+        font-size: 13px; font-weight: 600;
+        color: var(--vsr-text-mute2);
+        background: var(--vsr-bg-input);
+        border: 1px solid var(--vsr-border);
+        cursor: pointer; transition: all .15s;
+    }
+    .chat-mswitch.active { color: #fff; background: var(--vsr-accent); border-color: var(--vsr-accent); }
+
+    /* Workspace apilado; solo se ve el panel del data-mview activo. */
+    .chat-workspace { flex-direction: column; position: relative; }
+    .chat-workspace[data-mview="chat"] .chat-sidebar { display: none; }
+    .chat-workspace[data-mview="list"] .chat-main    { display: none; }
+    .chat-sidebar {
+        flex: 1 1 auto; width: 100%;
+        border-right: none; border-bottom: 1px solid var(--vsr-border);
+    }
+    .chat-main { flex: 1 1 auto; width: 100%; }
+    .chat-body-inner { padding: 0 14px; }
+
+    /* Rail → barra horizontal al fondo (idéntico al Lab). */
+    .app-rail {
+        order: 99;
+        width: 100%; flex-direction: row;
+        border-right: none; border-top: 1px solid var(--vsr-border);
+        padding: 6px 8px; gap: 4px;
+    }
+    .app-rail-nav { flex-direction: row; justify-content: space-around; width: 100%; }
+    .app-rail-item { flex: 1 1 0; min-height: 44px; padding: 6px 2px; }
+    .app-rail-item .app-rail-label { font-size: 8.5px; }
+    .app-rail-item.active::before { display: none; }
 }
 
 /* Tema light overrides */

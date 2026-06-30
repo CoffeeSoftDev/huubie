@@ -713,7 +713,7 @@ class SalidasView extends Templates {
             motivoPalettes: {
                 'Merma':                  { bg: '#FEE2E2', fg: '#DC2626', icon: 'trending-down'  },
                 'Caducidad':              { bg: 'rgba(190,113,25,0.18)', fg: '#BE7119', icon: 'calendar-x'     },
-                'Consumo interno':        { bg: '#DBEAFE', fg: '#2563EB', icon: 'coffee'         },
+                'Consumo interno':        { bg: '#F7E3DC', fg: '#C05A40', icon: 'coffee'         },
                 'Robo / Faltante':        { bg: '#F3E8FF', fg: '#9333EA', icon: 'shield-alert'   },
                 'Producto dañado':        { bg: 'rgba(251,140,0,0.18)',  fg: '#FB8C00', icon: 'alert-triangle' },
                 'Devolución a proveedor': { bg: 'rgba(63,193,137,0.18)', fg: '#3FC189', icon: 'rotate-ccw'     },

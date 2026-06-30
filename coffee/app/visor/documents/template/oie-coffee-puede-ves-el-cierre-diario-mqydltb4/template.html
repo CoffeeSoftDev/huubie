@@ -1,0 +1,216 @@
+<!-- @file: src/js/components/daily-close-ticket.html -->
+<div id="ticketContainer">
+
+    <!-- ===== HEADER CON ESTADO GLOBAL ===== -->
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h2 class="text-base font-bold text-white mb-0.5">Cierre del Día</h2>
+            <p class="text-xs text-gray-500">Reginas kafeto — 28/06/2026</p>
+        </div>
+        <div id="closeStatusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-600/15 border border-green-600/40">
+            <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span class="text-xs font-bold text-green-400">Listo para cerrar</span>
+        </div>
+    </div>
+
+    <!-- ===== TURNO ACTIVO ===== -->
+    <div class="flex items-center gap-3 bg-[#1a2332] rounded-lg p-3 mb-4 border border-purple-500/30">
+        <div class="w-9 h-9 rounded-lg bg-purple-600/20 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2"></path>
+            </svg>
+        </div>
+        <div class="flex-1">
+            <p class="text-sm font-semibold text-white">Turno #276</p>
+            <p class="text-[11px] text-gray-500">Abierto: 27/06/2026 12:36 AM — <span class="text-amber-400/80">CERRADO</span></p>
+        </div>
+    </div>
+
+    <!-- ===== RESUMEN FINANCIERO ===== -->
+    <div class="bg-[#1a2332] rounded-lg border border-gray-700/50 mb-4 overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-gray-700/50 flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+            </svg>
+            <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Resumen Financiero</h3>
+        </div>
+        <div class="grid grid-cols-3 divide-x divide-gray-700/50">
+            <!-- Ingresos -->
+            <div class="p-3 text-center">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Ingresos</p>
+                <p class="text-lg font-bold text-green-400">$12,450.00</p>
+            </div>
+            <!-- Egresos -->
+            <div class="p-3 text-center">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Egresos</p>
+                <p class="text-lg font-bold text-red-400">$3,280.00</p>
+            </div>
+            <!-- Neto -->
+            <div class="p-3 text-center bg-green-600/5">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Neto del Día</p>
+                <p class="text-lg font-bold text-green-400">$9,170.00</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TABLA DE FORMAS DE PAGO ===== -->
+    <div class="bg-[#1a2332] rounded-lg border border-gray-700/50 mb-4 overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-gray-700/50 flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+            </svg>
+            <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Formas de Pago</h3>
+        </div>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-[10px] text-gray-500 uppercase tracking-wide border-b border-gray-700/50">
+                    <th class="text-left py-2 px-4 font-medium">Tipo</th>
+                    <th class="text-right py-2 px-4 font-medium">Ingreso</th>
+                    <th class="text-right py-2 px-4 font-medium">Egreso</th>
+                    <th class="text-right py-2 px-4 font-medium">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="border-b border-gray-700/30 hover:bg-[#243044] transition">
+                    <td class="py-2 px-4 text-gray-300">
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-green-500"></span> Efectivo
+                        </span>
+                    </td>
+                    <td class="py-2 px-4 text-right text-green-400 font-medium">$8,200.00</td>
+                    <td class="py-2 px-4 text-right text-red-400 font-medium">$2,100.00</td>
+                    <td class="py-2 px-4 text-right text-white font-bold">$6,100.00</td>
+                </tr>
+                <tr class="border-b border-gray-700/30 hover:bg-[#243044] transition">
+                    <td class="py-2 px-4 text-gray-300">
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span> Tarjeta
+                        </span>
+                    </td>
+                    <td class="py-2 px-4 text-right text-green-400 font-medium">$3,500.00</td>
+                    <td class="py-2 px-4 text-right text-red-400 font-medium">$680.00</td>
+                    <td class="py-2 px-4 text-right text-white font-bold">$2,820.00</td>
+                </tr>
+                <tr class="hover:bg-[#243044] transition">
+                    <td class="py-2 px-4 text-gray-300">
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span> Transferencia
+                        </span>
+                    </td>
+                    <td class="py-2 px-4 text-right text-green-400 font-medium">$750.00</td>
+                    <td class="py-2 px-4 text-right text-red-400 font-medium">$500.00</td>
+                    <td class="py-2 px-4 text-right text-white font-bold">$250.00</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr class="border-t-2 border-gray-700/50 bg-[#151d2a]">
+                    <td class="py-2.5 px-4 text-xs font-bold text-gray-400 uppercase">Total</td>
+                    <td class="py-2.5 px-4 text-right text-sm font-bold text-green-400">$12,450.00</td>
+                    <td class="py-2.5 px-4 text-right text-sm font-bold text-red-400">$3,280.00</td>
+                    <td class="py-2.5 px-4 text-right text-sm font-bold text-green-400">$9,170.00</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- ===== PROGRESS BAR ===== -->
+    <div class="mb-4">
+        <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-bold text-gray-300 uppercase tracking-wider">Checklist de Cierre</span>
+            <span class="text-xs font-medium text-gray-400">
+                <span class="text-green-400 font-bold">4</span> de <span class="font-bold">4</span> completados
+            </span>
+        </div>
+        <div class="h-2 rounded-full bg-[#1a2332] overflow-hidden border border-gray-700/50">
+            <div class="h-full bg-gradient-to-r from-green-600 to-green-400 rounded-full transition-all duration-500" style="width: 100%"></div>
+        </div>
+    </div>
+
+    <!-- ===== CHECKLIST ITEMS ===== -->
+    <div class="space-y-2.5 mb-6">
+        <!-- Item OK -->
+        <div class="flex items-center gap-3 bg-[#1a2332] rounded-lg p-3 border border-green-600/30">
+            <div class="w-7 h-7 rounded-full bg-green-600/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-white">Todos los turnos cerrados</p>
+                <p class="text-[11px] text-gray-500">1 turno(s) cerrado(s) correctamente</p>
+            </div>
+            <span class="cs-badge cs-badge-success">OK</span>
+        </div>
+
+        <!-- Item OK -->
+        <div class="flex items-center gap-3 bg-[#1a2332] rounded-lg p-3 border border-green-600/30">
+            <div class="w-7 h-7 rounded-full bg-green-600/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-white">Todos los movimientos tienen tipo de pago</p>
+                <p class="text-[11px] text-gray-500">24 movimiento(s) verificados</p>
+            </div>
+            <span class="cs-badge cs-badge-success">OK</span>
+        </div>
+
+        <!-- Item OK -->
+        <div class="flex items-center gap-3 bg-[#1a2332] rounded-lg p-3 border border-green-600/30">
+            <div class="w-7 h-7 rounded-full bg-green-600/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-white">Todos los movimientos tienen cuenta asignada</p>
+                <p class="text-[11px] text-gray-500">24 movimiento(s) con cuenta válida</p>
+            </div>
+            <span class="cs-badge cs-badge-success">OK</span>
+        </div>
+
+        <!-- Item FAIL (ejemplo de estado bloqueado) -->
+        <div class="flex items-center gap-3 bg-[#1a2332] rounded-lg p-3 border border-red-500/40">
+            <div class="w-7 h-7 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-white">Sin saldos pendientes</p>
+                <p class="text-[11px] text-red-400/80">2 movimiento(s) sin conciliar</p>
+            </div>
+            <span class="cs-badge cs-badge-danger">BLOQUEA</span>
+        </div>
+    </div>
+
+    <!-- ===== ESTADO DE BLOQUEO (solo si hay checks fallidos) ===== -->
+    <div id="blockWarning" class="cs-callout cs-callout-warning mb-4 hidden">
+        <div class="flex items-start gap-2">
+            <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div>
+                <strong class="block text-sm mb-0.5 text-amber-300">No puedes cerrar el día aún</strong>
+                <p class="text-sm text-gray-400">Resuelve los items marcados como <span class="cs-badge cs-badge-danger">BLOQUEA</span> para continuar. El botón "Confirmar Cierre" se habilitará automáticamente.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== BOTONES DE ACCIÓN ===== -->
+    <div class="flex gap-3">
+        <button class="cs-btn cs-btn-outline flex-1 py-2.5 text-sm" onclick="cierre.cancelChecklist()">
+            Cancelar
+        </button>
+        <button id="btnConfirmClose" class="cs-btn cs-btn-danger flex-1 py-2.5 text-sm" onclick="cierre.confirmClose('2026-06-28', '25')">
+            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Confirmar Cierre
+        </button>
+    </div>
+</div>

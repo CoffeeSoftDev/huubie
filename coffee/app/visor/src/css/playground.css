@@ -864,11 +864,19 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 }
 .pg-thread-meta i { display: inline-block; vertical-align: middle; }
 
+.pg-thread-edit,
 .pg-thread-del {
     flex-shrink: 0; display: grid; place-items: center;
     width: 28px; height: 28px; border-radius: 7px;
     background: transparent; border: 1px solid transparent;
     color: var(--vsr-text-muted); cursor: pointer; transition: all .15s;
 }
+.pg-thread-edit:hover { background: var(--vsr-bg-hover); color: var(--vsr-accent); }
 .pg-thread-del:hover { background: var(--vsr-bg-hover); color: #ef4444; }
-.pg-thread-del.is-armed { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+.pg-thread-rename-input {
+    width: 100%; box-sizing: border-box;
+    font-size: 13px; font-weight: 600; color: var(--vsr-text);
+    background: var(--vsr-bg-input); border: 1px solid var(--vsr-accent);
+    border-radius: 6px; padding: 2px 7px; outline: none;
+}

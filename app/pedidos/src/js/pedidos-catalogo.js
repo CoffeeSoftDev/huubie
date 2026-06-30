@@ -1777,9 +1777,15 @@ class CatalogProduct extends Pos {
             }
         });
 
+        const initial = (data.company || data.subsidiarie_name || 'H').charAt(0).toUpperCase();
+        const logoPlaceholder = `<div style="width:96px;height:96px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;" class="mb-1"><span style="color:white;font-size:36px;font-weight:bold;">${initial}</span></div>`;
+        const logoHtml = data.logo
+            ? `<div style="width:96px;height:96px;border-radius:50%;overflow:hidden;" class="mb-1"><img src="https://huubie.com.mx/alpha${data.logo}" alt="Logo" onerror="this.parentElement.outerHTML='<div style=\\'width:96px;height:96px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;\\'><span style=\\'color:white;font-size:36px;font-weight:bold;\\'>${initial}</span></div>'" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
+            : logoPlaceholder;
+
         const header = `
             <div class="flex flex-col items-center mb-4 mt-3">
-                ${data.logo ? `<img src="https://huubie.com.mx/alpha${data.logo}" alt="Logo" class="w-24 h-24 mb-1  " />` : ""}
+                ${logoHtml}
                 ${data.company ? `<div class="text-xs font-semibold uppercase mb-1">${data.company}</div>` : ""}
                 ${data.subsidiarie_name ? `<div class="text-xs uppercase">${data.subsidiarie_name}</div>` : ""}
                 <h1 class="text-lg font-bold">PEDIDOS DE PASTELERÍA</h1>
@@ -1790,7 +1796,7 @@ class CatalogProduct extends Pos {
                 <div class="flex justify-between">
                     <div>
                         <div class="font-semibold">FOLIO:</div>
-                        <div class="uppercase">P-00${data.folio}</div>
+                        <div class="uppercase">${data.folio}</div>
                     </div>
                     <div>
                         <div class="font-semibold">FECHA Y HORA DE ENTREGA:</div>
@@ -2024,6 +2030,7 @@ class CatalogProduct extends Pos {
                         <input type="hidden" id="hdn_saldo" name="saldo" value="${saldo_restante}">
                         <input type="hidden" id="hdn_discount" name="discount" value="${discount}">
                         <input type="hidden" id="hdn_total_paid" name="total_paid" value="${total_paid}">
+                        <input type="hidden" id="hdn_target_status" name="target_status" value="">
 
                         ${this.cardPay(total, total_paid, discount)}
 
@@ -2178,14 +2185,32 @@ class CatalogProduct extends Pos {
                 alert({
                     icon: "question",
                     title: "Sin abono",
-                    text: "No se registró ningún abono. El pedido se guardará como cotización. ¿Deseas continuar?",
-                    btn1Text: "Sí, continuar",
+                    text: "No se registró ningún abono. ¿Cómo deseas guardar el pedido?",
+                    btn1Text: "Cotización",
+                    btn3: true,
+                    btn3Text: "Pendiente",
                     btn2Text: "Cancelar",
                 }).then((result) => {
                     if (result.isConfirmed) {
+                        $("#hdn_target_status").val(1);
+                        originalHandlers.forEach(fn => fn());
+                    } else if (result.isDenied) {
+                        $("#hdn_target_status").val(2);
                         originalHandlers.forEach(fn => fn());
                     }
                 });
+
+                const btnCotizacion = Swal.getConfirmButton();
+                const btnPendiente  = Swal.getDenyButton();
+
+                if (btnCotizacion) {
+                    btnCotizacion.style.backgroundColor = "#9EBBDB";
+                    btnCotizacion.style.color           = "#2A55A3";
+                }
+                if (btnPendiente) {
+                    btnPendiente.style.backgroundColor = "#633112";
+                    btnPendiente.style.color           = "#F2C215";
+                }
             } else {
                 originalHandlers.forEach(fn => fn());
             }

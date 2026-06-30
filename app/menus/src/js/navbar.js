@@ -57,8 +57,12 @@ class Navbar {
                     </li>
 
                 </ul>
-                <button id="btnUserMenu" class="ml-2 flex items-center justify-center border-l border-gray-500 pl-2">
+                <button id="btnUserMenu" class="ml-2 flex items-center gap-2 border-l border-gray-500 pl-2">
                     ${navbarAvatar}
+                    <div class="hidden md:flex flex-col items-start leading-tight text-left">
+                        <span class="text-xs font-semibold text-white">${this.settings.username}</span>
+                        <span class="text-[10px] text-gray-400">${this.settings.role || 'Sin rol'}</span>
+                    </div>
                 </button>
             </nav>
             <div class="relative mt-16 z-50">

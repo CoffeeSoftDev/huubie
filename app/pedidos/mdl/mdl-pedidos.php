@@ -348,11 +348,18 @@ class MPedidos extends CRUD {
         method_pay.method_pay,
         order_payments.method_pay_id,
         order_payments.type,
-        order_payments.description
+        order_payments.description,
+        order_payments.subsidiaries_id,
+        sub.name AS subsidiary_name,
+        po.subsidiaries_id AS order_subsidiary_id
         FROM
             {$this->bd}order_payments
         INNER JOIN
             {$this->bd}method_pay ON order_payments.method_pay_id = method_pay.id
+        LEFT JOIN
+            {$this->bd}`order` po ON po.id = order_payments.order_id
+        LEFT JOIN
+            fayxzvov_alpha.subsidiaries sub ON sub.id = order_payments.subsidiaries_id
         WHERE
             order_id = ?
         ORDER BY
@@ -1186,17 +1193,18 @@ class MPedidos extends CRUD {
                 SUM(pp.pay) as total_paid
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
-            WHERE DATE_FORMAT(date_creation, '%Y-%m-%d') = ?
+            WHERE DATE(pp.date_pay) = ?
         ";
-        
+
         $paramsPayments = [$date];
         
         
         if ($subsidiaries_id != 0 || $subsidiaries_id != "0" ) {
-            $queryPayments .= " AND po.subsidiaries_id = ?";
+            // Cobranza: cuenta donde ENTRO el dinero (sucursal del pago), no la del pedido.
+            $queryPayments .= " AND COALESCE(pp.subsidiaries_id, po.subsidiaries_id) = ?";
             $paramsPayments[] = $subsidiaries_id;
         }
-        
+
         $queryPayments .= " AND po.status != 4 GROUP BY pp.method_pay_id";
         $payments       = $this->_Read($queryPayments, $paramsPayments);
       
@@ -1477,7 +1485,7 @@ class MPedidos extends CRUD {
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
             WHERE pp.date_pay >= ? AND pp.date_pay <= ?
-            AND po.subsidiaries_id = ?
+            AND COALESCE(pp.subsidiaries_id, po.subsidiaries_id) = ?
             AND po.status != 4
             GROUP BY pp.method_pay_id
         ";
@@ -1532,13 +1540,17 @@ class MPedidos extends CRUD {
         $endDate       = $array[2];
         $subsidiary_id = $array[3];
 
-        // Grupo 1: pedidos creados en este turno + lo que se cobró durante el turno
+        // Grupo 1: pedidos creados en este turno + lo que se cobró durante el turno.
+        // payment_real solo cuenta los abonos cobrados EN esta sucursal (donde entró el
+        // dinero a tu caja). Lo cobrado en otra sucursal se reporta aparte (Grupo 3).
         $query1 = "
             SELECT
                 o.id,
                 o.total_pay,
                 COALESCE(
-                    SUM(CASE WHEN op.date_pay >= ? AND op.date_pay <= ? THEN op.pay ELSE 0 END),
+                    SUM(CASE WHEN op.date_pay >= ? AND op.date_pay <= ?
+                             AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) = ?
+                        THEN op.pay ELSE 0 END),
                     0
                 ) AS payment_real,
                 o.status,
@@ -1559,7 +1571,7 @@ class MPedidos extends CRUD {
             ORDER BY o.date_creation ASC
         ";
         $shiftOrders = $this->_Read($query1, [
-            $startDate, $endDate,
+            $startDate, $endDate, $subsidiary_id,
             $shift_id,
             $startDate, $endDate, $subsidiary_id
         ]);
@@ -1569,31 +1581,120 @@ class MPedidos extends CRUD {
             SELECT
                 o.id,
                 o.total_pay,
+                o.discount,
                 SUM(op.pay) AS payment_real,
+                (SELECT COALESCE(SUM(op2.pay), 0)
+                   FROM {$this->bd}order_payments op2
+                  WHERE op2.order_id = o.id
+                    AND op2.date_pay <= ?) AS total_paid_upto,
                 o.status,
                 o.date_creation,
+                o.subsidiaries_id AS origin_subsidiary_id,
+                os.name AS origin_subsidiary,
                 c.name AS client_name
             FROM {$this->bd}order_payments op
             JOIN {$this->bd}`order` o ON o.id = op.order_id
             LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries os ON os.id = o.subsidiaries_id
             WHERE op.date_pay >= ? AND op.date_pay <= ?
             AND o.cash_shift_id IS NOT NULL
             AND o.cash_shift_id != ?
-            AND o.subsidiaries_id = ?
+            AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) = ?
             AND o.status != 4
-            GROUP BY o.id, o.total_pay, o.status, o.date_creation, c.name
+            GROUP BY o.id, o.total_pay, o.discount, o.status, o.date_creation, o.subsidiaries_id, os.name, c.name
             ORDER BY o.date_creation ASC
         ";
         $externalPayments = $this->_Read($query2, [
+            $endDate,
             $startDate, $endDate,
             $shift_id,
             $subsidiary_id
         ]);
 
+        // Grupo 3: abonos de pedidos de ESTE turno que se cobraron en OTRA sucursal.
+        // Son cobros cruzados que NO entran a tu caja; se listan informativos y no suman
+        // al total. La sucursal que cobró se identifica con COALESCE(op.subsidiaries_id...).
+        $query3 = "
+            SELECT
+                o.id,
+                o.total_pay,
+                cs.name AS charged_subsidiary,
+                SUM(op.pay) AS payment_cross,
+                o.date_creation,
+                c.name AS client_name
+            FROM {$this->bd}order_payments op
+            JOIN {$this->bd}`order` o ON o.id = op.order_id
+            LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries cs ON cs.id = COALESCE(op.subsidiaries_id, o.subsidiaries_id)
+            WHERE op.date_pay >= ? AND op.date_pay <= ?
+            AND (o.cash_shift_id = ?
+                OR (o.cash_shift_id IS NULL
+                        AND o.date_creation >= ?
+                        AND o.date_creation < ?
+                        AND o.subsidiaries_id = ?
+                ))
+            AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) != ?
+            AND o.status != 4
+            GROUP BY o.id, o.total_pay, cs.name, COALESCE(op.subsidiaries_id, o.subsidiaries_id), o.date_creation, c.name
+            ORDER BY o.date_creation ASC
+        ";
+        $crossPayments = $this->_Read($query3, [
+            $startDate, $endDate,
+            $shift_id,
+            $startDate, $endDate, $subsidiary_id,
+            $subsidiary_id
+        ]);
+
         return [
             'shift_orders'      => is_array($shiftOrders) ? $shiftOrders : [],
-            'external_payments' => is_array($externalPayments) ? $externalPayments : []
+            'external_payments' => is_array($externalPayments) ? $externalPayments : [],
+            'cross_payments'    => is_array($crossPayments) ? $crossPayments : []
         ];
+    }
+
+    // Conteo de pedidos de turnos anteriores cobrados en este turno,
+    // clasificados por su estado de liquidacion al momento del cierre.
+    function getShiftPrevPaymentsSummary($array) {
+        $balanceDate   = $array[0]; // saldo calculado hasta esta fecha (cierre o ahora)
+        $startDate     = $array[1];
+        $endDate       = $array[2];
+        $shift_id      = $array[3];
+        $subsidiary_id = $array[4];
+
+        $query = "
+            SELECT
+                COUNT(*) AS prev_count,
+                SUM(CASE WHEN saldo <= 0.005 THEN 1 ELSE 0 END) AS prev_paid,
+                SUM(CASE WHEN saldo  > 0.005 THEN 1 ELSE 0 END) AS prev_pending
+            FROM (
+                SELECT
+                    o.id,
+                    (o.total_pay - COALESCE(o.discount, 0) -
+                        (SELECT COALESCE(SUM(op2.pay), 0)
+                           FROM {$this->bd}order_payments op2
+                          WHERE op2.order_id = o.id
+                            AND op2.date_pay <= ?)
+                    ) AS saldo
+                FROM {$this->bd}order_payments op
+                JOIN {$this->bd}`order` o ON o.id = op.order_id
+                WHERE op.date_pay >= ? AND op.date_pay <= ?
+                  AND o.cash_shift_id IS NOT NULL
+                  AND o.cash_shift_id != ?
+                  AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) = ?
+                  AND o.status != 4
+                GROUP BY o.id, o.total_pay, o.discount
+            ) AS sub
+        ";
+        $res = $this->_Read($query, [
+            $balanceDate,
+            $startDate, $endDate,
+            $shift_id,
+            $subsidiary_id
+        ]);
+
+        return is_array($res) && !empty($res)
+            ? $res[0]
+            : ['prev_count' => 0, 'prev_paid' => 0, 'prev_pending' => 0];
     }
 
     function createShiftPayment($array) {

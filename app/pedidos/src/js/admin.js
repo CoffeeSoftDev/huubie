@@ -1,4 +1,4 @@
-let app, category, client, mod, product, payment;
+let app, category, client, mod, product;
 
 let cat, modifier;
 const api = "../pedidos/ctrl/ctrl-admin.php";
@@ -14,7 +14,6 @@ $(async () => {
     client   = new Client(api, "root");
     mod      = new Modifier(api, "root");
     product  = new ProductModifier(api, "root");
-    payment  = new PaymentType(api, "root");
 
     app.render();
 
@@ -30,113 +29,87 @@ class App extends Templates {
 
     render() {
         this.layout();
-        this.renderTabs();
-        this.renderActiveTab();
+        this.filterBarProductos();
+        this.lsProductos();
+        category.lsCategory();
+        client.lsClient();
     }
 
     layout() {
-        this.createLayout({
-            parent: 'root',
-            design: false,
-            data: {
-                id: this.PROJECT_NAME,
-                class: 'w-full p-3',
-                container: [
-                    {
-                        type: 'div',
-                        id: `container${this.PROJECT_NAME}`,
-                        class: 'w-full bg-[#1F2A37] rounded-lg p-3',
-                        children: [
-                            {
-                                id: 'titleAdmin',
-                                class: 'px-2 pt-3 pb-3'
-                            },
-                            {
-                                id: `tabs${this.PROJECT_NAME}`,
-                                class: 'w-full'
-                            }
-                        ]
-                    }
-                ]
+
+        this.primaryLayout({
+            parent: `root`,
+            id: this.PROJECT_NAME,
+            class: 'flex mx-2 my-2 min-h-screen mt-5 p-2',
+            card: {
+                filterBar: { class: 'w-full my-3', id: 'filterBar' + this.PROJECT_NAME },
+                container: { class: 'w-full my-3 h-full bg-[#1F2A37] rounded-lg p-3', id: 'container' + this.PROJECT_NAME }
             }
         });
 
-        $("#titleAdmin").html(`
-            <h2 class="text-2xl font-semibold text-white">📦 Administrador</h2>
-            <p class="text-gray-400">Gestiona productos, categorías y clientes.</p>
-        `);
+        // init layouts
+        this.layoutTabs();
+        category.filterBarCategory();
+        client.filterBarClient();
+        mod.filterBarModifiers();
+        product.filterBar();
+
     }
 
-    renderTabs() {
+    layoutTabs() {
         this.tabLayout({
-            parent: `tabs${this.PROJECT_NAME}`,
-            id: `tabs${this.PROJECT_NAME}`,
+            parent: "container" + this.PROJECT_NAME,
+            id: "tabsPedidos",
             content: { class: "" },
             theme: "dark",
             type: "short",
-            showBorder: false,
             json: [
                 {
                     id: "productos",
                     tab: "Productos",
-                    lucideIcon: "package",
+                    class: "mb-1",
                     active: true,
                     onClick: () => this.lsProductos(),
                 },
                 {
                     id: "categoria",
                     tab: "Categoría",
-                    lucideIcon: "tag",
                     onClick: () => category.lsCategory(),
                 },
                 {
                     id: "modifier",
                     tab: "Modificadores",
-                    lucideIcon: "sliders-horizontal",
+                    class: "mb-1",
                     onClick: () => mod.lsModifiers(),
+
                 },
+
                 {
                     id: "productsModifier",
                     tab: "Productos Modificadores",
-                    lucideIcon: "puzzle",
+                    class: "mb-1",
                     onClick: () => product.ls(),
+
                 },
+
                 {
                     id: "cliente",
                     tab: "Clientes",
-                    lucideIcon: "users",
                     onClick: () => client.lsClient(),
-                },
-                {
-                    id: "paymentType",
-                    tab: "Tipos de Pago",
-                    lucideIcon: "credit-card",
-                    onClick: () => payment.lsPaymentType(),
                 },
             ],
         });
 
-        if (window.lucide) lucide.createIcons();
-    }
-
-    renderActiveTab() {
-        this.filterBarProductos();
-        this.lsProductos();
-        category.filterBarCategory();
-        category.lsCategory();
-        client.filterBarClient();
-        client.lsClient();
-        mod.filterBarModifiers();
-        product.filterBar();
-        payment.filterBarPaymentType();
+        $("#container" + this.PROJECT_NAME).prepend(`
+        <div class="px-4 pt-3 pb-3">
+            <h2 class="text-2xl font-semibold text-white">📦 Administrador</h2>
+            <p class="text-gray-400">Gestiona productos, categorías y clientes.</p>
+        </div>`);
     }
 
     filterBarProductos() {
         const container = $("#container-productos");
-        container.html(`
-            <div id="filterbar-productos" class="mb-2"></div>
-            <div id="tabla-productos" class="w-full overflow-x-auto"></div>
-        `);
+        container.html('<div id="filterbar-productos" class="mb-2"></div><div class="h-100" id="tabla-productos"></div>');
 
         this.createfilterBar({
             parent: "filterbar-productos",
@@ -183,25 +156,26 @@ class App extends Templates {
         this.createTable({
             parent: "tabla-productos",
             idFilterBar: "filterbar-productos",
-            data: { opc: "listProductos" },
+            data: { 
+                opc: "listProductos",
+                estado: $("#filterbar-productos #estado").val(),
+                categoria: $("#filterbar-productos #categoria").val()
+            },
             coffeesoft: true,
-            conf: {
-                datatable: true, pag: 10, fn_datatable: 'simple_data_table_filter',
-            },            attr: {
+            conf: { datatable: true, pag: 10 },
+            attr: {
                 id    : "tbProductos",
                 theme : 'dark',
                 right : [2],
-                f_size:12,
-                striped:true,
-            
                 center: [1, 3, 6]
             }
         });
 
         setTimeout(() => {
             $('#tbProductos thead th:last-child, #tbProductos tbody td:last-child').css({
-                'min-width': '120px',
-                'white-space': 'nowrap'
+                'width': '420px',
+                'min-width': '420px',
+                'max-width': '420px'
             });
         }, 100);
     }
@@ -313,40 +287,6 @@ class App extends Templates {
                     }
                 }
             ]
-        });
-    }
-
-    async previewProducto(id) {
-        const request = await useFetch({
-            url: this._link,
-            data: { opc: "getProducto", id: id },
-        });
-
-        const p = request.data || {};
-        const money = (v) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(parseFloat(v) || 0);
-        const catName = (Array.isArray(cat) ? (cat.find(c => c.id == p.category_id) || {}).classification : "") || "Sin categoria";
-
-        // La app puede correr bajo /huubie/, por eso la URL usa la base del proyecto y no la raiz del dominio.
-        const src = p.image ? `https://huubie.com.mx/${String(p.image).replace(/^\/+/, "")}` : "";
-        const img = src
-            ? `<img src="${encodeURI(src)}" alt="Producto" class="w-40 h-40 rounded-lg object-cover bg-gray-700 mx-auto" />`
-            : `<div class="w-40 h-40 bg-[#1F2A37] rounded-lg flex items-center justify-center mx-auto"><i class="icon-birthday text-gray-500 text-4xl"></i></div>`;
-
-        bootbox.dialog({
-            closeButton: true,
-            title: `<div class="flex items-center gap-2 text-white text-lg font-semibold"><i class="icon-eye text-green-400"></i> Vista previa del producto</div>`,
-            message: `
-                <div class="p-2">
-                    ${img}
-                    <h3 class="text-xl font-bold text-white text-center mt-4">${p.name || p.valor || "Sin nombre"}</h3>
-                    <p class="text-2xl font-bold text-green-400 text-center mt-1">${money(p.price)}</p>
-                    <div class="mt-4 bg-[#1E293B] rounded-lg p-4 grid grid-cols-2 gap-3 text-sm">
-                        <div><span class="text-gray-400 block">Categoria</span><span class="text-white">${catName}</span></div>
-                        <div><span class="text-gray-400 block">Estado</span><span class="text-white">${p.active == 1 ? "Activo" : "Inactivo"}</span></div>
-                        <div class="col-span-2"><span class="text-gray-400 block">Descripcion</span><span class="text-white">${p.description || "Sin descripcion"}</span></div>
-                    </div>
-                </div>
-            `
         });
     }
 
@@ -662,10 +602,9 @@ class Category extends Templates {
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
             attr: {
-                id      : "tbCategory",
-                theme   : 'dark',
-                striped : true,
-                center  : [3]
+                id    : "tbCategory",
+                theme : 'dark',
+                center: [3]
             },
         });
     }
@@ -823,9 +762,8 @@ class Client extends Templates {
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
             attr: {
-                id     : "tbClient",
-                theme  : 'dark',
-                striped: true
+                id: "tbClient",
+                theme: 'dark'
             },
         });
     }
@@ -1022,32 +960,11 @@ class Modifier extends App {
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
             attr: {
-                id     : "tbModifiers",
-                theme  : 'dark',
-                striped: true,
-                f_size : 12,
-                center : [1, 3, 4]
+                id: "tbModifiers",
+                theme: 'dark',
+                center: [2, 4]
             },
         });
-
-        setTimeout(() => {
-            $('#tbModifiers thead th:nth-child(1), #tbModifiers tbody td:nth-child(1)').css({
-                'width'    : '180px',
-                'min-width': '180px'
-            });
-            $('#tbModifiers thead th:nth-child(2), #tbModifiers tbody td:nth-child(2)').css({
-                'width'    : '70px',
-                'min-width': '70px'
-            });
-            $('#tbModifiers thead th:nth-child(4), #tbModifiers tbody td:nth-child(4)').css({
-                'width'    : '110px',
-                'min-width': '110px'
-            });
-            $('#tbModifiers thead th:last-child, #tbModifiers tbody td:last-child').css({
-                'width'    : '140px',
-                'min-width': '140px'
-            });
-        }, 100);
     }
 
     async addModifier() {
@@ -1694,218 +1611,6 @@ class Modifier extends App {
 
 }
 
-class PaymentType extends Templates {
-
-    constructor(link, div_modulo) {
-        super(link, div_modulo);
-        this.PROJECT_NAME = "PaymentType";
-    }
-
-    filterBarPaymentType() {
-        const container = $("#container-paymentType");
-        container.html('<div id="filterbar-payment" class="mb-2"></div><div id="table-payment"></div>');
-
-        this.createfilterBar({
-            parent: "filterbar-payment",
-            data: [
-                {
-                    opc: "select",
-                    id: "active",
-                    class: "col-12 col-md-2",
-                    data: [
-                        { id: "1", valor: "Activos" },
-                        { id: "0", valor: "Inactivos" }
-                    ],
-                    onchange: 'payment.lsPaymentType()'
-                },
-                {
-                    opc: "button",
-                    class: "col-12 col-md-3",
-                    id: "btnNewPaymentType",
-                    text: "Nuevo Tipo de Pago",
-                    onClick: () => this.addPaymentType(),
-                },
-            ],
-        });
-    }
-
-    lsPaymentType() {
-        this.createTable({
-            parent: "table-payment",
-            idFilterBar: "filterbar-payment",
-            data: { opc: "listPaymentType" },
-            coffeesoft: true,
-            conf: { datatable: true, pag: 10 },
-            attr: {
-                id     : "tbPayment",
-                theme  : 'dark',
-                striped: true,
-                center : [3, 4, 5]
-            }
-        });
-    }
-
-    addPaymentType() {
-        this.createModalForm({
-            id: 'formPaymentTypeAdd',
-            data: { opc: 'addPaymentType' },
-            bootbox: {
-                title: 'Nuevo Tipo de Pago',
-            },
-            json: [
-                {
-                    opc: "input",
-                    id: "code",
-                    lbl: "Codigo (max. 10 caracteres)",
-                    class: "col-12 mb-3"
-                },
-                {
-                    opc: "input",
-                    id: "name",
-                    lbl: "Nombre",
-                    class: "col-12 mb-3"
-                },
-                {
-                    opc: "select",
-                    id: "is_cash",
-                    lbl: "Efectivo en Caja",
-                    class: "col-12 mb-3",
-                    data: [
-                        { id: 0, valor: "No" },
-                        { id: 1, valor: "Si" }
-                    ]
-                },
-                {
-                    opc: "select",
-                    id: "is_visible",
-                    lbl: "Visible en panel de cobro",
-                    class: "col-12 mb-3",
-                    data: [
-                        { id: 1, valor: "Si" },
-                        { id: 0, valor: "No" }
-                    ]
-                }
-            ],
-            success: (response) => {
-                if (response.status === 200) {
-                    alert({ icon: "success", text: response.message });
-                    this.lsPaymentType();
-                } else {
-                    alert({ icon: "info", title: "Oops!...", text: response.message, btn1: true, btn1Text: "Ok" });
-                }
-            }
-        });
-    }
-
-    async editPaymentType(id) {
-        const request = await useFetch({
-            url: this._link,
-            data: { opc: "getPaymentType", id: id },
-        });
-
-        const data = request.data;
-
-        this.createModalForm({
-            id: 'formPaymentTypeEdit',
-            data: { opc: 'editPaymentType', id: id },
-            bootbox: {
-                title: 'Editar Tipo de Pago',
-            },
-            autofill: data,
-            json: [
-                {
-                    opc: "input",
-                    id: "code",
-                    lbl: "Codigo (max. 10 caracteres)",
-                    class: "col-12 mb-3"
-                },
-                {
-                    opc: "input",
-                    id: "name",
-                    lbl: "Nombre",
-                    class: "col-12 mb-3"
-                },
-                {
-                    opc: "select",
-                    id: "is_cash",
-                    lbl: "Efectivo en Caja",
-                    class: "col-12 mb-3",
-                    data: [
-                        { id: 0, valor: "No" },
-                        { id: 1, valor: "Si" }
-                    ]
-                },
-                {
-                    opc: "select",
-                    id: "is_visible",
-                    lbl: "Visible en panel de cobro",
-                    class: "col-12 mb-3",
-                    data: [
-                        { id: 1, valor: "Si" },
-                        { id: 0, valor: "No" }
-                    ]
-                }
-            ],
-            success: (response) => {
-                if (response.status === 200) {
-                    alert({ icon: "success", text: response.message });
-                    this.lsPaymentType();
-                } else {
-                    alert({ icon: "info", title: "Oops!...", text: response.message, btn1: true, btn1Text: "Ok" });
-                }
-            }
-        });
-    }
-
-    statusPaymentType(id, active) {
-        this.swalQuestion({
-            opts: {
-                title: "¿Desea cambiar el estado del tipo de pago?",
-                text: "Esta accion activara o desactivara el tipo de pago.",
-                icon: "warning",
-            },
-            data: {
-                opc: "statusPaymentType",
-                active: active === 1 ? 0 : 1,
-                id: id,
-            },
-            methods: {
-                send: () => this.lsPaymentType(),
-            },
-        });
-    }
-
-    async toggleVisible(event, id, current) {
-        const btn      = event.currentTarget;
-        const newState = current === 1 ? 0 : 1;
-
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-
-        const response = await useFetch({
-            url: this._link,
-            data: { opc: "toggleVisiblePaymentType", id: id, is_visible: newState }
-        });
-
-        btn.disabled = false;
-        btn.style.opacity = '';
-
-        if (response.status === 200) {
-            if (newState === 1) {
-                btn.className = 'px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189] hover:opacity-80 cursor-pointer';
-                btn.innerHTML = '<i class="icon-eye"></i> Visible';
-            } else {
-                btn.className = 'px-2 py-1 rounded-md text-sm font-semibold bg-[#1F2A37] text-gray-400 hover:opacity-80 cursor-pointer';
-                btn.innerHTML = '<i class="icon-eye-off"></i> Oculto';
-            }
-            btn.setAttribute('onclick', `payment.toggleVisible(event, ${id}, ${newState})`);
-        } else {
-            alert({ icon: "error", title: "Error", text: response.message, btn1: true, btn1Text: "Ok" });
-        }
-    }
-
-}
-
 class ProductModifier extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
@@ -1967,11 +1672,10 @@ class ProductModifier extends Templates {
             conf: { datatable: true, pag: 10 },
             coffeesoft: true,
             attr: {
-                id     : `tb${this.PROJECT_NAME}`,
-                theme  : "dark",
-                striped: true,
-                center : [2, 4],
-                right  : [3]
+                id: `tb${this.PROJECT_NAME}`,
+                theme: "dark",
+                center: [2, 4],
+                right: [3]
             }
         });
     }

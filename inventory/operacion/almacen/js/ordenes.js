@@ -1874,7 +1874,7 @@ class OrdenesView extends Templates {
             // El borrador solo lo gestiona su sucursal de origen.
             if (esOrigen || sinRestriccion) {
                 actionsHtml = `
-                    ${btnCls('#3B82F6', 'Editar',   'pencil', 'edit')}
+                    ${btnCls('#C05A40', 'Editar',   'pencil', 'edit')}
                     ${btnCls('#C05A40', 'Enviar',   'send',   'submit')}
                     ${btnCls('#F97316', 'Cancelar', 'ban',    'cancel')}`;
             }

@@ -22,25 +22,25 @@ const CF_REGEX = {
 const CF_INVALID = 'is-invalid !border-red-500 ring-1 ring-red-500';
 
 const CF_CSS = {
-    input: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700',
-    select: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
-    textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
+    input: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#C05A40] dark:focus:border-[#8F3D2A] bg-white dark:bg-gray-700',
+    select: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#C05A40] dark:focus:border-[#8F3D2A] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
+    textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#C05A40] dark:focus:border-[#8F3D2A] bg-white dark:bg-gray-700 resize-y',
     label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
     error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
     btnPrimary: 'tw-btn w-full rounded-lg bg-[#C05A40] px-4 py-2 text-sm font-semibold text-white hover:bg-[#A84A33] active:bg-[#8F3D2A] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnInvernal: 'tw-btn w-full rounded-lg bg-[#C05A40] px-4 py-2 text-sm font-semibold text-white hover:bg-[#A84A33] active:bg-[#8F3D2A] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnInfo: 'tw-btn w-full rounded-lg bg-[#0078D7]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#0078D7] active:bg-[#0078D7] focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnInfo: 'tw-btn w-full rounded-lg bg-[#C05A40]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#C05A40] active:bg-[#C05A40] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnSuccess: 'tw-btn w-full rounded-lg bg-[#7aab20]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#7aab20] active:bg-[#7aab20] focus:outline-none focus:ring-2 focus:ring-[#7aab20] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDanger: 'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnWarning: 'tw-btn w-full rounded-lg bg-[#FFC107] px-4 py-2 text-sm font-semibold text-[#003360] hover:bg-[#FFC107]/80 active:bg-[#FFC107]/80 focus:outline-none focus:ring-2 focus:ring-[#FFC107] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnOutline: 'tw-btn w-full rounded-lg border border-[#003360] bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-[#003360] dark:text-gray-200 hover:bg-[#003360] hover:text-white active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnWarning: 'tw-btn w-full rounded-lg bg-[#F69F00] px-4 py-2 text-sm font-semibold text-[#C05A40] hover:bg-[#F69F00]/80 active:bg-[#F69F00]/80 focus:outline-none focus:ring-2 focus:ring-[#F69F00] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnOutline: 'tw-btn w-full rounded-lg border border-[#C05A40] bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-[#C05A40] dark:text-gray-200 hover:bg-[#C05A40] hover:text-white active:bg-[#C05A40] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnSecondary: 'tw-btn w-full rounded-lg bg-gray-500 dark:bg-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600 dark:hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnLight: 'tw-btn w-full rounded-lg bg-gray-100 dark:bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 dark:hover:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDark: 'tw-btn w-full rounded-lg bg-gray-800 dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 dark:hover:bg-black active:bg-black focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnLink: 'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',
-    radio: 'w-4 h-4 text-[#003360] border-gray-300 dark:border-gray-600 focus:ring-[#003360] accent-[#003360]',
-    checkbox: 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#003360] focus:ring-[#003360] accent-[#003360]',
-    file: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#e6eef5] dark:file:bg-[#0a2540] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#003360] dark:file:text-[#7bafe6] hover:file:bg-[#cddfee] dark:hover:file:bg-[#0f3358]',
+    radio: 'w-4 h-4 text-[#C05A40] border-gray-300 dark:border-gray-600 focus:ring-[#C05A40] accent-[#C05A40]',
+    checkbox: 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#C05A40] focus:ring-[#C05A40] accent-[#C05A40]',
+    file: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#F7F0EB] dark:file:bg-[#6E2F20] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#C05A40] dark:file:text-[#E8A68F] hover:file:bg-[#EFC9BC] dark:hover:file:bg-[#8F3D2A]',
     groupAddon: 'inline-flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
 };
 
@@ -2955,7 +2955,7 @@ class Components extends Complements {
             data: { thead: [], row: [] },
             center: [],
             right: [],
-            color_th: "bg-[#003360] text-gray-100",
+            color_th: "bg-[#C05A40] text-gray-100",
             color_row: "bg-white hover:bg-gray-50",
             color_group: "bg-gray-200",
             class: "w-full table-auto text-sm text-gray-800",
@@ -2983,7 +2983,7 @@ class Components extends Complements {
             defaults.color_row_alt = "bg-[#1F2A37]";
         }
         else if (options.theme === 'corporativo') {
-            defaults.color_th = "bg-[#003360] text-white";
+            defaults.color_th = "bg-[#C05A40] text-white";
             defaults.color_row = "";
             defaults.color_group = "bg-gray-100 ";
             defaults.class = "w-full text-sm ";
@@ -3012,7 +3012,7 @@ class Components extends Complements {
             defaults.color_row_alt = "bg-[#F8FAFC]";
         }
         else {
-            defaults.color_th = "bg-[#F2F5F9] text-[#003360]";
+            defaults.color_th = "bg-[#F2F5F9] text-[#C05A40]";
             defaults.color_row = "bg-white hover:bg-gray-600";
             defaults.color_group = "bg-gray-200";
             defaults.class = "w-full table-auto text-sm text-gray-800";
@@ -3267,7 +3267,7 @@ class Components extends Complements {
             collapsed: false,
             emptyMessage: "No se encontraron registros",
             emptyIcon: "icon-calendar-1",
-            color_th: "bg-[#003360] text-gray-100",
+            color_th: "bg-[#C05A40] text-gray-100",
             color_row: "",
             color_group: "bg-gray-200",
             class: "w-full table-auto text-sm text-gray-800",
@@ -3282,7 +3282,7 @@ class Components extends Complements {
         };
 
         if (options.theme === 'corporativo') {
-            defaults.color_th = "bg-[#003360] text-white";
+            defaults.color_th = "bg-[#C05A40] text-white";
             defaults.color_row = "";
             defaults.color_group = "bg-gray-100";
             defaults.class = "w-full text-sm";
@@ -3633,7 +3633,7 @@ class Components extends Complements {
 
 
         if (opts.fixed.length > 0) {
-            const bgHeader = opts.theme === 'dark' ? '#0F172A' : opts.theme === 'corporativo' ? '#003360' : '#003360';
+            const bgHeader = opts.theme === 'dark' ? '#0F172A' : opts.theme === 'corporativo' ? '#C05A40' : '#C05A40';
             const bgDefault = opts.theme === 'dark' ? '#1E293B' : '#F3F4F6';
 
             let fixedCSS = `
@@ -3832,7 +3832,7 @@ class Components extends Complements {
             scrollable: true,
             emptyMessage: "No se encontraron registros",
             emptyIcon: "icon-calendar-1",
-            color_th: "bg-[#003360] text-gray-100",
+            color_th: "bg-[#C05A40] text-gray-100",
             color_row: "",
             color_group: "bg-gray-200",
             class: "w-full table-auto text-sm text-gray-800",
@@ -3860,7 +3860,7 @@ class Components extends Complements {
         }
 
         if (options.theme === 'corporativo') {
-            defaults.color_th = "bg-[#003360] text-white";
+            defaults.color_th = "bg-[#C05A40] text-white";
             defaults.color_row = "";
             defaults.color_group = "bg-gray-100";
             defaults.class = "w-full text-sm";
@@ -4362,7 +4362,7 @@ class Components extends Complements {
 
             if (opts.fixed.length === 0) return;
 
-            const bgHeader = opts.theme === 'dark' ? '#0F172A' : opts.theme === 'corporativo' ? '#003360' : '#003360';
+            const bgHeader = opts.theme === 'dark' ? '#0F172A' : opts.theme === 'corporativo' ? '#C05A40' : '#C05A40';
             const bgDefault = opts.theme === 'dark' ? '#1E293B' : '#F3F4F6';
 
             let fixedCSS = `

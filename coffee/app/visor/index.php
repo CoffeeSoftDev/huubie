@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Visor de Agentes — CoffeeSoft</title>
+    <title>CoffeeDocs — CoffeeSoft</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
@@ -70,8 +70,11 @@
     <header class="visor-header">
         <div class="vsr-header-left">
             <div class="visor-logo">VS</div>
+            <button id="btnToggleSidebar" class="vsr-sidebar-toggle" title="Ocultar lista de archivos" aria-label="Colapsar panel de archivos">
+                <i data-lucide="panel-left" class="w-4 h-4"></i>
+            </button>
             <div class="flex flex-col leading-tight">
-                <span id="headerTitle">Visor de Agentes</span>
+                <span id="headerTitle">CoffeeDocs</span>
                 <span id="headerSubtitle">CoffeeSoft Library</span>
             </div>
             <span class="vsr-chip hidden md:inline-block">
@@ -79,7 +82,12 @@
             </span>
         </div>
 
-        <div class="vsr-header-right">
+        <!-- Boton Ajustes (solo movil): colapsa/expande los controles del header. -->
+        <button id="vsrHeaderToggle" class="vsr-header-toggle" title="Ajustes" aria-expanded="false">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+        </button>
+
+        <div class="vsr-header-right" id="vsrHeaderRight">
             <div class="folder-picker">
                 <i data-lucide="folder" class="w-4 h-4"></i>
                 <select id="folderSelect" class="folder-select" title="Carpeta a visualizar"></select>
@@ -115,12 +123,22 @@
         </div>
     </header>
 
-    <div class="visor-body-row">
+    <!-- Conmutador Archivos/Documento (solo movil): ambos paneles no caben apilados. -->
+    <div class="vsr-mobile-switch" role="tablist" aria-label="Vista">
+        <button class="vsr-mswitch" data-mview="files" role="tab">
+            <i data-lucide="folder-tree" class="w-4 h-4"></i> Archivos
+        </button>
+        <button class="vsr-mswitch active" data-mview="doc" role="tab">
+            <i data-lucide="file-text" class="w-4 h-4"></i> Documento
+        </button>
+    </div>
+
+    <div class="visor-body-row" data-mview="doc">
 
         <!-- Rail de navegacion entre modulos (Visor / Playground / Admin) -->
         <nav class="app-rail" aria-label="Modulos">
             <div class="app-rail-nav">
-                <a href="index.php" class="app-rail-item active" title="Visor de Agentes">
+                <a href="index.php" class="app-rail-item active" title="CoffeeDocs">
                     <i data-lucide="layout-dashboard"></i>
                     <span class="app-rail-label">Visor</span>
                 </a>
@@ -144,25 +162,24 @@
         </nav>
 
         <aside class="visor-sidebar">
-            <div class="sidebar-search-wrap">
-                <div class="cs-input-group">
-                    <span class="cs-input-group-icon">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
-                        </svg>
-                    </span>
-                    <input id="sidebarSearch" type="text" placeholder="Filtrar archivos..." class="cs-input pl-9 w-full">
+            <div class="visor-sidebar-inner">
+                <div class="sidebar-search-wrap">
+                    <div class="cs-input-group">
+                        <span class="cs-input-group-icon">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+                            </svg>
+                        </span>
+                        <input id="sidebarSearch" type="text" placeholder="Filtrar archivos..." class="cs-input pl-9 w-full">
+                    </div>
                 </div>
-                <button id="btnToggleSidebar" class="sidebar-toggle-btn" title="Ocultar lista de archivos">
-                    <i data-lucide="panel-left-close" class="w-4 h-4"></i>
-                </button>
-            </div>
 
-            <div id="sidebarList" class="sidebar-list"></div>
+                <div id="sidebarList" class="sidebar-list"></div>
 
-            <div class="sidebar-footer">
-                <span id="footerSource">Local</span>
-                <span id="footerPath">.claude/agents</span>
+                <div class="sidebar-footer">
+                    <span id="footerSource">Local</span>
+                    <span id="footerPath">.claude/agents</span>
+                </div>
             </div>
         </aside>
 
@@ -171,7 +188,7 @@
             <div class="visor-main-col">
 
             <div class="main-breadcrumb">
-                <button id="btnToggleCoffeeIA" class="cs-btn cs-btn-sm btn-coffeeia flex items-center gap-1.5" title="CoffeeIA (Ctrl+I)" style="display:none;">
+                <button id="btnToggleCoffeeIA" class="cs-btn cs-btn-sm btn-coffeeia flex items-center gap-1.5" title="CoffeeIA (Ctrl+I)">
                     <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
                     CoffeeIA
                     <span class="dot-indicator"></span>
@@ -329,6 +346,9 @@
 
                 <!-- Lienzo de bocetos (Excalidraw). Oculto salvo modo boceto. -->
                 <div id="excalidrawStage" class="excalidraw-stage hidden"></div>
+
+                <!-- Tablero de GitHub Projects (panel derecho). Oculto salvo modo github. -->
+                <div id="githubStage" class="github-stage hidden"></div>
             </div>
 
             </div><!-- /.visor-main-col -->
@@ -381,6 +401,8 @@
                 <div class="ia-drawer-body" id="iaBodyChat" style="display:none;"></div>
 
                 <div class="ia-drawer-input">
+                    <div id="iaDbChip" class="ia-db-chip" style="display:none;"></div>
+                    <div id="iaFolderChip" class="ia-db-chip ia-folder-chip" style="display:none;"></div>
                     <div id="iaImageStrip" class="ia-image-strip" style="display:none;"></div>
                     <div class="ia-input-wrap">
                         <textarea id="iaInputTextarea" class="ia-input-textarea" rows="1" placeholder="Pregunta algo sobre el documento..."></textarea>
@@ -393,44 +415,81 @@
                         <button id="iaAttachBtn" class="ia-attach-btn" title="Adjuntar imagen o documento de texto (tambien Ctrl+V para pegar)">
                             <i data-lucide="paperclip" class="w-3 h-3"></i>
                         </button>
-                        <button id="iaSaveChatBtn" class="ia-attach-btn" title="Guardar conversacion">
-                            <i data-lucide="save" class="w-3 h-3"></i>
-                        </button>
-                        <button id="iaSavedChatsBtn" class="ia-attach-btn" title="Chats guardados">
-                            <i data-lucide="messages-square" class="w-3 h-3"></i>
-                        </button>
-                        <button id="iaClearBtn" class="ia-attach-btn" title="Limpiar conversacion">
-                            <i data-lucide="trash-2" class="w-3 h-3"></i>
-                        </button>
                         <button id="iaEditorToggle" class="ia-editor-toggle is-icon-only" title="Activar modo editor">
                             <i data-lucide="pencil-line" class="w-3 h-3"></i>
                         </button>
-                        <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo lienzo">
+                        <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo Layout">
                             <i data-lucide="layout-template" class="w-3 h-3"></i>
                         </button>
-                        <div class="ia-graph-wrap" style="position:relative;">
-                            <button id="iaGraphBtn" class="ia-attach-btn" title="Lienzos de gr&aacute;ficas (Mermaid / draw.io / Excalidraw)">
-                                <i data-lucide="feather" class="w-3 h-3"></i>
+                        <button id="iaClearBtn" class="ia-attach-btn" title="Limpiar conversaci&oacute;n (borra los mensajes actuales)">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        </button>
+                        <!-- Resto de herramientas del chat agrupadas en un menu desplegable -->
+                        <div class="ia-tools-wrap" style="position:relative;">
+                            <button id="iaToolsBtn" class="ia-attach-btn" title="Herramientas del chat">
+                                <i data-lucide="wrench" class="w-3 h-3"></i>
                             </button>
-                            <div id="iaGraphMenu" class="graph-menu graph-menu-up" style="display:none;">
-                                <button type="button" class="graph-menu-item" data-graph="mermaid">
+                            <div id="iaToolsMenu" class="graph-menu graph-menu-up" style="display:none;">
+                                <button type="button" class="graph-menu-item" data-tool="save">
+                                    <i data-lucide="save" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Guardar conversaci&oacute;n</span>
+                                        <span class="graph-menu-desc">Guarda el chat actual</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="graph-menu-item" data-tool="saved">
+                                    <i data-lucide="messages-square" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Chats guardados</span>
+                                        <span class="graph-menu-desc">Abre conversaciones previas</span>
+                                    </span>
+                                </button>
+                                <div class="graph-menu-sep"></div>
+                                <button type="button" class="graph-menu-item" data-tool="github">
+                                    <i data-lucide="folder-git-2" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">GitHub Projects</span>
+                                        <span class="graph-menu-desc">Ver tus tableros en el chat</span>
+                                    </span>
+                                </button>
+                                <div class="graph-menu-sep"></div>
+                                <button type="button" class="graph-menu-item" data-tool="graph" data-graph="mermaid">
                                     <i data-lucide="git-graph" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
                                         <span class="graph-menu-name">Mermaid</span>
                                         <span class="graph-menu-desc">Diagrama desde texto</span>
                                     </span>
                                 </button>
-                                <button type="button" class="graph-menu-item" data-graph="drawio">
+                                <button type="button" class="graph-menu-item" data-tool="graph" data-graph="drawio">
                                     <i data-lucide="pen-tool" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
                                         <span class="graph-menu-name">draw.io</span>
                                         <span class="graph-menu-desc">Lienzo de diagramas</span>
                                     </span>
                                 </button>
-                                <button type="button" class="graph-menu-item" data-graph="excalidraw">
+                                <button type="button" class="graph-menu-item has-submenu" data-tool="graph" data-graph="excalidraw">
                                     <i data-lucide="pencil-ruler" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
                                         <span class="graph-menu-name">Excalidraw</span>
+                                        <span class="graph-menu-desc">Boceto a mano alzada</span>
+                                    </span>
+                                    <i data-lucide="chevron-right" class="graph-menu-caret w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <!-- Submenu de Excalidraw: elige plantilla o modo libre -->
+                            <div id="iaExcaliSubmenu" class="graph-menu graph-submenu" style="display:none;">
+                                <div class="graph-submenu-title">Excalidraw</div>
+                                <button type="button" class="graph-menu-item" data-excali="template">
+                                    <i data-lucide="layout-template" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Template</span>
+                                        <span class="graph-menu-desc">Maestros corporativos + tabla</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="graph-menu-item" data-excali="libre">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Libre</span>
                                         <span class="graph-menu-desc">Boceto a mano alzada</span>
                                     </span>
                                 </button>

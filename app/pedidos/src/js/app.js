@@ -1,12 +1,13 @@
-let api = 'ctrl/ctrl-pedidos.php';
+let api          = 'ctrl/ctrl-pedidos.php';
 let api_catalogo = 'ctrl/ctrl-pedidos-catalogo.php';
-let api_custom = 'ctrl/ctrl-pedidos-personalizado.php';
+let api_custom   = 'ctrl/ctrl-pedidos-personalizado.php';
 
 let normal, app, custom, cierre; //Clases.
-let idFolio, sub_name;
+let idFolio, sub_name, user_name;
 let categories, estado, clients;
 
 let rol, subsidiaries, udn;
+let subsidiariesCobro = []; // Sucursales para el selector "Sucursal de cobro" (todos los roles).
 let dailyClosure = { is_closed: false };
 let openShift = { has_open_shift: false };
 
@@ -19,7 +20,9 @@ $(async () => {
           clients      = req.clients || [];
           rol          = req.access;
           sub_name     = req.subsidiaries_name;
+          user_name    = req.user_name;
           subsidiaries = req.sucursales;
+          subsidiariesCobro = req.sucursales_cobro || [];
           dailyClosure = req.daily_closure || { is_closed: false };
           udn          = dailyClosure.subsidiary_id;
           openShift    = req.open_shift || { has_open_shift: false };
@@ -30,7 +33,9 @@ $(async () => {
 
     app.render();
 
-
+    // La navbar es la duena del filtro de sucursal (solo admin). Cuando el
+    // admin cambia de sucursal alli, replicamos el comportamiento del filtro.
+    document.addEventListener('branchChanged', () => app.onSubsidiaryChange());
 
     setInterval(() => {
         app.actualizarFechaHora({ label: app.getSubsidiaryLabel() });
@@ -52,20 +57,29 @@ class App extends Templates {
     }
 
     layout() {
-        this.primaryLayout({
+        this.createLayout({
             parent: "root",
-            id: this.PROJECT_NAME,
-            class: 'flex mx-2 ',
-            heightPreset: 'full',
-            card: {
-                filterBar: { class: 'w-full ', id: 'filterBar' },
-                container: { class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
+            design: false,
+            data: {
+                id: this.PROJECT_NAME,
+                class: 'flex mx-2 min-h-screen',
+                container: [
+                    {
+                        type: "div",
+                        id: "singleLayout",
+                        class: "flex flex-col col-12",
+                        children: [
+                            { type: "div", class: 'w-full ', id: 'filterBar' },
+                            { type: "div", class: 'w-full my-2 bg-[#1F2A37] h-screen rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
+                        ]
+                    }
+                ]
             }
         });
 
         // Filter bar.
         $('#filterBar').html(`
-            <div id="filterBar${this.PROJECT_NAME}" class="w-full my-3 " ></div>
+            <div id="filterBar${this.PROJECT_NAME}" class="w-full mb-3 " ></div>
             <div id="containerHours"></div>
         `);
     }
@@ -74,20 +88,8 @@ class App extends Templates {
 
         let filterBar = [];
 
-        // Agregar select de admin solo si rol == 1
-        if (rol == 1) {
-            filterBar.push({
-                opc: "select",
-                id: "subsidiaries_id",
-                lbl: "Filtrar por sucursal:",
-                class: "col-12 col-md-3 col-lg-2",
-                onchange: "app.onSubsidiaryChange()",
-                data: [
-                    { id: "0", valor: "Todas las sucursales" },
-                    ...subsidiaries
-                ]
-            });
-        }
+        // El filtro de sucursal vive ahora en la navbar (solo admin).
+        // Aqui ya no se agrega; se reacciona a su evento 'subsidiaryChanged'.
 
         filterBar.push(
             {
@@ -138,6 +140,7 @@ class App extends Templates {
                 text: "Calendario",
                 icon: "icon-calendar",
                 onClick: () => {
+                    if (!this.requireOpenShift()) return;
                     window.location.href = '../pedidos/calendario/index.php'
                 }
             }
@@ -149,10 +152,8 @@ class App extends Templates {
             data: filterBar
         });
 
-        // Inicializar select con la sucursal activa del usuario
-        if (rol == 1 && dailyClosure.subsidiary_id) {
-            $('#subsidiaries_id').val(dailyClosure.subsidiary_id);
-        }
+        // El #subsidiaries_id lo provee la navbar (admin), ya preseleccionado
+        // con la sucursal del usuario; aqui no se inicializa.
 
         const savedRange = JSON.parse(localStorage.getItem('pedidos3_calendar_range') || 'null');
         const startDate = savedRange ? moment(savedRange.fi) : moment().startOf("month");
@@ -232,12 +233,25 @@ class App extends Templates {
     }
 
     getSubsidiaryLabel() {
-        if (rol != 1) return sub_name;
         const selected = $('#subsidiaries_id');
-        if (!selected.length || selected.val() === '0') return sub_name;
+        // "Todas" aplica a cualquier rol (admin o cajero en modo consulta).
+        if (selected.length && selected.val() === '0') return 'Todas las sucursales';
+        if (rol != 1) return sub_name;
+        if (!selected.length) return sub_name;
         const selectedName = selected.find('option:selected').text();
         const isOwnSubsidiary = selected.val() == udn;
         return isOwnSubsidiary ? `${selectedName} (Mi sucursal)` : selectedName;
+    }
+
+    // Sucursal con la que se FILTRA la lista (solo consulta). Admin filtra por el
+    // selector de navbar (incluye "0" = todas). Operadores solo usan "0" como
+    // consulta de todas; en cualquier otro caso null => el backend usa su sesion.
+    getListFilterSubsidiary() {
+        const $sel = $('#subsidiaries_id');
+        if (!$sel.length) return null;
+        const v = $sel.val();
+        if (v === '0') return '0';
+        return rol == 1 ? (v || '0') : null;
     }
 
     async onSubsidiaryChange() {
@@ -246,7 +260,7 @@ class App extends Templates {
     }
 
     async checkAndUpdateDailyClosure() {
-        let subsidiaries_id = rol == 1 ? $('#subsidiaries_id').val() : null;
+        let subsidiaries_id = this.getListFilterSubsidiary();
 
         if (subsidiaries_id === '0') {
             openShift = { has_open_shift: true };
@@ -390,14 +404,19 @@ class App extends Templates {
 
     ls() {
         let rangePicker = getDataRangePicker("calendar");
+        // El selector de sucursal vive en la navbar; lo enviamos explicitamente
+        // porque ya no forma parte de la filterBar. "0" = todas (admin y, en modo
+        // consulta, tambien el operador via selector hibrido).
+        let subsidiaries_id = this.getListFilterSubsidiary();
         this.createTable({
             parent: `container${this.PROJECT_NAME}`,
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
-            data: { opc: "listOrders", fi: rangePicker.fi, ff: rangePicker.ff },
+            data: { opc: "listOrders", fi: rangePicker.fi, ff: rangePicker.ff, subsidiaries_id: subsidiaries_id },
             conf: {
                 datatable: true, pag: 10, fn_datatable: 'simple_data_table_filter',
             },
             coffeesoft: true,
+            fn_coffeesoft: 'createCoffeTable',
 
             attr: {
                 id: `tb${this.PROJECT_NAME}`,
@@ -525,7 +544,36 @@ class App extends Templates {
 
     }
 
+    requireOpenShift() {
+        if (typeof openShift === 'undefined' || !openShift || !openShift.has_open_shift) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'No hay turno abierto',
+                text: 'Debes abrir un turno antes de continuar.',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#7c3aed',
+                background: '#1F2A37',
+                color: '#fff'
+            });
+            return false;
+        }
+        if (openShift.opened_at && !moment(openShift.opened_at).isSame(moment(), 'day')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Turno pendiente de otro día',
+                text: 'Existe un turno abierto que no corresponde al día de hoy. Debes cerrarlo antes de continuar.',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#7c3aed',
+                background: '#1F2A37',
+                color: '#fff'
+            });
+            return false;
+        }
+        return true;
+    }
+
     async editOrder(id) {
+        if (!this.requireOpenShift()) return;
         idFolio = id;
         normal.layoutEdit = true;
         normal.render();
@@ -592,7 +640,12 @@ class App extends Templates {
 
         $('#radioDeliveryType').removeClass('col-12 col-lg-6');
         $('#subsidiaryFilter').removeClass('col-12 offset-10 col-lg-2 mb-1');
-        $('#subsidiaryFilter').prev('label').remove(); $("#date_order").val(new Date().toISOString().split("T")[0]);
+        $('#subsidiaryFilter').prev('label').remove();
+
+        // En edición la sucursal del pedido es fija: mostrar la real y bloquear el cambio.
+        $('#formPedido #subsidiaries_id').val(order.subsidiaries_id).prop('disabled', true);
+
+        $("#date_order").val(new Date().toISOString().split("T")[0]);
         if (!$("#date_birthday").val()) $("#date_birthday").val(new Date().toISOString().split("T")[0]);
 
         const ahora = new Date();
@@ -636,6 +689,7 @@ class App extends Templates {
     }
 
     cancelOrder(id) {
+        if (!this.requireOpenShift()) return;
         const row = event.target.closest('tr');
         const folio = row.querySelectorAll('td')[0]?.innerText || '';
 
@@ -690,6 +744,7 @@ class App extends Templates {
     // Descuentos.
 
     async addDiscount(id) {
+        if (!this.requireOpenShift()) return;
         const discountInfo = await useFetch({
             url: this._link,
             data: { opc: "getDiscount", id: id }
@@ -1290,6 +1345,7 @@ class App extends Templates {
     // Payments.
 
     async historyPay(id) {
+        if (!this.requireOpenShift()) return;
 
         const data = await useFetch({ url: this._link, data: { opc: 'initHistoryPay', id } });
         const order = data.order;
@@ -1348,6 +1404,68 @@ class App extends Templates {
         const saldoRestante = order.total_pay - discount - order.total_paid;
         const isPaidInFull = saldoRestante <= 0;
 
+        // Sucursal de cobro (cobro cruzado): la eligen admin y cajero. Default = sucursal
+        // activa: admin -> filtro de la navbar (si "Todas"/0, la del pedido); cajero -> su
+        // sucursal de sesion (udn). Fallback final: la sucursal del pedido.
+        const navbarSub = (rol == 1) ? ($('#subsidiaries_id').val() || '') : '';
+        const defaultCobroSub = (navbarSub && navbarSub !== '0')
+            ? navbarSub
+            : ((rol != 1 && udn) ? udn : (order.subsidiaries_id ?? ''));
+
+        // Sucursal de origen del pedido (referencia para el cobro cruzado).
+        const origenSub    = (subsidiariesCobro || []).find(s => String(s.id) === String(order.subsidiaries_id));
+        const origenNombre = origenSub ? origenSub.valor : '—';
+
+        // Estado inicial de la tarjeta "Sucursal que cobrará".
+        const origenSubId      = String(order.subsidiaries_id ?? '');
+        const cobroSubSel      = (subsidiariesCobro || []).find(s => String(s.id) === String(defaultCobroSub));
+        const cobroNombre      = cobroSubSel ? cobroSubSel.valor : origenNombre;
+        const cobroEsMismaSuc  = String(defaultCobroSub) === origenSubId;
+        const cobroSubtitulo   = cobroEsMismaSuc ? 'Misma sucursal de origen' : 'Cobro en otra sucursal';
+        const cobroOptionsHtml = (subsidiariesCobro || [])
+            .map(s => `<option value="${s.id}" ${String(s.id) === String(defaultCobroSub) ? 'selected' : ''}>${s.valor}</option>`)
+            .join('');
+
+        // Metodos de pago del dropdown custom (.js-dd). El value es el id que espera
+        // el backend (1=Efectivo, 2=Tarjeta, 3=Transferencia) y vive en el input
+        // hidden #method_pay_id que lee el form al registrar el pago.
+        const metodosPago = [
+            { id: '1', label: 'Efectivo',      sub: 'Pago en efectivo', icon: 'banknote' },
+            { id: '2', label: 'Tarjeta',       sub: 'Débito o crédito', icon: 'credit-card' },
+            { id: '3', label: 'Transferencia', sub: 'Depósito o SPEI',  icon: 'arrow-right-left' }
+        ];
+        const metodoDefault = metodosPago[0];
+        const methodPayOptionsHtml = metodosPago.map((m, i) => `
+            <div class="js-dd-option flex items-center gap-2.5 px-2.5 py-2 cursor-pointer hover:bg-slate-700/50"
+                data-value="${m.id}" data-label="${m.label}" data-sub="${m.sub}" data-icon="${m.icon}">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                    ${window.lucideIcon(m.icon, 'w-4 h-4')}
+                </div>
+                <div class="flex flex-col leading-tight flex-1 min-w-0">
+                    <span class="text-sm text-white font-semibold truncate">${m.label}</span>
+                    <span class="text-[11px] text-gray-400">${m.sub}</span>
+                </div>
+                <span class="js-dd-check text-emerald-400 shrink-0 ${i === 0 ? '' : 'opacity-0'}">${window.lucideIcon('check', 'w-4 h-4')}</span>
+            </div>`).join('');
+
+        const methodPayCardHtml = `
+            <input type="hidden" id="method_pay_id" name="method_pay_id" value="${metodoDefault.id}" required>
+            <div class="js-dd relative">
+                <div class="js-dd-trigger flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5 ${isPaidInFull ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}" ${isPaidInFull ? 'disabled' : ''}>
+                    <div class="js-dd-trigger-icon flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                        ${window.lucideIcon(metodoDefault.icon, 'w-4 h-4')}
+                    </div>
+                    <div class="flex flex-col leading-tight flex-1 min-w-0">
+                        <span class="js-dd-trigger-label text-sm text-white font-semibold truncate">${metodoDefault.label}</span>
+                        <span class="js-dd-trigger-sub text-[11px] text-gray-400">${metodoDefault.sub}</span>
+                    </div>
+                    <span class="js-dd-chevron text-gray-400 shrink-0 transition-transform">${window.lucideIcon('chevron-down', 'w-4 h-4')}</span>
+                </div>
+                <div class="js-dd-menu hidden absolute left-0 right-0 mt-1 z-20 bg-[#1E293B] border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+                    ${methodPayOptionsHtml}
+                </div>
+            </div>`;
+
         // Contenedor del formulario centrado y reducido
         $("#container-payment").html(`
             <div class="flex justify-center items-start">
@@ -1380,10 +1498,55 @@ class App extends Templates {
                         ${discount > 0 ? `
                             <div class="mt-2 pt-2 border-t border-gray-600">
                                 <p class="text-xs text-gray-400">Total original: <span class="line-through">${formatPrice(saldoOriginal)}</span></p>
-                                <p class="text-xs text-green-400"><i class="icon-tag"></i> Descuento aplicado: -${formatPrice(discount)}</p>
+                                <p class="text-xs text-green-400 flex items-center justify-center gap-1">${lucideIcon('tag', 'w-3 h-3')} Descuento aplicado: -${formatPrice(discount)}</p>
                             </div>
                         ` : ''}
-                        ${isPaidInFull ? '<i class="icon-ok-circled text-green-400 text-2xl mt-2"></i>' : ''}
+                        ${isPaidInFull ? lucideIcon('circle-check', 'w-7 h-7 text-green-400 mt-2 inline-block') : ''}
+                    </div>`
+                },
+                {
+                    opc: "div",
+                    id: "cardMethodPay",
+                    class: "col-12 mb-2",
+                    lbl: "Método de pago",
+                    html: methodPayCardHtml
+                },
+                {
+                    opc: "div",
+                    id: "origenPedido",
+                    lbl: "Origen del pedido",
+                    class: "col-12 mb-2",
+                    html: `<div class="flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5">
+                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                            ${lucideIcon('house', 'w-4 h-4')}
+                        </div>
+                        <div class="flex flex-col leading-tight min-w-0">
+                            <span class="text-sm text-white font-semibold truncate">${origenNombre}</span>
+                            <span class="text-[11px] text-gray-400">Sucursal donde se generó la venta</span>
+                        </div>
+                    </div>`
+                },
+                {
+                    opc: "div",
+                    id: "cobroWrapper",
+                    lbl: "Sucursal que cobrará",
+                    class: "col-12 mb-3",
+                    html: `<div class="relative">
+                        <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
+                            <div id="cobroCardIcon" class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 ${cobroEsMismaSuc ? 'text-blue-400' : 'text-amber-400'} shrink-0">
+                                ${lucideIcon('landmark', 'w-4 h-4')}
+                            </div>
+                            <div class="flex flex-col leading-tight flex-1 min-w-0">
+                                <span id="cobroCardName" class="text-sm text-white font-semibold truncate">${cobroNombre}</span>
+                                <span id="cobroCardSub" class="text-[11px] text-gray-400">${cobroSubtitulo}</span>
+                            </div>
+                            ${lucideIcon('chevron-down', 'w-4 h-4 text-gray-400 shrink-0')}
+                        </div>
+                        <select id="payment_subsidiaries_id" name="payment_subsidiaries_id" data-origen="${origenSubId}" required
+                            class="absolute inset-0 w-full h-full opacity-0 ${isPaidInFull ? 'cursor-not-allowed' : 'cursor-pointer'}"
+                            ${isPaidInFull ? 'disabled' : ''} onchange="app.onCobroChange(this)">
+                            ${cobroOptionsHtml}
+                        </select>
                     </div>`
                 },
                 {
@@ -1391,7 +1554,7 @@ class App extends Templates {
                     type: "number",
                     id: "advanced_pay",
                     lbl: "Importe",
-                    class: "col-12 mb-3",
+                    class: "col-12 mb-2",
                     placeholder: "0.00",
                     required: true,
                     min: 0,
@@ -1399,23 +1562,10 @@ class App extends Templates {
                     disabled: isPaidInFull
                 },
                 {
-                    opc: "select",
-                    id: "method_pay_id",
-                    lbl: "Método de pago",
-                    class: "col-12 mb-3",
-                    data: [
-                        { id: "1", valor: "Efectivo" },
-                        { id: "2", valor: "Tarjeta" },
-                        { id: "3", valor: "Transferencia" }
-                    ],
-                    required: true,
-                    disabled: isPaidInFull
-                },
-                {
                     opc: "textarea",
                     id: "description",
                     lbl: "Observación",
-                    class: "col-12 mb-3",
+                    class: "col-12 mb-2",
                     disabled: isPaidInFull
                 },
                 {
@@ -1474,12 +1624,141 @@ class App extends Templates {
             }
         });
 
+        // ── Interacción de los dropdowns (abrir/cerrar, seleccionar) ───────────
+        const $payRoot = $('#container-payment');
+        $payRoot.off('click.dd');
+
+        // Abrir / cerrar al pulsar el trigger.
+        $payRoot.on('click.dd', '.js-dd-trigger:not([disabled])', function (e) {
+            e.stopPropagation();
+            const $menu = $(this).siblings('.js-dd-menu');
+            const willOpen = $menu.hasClass('hidden');
+            // Cerrar cualquier otro menú abierto.
+            $payRoot.find('.js-dd-menu').addClass('hidden');
+            $payRoot.find('.js-dd-chevron').removeClass('rotate-180');
+            if (willOpen) {
+                $menu.removeClass('hidden');
+                $(this).find('.js-dd-chevron').addClass('rotate-180');
+            }
+        });
+
+        // Seleccionar una opción: actualiza hidden + trigger + check y cierra.
+        $payRoot.on('click.dd', '.js-dd-option', function (e) {
+            e.stopPropagation();
+            const $opt = $(this);
+            const $dd = $opt.closest('.js-dd');
+            const value = $opt.attr('data-value');
+            const label = $opt.attr('data-label');
+            const sub = $opt.attr('data-sub') || '';
+            const icon = $opt.attr('data-icon');
+
+            // Valor real (id) para el envío del formulario.
+            $dd.prevAll('input[type="hidden"]').first().val(value);
+
+            // Reflejar la selección en el trigger.
+            const $trigger = $dd.find('.js-dd-trigger');
+            $trigger.find('.js-dd-trigger-icon').html(window.lucideIcon(icon, 'w-4 h-4'));
+            $trigger.find('.js-dd-trigger-label').text(label);
+            $trigger.find('.js-dd-trigger-sub').text(sub);
+
+            // Mover el check a la opción elegida.
+            $dd.find('.js-dd-check').addClass('opacity-0');
+            $opt.find('.js-dd-check').removeClass('opacity-0');
+
+            // Cerrar.
+            $dd.find('.js-dd-menu').addClass('hidden');
+            $trigger.find('.js-dd-chevron').removeClass('rotate-180');
+        });
+
+        // Cerrar al hacer click fuera de cualquier dropdown.
+        $(document).off('click.payDD').on('click.payDD', function () {
+            $('#container-payment .js-dd-menu').addClass('hidden');
+            $('#container-payment .js-dd-chevron').removeClass('rotate-180');
+        });
+
+        // Confirmación antes de registrar el pago. Se intercepta el submit en fase
+        // de captura (antes de validation_form): si no está confirmado, se bloquea,
+        // se valida el importe y se pregunta; al confirmar se reenvía con bandera
+        // para que el flujo normal (validación + AJAX) continúe.
+        const formEl = document.getElementById('form-payment');
+        if (formEl) {
+            formEl.addEventListener('submit', async (e) => {
+                if (formEl.dataset.payConfirmed === '1') {
+                    formEl.dataset.payConfirmed = '';
+                    return; // ya confirmado: dejar pasar a validation_form
+                }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                const importe = parseFloat($('#advanced_pay').val()) || 0;
+                if (importe <= 0) {
+                    alert({ icon: 'error', text: 'Ingresa un importe válido para registrar el pago.', btn1: true, btn1Text: 'Ok' });
+                    return;
+                }
+
+                // Datos legibles para que el usuario entienda cómo se registrará el pago.
+                const metodos = { '1': 'Efectivo', '2': 'Tarjeta', '3': 'Transferencia' };
+                const metodoTxt = metodos[String($('#method_pay_id').val())] || '—';
+                const subCobroId = String($('#payment_subsidiaries_id').val() || '');
+                const subCobroObj = (subsidiariesCobro || []).find(s => String(s.id) === subCobroId);
+                const subCobroNombre = subCobroObj ? subCobroObj.valor : origenNombre;
+                // Cobro cruzado: la sucursal que cobra es distinta a la de origen del pedido.
+                const esCruzado = subCobroId !== '' && String(order.subsidiaries_id ?? '') !== subCobroId;
+
+                const row = (lbl, val, color = '#fff') => `
+                    <div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0;">
+                        <span style="color:#9ca3af;">${lbl}</span><b style="color:${color};">${val}</b>
+                    </div>`;
+
+                const htmlConfirm = `
+                    <div style="text-align:left;font-size:14px;line-height:1.5;">
+                        ${row('Importe', formatPrice(importe))}
+                        ${row('Método de pago', metodoTxt)}
+                        ${row('Sucursal que cobra', subCobroNombre, '#A78BFA')}
+                        ${esCruzado ? `
+                        <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fcd34d;font-size:12.5px;line-height:1.45;">
+                            Cobro cruzado: el pedido es de <b>${origenNombre}</b>, pero el cobro se registrará en <b>${subCobroNombre}</b>.
+                        </div>` : ''}
+                    </div>`;
+
+                const res = await alert({
+                    icon: 'question',
+                    title: '¿Registrar pago?',
+                    html: htmlConfirm,
+                    btn1Text: 'Sí, registrar',
+                    btn2Text: 'Cancelar'
+                });
+
+                if (res && res.isConfirmed) {
+                    formEl.dataset.payConfirmed = '1';
+                    formEl.requestSubmit();
+                }
+            }, true);
+        }
+
         // Aplicar estilos disabled si está pagado
         if (isPaidInFull) {
             setTimeout(() => {
-                $("#advanced_pay, #method_pay_id, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+                $("#advanced_pay, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             }, 100);
         }
+    }
+
+    onCobroChange(sel) {
+        const $sel   = $(sel);
+        const id     = String($sel.val() || '');
+        const nombre = $sel.find('option:selected').text().trim();
+        const origen = String($sel.data('origen') || '');
+        const same   = id === origen;
+
+        $('#cobroCardName').text(nombre);
+        $('#cobroCardSub').text(same ? 'Misma sucursal de origen' : 'Cobro en otra sucursal');
+        $('#cobroCard')
+            .toggleClass('border-slate-700', same)
+            .toggleClass('border-amber-500/60', !same);
+        $('#cobroCardIcon')
+            .toggleClass('text-blue-400', same)
+            .toggleClass('text-amber-400', !same);
     }
 
     deletePay(id, idFolio) {
@@ -1828,14 +2107,14 @@ class App extends Templates {
             title: `
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                        <i class="icon-birthday text-white text-sm"></i>
+                        ${lucideIcon('cake', 'w-4 h-4 text-white')}
                     </div>
                     <div>
                         <h2 class="text-lg font-semibold text-white">Detalles del Pedido</h2>
                         <div class="flex items-center gap-2 mt-1">
                             ${badgeTipo}
-                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200">
-                                <i class="icon-home mr-1"></i>${subsidiarieName}
+                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200 inline-flex items-center gap-1">
+                                ${lucideIcon('house', 'w-3.5 h-3.5')}${subsidiarieName}
                             </span>
                         </div>
                     </div>
@@ -1870,12 +2149,13 @@ class App extends Templates {
             this.layoutManager.applyLayout();
             const orderData = response.data.order || {};
             const products = response.data.products || [];
+            const paymentMethods = response.data.paymentMethods || [];
 
             const container = $('#orderDetailsContainer');
             container.html(`
                 <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
                     <div class="lg:sticky lg:top-4">
-                        ${this.detailsCard(orderData)}
+                        ${this.detailsCard(orderData, paymentMethods)}
                     </div>
                 </div>
 
@@ -1933,18 +2213,18 @@ class App extends Templates {
 
     getBadgeDeliveryType(tipo) {
         if (tipo == 0 || tipo === '0') {
-            return '<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-block w-24 text-center"><i class="icon-home"></i> Local</span>';
+            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-flex items-center gap-1 w-24 justify-center">${lucideIcon('house', 'w-3.5 h-3.5')} Local</span>`;
         } else if (tipo == 1 || tipo === '1') {
-            return '<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-block w-28 text-center"><i class="icon-motorcycle"></i> Domicilio</span>';
+            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-flex items-center gap-1 w-28 justify-center">${lucideIcon('truck', 'w-3.5 h-3.5')} Domicilio</span>`;
         }
         return '<span class="px-3 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-700 inline-block w-24 text-center">Sin especificar</span>';
     }
 
-    detailsCard(orderData) {
+    detailsCard(orderData, paymentMethods = []) {
         return `
             <div class="space-y-3">
                 ${this.infoOrder(orderData)}
-                ${this.infoSales(orderData)}
+                ${this.infoSales(orderData, paymentMethods)}
             </div>
         `;
     }
@@ -1953,60 +2233,64 @@ class App extends Templates {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
                 <h3 class="text-white font-semibold text-base mb-2 flex items-center">
-                    <i class="icon-info text-blue-400 mr-2 text-sm"></i>
+                    ${lucideIcon('info', 'w-4 h-4 text-blue-400 mr-2')}
                     Información del Pedido
                 </h3>
 
                 <div class="space-y-1.5">
-                    <div class="flex items-start">
-                        <i class="icon-doc-text-1 text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Folio:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.folio || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('file-text', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Folio:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.folio || 'N/A'}</span>
                     </div>
 
-                    <div class="flex items-start">
-                        <i class="icon-user text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Cliente:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.name || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('user', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Cliente:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.name || 'N/A'}</span>
                     </div>
 
-                    <div class="flex items-start">
-                        <i class="icon-calendar text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Fecha de entrega:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('calendar', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Fecha de entrega:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</span>
                     </div>
 
-                    <div class="flex items-start">
-                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Hora:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.time_order || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('clock', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Hora:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.time_order || 'N/A'}</span>
                     </div>
-                    <div class="flex items-start">
-                        <i class="icon-clock text-gray-400 text-base mr-3 mt-0.5"></i>
-                        <div>
-                            <p class="text-gray-400 text-xs mb-0.5">Estado de entrega:</p>
-                            <p class="text-white font-semibold text-sm">${orderData.delivery_status || 'N/A'}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('truck', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Estado de entrega:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.delivery_status || 'N/A'}</span>
                     </div>
                 </div>
             </div>
         `;
     }
 
-    infoSales(orderData) {
+    infoSales(orderData, paymentMethods = []) {
         const totalPay = parseFloat(orderData.total_pay || 0);
         const discount = parseFloat(orderData.discount || 0);
         const totalPaid = parseFloat(orderData.total_paid || 0);
         const balance = parseFloat(orderData.balance || 0);
         const infoDiscount = orderData.info_discount || '';
+
+        const methodsHtml = (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
+                    <div class="pl-2 space-y-1 border-l-2 border-gray-600">
+                        ${paymentMethods.map(m => `
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-500 text-xs flex items-center gap-1.5">
+                                ${lucideIcon('credit-card', 'w-3.5 h-3.5')}
+                                ${m.method_pay || 'Sin método'}:
+                            </span>
+                            <span class="text-gray-300 text-xs">$${parseFloat(m.pay || 0).toFixed(2)}</span>
+                        </div>
+                        `).join('')}
+                    </div>
+        ` : '';
 
         const discountHtml = discount > 0 ? `
                     <div class="flex items-center justify-between">
@@ -2023,7 +2307,7 @@ class App extends Templates {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
                 <h3 class="text-white font-semibold text-base mb-2 flex items-center">
-                    <i class="icon-dollar text-green-400 mr-2 text-sm"></i>
+                    ${lucideIcon('dollar-sign', 'w-4 h-4 text-green-400 mr-2')}
                     Resumen de pago
                 </h3>
 
@@ -2039,6 +2323,8 @@ class App extends Templates {
                         <span class="text-gray-400 text-sm">Pagado:</span>
                         <span class="text-green-400 font-bold text-sm">$${totalPaid.toFixed(2)}</span>
                     </div>
+
+                    ${methodsHtml}
 
                     <div class="border-t border-gray-600 my-1.5"></div>
 
@@ -2058,7 +2344,7 @@ class App extends Templates {
         if (!products || products.length === 0) {
             return `
                 <div class="bg-[#283341] rounded-lg p-2 text-center h-full flex flex-col items-center justify-center">
-                    <i class="icon-basket text-gray-500 text-5xl mb-4"></i>
+                    ${lucideIcon('shopping-basket', 'w-12 h-12 text-gray-500 mb-4')}
                     <h3 class="text-white text-lg font-semibold mb-2">No hay productos</h3>
                     <p class="text-gray-400">Este pedido no contiene productos.</p>
                 </div>
@@ -2072,7 +2358,7 @@ class App extends Templates {
                 <div class="bg-[#283341] rounded-lg p-3 mb-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-white font-semibold text-lg flex items-center">
-                            <i class="icon-basket mr-2 text-blue-400"></i>
+                            ${lucideIcon('shopping-basket', 'w-5 h-5 mr-2 text-blue-400')}
                             Productos del Pedido
                         </h3>
                         <span class="text-gray-300 font-medium"> ${totalItems} productos</span>
@@ -2414,58 +2700,72 @@ class App extends Templates {
         this._selectedShiftId = null;
 
         const subsidiarySelect = rol == 1 ? `
-            <div class="mb-3">
+            <div>
                 <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
-                <select id="subsidiariesDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.onDailyCloseFilterChange()">
+                <select id="subsidiariesDailyClose" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg px-3 py-2 text-sm font-normal" onchange="app.onDailyCloseFilterChange()">
                     ${subsidiaries.map(s => `<option value="${s.id}" ${dailyClosure.subsidiary_id == s.id ? 'selected' : ''}>${s.valor}</option>`).join('')}
                 </select>
             </div>
-        ` : '';
+        ` : `
+            <div>
+                <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
+                <div class="flex items-center gap-2 w-full bg-[#1F2A37] border border-purple-500/40 rounded-lg px-3 py-2" title="Abrirás, cerrarás turno y harás el cierre de esta sucursal">
+                    <i class="icon-location-8 text-purple-400"></i>
+                    <span class="text-sm font-semibold text-white truncate">${sub_name || 'Mi sucursal'}</span>
+                </div>
+            </div>
+        `;
 
         const modalContent = `
-            <div class="flex flex-col lg:flex-row gap-4" style="min-height: 480px;">
+            <div class="flex flex-col lg:flex-row gap-4 lg:min-h-[480px]">
                 <!-- Sidebar -->
                 <div class="w-full lg:w-[280px] flex-shrink-0 space-y-4">
-                    ${subsidiarySelect}
-                    <div>
-                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar fecha</label>
-                        <input type="text" id="calendarDailyClose" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm cursor-pointer" readonly placeholder="Seleccionar fecha" />
+                    <div class="grid grid-cols-2 md:grid-cols-1 gap-3">
+                        ${subsidiarySelect}
+                        <div id="dateFieldWrapper">
+                            <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Fecha</label>
+                            <div class="relative">
+                                <input type="text" id="calendarDailyClose" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg pl-3 pr-9 py-2 text-sm font-normal cursor-pointer focus:border-purple-500 focus:outline-none" readonly placeholder="Fecha" />
+                                <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-300 pointer-events-none">
+                                    ${lucideIcon('calendar', 'w-[18px] h-[18px]')}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                     <div id="openShiftsAlert" class="hidden"></div>
                     <div>
-                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Modo de reporte</label>
-                        <div class="flex rounded-lg overflow-hidden border border-gray-600">
-                            <button id="btnModeSummary" class="flex-1 py-2 text-sm font-semibold bg-purple-600 text-white" onclick="app.toggleReportMode('summary')">Resumido</button>
-                            <button id="btnModeDetailed" class="flex-1 py-2 text-sm font-semibold bg-[#1a2332] text-gray-300 hover:bg-gray-700" onclick="app.toggleReportMode('detailed')">Detallado</button>
-                        </div>
-                    </div>
-                    <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar turno</label>
-                        <select id="shiftSelector" class="w-full bg-[#1a2332] border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" onchange="app.viewShiftPreview()">
+                        <select id="shiftSelector" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg px-3 py-2 text-sm font-normal" onchange="app.viewShiftPreview()">
                             <option value="">-- Seleccionar --</option>
                         </select>
                     </div>
-                    <div class="space-y-2 mt-2">
-                        <button id="btnOpenShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2" onclick="app.openShift()">
-                            <i class="icon-plus"></i> Abrir Turno
+                    <div class="grid grid-cols-3 md:grid-cols-1 gap-2 mt-2">
+                        <button id="btnOpenShift" class="py-2.5 rounded-lg text-xs md:text-sm font-semibold bg-green-600 hover:bg-green-700 text-white flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2" onclick="app.openShift()">
+                            ${lucideIcon('circle-plus')} <span>Abrir<span class="hidden md:inline"> Turno</span></span>
                         </button>
-                        <button id="btnCloseShift" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.closeShift()">
-                            <i class="icon-lock"></i> Cerrar Turno
+                        <button id="btnCloseShift" class="py-2.5 rounded-lg text-xs md:text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.closeShift()">
+                            ${lucideIcon('lock')} <span>Cerrar<span class="hidden md:inline"> Turno</span></span>
                         </button>
-                        <button id="btnPrintTicket" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
-                            <i class="icon-print"></i> Imprimir Ticket
+                        <button id="btnPrintTicket" class="py-2.5 rounded-lg text-xs md:text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
+                            ${lucideIcon('printer')} <span>Imprimir<span class="hidden md:inline"> Ticket</span></span>
                         </button>
                     </div>
                     <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
                         <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
-                            <i class="icon-check"></i> Cerrar Dia
+                            ${lucideIcon('check-check')} Cerrar Dia
                         </button>
                     </div>
                 </div>
                 <!-- Ticket Preview -->
                 <div class="flex-1 relative">
-                    <div id="ticketPreview" class="absolute inset-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
-                        <p class="text-xs text-gray-500 mb-2">Vista previa de impresión</p>
+                    <div id="ticketPreview" class="relative lg:absolute lg:inset-0 w-full min-h-[420px] lg:min-h-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
+                        <div id="ticketModeBar" class="flex items-center justify-between mb-3 gap-3 hidden">
+                            <p class="text-xs text-gray-500">Vista previa de impresión</p>
+                            <div class="inline-flex items-center gap-1 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px] flex-shrink-0">
+                                <button id="btnModeSummary" class="px-3 py-1 rounded-md font-semibold bg-purple-600 text-white shadow-sm transition-all" onclick="app.toggleReportMode('summary')">Resumido</button>
+                                <button id="btnModeDetailed" class="px-3 py-1 rounded-md font-semibold text-gray-400 hover:text-gray-200 transition-all" onclick="app.toggleReportMode('detailed')">Detallado</button>
+                            </div>
+                        </div>
                         <div id="ticketContainer">
                             <div class="text-center text-gray-400 py-16">
                                 <i class="icon-doc-text text-5xl mb-4"></i>
@@ -2481,7 +2781,7 @@ class App extends Templates {
             title: `
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                        <i class="icon-calendar text-white"></i>
+                        ${lucideIcon('calendar', 'w-5 h-5 text-white')}
                     </div>
                     <span class="text-lg font-bold text-white">Cierre del Día</span>
                 </div>`,
@@ -2501,8 +2801,10 @@ class App extends Templates {
                     startDate: moment(),
                     locale: { format: 'YYYY-MM-DD' }
                 },
-                onSelect: () => this.onDailyCloseFilterChange(),
             });
+
+            // Recargar turnos al seleccionar una fecha en el calendario
+            $('#calendarDailyClose').on('apply.daterangepicker', () => this.loadShifts());
 
             this.loadShifts();
         });
@@ -2563,23 +2865,23 @@ class App extends Templates {
                 const time = moment(s.opened_at).format('hh:mm A');
                 const name = s.shift_name || time;
                 return `
-                    <div class="flex items-center justify-between py-1.5 px-2 bg-[#1a2332] rounded-md cursor-pointer hover:bg-[#243044] transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
-                        <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-between gap-3 py-2.5 pl-3 pr-3.5 bg-slate-800/40 border-l-2 border-orange-500 rounded-md cursor-pointer hover:bg-slate-800/70 transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
+                        <div class="flex items-center gap-2.5">
                             <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
-                            <span class="text-xs text-gray-300">${name}</span>
+                            <span class="text-sm font-medium text-slate-100">${name}</span>
                         </div>
-                        <span class="text-[10px] text-gray-500">${date}</span>
+                        <span class="text-xs text-slate-400">${date}</span>
                     </div>
                 `;
             }).join('');
 
             alertContainer.html(`
-                <div class="bg-orange-900/30 border border-orange-600/50 rounded-lg p-3">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="icon-attention text-orange-400 text-sm"></i>
-                        <span class="text-xs font-bold text-orange-400 uppercase">Turnos sin cerrar (${openShifts.length})</span>
+                <div class="rounded-lg border border-slate-600/50 bg-slate-900/40 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Turnos sin cerrar (${openShifts.length})</span>
                     </div>
-                    <div class="space-y-1">${shiftItems}</div>
+                    <div class="space-y-2">${shiftItems}</div>
                 </div>
             `).removeClass('hidden');
 
@@ -2608,6 +2910,7 @@ class App extends Templates {
             `);
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            $('#ticketModeBar').addClass('hidden');
         }
 
         // Habilitar botón Cerrar Día solo si hay al menos un turno cerrado
@@ -2642,6 +2945,7 @@ class App extends Templates {
         if (!shiftId) {
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            $('#ticketModeBar').addClass('hidden');
             return;
         }
 
@@ -2663,6 +2967,7 @@ class App extends Templates {
         // Obtener órdenes si modo detallado
         let orders = [];
         let externalPayments = [];
+        let crossPayments = [];
         if (this.reportMode === 'detailed') {
             const ordersRes = await useFetch({
                 url: this._link,
@@ -2670,15 +2975,18 @@ class App extends Templates {
             });
             orders            = ordersRes.orders || [];
             externalPayments  = ordersRes.external_payments || [];
+            crossPayments     = ordersRes.cross_payments || [];
         }
 
         this.ticketShiftClose({
             data: metricsRes.data,
             shift: metricsRes.shift,
             subsidiary_name: metricsRes.subsidiary_name,
+            company_name: metricsRes.company_name,
             logo: metricsRes.logo,
             orders: orders,
-            externalPayments: externalPayments
+            externalPayments: externalPayments,
+            crossPayments: crossPayments
         });
 
         // Habilitar botón imprimir
@@ -2696,22 +3004,27 @@ class App extends Templates {
         const d = options.data || {};
         const shift = options.shift || {};
         const subsidiaryName = options.subsidiary_name || '';
+        const companyName = options.company_name || subsidiaryName;
         const logo = options.logo || '';
         const orders = options.orders || [];
         const isDetailed = this.reportMode === 'detailed';
 
-        const fecha = moment(shift.opened_at).format('DD/MM/YYYY');
+        const aperturaFull = moment(shift.opened_at).locale('es').format('DD/MMM/YYYY hh:mm a');
+        const cierreFull   = shift.closed_at ? moment(shift.closed_at).locale('es').format('DD/MMM/YYYY hh:mm a') : '-';
 
         const isClosed = shift.status === 'closed';
 
+        const subsidiaryHeader = (subsidiaryName && subsidiaryName !== companyName)
+            ? `<div class="text-xs font-semibold" style="color:#7c3aed;">${subsidiaryName}</div>`
+            : '';
+
         const closedBadge = isClosed
-            ? `<div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO</div>
-               <div class="text-[10px] text-gray-500 mt-0.5">Por: ${shift.employee_name || 'N/A'}</div>
-               <div class="text-[10px] text-gray-500">${shift.closed_at ? moment(shift.closed_at).format('DD/MM/YYYY HH:mm') : ''}</div>`
+            ? `<div class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">CERRADO</div>`
             : `<div class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1">EN CURSO</div>`;
 
         // Desglose de ventas (modo detallado)
         const externalPayments = options.externalPayments || [];
+        const crossPayments    = options.crossPayments || [];
         let detailedSection = '';
 
         if (isDetailed) {
@@ -2722,9 +3035,9 @@ class App extends Templates {
 
                 const orderRows = orders.map(o => `
                     <div class="flex items-center">
-                        <div class="italic truncate flex-1">${o.folio || 'Folio #' + o.id}</div>
+                        <div class="font-bold text-gray-900 truncate flex-1">${o.folio || 'Folio #' + o.id}</div>
                         <div class="text-right" style="width:72px">${formatPrice(o.total_pay)}</div>
-                        <div class="text-right text-green-700" style="width:72px">${formatPrice(o.payment_real)}</div>
+                        <div class="text-right text-green-700" style="width:72px">${parseFloat(o.payment_real || 0) ? formatPrice(o.payment_real) : '-'}</div>
                     </div>
                     <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
                 `).join('');
@@ -2753,13 +3066,36 @@ class App extends Templates {
             if (externalPayments.length > 0) {
                 const extTotal = externalPayments.reduce((sum, o) => sum + parseFloat(o.payment_real || 0), 0);
 
-                const extRows = externalPayments.map(o => `
-                    <div class="flex justify-between items-center">
-                        <div class="italic truncate" style="max-width:140px">${o.folio || 'Folio #' + o.id}</div>
-                        <div class="text-green-700">${formatPrice(o.payment_real)}</div>
-                    </div>
-                    <div class="text-[10px] text-gray-500 mb-1">${o.client_name || 'Sin cliente'}</div>
-                `).join('');
+                const money = (v) => `$${parseFloat(v || 0).toFixed(2)}`;
+                const extRows = externalPayments.map(o => {
+                    const total     = parseFloat(o.total_pay || 0);
+                    const discount  = parseFloat(o.discount || 0);
+                    const abono     = parseFloat(o.payment_real || 0);       // abonó en este turno
+                    const paidUpto  = parseFloat(o.total_paid_upto || 0);    // abonado hasta el cierre (incluye este turno)
+                    const quedoRaw  = total - discount - paidUpto;           // saldo restante
+                    const quedo     = quedoRaw < 0 ? 0 : quedoRaw;
+                    const debia     = quedo + abono;                         // saldo antes del abono de este turno
+                    const liquidado = quedoRaw <= 0.005;
+                    const badge = liquidado
+                        ? `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-bold">LIQUIDADO</span>`
+                        : `<span class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[9px] font-bold">PENDIENTE</span>`;
+                    // Cobro cruzado: el pedido es de otra sucursal distinta a la del cierre.
+                    const origin = o.origin_subsidiary || '';
+                    const originLine = (origin && origin !== subsidiaryName)
+                        ? `<div class="text-[10px] text-gray-500 mb-0.5">Origen: ${origin}</div>`
+                        : '';
+                    return `
+                        <div class="flex justify-between items-center mt-3 pt-2 border-t border-dashed border-gray-200">
+                            <div class="italic truncate" style="max-width:150px">${o.folio || 'Folio #' + o.id}</div>
+                            ${badge}
+                        </div>
+                        <div class="text-[10px] text-gray-500 mb-0.5">${o.client_name || 'Sin cliente'}</div>
+                        ${originLine}
+                        <div class="flex justify-between text-[11px]"><span class="text-gray-600">Debía</span><span>${money(debia)} <span class="text-gray-400">de ${money(total)}</span></span></div>
+                        <div class="flex justify-between text-[11px] text-green-700"><span>Abonó</span><span>${money(abono)}</span></div>
+                        <div class="flex justify-between text-[11px] font-semibold border-t border-dashed pt-0.5 mt-0.5"><span>Quedó</span><span>${money(quedo)}</span></div>
+                    `;
+                }).join('');
 
                 detailedSection += `
                     <div class="font-semibold mt-2 mb-1">ABONOS DE PEDIDOS ANTERIORES</div>
@@ -2771,32 +3107,73 @@ class App extends Templates {
                     <hr class="border-dashed border-t my-1" />
                 `;
             }
+
+            // Grupo 3: pedidos de este turno cuyo abono se cobró en otra sucursal.
+            // Es informativo: NO entra a tu caja, por eso va aparte y no suma al total.
+            if (crossPayments.length > 0) {
+                const crossTotal = crossPayments.reduce((sum, o) => sum + parseFloat(o.payment_cross || 0), 0);
+
+                const crossRows = crossPayments.map(o => `
+                    <div class="flex items-center mt-2">
+                        <div class="font-bold text-gray-900 truncate flex-1">${o.folio || 'Folio #' + o.id}</div>
+                        <div class="text-right text-gray-900" style="width:72px">${formatPrice(o.payment_cross)}</div>
+                    </div>
+                    <div class="text-[10px] text-purple-400">${o.client_name || 'Sin cliente'}</div>
+                    <div class="text-[10px] text-purple-500"><i class="icon-shop"></i> Cobrado en: ${o.charged_subsidiary || 'Otra sucursal'}</div>
+                `).join('');
+
+                detailedSection += `
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-2">
+                        <div class="font-semibold text-purple-700"><i class="icon-bank"></i> COBRADO EN OTRA SUCURSAL</div>
+                        <div class="text-[10px] text-purple-400 mb-1">No entra a tu caja (informativo).</div>
+                        ${crossRows}
+                        <div class="flex justify-between items-center font-semibold border-t border-dashed border-purple-200 pt-1 mt-2">
+                            <div class="text-gray-900">Total en otra sucursal</div>
+                            <div class="text-gray-900">${formatPrice(crossTotal)}</div>
+                        </div>
+                    </div>
+                `;
+            }
         }
 
         const totalPayments = parseFloat(d.cash_sales || 0) + parseFloat(d.card_sales || 0) + parseFloat(d.transfer_sales || 0);
 
+        // Actividad de pedidos del turno = creados en el turno + cobrados de turnos anteriores
+        const createdOrders  = parseInt(d.total_orders)    || 0;
+        const createdQuot    = parseInt(d.quotation_count) || 0;
+        const createdCancel  = parseInt(d.cancelled_count) || 0;
+        const createdPending = parseInt(d.pending_count)   || 0;
+        const createdPaid    = createdOrders - createdQuot - createdCancel - createdPending;
+        const prevCount      = parseInt(d.prev_count)   || 0; // pedidos anteriores cobrados en el turno
+        const prevPaid       = parseInt(d.prev_paid)    || 0; // de esos, los que quedaron liquidados
+        const prevPending    = parseInt(d.prev_pending) || 0; // de esos, los que aun tienen saldo
+        const ordersTurno    = createdOrders  + prevCount;
+        const paidTurno      = createdPaid    + prevPaid;
+        const pendingTurno   = createdPending + prevPending;
+
         const ticketHtml = `
             <div id="layoutPrintCloseTicket" class="flex justify-center p-4">
-                <div id="ticketDailyClose" class="bg-white p-4 rounded-lg shadow-lg font-mono text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%;">
+                <div id="ticketDailyClose" class="bg-white p-4 rounded-lg shadow-lg text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%; font-family: 'Roboto Mono', ui-monospace, 'Courier New', monospace;">
                     <!-- Header -->
                     <div class="flex flex-col items-center mb-3">
                         ${logo ? `<div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin-bottom:0.25rem;" class="mb-1">
-                            <img src="/alpha${logo}" alt="" onerror="this.parentElement.outerHTML='<div style=\\'width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;\\'><span style=\\'color:white;font-size:24px;font-weight:bold;\\'>${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span></div>'" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                            <img src="/alpha${logo}" alt="" onerror="this.parentElement.outerHTML='<div style=\\'width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;\\'><span style=\\'color:white;font-size:24px;font-weight:bold;\\'>${(companyName || 'H').charAt(0).toUpperCase()}</span></div>'" style="width:100%;height:100%;object-fit:cover;display:block;" />
                         </div>` : `<div style="width:60px;height:60px;border-radius:50%;margin-bottom:0.25rem;background:#7c3aed;display:flex;align-items:center;justify-content:center;" class="mb-1">
-                            <span style="color:white;font-size:24px;font-weight:bold;">${(subsidiaryName || 'H').charAt(0).toUpperCase()}</span>
+                            <span style="color:white;font-size:24px;font-weight:bold;">${(companyName || 'H').charAt(0).toUpperCase()}</span>
                         </div>`}
-                        <h1 class="text-sm font-bold uppercase">${subsidiaryName}</h1>
+                        <h1 class="text-sm font-bold uppercase">${companyName}</h1>
+                        ${subsidiaryHeader}
                         <div class="text-xs font-semibold">PEDIDOS DE PASTELERÍA</div>
-                        <div class="text-xs text-gray-600">Cierre Operativo</div>
+                        <div class="text-xs text-gray-600">Cierre x Turno</div>
                         ${closedBadge}
                     </div>
 
                     <!-- Info -->
                     <div class="text-xs space-y-0.5 mb-2">
-                        <div class="flex justify-between"><span>Fecha:</span><span>${fecha}</span></div>
-                        <div class="flex justify-between"><span>Apertura:</span><span>${moment(shift.opened_at).format('hh:mm A')}</span></div>
+                        <div class="flex justify-between"><span>Aperturó:</span><span>${shift.employee_name || 'N/A'}</span></div>
+                        <div class="flex justify-between"><span>Apertura:</span><span>${aperturaFull}</span></div>
+                        ${isClosed ? `<div class="flex justify-between"><span>Cierre:</span><span>${cierreFull}</span></div>` : ''}
                         <div class="flex justify-between"><span>Inicio de caja:</span><span>${formatPrice(shift.opening_amount || 0)}</span></div>
-                        <div class="flex justify-between"><span>Sucursal:</span><span>${subsidiaryName}</span></div>
                     </div>
 
                     <hr class="border-dashed border-t my-1" />
@@ -2806,48 +3183,48 @@ class App extends Templates {
                         ${detailedSection}
 
                         <!-- Formas de pago -->
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">EFECTIVO:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>EFECTIVO:</div>
                             <div>${parseFloat(d.cash_sales || 0) ? formatPrice(d.cash_sales) : '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">TARJETA:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>TARJETA:</div>
                             <div>${parseFloat(d.card_sales || 0) ? formatPrice(d.card_sales) : '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">TRANSFERENCIA:</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>TRANSFERENCIA:</div>
                             <div>${parseFloat(d.transfer_sales || 0) ? formatPrice(d.transfer_sales) : '-'}</div>
                         </div>
 
                         <hr class="border-dashed border-t my-1" />
 
-                        <div class="flex justify-between items-center font-bold">
+                        <div class="flex justify-between items-center font-semibold">
                             <div>TOTAL CAJA:</div>
                             <div class="text-sm">${totalPayments ? formatPrice(totalPayments) : '-'}</div>
                         </div>
 
                         <hr class="border-dashed border-t my-1" />
 
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">NÚMERO DE PEDIDOS DEL TURNO:</div>
-                            <div class="font-bold">${parseInt(d.total_orders) || '-'}</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>NÚMERO DE PEDIDOS DEL TURNO:</div>
+                            <div>${ordersTurno || '-'}</div>
                         </div>
                         <div class="mt-2"></div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">PAGADOS:</div>
-                            <div>${((d.total_orders || 0) - (d.quotation_count || 0) - (d.cancelled_count || 0) - (d.pending_count || 0)) || '-'}</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>PAGADOS:</div>
+                            <div>${paidTurno || '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">PENDIENTES:</div>
-                            <div>${d.pending_count || '-'}</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>PENDIENTES:</div>
+                            <div>${pendingTurno || '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">COTIZACIONES:</div>
-                            <div>${d.quotation_count || '-'}</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>COTIZACIONES:</div>
+                            <div>${createdQuot || '-'}</div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <div class="font-semibold">CANCELADOS:</div>
-                            <div>${d.cancelled_count || '-'}</div>
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>CANCELADOS:</div>
+                            <div>${createdCancel || '-'}</div>
                         </div>
                     </div>
 
@@ -2864,17 +3241,18 @@ class App extends Templates {
         `;
 
         $('#ticketContainer').html(ticketHtml);
+        $('#ticketModeBar').removeClass('hidden');
     }
 
     toggleReportMode(mode) {
         this.reportMode = mode;
 
         if (mode === 'detailed') {
-            $('#btnModeDetailed').addClass('bg-purple-600 text-white').removeClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700');
-            $('#btnModeSummary').addClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700').removeClass('bg-purple-600 text-white');
+            $('#btnModeDetailed').addClass('bg-purple-600 text-white shadow-sm').removeClass('text-gray-400 hover:text-gray-200');
+            $('#btnModeSummary').addClass('text-gray-400 hover:text-gray-200').removeClass('bg-purple-600 text-white shadow-sm');
         } else {
-            $('#btnModeSummary').addClass('bg-purple-600 text-white').removeClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700');
-            $('#btnModeDetailed').addClass('bg-[#1a2332] text-gray-300 hover:bg-gray-700').removeClass('bg-purple-600 text-white');
+            $('#btnModeSummary').addClass('bg-purple-600 text-white shadow-sm').removeClass('text-gray-400 hover:text-gray-200');
+            $('#btnModeDetailed').addClass('text-gray-400 hover:text-gray-200').removeClass('bg-purple-600 text-white shadow-sm');
         }
 
         if (this._selectedShiftId) {
@@ -2888,57 +3266,58 @@ class App extends Templates {
             ? $('#subsidiariesDailyClose option:selected').text()
             : sub_name;
 
-        bootbox.dialog({
-            title: 'Abrir Turno de Caja',
-            message: `
-                <div class="space-y-3">
-                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
-                        <i class="icon-home text-purple-400"></i>
-                        <span class="text-sm font-medium text-purple-300">${subName}</span>
-                    </div>
-                    <!-- <div>
-                        <label class="text-sm font-medium text-gray-300 block mb-1">Nombre del turno (opcional)</label>
-                        <input id="shiftName" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="Ej: Matutino, Vespertino">
-                    </div> -->
-                    <div>
-                        <label class="text-sm font-medium text-gray-300 block mb-1">Fondo de caja inicial</label>
-                        <input id="openingAmount" type="number" class="form-control bg-[#374151] border-gray-600 text-white" placeholder="0.00" min="0" step="0.01">
-                    </div>
-                </div>
-            `,
-            closeButton: true,
-            buttons: {
-                cancel: {
-                    label: 'Cancelar',
-                    className: 'btn-secondary'
-                },
-                confirm: {
-                    label: 'Abrir Turno',
-                    className: 'btn-success',
-                    callback: async () => {
-                        const shift_name = ($('#shiftName').val() || '').trim();
-                        const opening_amount = parseFloat($('#openingAmount').val()) || 0;
+        createCoffeeModalForm({
+            id: 'frmOpenShift',
+            title: 'Abrir Turno',
+            iconSvg: lucideIcon('clock', 'w-5 h-5'),
+            iconBg: 'bg-emerald-600',
+            theme: 'dark',
+            confirmText: 'Confirmar Apertura',
+            cancelText: 'Cancelar',
+            json: [
+                { opc: 'display', id: 'sucursal',    lbl: 'Sucursal',             icon: lucideIcon('house', 'w-4 h-4'), value: subName },
+                { opc: 'display', id: 'responsable', lbl: 'Responsable',          icon: lucideIcon('user', 'w-4 h-4'),  value: (typeof user_name !== 'undefined' && user_name) ? user_name : 'Sin asignar' },
+                { opc: 'money',   id: 'openingAmount', lbl: 'Fondo inicial de caja', placeholder: '0.00', min: 0, step: 0.01, autofocus: true }
+            ],
+            onConfirm: async (data, modal) => {
+                const opening_amount = parseFloat(data.openingAmount) || 0;
 
-                        const response = await useFetch({
-                            url: this._link,
-                            data: {
-                                opc: "openShift",
-                                shift_name: shift_name,
-                                opening_amount: opening_amount,
-                                subsidiaries_id: subsidiaries_id
-                            }
-                        });
+                const confirm = await Swal.fire({
+                    title: '¿Aperturar turno?',
+                    html: `<p>Se abrirá un nuevo turno de caja en <strong>${subName}</strong> con un fondo inicial de <strong>$${opening_amount.toFixed(2)}</strong>.</p>`,
+                    icon: 'question',
+                    iconColor: '#8b5cf6',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, aperturar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#8b5cf6',
+                    customClass: { popup: 'bg-[#1F2A37] text-white rounded-lg' },
+                    // El modal de apertura usa z-index 100000; subimos el Swal por encima.
+                    didOpen: () => { const c = document.querySelector('.swal2-container'); if (c) c.style.zIndex = 100010; }
+                });
 
-                        if (response.status === 200) {
-                            alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
-                            this.loadShifts();
-                            openShift = { has_open_shift: true, shift_id: response.shift_id, shift_name: shift_name || null, opened_at: new Date().toISOString() };
-                            this.updateDailyClosureStatus();
-                            this.actualizarFechaHora({ label: sub_name });
-                        } else {
-                            alert({ icon: "error", title: "Error", text: response.message, btn1: true });
-                        }
+                if (!confirm.isConfirmed) return;
+
+                const response = await useFetch({
+                    url: this._link,
+                    data: {
+                        opc: "openShift",
+                        shift_name: '',
+                        opening_amount: opening_amount,
+                        subsidiaries_id: subsidiaries_id
                     }
+                });
+
+                modal.modal('hide');
+
+                if (response.status === 200) {
+                    alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
+                    openShift = { has_open_shift: true, shift_id: response.shift_id, shift_name: null, opened_at: new Date().toISOString() };
+                    this.updateDailyClosureStatus();
+                    this.actualizarFechaHora({ label: sub_name });
+                    await this.selectOpenShift(response.shift_id, moment().format('YYYY-MM-DD'));
+                } else {
+                    alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }
             }
         });
@@ -2948,7 +3327,6 @@ class App extends Templates {
         const shiftId = this._selectedShiftId || $('#shiftSelector').val();
         if (!shiftId) return;
 
-        // Obtener conteo de pedidos
         const ordersRes = await useFetch({
             url: this._link,
             data: { opc: "getShiftOrders", shift_id: shiftId }
@@ -2979,7 +3357,6 @@ class App extends Templates {
                     this.loadShifts();
                     this.ls();
 
-                    // Actualizar variable global
                     openShift = { has_open_shift: false };
                     this.updateDailyClosureStatus();
                     this.actualizarFechaHora({ label: sub_name });
@@ -2998,8 +3375,17 @@ class App extends Templates {
             return;
         }
 
+        // Reutiliza el CSS de Fontello ya cargado en la pagina (href absoluto) para que
+        // los iconos (icon-shop, icon-bank) se rendericen tambien en la ventana de impresion.
+        const fontelloHref = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+            .map(l => l.href)
+            .find(h => /fontello/i.test(h)) || '';
+
         const printWindow = window.open('', '', 'height=600,width=400');
         printWindow.document.write('<html><head><title>Cierre de Turno</title>');
+        if (fontelloHref) {
+            printWindow.document.write(`<link rel="stylesheet" href="${fontelloHref}">`);
+        }
         printWindow.document.write(`
             <style>
                 body { font-family: 'Courier New', monospace; padding: 10px; max-width: 320px; margin: 0 auto; }
@@ -3045,7 +3431,13 @@ class App extends Templates {
         printWindow.document.write('</body></html>');
         printWindow.document.close();
 
-        setTimeout(() => { printWindow.print(); }, 250);
+        // Espera a que cargue la fuente de iconos antes de imprimir; si no, fallback por tiempo.
+        const triggerPrint = () => printWindow.print();
+        if (printWindow.document.fonts && printWindow.document.fonts.ready) {
+            printWindow.document.fonts.ready.then(() => setTimeout(triggerPrint, 100));
+        } else {
+            setTimeout(triggerPrint, 400);
+        }
     }
 
 }
