@@ -3490,7 +3490,14 @@ class CoffeeIA {
         // Conexion pegajosa: si el backend resolvio una base, la recordamos para que
         // los siguientes turnos sigan consultandola sin tener que volver a nombrarla.
         if (meta && meta.db) this._setActiveDb(meta.db);
-        if (meta && meta.fs) this._setActiveFolder(meta.fs);
+        if (meta && meta.fs) {
+            const folderChanged = meta.fs !== this.activeFolder;
+            this._setActiveFolder(meta.fs);
+            if (folderChanged) {
+                const fname = String(meta.fs).replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
+                this._toast('📁 Conectado a la carpeta ' + fname, 'success');
+            }
+        }
 
         this.history.push({ role: 'assistant', content: received });
 
