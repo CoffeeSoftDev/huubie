@@ -187,6 +187,7 @@ function coffeeia_build_context(array $body) {
     // diagramar el esquema, filas como tabla markdown).
     $dbMode    = isset($body['dbMode']) ? trim((string) $body['dbMode']) : '';
     $dbSchema  = null;
+    $dbFromMessage = false;   // true si la base la NOMBRO el usuario en este turno (no pegajosa)
 
     $lastUser = '';
     for ($i = count($messages) - 1; $i >= 0; $i--) {
@@ -213,6 +214,7 @@ function coffeeia_build_context(array $body) {
             $det = db_detect_request($lastUser, true);
             if ($det && $det['schema']) {
                 $dbSchema = $det['schema'];
+                $dbFromMessage = true;
             } elseif ($det && !empty($det['candidates'])) {
                 $systemBlock .= "\n\n=== BASE DE DATOS ===\n"
                     . "El usuario menciono una base ambigua. Candidatos: "
@@ -274,6 +276,7 @@ function coffeeia_build_context(array $body) {
     // read_file/grep_files). El acceso esta sandbox-eado a esa carpeta.
     $folderConnect = isset($body['folderConnect']) ? trim((string) $body['folderConnect']) : '';
     $fsRoot = null;
+    $fsFromMessage = false;   // true si la carpeta la NOMBRO el usuario en este turno (no pegajosa)
 
     // Si el turno califica explicitamente "base/tabla/esquema" (y NO "carpeta/proyecto"),
     // no resolvemos como carpeta: es una consulta de BD.
@@ -289,11 +292,14 @@ function coffeeia_build_context(array $body) {
             $det = preg_match($fsIntentRe, $lastUser) ? fs_detect_request($lastUser, true) : null;
             if ($det && $det['path']) {
                 $fsRoot = $det['path'];
+                $fsFromMessage = true;
             } elseif ($det && !empty($det['candidates'])) {
                 $systemBlock .= "\n\n=== CARPETA ===\n"
-                    . "El usuario menciono una carpeta ambigua. Candidatos: "
-                    . implode(', ', array_map('basename', $det['candidates']))
-                    . ". Pide que elija una (por nombre exacto) antes de continuar.\n";
+                    . "El usuario menciono una carpeta ambigua (varias con el mismo nombre). "
+                    . "Candidatos (ruta relativa): "
+                    . implode(', ', array_map('fs_rel_to_root', $det['candidates']))
+                    . ". Pide que elija una escribiendo un fragmento distintivo de la ruta "
+                    . "(p.ej. la carpeta padre) antes de continuar.\n";
             } elseif ($folderConnect !== '') {
                 // Sin carpeta nombrada en este mensaje: mantiene la conexion pegajosa.
                 $fsRoot = fs_canonical_folder($folderConnect);
@@ -313,16 +319,26 @@ function coffeeia_build_context(array $body) {
         }
     }
 
-    // Ambiguedad real: el nombre resolvio a la vez una BASE y una CARPETA homonimas y el
-    // usuario no califico cual. No adivinamos: pedimos que aclare y no activamos ninguna
-    // herramienta (el esquema/arbol ya inyectados le dan contexto para preguntar bien).
+    // Prioridad cuando quedan resueltas una BASE y una CARPETA a la vez. El gate de
+    // aclaracion SOLO aplica a la ambiguedad REAL: que el usuario nombrara EN ESTE TURNO
+    // un nombre que resuelve a la vez a base y carpeta homonimas. Si uno de los dos
+    // proviene de la conexion PEGAJOSA (turnos anteriores), no hay ambiguedad: manda lo que
+    // el usuario nombro ahora y la conexion pegajosa del otro tipo cede el turno (asi no se
+    // dispara la aclaracion en cada mensaje neutro cuando hay base y carpeta conectadas).
     if ($dbSchema && $fsRoot) {
-        $systemBlock .= "\n\n=== ACLARAR: BASE DE DATOS vs CARPETA ===\n"
-            . "El nombre solicitado coincide a la vez con una BASE DE DATOS ('{$dbSchema}') y con\n"
-            . "una CARPETA ('" . basename($fsRoot) . "'). NO asumas cual: pregunta al usuario si se\n"
-            . "refiere a la base de datos o a la carpeta de archivos antes de continuar.\n";
-        $dbSchema = null;
-        $fsRoot   = null;
+        if ($dbFromMessage && $fsFromMessage) {
+            $systemBlock .= "\n\n=== ACLARAR: BASE DE DATOS vs CARPETA ===\n"
+                . "El nombre solicitado coincide a la vez con una BASE DE DATOS ('{$dbSchema}') y con\n"
+                . "una CARPETA ('" . basename($fsRoot) . "'). NO asumas cual: pregunta al usuario si se\n"
+                . "refiere a la base de datos o a la carpeta de archivos antes de continuar.\n";
+            $dbSchema = null;
+            $fsRoot   = null;
+        } elseif ($fsFromMessage && !$dbFromMessage) {
+            $dbSchema = null;   // el usuario nombro una CARPETA este turno; la base pegajosa no manda ahora
+        } elseif ($dbFromMessage && !$fsFromMessage) {
+            $fsRoot = null;     // el usuario nombro una BASE este turno; la carpeta pegajosa no manda ahora
+        }
+        // (ambos pegajosos, sin nombrar nada este turno: se mantienen; el endpoint prioriza la base.)
     }
 
     $prepend = [['role' => 'system', 'content' => $systemBlock]];

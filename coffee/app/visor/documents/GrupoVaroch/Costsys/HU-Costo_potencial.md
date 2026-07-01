@@ -4,59 +4,523 @@ description:
 date: 2026-06-29
 ---
 
-**HU-CP-03: Precio propuesto**
+1.  SECCIÓN INGREDIENTES: 
+    
 
-**Qué:**  Capturar los precios propuestos para realizar una simulacion de costeo
+Descripción: Catálogo de ingredientes utilizados en las recetas y subrecetas.
 
-**Para qué:** 
+\*\*Historias de usuario \*\*
 
-Poder capturar los precios propuestos sin cambiar el precio en el catalogo de recetas.
+#### Visualizar ingredientes
 
-Poder observar inmediatamente el impacto que tendra un precio propuesto en el margen y las ventas estimadas.
+**Qué:** Quiero visualizar la lista de ingredientes filtrados por unidad de negocio.
 
-Comparar escenario actual vs escenario propuesto en la misma fila.
+Para qué: Para visualizar y buscar los ingredientes por unidad de negocio y ver de primera mano las acciones que se pueden hacer con ello (editar y eliminar).
+
+Criterios de aceptación: La tabla debe contener lo siguiente:
+
+-   Debe filtrarse por unidad de negocio
+    
+-   Debe poder exportarse en excel
+    
+-   Debe tomar en cuenta el número de página en la paginación en la que se quede el usuario y al recargar debe aparecer en la misma hoja de paginación que se quedó.
+    
+-   El título que debe anteceder a la tabla en la parte superior izquierda es “Lista de Ingredientes / (Nombre de la Unidad de Negocio)”
+    
+-   los campos que debe tener son los siguientes:
+    
+
+1.  producto
+    
+2.  precio compra
+    
+3.  contenido neto
+    
+4.  precio unidad
+    
+5.  unidad 
+    
+6.  marca
+    
+7.  proveedor
+    
+8.  descripción
+    
+9.  botones de editar y eliminar en la última columna.
+    
+
+#### Crear ingrediente
+
+**Qué:** Quiero CREAR un ingrediente.
+
+Para qué: Para tener la lista de ingredientes por unidad de negocio y estos vincularlos con subrecetas y recetas.
+
+Criterios de aceptación: Para crear un ingrediente los campos que debe tener el formulario son los siguientes:
+
+1.  nombre (obligatorio)
+    
+2.  contenido neto (cantidad respecto a su unidad) (obligatorio)
+    
+3.  unidad (select) (obligatorio)
+    
+4.  precio (obligatorio)
+    
+5.  precio por unidad (precio/contenido neto) (readonly)
+    
+6.  marca (select)
+    
+7.  proveedor (select)
+    
+8.  descripción
+    
+9.  unidad de negocio (select) (obligatorio)
+    
+
+Al final el sistema debe detectar si el nombre del nuevo ingrediente ya existe para la Unidad de negocio seleccionada, si ya existe debe arrojar una alerta con sweet alert con el mensaje “Ya existe este ingrediente para ( Nombre de la Unidad de Negocio)”.
+
+Qué: Quiero EDITAR un ingrediente.
+
+Para qué: Para cambiar los datos del ingrediente por si hubo algún error de captura o si cambia el precio del ingrediente, actualizarlo.
+
+Criterios de aceptación:  Para editar un ingrediente los campos que debe tener el formulario son los siguientes:
+
+1.  nombre (obligatorio)
+    
+2.  contenido neto (cantidad respecto a su unidad)(obligatorio)
+    
+3.  unidad (select)(obligatorio)
+    
+4.  precio (obligatorio)
+    
+5.  precio por unidad (precio/contenido neto)(readonly)
+    
+6.  marca (select)
+    
+7.  proveedor (select)
+    
+8.  descripción
+    
+9.  unidad de negocio (select)(disabled)
+    
+
+Al final el sistema debe detectar si el nombre del ingrediente ya existe para la Unidad de negocio seleccionada y si no es el mismo que se está editando, si ya existe y no es el mismo que se está editando, entonces, debe arrojar una alerta con sweet alert con el mensaje “Ya existe este ingrediente para ( Nombre de la Unidad de Negocio)”.
+
+Qué: Quiero ELIMINAR un ingrediente.
+
+Para qué: Para borrarlo definitivamente del sistema cuando haya sido un error de captura.
+
+Criterios de aceptación:  Para eliminar un ingrediente el sistema debe verificar si el ingrediente está vinculado a una subreceta o a una receta, de ser así aparecerá una alerta con el mensaje de “No se puede eliminar el ingrediente (aquí va el nombre del ingrediente) porque está vinculado a las siguientes recetas y subrecetas : /n Subrecetas: (nombre de las subrecetas || No tiene subrecetas vinculadas). /n Recetas:(nombre de las recetas || No tiene recetas vinculadas).”
+
+Si el ingrediente no tiene ningún vínculo a al menos una subreceta o una receta, entonces deberá aparecer una alerta de confirmación.
+
+—------------------------------------------------------------------------------------------------------------------------------
+
+2.  SECCIÓN SUBRECETAS: 
+    
+
+Descripción: Gestión de subrecetas asociadas a recetas principales, éstas tienen una lista de ingredientes que se dividen en ingredientes y subrecetas, es decir, las subrecetas pueden tener como ingrediente otra subreceta. Igualmente cuentan con un procedimiento culinario más pequeño que las recetas.
+
+\*\*Historias de usuario \*\*
+
+#### Visualizar subrecetas
+
+**Qué:** Quiero visualizar la lista de subrecetas filtradas por unidad de negocio y clasificación.
+
+Para qué: Para visualizar y buscar las subrecetas por unidad de negocio y clasificación y ver de primera mano los datos y las acciones que se pueden hacer (ver, editar, agregar instrucciones de la subreceta, imprimir y eliminar).
+
+Criterios de aceptación: La tabla debe contener lo siguiente:
+
+-   Debe filtrarse por unidad de negocio y clasificación
+    
+-   Debe poder exportarse en excel
+    
+-   Debe tomar en cuenta el número de página en la paginación en la que se quede el usuario y al recargar debe aparecer en la misma hoja de paginación que se quedó.
+    
+-   El título que debe anteceder a la tabla en la parte superior izquierda es “Lista de Subrecetas/ (Nombre de la Unidad de Negocio)”
+    
+-   los campos que debe tener son los siguientes:
+    
+
+1.  fecha de creación
+    
+2.  foto
+    
+3.  nombre subreceta
+    
+4.  costo de ingredientes
+    
+5.  rendimiento (alcanza para hacer 1, 2.05, 5, etc).
+    
+6.  costo x unidad
+    
+7.  botón de ver más (...) con las funciones de ver, editar, agregar instrucciones de la subreceta, imprimir y eliminar.
+    
+
+#### Crear subreceta
+
+**Qué:** Quiero CREAR una subreceta.
+
+**Para qué:** Para tener una lista de subrecetas por unidad de negocio y así finalmente vincularlas a una receta.
+
+**Criterios de aceptación:** Para crear una subreceta debe tener un formulario multipasos en donde
+
+el primer paso sería elegir:
+
+-   agregar imagen de la receta
+    
+-   la unidad de negocio de la nueva subreceta (select) (obligatorio)
+    
+-   el nombre de la nueva subreceta (input)(obligatorio)
+    
+-   clasificación de la receta (select) (obligatorio) (esta va cambiando dependiendo de la unidad de negocio seleccionada). 
+    
+-   Observaciones.
+    
+-   Instrucciones de la receta.
+    
+
+Esto servirá porque se creará la subreceta en la tabla de la BD y después podremos obtener el ID de la sub receta para hacer los vínculos con sus ingredientes y subrecetas correspondientes a la subreceta.
+
+Para el segundo paso el panel debe estar dividido en 2 (le llamaremos panel 1 y panel 2):
+
+A la izquierda la lista de ingredientes y subrecetas (panel 1) y a la derecha el procedimiento culinario  (panel 2).
+
+En el panel 1 existen 2 tablas, la de arriba es la lista de ingredientes y la de abajo es la lista de subrecetas asociadas a la subreceta. 
+
+Los campos de la primer tabla, de la tabla ingredientes son estos:  
+1\. Ingrediente (nombre)
+
+2\. Unidad
+
+3\. Cantidad
+
+4\. Precio unidad
+
+5\. Costo real (osea dependiendo de cuánto se puso en cantidad, es decir, se hace una regla de 3. Seria cantidad \* Precio unidad).
+
+6\. Opciones (Botones de “ver ingrediente” que en realidad puedes editarlo y botón de eliminar que sirve para quitar el ingrediente de la lista de ingredientes dentro de la subreceta).
+
+En la parte superior derecha aparece el “total de costo” que sería el total de costo por ingredientes, es decir, la suma de todos los costos de la tabla ingredientes.Y en la parte superior izquierda el número de ingredientes al igual que un botón para vincular otro ingrediente abriendo un formulario de lado que sea un select de ingrediente y un input de cantidad y el botón agregar (este formulario se puede colapsar haciendo click en la x). 
+
+Los campos de la segunda tabla, de la tabla subrecetas son estos:  
+1\. Subreceta (nombre)
+
+2\. Unidad
+
+3\. Cantidad
+
+4\. Precio unidad
+
+5\. Costo real (osea dependiendo de cuánto se puso en cantidad, es decir, se hace una regla de 3. Seria cantidad \* Precio unidad).
+
+6\. Opciones (botón de eliminar que sirve para quitar el ingrediente de la lista de ingredientes dentro de la subreceta).
+
+En la parte superior derecha aparece el “total de costo” que sería el total de costo por subrecetas, es decir, la suma de todos los costos de la tabla subrecetas. Y en la parte superior izquierda el número de subrecetas al igual que un botón para vincular otra subreceta abriendo un formulario de lado que sea un select de subreceta y un input de cantidad y el botón agregar (este formulario se puede colapsar haciendo click en la x). 
+
+En el panel 2 es calcular el procedimiento culinario:
+
+Este tiene los campos de:
+
+1.  Total de ingredientes (input)(disabled)(Es la suma de los costos de la tabla ingredientes y la tabla subrecetas).
+    
+2.  Unidad (select)(obligatorio)(Esta es la unidad de la nueva subreceta)
+    
+3.  Rendimiento (input) (obligatorio)
+    
+4.  Costo (input)(disabled) (Es la división entre el Total de ingredientes / Rendimiento)
+    
+
+Sin ello no se puede guardar la subreceta. 
+
+Qué: Quiero EDITAR un ingrediente.
+
+Para qué: Para cambiar los datos del ingrediente por si hubo algún error de captura o si cambia el precio del ingrediente, actualizarlo.
+
+Criterios de aceptación:  Para editar un ingrediente los campos que debe tener son los siguientes:
+
+10.  nombre 
+     
+11.  contenido neto (cantidad respecto a su unidad)
+     
+12.  unidad (select)
+     
+13.  precio 
+     
+14.  precio por unidad (precio/contenido neto)(readonly)
+     
+15.  marca (select)
+     
+16.  proveedor (select)
+     
+17.  descripción
+     
+18.  unidad de negocio (select)(disabled)
+     
+
+Qué: Quiero ELIMINAR un ingrediente.
+
+Para qué: Para borrarlo definitivamente del sistema cuando haya sido un error de captura.
+
+Criterios de aceptación:  Para eliminar un ingrediente el sistema debe verificar si el ingrediente está vinculado a una subreceta o a una receta, de ser así aparecerá una alerta con el mensaje de “No se puede eliminar el ingrediente (aquí va el nombre del ingrediente) porque está vinculado a las siguientes recetas y subrecetas : /n Subrecetas: (nombre de las subrecetas || No tiene subrecetas vinculadas). /n Recetas:(nombre de las recetas || No tiene recetas vinculadas).”
+
+Si el ingrediente no tiene ningún vínculo a al menos una subreceta o una receta, entonces deberá aparecer una alerta de confirmación.
+
+—-----------------------------------------------------------------------------------------------------------------------------------
+
+-   Recetas: Administración completa de recetas.
+    
+-   Subrecetas: Gestión de subrecetas asociadas a recetas principales.
+    
+-     
+    
+-   Categorías y Subcategorías: Organización jerárquica de recetas y productos mediante categorías y subcategorías.
+    
+-   Vinculación de Productos: Asociación de recetas, subrecetas o ingredientes a productos específicos del inventario
+    
+
+HU-CP-01: LISTA DE RECETAS
+
+Qué: Consultar el costo unitario de cada receta recorriendo por grupos y subgrupos por unidad seleccionada
+
+Para qué: 
+
+Conocer el costo real de la producción ,desplazamiento,ventas estimadas ,costo estimado ,mc estimado que permita tomar decisiones mediante parámetros de costos establecidos.
 
 **Criterios de aceptación:**
 
-\- El usuario puede capturar / editar el precio propuesto directamente en la celda P.propuesto del tablero de costo potencial.
+> *Snapshot:* es una copia guardada de los costos y ventas en un mes específico.
 
-\- Al ejecutar el ejercicio mensual, el sistema debe copiar el precio\_propuesto del mes anterior al nuevo snapshot.
+La lista que se genera debe filtrarse por los parámetros siguientes:
 
-\- Comparar `costopotencial.precio_propuesto` entre el mes origen y el mes destino de una receta sin ventas.
+**Filter bar:**
 
-***Como funciona:***
+- Unidad de negocio
+- Clasificación
+- Año
+- Mes
+    
 
-Cuando el usuario introduce un precio propuesto ej 19 antes 18 , 
+\* Se debe tomar en cuenta que dependiendo el perfil de usuario la tabla puede tener diferentes cambios.
 
-el modelo recalcula los indicadores aplicando
+La tabla debe contar con las siguientes columnas:
 
-las formulas pero sustituyendo el precio manteniendo el costo y desplazamiento, esos no se tocan.
+debe estar separa por subgrupos que consultan lo siguiente:
 
-las formulas serian: 
+-   Producto
+    
+-   P.Propuesto ( Celda que permita ingresar un precio )
+    
+-   P.Venta sin iva
+    
+-   Costo ( El costo de producción del producto )
+    
+-   Costo % ( Porcentaje de lo que cuesta producir )
+    
 
-1.- Formula base:
+-   MC ( Margen de contribución, cuando es la ganancia )
+    
+-   Desplazamiento (Movimiento del producto respecto a la venta)
+    
+-   Ventas estimadas
+    
+-   Costo estimado
+    
+-   Mc estimado
+    
 
-*pVentaSinIVApropuesto = precio\_propuesto / ( 1 + (iva + ieps) /100*
+La tabla cuenta con indicadores de colores para identificar si se encuentran fuera del rango.
 
-2.- Indicadores que recalcula:
+Las siguientes fórmulas/funciones son las siguientes:
 
-\* **Margen de contribución:** *pVentaSinIVAPropuesto - costo* 
+-   pintarCosto
+    
 
-*\* **% costo :** (costo /* *pVentaSinIVAPropuesto**) \* 100*
+Permite identificar si el costo tuvo un cambio respecto al snapShot almacenado, se debe pintar de color amarillo con un warning de icono.
 
-***\* Costo estimado:**  costo \* desplazamiento*
+-   pintarPorcentajeCosto
+    
 
-***\* MC estimado :** MCpropuesto \* desplazamiento  
-  
-\*\* Comportamiento de la tabla:*
+Pintar en verde si el % de costo es bajo (sano) rojo si supera el alto.
 
-*\- Solo cambia el precio, el costo y el desplazamiento no se tocan*
+-   pintarMC
+    
 
-*\- si el filtro fue modificado , la celda se pinta de amartillo y el tablero puede mostrar los indicadores propuestos en lugar del actual.*
+Pintar verde si el margen de contribución es alto , rojo si es bajo.
 
-Al agregar un precio propuesto se puede activar un semaforo de color
+-   pintarDesplazamiento
+    
 
--   Indicado de costo Amarillo
--   Indicador Porcentaje Costo Verde/Rojo
--   Incador MC verde rojo
--   indicador desplazamiento verde/rojo
+Pintar verde si el platillo sale por encima del promedio de su clasificación , rojo por debajo.
+
+Además de las siguientes fórmulas:
+
+aplicarCalculo()
+
+Esta fórmula re-calcula los indicadores en tiempo real sobre el costo del \*snapshot\* y además calcula costo Receta : total / rendimiento para detectar diferencias.
+
+### HU-CP-02 · Ejecutar ejercicio mensual
+
+Qué: generar una copia del snapshot mensual para copiarlo en alguna fecha seleccionada
+
+Para qué: 
+
+Poder realizar un ejercicio sin la preocupación de alterar los datos del costo potencial , además de poder automatizar la actualización programada de los precios actualizados al inicio del mes.
+
+Criterios de aceptación:
+
+El snapshot mensual representa registros de recetas congeladas a una fecha de corte , y debe permitir al usuario crearlo en cualquier mes , pero hacia adelante no hacia atrás.
+
+La copia debe separar lo actual vs propuesto
+
+    la base es :
+
+      \- precio venta
+
+      - costo  
+      - margen contribución  
+      - ventas estimadas  
+      - costo estimado  
+      - mc estimado
+
+-   Propuesto / simulado:
+    
+
+     - precio propuesto  
+    - costo porcentaje propuesto  
+    - ventas estimadas \_ propuesto  
+    - costo estimado \_ propuesto  
+    - mc propuesto  
+
+\* observaciones
+
+\- Un ejercicio de snapshot( proyección) no debe poder editar una ves pasado el mes, en caso de editarse debe tener permiso de administrador.
+
+ - Si la fecha del ejercicio corresponde a un mes ya cerrado (fecha actual > último día del mes del ejercicio), el sistema mostrará el      ejercicio en modo solo lectura.
+
+\- Cualquier intento de modificación deberá ser validado contra el rol/perfil del usuario
+
+\- Se puede programar el ejercicio terminado indicando que productos son los que se actualizará a partir de la fecha.
+
+1.  Fecha de aplicación: día a partir del cual se hará efectiva la actualización (debe ser igual o posterior a la fecha del ejercicio).
+    
+2.  Productos a actualizar: listado explícito de recetas o clasificaciones que se verán afectadas.
+    
+3.  Campos a aplicar: precio propuesto, costo estimado, margen estimado o combinación de ellos.
+    
+
+## ### HU-CP-04 · Precio propuesto
+
+## Qué:  Capturar los precios propuestos para realizar una simulación de costeo
+
+## Para qué: 
+
+## Poder capturar los precios propuestos sin cambiar el precio en el catálogo de recetas.
+
+## Poder observar inmediatamente el impacto que tendrá un precio propuesto en el margen y las ventas estimadas.
+
+## Comparar escenario actual vs escenario propuesto en la misma fila.
+
+## Criterios de aceptación:
+
+## \- El usuario puede capturar / editar el precio propuesto directamente en la celda P.propuesto del tablero de costo potencial.
+
+## \- Al ejecutar el ejercicio mensual, el sistema debe copiar el precio propuesto del mes anterior al nuevo snapshot.
+
+## \- Comparar costo potencial.precio propuesto entre el mes origen y el mes destino de una receta sin ventas.
+
+## Cómo funciona:
+
+## Cuando el usuario introduce un precio propuesto ej 19 antes 18 , 
+
+## el modelo calcula los indicadores aplicando
+
+## las fórmulas pero sustituyendo el precio manteniendo el costo y desplazamiento, esos no se tocan.
+
+## las fórmulas serían: 
+
+## 1.- Fórmula base:
+
+## VentaS IVA propuesto = precio propuesto / ( 1 + (iva + ieps) /100
+
+## 2.- Indicadores que recalcula:
+
+## \* Margen de contribución: Venta Sin IVA Propuesto - costo 
+
+## \* % costo : (costo / Venta Sin IVA Propuesto) \* 100
+
+## \* Costo estimado:  costo \* desplazamiento
+
+## \*MC estimado : MC propuesto \* desplazamiento
+
+## Comportamiento de la tabla:
+
+## \- Solo cambia el precio, el costo y el desplazamiento no se tocan
+
+## \- si el filtro fue modificado , la celda se pinta de amartillo y el tablero puede mostrar los indicadores propuestos en lugar del actual.
+
+## Al agregar un precio propuesto se puede activar un semaforo de color
+
+-   ## \- Indicado de costo Amarillo
+    
+-   ## \- Indicador Porcentaje Costo Verde/Rojo
+    
+-   ## \- Indicador MC verde rojo
+    
+-   ## \- Indicador desplazamiento verde/rojo
+    
+
+### HU-CP-05 · Programar actualización de precios
+
+Qué: Capturar, simular y programar la aplicación de los precios propuestos para que se apliquen de forma masiva en una fecha futura, sin necesidad de intervención del usuario en el momento de la aplicación
+
+Para qué: 
+
+Cerrar el ciclo de planificación → simulación → ejecución programada de cambios de precio.
+
+Permitir que el negocio defina hoy una estrategia de precios que se ejecutará el 1° del mes siguiente (o cualquier fecha), sin riesgo de olvidar aplicarla.
+
+Dejar trazabilidad completa: quién simuló, quién aprobó, cuándo se ejecutó.
+
+Soportar la realidad operativa del restaurante: los precios se planean con anticipación, no se cambian de un día para otro.
+
+FASE 1: Captura y simulación
+
+El usuario captura precio propuesto por receta en el tablero de costo potencial
+
+Se calcula automáticamente: MC propuesto, %costo propuesto, ventas estimadas propuestas
+
+#### FASE 2 · Programación de la aplicación
+
+\*\*El botón Programación  aparece en el table cuando hay >= 1 precio propuesto capturado. 
+
+Al presionarlo se abre un modal con lo siguiente:
+
+Fecha efectiva ( datepicker por default el dia 1 del mes siguiente )
+
+Tipo de aplicación:
+
+  Todas - Todas las recetas sin excepción
+
+   Por clasificación : filtrar por clasificación que recetas van a copiarse en el tablero
+
+   Por selección: selección múltiple de las recetas
+
+   Vista previa de los cambios
+
+El usuario confirma y el sistema:
+
+inserta en la tabla costo potencial proyección los datos que se reflejaran a partir de la fecha 
+
+Reglas 
+
+\*\* Importante al ejecutarse si se seleccionaron algunas recetas, se realizarán los cambios propuestos, pero el día primero se agregaran las recetas que no fueron afectadas para completar el ciclo correcto en el costsys.
+
+Una receta sólo puede tener un programación pendiente por mes
+
+El precio propuesto debe ser mayor a 0
+
+No se puede programar una receta descontinuada
+
+Si la receta cambia de precio en el transcurso de la programación el sistema igual aplicará el cálculo vigente.
+
+Cancelación, es posible cancelar una programación antes de la fecha programada.

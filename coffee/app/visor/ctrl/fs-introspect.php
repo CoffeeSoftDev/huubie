@@ -58,6 +58,50 @@ function fs_is_within($root, $child) {
     return $c === $r || strpos($c . '/', $r . '/') === 0;
 }
 
+/**
+ * Ruta RELATIVA a la raiz permitida que contiene $abs (p.ej. "ERP-GV/DEV/coffee/costsys").
+ * Sirve para mostrar candidatos DISTINGUIBLES: si dos carpetas se llaman igual, su basename
+ * no las diferencia pero su ruta relativa si. Si no cae en ninguna raiz, devuelve la absoluta.
+ */
+function fs_rel_to_root($abs) {
+    $abs = fs_norm($abs);
+    foreach (fs_allowed_roots() as $root) {
+        if ($abs === $root) return basename($abs);
+        if (strpos($abs . '/', $root . '/') === 0) {
+            return ltrim(substr($abs, strlen($root)), '/');
+        }
+    }
+    return $abs;
+}
+
+/**
+ * Desempata carpetas HOMONIMAS por pistas de ruta. Dadas varias rutas candidatas y una
+ * lista de pistas (tokens que podrian ser carpetas ancestro, ej. "erp-gv", "coffee"),
+ * devuelve el subconjunto cuya ruta contiene MAS pistas como segmentos. Asi "costsys de
+ * coffee" se queda solo con ERP-GV/DEV/coffee/costsys. Si ninguna pista aplica, devuelve
+ * las rutas originales (sigue ambiguo, no adivina).
+ *
+ * @param string[] $paths  rutas absolutas candidatas.
+ * @param string[] $hints  tokens en minusculas que podrian ser carpetas ancestro.
+ * @return string[]
+ */
+function fs_refine_by_hints(array $paths, array $hints) {
+    if (count($paths) <= 1 || empty($hints)) return $paths;
+    $best = []; $bestScore = -1;
+    foreach ($paths as $p) {
+        $segs  = array_map('strtolower', explode('/', fs_norm($p)));
+        $score = 0;
+        foreach ($hints as $h) {
+            if ($h !== '' && in_array($h, $segs, true)) $score++;
+        }
+        if ($score > $bestScore)      { $bestScore = $score; $best = [$p]; }
+        elseif ($score === $bestScore) { $best[] = $p; }
+    }
+    // Solo refinamos si alguna pista discrimino de verdad (score > 0 y no todas empatan).
+    if ($bestScore > 0 && count($best) < count($paths)) return array_values(array_unique($best));
+    return $paths;
+}
+
 /* ── Carpetas conectables (primer nivel de cada raiz) ───────────── */
 
 /**
@@ -126,19 +170,32 @@ function fs_resolve_folder($name) {
         return ['matches' => [fs_norm(realpath($maybe))]];
     }
 
+    // El query puede traer PISTAS de ruta: "coffee/costsys", "erp-gv costsys". El ultimo
+    // segmento es el nombre de la carpeta objetivo; los anteriores son carpetas ancestro
+    // que ayudan a desempatar homonimos.
+    $parts  = array_values(array_filter(preg_split('#[\\\\/\s]+#', strtolower($q))));
+    $target = !empty($parts) ? end($parts) : strtolower($q);
+    $hints  = array_slice($parts, 0, -1);
+
     $index = fs_folder_index();
-    $ql = strtolower($q);
 
     // 2) Match exacto por nombre de carpeta (en cualquier nivel).
-    if (isset($index[$ql])) {
-        return ['matches' => array_values(array_unique($index[$ql]))];
+    if (isset($index[$target])) {
+        $matches = array_values(array_unique($index[$target]));
+    } else {
+        // 3) Substring (la palabra aparece dentro del nombre de la carpeta).
+        $matches = [];
+        foreach ($index as $pn => $paths) {
+            if (strpos($pn, $target) !== false) $matches = array_merge($matches, $paths);
+        }
+        $matches = array_values(array_unique($matches));
     }
-    // 3) Substring (la palabra aparece dentro del nombre de la carpeta).
-    $sub = [];
-    foreach ($index as $pn => $paths) {
-        if (strpos($pn, $ql) !== false) $sub = array_merge($sub, $paths);
+
+    // 4) Si el usuario dio pistas de ruta, refinamos entre los homonimos.
+    if (count($matches) > 1 && !empty($hints)) {
+        $matches = fs_refine_by_hints($matches, $hints);
     }
-    return ['matches' => array_values(array_unique($sub))];
+    return ['matches' => $matches];
 }
 
 /** Ruta canonica de una carpeta (acepta nombre amigable o ruta). Lanza si no/ambigua. */
@@ -150,7 +207,9 @@ function fs_canonical_folder($name) {
     }
     throw new FsIntrospectException(
         'Nombre de carpeta ambiguo "' . $name . '". Coincide con: '
-        . implode(', ', array_map('basename', $r['matches']))
+        . implode(', ', array_map('fs_rel_to_root', $r['matches']))
+        . '. Especifica un fragmento distintivo de la ruta (p.ej. "'
+        . fs_rel_to_root($r['matches'][0]) . '").'
     );
 }
 
@@ -190,9 +249,16 @@ function fs_detect_request($text, $force = false) {
     $maxW = reset($hits);
     $top  = array_keys(array_filter($hits, fn($w) => $w === $maxW));
 
+    // Desempate por pistas de ruta: si varias carpetas homonimas empatan, usamos el resto
+    // de tokens del mensaje (posibles carpetas ancestro) para quedarnos con la mas
+    // especifica. Ej: "conectate a costsys de coffee" -> ERP-GV/DEV/coffee/costsys.
+    if (count($top) > 1) {
+        $top = fs_refine_by_hints($top, array_unique($m[0]));
+    }
+
     return [
         'path'       => count($top) === 1 ? $top[0] : null,
-        'candidates' => array_keys($hits),
+        'candidates' => $top,   // homonimos reales entre los que hay que desambiguar
         'requested'  => $text,
     ];
 }

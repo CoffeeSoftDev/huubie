@@ -135,9 +135,10 @@
             </div>
 
             <div class="ia-drawer-input pg-chat-input">
-                <!-- Chip de base conectada (conexión pegajosa de la conversación). Reusa
-                     los estilos .ia-db-chip de visor.css. -->
+                <!-- Chips de conexión pegajosa (base y carpeta) de la conversación.
+                     Reusan los estilos .ia-db-chip de visor.css. -->
                 <div id="pgDbChip" class="ia-db-chip" style="display:none;"></div>
+                <div id="pgFolderChip" class="ia-db-chip" style="display:none;"></div>
                 <div id="pgImageStrip" class="ia-image-strip" style="display:none;"></div>
                 <div class="ia-input-wrap">
                     <textarea id="pgInput" class="ia-input-textarea" rows="1" placeholder="Pide algo al agente..."></textarea>

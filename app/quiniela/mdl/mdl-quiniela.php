@@ -52,8 +52,11 @@ class MQuiniela
     public function buildMessages($teamA, $teamB)
     {
         $system = "Eres un analista estadistico de futbol experto en Copas del Mundo. "
-            . "Analiza un partido unico hipotetico entre dos selecciones basandote EXCLUSIVAMENTE en su historia mundialista: "
-            . "numero de participaciones, fase mas lejana alcanzada y victorias notables sobre otras selecciones. "
+            . "Analiza un partido unico hipotetico entre dos selecciones basandote en su historia mundialista "
+            . "(numero de participaciones, fase mas lejana alcanzada y victorias notables sobre otras selecciones) "
+            . "y aplica una simulacion de Monte Carlo con modelo de Poisson: estima los goles esperados (xG) de cada "
+            . "seleccion a partir de su historia, modela los goles de cada equipo como una distribucion de Poisson y "
+            . "razona el marcador y las probabilidades como si simularas el partido miles de veces. "
             . "Responde UNICAMENTE con un objeto JSON valido, sin texto extra ni markdown, con esta forma exacta: "
             . '{"goles_a": <entero>, "goles_b": <entero>, "prob_a": <entero>, "prob_b": <entero>, "prob_empate": <entero>, "razonamiento": "<maximo 2 frases en espanol>"}. '
             . "prob_a, prob_b y prob_empate son enteros que DEBEN sumar 100. El marcador debe ser coherente con las probabilidades.";

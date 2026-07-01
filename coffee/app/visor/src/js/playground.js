@@ -164,7 +164,8 @@ const pg = {
     threadUid:   null,       // uid del hilo activo (null = aún no persistido)
     threadTitle: '',         // título del hilo activo
     _threadSaveTimer: null,  // debounce del autosave del hilo
-    activeDb:    null        // base MySQL conectada (conexión pegajosa de la conversación)
+    activeDb:    null,       // base MySQL conectada (conexión pegajosa de la conversación)
+    activeFolder: null       // carpeta local conectada (conexión pegajosa de la conversación)
 };
 
 $(async () => {
@@ -724,6 +725,8 @@ function pgClearChat() {
     pg._loadedName = '';
     pg.activeDb = null;    // limpiar el chat suelta la conexión a la base (como el Visor)
     pgRenderDbChip();
+    pg.activeFolder = null; // ...y también la conexión a la carpeta
+    pgRenderFolderChip();
     clearTimeout(pg._threadSaveTimer);
     pgClearSession();      // al limpiar el chat, no hay sesión que retomar
     pgUpdateThreadChip();
@@ -770,6 +773,43 @@ function pgRenderDbChip() {
     if (window.lucide) lucide.createIcons();
 }
 
+/* ── Conexión a una carpeta local (conexión pegajosa por conversación) ──
+ * Gemelo del patrón del Visor: la carpeta se reenvía como `folderConnect` en cada
+ * turno y el agente la navega en SOLO LECTURA (list_dir/read_file/grep_files) para
+ * responder con el código real. La resolución y el sandbox son server-side. */
+
+// Fija (o suelta, con null) la carpeta conectada y refresca el chip indicador.
+function pgSetActiveFolder(path) {
+    const next = path || null;
+    const changed = next !== pg.activeFolder;
+    pg.activeFolder = next;
+    pgRenderFolderChip();
+    if (changed && next) {
+        const fname = String(next).replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
+        pgToast('📁 Conectado a la carpeta ' + fname, 'success');
+    }
+}
+
+// Chip "📁 <carpeta> ✕" sobre el input. La ✕ desconecta (sin borrar el chat).
+// La carpeta se conecta nombrándola en el chat ("conéctate a costsys de coffee…");
+// el backend la resuelve y la devuelve en el evento `done`, igual que el Visor.
+function pgRenderFolderChip() {
+    const $chip = $('#pgFolderChip');
+    if (!$chip.length) return;
+    if (!pg.activeFolder) { $chip.hide().empty(); return; }
+    const name = String(pg.activeFolder).replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
+    $chip.html(`
+        <i data-lucide="folder-open" class="w-3 h-3"></i>
+        <span class="ia-db-chip-name" title="Carpeta conectada: ${pgEscape(pg.activeFolder)}">${pgEscape(name)}</span>
+        <button type="button" class="ia-db-chip-x" title="Desconectar de la carpeta"><i data-lucide="x" class="w-3 h-3"></i></button>
+    `).show();
+    $chip.find('.ia-db-chip-x').off('click').on('click', () => {
+        pgSetActiveFolder(null);
+        pgToast('Desconectado de la carpeta', 'info');
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
 /* ── Sesión persistente (retomar al recargar) ──
  * El Lab guarda en localStorage la conversación + el último render + las
  * miniaturas de la sesión, y los restaura al abrir, igual que Forge retoma su
@@ -792,6 +832,7 @@ function pgSnapshotSession() {
         agentKey:     pg.agentKey,
         theme:        pg.theme,
         activeDb:     pg.activeDb || null,
+        activeFolder: pg.activeFolder || null,
         ts:           Date.now()
     };
 }
@@ -865,6 +906,8 @@ function pgRestoreSession() {
     pg._loadedName   = s.loadedName || '';
     pg.activeDb      = s.activeDb || null;
     pgRenderDbChip();
+    pg.activeFolder  = s.activeFolder || null;
+    pgRenderFolderChip();
 
     pgRebuildChat();
     if (pg.lastHtml) pgRenderSandbox(pg.lastHtml, pg._lastIsDoc);
@@ -961,7 +1004,8 @@ async function pgSaveThread(silent) {
     const meta = {
         theme: pg.theme, agentKey: pg.agentKey,
         canvasMode: !!pg.canvasMode, lastUserText: pg._lastUserText || '',
-        activeDb: pg.activeDb || ''
+        activeDb: pg.activeDb || '',
+        activeFolder: pg.activeFolder || ''
     };
     try {
         const form = new FormData();
@@ -1109,6 +1153,7 @@ async function pgLoadThread(uid) {
         }
         if (typeof meta.canvasMode === 'boolean') { pg.canvasMode = meta.canvasMode; pgApplyCanvasUI(); }
         pgSetActiveDb(meta.activeDb || null);   // reconecta la base que tenía el hilo (o suelta)
+        pgSetActiveFolder(meta.activeFolder || null); // ...y la carpeta que tenía el hilo (o suelta)
         pg._lastUserText = meta.lastUserText || '';
         if (th.model) { pg.model = th.model; $('#pgModelSelect').val(th.model); }
         pgSaveSettings();
@@ -1375,6 +1420,7 @@ async function pgSend(text, images, docs) {
         pinnedFiles:    pinned,
         canvasMode:     !!pg.canvasMode,
         dbConnect:      pg.activeDb || '',   // base conectada (conexión pegajosa)
+        folderConnect:  pg.activeFolder || '', // carpeta conectada (conexión pegajosa)
         // 'data': el agente construye una UI poblada con datos reales (run_select), sin
         // el formato de cajas ASCII del Visor. Depende del TIPO de agente (produce UI),
         // NO de si ya hay base conectada: así el PRIMER mensaje que nombra la base —el
@@ -1454,6 +1500,8 @@ async function pgSend(text, images, docs) {
     // Conexión pegajosa: si el backend resolvió una base (la nombrada en el mensaje o
     // la reenviada en dbConnect), la recordamos para los siguientes turnos.
     if (meta && meta.db) pgSetActiveDb(meta.db);
+    // Igual para la carpeta local conectada (list_dir/read_file/grep_files).
+    if (meta && meta.fs) pgSetActiveFolder(meta.fs);
     pg.history.push({ role: 'assistant', content: received });
     pgFinalizeResponse(stream, received, {
         credits:          meta.credits_estimate,
