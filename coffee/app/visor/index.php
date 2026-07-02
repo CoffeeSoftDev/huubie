@@ -401,6 +401,10 @@
                 <div class="ia-drawer-body" id="iaBodyChat" style="display:none;"></div>
 
                 <div class="ia-drawer-input">
+                    <!-- Bajar al final: aparece al subir a leer mientras la IA escribe -->
+                    <button id="iaScrollDownBtn" class="ia-scrolldown-btn" title="Bajar al final" style="display:none;">
+                        <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                    </button>
                     <div id="iaDbChip" class="ia-db-chip" style="display:none;"></div>
                     <div id="iaFolderChip" class="ia-db-chip ia-folder-chip" style="display:none;"></div>
                     <div id="iaImageStrip" class="ia-image-strip" style="display:none;"></div>

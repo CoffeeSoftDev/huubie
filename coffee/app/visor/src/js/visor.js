@@ -2683,6 +2683,9 @@ class CoffeeIA {
         this.pendingImages = [];     // [{ dataUrl, base64, mime, name }]
         this.pendingDocs   = [];     // [{ name, content, size }] archivos de texto adjuntos al mensaje
         this.model         = this._loadModel();
+        // "Stick to bottom": el auto-scroll durante el streaming solo se mantiene
+        // si el usuario esta pegado al fondo. Si sube a leer, se pausa (ver _scrollBottom).
+        this._stickBottom  = true;
 
         this.bind();
         this._syncContext();
@@ -3014,6 +3017,18 @@ class CoffeeIA {
 
         $('#iaSendBtn').on('click', () => { if (this.isBusy) this._stop(); else this._submit(); });
 
+        // Auto-scroll pegajoso: si el usuario sube a leer mientras la IA escribe,
+        // dejamos de arrastrarlo al fondo y mostramos el boton "bajar al final".
+        const chatEl = $('#iaBodyChat')[0];
+        if (chatEl) {
+            $('#iaBodyChat').off('scroll.stick').on('scroll.stick', () => {
+                const dist = chatEl.scrollHeight - chatEl.scrollTop - chatEl.clientHeight;
+                this._stickBottom = dist <= 80;
+                this._toggleScrollDownBtn(!this._stickBottom);
+            });
+        }
+        $('#iaScrollDownBtn').off('click').on('click', () => this._scrollBottom(true));
+
         $('#iaInputTextarea').on('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -3327,7 +3342,7 @@ class CoffeeIA {
 
         // Typing indicator
         const $typing = this._appendTyping();
-        this._scrollBottom();
+        this._scrollBottom(true);   // nuevo turno: baja al fondo y reactiva el pegado
 
         // Modo Layout: muestra en el panel de lectura la animacion "IA generando"
         // (puntitos + shimmer estilo Grok/ChatGPT) mientras llega la respuesta.
@@ -5216,9 +5231,20 @@ class CoffeeIA {
         $phase.find('.ia-typing-phase-text').text('Razonando… ≈ ' + approxToks + ' tokens');
     }
 
-    _scrollBottom() {
+    // force=true: baja al fondo si o si y reactiva el pegado (envio de mensaje o
+    // click en "bajar al final"). Sin force: respeta _stickBottom, de modo que si
+    // el usuario subio a leer mientras la IA escribe, no lo arrastramos de vuelta.
+    _scrollBottom(force) {
         const el = $('#iaBodyChat')[0] || $('#iaBodyEmpty')[0];
-        if (el) el.scrollTop = el.scrollHeight;
+        if (!el) return;
+        if (force) { this._stickBottom = true; this._toggleScrollDownBtn(false); }
+        if (this._stickBottom !== false) el.scrollTop = el.scrollHeight;
+    }
+
+    _toggleScrollDownBtn(show) {
+        const $b = $('#iaScrollDownBtn');
+        if (!$b.length) return;
+        if (show) $b.css('display', 'flex'); else $b.hide();
     }
 
     /* ── Clear conversation ── */
@@ -5229,6 +5255,8 @@ class CoffeeIA {
         this._currentChatTitle = null;
         this._chipsRendered = false;
         this._setActiveDb(null);   // al limpiar, se suelta la conexion a la base
+        this._stickBottom = true;
+        this._toggleScrollDownBtn(false);
         $('#iaBodyChat').empty().hide();
         $('#iaBodyEmpty').show();
         this._syncContext();
