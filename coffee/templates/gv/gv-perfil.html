@@ -158,15 +158,15 @@
                 </div>
 
                 <!-- Columna derecha: tabs -->
-                <div class="profile-card flex-1 w-full overflow-hidden">
-                    <div class="flex items-center gap-1 border-b border-slate-200 px-4 overflow-x-auto">
+                <div class="profile-card flex-1 w-full overflow-hidden flex flex-col min-h-[calc(100vh-150px)]">
+                    <div class="flex items-center gap-1 border-b border-slate-200 px-4 overflow-x-auto shrink-0">
                         <button class="profile-tab is-active" data-tab="laboral">Información laboral</button>
                         <button class="profile-tab" data-tab="personal">Información personal</button>
                         <button class="profile-tab" data-tab="seguridad">Seguridad</button>
                         <button class="profile-tab" data-tab="valores">Valores corporativos</button>
                     </div>
 
-                    <div class="p-6">
+                    <div class="p-6 flex-1">
                         <!-- TAB: Informacion laboral -->
                         <div class="profile-pane" id="tab-laboral">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
